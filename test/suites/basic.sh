@@ -465,7 +465,7 @@ test_basic_usage() {
   REBOOTED="false"
 
   # shellcheck disable=SC2034
-  for i in $(seq 20); do
+  for i in $(seq 30); do
     NEW_INIT=$(lxc info foo | grep ^Pid || true)
 
     if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
