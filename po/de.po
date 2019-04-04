@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-20 23:25-0700\n"
+"POT-Creation-Date: 2019-04-04 14:31-0400\n"
 "PO-Revision-Date: 2018-11-30 03:10+0000\n"
 "Last-Translator: ssantos <ssantos@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -486,14 +486,14 @@ msgstr "Ungültige Abbild Eigenschaft: %s\n"
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:229
+#: lxc/action.go:239
 msgid "Both --all and container name given"
 msgstr ""
 
 #: lxc/info.go:154
 #, fuzzy, c-format
 msgid "Brand: %v"
-msgstr "Fehler: %v\n"
+msgstr "Erstellt: %s"
 
 #: lxc/info.go:310 lxc/network.go:788
 msgid "Bytes received"
@@ -766,7 +766,7 @@ msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/launch.go:21 lxc/launch.go:22
+#: lxc/launch.go:22 lxc/launch.go:23
 msgid "Create and start containers from images"
 msgstr ""
 
@@ -927,7 +927,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:31 lxc/init.go:35
-#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:23 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
 #: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
 #: lxc/network.go:463 lxc/network.go:548 lxc/network.go:671 lxc/network.go:729
@@ -1020,9 +1020,9 @@ msgid "Don't show progress information"
 msgstr ""
 
 #: lxc/info.go:148
-#, fuzzy, c-format
+#, c-format
 msgid "Driver: %v (%v)"
-msgstr "Fehler: %v\n"
+msgstr ""
 
 #: lxc/list.go:665
 msgid "EPHEMERAL"
@@ -1980,9 +1980,9 @@ msgid "Missing target directory"
 msgstr ""
 
 #: lxc/info.go:155
-#, fuzzy, c-format
+#, c-format
 msgid "Model: %v"
-msgstr "Fehler: %v\n"
+msgstr ""
 
 #: lxc/monitor.go:29
 msgid "Monitor a local or remote LXD server"
@@ -2046,9 +2046,9 @@ msgid "NO"
 msgstr ""
 
 #: lxc/info.go:119 lxc/info.go:149
-#, fuzzy, c-format
+#, c-format
 msgid "NUMA node: %v"
-msgstr "Fehler: %v\n"
+msgstr ""
 
 #: lxc/info.go:152
 msgid "NVIDIA information:"
@@ -2168,9 +2168,9 @@ msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
 #: lxc/info.go:147
-#, fuzzy, c-format
+#, c-format
 msgid "PCI address: %v"
-msgstr "Fehler: %v\n"
+msgstr ""
 
 #: lxc/list.go:668
 msgid "PERSISTENT"
@@ -2786,7 +2786,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:259
+#: lxc/action.go:269
 #, fuzzy, c-format
 msgid "Some containers failed to %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -2800,7 +2800,7 @@ msgstr ""
 msgid "Start containers"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/launch.go:64
+#: lxc/launch.go:65
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -3037,7 +3037,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/action.go:196 lxc/launch.go:84
+#: lxc/action.go:196 lxc/launch.go:96
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -3148,9 +3148,9 @@ msgid "Vendor: %v"
 msgstr "Fehler: %v\n"
 
 #: lxc/info.go:140
-#, fuzzy, c-format
+#, c-format
 msgid "Vendor: %v (%v)"
-msgstr "Fehler: %v\n"
+msgstr ""
 
 #: lxc/query.go:38
 msgid "Wait for the operation to complete"
@@ -3471,7 +3471,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:251
+#: lxc/action.go:261
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"
@@ -3582,7 +3582,7 @@ msgstr ""
 msgid "init [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/launch.go:20
+#: lxc/launch.go:21
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
@@ -3709,7 +3709,7 @@ msgstr ""
 msgid "lxc init ubuntu:16.04 u1"
 msgstr ""
 
-#: lxc/launch.go:24
+#: lxc/launch.go:25
 msgid "lxc launch ubuntu:16.04 u1"
 msgstr ""
 
