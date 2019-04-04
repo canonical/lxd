@@ -2931,84 +2931,156 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 	logger.Infof("Copying BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	successMsg := fmt.Sprintf("Copied BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
-	isSrcSnapshot := shared.IsSnapshot(source.Name)
-	isDstSnapshot := shared.IsSnapshot(s.volume.Name)
-
-	var srcMountPoint string
-	var dstMountPoint string
-
-	if isSrcSnapshot {
-		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(source.Pool, source.Name)
-	} else {
-		srcMountPoint = getStoragePoolVolumeMountPoint(source.Pool, source.Name)
-	}
-
-	if isDstSnapshot {
-		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
-	} else {
-		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	}
-
-	if s.pool.Name == source.Pool {
-		var customDir string
-
-		// Ensure that the directories immediately preceding the subvolume directory exist.
-		if isDstSnapshot {
-			volName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
-			customDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, volName)
-		} else {
-			customDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
-		}
-
-		if !shared.PathExists(customDir) {
-			err := os.MkdirAll(customDir, customDirMode)
-			if err != nil {
-				logger.Errorf("Failed to create directory \"%s\" for storage volume \"%s\" on storage pool \"%s\": %s", customDir, s.volume.Name, s.pool.Name, err)
-				return err
-			}
-		}
-
-		err := s.btrfsPoolVolumesSnapshot(srcMountPoint, dstMountPoint, false, true)
-		if err != nil {
-			logger.Errorf("Failed to create BTRFS snapshot for storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-			return err
-		}
-
-		logger.Infof(successMsg)
-		return nil
-	}
-
-	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	// The storage pool needs to be mounted.
+	_, err := s.StoragePoolMount()
 	if err != nil {
-		logger.Errorf("Failed to initialize storage for BTRFS storage volume \"%s\" on storage pool \"%s\": %s", source.Name, source.Pool, err)
 		return err
 	}
 
-	ourMount, err := srcStorage.StoragePoolVolumeMount()
-	if err != nil {
-		logger.Errorf("Failed to mount BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-		return err
-	}
-	if ourMount {
-		defer srcStorage.StoragePoolVolumeUmount()
+	if s.pool.Name != source.Pool {
+		return s.doCrossPoolVolumeCopy(source.Pool, source.Name, source.VolumeOnly)
 	}
 
-	err = s.StoragePoolVolumeCreate()
+	err = s.copyVolume(source.Pool, source.Name, s.volume.Name, source.VolumeOnly)
 	if err != nil {
 		logger.Errorf("Failed to create BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
 	}
 
-	bwlimit := s.pool.Config["rsync.bwlimit"]
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit)
+	if source.VolumeOnly {
+		logger.Infof(successMsg)
+		return nil
+	}
+
+	subvols, err := btrfsSubVolumesGet(s.getCustomSnapshotSubvolumePath(source.Pool))
 	if err != nil {
-		s.StoragePoolVolumeDelete()
+		return err
+	}
+
+	for _, snapOnlyName := range subvols {
+		snap := fmt.Sprintf("%s/%s", source.Name, snapOnlyName)
+
+		err := s.copyVolume(source.Pool, snap, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName), false)
+		if err != nil {
+			logger.Errorf("Failed to create BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+			return err
+		}
+	}
+
+	logger.Infof(successMsg)
+	return nil
+}
+
+func (s *storageBtrfs) copyVolume(sourcePool string, sourceName string, targetName string, volumeOnly bool) error {
+	var customDir string
+	var srcMountPoint string
+	var dstMountPoint string
+
+	isSrcSnapshot := shared.IsSnapshot(sourceName)
+	isDstSnapshot := shared.IsSnapshot(targetName)
+
+	if isSrcSnapshot {
+		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, sourceName)
+	} else {
+		srcMountPoint = getStoragePoolVolumeMountPoint(sourcePool, sourceName)
+	}
+
+	if isDstSnapshot {
+		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, targetName)
+	} else {
+		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, targetName)
+	}
+
+	// Ensure that the directories immediately preceding the subvolume directory exist.
+	if isDstSnapshot {
+		volName, _, _ := containerGetParentAndSnapshotName(targetName)
+		customDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, volName)
+	} else {
+		customDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
+	}
+
+	if !shared.PathExists(customDir) {
+		err := os.MkdirAll(customDir, customDirMode)
+		if err != nil {
+			logger.Errorf("Failed to create directory \"%s\" for storage volume \"%s\" on storage pool \"%s\": %s", customDir, s.volume.Name, s.pool.Name, err)
+			return err
+		}
+	}
+
+	err := s.btrfsPoolVolumesSnapshot(srcMountPoint, dstMountPoint, false, true)
+	if err != nil {
+		logger.Errorf("Failed to create BTRFS snapshot for storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName string, volumeOnly bool) error {
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", sourcePool, sourceName, storagePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	err = s.StoragePoolVolumeCreate()
+	if err != nil {
+		return err
+	}
+
+	destVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+
+	if !volumeOnly {
+		// Handle snapshots
+		snapshots, err := storagePoolVolumeSnapshotsGet(s.s, sourcePool, sourceName, storagePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snapshots {
+			srcSnapshotMntPoint := getStoragePoolVolumeSnapshotMountPoint(sourcePool, snap)
+
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destVolumeMntPoint, bwlimit)
+			if err != nil {
+				logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+				return err
+			}
+
+			// create snapshot
+			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+
+			err = s.doVolumeSnapshotCreate(s.pool.Name, s.volume.Name, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var srcVolumeMntPoint string
+
+	if shared.IsSnapshot(sourceName) {
+		// copy snapshot to volume
+		srcVolumeMntPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, sourceName)
+	} else {
+		// copy volume to volume
+		srcVolumeMntPoint = getStoragePoolVolumeMountPoint(sourcePool, sourceName)
+	}
+
+	_, err = rsyncLocalCopy(srcVolumeMntPoint, destVolumeMntPoint, bwlimit)
+	if err != nil {
 		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
 	}
 
-	logger.Infof(successMsg)
 	return nil
 }
 
@@ -3041,33 +3113,40 @@ func (s *storageBtrfs) GetState() *state.State {
 func (s *storageBtrfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
 	logger.Infof("Creating BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	// Create subvolume path on the storage pool.
-	customSubvolumePath := s.getCustomSubvolumePath(s.pool.Name)
-	err := os.MkdirAll(customSubvolumePath, 0700)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	_, _, ok := containerGetParentAndSnapshotName(target.Name)
-	if !ok {
-		return err
-	}
-
-	customSnapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
-	err = os.MkdirAll(customSnapshotSubvolumeName, snapshotsDirMode)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
-	err = s.btrfsPoolVolumesSnapshot(sourcePath, targetPath, true, true)
+	err := s.doVolumeSnapshotCreate(s.pool.Name, s.volume.Name, target.Name)
 	if err != nil {
 		return err
 	}
 
 	logger.Infof("Created BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
+}
+
+func (s *storageBtrfs) doVolumeSnapshotCreate(sourcePool string, sourceName string, targetName string) error {
+	// Create subvolume path on the storage pool.
+	customSubvolumePath := s.getCustomSubvolumePath(s.pool.Name)
+
+	err := os.MkdirAll(customSubvolumePath, 0700)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	_, _, ok := containerGetParentAndSnapshotName(targetName)
+	if !ok {
+		return err
+	}
+
+	customSnapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+
+	err = os.MkdirAll(customSnapshotSubvolumeName, snapshotsDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourcePath := getStoragePoolVolumeMountPoint(sourcePool, sourceName)
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, targetName)
+
+	return s.btrfsPoolVolumesSnapshot(sourcePath, targetPath, true, true)
 }
 
 func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {

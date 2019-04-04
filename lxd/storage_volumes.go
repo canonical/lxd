@@ -272,53 +272,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 
 func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) Response {
 	doWork := func() error {
-		err := storagePoolVolumeCreateInternal(d.State(), poolName, req)
-		if err != nil {
-			return err
-		}
-
-		if req.Source.VolumeOnly {
-			return nil
-		}
-
-		if req.Source.Pool == "" {
-			return nil
-		}
-
-		// Convert the volume type name to our internal integer representation.
-		volumeType, err := storagePoolVolumeTypeNameToType(req.Type)
-		if err != nil {
-			return err
-		}
-
-		// Get poolID of source pool
-		poolID, err := d.cluster.StoragePoolGetID(req.Source.Pool)
-		if err != nil {
-			return err
-		}
-
-		// Get volumes attached to source storage volume
-		volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(req.Source.Name, volumeType, poolID)
-		if err != nil {
-			return err
-		}
-
-		for _, vol := range volumes {
-			_, snapshotName, _ := containerGetParentAndSnapshotName(vol)
-
-			copyReq := api.StorageVolumesPost{}
-			copyReq.Name = fmt.Sprintf("%s%s%s", req.Name, shared.SnapshotDelimiter, snapshotName)
-			copyReq.Type = "custom"
-			copyReq.Source.Name = fmt.Sprintf("%s%s%s", req.Source.Name, shared.SnapshotDelimiter, snapshotName)
-			copyReq.Source.Pool = req.Source.Pool
-
-			err = storagePoolVolumeSnapshotCreateInternal(d.State(), poolName, &copyReq)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return storagePoolVolumeCreateInternal(d.State(), poolName, req)
 	}
 
 	if req.Source.Name == "" {
@@ -646,41 +600,6 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 			err = s.StoragePoolVolumeDelete()
 			if err != nil {
 				return err
-			}
-
-			// Rename volume snapshots
-			// Get volumes attached to source storage volume
-			volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName,
-				storagePoolVolumeTypeCustom, poolID)
-			if err != nil {
-				return err
-			}
-
-			for _, vol := range volumes {
-				// Rename volume snapshots
-				snapshot, err := storagePoolVolumeInit(d.State(), "default", poolName,
-					vol, storagePoolVolumeTypeCustom)
-				if err != nil {
-					return err
-				}
-
-				dstVolumeName, dstSnapshotName, _ := containerGetParentAndSnapshotName(req.Name)
-
-				moveReq := api.StorageVolumesPost{}
-				moveReq.Name = fmt.Sprintf("%s%s%s", dstVolumeName, shared.SnapshotDelimiter, dstSnapshotName)
-				moveReq.Type = "custom"
-				moveReq.Source.Name = vol
-				moveReq.Source.Pool = poolName
-
-				err = storagePoolVolumeSnapshotCreateInternal(d.State(), req.Pool, &moveReq)
-				if err != nil {
-					return err
-				}
-
-				err = snapshot.StoragePoolVolumeSnapshotDelete()
-				if err != nil {
-					return err
-				}
 			}
 		}
 
