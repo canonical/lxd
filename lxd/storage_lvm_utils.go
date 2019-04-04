@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
@@ -942,4 +944,142 @@ func lvmVersionIsAtLeast(sTypeVersion string, versionString string) (bool, error
 	}
 
 	return true, nil
+}
+
+// Copy an LVM custom volume.
+func (s *storageLvm) copyVolume(sourcePool string, source string) error {
+	targetMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	err := os.MkdirAll(targetMntPoint, 0711)
+	if err != nil {
+		return err
+	}
+
+	if s.useThinpool && sourcePool == s.pool.Name {
+		err = s.copyVolumeThinpool(source, s.volume.Name, false)
+	} else {
+		err = s.copyVolumeLv(sourcePool, source, s.volume.Name, false)
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) copyVolumeSnapshot(sourcePool string, source string) error {
+	_, snapOnlyName, _ := containerGetParentAndSnapshotName(source)
+	target := fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName)
+	targetMntPoint := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
+
+	err := os.MkdirAll(targetMntPoint, 0711)
+	if err != nil {
+		return err
+	}
+
+	if s.useThinpool && sourcePool == s.pool.Name {
+		err = s.copyVolumeThinpool(source, target, true)
+	} else {
+		err = s.copyVolumeLv(sourcePool, source, target, true)
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) copyVolumeLv(sourcePool string, source string, target string, readOnly bool) error {
+	var srcMountPoint string
+	var dstMountPoint string
+
+	sourceIsSnapshot := shared.IsSnapshot(source)
+
+	if sourceIsSnapshot {
+		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
+	} else {
+		srcMountPoint = getStoragePoolVolumeMountPoint(sourcePool, source)
+
+	}
+
+	targetIsSnapshot := shared.IsSnapshot(target)
+
+	if targetIsSnapshot {
+		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
+	} else {
+		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, target)
+	}
+
+	var err error
+
+	if targetIsSnapshot {
+		err = s.StoragePoolVolumeSnapshotCreate(&api.StorageVolumeSnapshotsPost{Name: target})
+	} else {
+		err = s.StoragePoolVolumeCreate()
+	}
+	if err != nil {
+		logger.Errorf("Failed to create LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	ourMount, err := s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.StoragePoolVolumeUmount()
+	}
+
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit)
+	if err != nil {
+		os.RemoveAll(dstMountPoint)
+		logger.Errorf("Failed to rsync into LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	// Snapshot are already read-only, and this will fail if trying to set them
+	// read-only again.
+	if readOnly && !targetIsSnapshot {
+		targetLvmName := containerNameToLVName(target)
+		poolName := s.getOnDiskPoolName()
+
+		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName))
+		if err != nil {
+			logger.Errorf("Failed to make LVM snapshot \"%s\" read-only: %s", s.volume.Name, output)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *storageLvm) copyVolumeThinpool(source string, target string, readOnly bool) error {
+	sourceLvmName := containerNameToLVName(source)
+	targetLvmName := containerNameToLVName(target)
+
+	poolName := s.getOnDiskPoolName()
+	lvFsType := s.getLvmFilesystem()
+
+	lvSize, err := s.getLvmVolumeSize()
+	if lvSize == "" {
+		logger.Errorf("Failed to get size for LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	_, err = s.createSnapshotLV("default", poolName, sourceLvmName, storagePoolVolumeAPIEndpointCustom, targetLvmName, storagePoolVolumeAPIEndpointCustom, readOnly, s.useThinpool)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot for LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	lvDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName)
+
+	msg, err := fsGenerateNewUUID(lvFsType, lvDevPath)
+	if err != nil {
+		logger.Errorf("Failed to create new UUID for filesystem \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s: %s", lvFsType, s.volume.Name, s.pool.Name, msg, err)
+		return err
+	}
+
+	return nil
 }
