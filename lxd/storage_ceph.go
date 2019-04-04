@@ -728,7 +728,7 @@ func (s *storageCeph) StoragePoolVolumeRename(newName string) error {
 	logger.Debugf(`Mapped RBD storage volume for container "%s" on storage pool "%s"`,
 		newName, s.pool.Name)
 
-	isSnapshot := strings.Contains(s.volume.Name, "/")
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	var oldPath string
 	var newPath string
@@ -2571,7 +2571,7 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 	logger.Infof("Copying RBD storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	successMsg := fmt.Sprintf("Copied RBD storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
-	isSnapshot := strings.Contains(s.volume.Name, "/")
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	var srcMountPoint string
 	var dstMountPoint string

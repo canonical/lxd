@@ -393,7 +393,7 @@ func (s *storageZfs) StoragePoolUmount() (bool, error) {
 func (s *storageZfs) StoragePoolVolumeCreate() error {
 	logger.Infof("Creating ZFS storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	isSnapshot := strings.Contains(s.volume.Name, "/")
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	var fs string
 
@@ -748,7 +748,7 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 			s.volume.Name, s.pool.Name)
 	}
 
-	isSnapshot := strings.Contains(s.volume.Name, "/")
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	var oldPath string
 	var newPath string
@@ -3006,7 +3006,7 @@ func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSourc
 }
 
 func (s *storageZfs) copyVolumeWithoutSnapshotsFull(source *api.StorageVolumeSource) error {
-	sourceIsSnapshot := strings.Contains(source.Name, "/")
+	sourceIsSnapshot := shared.IsSnapshot(source.Name)
 
 	var snapshotSuffix string
 	var sourceDataset string
@@ -3171,7 +3171,7 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 
 	poolName := s.getOnDiskPoolName()
 
-	if !strings.Contains(source.Name, "/") {
+	if !shared.IsSnapshot(source.Name) {
 		snapshots, err = zfsPoolListSnapshots(poolName, fmt.Sprintf("custom/%s", source.Name))
 		if err != nil {
 			return err

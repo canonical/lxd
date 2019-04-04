@@ -371,7 +371,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	var srcVol *api.StorageVolume
 
 	// Check if requested storage volume exists
-	isSnapshot := strings.Contains(srcVolName, "/")
+	isSnapshot := shared.IsSnapshot(srcVolName)
 
 	if isSnapshot {
 		fields := strings.SplitN(srcVolName, "/", 2)
@@ -1102,7 +1102,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
 		entry := []string{volume.Type, volume.Name, volume.Description, usedby}
-		if strings.Contains(volume.Name, "/") {
+		if shared.IsSnapshot(volume.Name) {
 			entry[0] = fmt.Sprintf("%s (snapshot)", volume.Type)
 		}
 		if resource.server.IsClustered() {
