@@ -37,16 +37,31 @@ func (g *Group) Start() {
 	ctx := context.Background()
 	ctx, g.cancel = context.WithCancel(ctx)
 	g.wg.Add(len(g.tasks))
-	g.running = make(map[int]bool)
+
+	g.mu.Lock()
+	if g.running == nil {
+		g.running = make(map[int]bool)
+	}
+	g.mu.Unlock()
+
 	for i := range g.tasks {
-		task := g.tasks[i] // Local variable for the closure below.
+		g.mu.Lock()
+		if g.running[i] {
+			g.mu.Unlock()
+			continue
+		}
+
 		g.running[i] = true
+		task := g.tasks[i] // Local variable for the closure below.
+		g.mu.Unlock()
+
 		go func(i int) {
 			task.loop(ctx)
 			g.wg.Done()
+
 			g.mu.Lock()
-			defer g.mu.Unlock()
 			g.running[i] = false
+			g.mu.Unlock()
 		}(i)
 	}
 }
