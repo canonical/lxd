@@ -557,7 +557,7 @@ func (s *storageBtrfs) StoragePoolVolumeCreate() error {
 		return err
 	}
 
-	isSnapshot := strings.Contains(s.volume.Name, "/")
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	// Create subvolume path on the storage pool.
 	var customSubvolumePath string
@@ -2931,8 +2931,8 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 	logger.Infof("Copying BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	successMsg := fmt.Sprintf("Copied BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
-	isSrcSnapshot := strings.Contains(source.Name, "/")
-	isDstSnapshot := strings.Contains(s.volume.Name, "/")
+	isSrcSnapshot := shared.IsSnapshot(source.Name)
+	isDstSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	var srcMountPoint string
 	var dstMountPoint string
@@ -3119,7 +3119,7 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotRename(newName string) error {
 	logger.Infof("Renaming BTRFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
 	var fullSnapshotName string
 
-	if strings.Contains(newName, "/") {
+	if shared.IsSnapshot(newName) {
 		// When renaming volume snapshots, newName will contain the full snapshot name
 		fullSnapshotName = newName
 	} else {
