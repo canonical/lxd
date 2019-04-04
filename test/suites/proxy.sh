@@ -18,8 +18,9 @@ test_proxy_device_tcp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
-  kill -9 "${NSENTER_PID}" 2>/dev/null || true
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  kill "${NSENTER_PID}" 2>/dev/null || true
+  wait "${NSENTER_PID}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
@@ -33,8 +34,9 @@ test_proxy_device_tcp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
-  kill -9 "${NSENTER_PID}" 2>/dev/null || true
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  kill "${NSENTER_PID}" 2>/dev/null || true
+  wait "${NSENTER_PID}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
@@ -48,8 +50,9 @@ test_proxy_device_tcp() {
   NSENTER_PID=$!
   sleep 0.5
 
-  ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
-  kill -9 "${NSENTER_PID}" 2>/dev/null || true
+  ECHO=$( (echo "${MESSAGE}" ; sleep 0.5) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
+  kill "${NSENTER_PID}" 2>/dev/null || true
+  wait "${NSENTER_PID}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
