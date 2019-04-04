@@ -42,11 +42,6 @@ do_copy() {
   # Initial copy
   # shellcheck disable=2086
   lxc copy c1 c2 ${pool}
-
-  # Make sure the testfile doesn't exist
-  ! lxc exec c1 -- touch /root/testfile1 || false
-  ! lxc exec c2 -- touch /root/testfile1 || false
-
   lxc start c1 c2
 
   # Target container may not be running when refreshing
