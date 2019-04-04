@@ -2207,11 +2207,11 @@ func (s *storageLvm) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	sourceName := source.Name
 	targetName := s.volume.Name
 
-	if strings.Contains(sourceName, "/") {
+	if shared.IsSnapshot(sourceName) {
 		sourceName = containerNameToLVName(sourceName)
 	}
 
-	if strings.Contains(targetName, "/") {
+	if shared.IsSnapshot(targetName) {
 		targetName = containerNameToLVName(targetName)
 	}
 

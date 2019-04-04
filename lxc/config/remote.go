@@ -39,7 +39,7 @@ func (c *Config) ParseRemote(raw string) (string, string, error) {
 	_, ok := c.Remotes[result[0]]
 	if !ok {
 		// Attempt to play nice with snapshots containing ":"
-		if shared.IsSnapshot(raw) && strings.Contains(result[0], "/") {
+		if shared.IsSnapshot(raw) && shared.IsSnapshot(result[0]) {
 			return c.DefaultRemote, raw, nil
 		}
 
