@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-20 23:25-0700\n"
+"POT-Creation-Date: 2019-04-04 14:31-0400\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -465,7 +465,7 @@ msgstr ""
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
-#: lxc/action.go:229
+#: lxc/action.go:239
 msgid "Both --all and container name given"
 msgstr ""
 
@@ -735,7 +735,7 @@ msgstr "Не удалось создать каталог сертификата
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/launch.go:21 lxc/launch.go:22
+#: lxc/launch.go:22 lxc/launch.go:23
 msgid "Create and start containers from images"
 msgstr ""
 
@@ -891,7 +891,7 @@ msgstr "Копирование образа: %s"
 #: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:31 lxc/init.go:35
-#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:23 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
 #: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
 #: lxc/network.go:463 lxc/network.go:548 lxc/network.go:671 lxc/network.go:729
@@ -2683,7 +2683,7 @@ msgstr ""
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:259
+#: lxc/action.go:269
 #, fuzzy, c-format
 msgid "Some containers failed to %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -2696,7 +2696,7 @@ msgstr ""
 msgid "Start containers"
 msgstr ""
 
-#: lxc/launch.go:64
+#: lxc/launch.go:65
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -2923,7 +2923,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/action.go:196 lxc/launch.go:84
+#: lxc/action.go:196 lxc/launch.go:96
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -3345,7 +3345,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:251
+#: lxc/action.go:261
 #, c-format
 msgid "error: %v"
 msgstr ""
@@ -3455,7 +3455,7 @@ msgstr ""
 msgid "init [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/launch.go:20
+#: lxc/launch.go:21
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
@@ -3582,7 +3582,7 @@ msgstr ""
 msgid "lxc init ubuntu:16.04 u1"
 msgstr ""
 
-#: lxc/launch.go:24
+#: lxc/launch.go:25
 msgid "lxc launch ubuntu:16.04 u1"
 msgstr ""
 

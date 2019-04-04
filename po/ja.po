@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-20 23:25-0700\n"
+"POT-Creation-Date: 2019-04-04 14:31-0400\n"
 "PO-Revision-Date: 2019-02-16 19:26+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -363,14 +363,14 @@ msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 "書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
-#: lxc/action.go:229
+#: lxc/action.go:239
 msgid "Both --all and container name given"
 msgstr "--all とコンテナ名を両方同時に指定することはできません"
 
 #: lxc/info.go:154
 #, fuzzy, c-format
 msgid "Brand: %v"
-msgstr "エラー: %v"
+msgstr "作成日時: %s"
 
 #: lxc/info.go:310 lxc/network.go:788
 msgid "Bytes received"
@@ -640,7 +640,7 @@ msgstr "サーバ証明書格納用のディレクトリを作成できません
 msgid "Create aliases for existing images"
 msgstr "既存のイメージに対するエイリアスを作成します"
 
-#: lxc/launch.go:21 lxc/launch.go:22
+#: lxc/launch.go:22 lxc/launch.go:23
 msgid "Create and start containers from images"
 msgstr "イメージからコンテナを作成し、起動します"
 
@@ -792,7 +792,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:31 lxc/init.go:35
-#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/launch.go:23 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
 #: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
 #: lxc/network.go:463 lxc/network.go:548 lxc/network.go:671 lxc/network.go:729
@@ -885,9 +885,9 @@ msgid "Don't show progress information"
 msgstr "進捗情報を表示しません"
 
 #: lxc/info.go:148
-#, fuzzy, c-format
+#, c-format
 msgid "Driver: %v (%v)"
-msgstr "エラー: %v"
+msgstr ""
 
 #: lxc/list.go:665
 msgid "EPHEMERAL"
@@ -1925,9 +1925,9 @@ msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
 #: lxc/info.go:155
-#, fuzzy, c-format
+#, c-format
 msgid "Model: %v"
-msgstr "エラー: %v"
+msgstr ""
 
 #: lxc/monitor.go:29
 msgid "Monitor a local or remote LXD server"
@@ -1991,9 +1991,9 @@ msgid "NO"
 msgstr ""
 
 #: lxc/info.go:119 lxc/info.go:149
-#, fuzzy, c-format
+#, c-format
 msgid "NUMA node: %v"
-msgstr "エラー: %v"
+msgstr ""
 
 #: lxc/info.go:152
 msgid "NVIDIA information:"
@@ -2703,7 +2703,7 @@ msgstr "スナップショット:"
 msgid "Socket %d:"
 msgstr ""
 
-#: lxc/action.go:259
+#: lxc/action.go:269
 #, c-format
 msgid "Some containers failed to %s"
 msgstr "一部のコンテナで %s が失敗しました"
@@ -2716,7 +2716,7 @@ msgstr "取得元:"
 msgid "Start containers"
 msgstr "コンテナを起動します"
 
-#: lxc/launch.go:64
+#: lxc/launch.go:65
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -2954,7 +2954,7 @@ msgstr "コンテナを転送中: %s"
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/action.go:196 lxc/launch.go:84
+#: lxc/action.go:196 lxc/launch.go:96
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -2981,9 +2981,9 @@ msgid "USED BY"
 msgstr ""
 
 #: lxc/info.go:158
-#, fuzzy, c-format
+#, c-format
 msgid "UUID: %v"
-msgstr "アップロード日時: %s"
+msgstr ""
 
 #: lxc/file.go:149
 #, c-format
@@ -3066,9 +3066,9 @@ msgid "Vendor: %v"
 msgstr "エラー: %v"
 
 #: lxc/info.go:140
-#, fuzzy, c-format
+#, c-format
 msgid "Vendor: %v (%v)"
-msgstr "エラー: %v"
+msgstr ""
 
 #: lxc/query.go:38
 msgid "Wait for the operation to complete"
@@ -3358,7 +3358,7 @@ msgstr ""
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:251
+#: lxc/action.go:261
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"
@@ -3458,7 +3458,7 @@ msgstr ""
 msgid "init [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/launch.go:20
+#: lxc/launch.go:21
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
@@ -3624,7 +3624,7 @@ msgstr ""
 msgid "lxc init ubuntu:16.04 u1"
 msgstr "lxc init ubuntu:16.04 u1"
 
-#: lxc/launch.go:24
+#: lxc/launch.go:25
 msgid "lxc launch ubuntu:16.04 u1"
 msgstr "lxc launch ubuntu:16.04 u1"
 
