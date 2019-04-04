@@ -334,7 +334,7 @@ func (s *storageDir) StoragePoolVolumeCreate() error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	isSnapshot := strings.Contains(s.volume.Name, "/")
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	var storageVolumePath string
 
@@ -1311,8 +1311,8 @@ func (s *storageDir) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	var srcMountPoint string
 	var dstMountPoint string
 
-	isSrcSnapshot := strings.Contains(source.Name, "/")
-	isDstSnapshot := strings.Contains(s.volume.Name, "/")
+	isSrcSnapshot := shared.IsSnapshot(source.Name)
+	isDstSnapshot := shared.IsSnapshot(s.volume.Name)
 
 	if isSrcSnapshot {
 		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(source.Pool, source.Name)
@@ -1432,7 +1432,7 @@ func (s *storageDir) StoragePoolVolumeSnapshotRename(newName string) error {
 	logger.Infof("Renaming DIR storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
 	var fullSnapshotName string
 
-	if strings.Contains(newName, "/") {
+	if shared.IsSnapshot(newName) {
 		// When renaming volume snapshots, newName will contain the full snapshot name
 		fullSnapshotName = newName
 	} else {
