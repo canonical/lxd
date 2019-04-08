@@ -143,9 +143,14 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 			return err
 		}
 
+		vgName := poolName
+		if pool.Config["lvm.vg_name"] != "" {
+			vgName = pool.Config["lvm.vg_name"]
+		}
+
 		for _, volume := range volumes {
-			oldName := fmt.Sprintf("%s/custom_%s", poolName, volume)
-			newName := fmt.Sprintf("%s/custom_%s", poolName, containerNameToLVName(volume))
+			oldName := fmt.Sprintf("%s/custom_%s", vgName, volume)
+			newName := fmt.Sprintf("%s/custom_%s", vgName, containerNameToLVName(volume))
 
 			exists, err := storageLVExists(newName)
 			if err != nil {
@@ -156,7 +161,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 				continue
 			}
 
-			err = lvmLVRename(poolName, oldName, newName)
+			err = lvmLVRename(vgName, oldName, newName)
 			if err != nil {
 				return err
 			}
