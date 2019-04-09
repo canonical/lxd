@@ -805,7 +805,9 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 				}
 
 				if fds["0"] != "" {
-					args.Stdin.Close()
+					if args.Stdin != nil {
+						args.Stdin.Close()
+					}
 
 					// Empty the stdin channel but don't block on it as
 					// stdin may be stuck in Read()
