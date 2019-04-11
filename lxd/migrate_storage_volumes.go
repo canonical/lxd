@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -11,8 +12,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewStorageMigrationSource(storage storage) (*migrationSourceWs, error) {
+func NewStorageMigrationSource(storage storage, volumeOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{storage: storage}, make(chan bool, 1)}
+	ret.volumeOnly = volumeOnly
 
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
@@ -44,12 +46,43 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 		defer s.storage.StoragePoolVolumeUmount()
 	}
 
+	snapshots := []*migration.Snapshot{}
+	snapshotNames := []string{}
+
+	// Only send snapshots when requested.
+	if !s.volumeOnly {
+		state := s.storage.GetState()
+		pool := s.storage.GetStoragePool()
+		volume := s.storage.GetStoragePoolVolume()
+
+		var err error
+
+		snaps, err := storagePoolVolumeSnapshotsGet(state, pool.Name, volume.Name, storagePoolVolumeTypeCustom)
+		if err == nil {
+			poolID, err := state.Cluster.StoragePoolGetID(pool.Name)
+			if err == nil {
+				for _, name := range snaps {
+					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetType(name, storagePoolVolumeTypeCustom, poolID)
+					if err != nil {
+						continue
+					}
+
+					snapshots = append(snapshots, volumeSnapshotToProtobuf(snapVolume))
+					snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(name))
+				}
+			}
+
+		}
+	}
+
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.storage.MigrationType()
 	hasFeature := true
 	header := migration.MigrationHeader{
-		Fs: &myType,
+		Fs:            &myType,
+		SnapshotNames: snapshotNames,
+		Snapshots:     snapshots,
 		RsyncFeatures: &migration.RsyncFeatures{
 			Xattrs:        &hasFeature,
 			Delete:        &hasFeature,
@@ -93,6 +126,7 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	sourceArgs := MigrationSourceArgs{
 		RsyncFeatures: rsyncFeatures,
 		ZfsFeatures:   zfsFeatures,
+		VolumeOnly:    s.volumeOnly,
 	}
 
 	driver, fsErr := s.storage.StorageMigrationSource(sourceArgs)
@@ -122,7 +156,7 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 		return err
 	}
 
-	err = driver.SendStorageVolume(s.fsConn, migrateOp, bwlimit, s.storage)
+	err = driver.SendStorageVolume(s.fsConn, migrateOp, bwlimit, s.storage, s.volumeOnly)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume")
 		return abort(err)
@@ -147,8 +181,8 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 
 func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:    migrationFields{storage: args.Storage},
-		dest:   migrationFields{storage: args.Storage},
+		src:    migrationFields{storage: args.Storage, volumeOnly: args.VolumeOnly},
+		dest:   migrationFields{storage: args.Storage, volumeOnly: args.VolumeOnly},
 		url:    args.Url,
 		dialer: args.Dialer,
 		push:   args.Push,
@@ -245,7 +279,9 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 	myType := c.src.storage.MigrationType()
 	hasFeature := true
 	resp := migration.MigrationHeader{
-		Fs: &myType,
+		Fs:            &myType,
+		Snapshots:     header.Snapshots,
+		SnapshotNames: header.SnapshotNames,
 		RsyncFeatures: &migration.RsyncFeatures{
 			Xattrs:        &hasFeature,
 			Delete:        &hasFeature,
@@ -271,11 +307,6 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 	// Handle rsync options
 	rsyncFeatures := header.GetRsyncFeaturesSlice()
 
-	args := MigrationSinkArgs{
-		Storage:       c.dest.storage,
-		RsyncFeatures: rsyncFeatures,
-	}
-
 	err = sender(&resp)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume migration header")
@@ -283,26 +314,131 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 		return err
 	}
 
-	var fsConn *websocket.Conn
+	restore := make(chan error)
+
+	go func(c *migrationSink) {
+		/* We do the fs receive in parallel so we don't have to reason
+		 * about when to receive what. The sending side is smart enough
+		 * to send the filesystem bits that it can before it seizes the
+		 * container to start checkpointing, so the total transfer time
+		 * will be minimized even if we're dumb here.
+		 */
+		fsTransfer := make(chan error)
+
+		go func() {
+			var fsConn *websocket.Conn
+			if c.push {
+				fsConn = c.dest.fsConn
+			} else {
+				fsConn = c.src.fsConn
+			}
+
+			args := MigrationSinkArgs{
+				Storage:       c.dest.storage,
+				RsyncFeatures: rsyncFeatures,
+				Snapshots:     header.Snapshots,
+				VolumeOnly:    c.src.volumeOnly,
+			}
+
+			err = mySink(fsConn, migrateOp, args)
+			if err != nil {
+				fsTransfer <- err
+				return
+			}
+
+			fsTransfer <- nil
+		}()
+
+		err := <-fsTransfer
+		if err != nil {
+			restore <- err
+			return
+		}
+
+		restore <- nil
+	}(c)
+
+	var source <-chan migration.MigrationControl
 	if c.push {
-		fsConn = c.dest.fsConn
+		source = c.dest.controlChannel()
 	} else {
-		fsConn = c.src.fsConn
+		source = c.src.controlChannel()
 	}
 
-	err = mySink(fsConn, migrateOp, args)
-	if err != nil {
-		logger.Errorf("Failed to start storage volume migration sink")
-		controller(err)
-		return err
+	for {
+		select {
+		case err = <-restore:
+			if err != nil {
+				disconnector()
+				return err
+			}
+
+			controller(nil)
+			logger.Debugf("Migration sink finished receiving storage volume")
+			return nil
+		case msg, ok := <-source:
+			if !ok {
+				disconnector()
+				return fmt.Errorf("Got error reading source")
+			}
+
+			if !*msg.Success {
+				disconnector()
+				return fmt.Errorf(*msg.Message)
+			} else {
+				// The source can only tell us it failed (e.g. if
+				// checkpointing failed). We have to tell the source
+				// whether or not the restore was successful.
+				logger.Debugf("Unknown message %v from source", msg)
+			}
+		}
 	}
 
-	controller(nil)
-	logger.Debugf("Migration sink finished receiving storage volume")
-	return nil
+	/*
+			var fsConn *websocket.Conn
+			if c.push {
+				fsConn = c.dest.fsConn
+			} else {
+				fsConn = c.src.fsConn
+			}
+
+			err = mySink(fsConn, migrateOp, args)
+			if err != nil {
+				logger.Errorf("Failed to start storage volume migration sink")
+				controller(err)
+				return err
+			}
+
+			controller(nil)
+		logger.Debugf("Migration sink finished receiving storage volume")
+		return nil
+	*/
 }
 
 func (s *migrationSourceWs) ConnectStorageTarget(target api.StorageVolumePostTarget) error {
 	logger.Debugf("Storage migration source is connecting")
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
+}
+
+func volumeSnapshotToProtobuf(vol *api.StorageVolume) *migration.Snapshot {
+	config := []*migration.Config{}
+	for k, v := range vol.Config {
+		kCopy := string(k)
+		vCopy := string(v)
+		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
+	}
+
+	snapOnlyName := shared.ExtractSnapshotName(vol.Name)
+
+	return &migration.Snapshot{
+		Name:         &snapOnlyName,
+		LocalConfig:  config,
+		Profiles:     []string{},
+		Ephemeral:    proto.Bool(false),
+		LocalDevices: []*migration.Device{},
+		Architecture: proto.Int32(0),
+		Stateful:     proto.Bool(false),
+		CreationDate: proto.Int64(0),
+		LastUsedDate: proto.Int64(0),
+	}
 }
