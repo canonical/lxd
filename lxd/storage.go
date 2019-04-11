@@ -309,8 +309,9 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
-	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+	volumeID := int64(-1)
+	if volumeName != "" {
+		volumeID, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -338,6 +339,7 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 		dir.poolID = poolID
 		dir.pool = pool
 		dir.volume = volume
+		dir.volumeID = volumeID
 		dir.s = s
 		err = dir.StoragePoolInit()
 		if err != nil {

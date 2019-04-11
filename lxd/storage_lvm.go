@@ -2116,7 +2116,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 
 		ctLvmName := containerNameToLVName(ctName)
 		lvDevPath = getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointContainers, ctLvmName)
-		mountpoint = getContainerMountPoint("default", s.pool.Name, ctName)
+		mountpoint = getContainerMountPoint(c.Project(), s.pool.Name, ctName)
 	default:
 		customLvmName := containerNameToLVName(s.volume.Name)
 		lvDevPath = getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, customLvmName)
