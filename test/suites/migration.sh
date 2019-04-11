@@ -279,34 +279,58 @@ migration() {
   remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
 
   lxc_remote storage volume create l1:"$remote_pool1" vol1
+  lxc_remote storage volume create l1:"$remote_pool1" vol2
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   # remote storage volume migration in "pull" mode
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3"
   ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
+  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol4" --volume-only
+  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol5"
+  lxc_remote storage volume move l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol6"
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
+  lxc_remote storage volume delete l2:"$remote_pool2" vol4
+  lxc_remote storage volume delete l2:"$remote_pool2" vol5
+  lxc_remote storage volume delete l2:"$remote_pool2" vol6
 
   # remote storage volume migration in "push" mode
   lxc_remote storage volume create l1:"$remote_pool1" vol1
+  lxc_remote storage volume create l1:"$remote_pool1" vol2
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=push
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=push
   ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
+  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol4" --volume-only --mode=push
+  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol5" --mode=push
+  lxc_remote storage volume move l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol6" --mode=push
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
+  lxc_remote storage volume delete l2:"$remote_pool2" vol4
+  lxc_remote storage volume delete l2:"$remote_pool2" vol5
+  lxc_remote storage volume delete l2:"$remote_pool2" vol6
 
   # remote storage volume migration in "relay" mode
   lxc_remote storage volume create l1:"$remote_pool1" vol1
+  lxc_remote storage volume create l1:"$remote_pool1" vol2
+  lxc_remote storage volume snapshot l1:"$remote_pool1" vol2
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=relay
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=relay
   ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
+  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol4" --volume-only --mode=relay
+  lxc_remote storage volume copy l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol5" --mode=relay
+  lxc_remote storage volume move l1:"$remote_pool1/vol2" l2:"$remote_pool2/vol6" --mode=relay
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
+  lxc_remote storage volume delete l2:"$remote_pool2" vol4
+  lxc_remote storage volume delete l2:"$remote_pool2" vol5
+  lxc_remote storage volume delete l2:"$remote_pool2" vol6
 
   # Test some migration between projects
   lxc_remote project create l1:proj -c features.images=false -c features.profiles=false

@@ -27,6 +27,9 @@ type StorageVolumePost struct {
 
 	// API extension: storage_api_remote_volume_handling
 	Target *StorageVolumePostTarget `json:"target" yaml:"target"`
+
+	// API extension: storage_api_remote_volume_snapshots
+	VolumeOnly bool `json:"volume_only" yaml:"volume_only"`
 }
 
 // StorageVolumePostTarget represents the migration target host and operation
