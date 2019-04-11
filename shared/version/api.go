@@ -146,6 +146,7 @@ var APIExtensions = []string{
 	"kernel_features",
 	"id_map_current",
 	"event_location",
+	"storage_api_remote_volume_snapshots",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
