@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -22,6 +23,8 @@ import (
 
 type storageDir struct {
 	storageShared
+
+	volumeID int64
 }
 
 // Only initialize the minimal information we need about a given storage type.
@@ -349,6 +352,11 @@ func (s *storageDir) StoragePoolVolumeCreate() error {
 		return err
 	}
 
+	err = s.initQuota(storageVolumePath, s.volumeID)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof("Created DIR storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
@@ -366,7 +374,12 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 		return nil
 	}
 
-	err := os.RemoveAll(storageVolumePath)
+	err := s.deleteQuota(storageVolumePath, s.volumeID)
+	if err != nil {
+		return err
+	}
+
+	err = os.RemoveAll(storageVolumePath)
 	if err != nil {
 		return err
 	}
@@ -503,6 +516,11 @@ func (s *storageDir) ContainerCreate(container container) error {
 		deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
 	}()
 
+	err = s.initQuota(containerMntPoint, s.volumeID)
+	if err != nil {
+		return err
+	}
+
 	err = container.TemplateApply("create")
 	if err != nil {
 		return errors.Wrap(err, "Apply template")
@@ -542,6 +560,11 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 		s.ContainerDelete(container)
 	}()
 
+	err = s.initQuota(containerMntPoint, s.volumeID)
+	if err != nil {
+		return err
+	}
+
 	imagePath := shared.VarPath("images", imageFingerprint)
 	err = unpackImage(imagePath, containerMntPoint, storageTypeDir, s.s.OS.RunningInUserNS, nil)
 	if err != nil {
@@ -580,6 +603,12 @@ func (s *storageDir) ContainerDelete(container container) error {
 	// ${POOL}/containers/<container_name>
 	containerName := container.Name()
 	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
+
+	err = s.deleteQuota(containerMntPoint, s.volumeID)
+	if err != nil {
+		return err
+	}
+
 	if shared.PathExists(containerMntPoint) {
 		err := os.RemoveAll(containerMntPoint)
 		if err != nil {
@@ -629,6 +658,11 @@ func (s *storageDir) copyContainer(target container, source container) error {
 	targetContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
 
 	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	err = s.initQuota(targetContainerMntPoint, s.volumeID)
 	if err != nil {
 		return err
 	}
@@ -867,8 +901,21 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	return nil
 }
 
-func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
-	return -1, fmt.Errorf("The directory container backend doesn't support quotas")
+func (s *storageDir) ContainerGetUsage(c container) (int64, error) {
+	path := getContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+
+	ok, err := quota.Supported(path)
+	if err != nil || !ok {
+		return -1, fmt.Errorf("The backing filesystem doesn't support quotas")
+	}
+
+	projectID := uint32(s.volumeID + 10000)
+	size, err := quota.GetProjectUsage(path, projectID)
+	if err != nil {
+		return -1, err
+	}
+
+	return size, nil
 }
 
 func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
@@ -1264,7 +1311,69 @@ func (s *storageDir) MigrationSink(conn *websocket.Conn, op *operation, args Mig
 }
 
 func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
-	logger.Warnf("Skipping setting disk quota for '%s' as DIR backend doesn't support them", s.volume.Name)
+	var path string
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c := data.(container)
+		path = getContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+	case storagePoolVolumeTypeCustom:
+		path = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
+
+	ok, err := quota.Supported(path)
+	if err != nil || !ok {
+		logger.Warnf("Skipping setting disk quota for '%s' as the underlying filesystem doesn't support them", s.volume.Name)
+		return nil
+	}
+
+	projectID := uint32(s.volumeID + 10000)
+	err = quota.SetProjectQuota(path, projectID, size)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageDir) initQuota(path string, id int64) error {
+	if s.volumeID == 0 {
+		return fmt.Errorf("Missing volume ID")
+	}
+
+	ok, err := quota.Supported(path)
+	if err != nil || !ok {
+		return nil
+	}
+
+	projectID := uint32(s.volumeID + 10000)
+	err = quota.SetProject(path, projectID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageDir) deleteQuota(path string, id int64) error {
+	if s.volumeID == 0 {
+		return fmt.Errorf("Missing volume ID")
+	}
+
+	ok, err := quota.Supported(path)
+	if err != nil || !ok {
+		return nil
+	}
+
+	err = quota.SetProject(path, 0)
+	if err != nil {
+		return err
+	}
+
+	projectID := uint32(s.volumeID + 10000)
+	err = quota.SetProjectQuota(path, projectID, 0)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -1467,6 +1576,11 @@ func (s *storageDir) copyVolume(sourcePool string, source string, target string)
 	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, target)
 
 	err := os.MkdirAll(dstMountPoint, 0711)
+	if err != nil {
+		return err
+	}
+
+	err = s.initQuota(dstMountPoint, s.volumeID)
 	if err != nil {
 		return err
 	}
