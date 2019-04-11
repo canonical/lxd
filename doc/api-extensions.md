@@ -725,3 +725,6 @@ changed but the kernel map is (e.g. shiftfs).
 
 ## event\_location
 Expose the location of the generation of API events.
+
+## storage\_api\_remote\_volume\_snapshots
+This allows migrating storage volumes including their snapshots.
