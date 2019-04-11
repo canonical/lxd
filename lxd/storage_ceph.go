@@ -2471,7 +2471,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
 			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
 			s.volume.Name, true, s.UserName)
-		mountpoint = getContainerMountPoint("default", s.pool.Name, ctName)
+		mountpoint = getContainerMountPoint(c.Project(), s.pool.Name, ctName)
 		volumeName = ctName
 	default:
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
