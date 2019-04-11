@@ -390,9 +390,10 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
 			NetDial:         shared.RFC3493Dialer},
-		Secrets: req.Source.Websockets,
-		Push:    push,
-		Storage: storage,
+		Secrets:    req.Source.Websockets,
+		Push:       push,
+		Storage:    storage,
+		VolumeOnly: req.Source.VolumeOnly,
 	}
 
 	sink, err := NewStorageMigrationSink(&migrationArgs)
@@ -521,7 +522,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 	// This is a migration request so send back requested secrets
 	if req.Migration {
-		ws, err := NewStorageMigrationSource(s)
+		ws, err := NewStorageMigrationSource(s, req.VolumeOnly)
 		if err != nil {
 			return InternalError(err)
 		}
