@@ -622,39 +622,13 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		err = s.StoragePoolVolumeCreate()
 	} else {
 		if !vol.Source.VolumeOnly {
-			sourcePoolID, err := state.Cluster.StoragePoolGetID(vol.Source.Pool)
-			if err != nil {
-				return err
-			}
-
 			snapshots, err := storagePoolVolumeSnapshotsGet(state, vol.Source.Pool, vol.Source.Name, volumeType)
 			if err != nil {
 				return err
 			}
 
 			for _, snap := range snapshots {
-				_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
-
-				volumeID, err := state.Cluster.StoragePoolNodeVolumeGetTypeID(snap, volumeType, sourcePoolID)
-				if err != nil {
-					return err
-				}
-
-				volumeDescription, err := state.Cluster.StorageVolumeDescriptionGet(volumeID)
-				if err != nil {
-					return err
-				}
-
-				dbArgs := &db.StorageVolumeArgs{
-					Name:        fmt.Sprintf("%s/%s", vol.Name, snapOnlyName),
-					PoolName:    poolName,
-					TypeName:    vol.Type,
-					Snapshot:    true,
-					Config:      vol.Config,
-					Description: volumeDescription,
-				}
-
-				_, err = storagePoolVolumeSnapshotDBCreateInternal(state, dbArgs)
+				_, err := storagePoolVolumeSnapshotCreateInternal(state, poolName, vol, shared.ExtractSnapshotName(snap))
 				if err != nil {
 					return err
 				}
@@ -670,6 +644,41 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	revert = false
 
 	return nil
+}
+
+func storagePoolVolumeSnapshotCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost, snapshotName string) (storage, error) {
+	volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	fullSnapshotName := fmt.Sprintf("%s/%s", vol.Name, snapshotName)
+
+	sourcePoolID, err := state.Cluster.StoragePoolGetID(vol.Source.Pool)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeID, err := state.Cluster.StoragePoolNodeVolumeGetTypeID(fullSnapshotName, volumeType, sourcePoolID)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeDescription, err := state.Cluster.StorageVolumeDescriptionGet(volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	dbArgs := &db.StorageVolumeArgs{
+		Name:        fmt.Sprintf("%s/%s", vol.Name, snapshotName),
+		PoolName:    poolName,
+		TypeName:    vol.Type,
+		Snapshot:    true,
+		Config:      vol.Config,
+		Description: volumeDescription,
+	}
+
+	return storagePoolVolumeSnapshotDBCreateInternal(state, dbArgs)
 }
 
 func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (storage, error) {
