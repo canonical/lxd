@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"sync"
 	"sync/atomic"
 
@@ -452,7 +451,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		return nil, err
 	}
 
-	if !reflect.DeepEqual(nextIdmap, lastIdmap) {
+	if !nextIdmap.Equals(lastIdmap) {
 		logger.Debugf("Shifting storage volume")
 		volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s,
 			"default", volumeName, volumeTypeName)
@@ -477,7 +476,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 					return nil, fmt.Errorf("Failed to retrieve idmap of container")
 				}
 
-				if !reflect.DeepEqual(nextIdmap, ctNextIdmap) {
+				if !nextIdmap.Equals(ctNextIdmap) {
 					return nil, fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctName, volumeName)
 				}
 			}
@@ -766,7 +765,7 @@ func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) erro
 		dstIdmap = new(idmap.IdmapSet)
 	}
 
-	if !reflect.DeepEqual(srcIdmap, dstIdmap) {
+	if !srcIdmap.Equals(dstIdmap) {
 		var jsonIdmap string
 		if srcIdmap != nil {
 			idmapBytes, err := json.Marshal(srcIdmap.Idmap)
