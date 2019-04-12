@@ -264,6 +264,34 @@ type IdmapSet struct {
 	Idmap []IdmapEntry
 }
 
+func (m *IdmapSet) Equals(other *IdmapSet) bool {
+	// Get comparable maps
+	expandSortIdmap := func(input *IdmapSet) IdmapSet {
+		if input == nil {
+			input = &IdmapSet{}
+		}
+
+		newEntries := []IdmapEntry{}
+
+		for _, entry := range input.Idmap {
+			if entry.Isuid && entry.Isgid {
+				newEntries = append(newEntries, IdmapEntry{true, false, entry.Hostid, entry.Nsid, entry.Maprange})
+				newEntries = append(newEntries, IdmapEntry{false, true, entry.Hostid, entry.Nsid, entry.Maprange})
+			} else {
+				newEntries = append(newEntries, entry)
+			}
+		}
+
+		output := IdmapSet{Idmap: newEntries}
+		sort.Sort(output)
+
+		return output
+	}
+
+	// Actually compare
+	return reflect.DeepEqual(expandSortIdmap(m), expandSortIdmap(other))
+}
+
 func (m IdmapSet) Len() int {
 	return len(m.Idmap)
 }
