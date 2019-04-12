@@ -818,6 +818,7 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 	relayer := func(src net.Conn, dst net.Conn, ch chan error) {
 		ch <- proxyCopy(src, dst)
+		close(ch)
 	}
 
 	chSend := make(chan error)
@@ -825,8 +826,8 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 
 	go relayer(src, dst, chRecv)
 
-	_, ok := dst.(*net.UDPConn)
-	if !ok {
+	_, isUDP := dst.(*net.UDPConn)
+	if !isUDP {
 		go relayer(dst, src, chSend)
 	}
 
@@ -844,6 +845,12 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 
 	src.Close()
 	dst.Close()
+
+	// Empty the channels
+	if !isUDP {
+		<-chSend
+	}
+	<-chRecv
 }
 
 func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
