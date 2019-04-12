@@ -21,6 +21,48 @@ import (
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifndef FS_XFLAG_PROJINHERIT
+struct fsxattr {
+	__u32		fsx_xflags;
+	__u32		fsx_extsize;
+	__u32		fsx_nextents;
+	__u32		fsx_projid;
+	unsigned char	fsx_pad[12];
+};
+
+struct if_dqinfo {
+	__u64 dqi_bgrace;
+	__u64 dqi_igrace;
+	__u32 dqi_flags;
+	__u32 dqi_valid;
+};
+
+struct if_dqblk {
+	__u64 dqb_bhardlimit;
+	__u64 dqb_bsoftlimit;
+	__u64 dqb_curspace;
+	__u64 dqb_ihardlimit;
+	__u64 dqb_isoftlimit;
+	__u64 dqb_curinodes;
+	__u64 dqb_btime;
+	__u64 dqb_itime;
+	__u32 dqb_valid;
+};
+#define FS_XFLAG_PROJINHERIT 0x00000200
+#endif
+
+#ifndef FS_IOC_FSGETXATTR
+#define FS_IOC_FSGETXATTR _IOR ('X', 31, struct fsxattr)
+#endif
+
+#ifndef FS_IOC_FSSETXATTR
+#define FS_IOC_FSSETXATTR _IOW ('X', 32, struct fsxattr)
+#endif
+
+#ifndef PRJQUOTA
+#define PRJQUOTA 2
+#endif
+
 int quota_supported(char *dev_path) {
 	struct if_dqinfo dqinfo;
 
