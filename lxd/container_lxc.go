@@ -1995,7 +1995,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", errors.Wrap(err, "Set last ID map")
 	}
 
-	if !reflect.DeepEqual(nextIdmap, diskIdmap) {
+	if !nextIdmap.Equals(diskIdmap) {
 		logger.Debugf("Container idmap changed, remapping")
 		c.updateProgress("Remapping container filesystem")
 
