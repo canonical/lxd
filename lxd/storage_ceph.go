@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2524,7 +2525,8 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 }
 
 func (s *storageCeph) StoragePoolResources() (*api.ResourcesStoragePool, error) {
-	buf, err := shared.RunCommand(
+	var stdout bytes.Buffer
+	err := shared.RunCommandWithFds(nil, &stdout,
 		"ceph",
 		"--name", fmt.Sprintf("client.%s", s.UserName),
 		"--cluster", s.ClusterName,
@@ -2551,7 +2553,7 @@ func (s *storageCeph) StoragePoolResources() (*api.ResourcesStoragePool, error) 
 
 	// Parse the JSON output
 	df := cephDf{}
-	err = json.Unmarshal([]byte(buf), &df)
+	err = json.Unmarshal(stdout.Bytes(), &df)
 	if err != nil {
 		return nil, err
 	}
