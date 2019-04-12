@@ -413,6 +413,7 @@ func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 	relayer := func(src io.Writer, dst io.Reader, ch chan error) {
 		_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
 		ch <- err
+		close(ch)
 	}
 
 	chSend := make(chan error)
@@ -435,6 +436,10 @@ func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 
 	src.Close()
 	dst.Close()
+
+	// Empty the channels
+	<-chSend
+	<-chRecv
 }
 
 func tryListen(protocol string, addr string) (net.Listener, error) {
