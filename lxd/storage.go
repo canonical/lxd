@@ -460,7 +460,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 				}
 
 				if !reflect.DeepEqual(nextIdmap, ctNextIdmap) {
-					return nil, fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctNextIdmap, nextIdmap)
+					return nil, fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctName, volumeName)
 				}
 			}
 		} else if len(volumeUsedBy) == 1 {
