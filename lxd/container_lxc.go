@@ -2011,7 +2011,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", errors.Wrap(err, "Set last ID map")
 	}
 
-	if !reflect.DeepEqual(nextIdmap, diskIdmap) && !(diskIdmap == nil && c.state.OS.Shiftfs) {
+	if !nextIdmap.Equals(diskIdmap) && !(diskIdmap == nil && c.state.OS.Shiftfs) {
 		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
 			return "", fmt.Errorf("Container is protected against filesystem shifting")
 		}
