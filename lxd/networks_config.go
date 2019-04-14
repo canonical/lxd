@@ -67,6 +67,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv4.nat.order": func(value string) error {
 		return shared.IsOneOf(value, []string{"before", "after"})
 	},
+	"ipv4.nat.address":  networkValidAddressV4,
 	"ipv4.dhcp":         shared.IsBool,
 	"ipv4.dhcp.gateway": networkValidAddressV4,
 	"ipv4.dhcp.expiry":  shared.IsAny,
@@ -86,6 +87,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv6.nat.order": func(value string) error {
 		return shared.IsOneOf(value, []string{"before", "after"})
 	},
+	"ipv6.nat.address":   networkValidAddressV6,
 	"ipv6.dhcp":          shared.IsBool,
 	"ipv6.dhcp.expiry":   shared.IsAny,
 	"ipv6.dhcp.stateful": shared.IsBool,
