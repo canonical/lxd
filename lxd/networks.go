@@ -1276,13 +1276,19 @@ func (n *network) Start() error {
 
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv4.nat"]) {
+			//If a SNAT source address is specified, use that, otherwise default to using MASQUERADE mode.
+			args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+			if n.config["ipv4.nat.address"] != "" {
+				args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", n.config["ipv4.nat.address"]}
+			}
+
 			if n.config["ipv4.nat.order"] == "after" {
-				err = networkIptablesAppend("ipv4", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				err = networkIptablesAppend("ipv4", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
@@ -1445,13 +1451,18 @@ func (n *network) Start() error {
 
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv6.nat"]) {
+			args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+			if n.config["ipv6.nat.address"] != "" {
+				args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", n.config["ipv6.nat.address"]}
+			}
+
 			if n.config["ipv6.nat.order"] == "after" {
-				err = networkIptablesAppend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				err = networkIptablesAppend("ipv6", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
