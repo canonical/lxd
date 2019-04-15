@@ -99,9 +99,9 @@ _have lxc && {
     networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode fan.overlay_subnet fan.type \
       fan.underlay_subnet ipv4.address ipv4.dhcp ipv4.dhcp.expiry ipv4.dhcp.gateway \
-      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.routes ipv4.routing \
+      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.routes ipv4.routing \
       ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
-      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.routes ipv6.routing \
+      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.routes ipv6.routing \
       raw.dnsmasq"
 
     storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
