@@ -2974,7 +2974,7 @@ func (c *containerLXC) OnStop(target string) error {
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
 	device["host_name"] = hostName
-	return c.setNetworkLimits(deviceName, device)
+	return c.setNetworkLimits(device)
 }
 
 // Freezer functions
@@ -4663,7 +4663,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				if needsUpdate {
 					// Refresh tc limits
 					m["host_name"] = c.getHostInterface(m["name"])
-					err = c.setNetworkLimits(k, m)
+					err = c.setNetworkLimits(m)
 					if err != nil {
 						return err
 					}
@@ -8201,7 +8201,7 @@ func (c *containerLXC) getHostInterface(name string) string {
 	return ""
 }
 
-func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
+func (c *containerLXC) setNetworkLimits(m types.Device) error {
 	var err error
 	// We can only do limits on some network type
 	if m["nictype"] != "bridged" && m["nictype"] != "p2p" {
