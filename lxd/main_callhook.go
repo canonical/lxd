@@ -17,7 +17,7 @@ type cmdCallhook struct {
 
 func (c *cmdCallhook) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = "callhook <path> <id> <state>"
+	cmd.Use = "callhook <path> <id> <hook>"
 	cmd.Short = "Call container lifecycle hook in LXD"
 	cmd.Long = `Description:
   Call container lifecycle hook in LXD
@@ -72,6 +72,8 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 			target = "unknown"
 		}
 		url = fmt.Sprintf("%s?target=%s", url, target)
+	} else if state == "network-up" {
+		url = fmt.Sprintf("%s?device=%s&host_name=%s", url, args[3], os.Getenv("LXC_NET_PEER"))
 	}
 
 	// Setup the request
