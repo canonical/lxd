@@ -130,8 +130,7 @@ void forkproxy()
 
 	if (strncmp(listen_addr, "udp:", sizeof("udp:") - 1) == 0 &&
 	    strncmp(connect_addr, "udp:", sizeof("udp:") - 1) != 0) {
-		    fprintf(stderr, "Error: Proxying from udp to non-udp "
-			    "protocol is not supported\n");
+		    fprintf(stderr, "Error: Proxying from udp to non-udp protocol is not supported\n");
 		    _exit(EXIT_FAILURE);
 	}
 
