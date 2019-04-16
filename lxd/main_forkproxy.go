@@ -58,11 +58,11 @@ again:
 	return 0;
 }
 
-ssize_t lxc_read_nointr(int fd, void* buf, size_t count)
+int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events, int maxevents, int timeout)
 {
-	ssize_t ret;
+	int ret;
 again:
-	ret = read(fd, buf, count);
+	ret = epoll_wait(epfd, events, maxevents, timeout);
 	if (ret < 0 && errno == EINTR)
 		goto again;
 	return ret;
