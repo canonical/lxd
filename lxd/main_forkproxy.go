@@ -73,11 +73,11 @@ again:
 	return 0;
 }
 
-ssize_t lxc_read_nointr(int fd, void* buf, size_t count)
+int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events, int maxevents, int timeout)
 {
-	ssize_t ret;
+	int ret;
 again:
-	ret = read(fd, buf, count);
+	ret = epoll_wait(epfd, events, maxevents, timeout);
 	if (ret < 0 && errno == EINTR)
 		goto again;
 	return ret;
@@ -670,9 +670,9 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	for {
 		var events [10]C.struct_epoll_event
 
-		nfds := C.epoll_wait(epFd, &events[0], 10, -1)
+		nfds := C.lxc_epoll_wait_nointr(epFd, &events[0], 10, -1)
 		if nfds < 0 {
-			fmt.Printf("Failed to wait on epoll instance")
+			fmt.Printf("Failed to wait on epoll instance\n")
 			break
 		}
 
