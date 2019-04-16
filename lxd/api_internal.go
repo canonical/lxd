@@ -33,6 +33,7 @@ var apiInternal = []Command{
 	internalReadyCmd,
 	internalShutdownCmd,
 	internalContainerOnStartCmd,
+	internalContainerOnNetworkUpCmd,
 	internalContainerOnStopCmd,
 	internalContainersCmd,
 	internalSQLCmd,
@@ -62,6 +63,11 @@ var internalContainerOnStartCmd = Command{
 var internalContainerOnStopCmd = Command{
 	name: "containers/{id}/onstop",
 	get:  internalContainerOnStop,
+}
+
+var internalContainerOnNetworkUpCmd = Command{
+	name: "containers/{id}/onnetwork-up",
+	get:  internalContainerOnNetworkUp,
 }
 
 var internalSQLCmd = Command{
@@ -140,6 +146,26 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 	err = c.OnStop(target)
 	if err != nil {
 		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+func internalContainerOnNetworkUp(d *Daemon, r *http.Request) Response {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		return SmartError(err)
+	}
+
+	c, err := containerLoadById(d.State(), id)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	err = c.OnNetworkUp(queryParam(r, "device"), queryParam(r, "host_name"))
+	if err != nil {
+		logger.Error("The network up script failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 

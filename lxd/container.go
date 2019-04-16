@@ -634,6 +634,7 @@ type container interface {
 	// Hooks
 	OnStart() error
 	OnStop(target string) error
+	OnNetworkUp(deviceName string, hostVeth string) error
 
 	// Properties
 	Id() int
