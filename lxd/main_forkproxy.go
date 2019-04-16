@@ -120,7 +120,7 @@ void forkproxy()
 	if (ret < 0)
 		_exit(EXIT_FAILURE);
 
-	pid_file = fopen(pid_path, "w+");
+	pid_file = fopen(pid_path, "we+");
 	if (!pid_file) {
 		fprintf(stderr,
 			"%s - Failed to create pid file for proxy daemon\n",
