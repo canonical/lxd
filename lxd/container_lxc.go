@@ -1634,6 +1634,11 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 			}
 
+			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
+			if err != nil {
+				return err
+			}
+
 			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.flags", networkKeyPrefix, networkidx), "up")
 			if err != nil {
 				return err
@@ -2710,14 +2715,6 @@ func (c *containerLXC) OnStart() error {
 		if m["limits.max"] == "" && m["limits.ingress"] == "" && m["limits.egress"] == "" {
 			continue
 		}
-
-		go func(c *containerLXC, name string, m types.Device) {
-			c.fromHook = false
-			err = c.setNetworkLimits(name, m)
-			if err != nil {
-				logger.Error("Failed to apply network limits", log.Ctx{"container": c.name, "err": err})
-			}
-		}(c, name, m)
 	}
 
 	// Record current state
@@ -3012,6 +3009,13 @@ func (c *containerLXC) OnStop(target string) error {
 	}(c, target, op)
 
 	return nil
+}
+
+// OnNetworkUp is called by the LXD callhook when the LXC network up script is run.
+func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
+	device := c.expandedDevices[deviceName]
+	device["host_name"] = hostName
+	return c.setNetworkLimits(deviceName, device)
 }
 
 // Freezer functions
@@ -4850,6 +4854,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				if needsUpdate {
 					// Refresh tc limits
+					m["host_name"] = c.getHostInterface(m["name"])
 					err = c.setNetworkLimits(k, m)
 					if err != nil {
 						return err
@@ -8580,26 +8585,15 @@ func (c *containerLXC) getHostInterface(name string) string {
 }
 
 func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
+	var err error
 	// We can only do limits on some network type
 	if m["nictype"] != "bridged" && m["nictype"] != "p2p" {
 		return fmt.Errorf("Network limits are only supported on bridged and p2p interfaces")
 	}
 
-	// Check that the container is running
-	if !c.IsRunning() {
-		return fmt.Errorf("Can't set network limits on stopped container")
-	}
-
-	// Fill in some fields from volatile
-	m, err := c.fillNetworkDevice(name, m)
-	if err != nil {
-		return nil
-	}
-
-	// Look for the host side interface name
-	veth := c.getHostInterface(m["name"])
-	if veth == "" {
-		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
+	veth := m["host_name"]
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", veth)) {
+		return fmt.Errorf("Unknown or missing host side veth: %s", veth)
 	}
 
 	// Apply max limit
