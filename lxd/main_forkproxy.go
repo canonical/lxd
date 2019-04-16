@@ -160,7 +160,7 @@ void forkproxy()
 			fprintf(stderr,
 				"%s - Failed to duplicate fd %d to fd 200\n",
 				strerror(errno), sk_fds[1]);
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		ret = close(sk_fds[1]);
@@ -199,7 +199,7 @@ void forkproxy()
 			fprintf(stderr,
 				"%s - Failed to duplicate fd %d to fd 200\n",
 				strerror(errno), sk_fds[1]);
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		ret = close(sk_fds[0]);
