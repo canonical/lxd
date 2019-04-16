@@ -44,7 +44,7 @@ int whoami = -ESRCH;
 #define FORKPROXY_PARENT 0
 #define FORKPROXY_UDS_SOCK_FD_NUM 200
 
-int switch_uid_gid(uint32_t uid, uint32_t gid)
+static int switch_uid_gid(uint32_t uid, uint32_t gid)
 {
 	if (setgid((gid_t)gid) < 0)
 		return -1;
@@ -55,7 +55,7 @@ int switch_uid_gid(uint32_t uid, uint32_t gid)
 	return 0;
 }
 
-int wait_for_pid(pid_t pid)
+static int wait_for_pid(pid_t pid)
 {
 	int status, ret;
 
@@ -73,7 +73,8 @@ again:
 	return 0;
 }
 
-int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events, int maxevents, int timeout)
+static int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events,
+				 int maxevents, int timeout)
 {
 	int ret;
 again:
