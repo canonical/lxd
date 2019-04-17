@@ -231,20 +231,22 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 	}
 
 	containers := []db.ContainerArgs{}
-	for ctProject, ctNames := range names {
-		for _, ctName := range ctNames {
-			var container *db.Container
-			err := cluster.Transaction(func(tx *db.ClusterTx) error {
-				var err error
-				container, err = tx.ContainerGet(ctProject, ctName)
-				return err
-			})
-			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to fetch container '%s'", ctName)
-			}
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		for ctProject, ctNames := range names {
+			for _, ctName := range ctNames {
+				container, err := tx.ContainerGet(ctProject, ctName)
+				if err != nil {
+					return err
+				}
 
-			containers = append(containers, db.ContainerToArgs(container))
+				containers = append(containers, db.ContainerToArgs(container))
+			}
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to fetch containers")
 	}
 
 	return containers, nil
