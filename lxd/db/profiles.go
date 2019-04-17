@@ -276,6 +276,10 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	}
 
 	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
 		_, err = stmt.Exec(id, k, v)
 		if err != nil {
 			return err

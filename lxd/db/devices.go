@@ -95,7 +95,7 @@ func DevicesAdd(tx *sql.Tx, w string, cID int64, devices types.Devices) error {
 
 		for ck, cv := range v {
 			// The type is stored as int in the parent entry
-			if ck == "type" {
+			if ck == "type" || cv == "" {
 				continue
 			}
 
