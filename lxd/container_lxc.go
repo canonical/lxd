@@ -6278,7 +6278,6 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 
 func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 	result := map[string]api.ContainerStateNetwork{}
-	var networks *map[string]api.ContainerStateNetwork
 
 	pid := c.InitPID()
 	if pid < 1 {
@@ -6292,7 +6291,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 			couldUseNetnsGetifaddrs = false
 			logger.Error("Failed to retrieve network information via netlink", log.Ctx{"container": c.name, "pid": pid})
 		} else {
-			networks = &nw
+			result = nw
 		}
 	}
 
@@ -6321,13 +6320,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 			logger.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
 			return result
 		}
-		networks = &nw
-	}
-
-	// Add HostName field
-	for netName, net := range *networks {
-		net.HostName = c.getHostInterface(netName)
-		result[netName] = net
+		result = nw
 	}
 
 	return result
@@ -8544,6 +8537,13 @@ func (c *containerLXC) setNetworkPriority() error {
 }
 
 func (c *containerLXC) getHostInterface(name string) string {
+	// Pull directly from kernel
+	networks := c.networkState()
+	if networks[name].HostName != "" {
+		return networks[name].HostName
+	}
+
+	// Fallback to poking LXC
 	if c.IsRunning() {
 		networkKeyPrefix := "lxc.net"
 		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
@@ -8563,6 +8563,7 @@ func (c *containerLXC) getHostInterface(name string) string {
 		}
 	}
 
+	// Fallback to parsing LXD config
 	for _, k := range c.expandedDevices.DeviceNames() {
 		dev := c.expandedDevices[k]
 		if dev["type"] != "nic" && dev["type"] != "infiniband" {
@@ -8581,6 +8582,7 @@ func (c *containerLXC) getHostInterface(name string) string {
 		return m["host_name"]
 	}
 
+	// Fail
 	return ""
 }
 
