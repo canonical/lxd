@@ -44,7 +44,7 @@ int whoami = -ESRCH;
 #define FORKPROXY_PARENT 0
 #define FORKPROXY_UDS_SOCK_FD_NUM 200
 
-int switch_uid_gid(uint32_t uid, uint32_t gid)
+static int switch_uid_gid(uint32_t uid, uint32_t gid)
 {
 	if (setgid((gid_t)gid) < 0)
 		return -1;
@@ -55,7 +55,7 @@ int switch_uid_gid(uint32_t uid, uint32_t gid)
 	return 0;
 }
 
-int wait_for_pid(pid_t pid)
+static int wait_for_pid(pid_t pid)
 {
 	int status, ret;
 
@@ -73,7 +73,8 @@ again:
 	return 0;
 }
 
-int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events, int maxevents, int timeout)
+static int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events,
+				 int maxevents, int timeout)
 {
 	int ret;
 again:
@@ -119,7 +120,7 @@ void forkproxy()
 	if (ret < 0)
 		_exit(EXIT_FAILURE);
 
-	pid_file = fopen(pid_path, "w+");
+	pid_file = fopen(pid_path, "we+");
 	if (!pid_file) {
 		fprintf(stderr,
 			"%s - Failed to create pid file for proxy daemon\n",
@@ -129,8 +130,7 @@ void forkproxy()
 
 	if (strncmp(listen_addr, "udp:", sizeof("udp:") - 1) == 0 &&
 	    strncmp(connect_addr, "udp:", sizeof("udp:") - 1) != 0) {
-		    fprintf(stderr, "Error: Proxying from udp to non-udp "
-			    "protocol is not supported\n");
+		    fprintf(stderr, "Error: Proxying from udp to non-udp protocol is not supported\n");
 		    _exit(EXIT_FAILURE);
 	}
 
@@ -182,7 +182,7 @@ void forkproxy()
 			fprintf(stderr,
 				"%s - Failed to duplicate fd %d to fd 200\n",
 				strerror(errno), sk_fds[1]);
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		ret = close(sk_fds[1]);
@@ -221,7 +221,7 @@ void forkproxy()
 			fprintf(stderr,
 				"%s - Failed to duplicate fd %d to fd 200\n",
 				strerror(errno), sk_fds[1]);
-			_exit(1);
+			_exit(EXIT_FAILURE);
 		}
 
 		ret = close(sk_fds[0]);
