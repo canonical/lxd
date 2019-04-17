@@ -6,6 +6,7 @@ package shared
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 
@@ -65,26 +66,38 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 			}
 		}
 
+		// Interface flags
+		netState := "down"
+		netType := "unknown"
+
+		if (addr.ifa_flags & C.IFF_BROADCAST) > 0 {
+			netType = "broadcast"
+		}
+
+		if (addr.ifa_flags & C.IFF_LOOPBACK) > 0 {
+			netType = "loopback"
+		}
+
+		if (addr.ifa_flags & C.IFF_POINTOPOINT) > 0 {
+			netType = "point-to-point"
+		}
+
+		if (addr.ifa_flags & C.IFF_UP) > 0 {
+			netState = "up"
+		}
+		addNetwork.State = netState
+		addNetwork.Type = netType
+		addNetwork.Mtu = int(addr.ifa_mtu)
+
+		if initPID != 0 && int(addr.ifa_ifindex_peer) > 0 {
+			hostInterface, err := net.InterfaceByIndex(int(addr.ifa_ifindex_peer))
+			if err == nil {
+				addNetwork.HostName = hostInterface.Name
+			}
+		}
+
+		// Addresses
 		if addr.ifa_addr != nil && (addr.ifa_addr.sa_family == C.AF_INET || addr.ifa_addr.sa_family == C.AF_INET6) {
-			netState := "down"
-			netType := "unknown"
-
-			if (addr.ifa_flags & C.IFF_BROADCAST) > 0 {
-				netType = "broadcast"
-			}
-
-			if (addr.ifa_flags & C.IFF_LOOPBACK) > 0 {
-				netType = "loopback"
-			}
-
-			if (addr.ifa_flags & C.IFF_POINTOPOINT) > 0 {
-				netType = "point-to-point"
-			}
-
-			if (addr.ifa_flags & C.IFF_UP) > 0 {
-				netState = "up"
-			}
-
 			family := "inet"
 			if addr.ifa_addr.sa_family == C.AF_INET6 {
 				family = "inet6"
@@ -129,9 +142,6 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 			address.Scope = scope
 
 			addNetwork.Addresses = append(addNetwork.Addresses, address)
-			addNetwork.State = netState
-			addNetwork.Type = netType
-			addNetwork.Mtu = int(addr.ifa_mtu)
 		} else if addr.ifa_addr != nil && addr.ifa_addr.sa_family == C.AF_PACKET {
 			if (addr.ifa_flags & C.IFF_LOOPBACK) == 0 {
 				var buf [1024]C.char

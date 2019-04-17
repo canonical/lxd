@@ -30,6 +30,9 @@ struct netns_ifaddrs {
 	// This field is not present struct ifaddrs
 	int ifa_ifindex;
 
+	// This field is not present struct ifaddrs
+	int ifa_ifindex_peer;
+
 	unsigned ifa_flags;
 
 	// This field is not present struct ifaddrs
@@ -233,6 +236,12 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 				break;
 			case IFLA_TARGET_NETNSID:
 				*netnsid_aware = true;
+				break;
+			case IFLA_LINK:
+				if (__RTA_DATALEN(rta))
+					memcpy(&ifs->ifa.ifa_ifindex_peer,
+						__RTA_DATA(rta),
+						__RTA_DATALEN(rta));
 				break;
 			}
 		}
