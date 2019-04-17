@@ -83,8 +83,12 @@ again:
 	return ret;
 }
 
+#define LISTEN_NEEDS_MNTNS 1U
+#define CONNECT_NEEDS_MNTNS 2U
+
 void forkproxy()
 {
+	unsigned int needs_mntns = 0;
 	int connect_pid, listen_pid, log_fd;
 	ssize_t ret;
 	pid_t pid;
@@ -134,6 +138,12 @@ void forkproxy()
 		    _exit(EXIT_FAILURE);
 	}
 
+	if (strncmp(listen_addr, "unix:", sizeof("unix:") - 1) == 0)
+		    needs_mntns |= LISTEN_NEEDS_MNTNS;
+
+	if (strncmp(connect_addr, "unix:", sizeof("unix:") - 1) == 0)
+		    needs_mntns |= CONNECT_NEEDS_MNTNS;
+
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sk_fds);
 	if (ret < 0) {
 		fprintf(stderr,
@@ -169,9 +179,7 @@ void forkproxy()
 			_exit(EXIT_FAILURE);
 		}
 
-		// Attach to the mount namespace of the listener
-		ret = dosetns(listen_pid, "mnt");
-		if (ret < 0) {
+		if ((needs_mntns & LISTEN_NEEDS_MNTNS) && dosetns(listen_pid, "mnt")) {
 			fprintf(stderr, "Failed setns to listener mount namespace: %s\n",
 				strerror(errno));
 			_exit(EXIT_FAILURE);
@@ -209,8 +217,7 @@ void forkproxy()
 		}
 
 		// Attach to the mount namespace of the listener
-		ret = dosetns(connect_pid, "mnt");
-		if (ret < 0) {
+		if ((needs_mntns & CONNECT_NEEDS_MNTNS) && dosetns(connect_pid, "mnt")) {
 			fprintf(stderr, "Failed setns to listener mount namespace: %s\n",
 				strerror(errno));
 			_exit(EXIT_FAILURE);
