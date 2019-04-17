@@ -123,6 +123,17 @@ test_config_profiles() {
   # into the database and never let the user edit the container again.
   ! lxc config set foo raw.lxc lxc.notaconfigkey=invalid || false
 
+  # validate unsets
+  lxc profile set default user.foo bar
+  lxc profile show default | grep -q user.foo
+  lxc profile unset default user.foo
+  ! lxc profile show default | grep -q user.foo || false
+
+  lxc profile device set default eth0 limits.egress 100Mbit
+  lxc profile show default | grep -q limits.egress
+  lxc profile device unset default eth0 limits.egress
+  ! lxc profile show default | grep -q limits.egress || false
+
   # check that various profile application mechanisms work
   lxc profile create one
   lxc profile create two

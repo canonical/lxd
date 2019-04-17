@@ -597,6 +597,10 @@ func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
 	defer stmt.Close()
 
 	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
 		_, err := stmt.Exec(id, k, v)
 		if err != nil {
 			logger.Debugf("Error adding configuration item %s = %s to container %d",
