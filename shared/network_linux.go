@@ -6,6 +6,7 @@ package shared
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 
@@ -87,6 +88,13 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 		addNetwork.State = netState
 		addNetwork.Type = netType
 		addNetwork.Mtu = int(addr.ifa_mtu)
+
+		if initPID != 0 && int(addr.ifa_ifindex_peer) > 0 {
+			hostInterface, err := net.InterfaceByIndex(int(addr.ifa_ifindex_peer))
+			if err == nil {
+				addNetwork.HostName = hostInterface.Name
+			}
+		}
 
 		// Addresses
 		if addr.ifa_addr != nil && (addr.ifa_addr.sa_family == C.AF_INET || addr.ifa_addr.sa_family == C.AF_INET6) {
