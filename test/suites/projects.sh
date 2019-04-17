@@ -313,6 +313,10 @@ test_projects_profiles_default() {
   # Switch back the default project
   lxc project switch default
 
+  # Try updating the default profile
+  lxc profile set default user.foo bar
+  lxc profile unset default user.foo
+
   # Create a container in the default project as well.
   ensure_import_testimage
   lxc init testimage c1
