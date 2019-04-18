@@ -7269,12 +7269,12 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 }
 
 func (c *containerLXC) doNat(proxy string, device types.Device) error {
-	listenAddr, err := parseAddr(device["listen"])
+	listenAddr, err := proxyParseAddr(device["listen"])
 	if err != nil {
 		return err
 	}
 
-	connectAddr, err := parseAddr(device["connect"])
+	connectAddr, err := proxyParseAddr(device["connect"])
 	if err != nil {
 		return err
 	}

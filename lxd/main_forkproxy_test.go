@@ -167,7 +167,7 @@ func TestParseAddr(t *testing.T) {
 
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
-		addr, err := parseAddr(tt.address)
+		addr, err := proxyParseAddr(tt.address)
 		if tt.shouldFail {
 			require.Error(t, err)
 			require.Nil(t, addr)
