@@ -318,7 +318,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to call forkproxy constructor")
 	}
 
-	lAddr := parseAddr(listenAddr)
+	lAddr := proxyParseAddr(listenAddr)
 
 	if C.whoami == C.FORKPROXY_CHILD {
 		err := os.Remove(lAddr.addr)
@@ -491,7 +491,7 @@ func getDestConn(connectAddr string) (net.Conn, error) {
 	return net.Dial(fields[0], addr)
 }
 
-func parseAddr(addr string) *proxyAddress {
+func proxyParseAddr(addr string) *proxyAddress {
 	fields := strings.SplitN(addr, ":", 2)
 	return &proxyAddress{
 		connType: fields[0],
