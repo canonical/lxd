@@ -2374,8 +2374,8 @@ func (c *containerLXC) startCommon() (string, error) {
 						return "", err
 					}
 
-					// Attempt to disable IPv6 on the host side interface
-					networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", device), "1")
+					// Attempt to disable IPv6 router advertisement acceptance
+					networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", device), "0")
 				}
 			}
 		}
@@ -7512,8 +7512,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
 			}
 
-			// Attempt to disable IPv6 on the host side interface
-			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n1), "1")
+			// Attempt to disable router advertisement acceptance
+			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
 		}
 
 		dev = n2
@@ -7531,8 +7531,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 					return "", err
 				}
 
-				// Attempt to disable IPv6 on the host side interface
-				networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", device), "1")
+				// Attempt to disable IPv6 router advertisement acceptance
+				networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", device), "0")
 			}
 		}
 
