@@ -1072,6 +1072,14 @@ func proxyParseAddr(addr string) (*proxyAddress, error) {
 		return nil, err
 	}
 
+	// Validate that it's a valid address
+	if shared.StringInSlice(newProxyAddr.connType, []string{"udp", "tcp"}) {
+		err := networkValidAddress(address)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Split <ports> into individual ports and port ranges
 	ports := strings.SplitN(port, ",", -1)
 	for _, p := range ports {
