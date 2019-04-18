@@ -30,6 +30,7 @@ type ProtocolLXD struct {
 	http            *http.Client
 	httpCertificate string
 	httpHost        string
+	httpUnixPath    string
 	httpProtocol    string
 	httpUserAgent   string
 
@@ -47,6 +48,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info.Certificate = r.httpCertificate
 	info.Protocol = "lxd"
 	info.URL = r.httpHost
+	info.SocketPath = r.httpUnixPath
 	info.Project = r.project
 	if info.Project == "" {
 		info.Project = "default"
