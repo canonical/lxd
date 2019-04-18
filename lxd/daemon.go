@@ -693,10 +693,11 @@ func (d *Daemon) init() error {
 	pruneLeftoverImages(d)
 
 	/* Setup the proxy handler, external authentication and MAAS */
-	var candidExpiry int64
+	candidAPIURL := ""
+	candidAPIKey := ""
 	candidDomains := ""
-	candidEndpoint := ""
-	candidEndpointKey := ""
+	candidExpiry := int64(0)
+
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := ""
@@ -724,10 +725,7 @@ func (d *Daemon) init() error {
 		d.proxy = shared.ProxyFromConfig(
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
 		)
-		candidEndpoint = config.CandidEndpoint()
-		candidEndpointKey = config.CandidEndpointKey()
-		candidExpiry = config.CandidExpiry()
-		candidDomains = config.CandidDomains()
+		candidAPIURL, candidAPIKey, candidExpiry, candidDomains = config.CandidServer()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		return nil
 	})
@@ -735,7 +733,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	err = d.setupExternalAuthentication(candidEndpoint, candidEndpointKey, candidExpiry, candidDomains)
+	err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
 	if err != nil {
 		return err
 	}

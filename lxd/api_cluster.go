@@ -327,12 +327,8 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		}
 
 		// Connect to Candid
-		endpoint := clusterConfig.CandidEndpoint()
-		endpointKey := clusterConfig.CandidEndpointKey()
-		expiry := clusterConfig.CandidExpiry()
-		domains := clusterConfig.CandidDomains()
-
-		err = d.setupExternalAuthentication(endpoint, endpointKey, expiry, domains)
+		candidAPIURL, candidAPIKey, candidExpiry, candidDomains := clusterConfig.CandidServer()
+		err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
 		if err != nil {
 			return err
 		}

@@ -64,25 +64,9 @@ func (c *Config) TrustPassword() string {
 	return c.m.GetString("core.trust_password")
 }
 
-// CandidEndpoint returns the address of the Candid endpoint to use for
-// authentication, if any.
-func (c *Config) CandidEndpoint() string {
-	return c.m.GetString("candid.api.url")
-}
-
-// CandidEndpointKey returns the public key for the API endpoint
-func (c *Config) CandidEndpointKey() string {
-	return c.m.GetString("candid.api.key")
-}
-
-// CandidExpiry returns the cookie expiry of the macaroon.
-func (c *Config) CandidExpiry() int64 {
-	return c.m.GetInt64("candid.expiry")
-}
-
-// CandidDomains returns the valid domains.
-func (c *Config) CandidDomains() string {
-	return c.m.GetString("candid.domains")
+// CandidServer returns all the Candid settings needed to connect to a server.
+func (c *Config) CandidServer() (string, string, int64, string) {
+	return c.m.GetString("candid.api.url"), c.m.GetString("candid.api.key"), c.m.GetInt64("candid.expiry"), c.m.GetString("candid.domains")
 }
 
 // AutoUpdateInterval returns the configured images auto update interval.

@@ -81,9 +81,12 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return err
 		}
-		if config.CandidEndpoint() != "" {
+
+		candidURL, _, _, _ := config.CandidServer()
+		if candidURL != "" {
 			authMethods = append(authMethods, "candid")
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -432,12 +435,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 
 	if candidChanged {
-		endpoint := clusterConfig.CandidEndpoint()
-		endpointKey := clusterConfig.CandidEndpointKey()
-		expiry := clusterConfig.CandidExpiry()
-		domains := clusterConfig.CandidDomains()
-
-		err := d.setupExternalAuthentication(endpoint, endpointKey, expiry, domains)
+		apiURL, apiKey, expiry, domains := clusterConfig.CandidServer()
+		err := d.setupExternalAuthentication(apiURL, apiKey, expiry, domains)
 		if err != nil {
 			return err
 		}
