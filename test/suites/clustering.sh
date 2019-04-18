@@ -55,9 +55,9 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
   # Configuration keys can be changed on any node.
-  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 30
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "30"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "30"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 40
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
@@ -111,9 +111,9 @@ test_clustering_membership() {
 
   # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 5
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 5
+  sleep 30
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node3" | grep -q "OFFLINE"
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 20
 
@@ -125,7 +125,7 @@ test_clustering_membership() {
 
   # Sleep a bit to let a heartbeat occur and update the list of raft nodes
   # everywhere, showing that node 4 has been promoted to database node.
-  sleep 5
+  sleep 30
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
 
   # Now the preseeded network can be deleted, and all nodes are
@@ -306,9 +306,9 @@ test_clustering_containers() {
 
   # Shutdown node 2, wait for it to be considered offline, and list
   # containers.
-  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
+  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 5
+  sleep 30
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
@@ -489,9 +489,9 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "backup (taken at"
 
     # Shutdown node 3, and wait for it to be considered offline.
-    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
+    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 5
+    sleep 30
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
@@ -946,7 +946,7 @@ test_clustering_shutdown_nodes() {
   wait "$(cat three.pid)"
 
   # Make sure the database is not available to the first node
-  sleep 5
+  sleep 30
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
   # Wait for LXD to terminate, otherwise the db will not be empty, and the
