@@ -464,13 +464,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	listenAddr := args[1]
-	lAddr, err := parseAddr(listenAddr)
+	lAddr, err := proxyParseAddr(listenAddr)
 	if err != nil {
 		return err
 	}
 
 	connectAddr := args[3]
-	cAddr, err := parseAddr(connectAddr)
+	cAddr, err := proxyParseAddr(connectAddr)
 	if err != nil {
 		return err
 	}
@@ -1047,7 +1047,7 @@ func parsePortRange(r string) (int64, int64, error) {
 	return base, size, nil
 }
 
-func parseAddr(addr string) (*proxyAddress, error) {
+func proxyParseAddr(addr string) (*proxyAddress, error) {
 	// Split into <protocol> and <address>
 	fields := strings.SplitN(addr, ":", 2)
 
