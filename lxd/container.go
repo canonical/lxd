@@ -506,12 +506,12 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property")
 			}
 
-			listenAddr, err := parseAddr(m["listen"])
+			listenAddr, err := proxyParseAddr(m["listen"])
 			if err != nil {
 				return err
 			}
 
-			connectAddr, err := parseAddr(m["connect"])
+			connectAddr, err := proxyParseAddr(m["connect"])
 			if err != nil {
 				return err
 			}
