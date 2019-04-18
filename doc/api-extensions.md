@@ -566,10 +566,6 @@ will be done via iptables instead of proxy devices.
 This introduces the `ipv4.nat.order` and `ipv6.nat.order` configuration keys for LXD bridges.
 Those keys control whether to put the LXD rules before or after any pre-existing rules in the chain.
 
-## network\_nat\_address
-This introduces the `ipv4.nat.address` and `ipv6.nat.address` configuration keys for LXD bridges.
-Those keys control the source address used for outbound traffic from the bridge.
-
 ## container\_full
 This introduces a new recursion=2 mode for `GET /1.0/containers` which allows for the retrieval of
 all container structs, including the state, snapshots and backup structs.
@@ -732,3 +728,7 @@ Expose the location of the generation of API events.
 
 ## storage\_api\_remote\_volume\_snapshots
 This allows migrating storage volumes including their snapshots.
+
+## network\_nat\_address
+This introduces the `ipv4.nat.address` and `ipv6.nat.address` configuration keys for LXD bridges.
+Those keys control the source address used for outbound traffic from the bridge.
