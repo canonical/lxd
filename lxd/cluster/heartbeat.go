@@ -131,7 +131,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 }
 
 // Number of seconds to wait between to heartbeat rounds.
-const heartbeatInterval = 4
+const heartbeatInterval = 10
 
 // Perform a single heartbeat request against the node with the given address.
 func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInfo, raftNodes []db.RaftNode) error {
