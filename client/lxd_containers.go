@@ -355,7 +355,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	}
 
 	// Optimization for the local copy case
-	if destInfo.URL == sourceInfo.URL && (!r.IsClustered() || container.Location == r.clusterTarget) {
+	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (!r.IsClustered() || container.Location == r.clusterTarget) {
 		// Project handling
 		if destInfo.Project != sourceInfo.Project {
 			if !r.HasExtension("container_copy_project") {
