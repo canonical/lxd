@@ -91,6 +91,7 @@ void forkproxy()
 {
 	unsigned int needs_mntns = 0;
 	int connect_pid, listen_pid, log_fd;
+	size_t unix_prefix_len = sizeof("unix:") - 1;
 	ssize_t ret;
 	pid_t pid;
 	char *connect_addr, *cur, *listen_addr, *log_path, *pid_path;
@@ -138,10 +139,14 @@ void forkproxy()
 		    _exit(EXIT_FAILURE);
 	}
 
-	if (strncmp(listen_addr, "unix:", sizeof("unix:") - 1) == 0)
+	// We only need to attach to the mount namespace for
+	// non-abstract unix sockets.
+	if ((strncmp(listen_addr, "unix:", unix_prefix_len) == 0) &&
+	    (listen_addr[unix_prefix_len] != '@'))
 		    needs_mntns |= LISTEN_NEEDS_MNTNS;
 
-	if (strncmp(connect_addr, "unix:", sizeof("unix:") - 1) == 0)
+	if ((strncmp(connect_addr, "unix:", unix_prefix_len) == 0) &&
+	    (connect_addr[unix_prefix_len] != '@'))
 		    needs_mntns |= CONNECT_NEEDS_MNTNS;
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sk_fds);
