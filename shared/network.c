@@ -26,35 +26,6 @@
 	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct rtgenmsg))))
 #endif
 
-#ifndef SOL_NETLINK
-#define SOL_NETLINK 270
-#endif
-
-#ifndef NETLINK_DUMP_STRICT_CHK
-#define NETLINK_DUMP_STRICT_CHK 12
-#endif
-
-#ifndef RTM_GETLINK
-#define RTM_GETLINK 18
-#endif
-
-#ifndef RTM_GETNSID
-#define RTM_GETNSID 90
-#endif
-
-#ifdef IFLA_IF_NETNSID
-#ifndef IFLA_TARGET_NETNSID
-#define IFLA_TARGET_NETNSID = IFLA_IF_NETNSID
-#endif
-#else
-#define IFLA_IF_NETNSID 46
-#define IFLA_TARGET_NETNSID 46
-#endif
-
-#ifndef IFA_TARGET_NETNSID
-#define IFA_TARGET_NETNSID 10
-#endif
-
 #define IFADDRS_HASH_SIZE 64
 
 #define __NETLINK_ALIGN(len) (((len) + 3) & ~3)
