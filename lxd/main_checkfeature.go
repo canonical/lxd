@@ -107,13 +107,13 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 		return;
 	}
 
-	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, &(int){1}, sizeof(int));
+	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_GET_STRICT_CHK, &(int){1}, sizeof(int));
 	if (ret < 0) {
-		// NETLINK_DUMP_STRICT_CHK isn't supported
+		// NETLINK_GET_STRICT_CHK isn't supported
 		return;
 	}
 
-	// NETLINK_DUMP_STRICT_CHK is supported
+	// NETLINK_GET_STRICT_CHK is supported
 	netnsid_aware = true;
 }
 
