@@ -1634,9 +1634,12 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 			}
 
-			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
-			if err != nil {
-				return err
+			// Check if the container has network specific keys set to avoid unnecessarily running the network up hook.
+			if shared.StringMapHasStringKey(m, containerNetworkKeys...) && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
+				if err != nil {
+					return err
+				}
 			}
 
 			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.flags", networkKeyPrefix, networkidx), "up")
@@ -2371,8 +2374,8 @@ func (c *containerLXC) startCommon() (string, error) {
 						return "", err
 					}
 
-					// Attempt to disable IPv6 on the host side interface
-					networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", device), "1")
+					// Attempt to disable IPv6 router advertisement acceptance
+					networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", device), "0")
 				}
 			}
 		}
@@ -3015,7 +3018,34 @@ func (c *containerLXC) OnStop(target string) error {
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
 	device["host_name"] = hostName
-	return c.setNetworkLimits(device)
+	return c.setupHostVethDevice(device)
+}
+
+// setupHostVethDevice configures a nic device's host side veth settings.
+func (c *containerLXC) setupHostVethDevice(device types.Device) error {
+	// If not already, populate network device with host name.
+	if device["host_name"] == "" {
+		device["host_name"] = c.getHostInterface(device["name"])
+	}
+
+	// Check whether host device resolution succeeded.
+	if device["host_name"] == "" {
+		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
+	}
+
+	// Refresh tc limits
+	err := c.setNetworkLimits(device)
+	if err != nil {
+		return err
+	}
+
+	// Setup static routes to container
+	err = c.setNetworkRoutes(device)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Freezer functions
@@ -4739,6 +4769,19 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				}
+
+				if m["type"] == "nic" && shared.StringMapHasStringKey(m, containerNetworkKeys...) && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+					// Populate network device with container nic names.
+					m, err := c.fillNetworkDevice(k, m)
+					if err != nil {
+						return err
+					}
+
+					err = c.setupHostVethDevice(m)
+					if err != nil {
+						return err
+					}
+				}
 			} else if m["type"] == "usb" {
 				if usbs == nil {
 					usbs, err = deviceLoadUsb()
@@ -4844,18 +4887,29 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
 			} else if m["type"] == "nic" || m["type"] == "infiniband" {
+				// Check to see if network keys have change
 				needsUpdate := false
-				for _, v := range containerNetworkLimitKeys {
+				for _, v := range containerNetworkKeys {
 					needsUpdate = shared.StringInSlice(v, updateDiff)
 					if needsUpdate {
 						break
 					}
 				}
 
-				if needsUpdate {
-					// Refresh tc limits
+				if needsUpdate && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+					// Populate network device with container nic names.
+					m, err := c.fillNetworkDevice(k, m)
+					if err != nil {
+						return err
+					}
+
+					// Populate network device with host name.
 					m["host_name"] = c.getHostInterface(m["name"])
-					err = c.setNetworkLimits(m)
+					if m["host_name"] == "" {
+						return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
+					}
+
+					err = c.setupHostVethDevice(m)
 					if err != nil {
 						return err
 					}
@@ -7509,8 +7563,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
 			}
 
-			// Attempt to disable IPv6 on the host side interface
-			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n1), "1")
+			// Attempt to disable router advertisement acceptance
+			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
 		}
 
 		dev = n2
@@ -7528,8 +7582,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 					return "", err
 				}
 
-				// Attempt to disable IPv6 on the host side interface
-				networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", device), "1")
+				// Attempt to disable IPv6 router advertisement acceptance
+				networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", device), "0")
 			}
 		}
 
@@ -8584,6 +8638,49 @@ func (c *containerLXC) getHostInterface(name string) string {
 
 	// Fail
 	return ""
+}
+
+// setNetworkRoutes applies any static routes configured from the host to the container nic.
+func (c *containerLXC) setNetworkRoutes(m types.Device) error {
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
+		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
+	}
+
+	// Flush all IPv4 routes
+	_, err := shared.RunCommand("ip", "-4", "route", "flush", "dev", m["host_name"], "proto", "static")
+	if err != nil {
+		return err
+	}
+
+	// Flush all IPv6 routes
+	_, err = shared.RunCommand("ip", "-6", "route", "flush", "dev", m["host_name"], "proto", "static")
+	if err != nil {
+		return err
+	}
+
+	// Add additional IPv4 routes
+	if m["ipv4.routes"] != "" {
+		for _, route := range strings.Split(m["ipv4.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-4", "route", "add", "dev", m["host_name"], route, "proto", "static")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Add additional IPv6 routes
+	if m["ipv6.routes"] != "" {
+		for _, route := range strings.Split(m["ipv6.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-6", "route", "add", "dev", m["host_name"], route, "proto", "static")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *containerLXC) setNetworkLimits(m types.Device) error {
