@@ -546,6 +546,17 @@ func IsTrue(value string) bool {
 	return false
 }
 
+// StringMapHasStringKey returns true if any of the supplied keys are present in the map.
+func StringMapHasStringKey(m map[string]string, keys ...string) bool {
+	for _, k := range keys {
+		if _, ok := m[k]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 func IsUnixDev(path string) bool {
 	stat, err := os.Stat(path)
 	if err != nil {
