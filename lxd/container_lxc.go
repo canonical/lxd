@@ -1634,9 +1634,12 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 			}
 
-			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
-			if err != nil {
-				return err
+			// Check if the container has network specific keys set to avoid unnecessarily running the network up hook.
+			if shared.StringMapHasStringKey(m, containerNetworkLimitKeys...) && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
+				if err != nil {
+					return err
+				}
 			}
 
 			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.flags", networkKeyPrefix, networkidx), "up")
