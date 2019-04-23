@@ -61,7 +61,7 @@ func (list Devices) Update(newlist Devices) (map[string]Device, map[string]Devic
 
 		updateDiff = deviceEqualsDiffKeys(oldDevice, newDevice)
 
-		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress", "ipv4.address", "ipv6.address"} {
+		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress", "ipv4.address", "ipv6.address", "ipv4.routes", "ipv6.routes"} {
 			delete(oldDevice, k)
 			delete(newDevice, k)
 		}
