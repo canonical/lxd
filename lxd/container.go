@@ -92,6 +92,8 @@ func containerValidConfigKey(os *sys.OS, key string, value string) error {
 }
 
 var containerNetworkLimitKeys = []string{"limits.max", "limits.ingress", "limits.egress"}
+var containerNetworkRouteKeys = []string{"ipv4.routes", "ipv6.routes"}
+var containerNetworkKeys = append(containerNetworkLimitKeys, containerNetworkRouteKeys...)
 
 func containerValidDeviceConfigKey(t, k string) bool {
 	if k == "type" {
@@ -145,6 +147,10 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		case "ipv4.address":
 			return true
 		case "ipv6.address":
+			return true
+		case "ipv4.routes":
+			return true
+		case "ipv6.routes":
 			return true
 		case "security.mac_filtering":
 			return true
@@ -382,6 +388,34 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 				err := networkValidAddressV6(m["ipv6.address"])
 				if err != nil {
 					return err
+				}
+			}
+
+			if m["ipv4.routes"] != "" {
+				if !shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+					return fmt.Errorf("Bad nic type for ipv4.routes: %s", m["nictype"])
+				}
+
+				for _, route := range strings.Split(m["ipv4.routes"], ",") {
+					route = strings.TrimSpace(route)
+					err := networkValidNetworkV4(route)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			if m["ipv6.routes"] != "" {
+				if !shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+					return fmt.Errorf("Bad nic type for ipv6.routes: %s", m["nictype"])
+				}
+
+				for _, route := range strings.Split(m["ipv6.routes"], ",") {
+					route = strings.TrimSpace(route)
+					err := networkValidNetworkV6(route)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		} else if m["type"] == "infiniband" {
