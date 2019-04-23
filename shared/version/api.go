@@ -148,6 +148,7 @@ var APIExtensions = []string{
 	"event_location",
 	"storage_api_remote_volume_snapshots",
 	"network_nat_address",
+	"container_nic_routes",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

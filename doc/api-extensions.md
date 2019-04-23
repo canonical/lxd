@@ -732,3 +732,7 @@ This allows migrating storage volumes including their snapshots.
 ## network\_nat\_address
 This introduces the `ipv4.nat.address` and `ipv6.nat.address` configuration keys for LXD bridges.
 Those keys control the source address used for outbound traffic from the bridge.
+
+## container\_nic\_routes
+This introduces the `ipv4.routes` and `ipv6.routes` properties on "nic" type devices.
+This allows adding static routes on host to container's nic.

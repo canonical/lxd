@@ -192,13 +192,14 @@ test_config_profiles() {
   lxc profile device show onenic | grep p2p
 
   # test live-adding a nic
+  veth_host_name="veth$$"
   lxc start foo
   lxc exec foo -- cat /proc/self/mountinfo | grep -q "/mnt1.*ro,"
   ! lxc config show foo | grep -q "raw.lxc" || false
   lxc config show foo --expanded | grep -q "raw.lxc"
   ! lxc config show foo | grep -v "volatile.eth0" | grep -q "eth0" || false
   lxc config show foo --expanded | grep -v "volatile.eth0" | grep -q "eth0"
-  lxc config device add foo eth2 nic nictype=p2p name=eth10
+  lxc config device add foo eth2 nic nictype=p2p name=eth10 host_name="${veth_host_name}"
   lxc exec foo -- /sbin/ifconfig -a | grep eth0
   lxc exec foo -- /sbin/ifconfig -a | grep eth10
   lxc config device list foo | grep eth2

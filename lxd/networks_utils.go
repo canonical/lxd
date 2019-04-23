@@ -612,6 +612,27 @@ func networkValidNetworkV4(value string) error {
 	return nil
 }
 
+func networkValidNetworkV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 network: %s", value)
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IPv6 network address: %s", value)
+	}
+
+	return nil
+}
+
 func networkAddressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
