@@ -60,6 +60,7 @@ type OS struct {
 	InotifyWatch            InotifyInfo
 	NetnsGetifaddrs         bool
 	UeventInjection         bool
+	SeccompListener         bool
 	VFS3Fscaps              bool
 	Shiftfs                 bool
 
