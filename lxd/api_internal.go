@@ -45,50 +45,59 @@ var apiInternal = []Command{
 	internalRAFTSnapshotCmd,
 }
 
-var internalShutdownCmd = Command{
-	name: "shutdown",
-	put:  internalShutdown,
+var internalShutdownCmd = APIEndpoint{
+	Name: "shutdown",
+
+	Put: APIEndpointAction{Handler: internalShutdown},
 }
 
-var internalReadyCmd = Command{
-	name: "ready",
-	get:  internalWaitReady,
+var internalReadyCmd = APIEndpoint{
+	Name: "ready",
+
+	Get: APIEndpointAction{Handler: internalWaitReady},
 }
 
-var internalContainerOnStartCmd = Command{
-	name: "containers/{id}/onstart",
-	get:  internalContainerOnStart,
+var internalContainerOnStartCmd = APIEndpoint{
+	Name: "containers/{id}/onstart",
+
+	Get: APIEndpointAction{Handler: internalContainerOnStart},
 }
 
-var internalContainerOnStopCmd = Command{
-	name: "containers/{id}/onstop",
-	get:  internalContainerOnStop,
+var internalContainerOnStopCmd = APIEndpoint{
+	Name: "containers/{id}/onstop",
+
+	Get: APIEndpointAction{Handler: internalContainerOnStop},
 }
 
-var internalContainerOnNetworkUpCmd = Command{
-	name: "containers/{id}/onnetwork-up",
-	get:  internalContainerOnNetworkUp,
+var internalContainerOnNetworkUpCmd = APIEndpoint{
+	Name: "containers/{id}/onnetwork-up",
+
+	Get: APIEndpointAction{Handler: internalContainerOnNetworkUp},
 }
 
-var internalSQLCmd = Command{
-	name: "sql",
-	get:  internalSQLGet,
-	post: internalSQLPost,
+var internalSQLCmd = APIEndpoint{
+	Name: "sql",
+
+	Get:  APIEndpointAction{Handler: internalSQLGet},
+	Post: APIEndpointAction{Handler: internalSQLPost},
 }
 
-var internalContainersCmd = Command{
-	name: "containers",
-	post: internalImport,
+var internalContainersCmd = APIEndpoint{
+	Name: "containers",
+
+	Post: APIEndpointAction{Handler: internalImport},
 }
 
-var internalGarbageCollectorCmd = Command{
-	name: "gc",
-	get:  internalGC,
+var internalGarbageCollectorCmd = APIEndpoint{
+	Name: "gc",
+
+	Get: APIEndpointAction{Handler: internalGC},
 }
 
-var internalRAFTSnapshotCmd = Command{
-	name: "raft-snapshot",
-	get:  internalRAFTSnapshot,
+var internalRAFTSnapshotCmd = APIEndpoint{
+	Name: "raft-snapshot",
+
+	Get: APIEndpointAction{Handler: internalRAFTSnapshot},
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) Response {
