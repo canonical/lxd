@@ -76,12 +76,12 @@ var api10 = []Command{
 	storagePoolResourcesCmd,
 	storagePoolsCmd,
 	storagePoolVolumesCmd,
+	storagePoolVolumeSnapshotsTypeCmd,
+	storagePoolVolumeSnapshotTypeCmd,
 	storagePoolVolumesTypeCmd,
 	storagePoolVolumeTypeContainerCmd,
 	storagePoolVolumeTypeCustomCmd,
 	storagePoolVolumeTypeImageCmd,
-	storagePoolVolumeSnapshotsTypeCmd,
-	storagePoolVolumeSnapshotTypeCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
