@@ -52,10 +52,10 @@ var containerSnapshotsCmd = Command{
 
 var containerSnapshotCmd = Command{
 	name:   "containers/{name}/snapshots/{snapshotName}",
-	get:    snapshotHandler,
-	post:   snapshotHandler,
-	delete: snapshotHandler,
-	put:    snapshotHandler,
+	get:    containerSnapshotHandler,
+	post:   containerSnapshotHandler,
+	delete: containerSnapshotHandler,
+	put:    containerSnapshotHandler,
 }
 
 var containerConsoleCmd = Command{
