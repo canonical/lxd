@@ -27,8 +27,6 @@ var api10Cmd = APIEndpoint{
 }
 
 var api10 = []Command{
-	aliasCmd,
-	aliasesCmd,
 	api10Cmd,
 	api10ResourcesCmd,
 	certificateCmd,
@@ -49,6 +47,8 @@ var api10 = []Command{
 	containerSnapshotsCmd,
 	containerStateCmd,
 	eventsCmd,
+	imageAliasCmd,
+	imageAliasesCmd,
 	imageCmd,
 	imageExportCmd,
 	imageRefreshCmd,

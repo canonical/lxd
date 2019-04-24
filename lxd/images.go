@@ -73,20 +73,20 @@ var imageRefreshCmd = Command{
 	post: imageRefresh,
 }
 
-var aliasesCmd = Command{
+var imageAliasesCmd = Command{
 	name: "images/aliases",
-	post: aliasesPost,
-	get:  aliasesGet,
+	post: imageAliasesPost,
+	get:  imageAliasesGet,
 }
 
-var aliasCmd = Command{
+var imageAliasCmd = Command{
 	name:         "images/aliases/{name:.*}",
 	untrustedGet: true,
-	get:          aliasGet,
-	delete:       aliasDelete,
-	put:          aliasPut,
-	post:         aliasPost,
-	patch:        aliasPatch,
+	get:          imageAliasGet,
+	delete:       imageAliasDelete,
+	put:          imageAliasPut,
+	post:         imageAliasPost,
+	patch:        imageAliasPatch,
 }
 
 /* We only want a single publish running at any one time.
@@ -1527,7 +1527,7 @@ func imagePatch(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func aliasesPost(d *Daemon, r *http.Request) Response {
+func imageAliasesPost(d *Daemon, r *http.Request) Response {
 	req := api.ImageAliasesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
@@ -1560,7 +1560,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
 }
 
-func aliasesGet(d *Daemon, r *http.Request) Response {
+func imageAliasesGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
 	names, err := d.cluster.ImageAliasesGet()
@@ -1590,7 +1590,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, responseMap)
 }
 
-func aliasGet(d *Daemon, r *http.Request) Response {
+func imageAliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	_, alias, err := d.cluster.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
@@ -1601,7 +1601,7 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, alias, alias)
 }
 
-func aliasDelete(d *Daemon, r *http.Request) Response {
+func imageAliasDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	_, _, err := d.cluster.ImageAliasGet(name, true)
 	if err != nil {
@@ -1616,7 +1616,7 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func aliasPut(d *Daemon, r *http.Request) Response {
+func imageAliasPut(d *Daemon, r *http.Request) Response {
 	// Get current value
 	name := mux.Vars(r)["name"]
 	id, alias, err := d.cluster.ImageAliasGet(name, true)
@@ -1652,7 +1652,7 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func aliasPatch(d *Daemon, r *http.Request) Response {
+func imageAliasPatch(d *Daemon, r *http.Request) Response {
 	// Get current value
 	name := mux.Vars(r)["name"]
 	id, alias, err := d.cluster.ImageAliasGet(name, true)
@@ -1704,7 +1704,7 @@ func aliasPatch(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func aliasPost(d *Daemon, r *http.Request) Response {
+func imageAliasPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	req := api.ImageAliasesEntryPost{}
