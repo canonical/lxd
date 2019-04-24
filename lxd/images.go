@@ -41,52 +41,55 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-var imagesCmd = Command{
-	name:         "images",
-	post:         imagesPost,
-	untrustedGet: true,
-	get:          imagesGet,
+var imagesCmd = APIEndpoint{
+	Name: "images",
+
+	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
+	Post: APIEndpointAction{Handler: imagesPost},
 }
 
-var imageCmd = Command{
-	name:         "images/{fingerprint}",
-	untrustedGet: true,
-	get:          imageGet,
-	put:          imagePut,
-	delete:       imageDelete,
-	patch:        imagePatch,
+var imageCmd = APIEndpoint{
+	Name: "images/{fingerprint}",
+
+	Delete: APIEndpointAction{Handler: imageDelete},
+	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
+	Patch:  APIEndpointAction{Handler: imagePatch},
+	Put:    APIEndpointAction{Handler: imagePut},
 }
 
-var imageExportCmd = Command{
-	name:         "images/{fingerprint}/export",
-	untrustedGet: true,
-	get:          imageExport,
+var imageExportCmd = APIEndpoint{
+	Name: "images/{fingerprint}/export",
+
+	Get: APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
 }
 
-var imageSecretCmd = Command{
-	name: "images/{fingerprint}/secret",
-	post: imageSecret,
+var imageSecretCmd = APIEndpoint{
+	Name: "images/{fingerprint}/secret",
+
+	Post: APIEndpointAction{Handler: imageSecret},
 }
 
-var imageRefreshCmd = Command{
-	name: "images/{fingerprint}/refresh",
-	post: imageRefresh,
+var imageRefreshCmd = APIEndpoint{
+	Name: "images/{fingerprint}/refresh",
+
+	Post: APIEndpointAction{Handler: imageRefresh},
 }
 
-var imageAliasesCmd = Command{
-	name: "images/aliases",
-	post: imageAliasesPost,
-	get:  imageAliasesGet,
+var imageAliasesCmd = APIEndpoint{
+	Name: "images/aliases",
+
+	Get:  APIEndpointAction{Handler: imageAliasesGet},
+	Post: APIEndpointAction{Handler: imageAliasesPost},
 }
 
-var imageAliasCmd = Command{
-	name:         "images/aliases/{name:.*}",
-	untrustedGet: true,
-	get:          imageAliasGet,
-	delete:       imageAliasDelete,
-	put:          imageAliasPut,
-	post:         imageAliasPost,
-	patch:        imageAliasPatch,
+var imageAliasCmd = APIEndpoint{
+	Name: "images/aliases/{name:.*}",
+
+	Delete: APIEndpointAction{Handler: imageAliasDelete},
+	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
+	Patch:  APIEndpointAction{Handler: imageAliasPatch},
+	Post:   APIEndpointAction{Handler: imageAliasPost},
+	Put:    APIEndpointAction{Handler: imageAliasPut},
 }
 
 /* We only want a single publish running at any one time.
