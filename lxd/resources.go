@@ -9,14 +9,16 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-var api10ResourcesCmd = Command{
-	name: "resources",
-	get:  api10ResourcesGet,
+var api10ResourcesCmd = APIEndpoint{
+	Name: "resources",
+
+	Get: APIEndpointAction{Handler: api10ResourcesGet},
 }
 
-var storagePoolResourcesCmd = Command{
-	name: "storage-pools/{name}/resources",
-	get:  storagePoolResourcesGet,
+var storagePoolResourcesCmd = APIEndpoint{
+	Name: "storage-pools/{name}/resources",
+
+	Get: APIEndpointAction{Handler: storagePoolResourcesGet},
 }
 
 // /1.0/resources

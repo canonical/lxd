@@ -63,14 +63,11 @@ var api10 = []Command{
 	operationWebsocket,
 	profileCmd,
 	profilesCmd,
-	serverResourceCmd,
-	serverResourceCmd,
 	storagePoolCmd,
 	storagePoolResourcesCmd,
 	storagePoolsCmd,
 	storagePoolVolumesCmd,
 	storagePoolVolumesTypeCmd,
-	storagePoolVolumeTypeCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
