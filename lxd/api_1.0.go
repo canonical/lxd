@@ -29,7 +29,7 @@ var api10Cmd = Command{
 	patch:        api10Patch,
 }
 
-var api10 = []Command{
+var api10 = []APIEndpoint{
 	api10Cmd,
 	api10ResourcesCmd,
 	certificateCmd,
