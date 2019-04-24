@@ -68,6 +68,7 @@ var api10 = []APIEndpoint{
 	storagePoolsCmd,
 	storagePoolVolumesCmd,
 	storagePoolVolumesTypeCmd,
+	storagePoolVolumeTypeCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {

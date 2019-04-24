@@ -21,25 +21,28 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-var storagePoolVolumesCmd = Command{
-	name: "storage-pools/{name}/volumes",
-	get:  storagePoolVolumesGet,
-	post: storagePoolVolumesPost,
+var storagePoolVolumesCmd = APIEndpoint{
+	Name: "storage-pools/{name}/volumes",
+
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost},
 }
 
-var storagePoolVolumesTypeCmd = Command{
-	name: "storage-pools/{name}/volumes/{type}",
-	get:  storagePoolVolumesTypeGet,
-	post: storagePoolVolumesTypePost,
+var storagePoolVolumesTypeCmd = APIEndpoint{
+	Name: "storage-pools/{name}/volumes/{type}",
+
+	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet},
+	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost},
 }
 
-var storagePoolVolumeTypeCmd = Command{
-	name:   "storage-pools/{pool}/volumes/{type}/{name:.*}",
-	post:   storagePoolVolumeTypePost,
-	get:    storagePoolVolumeTypeGet,
-	put:    storagePoolVolumeTypePut,
-	patch:  storagePoolVolumeTypePatch,
-	delete: storagePoolVolumeTypeDelete,
+var storagePoolVolumeTypeCmd = APIEndpoint{
+	Name: "storage-pools/{pool}/volumes/{type}/{name:.*}",
+
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeDelete},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeGet},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypePatch},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypePost},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypePut},
 }
 
 // /1.0/storage-pools/{name}/volumes
