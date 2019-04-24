@@ -835,24 +835,40 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	myType := c.src.container.Storage().MigrationType()
-	hasFeature := true
 	resp := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
 		Snapshots:     header.Snapshots,
 		SnapshotNames: header.SnapshotNames,
 		Refresh:       &c.refresh,
-		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:        &hasFeature,
-			Delete:        &hasFeature,
-			Compress:      &hasFeature,
-			Bidirectional: &hasFeature,
-		},
 	}
 
+	// Return those rsync features we know about (with the value sent by the remote)
+	if header.RsyncFeatures != nil {
+		resp.RsyncFeatures = &migration.RsyncFeatures{}
+		if resp.RsyncFeatures.Xattrs != nil {
+			resp.RsyncFeatures.Xattrs = header.RsyncFeatures.Xattrs
+		}
+
+		if resp.RsyncFeatures.Delete != nil {
+			resp.RsyncFeatures.Delete = header.RsyncFeatures.Delete
+		}
+
+		if resp.RsyncFeatures.Compress != nil {
+			resp.RsyncFeatures.Compress = header.RsyncFeatures.Compress
+		}
+
+		if resp.RsyncFeatures.Bidirectional != nil {
+			resp.RsyncFeatures.Bidirectional = header.RsyncFeatures.Bidirectional
+		}
+	}
+
+	// Return those ZFS features we know about (with the value sent by the remote)
 	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-		resp.ZfsFeatures = &migration.ZfsFeatures{
-			Compress: &hasFeature,
+		if header.ZfsFeatures != nil && header.ZfsFeatures.Compress != nil {
+			resp.ZfsFeatures = &migration.ZfsFeatures{
+				Compress: header.ZfsFeatures.Compress,
+			}
 		}
 	}
 
