@@ -329,6 +329,16 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 			}
 		}
 
+		// Reject internal queries to remote, non-cluster, clients
+		if version == "internal" && !shared.StringInSlice(protocol, []string{"unix", "cluster"}) {
+			// Except for the initial cluster accept request (done over trusted TLS)
+			if !trusted || c.name != "cluster/accept" || protocol != "tls" {
+				logger.Warn("Rejecting remote internal API request", log.Ctx{"ip": r.RemoteAddr})
+				Forbidden(nil).Render(w)
+				return
+			}
+		}
+
 		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
 		if trusted {
 			logger.Debug("Handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "user": username})
