@@ -20,19 +20,21 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var profilesCmd = Command{
-	name: "profiles",
-	get:  profilesGet,
-	post: profilesPost,
+var profilesCmd = APIEndpoint{
+	Name: "profiles",
+
+	Get:  APIEndpointAction{Handler: profilesGet},
+	Post: APIEndpointAction{Handler: profilesPost},
 }
 
-var profileCmd = Command{
-	name:   "profiles/{name}",
-	get:    profileGet,
-	put:    profilePut,
-	delete: profileDelete,
-	post:   profilePost,
-	patch:  profilePatch,
+var profileCmd = APIEndpoint{
+	Name: "profiles/{name}",
+
+	Delete: APIEndpointAction{Handler: profileDelete},
+	Get:    APIEndpointAction{Handler: profileGet},
+	Patch:  APIEndpointAction{Handler: profilePatch},
+	Post:   APIEndpointAction{Handler: profilePost},
+	Put:    APIEndpointAction{Handler: profilePut},
 }
 
 /* This is used for both profiles post and profile put */
