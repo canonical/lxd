@@ -18,12 +18,18 @@ import (
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <syscall.h>
+#include <linux/seccomp.h>
+#include <linux/filter.h>
+#include <linux/audit.h>
+#include <sys/ptrace.h>
 
 #include "../shared/netns_getifaddrs.c"
 #include "include/memory_utils.h"
 
 bool netnsid_aware = false;
 bool uevent_aware = false;
+bool seccomp_notify_aware = false;
 char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
@@ -125,12 +131,25 @@ void is_uevent_aware()
 	uevent_aware = true;
 }
 
+#ifndef SECCOMP_RET_USER_NOTIF
+#define SECCOMP_RET_USER_NOTIF 0x7fc00000U
+#endif
+
+void is_seccomp_notify_aware(void)
+{
+	__u32 action[] = { SECCOMP_RET_USER_NOTIF };
+	seccomp_notify_aware = (syscall(__NR_seccomp, SECCOMP_GET_ACTION_AVAIL,
+					0, &action[0]) == 0);
+
+}
+
 void checkfeature()
 {
 	__do_close_prot_errno int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
 
 	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
 	is_uevent_aware();
+	is_seccomp_notify_aware();
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
@@ -155,4 +174,8 @@ func CanUseNetnsGetifaddrs() bool {
 
 func CanUseUeventInjection() bool {
 	return bool(C.uevent_aware)
+}
+
+func CanUseSeccompListener() bool {
+	return bool(C.seccomp_notify_aware)
 }
