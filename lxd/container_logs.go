@@ -13,15 +13,17 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var containerLogCmd = Command{
-	name:   "containers/{name}/logs/{file}",
-	get:    containerLogGet,
-	delete: containerLogDelete,
+var containerLogCmd = APIEndpoint{
+	Name: "containers/{name}/logs/{file}",
+
+	Delete: APIEndpointAction{Handler: containerLogDelete},
+	Get:    APIEndpointAction{Handler: containerLogGet},
 }
 
-var containerLogsCmd = Command{
-	name: "containers/{name}/logs",
-	get:  containerLogsGet,
+var containerLogsCmd = APIEndpoint{
+	Name: "containers/{name}/logs",
+
+	Get: APIEndpointAction{Handler: containerLogsGet},
 }
 
 func containerLogsGet(d *Daemon, r *http.Request) Response {
