@@ -21,43 +21,48 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-var storagePoolVolumesCmd = Command{
-	name: "storage-pools/{name}/volumes",
-	get:  storagePoolVolumesGet,
-	post: storagePoolVolumesPost,
+var storagePoolVolumesCmd = APIEndpoint{
+	Name: "storage-pools/{name}/volumes",
+
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost},
 }
 
-var storagePoolVolumesTypeCmd = Command{
-	name: "storage-pools/{name}/volumes/{type}",
-	get:  storagePoolVolumesTypeGet,
-	post: storagePoolVolumesTypePost,
+var storagePoolVolumesTypeCmd = APIEndpoint{
+	Name: "storage-pools/{name}/volumes/{type}",
+
+	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet},
+	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost},
 }
 
-var storagePoolVolumeTypeContainerCmd = Command{
-	name:   "storage-pools/{pool}/volumes/container/{name:.*}",
-	post:   storagePoolVolumeTypeContainerPost,
-	get:    storagePoolVolumeTypeContainerGet,
-	put:    storagePoolVolumeTypeContainerPut,
-	patch:  storagePoolVolumeTypeContainerPatch,
-	delete: storagePoolVolumeTypeContainerDelete,
+var storagePoolVolumeTypeContainerCmd = APIEndpoint{
+	Name: "storage-pools/{pool}/volumes/container/{name:.*}",
+
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeContainerPatch},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeContainerPost},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut},
 }
 
-var storagePoolVolumeTypeCustomCmd = Command{
-	name:   "storage-pools/{pool}/volumes/custom/{name}",
-	post:   storagePoolVolumeTypeCustomPost,
-	get:    storagePoolVolumeTypeCustomGet,
-	put:    storagePoolVolumeTypeCustomPut,
-	patch:  storagePoolVolumeTypeCustomPatch,
-	delete: storagePoolVolumeTypeCustomDelete,
+var storagePoolVolumeTypeCustomCmd = APIEndpoint{
+	Name: "storage-pools/{pool}/volumes/custom/{name}",
+
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomPatch},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomPost},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomPut},
 }
 
-var storagePoolVolumeTypeImageCmd = Command{
-	name:   "storage-pools/{pool}/volumes/image/{name}",
-	post:   storagePoolVolumeTypeImagePost,
-	get:    storagePoolVolumeTypeImageGet,
-	put:    storagePoolVolumeTypeImagePut,
-	patch:  storagePoolVolumeTypeImagePatch,
-	delete: storagePoolVolumeTypeImageDelete,
+var storagePoolVolumeTypeImageCmd = APIEndpoint{
+	Name: "storage-pools/{pool}/volumes/image/{name}",
+
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeImagePatch},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeImagePost},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeImagePut},
 }
 
 // /1.0/storage-pools/{name}/volumes
