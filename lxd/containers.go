@@ -16,90 +16,103 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-var containersCmd = Command{
-	name: "containers",
-	get:  containersGet,
-	post: containersPost,
+var containersCmd = APIEndpoint{
+	Name: "containers",
+
+	Get:  APIEndpointAction{Handler: containersGet},
+	Post: APIEndpointAction{Handler: containersPost},
 }
 
-var containerCmd = Command{
-	name:   "containers/{name}",
-	get:    containerGet,
-	put:    containerPut,
-	delete: containerDelete,
-	post:   containerPost,
-	patch:  containerPatch,
+var containerCmd = APIEndpoint{
+	Name: "containers/{name}",
+
+	Get:    APIEndpointAction{Handler: containerGet},
+	Put:    APIEndpointAction{Handler: containerPut},
+	Delete: APIEndpointAction{Handler: containerDelete},
+	Post:   APIEndpointAction{Handler: containerPost},
+	Patch:  APIEndpointAction{Handler: containerPatch},
 }
 
-var containerStateCmd = Command{
-	name: "containers/{name}/state",
-	get:  containerState,
-	put:  containerStatePut,
+var containerStateCmd = APIEndpoint{
+	Name: "containers/{name}/state",
+
+	Get: APIEndpointAction{Handler: containerState},
+	Put: APIEndpointAction{Handler: containerStatePut},
 }
 
-var containerFileCmd = Command{
-	name:   "containers/{name}/files",
-	get:    containerFileHandler,
-	post:   containerFileHandler,
-	delete: containerFileHandler,
+var containerFileCmd = APIEndpoint{
+	Name: "containers/{name}/files",
+
+	Get:    APIEndpointAction{Handler: containerFileHandler},
+	Post:   APIEndpointAction{Handler: containerFileHandler},
+	Delete: APIEndpointAction{Handler: containerFileHandler},
 }
 
-var containerSnapshotsCmd = Command{
-	name: "containers/{name}/snapshots",
-	get:  containerSnapshotsGet,
-	post: containerSnapshotsPost,
+var containerSnapshotsCmd = APIEndpoint{
+	Name: "containers/{name}/snapshots",
+
+	Get:  APIEndpointAction{Handler: containerSnapshotsGet},
+	Post: APIEndpointAction{Handler: containerSnapshotsPost},
 }
 
-var containerSnapshotCmd = Command{
-	name:   "containers/{name}/snapshots/{snapshotName}",
-	get:    containerSnapshotHandler,
-	post:   containerSnapshotHandler,
-	delete: containerSnapshotHandler,
-	put:    containerSnapshotHandler,
+var containerSnapshotCmd = APIEndpoint{
+	Name: "containers/{name}/snapshots/{snapshotName}",
+
+	Get:    APIEndpointAction{Handler: containerSnapshotHandler},
+	Post:   APIEndpointAction{Handler: containerSnapshotHandler},
+	Delete: APIEndpointAction{Handler: containerSnapshotHandler},
+	Put:    APIEndpointAction{Handler: containerSnapshotHandler},
 }
 
-var containerConsoleCmd = Command{
-	name:   "containers/{name}/console",
-	get:    containerConsoleLogGet,
-	post:   containerConsolePost,
-	delete: containerConsoleLogDelete,
+var containerConsoleCmd = APIEndpoint{
+	Name: "containers/{name}/console",
+
+	Get:    APIEndpointAction{Handler: containerConsoleLogGet},
+	Post:   APIEndpointAction{Handler: containerConsolePost},
+	Delete: APIEndpointAction{Handler: containerConsoleLogDelete},
 }
 
-var containerExecCmd = Command{
-	name: "containers/{name}/exec",
-	post: containerExecPost,
+var containerExecCmd = APIEndpoint{
+	Name: "containers/{name}/exec",
+
+	Post: APIEndpointAction{Handler: containerExecPost},
 }
 
-var containerMetadataCmd = Command{
-	name: "containers/{name}/metadata",
-	get:  containerMetadataGet,
-	put:  containerMetadataPut,
+var containerMetadataCmd = APIEndpoint{
+	Name: "containers/{name}/metadata",
+
+	Get: APIEndpointAction{Handler: containerMetadataGet},
+	Put: APIEndpointAction{Handler: containerMetadataPut},
 }
 
-var containerMetadataTemplatesCmd = Command{
-	name:   "containers/{name}/metadata/templates",
-	get:    containerMetadataTemplatesGet,
-	post:   containerMetadataTemplatesPostPut,
-	put:    containerMetadataTemplatesPostPut,
-	delete: containerMetadataTemplatesDelete,
+var containerMetadataTemplatesCmd = APIEndpoint{
+	Name: "containers/{name}/metadata/templates",
+
+	Get:    APIEndpointAction{Handler: containerMetadataTemplatesGet},
+	Post:   APIEndpointAction{Handler: containerMetadataTemplatesPostPut},
+	Put:    APIEndpointAction{Handler: containerMetadataTemplatesPostPut},
+	Delete: APIEndpointAction{Handler: containerMetadataTemplatesDelete},
 }
 
-var containerBackupsCmd = Command{
-	name: "containers/{name}/backups",
-	get:  containerBackupsGet,
-	post: containerBackupsPost,
+var containerBackupsCmd = APIEndpoint{
+	Name: "containers/{name}/backups",
+
+	Get:  APIEndpointAction{Handler: containerBackupsGet},
+	Post: APIEndpointAction{Handler: containerBackupsPost},
 }
 
-var containerBackupCmd = Command{
-	name:   "containers/{name}/backups/{backupName}",
-	get:    containerBackupGet,
-	post:   containerBackupPost,
-	delete: containerBackupDelete,
+var containerBackupCmd = APIEndpoint{
+	Name: "containers/{name}/backups/{backupName}",
+
+	Get:    APIEndpointAction{Handler: containerBackupGet},
+	Post:   APIEndpointAction{Handler: containerBackupPost},
+	Delete: APIEndpointAction{Handler: containerBackupDelete},
 }
 
-var containerBackupExportCmd = Command{
-	name: "containers/{name}/backups/{backupName}/export",
-	get:  containerBackupExportGet,
+var containerBackupExportCmd = APIEndpoint{
+	Name: "containers/{name}/backups/{backupName}/export",
+
+	Get: APIEndpointAction{Handler: containerBackupExportGet},
 }
 
 type containerAutostartList []container
