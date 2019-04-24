@@ -170,7 +170,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func snapshotHandler(d *Daemon, r *http.Request) Response {
+func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
