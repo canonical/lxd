@@ -9,9 +9,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-var serverResourceCmd = Command{
+var api10ResourcesCmd = Command{
 	name: "resources",
-	get:  serverResourcesGet,
+	get:  api10ResourcesGet,
 }
 
 var storagePoolResourcesCmd = Command{
@@ -21,7 +21,7 @@ var storagePoolResourcesCmd = Command{
 
 // /1.0/resources
 // Get system resources
-func serverResourcesGet(d *Daemon, r *http.Request) Response {
+func api10ResourcesGet(d *Daemon, r *http.Request) Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
