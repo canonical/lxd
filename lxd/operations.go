@@ -23,26 +23,29 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var operationCmd = Command{
-	name:   "operations/{id}",
-	get:    operationGet,
-	delete: operationDelete,
+var operationCmd = APIEndpoint{
+	Name: "operations/{id}",
+
+	Delete: APIEndpointAction{Handler: operationDelete},
+	Get:    APIEndpointAction{Handler: operationGet},
 }
 
-var operationsCmd = Command{
-	name: "operations",
-	get:  operationsGet,
+var operationsCmd = APIEndpoint{
+	Name: "operations",
+
+	Get: APIEndpointAction{Handler: operationsGet},
 }
 
-var operationWait = Command{
-	name: "operations/{id}/wait",
-	get:  operationWaitGet,
+var operationWait = APIEndpoint{
+	Name: "operations/{id}/wait",
+
+	Get: APIEndpointAction{Handler: operationWaitGet},
 }
 
-var operationWebsocket = Command{
-	name:         "operations/{id}/websocket",
-	untrustedGet: true,
-	get:          operationWebsocketGet,
+var operationWebsocket = APIEndpoint{
+	Name: "operations/{id}/websocket",
+
+	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
 var operationsLock sync.Mutex
