@@ -33,6 +33,7 @@ var api10 = []Command{
 	aliasCmd,
 	aliasesCmd,
 	api10Cmd,
+	api10ResourcesCmd,
 	certificateFingerprintCmd,
 	certificatesCmd,
 	clusterCmd,
@@ -71,18 +72,16 @@ var api10 = []Command{
 	profilesCmd,
 	projectCmd,
 	projectsCmd,
-	serverResourceCmd,
-	serverResourceCmd,
 	storagePoolCmd,
 	storagePoolResourcesCmd,
 	storagePoolsCmd,
 	storagePoolVolumesCmd,
+	storagePoolVolumeSnapshotsTypeCmd,
+	storagePoolVolumeSnapshotTypeCmd,
 	storagePoolVolumesTypeCmd,
 	storagePoolVolumeTypeContainerCmd,
 	storagePoolVolumeTypeCustomCmd,
 	storagePoolVolumeTypeImageCmd,
-	storagePoolVolumeSnapshotsTypeCmd,
-	storagePoolVolumeSnapshotTypeCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
