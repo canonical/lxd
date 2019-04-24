@@ -158,7 +158,7 @@ type Command struct {
 
 // Convenience function around Authenticate
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
-	trusted, _, err := d.Authenticate(r)
+	trusted, _, _, err := d.Authenticate(r)
 	if !trusted || err != nil {
 		if err != nil {
 			return err
@@ -175,7 +175,7 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 // will validate the TLS certificate or Macaroon.
 //
 // This does not perform authorization, only validates authentication
-func (d *Daemon) Authenticate(r *http.Request) (bool, string, error) {
+func (d *Daemon) Authenticate(r *http.Request) (bool, string, string, error) {
 	// Allow internal cluster traffic
 	if r.TLS != nil {
 		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
@@ -183,29 +183,29 @@ func (d *Daemon) Authenticate(r *http.Request) (bool, string, error) {
 		for i := range r.TLS.PeerCertificates {
 			trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts)
 			if trusted {
-				return true, "", nil
+				return true, "", "cluster", nil
 			}
 		}
 	}
 
 	// Local unix socket queries
 	if r.RemoteAddr == "@" {
-		return true, "", nil
+		return true, "", "unix", nil
 	}
 
 	// Devlxd unix socket credentials on main API
 	if r.RemoteAddr == "@devlxd" {
-		return false, "", fmt.Errorf("Main API query can't come from /dev/lxd socket")
+		return false, "", "", fmt.Errorf("Main API query can't come from /dev/lxd socket")
 	}
 
 	// Cluster notification with wrong certificate
 	if isClusterNotification(r) {
-		return false, "", fmt.Errorf("Cluster notification isn't using cluster certificate")
+		return false, "", "", fmt.Errorf("Cluster notification isn't using cluster certificate")
 	}
 
 	// Bad query, no TLS found
 	if r.TLS == nil {
-		return false, "", fmt.Errorf("Bad/missing TLS on network query")
+		return false, "", "", fmt.Errorf("Bad/missing TLS on network query")
 	}
 
 	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
@@ -221,28 +221,28 @@ func (d *Daemon) Authenticate(r *http.Request) (bool, string, error) {
 		info, err := authChecker.Allow(ctx, ops...)
 		if err != nil {
 			// Bad macaroon
-			return false, "", err
+			return false, "", "", err
 		}
 
 		if info != nil && info.Identity != nil {
 			// Valid identity macaroon found
-			return true, info.Identity.Id(), nil
+			return true, info.Identity.Id(), "candid", nil
 		}
 
 		// Valid macaroon with no identity information
-		return true, "", nil
+		return true, "", "candid", nil
 	}
 
 	// Validate normal TLS access
 	for i := range r.TLS.PeerCertificates {
 		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts)
 		if trusted {
-			return true, username, nil
+			return true, username, "tls", nil
 		}
 	}
 
 	// Reject unauthorized
-	return false, "", nil
+	return false, "", "", nil
 }
 
 func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError, expiry int64) {
@@ -319,7 +319,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 		}
 
 		// Authentication
-		trusted, username, err := d.Authenticate(r)
+		trusted, username, protocol, err := d.Authenticate(r)
 		if err != nil {
 			// If not a macaroon discharge request, return the error
 			_, ok := err.(*bakery.DischargeRequiredError)
