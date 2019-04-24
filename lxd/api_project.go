@@ -21,20 +21,20 @@ import (
 
 var projectsCmd = Command{
 	name: "projects",
-	get:  apiProjectsGet,
-	post: apiProjectsPost,
+	get:  projectsGet,
+	post: projectsPost,
 }
 
 var projectCmd = Command{
 	name:   "projects/{name}",
-	get:    apiProjectGet,
-	post:   apiProjectPost,
-	put:    apiProjectPut,
-	patch:  apiProjectPatch,
-	delete: apiProjectDelete,
+	get:    projectGet,
+	post:   projectPost,
+	put:    projectPut,
+	patch:  projectPatch,
+	delete: projectDelete,
 }
 
-func apiProjectsGet(d *Daemon, r *http.Request) Response {
+func projectsGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
 	var result interface{}
@@ -55,7 +55,7 @@ func apiProjectsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-func apiProjectsPost(d *Daemon, r *http.Request) Response {
+func projectsPost(d *Daemon, r *http.Request) Response {
 	// Parse the request
 	project := api.ProjectsPost{}
 
@@ -105,7 +105,7 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		}
 
 		if project.Config["features.profiles"] == "true" {
-			err = apiProjectCreateDefaultProfile(tx, project.Name)
+			err = projectCreateDefaultProfile(tx, project.Name)
 			if err != nil {
 				return err
 			}
@@ -121,7 +121,7 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 }
 
 // Create the default profile of a project.
-func apiProjectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
+func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	// Create a default profile
 	profile := db.Profile{}
 	profile.Project = project
@@ -137,7 +137,7 @@ func apiProjectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	return nil
 }
 
-func apiProjectGet(d *Daemon, r *http.Request) Response {
+func projectGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the database entry
@@ -160,7 +160,7 @@ func apiProjectGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, project, etag)
 }
 
-func apiProjectPut(d *Daemon, r *http.Request) Response {
+func projectPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the current data
@@ -193,10 +193,10 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	return apiProjectChange(d, project, req)
+	return projectChange(d, project, req)
 }
 
-func apiProjectPatch(d *Daemon, r *http.Request) Response {
+func projectPatch(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the current data
@@ -255,11 +255,11 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 		req.Config["features.images"] = project.Config["features.profiles"]
 	}
 
-	return apiProjectChange(d, project, req)
+	return projectChange(d, project, req)
 }
 
 // Common logic between PUT and PATCH.
-func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response {
+func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response {
 	// Flag indicating if any feature has changed.
 	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
 
@@ -268,7 +268,7 @@ func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Respo
 		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if !apiProjectIsEmpty(project) && featuresChanged {
+	if !projectIsEmpty(project) && featuresChanged {
 		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
@@ -287,7 +287,7 @@ func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Respo
 
 		if req.Config["features.profiles"] != project.Config["features.profiles"] {
 			if req.Config["features.profiles"] == "true" {
-				err = apiProjectCreateDefaultProfile(tx, project.Name)
+				err = projectCreateDefaultProfile(tx, project.Name)
 				if err != nil {
 					return err
 				}
@@ -311,7 +311,7 @@ func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Respo
 	return EmptySyncResponse
 }
 
-func apiProjectPost(d *Daemon, r *http.Request) Response {
+func projectPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Parse the request
@@ -344,7 +344,7 @@ func apiProjectPost(d *Daemon, r *http.Request) Response {
 				return errors.Wrapf(err, "Fetch project %q", name)
 			}
 
-			if !apiProjectIsEmpty(project) {
+			if !projectIsEmpty(project) {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
@@ -362,7 +362,7 @@ func apiProjectPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func apiProjectDelete(d *Daemon, r *http.Request) Response {
+func projectDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Sanity checks
@@ -375,7 +375,7 @@ func apiProjectDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return errors.Wrapf(err, "Fetch project %q", name)
 		}
-		if !apiProjectIsEmpty(project) {
+		if !projectIsEmpty(project) {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
@@ -390,7 +390,7 @@ func apiProjectDelete(d *Daemon, r *http.Request) Response {
 }
 
 // Check if a project is empty.
-func apiProjectIsEmpty(project *api.Project) bool {
+func projectIsEmpty(project *api.Project) bool {
 	if len(project.UsedBy) > 0 {
 		// Check if the only entity is the default profile.
 		if len(project.UsedBy) == 1 && strings.Contains(project.UsedBy[0], "/profiles/default") {
