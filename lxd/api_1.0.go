@@ -31,7 +31,7 @@ var api10 = []Command{
 	aliasesCmd,
 	api10Cmd,
 	api10ResourcesCmd,
-	certificateFingerprintCmd,
+	certificateCmd,
 	certificatesCmd,
 	clusterCmd,
 	clusterNodeCmd,
