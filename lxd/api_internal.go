@@ -29,7 +29,7 @@ import (
 	runtimeDebug "runtime/debug"
 )
 
-var apiInternal = []Command{
+var apiInternal = []APIEndpoint{
 	internalReadyCmd,
 	internalShutdownCmd,
 	internalContainerOnStartCmd,

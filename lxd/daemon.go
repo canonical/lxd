@@ -144,16 +144,21 @@ func DefaultDaemon() *Daemon {
 	return NewDaemon(config, os)
 }
 
-// Command is the basic structure for every API call.
-type Command struct {
-	name          string
-	untrustedGet  bool
-	untrustedPost bool
-	get           func(d *Daemon, r *http.Request) Response
-	put           func(d *Daemon, r *http.Request) Response
-	post          func(d *Daemon, r *http.Request) Response
-	delete        func(d *Daemon, r *http.Request) Response
-	patch         func(d *Daemon, r *http.Request) Response
+// APIEndpoint represents a URL in our API.
+type APIEndpoint struct {
+	Name   string
+	Get    APIEndpointAction
+	Put    APIEndpointAction
+	Post   APIEndpointAction
+	Delete APIEndpointAction
+	Patch  APIEndpointAction
+}
+
+// APIEndpointAction represents an action on an API endpoint.
+type APIEndpointAction struct {
+	Handler        func(d *Daemon, r *http.Request) Response
+	AccessHandler  func(d *Daemon, r *http.Request) Response
+	AllowUntrusted bool
 }
 
 // Convenience function around Authenticate
@@ -297,12 +302,12 @@ func (d *Daemon) UnixSocket() string {
 	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
-func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
+func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
-	if c.name == "" {
+	if c.Name == "" {
 		uri = fmt.Sprintf("/%s", version)
 	} else {
-		uri = fmt.Sprintf("/%s/%s", version, c.name)
+		uri = fmt.Sprintf("/%s/%s", version, c.Name)
 	}
 
 	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
@@ -332,14 +337,14 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !shared.StringInSlice(protocol, []string{"unix", "cluster"}) {
 			// Except for the initial cluster accept request (done over trusted TLS)
-			if !trusted || c.name != "cluster/accept" || protocol != "tls" {
+			if !trusted || c.Name != "cluster/accept" || protocol != "tls" {
 				logger.Warn("Rejecting remote internal API request", log.Ctx{"ip": r.RemoteAddr})
 				Forbidden(nil).Render(w)
 				return
 			}
 		}
 
-		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
+		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
 		if trusted {
 			logger.Debug("Handling", log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "user": username})
 			r = r.WithContext(context.WithValue(r.Context(), "username", username))
@@ -374,24 +379,24 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 
 		switch r.Method {
 		case "GET":
-			if c.get != nil {
-				resp = c.get(d, r)
+			if c.Get.Handler != nil {
+				resp = c.Get.Handler(d, r)
 			}
 		case "PUT":
-			if c.put != nil {
-				resp = c.put(d, r)
+			if c.Put.Handler != nil {
+				resp = c.Put.Handler(d, r)
 			}
 		case "POST":
-			if c.post != nil {
-				resp = c.post(d, r)
+			if c.Post.Handler != nil {
+				resp = c.Post.Handler(d, r)
 			}
 		case "DELETE":
-			if c.delete != nil {
-				resp = c.delete(d, r)
+			if c.Delete.Handler != nil {
+				resp = c.Delete.Handler(d, r)
 			}
 		case "PATCH":
-			if c.patch != nil {
-				resp = c.patch(d, r)
+			if c.Patch.Handler != nil {
+				resp = c.Patch.Handler(d, r)
 			}
 		default:
 			resp = NotFound(fmt.Errorf("Method '%s' not found", r.Method))

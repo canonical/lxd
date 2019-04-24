@@ -26,7 +26,7 @@ var api10Cmd = APIEndpoint{
 	Put:   APIEndpointAction{Handler: api10Put},
 }
 
-var api10 = []Command{
+var api10 = []APIEndpoint{
 	api10Cmd,
 	api10ResourcesCmd,
 	certificateCmd,
