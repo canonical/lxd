@@ -25,24 +25,24 @@ import (
 
 var operationCmd = Command{
 	name:   "operations/{id}",
-	get:    operationAPIGet,
-	delete: operationAPIDelete,
+	get:    operationGet,
+	delete: operationDelete,
 }
 
 var operationsCmd = Command{
 	name: "operations",
-	get:  operationsAPIGet,
+	get:  operationsGet,
 }
 
 var operationWait = Command{
 	name: "operations/{id}/wait",
-	get:  operationAPIWaitGet,
+	get:  operationWaitGet,
 }
 
 var operationWebsocket = Command{
 	name:         "operations/{id}/websocket",
 	untrustedGet: true,
-	get:          operationAPIWebsocketGet,
+	get:          operationWebsocketGet,
 }
 
 var operationsLock sync.Mutex
@@ -472,7 +472,7 @@ func operationCreate(cluster *db.Cluster, project string, opClass operationClass
 	return &op, nil
 }
 
-func operationGet(id string) (*operation, error) {
+func operationGetInternal(id string) (*operation, error) {
 	operationsLock.Lock()
 	op, ok := operations[id]
 	operationsLock.Unlock()
@@ -485,13 +485,13 @@ func operationGet(id string) (*operation, error) {
 }
 
 // API functions
-func operationAPIGet(d *Daemon, r *http.Request) Response {
+func operationGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
 	var body *api.Operation
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGet(id)
+	op, err := operationGetInternal(id)
 	if err == nil {
 		_, body, err = op.Render()
 		if err != nil {
@@ -530,11 +530,11 @@ func operationAPIGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, body)
 }
 
-func operationAPIDelete(d *Daemon, r *http.Request) Response {
+func operationDelete(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGet(id)
+	op, err := operationGetInternal(id)
 	if err == nil {
 		_, err = op.Cancel()
 		if err != nil {
@@ -573,7 +573,7 @@ func operationAPIDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func operationsAPIGet(d *Daemon, r *http.Request) Response {
+func operationsGet(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
@@ -745,7 +745,7 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, md)
 }
 
-func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
+func operationWaitGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
 	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
@@ -754,7 +754,7 @@ func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGet(id)
+	op, err := operationGetInternal(id)
 	if err == nil {
 		_, err = op.WaitFinal(timeout)
 		if err != nil {
@@ -841,11 +841,11 @@ func (r *forwardedOperationWebSocket) String() string {
 	return r.id
 }
 
-func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
+func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGet(id)
+	op, err := operationGetInternal(id)
 	if err == nil {
 		return &operationWebSocket{r, op}
 	}
