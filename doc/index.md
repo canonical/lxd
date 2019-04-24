@@ -34,7 +34,7 @@ later to work. On ubuntu, you can get those with:
 
 ```bash
 sudo apt update
-sudo apt install acl autoconf dnsmasq-base git golang libacl1-dev libcap-dev liblxc1 liblxc-dev libtool libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils
+sudo apt install acl autoconf dnsmasq-base git golang libacl1-dev libcap-dev liblxc1 liblxc-dev libtool libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
 ```
 
 Note that when building LXC yourself, ensure to build it with the appropriate
@@ -57,7 +57,7 @@ sudo apt install btrfs-tools
 To run the testsuite, you'll also need:
 
 ```bash
-sudo apt install curl gettext jq sqlite3 uuid-runtime bzr
+sudo apt install curl gettext jq sqlite3 uuid-runtime bzr socat
 ```
 
 
