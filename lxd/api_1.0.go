@@ -32,7 +32,7 @@ var api10Cmd = Command{
 var api10 = []Command{
 	api10Cmd,
 	api10ResourcesCmd,
-	certificateFingerprintCmd,
+	certificateCmd,
 	certificatesCmd,
 	clusterCmd,
 	clusterNodeCmd,

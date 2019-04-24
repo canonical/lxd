@@ -31,12 +31,12 @@ var certificatesCmd = Command{
 	post:          certificatesPost,
 }
 
-var certificateFingerprintCmd = Command{
+var certificateCmd = Command{
 	name:   "certificates/{fingerprint}",
-	get:    certificateFingerprintGet,
-	delete: certificateFingerprintDelete,
-	put:    certificateFingerprintPut,
-	patch:  certificateFingerprintPatch,
+	get:    certificateGet,
+	delete: certificateDelete,
+	put:    certificatePut,
+	patch:  certificatePatch,
 }
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
@@ -211,7 +211,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
-func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
+func certificateGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	cert, err := doCertificateGet(d.cluster, fingerprint)
@@ -242,7 +242,7 @@ func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, erro
 	return resp, nil
 }
 
-func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
+func certificatePut(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
@@ -264,7 +264,7 @@ func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
 	return doCertificateUpdate(d, fingerprint, req)
 }
 
-func certificateFingerprintPatch(d *Daemon, r *http.Request) Response {
+func certificatePatch(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
@@ -312,7 +312,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 	return EmptySyncResponse
 }
 
-func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
+func certificateDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	certInfo, err := d.cluster.CertificateGet(fingerprint)
