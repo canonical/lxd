@@ -30,11 +30,9 @@ var api10Cmd = Command{
 }
 
 var api10 = []Command{
-	aliasCmd,
-	aliasesCmd,
 	api10Cmd,
 	api10ResourcesCmd,
-	certificateFingerprintCmd,
+	certificateCmd,
 	certificatesCmd,
 	clusterCmd,
 	clusterNodeCmd,
@@ -55,6 +53,8 @@ var api10 = []Command{
 	containerSnapshotsCmd,
 	containerStateCmd,
 	eventsCmd,
+	imageAliasCmd,
+	imageAliasesCmd,
 	imageCmd,
 	imageExportCmd,
 	imageRefreshCmd,
