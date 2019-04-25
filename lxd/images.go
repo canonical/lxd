@@ -330,7 +330,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation, project str
 		return nil, err
 	}
 
-	id, info, err := d.cluster.ImageGet("default", info.Fingerprint, false, true)
+	id, info, err := d.cluster.ImageGet(project, info.Fingerprint, false, true)
 	if err != nil {
 		return nil, err
 	}
