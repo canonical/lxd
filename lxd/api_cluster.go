@@ -25,37 +25,43 @@ import (
 	"github.com/pkg/errors"
 )
 
-var clusterCmd = Command{
-	name: "cluster",
-	get:  clusterGet,
-	put:  clusterPut,
+var clusterCmd = APIEndpoint{
+	Name: "cluster",
+
+	Get: APIEndpointAction{Handler: clusterGet},
+	Put: APIEndpointAction{Handler: clusterPut},
 }
 
-var clusterNodesCmd = Command{
-	name: "cluster/members",
-	get:  clusterNodesGet,
+var clusterNodesCmd = APIEndpoint{
+	Name: "cluster/members",
+
+	Get: APIEndpointAction{Handler: clusterNodesGet},
 }
 
-var clusterNodeCmd = Command{
-	name:   "cluster/members/{name}",
-	get:    clusterNodeGet,
-	post:   clusterNodePost,
-	delete: clusterNodeDelete,
+var clusterNodeCmd = APIEndpoint{
+	Name: "cluster/members/{name}",
+
+	Delete: APIEndpointAction{Handler: clusterNodeDelete},
+	Get:    APIEndpointAction{Handler: clusterNodeGet},
+	Post:   APIEndpointAction{Handler: clusterNodePost},
 }
 
-var internalClusterAcceptCmd = Command{
-	name: "cluster/accept",
-	post: internalClusterPostAccept,
+var internalClusterAcceptCmd = APIEndpoint{
+	Name: "cluster/accept",
+
+	Post: APIEndpointAction{Handler: internalClusterPostAccept},
 }
 
-var internalClusterRebalanceCmd = Command{
-	name: "cluster/rebalance",
-	post: internalClusterPostRebalance,
+var internalClusterRebalanceCmd = APIEndpoint{
+	Name: "cluster/rebalance",
+
+	Post: APIEndpointAction{Handler: internalClusterPostRebalance},
 }
 
-var internalClusterPromoteCmd = Command{
-	name: "cluster/promote",
-	post: internalClusterPostPromote,
+var internalClusterPromoteCmd = APIEndpoint{
+	Name: "cluster/promote",
+
+	Post: APIEndpointAction{Handler: internalClusterPostPromote},
 }
 
 // Return information about the cluster.

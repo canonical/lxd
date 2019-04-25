@@ -21,18 +21,20 @@ import (
 // Lock to prevent concurent storage pools creation
 var storagePoolCreateLock sync.Mutex
 
-var storagePoolsCmd = Command{
-	name: "storage-pools",
-	get:  storagePoolsGet,
-	post: storagePoolsPost,
+var storagePoolsCmd = APIEndpoint{
+	Name: "storage-pools",
+
+	Get:  APIEndpointAction{Handler: storagePoolsGet},
+	Post: APIEndpointAction{Handler: storagePoolsPost},
 }
 
-var storagePoolCmd = Command{
-	name:   "storage-pools/{name}",
-	get:    storagePoolGet,
-	put:    storagePoolPut,
-	patch:  storagePoolPatch,
-	delete: storagePoolDelete,
+var storagePoolCmd = APIEndpoint{
+	Name: "storage-pools/{name}",
+
+	Delete: APIEndpointAction{Handler: storagePoolDelete},
+	Get:    APIEndpointAction{Handler: storagePoolGet},
+	Patch:  APIEndpointAction{Handler: storagePoolPatch},
+	Put:    APIEndpointAction{Handler: storagePoolPut},
 }
 
 // /1.0/storage-pools

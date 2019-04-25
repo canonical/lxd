@@ -24,19 +24,20 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-var certificatesCmd = Command{
-	name:          "certificates",
-	untrustedPost: true,
-	get:           certificatesGet,
-	post:          certificatesPost,
+var certificatesCmd = APIEndpoint{
+	Name: "certificates",
+
+	Get:  APIEndpointAction{Handler: certificatesGet},
+	Post: APIEndpointAction{Handler: certificatesPost, AllowUntrusted: true},
 }
 
-var certificateCmd = Command{
-	name:   "certificates/{fingerprint}",
-	get:    certificateGet,
-	delete: certificateDelete,
-	put:    certificatePut,
-	patch:  certificatePatch,
+var certificateCmd = APIEndpoint{
+	Name: "certificates/{fingerprint}",
+
+	Delete: APIEndpointAction{Handler: certificateDelete},
+	Get:    APIEndpointAction{Handler: certificateGet},
+	Patch:  APIEndpointAction{Handler: certificatePatch},
+	Put:    APIEndpointAction{Handler: certificatePut},
 }
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
