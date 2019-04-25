@@ -377,27 +377,32 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		var resp Response
 		resp = NotImplemented(nil)
 
+		handleRequest := func(action APIEndpointAction) Response {
+			if action.Handler == nil {
+				return NotImplemented(nil)
+			}
+
+			if action.AccessHandler != nil {
+				resp := action.AccessHandler(d, r)
+				if resp != EmptySyncResponse {
+					return resp
+				}
+			}
+
+			return action.Handler(d, r)
+		}
+
 		switch r.Method {
 		case "GET":
-			if c.Get.Handler != nil {
-				resp = c.Get.Handler(d, r)
-			}
+			resp = handleRequest(c.Get)
 		case "PUT":
-			if c.Put.Handler != nil {
-				resp = c.Put.Handler(d, r)
-			}
+			resp = handleRequest(c.Put)
 		case "POST":
-			if c.Post.Handler != nil {
-				resp = c.Post.Handler(d, r)
-			}
+			resp = handleRequest(c.Post)
 		case "DELETE":
-			if c.Delete.Handler != nil {
-				resp = c.Delete.Handler(d, r)
-			}
+			resp = handleRequest(c.Delete)
 		case "PATCH":
-			if c.Patch.Handler != nil {
-				resp = c.Patch.Handler(d, r)
-			}
+			resp = handleRequest(c.Patch)
 		default:
 			resp = NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 		}
