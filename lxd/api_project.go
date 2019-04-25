@@ -19,19 +19,21 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var projectsCmd = Command{
-	name: "projects",
-	get:  projectsGet,
-	post: projectsPost,
+var projectsCmd = APIEndpoint{
+	Name: "projects",
+
+	Get:  APIEndpointAction{Handler: projectsGet},
+	Post: APIEndpointAction{Handler: projectsPost},
 }
 
-var projectCmd = Command{
-	name:   "projects/{name}",
-	get:    projectGet,
-	post:   projectPost,
-	put:    projectPut,
-	patch:  projectPatch,
-	delete: projectDelete,
+var projectCmd = APIEndpoint{
+	Name: "projects/{name}",
+
+	Delete: APIEndpointAction{Handler: projectDelete},
+	Get:    APIEndpointAction{Handler: projectGet},
+	Patch:  APIEndpointAction{Handler: projectPatch},
+	Post:   APIEndpointAction{Handler: projectPost},
+	Put:    APIEndpointAction{Handler: projectPut},
 }
 
 func projectsGet(d *Daemon, r *http.Request) Response {

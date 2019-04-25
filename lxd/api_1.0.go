@@ -21,15 +21,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-var api10Cmd = Command{
-	name:         "",
-	untrustedGet: true,
-	get:          api10Get,
-	put:          api10Put,
-	patch:        api10Patch,
+var api10Cmd = APIEndpoint{
+	Get:   APIEndpointAction{Handler: api10Get, AllowUntrusted: true},
+	Patch: APIEndpointAction{Handler: api10Patch},
+	Put:   APIEndpointAction{Handler: api10Put},
 }
 
-var api10 = []Command{
+var api10 = []APIEndpoint{
 	api10Cmd,
 	api10ResourcesCmd,
 	certificateCmd,

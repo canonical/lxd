@@ -34,29 +34,33 @@ import (
 // Lock to prevent concurent networks creation
 var networkCreateLock sync.Mutex
 
-var networksCmd = Command{
-	name: "networks",
-	get:  networksGet,
-	post: networksPost,
+var networksCmd = APIEndpoint{
+	Name: "networks",
+
+	Get:  APIEndpointAction{Handler: networksGet},
+	Post: APIEndpointAction{Handler: networksPost},
 }
 
-var networkCmd = Command{
-	name:   "networks/{name}",
-	get:    networkGet,
-	delete: networkDelete,
-	post:   networkPost,
-	put:    networkPut,
-	patch:  networkPatch,
+var networkCmd = APIEndpoint{
+	Name: "networks/{name}",
+
+	Delete: APIEndpointAction{Handler: networkDelete},
+	Get:    APIEndpointAction{Handler: networkGet},
+	Patch:  APIEndpointAction{Handler: networkPatch},
+	Post:   APIEndpointAction{Handler: networkPost},
+	Put:    APIEndpointAction{Handler: networkPut},
 }
 
-var networkLeasesCmd = Command{
-	name: "networks/{name}/leases",
-	get:  networkLeasesGet,
+var networkLeasesCmd = APIEndpoint{
+	Name: "networks/{name}/leases",
+
+	Get: APIEndpointAction{Handler: networkLeasesGet},
 }
 
-var networkStateCmd = Command{
-	name: "networks/{name}/state",
-	get:  networkStateGet,
+var networkStateCmd = APIEndpoint{
+	Name: "networks/{name}/state",
+
+	Get: APIEndpointAction{Handler: networkStateGet},
 }
 
 // API endpoints
