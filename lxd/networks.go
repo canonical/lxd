@@ -665,6 +665,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 
 func networkLeasesGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+	project := projectParam(r)
 
 	// Try to get the network
 	n, err := doNetworkGet(d, name)
@@ -678,11 +679,12 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	leases := []api.NetworkLease{}
+	projectMacs := []string{}
 
 	// Get all static leases
 	if !isClusterNotification(r) {
 		// Get all the containers
-		containers, err := containerLoadFromAllProjects(d.State())
+		containers, err := containerLoadByProject(d.State(), project)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -699,6 +701,11 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 				d, err = c.(*containerLXC).fillNetworkDevice(k, d)
 				if err != nil {
 					continue
+				}
+
+				// Record the MAC
+				if d["hwaddr"] != "" {
+					projectMacs = append(projectMacs, d["hwaddr"])
 				}
 
 				// Add the lease
@@ -800,6 +807,18 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
+
+		// Filter based on project
+		filteredLeases := []api.NetworkLease{}
+		for _, lease := range leases {
+			if !shared.StringInSlice(lease.Hwaddr, projectMacs) {
+				continue
+			}
+
+			filteredLeases = append(filteredLeases, lease)
+		}
+
+		leases = filteredLeases
 	}
 
 	return SyncResponse(true, leases)
