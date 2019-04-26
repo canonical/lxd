@@ -226,16 +226,28 @@ func fsGenerateNewUUID(fstype string, lvpath string) (string, error) {
 	return "", nil
 }
 
-func xfsGenerateNewUUID(lvpath string) (string, error) {
-	msg, err := shared.RunCommand(
-		"xfs_admin",
-		"-U", "generate",
-		lvpath)
+func xfsGenerateNewUUID(devPath string) (string, error) {
+	// Attempt to generate a new UUID
+	msg, err := shared.RunCommand("xfs_admin", "-U", "generate", devPath)
 	if err != nil {
 		return msg, err
 	}
 
-	return "", nil
+	if msg != "" {
+		// Exit 0 with a msg usually means some log entry getting in the way
+		msg, err = shared.RunCommand("xfs_repair", "-o", "force_geometry", "-L", devPath)
+		if err != nil {
+			return msg, err
+		}
+
+		// Attempt to generate a new UUID again
+		msg, err = shared.RunCommand("xfs_admin", "-U", "generate", devPath)
+		if err != nil {
+			return msg, err
+		}
+	}
+
+	return msg, nil
 }
 
 func btrfsGenerateNewUUID(lvpath string) (string, error) {
@@ -248,7 +260,7 @@ func btrfsGenerateNewUUID(lvpath string) (string, error) {
 		return msg, err
 	}
 
-	return "", nil
+	return msg, nil
 }
 
 func growFileSystem(fsType string, devPath string, mntpoint string) error {
