@@ -791,7 +791,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(d, info.Fingerprint)
+		err = imageSyncBetweenNodes(d, project, info.Fingerprint)
 		if err != nil {
 			return errors.Wrapf(err, "Image sync between nodes")
 		}
@@ -2051,10 +2051,10 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 		return errors.Wrap(err, "Failed to query image fingerprints of the node")
 	}
 
-	for fingerprint := range imageProjectInfo {
+	for fingerprint, projects := range imageProjectInfo {
 		ch := make(chan error)
 		go func() {
-			err := imageSyncBetweenNodes(d, fingerprint)
+			err := imageSyncBetweenNodes(d, projects[0], fingerprint)
 			if err != nil {
 				logger.Error("Failed to synchronize images", log.Ctx{"err": err, "fingerprint": fingerprint})
 			}
@@ -2071,7 +2071,7 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 	return nil
 }
 
-func imageSyncBetweenNodes(d *Daemon, fingerprint string) error {
+func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error {
 	var desiredSyncNodeCount int64
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2138,6 +2138,9 @@ func imageSyncBetweenNodes(d *Daemon, fingerprint string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect node for image synchronization")
 	}
+
+	// Select the right project
+	client = client.UseProject(project)
 
 	createArgs := &lxd.ImageCreateArgs{}
 	imageMetaPath := shared.VarPath("images", fingerprint)
