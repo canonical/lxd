@@ -344,6 +344,12 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		logger.Debugf(`Received RBD storage volume "%s"`, recvName)
 	}
 
+	// Re-generate the UUID
+	err = s.cephRBDGenerateUUID(projectPrefix(args.Container.Project(), args.Container.Name()), storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		return err
+	}
+
 	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(
 		containerMntPoint,

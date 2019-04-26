@@ -903,37 +903,13 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}()
 
-	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
-		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
+	// Re-generate the UUID
+	err = s.cephRBDGenerateUUID(volumeName, storagePoolVolumeTypeNameContainer)
 	if err != nil {
-		logger.Errorf(`Failed to map RBD storage volume for container "%s"`, containerName)
-		return err
-	}
-	logger.Debugf(`Mapped RBD storage volume for container "%s"`,
-		containerName)
-
-	defer func() {
-		if !revert {
-			return
-		}
-
-		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			volumeName, storagePoolVolumeTypeNameContainer,
-			s.UserName, true)
-		if err != nil {
-			logger.Warnf(`Failed to unmap RBD storage volume for container "%s": %s`, containerName, err)
-		}
-	}()
-
-	// Generate a new xfs's UUID
-	RBDFilesystem := s.getRBDFilesystem()
-
-	msg, err := fsGenerateNewUUID(RBDFilesystem, RBDDevPath)
-	if err != nil {
-		logger.Errorf("Failed to create new \"%s\" UUID for container \"%s\" on storage pool \"%s\": %s", RBDFilesystem, containerName, s.pool.Name, msg)
 		return err
 	}
 
+	// Create the mountpoint
 	privileged := container.IsPrivileged()
 	err = createContainerMountpoint(containerPoolVolumeMntPoint,
 		containerPath, privileged)
@@ -1193,6 +1169,12 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			return err
 		}
 
+		// Re-generate the UUID
+		err := s.cephRBDGenerateUUID(projectPrefix(target.Project(), target.Name()), storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			return err
+		}
+
 		logger.Debugf(`Copied RBD container storage %s to %s`,
 			sourceContainerName, target.Name())
 		return nil
@@ -1359,24 +1341,17 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		}
 		logger.Debugf(`Copied RBD container storage %s to %s`, sourceVolumeName, targetVolumeName)
 
-		// Note, we don't need to register another cleanup function for
-		// the actual container's storage volume since we already
-		// registered one above for the dummy volume we created.
-
-		// map the container's volume
-		_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
-			projectPrefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer,
-			s.UserName)
+		// Re-generate the UUID
+		err := s.cephRBDGenerateUUID(projectPrefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer)
 		if err != nil {
-			logger.Errorf(`Failed to map RBD storage volume for container "%s" on storage pool "%s": %s`, targetContainerName, s.pool.Name, err)
 			return err
 		}
-		logger.Debugf(`Mapped RBD storage volume for container "%s" on storage pool "%s"`, targetContainerName, s.pool.Name)
 
 		logger.Debugf(`Created non-sparse copy of RBD storage volume for container "%s" to "%s" including snapshots`,
 			sourceContainerName, targetContainerName)
 	}
 
+	// Mount the container
 	ourMount, err := s.ContainerMount(target)
 	if err != nil {
 		return err
@@ -1655,6 +1630,12 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 		prefixedSourceSnapOnlyName, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to restore RBD storage volume for container "%s" from "%s": %s`, targetName, sourceName, err)
+		return err
+	}
+
+	// Re-generate the UUID
+	err = s.cephRBDGenerateUUID(projectPrefix(target.Project(), target.Name()), storagePoolVolumeTypeNameContainer)
+	if err != nil {
 		return err
 	}
 
