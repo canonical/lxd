@@ -21,7 +21,7 @@ import (
 var eventsCmd = APIEndpoint{
 	Name: "events",
 
-	Get: APIEndpointAction{Handler: eventsGet},
+	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: AllowAuthenticated},
 }
 
 type eventsHandler struct {

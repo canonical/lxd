@@ -736,3 +736,14 @@ Those keys control the source address used for outbound traffic from the bridge.
 ## container\_nic\_routes
 This introduces the `ipv4.routes` and `ipv6.routes` properties on "nic" type devices.
 This allows adding static routes on host to container's nic.
+
+## rbac
+Adds support for RBAC (role based access control). This introduces new config keys:
+
+  * rbac.api.url
+  * rbac.api.key
+  * rbac.api.expiry
+  * rbac.agent.url
+  * rbac.agent.username
+  * rbac.agent.private\_key
+  * rbac.agent.public\_key

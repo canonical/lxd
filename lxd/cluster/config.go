@@ -66,7 +66,21 @@ func (c *Config) TrustPassword() string {
 
 // CandidServer returns all the Candid settings needed to connect to a server.
 func (c *Config) CandidServer() (string, string, int64, string) {
-	return c.m.GetString("candid.api.url"), c.m.GetString("candid.api.key"), c.m.GetInt64("candid.expiry"), c.m.GetString("candid.domains")
+	return c.m.GetString("candid.api.url"),
+		c.m.GetString("candid.api.key"),
+		c.m.GetInt64("candid.expiry"),
+		c.m.GetString("candid.domains")
+}
+
+// RBACServer returns all the Candid settings needed to connect to a server.
+func (c *Config) RBACServer() (string, string, int64, string, string, string, string) {
+	return c.m.GetString("rbac.api.url"),
+		c.m.GetString("rbac.api.key"),
+		c.m.GetInt64("rbac.expiry"),
+		c.m.GetString("rbac.agent.url"),
+		c.m.GetString("rbac.agent.username"),
+		c.m.GetString("rbac.agent.private_key"),
+		c.m.GetString("rbac.agent.public_key")
 }
 
 // AutoUpdateInterval returns the configured images auto update interval.
@@ -226,6 +240,14 @@ var ConfigSchema = config.Schema{
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
+	"rbac.agent.url":                 {},
+	"rbac.agent.username":            {},
+	"rbac.agent.private_key":         {},
+	"rbac.agent.public_key":          {},
+	"rbac.api.expiry":                {Type: config.Int64, Default: "3600"},
+	"rbac.api.key":                   {},
+	"rbac.api.url":                   {},
+	"rbac.expiry":                    {Type: config.Int64, Default: "3600"},
 
 	// Keys deprecated since the implementation of the storage api.
 	"storage.lvm_fstype":           {Setter: deprecatedStorage, Default: "ext4"},
