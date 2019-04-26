@@ -968,25 +968,15 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	logger.Debugf(`Copying RBD container storage %s to %s`,
 		sourceContainerName, target.Name())
 
-	revert := true
-
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		logger.Errorf(`Failed to initialize storage for container "%s": %s`, sourceContainerName, err)
-		return err
-	}
-	logger.Debugf(`Initialized storage for container "%s"`,
-		sourceContainerName)
-	if ourStart {
-		defer source.StorageStop()
-	}
-
+	// Handle cross pool copies
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return fmt.Errorf(`Copying containers between different ` +
 			`storage pools is not implemented`)
 	}
+
+	revert := true
 
 	snapshots, err := source.Snapshots()
 	if err != nil {
@@ -1212,7 +1202,6 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	logger.Debugf(`Copied RBD container storage %s to %s`, sourceContainerName, target.Name())
 
 	revert = false
-
 	return nil
 }
 
@@ -1694,6 +1683,13 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
 	mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
+	if RBDFilesystem == "xfs" {
+		idx := strings.Index(mountOptions, "nouuid")
+		if idx < 0 {
+			mountOptions += ",nouuid"
+		}
+	}
+
 	err = tryMount(
 		RBDDevPath,
 		containerMntPoint,
