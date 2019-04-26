@@ -815,27 +815,15 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
-		targetContainerName, storagePoolVolumeTypeNameContainer,
-		s.UserName)
+	// Re-generate the UUID
+	err = s.cephRBDGenerateUUID(target.Name(), storagePoolVolumeTypeNameContainer)
 	if err != nil {
-		logger.Errorf(`Failed to map RBD storage volume for image "%s" on storage pool "%s": %s`, targetContainerName,
-			s.pool.Name, err)
 		return err
 	}
 
-	// Generate a new xfs's UUID
-	RBDFilesystem := s.getRBDFilesystem()
-	msg, err := fsGenerateNewUUID(RBDFilesystem, RBDDevPath)
-	if err != nil {
-		logger.Errorf("Failed to create new \"%s\" UUID for container \"%s\" on storage pool \"%s\": %s", RBDFilesystem, targetContainerName, s.pool.Name, msg)
-		return err
-	}
-
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
-		target.Name())
-	err = createContainerMountpoint(targetContainerMountPoint,
-		target.Path(), target.IsPrivileged())
+	// Create mountpoint
+	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, target.Name())
+	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -1730,6 +1718,24 @@ func (s *storageCeph) doContainerSnapshotCreate(targetName string, sourceName st
 	logger.Debugf(`Created RBD storage volume for snapshot "%s" on storage pool "%s"`, targetName, s.pool.Name)
 
 	revert = false
+
+	return nil
+}
+
+// cephRBDGenerateUUID regenerates the XFS/btrfs UUID as needed
+func (s *storageCeph) cephRBDGenerateUUID(volumeName string, volumeType string) error {
+	// Map the RBD volume
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, volumeName, volumeType, s.UserName)
+	if err != nil {
+		return err
+	}
+	defer cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, volumeName, volumeType, s.UserName, true)
+
+	// Update the UUID
+	msg, err := fsGenerateNewUUID(s.getRBDFilesystem(), RBDDevPath)
+	if err != nil {
+		return fmt.Errorf("Failed to regenerate UUID for '%v': %v: %v", volumeName, err, msg)
+	}
 
 	return nil
 }
