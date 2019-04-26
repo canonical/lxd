@@ -355,7 +355,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	}
 
 	// Optimization for the local copy case
-	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (!r.IsClustered() || container.Location == r.clusterTarget) {
+	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (!r.IsClustered() || container.Location == r.clusterTarget || r.HasExtension("cluster_internal_copy")) {
 		// Project handling
 		if destInfo.Project != sourceInfo.Project {
 			if !r.HasExtension("container_copy_project") {
@@ -1121,7 +1121,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, containerNam
 	}
 
 	// Optimization for the local copy case
-	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (!r.IsClustered() || container.Location == r.clusterTarget) {
+	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && (!r.IsClustered() || container.Location == r.clusterTarget || r.HasExtension("cluster_internal_copy")) {
 		// Project handling
 		if destInfo.Project != sourceInfo.Project {
 			if !r.HasExtension("container_copy_project") {
