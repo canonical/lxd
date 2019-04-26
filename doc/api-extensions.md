@@ -747,3 +747,8 @@ Adds support for RBAC (role based access control). This introduces new config ke
   * rbac.agent.username
   * rbac.agent.private\_key
   * rbac.agent.public\_key
+
+## cluster\_internal\_copy
+This makes it possible to do a normal "POST /1.0/containers" to copy a
+container between cluster nodes with LXD internally detecting whether a
+migration is required.
