@@ -35,6 +35,13 @@ images.remote\_cache\_expiry        | integer   | 10        | -                 
 maas.api.key                        | string    | -         | maas\_network                     | API key to manage MAAS
 maas.api.url                        | string    | -         | maas\_network                     | URL of the MAAS server
 maas.machine                        | string    | hostname  | maas\_network                     | Name of this LXD host in MAAS
+rbac.agent.url                      | string    |           | rbac                              | The Candid agent url as provided during RBAC registration
+rbac.agent.username                 | string    |           | rbac                              | The Candid agent username as provided during RBAC registration
+rbac.agent.public\_key              | string    |           | rbac                              | The Candid agent public key as provided during RBAC registration
+rbac.agent.private\_key             | string    |           | rbac                              | The Candid agent private key as provided during RBAC registration
+rbac.api.expiry                     | integer   |           | rbac                              | RBAC macaroon expiry in seconds
+rbac.api.key                        | string    |           | rbac                              | Public key of the RBAC server (required for HTTP-only servers)
+rbac.api.url                        | string    |           | rbac                              | URL of the external RBAC server
 
 Those keys can be set using the lxc tool with:
 

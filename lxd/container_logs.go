@@ -16,14 +16,14 @@ import (
 var containerLogCmd = APIEndpoint{
 	Name: "containers/{name}/logs/{file}",
 
-	Delete: APIEndpointAction{Handler: containerLogDelete},
-	Get:    APIEndpointAction{Handler: containerLogGet},
+	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
 var containerLogsCmd = APIEndpoint{
 	Name: "containers/{name}/logs",
 
-	Get: APIEndpointAction{Handler: containerLogsGet},
+	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
 func containerLogsGet(d *Daemon, r *http.Request) Response {

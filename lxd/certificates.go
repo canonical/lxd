@@ -27,7 +27,7 @@ import (
 var certificatesCmd = APIEndpoint{
 	Name: "certificates",
 
-	Get:  APIEndpointAction{Handler: certificatesGet},
+	Get:  APIEndpointAction{Handler: certificatesGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: certificatesPost, AllowUntrusted: true},
 }
 
@@ -35,7 +35,7 @@ var certificateCmd = APIEndpoint{
 	Name: "certificates/{fingerprint}",
 
 	Delete: APIEndpointAction{Handler: certificateDelete},
-	Get:    APIEndpointAction{Handler: certificateGet},
+	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: AllowAuthenticated},
 	Patch:  APIEndpointAction{Handler: certificatePatch},
 	Put:    APIEndpointAction{Handler: certificatePut},
 }
@@ -125,8 +125,15 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if d.checkTrustedClient(r) != nil && util.PasswordCheck(secret, req.Password) != nil {
-		logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+	trusted, _, protocol, err := d.Authenticate(r)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	if (!trusted || (protocol == "candid" && !d.userIsAdmin(r))) && util.PasswordCheck(secret, req.Password) != nil {
+		if req.Password != "" {
+			logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+		}
 		return Forbidden(nil)
 	}
 

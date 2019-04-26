@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"gopkg.in/lxc/go-lxc.v2"
 
@@ -91,7 +92,8 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		}
 
 		candidURL, _, _, _ := config.CandidServer()
-		if candidURL != "" {
+		rbacURL, _, _, _, _, _, _ := config.RBACServer()
+		if candidURL != "" || rbacURL != "" {
 			authMethods = append(authMethods, "candid")
 		}
 
@@ -357,6 +359,25 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
+	// Validate global configuration
+	hasRBAC := false
+	hasCandid := false
+	for k, v := range req.Config {
+		if v == "" {
+			continue
+		}
+
+		if strings.HasPrefix(k, "candid.") {
+			hasCandid = true
+		} else if strings.HasPrefix(k, "rbac.") {
+			hasRBAC = true
+		}
+
+		if hasCandid && hasRBAC {
+			return BadRequest(fmt.Errorf("RBAC and Candid are mutually exclusive"))
+		}
+	}
+
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *cluster.Config
@@ -416,6 +437,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *cluster.Config) error {
 	maasChanged := false
 	candidChanged := false
+	rbacChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -445,6 +467,20 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			if !d.os.MockMode {
 				d.taskPruneImages.Reset()
 			}
+		case "rbac.agent.url":
+			fallthrough
+		case "rbac.agent.username":
+			fallthrough
+		case "rbac.agent.private_key":
+			fallthrough
+		case "rbac.agent.public_key":
+			fallthrough
+		case "rbac.api.url":
+			fallthrough
+		case "rbac.api.key":
+			fallthrough
+		case "rbac.expiry":
+			rbacChanged = true
 		}
 	}
 
@@ -494,6 +530,26 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	if candidChanged {
 		apiURL, apiKey, expiry, domains := clusterConfig.CandidServer()
 		err := d.setupExternalAuthentication(apiURL, apiKey, expiry, domains)
+		if err != nil {
+			return err
+		}
+	}
+
+	if rbacChanged {
+		apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey := clusterConfig.RBACServer()
+
+		// Since RBAC seems to have been set up already, we need to disable it temporarily
+		if d.rbac != nil {
+			err := d.setupExternalAuthentication("", "", 0, "")
+			if err != nil {
+				return err
+			}
+
+			d.rbac.StopStatusCheck()
+			d.rbac = nil
+		}
+
+		err := d.setupRBACServer(apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey)
 		if err != nil {
 			return err
 		}

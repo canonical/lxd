@@ -31,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -49,6 +50,7 @@ type Daemon struct {
 	os           *sys.OS
 	db           *db.Node
 	maas         *maas.Controller
+	rbac         *rbac.Server
 	cluster      *db.Cluster
 	setupChan    chan struct{} // Closed when basic Daemon setup is completed
 	readyChan    chan struct{} // Closed when LXD is fully ready
@@ -159,6 +161,31 @@ type APIEndpointAction struct {
 	Handler        func(d *Daemon, r *http.Request) Response
 	AccessHandler  func(d *Daemon, r *http.Request) Response
 	AllowUntrusted bool
+}
+
+// AllowAuthenticated is a AccessHandler which allows all requests
+func AllowAuthenticated(d *Daemon, r *http.Request) Response {
+	return EmptySyncResponse
+}
+
+// AllowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
+func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) Response {
+	return func(d *Daemon, r *http.Request) Response {
+		// Shortcut for speed
+		if d.userIsAdmin(r) {
+			return EmptySyncResponse
+		}
+
+		// Get the project
+		project := projectParam(r)
+
+		// Validate whether the user has the needed permission
+		if !d.userHasPermission(r, project, permission) {
+			return Forbidden(nil)
+		}
+
+		return EmptySyncResponse
+	}
 }
 
 // Convenience function around Authenticate
@@ -383,9 +410,15 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			if action.AccessHandler != nil {
+				// Defer access control to custom handler
 				resp := action.AccessHandler(d, r)
 				if resp != EmptySyncResponse {
 					return resp
+				}
+			} else if !action.AllowUntrusted {
+				// Require admin privileges
+				if !d.userIsAdmin(r) {
+					return Forbidden(nil)
 				}
 			}
 
@@ -751,6 +784,14 @@ func (d *Daemon) init() error {
 	candidDomains := ""
 	candidExpiry := int64(0)
 
+	rbacAPIURL := ""
+	rbacAPIKey := ""
+	rbacAgentURL := ""
+	rbacAgentUsername := ""
+	rbacAgentPrivateKey := ""
+	rbacAgentPublicKey := ""
+	rbacExpiry := int64(0)
+
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := ""
@@ -778,17 +819,29 @@ func (d *Daemon) init() error {
 		d.proxy = shared.ProxyFromConfig(
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
 		)
+
 		candidAPIURL, candidAPIKey, candidExpiry, candidDomains = config.CandidServer()
 		maasAPIURL, maasAPIKey = config.MAASController()
+		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
+
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
-	if err != nil {
-		return err
+	if rbacAPIURL != "" {
+		err = d.setupRBACServer(rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
+		if err != nil {
+			return err
+		}
+	}
+
+	if candidAPIURL != "" {
+		err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
+		if err != nil {
+			return err
+		}
 	}
 
 	if !d.os.MockMode {
@@ -1108,6 +1161,65 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey str
 	}
 
 	return nil
+}
+
+// Setup RBAC
+func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int64, rbacAgentURL string, rbacAgentUsername string, rbacAgentPrivateKey string, rbacAgentPublicKey string) error {
+	if d.rbac != nil || rbacURL == "" || rbacAgentURL == "" || rbacAgentUsername == "" || rbacAgentPrivateKey == "" || rbacAgentPublicKey == "" {
+		return nil
+	}
+
+	// Get a new server struct
+	server, err := rbac.NewServer(rbacURL, rbacKey, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
+	if err != nil {
+		return err
+	}
+
+	// Set projects helper
+	server.ProjectsFunc = func() (map[int64]string, error) {
+		var result map[int64]string
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			result, err = tx.ProjectMap()
+			return err
+		})
+
+		return result, err
+	}
+
+	// Perform full sync
+	err = server.SyncProjects()
+	if err != nil {
+		return err
+	}
+
+	server.StartStatusCheck()
+
+	d.rbac = server
+
+	// Enable candid authentication
+	err = d.setupExternalAuthentication(fmt.Sprintf("%s/auth", rbacURL), rbacKey, rbacExpiry, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *Daemon) userIsAdmin(r *http.Request) bool {
+	if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+		return true
+	}
+
+	return d.rbac.IsAdmin(r.Context().Value("username").(string))
+}
+
+func (d *Daemon) userHasPermission(r *http.Request, project string, permission string) bool {
+	if d.externalAuth == nil || d.rbac == nil || r.RemoteAddr == "@" {
+		return true
+	}
+
+	return d.rbac.HasPermission(r.Context().Value("username").(string), project, permission)
 }
 
 // Setup MAAS
