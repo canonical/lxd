@@ -150,6 +150,7 @@ var APIExtensions = []string{
 	"network_nat_address",
 	"container_nic_routes",
 	"rbac",
+	"cluster_internal_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

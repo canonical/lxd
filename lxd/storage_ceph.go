@@ -1128,24 +1128,14 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	sourceContainerName := source.Name()
 	logger.Debugf(`Copying RBD container storage %s to %s`, sourceContainerName, target.Name())
 
-	revert := true
-
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		logger.Errorf(`Failed to initialize storage for container "%s": %s`, sourceContainerName, err)
-		return err
-	}
-	logger.Debugf(`Initialized storage for container "%s"`,
-		sourceContainerName)
-	if ourStart {
-		defer source.StorageStop()
-	}
-
+	// Handle cross pool copies
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 	}
+
+	revert := true
 
 	snapshots, err := source.Snapshots()
 	if err != nil {
@@ -1370,20 +1360,11 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	logger.Debugf(`Copied RBD container storage %s to %s`, sourceContainerName, target.Name())
 
 	revert = false
-
 	return nil
 }
 
 func (s *storageCeph) ContainerRefresh(target container, source container, snapshots []container) error {
 	logger.Debugf(`Refreshing RBD container storage for %s from %s`, target.Name(), source.Name())
-
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
 
 	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
@@ -1862,6 +1843,13 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	containerMntPoint := getSnapshotMountPoint(c.Project(), s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
 	mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
+	if RBDFilesystem == "xfs" {
+		idx := strings.Index(mountOptions, "nouuid")
+		if idx < 0 {
+			mountOptions += ",nouuid"
+		}
+	}
+
 	err = tryMount(
 		RBDDevPath,
 		containerMntPoint,

@@ -231,57 +231,9 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		}
 	}
 
-	// Grab the container's root device if one is specified
-	storagePool := ""
-	storagePoolProfile := ""
-
-	localRootDiskDeviceKey, localRootDiskDevice, _ := shared.GetRootDiskDevice(req.Devices)
-	if localRootDiskDeviceKey != "" {
-		storagePool = localRootDiskDevice["pool"]
-	}
-
-	// Handle copying/moving between two storage-api LXD instances.
-	if storagePool != "" {
-		_, err := d.cluster.StoragePoolGetID(storagePool)
-		if err == db.ErrNoSuchObject {
-			storagePool = ""
-			// Unset the local root disk device storage pool if not
-			// found.
-			localRootDiskDevice["pool"] = ""
-		}
-	}
-
-	// If we don't have a valid pool yet, look through profiles
-	if storagePool == "" {
-		for _, pName := range req.Profiles {
-			_, p, err := d.cluster.ProfileGet(project, pName)
-			if err != nil {
-				return SmartError(err)
-			}
-
-			k, v, _ := shared.GetRootDiskDevice(p.Devices)
-			if k != "" && v["pool"] != "" {
-				// Keep going as we want the last one in the profile chain
-				storagePool = v["pool"]
-				storagePoolProfile = pName
-			}
-		}
-	}
-
-	// If there is just a single pool in the database, use that
-	if storagePool == "" {
-		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
-		pools, err := d.cluster.StoragePools()
-		if err != nil {
-			if err == db.ErrNoSuchObject {
-				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
-			}
-			return SmartError(err)
-		}
-
-		if len(pools) == 1 {
-			storagePool = pools[0]
-		}
+	storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, resp := containerFindStoragePool(d, project, req)
+	if resp != nil {
+		return resp
 	}
 
 	if storagePool == "" {
@@ -496,9 +448,53 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 		return SmartError(err)
 	}
 
+	// Check if we need to redirect to migration
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// When clustered, use the node name, otherwise use the hostname.
+	if clustered {
+		var serverName string
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			serverName, err = tx.NodeName()
+			return err
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+
+		if serverName != source.Location() {
+			// Check if we are copying from a ceph-based container.
+			_, rootDevice, _ := shared.GetRootDiskDevice(source.ExpandedDevices())
+			sourcePoolName := rootDevice["pool"]
+
+			destPoolName, _, _, _, resp := containerFindStoragePool(d, targetProject, req)
+			if resp != nil {
+				return resp
+			}
+
+			if sourcePoolName != destPoolName {
+				// Redirect to migration
+				return clusterCopyContainerInternal(d, source, project, req)
+			}
+
+			_, pool, err := d.cluster.StoragePoolGet(sourcePoolName)
+			if err != nil {
+				err = errors.Wrap(err, "Failed to fetch container's pool info")
+				return SmartError(err)
+			}
+
+			if pool.Driver != "ceph" {
+				// Redirect to migration
+				return clusterCopyContainerInternal(d, source, project, req)
+			}
+		}
+	}
+
 	// Config override
 	sourceConfig := source.LocalConfig()
-
 	if req.Config == nil {
 		req.Config = make(map[string]string)
 	}
@@ -794,4 +790,144 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	default:
 		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}
+}
+
+func containerFindStoragePool(d *Daemon, project string, req *api.ContainersPost) (string, string, string, map[string]string, Response) {
+	// Grab the container's root device if one is specified
+	storagePool := ""
+	storagePoolProfile := ""
+
+	localRootDiskDeviceKey, localRootDiskDevice, _ := shared.GetRootDiskDevice(req.Devices)
+	if localRootDiskDeviceKey != "" {
+		storagePool = localRootDiskDevice["pool"]
+	}
+
+	// Handle copying/moving between two storage-api LXD instances.
+	if storagePool != "" {
+		_, err := d.cluster.StoragePoolGetID(storagePool)
+		if err == db.ErrNoSuchObject {
+			storagePool = ""
+			// Unset the local root disk device storage pool if not
+			// found.
+			localRootDiskDevice["pool"] = ""
+		}
+	}
+
+	// If we don't have a valid pool yet, look through profiles
+	if storagePool == "" {
+		for _, pName := range req.Profiles {
+			_, p, err := d.cluster.ProfileGet(project, pName)
+			if err != nil {
+				return "", "", "", nil, SmartError(err)
+			}
+
+			k, v, _ := shared.GetRootDiskDevice(p.Devices)
+			if k != "" && v["pool"] != "" {
+				// Keep going as we want the last one in the profile chain
+				storagePool = v["pool"]
+				storagePoolProfile = pName
+			}
+		}
+	}
+
+	// If there is just a single pool in the database, use that
+	if storagePool == "" {
+		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
+		pools, err := d.cluster.StoragePools()
+		if err != nil {
+			if err == db.ErrNoSuchObject {
+				return "", "", "", nil, BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
+			}
+			return "", "", "", nil, SmartError(err)
+		}
+
+		if len(pools) == 1 {
+			storagePool = pools[0]
+		}
+	}
+
+	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
+}
+
+func clusterCopyContainerInternal(d *Daemon, source container, project string, req *api.ContainersPost) Response {
+	name := req.Source.Source
+
+	// Locate the source of the container
+	var nodeAddress string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+
+		// Load source node.
+		nodeAddress, err = tx.ContainerNodeAddress(project, name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get address of container's node")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	if nodeAddress == "" {
+		return BadRequest(fmt.Errorf("The container source is currently offline"))
+	}
+
+	// Connect to the container source
+	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	client = client.UseProject(source.Project())
+
+	// Setup websockets
+	var opAPI api.Operation
+	if shared.IsSnapshot(req.Source.Source) {
+		cName, sName, _ := containerGetParentAndSnapshotName(req.Source.Source)
+
+		pullReq := api.ContainerSnapshotPost{
+			Migration: true,
+			Live:      req.Source.Live,
+			Name:      req.Name,
+		}
+
+		op, err := client.MigrateContainerSnapshot(cName, sName, pullReq)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		opAPI = op.Get()
+	} else {
+		pullReq := api.ContainerPost{
+			Migration:     true,
+			Live:          req.Source.Live,
+			ContainerOnly: req.Source.ContainerOnly,
+			Name:          req.Name,
+		}
+
+		op, err := client.MigrateContainer(req.Source.Source, pullReq)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		opAPI = op.Get()
+	}
+
+	websockets := map[string]string{}
+	for k, v := range opAPI.Metadata {
+		websockets[k] = v.(string)
+	}
+
+	// Reset the source for a migration
+	req.Source.Type = "migration"
+	req.Source.Certificate = string(d.endpoints.NetworkCert().PublicKey())
+	req.Source.Mode = "pull"
+	req.Source.Operation = fmt.Sprintf("https://%s/1.0/operations/%s", nodeAddress, opAPI.ID)
+	req.Source.Websockets = websockets
+	req.Source.Source = ""
+	req.Source.Project = ""
+
+	// Run the migration
+	return createFromMigration(d, project, req)
 }
