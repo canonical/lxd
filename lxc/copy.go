@@ -430,14 +430,15 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	stateful := !c.flagStateless && !c.flagRefresh
+	keepVolatile := c.flagRefresh
 
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
-		return c.copyContainer(conf, args[0], "", false, ephem,
+		return c.copyContainer(conf, args[0], "", keepVolatile, ephem,
 			stateful, c.flagContainerOnly, mode, c.flagStorage)
 	}
 
 	// Normal copy with a pre-determined name
-	return c.copyContainer(conf, args[0], args[1], false, ephem,
+	return c.copyContainer(conf, args[0], args[1], keepVolatile, ephem,
 		stateful, c.flagContainerOnly, mode, c.flagStorage)
 }
