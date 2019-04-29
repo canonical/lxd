@@ -99,18 +99,6 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func saveCert(dbObj *db.Cluster, host string, cert *x509.Certificate) error {
-	baseCert := new(db.CertInfo)
-	baseCert.Fingerprint = shared.CertFingerprint(cert)
-	baseCert.Type = 1
-	baseCert.Name = host
-	baseCert.Certificate = string(
-		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}),
-	)
-
-	return dbObj.CertSave(baseCert)
-}
-
 func certificatesPost(d *Daemon, r *http.Request) Response {
 	// Parse the request
 	req := api.CertificatesPost{}
@@ -165,19 +153,33 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 
 	fingerprint := shared.CertFingerprint(cert)
 
+	if d.clientCerts == nil {
+		d.clientCerts = map[string]x509.Certificate{}
+	}
+
 	if !isClusterNotification(r) {
-		// Store the certificate in the cluster database.
-		existingCerts, err := d.cluster.CertificatesGet()
-		if err != nil {
-			return SmartError(err)
-		}
-		for _, existingCert := range existingCerts {
-			if fingerprint == existingCert.Fingerprint {
-				return BadRequest(fmt.Errorf("Certificate already in trust store"))
+		// Check if we already have the certificate
+		existingCert, _ := d.cluster.CertificateGet(fingerprint)
+		if existingCert != nil {
+			// Deal with the cache being potentially out of sync
+			_, ok := d.clientCerts[fingerprint]
+			if !ok {
+				d.clientCerts[fingerprint] = *cert
+				return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 			}
+
+			return BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 
-		err = saveCert(d.cluster, name, cert)
+		// Store the certificate in the cluster database
+		dbCert := db.CertInfo{
+			Fingerprint: shared.CertFingerprint(cert),
+			Type:        1,
+			Name:        name,
+			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
+		}
+
+		err = d.cluster.CertSave(&dbCert)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -200,10 +202,6 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-	}
-
-	if d.clientCerts == nil {
-		d.clientCerts = map[string]x509.Certificate{}
 	}
 
 	d.clientCerts[shared.CertFingerprint(cert)] = *cert
