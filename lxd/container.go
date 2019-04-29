@@ -1606,7 +1606,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Figure out which need snapshotting (if any)
 		containers := []container{}
 		for _, c := range allContainers {
-			schedule := c.LocalConfig()["snapshots.schedule"]
+			schedule := c.ExpandedConfig()["snapshots.schedule"]
 
 			if schedule == "" {
 				continue
@@ -1631,7 +1631,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 
 			// Check if the container is running
-			if !shared.IsTrue(c.LocalConfig()["snapshots.schedule.stopped"]) && !c.IsRunning() {
+			if !shared.IsTrue(c.ExpandedConfig()["snapshots.schedule.stopped"]) && !c.IsRunning() {
 				continue
 			}
 
@@ -1691,7 +1691,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []c
 
 			snapshotName = fmt.Sprintf("%s%s%s", c.Name(), shared.SnapshotDelimiter, snapshotName)
 
-			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.LocalConfig()["snapshots.expiry"])
+			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.ExpandedConfig()["snapshots.expiry"])
 			if err != nil {
 				logger.Error("Error getting expiry date", log.Ctx{"err": err, "container": c})
 				ch <- nil
@@ -1812,7 +1812,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 func containerDetermineNextSnapshotName(d *Daemon, c container, defaultPattern string) (string, error) {
 	var err error
 
-	pattern := c.LocalConfig()["snapshots.pattern"]
+	pattern := c.ExpandedConfig()["snapshots.pattern"]
 	if pattern == "" {
 		pattern = defaultPattern
 	}
