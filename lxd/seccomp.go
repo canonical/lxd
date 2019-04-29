@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -165,4 +167,82 @@ func SeccompDeleteProfile(c container) {
 	 * delete can fail and that's ok.
 	 */
 	os.Remove(SeccompProfilePath(c))
+}
+
+type SeccompServer struct {
+	d    *Daemon
+	path string
+	l    net.Listener
+}
+
+func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
+	// Cleanup existing sockets
+	if shared.PathExists(path) {
+		err := os.Remove(path)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Bind new socket
+	l, err := net.Listen("unix", path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Restrict access
+	err = os.Chmod(path, 0700)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start the server
+	s := SeccompServer{
+		d:    d,
+		path: path,
+		l:    l,
+	}
+
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+
+			go func() {
+				ucred, err := getCred(c.(*net.UnixConn))
+				if err != nil {
+					logger.Errorf("Unable to get ucred from seccomp socket client: %v", err)
+					return
+				}
+				logger.Debugf("Connected to seccomp socket: pid=%v", ucred.pid)
+
+				for {
+					buf := make([]byte, 4096)
+					_, err := c.Read(buf)
+					if err != nil {
+						logger.Debugf("Disconnected from seccomp socket: pid=%v", ucred.pid)
+						c.Close()
+						return
+					}
+
+					// Unpack the struct here and pass unpacked struct to handler
+					go s.Handler(c, ucred, buf)
+				}
+			}()
+		}
+	}()
+
+	return &s, nil
+}
+
+func (s *SeccompServer) Handler(c net.Conn, ucred *ucred, buf []byte) error {
+	logger.Debugf("Handling seccomp notification from: %v", ucred.pid)
+	return nil
+}
+
+func (s *SeccompServer) Stop() error {
+	os.Remove(s.path)
+	return s.l.Close()
 }

@@ -68,6 +68,7 @@ type Daemon struct {
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 	gateway   *cluster.Gateway
+	seccomp   *SeccompServer
 
 	proxy func(req *http.Request) (*url.URL, error)
 
@@ -856,6 +857,16 @@ func (d *Daemon) init() error {
 
 		deviceInotifyDirRescan(d.State())
 		go deviceInotifyHandler(d.State())
+
+		// Setup seccomp handler
+		if d.os.SeccompListener {
+			seccompServer, err := NewSeccompServer(d, shared.VarPath("seccomp.socket"))
+			if err != nil {
+				return err
+			}
+			d.seccomp = seccompServer
+			logger.Info("Started seccomp handler", log.Ctx{"path": shared.VarPath("seccomp.socket")})
+		}
 
 		// Read the trusted certificates
 		readSavedClientCAList(d)
