@@ -31,26 +31,32 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
-
-	c, err := containerLoadByName(d.State(), cname)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	snaps, err := c.Snapshots()
-	if err != nil {
-		return SmartError(err)
-	}
-
 	resultString := []string{}
 	resultMap := []*api.ContainerSnapshot{}
 
-	for _, snap := range snaps {
-		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
-		if !recursion {
+	if !recursion {
+		snaps, err := d.cluster.ContainerGetSnapshots(cname)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		for _, snap := range snaps {
+			_, snapName, _ := containerGetParentAndSnapshotName(snap)
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
-		} else {
+		}
+	} else {
+		c, err := containerLoadByName(d.State(), cname)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		snaps, err := c.Snapshots()
+		if err != nil {
+			return SmartError(err)
+		}
+
+		for _, snap := range snaps {
 			render, _, err := snap.Render()
 			if err != nil {
 				continue
