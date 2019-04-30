@@ -3312,21 +3312,26 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 }
 
 func (c *containerLXC) Snapshots() ([]container, error) {
+	var snaps []db.Container
+
 	// Get all the snapshots
-	snaps, err := c.state.Cluster.ContainerGetSnapshots(c.Project(), c.name)
+	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		snaps, err = tx.ContainerGetSnapshotsFull(c.Project(), c.name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the snapshot list
-	containers := []container{}
-	for _, snapName := range snaps {
-		snap, err := containerLoadByProjectAndName(c.state, c.project, snapName)
-		if err != nil {
-			return nil, err
-		}
-
-		containers = append(containers, snap)
+	containers, err := containerLoadAllInternal(snaps, c.state)
+	if err != nil {
+		return nil, err
 	}
 
 	return containers, nil

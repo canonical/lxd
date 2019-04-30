@@ -881,6 +881,17 @@ WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
 	return result, nil
 }
 
+// ContainerGetSnapshotsFull returns all container objects for snapshots of a given container
+func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]Container, error) {
+	filter := ContainerFilter{
+		Parent:  name,
+		Project: project,
+		Type:    int(CTypeSnapshot),
+	}
+
+	return c.ContainerList(filter)
+}
+
 // ContainerNextSnapshot returns the index the next snapshot of the container
 // with the given name and pattern should have.
 func (c *Cluster) ContainerNextSnapshot(project string, name string, pattern string) int {
