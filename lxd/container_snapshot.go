@@ -33,31 +33,37 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
-
-	c, err := containerLoadByProjectAndName(d.State(), project, cname)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	snaps, err := c.Snapshots()
-	if err != nil {
-		return SmartError(err)
-	}
-
 	resultString := []string{}
 	resultMap := []*api.ContainerSnapshot{}
 
-	for _, snap := range snaps {
-		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
-		if !recursion {
-			if snap.Project() == "default" {
+	if !recursion {
+		snaps, err := d.cluster.ContainerGetSnapshots(project, cname)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		for _, snap := range snaps {
+			_, snapName, _ := containerGetParentAndSnapshotName(snap)
+			if project == "default" {
 				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
 				resultString = append(resultString, url)
 			} else {
-				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, snap.Project())
+				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, project)
 				resultString = append(resultString, url)
 			}
-		} else {
+		}
+	} else {
+		c, err := containerLoadByProjectAndName(d.State(), project, cname)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		snaps, err := c.Snapshots()
+		if err != nil {
+			return SmartError(err)
+		}
+
+		for _, snap := range snaps {
 			render, _, err := snap.Render()
 			if err != nil {
 				continue
