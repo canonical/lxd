@@ -243,7 +243,7 @@ limits.ingress          | string    | -                 | no        | bridged, p
 limits.egress           | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
 limits.max              | string    | -                 | no        | bridged, p2p                      | -                                      | Same as modifying both limits.ingress and limits.egress
 name                    | string    | kernel assigned   | no        | all                               | -                                      | The name of the interface inside the container
-host\_name              | string    | randomly assigned | no        | bridged, macvlan, p2p, sriov      | -                                      | The name of the interface inside the host
+host\_name              | string    | randomly assigned | no        | bridged, p2p                      | -                                      | The name of the interface inside the host
 hwaddr                  | string    | randomly assigned | no        | all                               | -                                      | The MAC address of the new interface
 mtu                     | integer   | parent MTU        | no        | all                               | -                                      | The MTU of the new interface
 parent                  | string    | -                 | yes       | bridged, macvlan, physical, sriov | -                                      | The name of the host device or bridge
