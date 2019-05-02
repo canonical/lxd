@@ -208,9 +208,11 @@ func (m *Method) list(buf *file.Buffer) error {
 
 		for _, name := range filter {
 			if name == "Parent" {
-				buf.L("len(filter.Parent),")
+				buf.L("len(filter.Parent)+1,")
+				buf.L("filter.%s+\"/\",", name)
+			} else {
+				buf.L("filter.%s,", name)
 			}
-			buf.L("filter.%s,", name)
 		}
 
 		buf.L("}")

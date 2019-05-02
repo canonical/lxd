@@ -180,14 +180,7 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(containerObjectsByProjectAndNodeAndType)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-			filter.Type,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByProjectAndNameAndType)
 		args = []interface{}{
 			filter.Project,
@@ -199,8 +192,15 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
-			len(filter.Parent),
-			filter.Parent,
+			len(filter.Parent) + 1,
+			filter.Parent + "/",
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndNodeAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+			filter.Type,
 		}
 	} else if criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByNodeAndType)
@@ -208,17 +208,17 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 			filter.Node,
 			filter.Type,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
-		stmt = c.stmt(containerObjectsByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
 	} else if criteria["Project"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
 		}
 	} else if criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByType)
@@ -492,17 +492,17 @@ func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string]map
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(containerProfilesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(containerProfilesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(containerProfilesRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(containerProfilesRefByProject)
@@ -685,27 +685,27 @@ func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(containerDevicesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(containerDevicesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(containerDevicesRefByProject)
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(containerDevicesRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(containerDevicesRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(containerDevicesRefByProject)
+		args = []interface{}{
+			filter.Project,
 		}
 	} else {
 		stmt = c.stmt(containerDevicesRef)
