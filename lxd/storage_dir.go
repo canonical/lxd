@@ -585,10 +585,6 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	return nil
 }
 
-func (s *storageDir) ContainerCanRestore(container container, sourceContainer container) error {
-	return nil
-}
-
 func (s *storageDir) ContainerDelete(container container) error {
 	logger.Debugf("Deleting DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 

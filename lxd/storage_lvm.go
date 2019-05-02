@@ -1062,10 +1062,6 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	return nil
 }
 
-func (s *storageLvm) ContainerCanRestore(container container, sourceContainer container) error {
-	return nil
-}
-
 func lvmContainerDeleteInternal(projectName, poolName string, ctName string, isSnapshot bool, vgName string, ctPath string) error {
 	containerMntPoint := ""
 	containerLvmName := containerNameToLVName(ctName)

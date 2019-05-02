@@ -182,7 +182,6 @@ type storage interface {
 
 	// ContainerCreateFromImage creates a container from a image.
 	ContainerCreateFromImage(c container, fingerprint string, tracker *ioprogress.ProgressTracker) error
-	ContainerCanRestore(target container, source container) error
 	ContainerDelete(c container) error
 	ContainerCopy(target container, source container, containerOnly bool) error
 	ContainerRefresh(target container, source container, snapshots []container) error
