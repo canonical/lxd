@@ -941,10 +941,6 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	return nil
 }
 
-func (s *storageCeph) ContainerCanRestore(container container, sourceContainer container) error {
-	return nil
-}
-
 func (s *storageCeph) ContainerDelete(container container) error {
 	containerName := container.Name()
 	logger.Debugf(`Deleting RBD storage volume for container "%s" on storage pool "%s"`, containerName, s.pool.Name)

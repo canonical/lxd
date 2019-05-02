@@ -937,10 +937,6 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	return nil
 }
 
-func (s *storageBtrfs) ContainerCanRestore(container container, sourceContainer container) error {
-	return nil
-}
-
 func (s *storageBtrfs) ContainerDelete(container container) error {
 	logger.Debugf("Deleting BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 

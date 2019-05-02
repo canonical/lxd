@@ -915,29 +915,6 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	return nil
 }
 
-func (s *storageZfs) ContainerCanRestore(container container, sourceContainer container) error {
-	snaps, err := container.Snapshots()
-	if err != nil {
-		return err
-	}
-
-	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
-		if s.pool.Config["volume.zfs.remove_snapshots"] != "" {
-			zfsRemoveSnapshots = s.pool.Config["volume.zfs.remove_snapshots"]
-		}
-		if s.volume.Config["zfs.remove_snapshots"] != "" {
-			zfsRemoveSnapshots = s.volume.Config["zfs.remove_snapshots"]
-		}
-		if !shared.IsTrue(zfsRemoveSnapshots) {
-			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead")
-		}
-
-		return nil
-	}
-
-	return nil
-}
-
 func (s *storageZfs) ContainerDelete(container container) error {
 	err := s.doContainerDelete(container.Project(), container.Name())
 	if err != nil {
@@ -1503,6 +1480,25 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 func (s *storageZfs) ContainerRestore(target container, source container) error {
 	logger.Debugf("Restoring ZFS storage volume for container \"%s\" from %s to %s", s.volume.Name, source.Name(), target.Name())
 
+	snaps, err := target.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if snaps[len(snaps)-1].Name() != source.Name() {
+		if s.pool.Config["volume.zfs.remove_snapshots"] != "" {
+			zfsRemoveSnapshots = s.pool.Config["volume.zfs.remove_snapshots"]
+		}
+
+		if s.volume.Config["zfs.remove_snapshots"] != "" {
+			zfsRemoveSnapshots = s.volume.Config["zfs.remove_snapshots"]
+		}
+
+		if !shared.IsTrue(zfsRemoveSnapshots) {
+			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead")
+		}
+	}
+
 	// Start storage for source container
 	ourSourceStart, err := source.StorageStart()
 	if err != nil {
@@ -1519,12 +1515,6 @@ func (s *storageZfs) ContainerRestore(target container, source container) error 
 	}
 	if ourTargetStart {
 		defer target.StorageStop()
-	}
-
-	// Remove any needed snapshot
-	snaps, err := target.Snapshots()
-	if err != nil {
-		return err
 	}
 
 	for i := len(snaps) - 1; i != 0; i-- {

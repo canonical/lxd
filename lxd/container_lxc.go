@@ -3724,12 +3724,6 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 		defer c.StorageStop()
 	}
 
-	// Check if we can restore the container
-	err = c.storage.ContainerCanRestore(c, sourceContainer)
-	if err != nil {
-		return err
-	}
-
 	/* let's also check for CRIU if necessary, before doing a bunch of
 	 * filesystem manipulations
 	 */
