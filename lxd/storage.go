@@ -208,8 +208,6 @@ type storage interface {
 	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error
 	ImageDelete(fingerprint string) error
-	ImageMount(fingerprint string) (bool, error)
-	ImageUmount(fingerprint string) (bool, error)
 
 	// Storage type agnostic functions.
 	StorageEntitySetQuota(volumeType int, size int64, data interface{}) error
