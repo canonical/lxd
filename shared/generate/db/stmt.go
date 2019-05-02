@@ -87,14 +87,18 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		where = "WHERE "
 
 		for i, filter := range filters {
-			field, err := mapping.FilterFieldByName(filter)
-
-			if err != nil {
-				return err
-			}
-
 			if i > 0 {
 				where += "AND "
+			}
+
+			if filter == "Parent" {
+				where += fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity))
+				continue
+			}
+
+			field, err := mapping.FilterFieldByName(filter)
+			if err != nil {
+				return err
 			}
 
 			var column string

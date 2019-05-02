@@ -92,6 +92,9 @@ func (m *Method) uris(buf *file.Buffer) error {
 	buf.L("criteria := map[string]interface{}{}")
 
 	for _, name := range criteria {
+		if name == "Parent" {
+			continue
+		}
 		field := mapping.FieldByName(name)
 		if field == nil {
 			return fmt.Errorf("No field named %q in filter struct", name)
@@ -172,11 +175,17 @@ func (m *Method) list(buf *file.Buffer) error {
 	buf.L("criteria := map[string]interface{}{}")
 
 	for _, name := range criteria {
-		field := mapping.FieldByName(name)
-		if field == nil {
-			return fmt.Errorf("No field named %q in filter struct", name)
+		var zero string
+		if name == "Parent" {
+			zero = `""`
+		} else {
+			field := mapping.FieldByName(name)
+			if field == nil {
+				return fmt.Errorf("No field named %q in filter struct", name)
+			}
+			zero = field.ZeroValue()
 		}
-		buf.L("if filter.%s != %s {", name, field.ZeroValue())
+		buf.L("if filter.%s != %s {", name, zero)
 		buf.L("        criteria[%q] = filter.%s", name, name)
 		buf.L("}")
 	}
@@ -198,6 +207,9 @@ func (m *Method) list(buf *file.Buffer) error {
 		buf.L("args = []interface{}{")
 
 		for _, name := range filter {
+			if name == "Parent" {
+				buf.L("len(filter.Parent),")
+			}
 			buf.L("filter.%s,", name)
 		}
 
@@ -372,11 +384,17 @@ func (m *Method) ref(buf *file.Buffer) error {
 	buf.L("criteria := map[string]interface{}{}")
 
 	for _, name := range criteria {
-		field := mapping.FieldByName(name)
-		if !field.IsPrimary() {
-			continue
+		var zero string
+		if name == "Parent" {
+			zero = `""`
+		} else {
+			field := mapping.FieldByName(name)
+			if !field.IsPrimary() {
+				continue
+			}
+			zero = field.ZeroValue()
 		}
-		buf.L("if filter.%s != %s {", name, field.ZeroValue())
+		buf.L("if filter.%s != %s {", name, zero)
 		buf.L("        criteria[%q] = filter.%s", name, name)
 		buf.L("}")
 	}
