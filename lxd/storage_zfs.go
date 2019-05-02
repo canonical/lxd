@@ -2515,10 +2515,6 @@ type zfsMigrationSourceDriver struct {
 	zfsFeatures      []string
 }
 
-func (s *zfsMigrationSourceDriver) Snapshots() []container {
-	return s.snapshots
-}
-
 func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	sourceParentName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	poolName := s.zfs.getOnDiskPoolName()

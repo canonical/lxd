@@ -2438,10 +2438,6 @@ type btrfsMigrationSourceDriver struct {
 	stoppedSnapName    string
 }
 
-func (s *btrfsMigrationSourceDriver) Snapshots() []container {
-	return s.snapshots
-}
-
 func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string, btrfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	args := []string{"send"}
 	if btrfsParent != "" {
