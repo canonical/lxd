@@ -147,3 +147,19 @@ func expireLogs(ctx context.Context, state *state.State) error {
 
 	return nil
 }
+
+func logAction(infoMsg, successMsg, errorMsg string, ctx *log.Ctx, success *bool, err *error) func() {
+	logger.Info(infoMsg, *ctx)
+
+	return func() {
+		if *success {
+			logger.Info(successMsg, *ctx)
+		} else {
+			if (*err) != nil {
+				(*ctx)["error"] = (*err).Error()
+			}
+
+			logger.Error(errorMsg, *ctx)
+		}
+	}
+}
