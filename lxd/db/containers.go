@@ -24,6 +24,7 @@ import (
 //go:generate mapper stmt -p db -e container objects
 //go:generate mapper stmt -p db -e container objects-by-Type
 //go:generate mapper stmt -p db -e container objects-by-Project-and-Type
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Type-and-Parent
 //go:generate mapper stmt -p db -e container objects-by-Node-and-Type
 //go:generate mapper stmt -p db -e container objects-by-Project-and-Node-and-Type
 //go:generate mapper stmt -p db -e container objects-by-Project-and-Name
@@ -85,6 +86,7 @@ type ContainerFilter struct {
 	Project string
 	Name    string
 	Node    string
+	Parent  string
 	Type    int
 }
 
@@ -877,6 +879,17 @@ WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
 	}
 
 	return result, nil
+}
+
+// ContainerGetSnapshotsFull returns all container objects for snapshots of a given container
+func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]Container, error) {
+	filter := ContainerFilter{
+		Parent:  name,
+		Project: project,
+		Type:    int(CTypeSnapshot),
+	}
+
+	return c.ContainerList(filter)
 }
 
 // ContainerNextSnapshot returns the index the next snapshot of the container

@@ -31,6 +31,12 @@ SELECT containers.id, projects.name AS project, containers.name, nodes.name AS n
   WHERE project = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
+var containerObjectsByProjectAndTypeAndParent = cluster.RegisterStmt(`
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
+  FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  WHERE project = ? AND containers.type = ? AND SUBSTR(containers.name,1,?)=? ORDER BY projects.id, containers.name
+`)
+
 var containerObjectsByNodeAndType = cluster.RegisterStmt(`
 SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
@@ -163,6 +169,9 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
+	if filter.Parent != "" {
+		criteria["Parent"] = filter.Parent
+	}
 	if filter.Type != -1 {
 		criteria["Type"] = filter.Type
 	}
@@ -178,18 +187,20 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 			filter.Name,
 			filter.Type,
 		}
+	} else if criteria["Project"] != nil && criteria["Type"] != nil && criteria["Parent"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndTypeAndParent)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+			len(filter.Parent) + 1,
+			filter.Parent + "/",
+		}
 	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByProjectAndNodeAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 			filter.Type,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
-		stmt = c.stmt(containerObjectsByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
 		}
 	} else if criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByNodeAndType)
@@ -202,6 +213,12 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
 		}
 	} else if criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByType)
@@ -467,22 +484,25 @@ func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string]map
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
+	if filter.Parent != "" {
+		criteria["Parent"] = filter.Parent
+	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(containerProfilesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(containerProfilesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(containerProfilesRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(containerProfilesRefByProject)
@@ -558,6 +578,9 @@ func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[s
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
+	if filter.Parent != "" {
+		criteria["Parent"] = filter.Parent
+	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
@@ -575,15 +598,15 @@ func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[s
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(containerConfigRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(containerConfigRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(containerConfigRefByProject)
+		args = []interface{}{
+			filter.Project,
 		}
 	} else {
 		stmt = c.stmt(containerConfigRef)
@@ -653,6 +676,9 @@ func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[
 	}
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
+	}
+	if filter.Parent != "" {
+		criteria["Parent"] = filter.Parent
 	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
