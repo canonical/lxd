@@ -14,6 +14,7 @@ import (
 /*
 #include <linux/fs.h>
 #include <linux/dqblk_xfs.h>
+#include <linux/quota.h>
 #include <sys/ioctl.h>
 #include <sys/quota.h>
 #include <sys/types.h>
