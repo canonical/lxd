@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -422,7 +423,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 			// Since we mount the loop device LO_FLAGS_AUTOCLEAR is
 			// fine since the loop device will be kept around for as
 			// long as the mount exists.
-			loopF, loopErr := prepareLoopDev(source, LoFlagsAutoclear)
+			loopF, loopErr := driver.PrepareLoopDev(source, driver.LoFlagsAutoclear)
 			if loopErr != nil {
 				return false, loopErr
 			}
