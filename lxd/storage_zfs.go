@@ -16,7 +16,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -620,22 +619,6 @@ func (s *storageZfs) StoragePoolVolumeUmount() (bool, error) {
 
 	logger.Debugf("Unmounted ZFS storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return ourUmount, nil
-}
-
-func (s *storageZfs) GetStoragePoolWritable() api.StoragePoolPut {
-	return s.pool.Writable()
-}
-
-func (s *storageZfs) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return s.volume.Writable()
-}
-
-func (s *storageZfs) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	s.pool.StoragePoolPut = *writable
-}
-
-func (s *storageZfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	s.volume.StorageVolumePut = *writable
 }
 
 func (s *storageZfs) GetContainerPoolInfo() (int64, string, string) {
@@ -3367,18 +3350,6 @@ func (s *storageZfs) StorageMigrationSource(args MigrationSourceArgs) (Migration
 
 func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
-}
-
-func (s *storageZfs) GetStoragePool() *api.StoragePool {
-	return s.pool
-}
-
-func (s *storageZfs) GetStoragePoolVolume() *api.StorageVolume {
-	return s.volume
-}
-
-func (s *storageZfs) GetState() *state.State {
-	return s.s
 }
 
 func (s *storageZfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {

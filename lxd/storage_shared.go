@@ -30,6 +30,34 @@ func (s *storageShared) GetStorageTypeVersion() string {
 	return s.sTypeVersion
 }
 
+func (s *storageShared) GetStoragePool() *api.StoragePool {
+	return s.pool
+}
+
+func (s *storageShared) GetStoragePoolVolume() *api.StorageVolume {
+	return s.volume
+}
+
+func (s *storageShared) GetState() *state.State {
+	return s.s
+}
+
+func (s *storageShared) GetStoragePoolWritable() api.StoragePoolPut {
+	return s.pool.Writable()
+}
+
+func (s *storageShared) GetStoragePoolVolumeWritable() api.StorageVolumePut {
+	return s.volume.Writable()
+}
+
+func (s *storageShared) SetStoragePoolWritable(writable *api.StoragePoolPut) {
+	s.pool.StoragePoolPut = *writable
+}
+
+func (s *storageShared) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
+	s.volume.StorageVolumePut = *writable
+}
+
 func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	// Fill in any default volume config.
 	volumeConfig := map[string]string{}

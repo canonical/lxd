@@ -14,7 +14,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -277,22 +276,6 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 
 	logger.Debugf("Unmounted DIR pool \"%s\"", s.pool.Name)
 	return true, nil
-}
-
-func (s *storageDir) GetStoragePoolWritable() api.StoragePoolPut {
-	return s.pool.Writable()
-}
-
-func (s *storageDir) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return s.volume.Writable()
-}
-
-func (s *storageDir) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	s.pool.StoragePoolPut = *writable
-}
-
-func (s *storageDir) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	s.volume.StorageVolumePut = *writable
 }
 
 func (s *storageDir) GetContainerPoolInfo() (int64, string, string) {
@@ -1464,18 +1447,6 @@ func (s *storageDir) StorageMigrationSource(args MigrationSourceArgs) (Migration
 
 func (s *storageDir) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
-}
-
-func (s *storageDir) GetStoragePool() *api.StoragePool {
-	return s.pool
-}
-
-func (s *storageDir) GetStoragePoolVolume() *api.StorageVolume {
-	return s.volume
-}
-
-func (s *storageDir) GetState() *state.State {
-	return s.s
 }
 
 func (s *storageDir) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {

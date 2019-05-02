@@ -15,7 +15,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -295,22 +294,6 @@ func (s *storageCeph) StoragePoolMount() (bool, error) {
 func (s *storageCeph) StoragePoolUmount() (bool, error) {
 	// Yay, osd pools are not mounted.
 	return true, nil
-}
-
-func (s *storageCeph) GetStoragePoolWritable() api.StoragePoolPut {
-	return s.pool.StoragePoolPut
-}
-
-func (s *storageCeph) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return s.volume.Writable()
-}
-
-func (s *storageCeph) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	s.pool.StoragePoolPut = *writable
-}
-
-func (s *storageCeph) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	s.volume.StorageVolumePut = *writable
 }
 
 func (s *storageCeph) GetContainerPoolInfo() (int64, string, string) {
@@ -2710,18 +2693,6 @@ func (s *storageCeph) StorageMigrationSource(args MigrationSourceArgs) (Migratio
 
 func (s *storageCeph) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
-}
-
-func (s *storageCeph) GetStoragePool() *api.StoragePool {
-	return s.pool
-}
-
-func (s *storageCeph) GetStoragePoolVolume() *api.StorageVolume {
-	return s.volume
-}
-
-func (s *storageCeph) GetState() *state.State {
-	return s.s
 }
 
 func (s *storageCeph) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
