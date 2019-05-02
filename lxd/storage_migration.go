@@ -18,9 +18,6 @@ import (
 // MigrationStorageSourceDriver defines the functions needed to implement a
 // migration source driver.
 type MigrationStorageSourceDriver interface {
-	/* snapshots for this container, if any */
-	Snapshots() []container
-
 	/* send any bits of the container/snapshots that are possible while the
 	 * container is still running.
 	 */
@@ -45,10 +42,6 @@ type rsyncStorageSourceDriver struct {
 	container     container
 	snapshots     []container
 	rsyncFeatures []string
-}
-
-func (s rsyncStorageSourceDriver) Snapshots() []container {
-	return s.snapshots
 }
 
 func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error {
