@@ -1678,10 +1678,10 @@ func btrfsSubVolumesDelete(subvol string) error {
  * btrfsSnapshot creates a snapshot of "source" to "dest"
  * the result will be readonly if "readonly" is True.
  */
-func btrfsSnapshot(source string, dest string, readonly bool) error {
+func btrfsSnapshot(s *state.State, source string, dest string, readonly bool) error {
 	var output string
 	var err error
-	if readonly {
+	if readonly && !s.OS.RunningInUserNS {
 		output, err = shared.RunCommand(
 			"btrfs",
 			"subvolume",
@@ -1710,7 +1710,7 @@ func btrfsSnapshot(source string, dest string, readonly bool) error {
 }
 
 func (s *storageBtrfs) btrfsPoolVolumeSnapshot(source string, dest string, readonly bool) error {
-	return btrfsSnapshot(source, dest, readonly)
+	return btrfsSnapshot(s.s, source, dest, readonly)
 }
 
 func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, readonly bool, recursive bool) error {

@@ -679,7 +679,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
 			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
 			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
-				err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
+				err = btrfsSnapshot(d.State(), oldSnapshotMntPoint, newSnapshotMntPoint, true)
 				if err != nil {
 					err := btrfsSubVolumeCreate(newSnapshotMntPoint)
 					if err != nil {
