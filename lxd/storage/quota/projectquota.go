@@ -30,7 +30,10 @@ struct fsxattr {
 	__u32		fsx_projid;
 	unsigned char	fsx_pad[12];
 };
+#define FS_XFLAG_PROJINHERIT 0x00000200
+#endif
 
+#ifndef QIF_DQBLKSIZE_BITS
 struct if_dqinfo {
 	__u64 dqi_bgrace;
 	__u64 dqi_igrace;
@@ -49,7 +52,7 @@ struct if_dqblk {
 	__u64 dqb_itime;
 	__u32 dqb_valid;
 };
-#define FS_XFLAG_PROJINHERIT 0x00000200
+#define QIF_DQBLKSIZE_BITS 10
 #endif
 
 #ifndef FS_IOC_FSGETXATTR
