@@ -1001,12 +1001,6 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			return err
 		}
 
-		// Re-generate the UUID
-		err := s.cephRBDGenerateUUID(target.Name(), storagePoolVolumeTypeNameContainer)
-		if err != nil {
-			return err
-		}
-
 		logger.Debugf(`Copied RBD container storage %s to %s`,
 			sourceContainerName, target.Name())
 		return nil
