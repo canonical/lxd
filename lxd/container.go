@@ -1122,13 +1122,14 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 		return nil, err
 	}
 
-	ourStart, err := c.StorageStart()
+	// Attempt to update backup.yaml on container
+	ourStart, err := sourceContainer.StorageStart()
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 	if ourStart {
-		defer c.StorageStop()
+		defer sourceContainer.StorageStop()
 	}
 
 	err = writeBackupFile(sourceContainer)

@@ -3913,16 +3913,17 @@ type backupFile struct {
 }
 
 func writeBackupFile(c container) error {
-	/* we only write backup files out for actual containers */
+	// We only write backup files out for actual containers
 	if c.IsSnapshot() {
 		return nil
 	}
 
-	/* immediately return if the container directory doesn't exist yet */
+	// Immediately return if the container directory doesn't exist yet
 	if !shared.PathExists(c.Path()) {
 		return os.ErrNotExist
 	}
 
+	// Generate the YAML
 	ci, _, err := c.Render()
 	if err != nil {
 		return errors.Wrap(err, "Failed to render container metadata")
@@ -3976,6 +3977,7 @@ func writeBackupFile(c container) error {
 		return nil
 	}
 
+	// Write the YAML
 	f, err := os.Create(filepath.Join(c.Path(), "backup.yaml"))
 	if err != nil {
 		return err
