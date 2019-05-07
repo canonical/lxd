@@ -1819,6 +1819,12 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 		}
 	}()
 
+	// Re-generate the UUID
+	err = s.cephRBDGenerateUUID(cloneName, "snapshots")
+	if err != nil {
+		return false, err
+	}
+
 	// map
 	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
 		cloneName, "snapshots", s.UserName)
