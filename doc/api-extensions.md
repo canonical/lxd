@@ -752,3 +752,8 @@ Adds support for RBAC (role based access control). This introduces new config ke
 This makes it possible to do a normal "POST /1.0/containers" to copy a
 container between cluster nodes with LXD internally detecting whether a
 migration is required.
+
+## seccomp\_notify
+If the kernel supports seccomp-based syscall interception LXD can be notified
+by a container that a registered syscall has been performed. LXD can then
+decide to trigger various actions.

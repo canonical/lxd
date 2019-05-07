@@ -191,14 +191,17 @@ int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
 	struct iovec iov;
 	struct cmsghdr *cmsg = NULL;
 	char buf[1] = {0};
-	size_t cmsgbufsize = CMSG_SPACE(num_recvfds * sizeof(int));
+	size_t cmsgbufsize = CMSG_SPACE(sizeof(struct ucred)) +
+			     CMSG_SPACE(num_recvfds * sizeof(int));
 
 	memset(&msg, 0, sizeof(msg));
 	memset(&iov, 0, sizeof(iov));
 
 	cmsgbuf = malloc(cmsgbufsize);
-	if (!cmsgbuf)
+	if (!cmsgbuf) {
+		errno = ENOMEM;
 		return -1;
+	}
 
 	msg.msg_control = cmsgbuf;
 	msg.msg_controllen = cmsgbufsize;
@@ -208,20 +211,31 @@ int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
+again:
 	ret = recvmsg(fd, &msg, 0);
-	if (ret <= 0) {
-		fprintf(stderr, "%s - Failed to receive file descriptor\n", strerror(errno));
-		return ret;
+	if (ret < 0) {
+		if (errno == EINTR)
+			goto again;
+
+		goto out;
+	}
+	if (ret == 0)
+		goto out;
+
+	// If SO_PASSCRED is set we will always get a ucred message.
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_type != SCM_RIGHTS)
+			continue;
+
+		memset(recvfds, -1, num_recvfds * sizeof(int));
+		if (cmsg &&
+		    cmsg->cmsg_len == CMSG_LEN(num_recvfds * sizeof(int)) &&
+		    cmsg->cmsg_level == SOL_SOCKET)
+			memcpy(recvfds, CMSG_DATA(cmsg), num_recvfds * sizeof(int));
+		break;
 	}
 
-	cmsg = CMSG_FIRSTHDR(&msg);
-
-	memset(recvfds, -1, num_recvfds * sizeof(int));
-	if (cmsg && cmsg->cmsg_len == CMSG_LEN(num_recvfds * sizeof(int)) &&
-	    cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
-		memcpy(recvfds, CMSG_DATA(cmsg), num_recvfds * sizeof(int));
-	}
-
+out:
 	return ret;
 }
 */
@@ -271,6 +285,21 @@ func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
 
 	file := os.NewFile(uintptr(fd), "")
 	return file, nil
+}
+
+func AbstractUnixReceiveFdData(sockFD int, buf []byte) (int, error) {
+	fd := C.int(-1)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_recv_fds(sk_fd, &fd, C.int(1), unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	if ret < 0 {
+		return int(-C.EBADF), fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
+	}
+
+	if ret == 0 {
+		return int(-C.EBADF), io.EOF
+	}
+
+	return int(fd), nil
 }
 
 func OpenPty(uid, gid int64) (master *os.File, slave *os.File, err error) {
