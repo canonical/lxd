@@ -151,6 +151,7 @@ var APIExtensions = []string{
 	"container_nic_routes",
 	"rbac",
 	"cluster_internal_copy",
+	"seccomp_notify",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
