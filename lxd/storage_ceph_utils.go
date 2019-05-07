@@ -740,6 +740,13 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		return err
 	}
 
+	// Re-generate the UUID
+	err = s.cephRBDGenerateUUID(projectPrefix(target.Project(), target.Name()), storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		return err
+	}
+
+	// Create mountpoint
 	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name, target.Name())
 	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
