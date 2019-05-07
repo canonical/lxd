@@ -1812,10 +1812,10 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	if !c.IsPrivileged() && !c.state.OS.RunningInUserNS && lxc.HasApiExtension("seccomp_notify") && c.DaemonState().OS.SeccompListener {
-		err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
-		if err != nil {
-			return err
-		}
+		// NOTE: Don't fail in cases where liblxc is recent enough but libseccomp isn't
+		//       when we add mount() support with user-configurable
+		//       options, we will want a hard fail if the user configured it
+		lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 	}
 
 	// Apply raw.lxc
