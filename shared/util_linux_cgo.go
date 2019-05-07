@@ -287,6 +287,21 @@ func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
 	return file, nil
 }
 
+func AbstractUnixReceiveFdData(sockFD int, buf []byte) (int, error) {
+	fd := C.int(-1)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_recv_fds(sk_fd, &fd, C.int(1), unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	if ret < 0 {
+		return int(-C.EBADF), fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
+	}
+
+	if ret == 0 {
+		return int(-C.EBADF), io.EOF
+	}
+
+	return int(fd), nil
+}
+
 func OpenPty(uid, gid int64) (master *os.File, slave *os.File, err error) {
 	fd_master := C.int(-1)
 	fd_slave := C.int(-1)
