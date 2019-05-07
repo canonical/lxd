@@ -1811,6 +1811,13 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
+	if !c.IsPrivileged() && !c.state.OS.RunningInUserNS && lxc.HasApiExtension("seccomp_notify") && c.DaemonState().OS.SeccompListener {
+		err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+		if err != nil {
+			return err
+		}
+	}
+
 	// Apply raw.lxc
 	if lxcConfig, ok := c.expandedConfig["raw.lxc"]; ok {
 		f, err := ioutil.TempFile("", "lxd_config_")
