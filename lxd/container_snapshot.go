@@ -90,14 +90,6 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	ourStart, err := c.StorageStart()
-	if err != nil {
-		return InternalError(err)
-	}
-	if ourStart {
-		defer c.StorageStop()
-	}
-
 	req := api.ContainerSnapshotsPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
