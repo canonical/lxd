@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/version"
 
 	log "github.com/lxc/lxd/shared/log15"
@@ -237,7 +238,7 @@ func (s *execWs) Do(op *operation) error {
 			s.connsLock.Unlock()
 
 			logger.Debugf("Starting to mirror websocket")
-			readDone, writeDone := shared.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/netutils"
 )
 
 /*
@@ -93,7 +93,7 @@ func (c *cmdForknet) Command() *cobra.Command {
 }
 
 func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
-	networks, err := shared.NetnsGetifaddrs(-1)
+	networks, err := netutils.NetnsGetifaddrs(-1)
 	if err != nil {
 		return err
 	}
