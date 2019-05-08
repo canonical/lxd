@@ -153,6 +153,7 @@ var APIExtensions = []string{
 	"cluster_internal_copy",
 	"seccomp_notify",
 	"lxc_features",
+	"container_nic_ipvlan",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
