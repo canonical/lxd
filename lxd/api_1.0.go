@@ -211,6 +211,13 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		"shiftfs":            fmt.Sprintf("%v", d.os.Shiftfs),
 	}
 
+	if d.os.LXCFeatures != nil {
+		env.LXCFeatures = map[string]string{}
+		for k, v := range d.os.LXCFeatures {
+			env.LXCFeatures[k] = fmt.Sprintf("%v", v)
+		}
+	}
+
 	drivers := readStoragePoolDriversCache()
 	for driver, version := range drivers {
 		if env.Storage != "" {
