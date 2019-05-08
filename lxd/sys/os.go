@@ -71,6 +71,9 @@ type OS struct {
 	Shiftfs         bool
 	UeventInjection bool
 	VFS3Fscaps      bool
+
+	// LXC features
+	LXCFeatures map[string]bool
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
