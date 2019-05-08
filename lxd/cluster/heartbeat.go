@@ -61,10 +61,12 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 			if err != nil {
 				return err
 			}
+
 			nodeAddress, err = tx.NodeAddress()
 			if err != nil {
 				return err
 			}
+
 			return nil
 		})
 		if err != nil {
@@ -72,38 +74,75 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 			return
 		}
 
-		heartbeats := make([]time.Time, len(nodes))
+		heartbeats := map[int64]bool{}
 		heartbeatsLock := sync.Mutex{}
 		heartbeatsWg := sync.WaitGroup{}
 
-		for i, node := range nodes {
+		sendHeartbeat := func(id int64, address string, delay bool) {
+			defer heartbeatsWg.Done()
+
+			if delay {
+				// Spread in time by waiting up to 3s less than the interval
+				time.Sleep(time.Duration(rand.Intn((heartbeatInterval*1000)-3000)) * time.Millisecond)
+			}
+			logger.Debugf("Sending heartbeat to %s", address)
+
+			err := heartbeatNode(ctx, address, gateway.cert, raftNodes)
+			if err == nil {
+				heartbeatsLock.Lock()
+				heartbeats[id] = true
+				heartbeatsLock.Unlock()
+				logger.Debugf("Successful heartbeat for %s", address)
+			} else {
+				logger.Debugf("Failed heartbeat for %s: %v", address, err)
+			}
+		}
+
+		for _, node := range nodes {
 			// Special case the local node
 			if node.Address == nodeAddress {
 				heartbeatsLock.Lock()
-				heartbeats[i] = time.Now()
+				heartbeats[node.ID] = true
 				heartbeatsLock.Unlock()
 				continue
 			}
 
 			// Parallelize the rest
 			heartbeatsWg.Add(1)
-			go func(i int, address string) {
-				defer heartbeatsWg.Done()
+			go sendHeartbeat(node.ID, node.Address, true)
+		}
+		heartbeatsWg.Wait()
 
-				// Spread in time by waiting up to 3s less than the interval
-				time.Sleep(time.Duration(rand.Intn((heartbeatInterval*1000)-3000)) * time.Millisecond)
-				logger.Debugf("Sending heartbeat to %s", address)
+		// Look for any new node which appeared since
+		var currentNodes []db.NodeInfo
+		err = cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			nodes, err = tx.Nodes()
+			if err != nil {
+				return err
+			}
 
-				err := heartbeatNode(ctx, address, gateway.cert, raftNodes)
-				if err == nil {
-					heartbeatsLock.Lock()
-					heartbeats[i] = time.Now()
-					heartbeatsLock.Unlock()
-					logger.Debugf("Successful heartbeat for %s", address)
-				} else {
-					logger.Debugf("Failed heartbeat for %s: %v", address, err)
+			return nil
+		})
+		if err != nil {
+			logger.Warnf("Failed to get current cluster nodes: %v", err)
+			return
+		}
+
+		for _, currentNode := range currentNodes {
+			found := false
+			for _, node := range nodes {
+				if node.Address == currentNode.Address {
+					found = true
+					break
 				}
-			}(i, node.Address)
+			}
+
+			if !found {
+				// We found a new node
+				heartbeatsWg.Add(1)
+				go sendHeartbeat(currentNode.ID, currentNode.Address, false)
+			}
 		}
 		heartbeatsWg.Wait()
 
@@ -114,8 +153,8 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		}
 
 		err = cluster.Transaction(func(tx *db.ClusterTx) error {
-			for i, node := range nodes {
-				if heartbeats[i].Equal(time.Time{}) {
+			for _, node := range nodes {
+				if !heartbeats[node.ID] {
 					continue
 				}
 
