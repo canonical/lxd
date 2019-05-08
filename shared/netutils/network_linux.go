@@ -1,7 +1,7 @@
 // +build linux
 // +build cgo
 
-package shared
+package netutils
 
 import (
 	"fmt"
@@ -9,15 +9,18 @@ import (
 	"net"
 	"os"
 	"strings"
+	"unsafe"
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
 /*
-#include "../shared/netns_getifaddrs.c"
+#include "../../shared/netutils/netns_getifaddrs.c"
+#include "../../shared/netutils/unixfd.c"
 */
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
@@ -173,10 +176,10 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 	readDone := make(chan bool, 1)
 	writeDone := make(chan bool, 1)
 
-	go defaultWriter(conn, w, writeDone)
+	go shared.DefaultWriter(conn, w, writeDone)
 
 	go func(conn *websocket.Conn, r io.ReadCloser) {
-		in := ExecReaderToChannel(r, -1, exited, fd)
+		in := shared.ExecReaderToChannel(r, -1, exited, fd)
 		for {
 			buf, ok := <-in
 			if !ok {
@@ -206,4 +209,42 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 	}(conn, r)
 
 	return readDone, writeDone
+}
+
+func AbstractUnixSendFd(sockFD int, sendFD int) error {
+	fd := C.int(sendFD)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_send_fds(sk_fd, &fd, C.int(1), nil, C.size_t(0))
+	if ret < 0 {
+		return fmt.Errorf("Failed to send file descriptor via abstract unix socket")
+	}
+
+	return nil
+}
+
+func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
+	fd := C.int(-1)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_recv_fds(sk_fd, &fd, C.int(1), nil, C.size_t(0))
+	if ret < 0 {
+		return nil, fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
+	}
+
+	file := os.NewFile(uintptr(fd), "")
+	return file, nil
+}
+
+func AbstractUnixReceiveFdData(sockFD int, buf []byte) (int, error) {
+	fd := C.int(-1)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_recv_fds(sk_fd, &fd, C.int(1), unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	if ret < 0 {
+		return int(-C.EBADF), fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
+	}
+
+	if ret == 0 {
+		return int(-C.EBADF), io.EOF
+	}
+
+	return int(fd), nil
 }

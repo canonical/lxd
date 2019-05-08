@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -359,7 +360,7 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 
 				for {
 					buf := make([]byte, C.SECCOMP_PROXY_MSG_SIZE)
-					fdMem, err := shared.AbstractUnixReceiveFdData(int(unixFile.Fd()), buf)
+					fdMem, err := netutils.AbstractUnixReceiveFdData(int(unixFile.Fd()), buf)
 					if err != nil || err == io.EOF {
 						logger.Debugf("Disconnected from seccomp socket after receive: pid=%v", ucred.pid)
 						c.Close()
