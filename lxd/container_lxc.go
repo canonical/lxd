@@ -199,6 +199,29 @@ func lxcParseRawLXC(line string) (string, string, error) {
 	return key, val, nil
 }
 
+func lxcSupportSeccompNotify(state *state.State) bool {
+	if !state.OS.SeccompListener {
+		return false
+	}
+
+	if !lxc.HasApiExtension("seccomp_notify") {
+		return false
+	}
+
+	c, err := lxc.NewContainer("test-seccomp", state.OS.LxcPath)
+	if err != nil {
+		return false
+	}
+
+	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+	if err != nil {
+		return false
+	}
+
+	c.Release()
+	return true
+}
+
 func lxcValidConfig(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
 		key, _, err := lxcParseRawLXC(line)
@@ -1811,11 +1834,14 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
-	if !c.IsPrivileged() && !c.state.OS.RunningInUserNS && lxc.HasApiExtension("seccomp_notify") && c.DaemonState().OS.SeccompListener {
-		// NOTE: Don't fail in cases where liblxc is recent enough but libseccomp isn't
-		//       when we add mount() support with user-configurable
-		//       options, we will want a hard fail if the user configured it
-		lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+	// NOTE: Don't fail in cases where liblxc is recent enough but libseccomp isn't
+	//       when we add mount() support with user-configurable
+	//       options, we will want a hard fail if the user configured it
+	if !c.IsPrivileged() && !c.state.OS.RunningInUserNS && lxcSupportSeccompNotify(c.state) {
+		err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+		if err != nil {
+			return err
+		}
 	}
 
 	// Apply raw.lxc

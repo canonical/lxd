@@ -15,8 +15,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"gopkg.in/lxc/go-lxc.v2"
-
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -253,7 +251,7 @@ func getSeccompProfileContent(c container) (string, error) {
 		policy += DEFAULT_SECCOMP_POLICY
 	}
 
-	if !c.IsPrivileged() && !c.DaemonState().OS.RunningInUserNS && lxc.HasApiExtension("seccomp_notify") && c.DaemonState().OS.SeccompListener {
+	if !c.IsPrivileged() && !c.DaemonState().OS.RunningInUserNS && lxcSupportSeccompNotify(c.DaemonState()) {
 		policy += SECCOMP_NOTIFY_POLICY
 	}
 
