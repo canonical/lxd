@@ -757,3 +757,8 @@ migration is required.
 If the kernel supports seccomp-based syscall interception LXD can be notified
 by a container that a registered syscall has been performed. LXD can then
 decide to trigger various actions.
+
+## lxc\_features
+This introduces the `lxc_features` section output from the `lxc info` command
+via the `GET /1.0/` route. It outputs the result of checks for key features being present in the
+underlying LXC library.
