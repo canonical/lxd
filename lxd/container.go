@@ -369,25 +369,39 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 				return fmt.Errorf("Missing nic type")
 			}
 
-			if !shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "p2p", "physical", "sriov"}) {
+			if !shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "ipvlan", "p2p", "physical", "sriov"}) {
 				return fmt.Errorf("Bad nic type: %s", m["nictype"])
 			}
 
-			if shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "physical", "sriov"}) && m["parent"] == "" {
+			if shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) && m["parent"] == "" {
 				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
 			}
 
 			if m["ipv4.address"] != "" {
-				err := networkValidAddressV4(m["ipv4.address"])
-				if err != nil {
-					return err
+				if m["nictype"] == "ipvlan" {
+					err := networkValidAddressV4List(m["ipv4.address"])
+					if err != nil {
+						return err
+					}
+				} else {
+					err := networkValidAddressV4(m["ipv4.address"])
+					if err != nil {
+						return err
+					}
 				}
 			}
 
 			if m["ipv6.address"] != "" {
-				err := networkValidAddressV6(m["ipv6.address"])
-				if err != nil {
-					return err
+				if m["nictype"] == "ipvlan" {
+					err := networkValidAddressV6List(m["ipv6.address"])
+					if err != nil {
+						return err
+					}
+				} else {
+					err := networkValidAddressV6(m["ipv6.address"])
+					if err != nil {
+						return err
+					}
 				}
 			}
 
