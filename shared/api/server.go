@@ -16,6 +16,9 @@ type ServerEnvironment struct {
 
 	KernelVersion string `json:"kernel_version" yaml:"kernel_version"`
 
+	// API extension: lxc_features
+	LXCFeatures map[string]string `json:"lxc_features" yaml:"lxc_features"`
+
 	// API extension: projects
 	Project string `json:"project" yaml:"project"`
 
