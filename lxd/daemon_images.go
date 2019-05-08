@@ -502,6 +502,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
+	} else {
+		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
 	}
 
 	// Override visiblity
