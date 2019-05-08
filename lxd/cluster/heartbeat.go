@@ -119,7 +119,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 					continue
 				}
 
-				err := tx.NodeHeartbeat(node.Address, heartbeats[i])
+				err := tx.NodeHeartbeat(node.Address, time.Now())
 				if err != nil {
 					return err
 				}

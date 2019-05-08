@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/CanonicalLtd/go-dqlite"
@@ -99,6 +100,8 @@ type Gateway struct {
 
 	// ServerStore wrapper.
 	store *dqliteServerStore
+
+	lock sync.RWMutex
 }
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
@@ -112,6 +115,9 @@ type Gateway struct {
 // database node part of the dqlite cluster.
 func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
+		g.lock.RLock()
+		defer g.lock.RUnlock()
+
 		if !tlsCheckCert(r, g.cert) {
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
 			return
@@ -202,6 +208,9 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 		g.acceptCh <- conn
 	}
 	raft := func(w http.ResponseWriter, r *http.Request) {
+		g.lock.RLock()
+		defer g.lock.RUnlock()
+
 		// If we are not part of the raft cluster, reply with a
 		// redirect to one of the raft nodes that we know about.
 		if g.raft == nil {
@@ -245,6 +254,9 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 
 // Snapshot can be used to manually trigger a RAFT snapshot
 func (g *Gateway) Snapshot() error {
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+
 	return g.raft.Snapshot()
 }
 
@@ -257,6 +269,9 @@ func (g *Gateway) WaitUpgradeNotification() {
 
 // IsDatabaseNode returns true if this gateway also run acts a raft database node.
 func (g *Gateway) IsDatabaseNode() bool {
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+
 	return g.raft != nil
 }
 
@@ -264,6 +279,9 @@ func (g *Gateway) IsDatabaseNode() bool {
 // dqlite nodes.
 func (g *Gateway) DialFunc() dqlite.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
+		g.lock.RLock()
+		defer g.lock.RUnlock()
+
 		// Memory connection.
 		if g.memoryDial != nil {
 			return g.memoryDial(ctx, address)
@@ -301,12 +319,15 @@ func (g *Gateway) Kill() {
 func (g *Gateway) Shutdown() error {
 	logger.Debugf("Stop database gateway")
 
+	g.lock.RLock()
 	if g.raft != nil {
 		err := g.raft.Shutdown()
 		if err != nil {
+			g.lock.RUnlock()
 			return errors.Wrap(err, "Failed to shutdown raft")
 		}
 	}
+	g.lock.RUnlock()
 
 	if g.server != nil {
 		g.Sync()
@@ -314,7 +335,9 @@ func (g *Gateway) Shutdown() error {
 
 		// Unset the memory dial, since Shutdown() is also called for
 		// switching between in-memory and network mode.
+		g.lock.Lock()
 		g.memoryDial = nil
+		g.lock.Unlock()
 	}
 
 	return nil
@@ -325,6 +348,9 @@ func (g *Gateway) Shutdown() error {
 // it can inspect the database in order to decide whether to activate the
 // daemon or not.
 func (g *Gateway) Sync() {
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+
 	if g.server == nil {
 		return
 	}
@@ -362,6 +388,9 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 
 // LeaderAddress returns the address of the current raft leader.
 func (g *Gateway) LeaderAddress() (string, error) {
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+
 	// If we aren't clustered, return an error.
 	if g.memoryDial != nil {
 		return "", fmt.Errorf("Node is not clustered")
@@ -381,7 +410,6 @@ func (g *Gateway) LeaderAddress() (string, error) {
 			time.Sleep(time.Second)
 		}
 		return "", ctx.Err()
-
 	}
 
 	// If this isn't a raft node, contact a raft node and ask for the
@@ -483,15 +511,21 @@ func (g *Gateway) init() error {
 			return errors.Wrap(err, "Failed to create dqlite server")
 		}
 
+		g.lock.Lock()
 		g.server = server
 		g.raft = raft
+		g.lock.Unlock()
 	} else {
+		g.lock.Lock()
 		g.server = nil
 		g.raft = nil
 		g.store.inMemory = nil
+		g.lock.Unlock()
 	}
 
+	g.lock.Lock()
 	g.store.onDisk = dqlite.NewServerStore(g.db.DB(), "main", "raft_nodes", "address")
+	g.lock.Unlock()
 
 	return nil
 }
@@ -502,9 +536,13 @@ func (g *Gateway) waitLeadership() error {
 	n := 80
 	sleep := 250 * time.Millisecond
 	for i := 0; i < n; i++ {
+		g.lock.RLock()
 		if g.raft.raft.State() == raft.Leader {
+			g.lock.RUnlock()
 			return nil
 		}
+		g.lock.RUnlock()
+
 		time.Sleep(sleep)
 	}
 	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
@@ -514,6 +552,9 @@ func (g *Gateway) waitLeadership() error {
 // cluster, as configured in the raft log. It returns an error if this node is
 // not the leader.
 func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+
 	if g.raft == nil {
 		return nil, raft.ErrNotLeader
 	}
