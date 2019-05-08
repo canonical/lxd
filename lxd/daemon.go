@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
@@ -574,6 +575,16 @@ func (d *Daemon) init() error {
 		logger.Infof(" - shiftfs support: yes")
 	} else {
 		logger.Infof(" - shiftfs support: no")
+	}
+
+	// Detect LXC features
+	d.os.LXCFeatures = map[string]bool{}
+	lxcExtensions := []string{
+		"mount_injection_file",
+		"seccomp_notify",
+	}
+	for _, extension := range lxcExtensions {
+		d.os.LXCFeatures[extension] = lxc.HasApiExtension(extension)
 	}
 
 	/* Initialize the database */
