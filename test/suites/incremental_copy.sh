@@ -46,7 +46,7 @@ do_copy() {
 
   # Target container may not be running when refreshing
   # shellcheck disable=2086
-  ! lxc copy c1 c2 --refresh ${pool} || false
+  ! lxc copy c1 c2 --refresh --debug ${pool} || false
 
   # Create test file in c1
   lxc exec c1 -- touch /root/testfile1

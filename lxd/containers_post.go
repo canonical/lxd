@@ -267,14 +267,20 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
+	logger.Errorf("stgraber: Handling container migration")
 	if req.Source.Refresh {
+		logger.Errorf("stgraber: asked to refresh")
 		// Check if the container exists
 		c, err = containerLoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
+			logger.Errorf("stgraber: container doesn't exist: %v", err)
 			req.Source.Refresh = false
 		} else if c.IsRunning() {
+			logger.Errorf("stgraber: container is running")
 			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
+	} else {
+		logger.Errorf("stgraber: not asked for refresh")
 	}
 
 	if !req.Source.Refresh {

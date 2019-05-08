@@ -900,15 +900,19 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	var ct container
 	var err error
 
+	logger.Errorf("stgraber: Handling container copy: %v", refresh)
 	if refresh {
 		// Load the target container
 		ct, err = containerLoadByProjectAndName(s, args.Project, args.Name)
 		if err != nil {
+			logger.Errorf("stgraber: Failed loading target container: %v", err)
 			refresh = false
 		}
 	}
 
 	if !refresh {
+		logger.Errorf("stgraber: Creating new container target")
+
 		// Create the container.
 		ct, err = containerCreateInternal(s, args)
 		if err != nil {
@@ -917,6 +921,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	}
 
 	if refresh && ct.IsRunning() {
+		logger.Errorf("stgraber: Target container is running")
 		return nil, fmt.Errorf("Cannot refresh a running container")
 	}
 
