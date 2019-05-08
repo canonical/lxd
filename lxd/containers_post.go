@@ -267,6 +267,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
+	// Early check for refresh
 	if req.Source.Refresh {
 		// Check if the container exists
 		c, err = containerLoadByProjectAndName(d.State(), project, req.Name)
@@ -542,6 +543,17 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 				`containers requires that source "%s" and `+
 				`target "%s" name be identical`, sourceName,
 				req.Name))
+		}
+	}
+
+	// Early check for refresh
+	if req.Source.Refresh {
+		// Check if the container exists
+		c, err := containerLoadByProjectAndName(d.State(), targetProject, req.Name)
+		if err != nil {
+			req.Source.Refresh = false
+		} else if c.IsRunning() {
+			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
 	}
 
