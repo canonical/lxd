@@ -24,7 +24,7 @@ import (
 #include <linux/audit.h>
 #include <sys/ptrace.h>
 
-#include "../shared/netns_getifaddrs.c"
+#include "../shared/netutils/netns_getifaddrs.c"
 #include "include/memory_utils.h"
 
 bool netnsid_aware = false;
