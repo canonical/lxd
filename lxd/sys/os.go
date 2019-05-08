@@ -31,25 +31,32 @@ type InotifyInfo struct {
 // OS is a high-level facade for accessing all operating-system
 // level functionality that LXD uses.
 type OS struct {
-	VarDir   string // Data directory (e.g. /var/lib/lxd/).
+	// Directories
 	CacheDir string // Cache directory (e.g. /var/cache/lxd/).
 	LogDir   string // Log directory (e.g. /var/log/lxd).
+	VarDir   string // Data directory (e.g. /var/lib/lxd/).
 
-	// Caches of system characteristics detected at Init() time.
-	Architectures           []int           // Cache of detected system architectures
-	LxcPath                 string          // Path to the $LXD_DIR/containers directory
-	BackingFS               string          // Backing filesystem of $LXD_DIR/containers
-	IdmapSet                *idmap.IdmapSet // Information about user/group ID mapping
-	ExecPath                string          // Absolute path to the LXD executable
-	RunningInUserNS         bool
-	AppArmorAvailable       bool
-	AppArmorStacking        bool
-	AppArmorStacked         bool
-	AppArmorAdmin           bool
-	AppArmorConfined        bool
+	// Daemon environment
+	Architectures   []int           // Cache of detected system architectures
+	BackingFS       string          // Backing filesystem of $LXD_DIR/containers
+	ExecPath        string          // Absolute path to the LXD executable
+	IdmapSet        *idmap.IdmapSet // Information about user/group ID mapping
+	InotifyWatch    InotifyInfo
+	LxcPath         string // Path to the $LXD_DIR/containers directory
+	MockMode        bool   // If true some APIs will be mocked (for testing)
+	RunningInUserNS bool
+
+	// Apparmor features
+	AppArmorAdmin     bool
+	AppArmorAvailable bool
+	AppArmorConfined  bool
+	AppArmorStacked   bool
+	AppArmorStacking  bool
+
+	// Cgroup features
 	CGroupBlkioController   bool
-	CGroupCPUController     bool
 	CGroupCPUacctController bool
+	CGroupCPUController     bool
 	CGroupCPUsetController  bool
 	CGroupDevicesController bool
 	CGroupFreezerController bool
@@ -57,14 +64,13 @@ type OS struct {
 	CGroupNetPrioController bool
 	CGroupPidsController    bool
 	CGroupSwapAccounting    bool
-	InotifyWatch            InotifyInfo
-	NetnsGetifaddrs         bool
-	UeventInjection         bool
-	SeccompListener         bool
-	VFS3Fscaps              bool
-	Shiftfs                 bool
 
-	MockMode bool // If true some APIs will be mocked (for testing)
+	// Kernel features
+	NetnsGetifaddrs bool
+	SeccompListener bool
+	Shiftfs         bool
+	UeventInjection bool
+	VFS3Fscaps      bool
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
