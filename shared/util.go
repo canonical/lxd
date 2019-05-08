@@ -119,9 +119,9 @@ func HostPath(path string) string {
 	}
 
 	// Check if we're running in a snap package
-	snap := os.Getenv("SNAP")
+	_, inSnap := os.LookupEnv("SNAP")
 	snapName := os.Getenv("SNAP_NAME")
-	if snap == "" || snapName != "lxd" {
+	if !inSnap || snapName != "lxd" {
 		return path
 	}
 
