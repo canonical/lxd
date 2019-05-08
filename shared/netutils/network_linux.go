@@ -1,7 +1,7 @@
 // +build linux
 // +build cgo
 
-package shared
+package netutils
 
 import (
 	"fmt"
@@ -12,12 +12,13 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
 /*
-#include "../shared/netns_getifaddrs.c"
+#include "../../shared/netutils/netns_getifaddrs.c"
 */
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
@@ -173,10 +174,10 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 	readDone := make(chan bool, 1)
 	writeDone := make(chan bool, 1)
 
-	go defaultWriter(conn, w, writeDone)
+	go shared.DefaultWriter(conn, w, writeDone)
 
 	go func(conn *websocket.Conn, r io.ReadCloser) {
-		in := ExecReaderToChannel(r, -1, exited, fd)
+		in := shared.ExecReaderToChannel(r, -1, exited, fd)
 		for {
 			buf, ok := <-in
 			if !ok {

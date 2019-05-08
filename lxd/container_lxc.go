@@ -38,6 +38,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "github.com/lxc/lxd/shared/log15"
@@ -6380,7 +6381,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 
 	couldUseNetnsGetifaddrs := c.state.OS.NetnsGetifaddrs
 	if couldUseNetnsGetifaddrs {
-		nw, err := shared.NetnsGetifaddrs(int32(pid))
+		nw, err := netutils.NetnsGetifaddrs(int32(pid))
 		if err != nil {
 			couldUseNetnsGetifaddrs = false
 			logger.Error("Failed to retrieve network information via netlink", log.Ctx{"container": c.name, "pid": pid})
