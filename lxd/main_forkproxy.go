@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/eagain"
+	"github.com/lxc/lxd/shared/netutils"
 )
 
 /*
@@ -320,7 +321,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	sAgain:
-		err = shared.AbstractUnixSendFd(forkproxyUDSSockFDNum, int(file.Fd()))
+		err = netutils.AbstractUnixSendFd(forkproxyUDSSockFDNum, int(file.Fd()))
 		if err != nil {
 			errno, ok := shared.GetErrno(err)
 			if ok && (errno == syscall.EAGAIN) {
@@ -334,7 +335,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 rAgain:
-	file, err := shared.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
+	file, err := netutils.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
 	if err != nil {
 		errno, ok := shared.GetErrno(err)
 		if ok && (errno == syscall.EAGAIN) {
