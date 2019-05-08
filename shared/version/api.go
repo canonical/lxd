@@ -152,6 +152,7 @@ var APIExtensions = []string{
 	"rbac",
 	"cluster_internal_copy",
 	"seccomp_notify",
+	"lxc_features",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
