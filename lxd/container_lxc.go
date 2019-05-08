@@ -1656,6 +1656,61 @@ func (c *containerLXC) initLXC(config bool) error {
 				if err != nil {
 					return err
 				}
+			} else if m["nictype"] == "ipvlan" {
+				err = c.checkIPVLANSupport()
+				if err != nil {
+					return err
+				}
+
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "ipvlan")
+				if err != nil {
+					return err
+				}
+
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipvlan.mode", networkKeyPrefix, networkidx), "l3s")
+				if err != nil {
+					return err
+				}
+
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipvlan.isolation", networkKeyPrefix, networkidx), "bridge")
+				if err != nil {
+					return err
+				}
+
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.l2proxy", networkKeyPrefix, networkidx), "1")
+				if err != nil {
+					return err
+				}
+
+				if m["ipv4.address"] != "" {
+					for _, addr := range strings.Split(m["ipv4.address"], ",") {
+						addr = strings.TrimSpace(addr)
+						err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/32", addr))
+						if err != nil {
+							return err
+						}
+					}
+
+					err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.gateway", networkKeyPrefix, networkidx), "dev")
+					if err != nil {
+						return err
+					}
+				}
+
+				if m["ipv6.address"] != "" {
+					for _, addr := range strings.Split(m["ipv6.address"], ",") {
+						addr = strings.TrimSpace(addr)
+						err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/128", addr))
+						if err != nil {
+							return err
+						}
+					}
+
+					err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.gateway", networkKeyPrefix, networkidx), "dev")
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			// Check if the container has network specific keys set to avoid unnecessarily running the network up hook.
@@ -1681,7 +1736,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				if err != nil {
 					return err
 				}
-			} else if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) {
+			} else if shared.StringInSlice(m["nictype"], []string{"macvlan", "ipvlan", "physical"}) {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), networkGetHostDevice(m["parent"], m["vlan"]))
 				if err != nil {
 					return err
@@ -2400,7 +2455,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 
 			// Create VLAN devices
-			if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) && m["vlan"] != "" {
+			if shared.StringInSlice(m["nictype"], []string{"macvlan", "ipvlan", "physical"}) && m["vlan"] != "" {
 				device := networkGetHostDevice(m["parent"], m["vlan"])
 				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", device)) {
 					_, err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
@@ -7902,7 +7957,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the MAC address
-	if m["nictype"] != "physical" && m["hwaddr"] == "" && m["type"] != "infiniband" {
+	if !shared.StringInSlice(m["nictype"], []string{"physical", "ipvlan", "infiniband"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
@@ -8073,19 +8128,37 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.D
 		return nil, err
 	}
 
-	// Create the interface
-	devName, err := c.createNetworkDevice(name, m)
-	if err != nil {
-		return nil, err
-	}
+	// Setup network device if not type ipvlan (which is done via liblxc only)
+	if m["nictype"] != "ipvlan" {
+		err := c.checkIPVLANSupport()
+		if err != nil {
+			return nil, err
+		}
 
-	// Add the interface to the container
-	err = c.c.AttachInterface(devName, m["name"])
-	if err != nil {
-		return nil, fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
+		// Create the interface
+		devName, err := c.createNetworkDevice(name, m)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add the interface to the container
+		err = c.c.AttachInterface(devName, m["name"])
+		if err != nil {
+			return nil, fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
+		}
 	}
 
 	return m, nil
+}
+
+// checkIPVLANSupport checks whether the liblxc available has the necessary IPVLAN features.
+func (c *containerLXC) checkIPVLANSupport() error {
+	extensions := c.state.OS.LXCFeatures
+	if extensions["network_ipvlan"] && extensions["network_l2proxy"] && extensions["network_gateway_device_route"] {
+		return nil
+	}
+
+	return errors.New("LXC is missing one or more API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
 }
 
 func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {

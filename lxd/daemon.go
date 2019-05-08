@@ -582,6 +582,9 @@ func (d *Daemon) init() error {
 	lxcExtensions := []string{
 		"mount_injection_file",
 		"seccomp_notify",
+		"network_ipvlan",
+		"network_l2proxy",
+		"network_gateway_device_route",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = lxc.HasApiExtension(extension)
