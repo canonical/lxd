@@ -500,7 +500,7 @@ func containerLXCUnload(c *containerLXC) {
 
 // Create a container struct without initializing it.
 func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLXC {
-	return &containerLXC{
+	c := &containerLXC{
 		state:        s,
 		id:           args.ID,
 		name:         args.Name,
@@ -516,6 +516,17 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 		stateful:     args.Stateful,
 		node:         args.Node,
 	}
+
+	// Cleanup the zero values
+	if c.creationDate.IsZero() {
+		c.creationDate = time.Time{}
+	}
+
+	if c.lastUsedDate.IsZero() {
+		c.lastUsedDate = time.Time{}
+	}
+
+	return c
 }
 
 // The LXC container driver
