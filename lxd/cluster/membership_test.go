@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -352,14 +352,9 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	// The node has gone from the raft cluster.
-	raft := targetGateway.Raft()
-	future := raft.GetConfiguration()
-	require.NoError(t, future.Error())
-	assert.Len(t, future.Configuration().Servers, 1)
-
-	count, err = cluster.Count(state)
+	members, err := targetGateway.RaftNodes()
 	require.NoError(t, err)
-	assert.Equal(t, 1, count)
+	assert.Len(t, members, 1)
 }
 
 func FLAKY_TestPromote(t *testing.T) {
