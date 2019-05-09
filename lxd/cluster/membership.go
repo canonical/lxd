@@ -8,9 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	rafthttp "github.com/CanonicalLtd/raft-http"
-	raftmembership "github.com/CanonicalLtd/raft-membership"
-	"github.com/hashicorp/raft"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
@@ -21,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // Bootstrap turns a non-clustered LXD instance into the first (and leader)
@@ -680,19 +679,15 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 		return address, nil
 	}
 
-	id := strconv.Itoa(int(raftNodes[raftNodeRemoveIndex].ID))
+	id := uint64(raftNodes[raftNodeRemoveIndex].ID)
 	// Get the address of another database node,
 	target := raftNodes[(raftNodeRemoveIndex+1)%len(raftNodes)].Address
 	logger.Info(
 		"Remove node from dqlite raft cluster",
 		log15.Ctx{"id": id, "address": address, "target": target})
-	dial, err := raftDial(gateway.cert)
-	if err != nil {
-		return "", err
-	}
-	err = rafthttp.ChangeMembership(
-		raftmembership.LeaveRequest, raftEndpoint, dial,
-		raft.ServerID(id), address, target, 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = dqlite.Leave(ctx, uint64(id), gateway.ServerStore(), gateway.raftDial())
 	if err != nil {
 		return "", err
 	}
