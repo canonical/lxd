@@ -131,8 +131,8 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// Make sure we can actually connect to the cluster database through
 	// the network endpoint. This also releases the previously acquired
 	// lock and makes the Go SQL pooling system invalidate the old
-	// connection, so new queries will be executed over the new gRPC
-	// network connection.
+	// connection, so new queries will be executed over the new network
+	// connection.
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
 		_, err := tx.Nodes()
 		return err
