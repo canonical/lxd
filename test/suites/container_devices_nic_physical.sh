@@ -21,10 +21,12 @@ test_container_devices_nic_physical() {
   # Lauch container and check it has nic applied correctly.
   lxc start "${ct_name}"
 
-  # Check custom MTU is applied.
-  if ! lxc exec "${ct_name}" -- ip link show eth0 | grep "mtu 1400" ; then
-    echo "mtu invalid"
-    true #We expect this to not apply currently as LXC won't apply it to physical devices.
+  # Check custom MTU is applied if feature available in LXD.
+  if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
+    if ! lxc exec "${ct_name}" -- ip link show eth0 | grep "mtu 1400" ; then
+      echo "mtu invalid"
+      false
+    fi
   fi
 
   lxc config device remove "${ct_name}" eth0
@@ -36,10 +38,10 @@ test_container_devices_nic_physical() {
     parent="${ct_name}" \
     name=eth0 \
     vlan=10 \
-    mtu=1401
+    mtu=1399 #This must be less than or equal to the MTU of the parent device (which is not being reset)
 
   # Check custom MTU is applied.
-  if ! lxc exec "${ct_name}" -- ip link show eth0 | grep "mtu 1401" ; then
+  if ! lxc exec "${ct_name}" -- ip link show eth0 | grep "mtu 1399" ; then
     echo "mtu invalid"
     false
   fi
