@@ -16,12 +16,13 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
-	"github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
+
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
@@ -766,6 +767,20 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// This logic used to belong to patchUpdateFromV10, but has been moved
+	// here because it needs database access.
+	if shared.PathExists(shared.VarPath("lxc")) {
+		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
+		if err != nil {
+			return err
+		}
+
+		logger.Debugf("Restarting all the containers following directory rename")
+		s := d.State()
+		containersShutdown(s)
+		containersRestart(s)
+	}
+
 	// Setup the user-agent
 	if clustered {
 		version.UserAgentFeatures([]string{"cluster"})
@@ -1303,22 +1318,10 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	legacy := map[int]*db.LegacyPatch{}
 	for i, patch := range legacyPatches {
 		legacy[i] = &db.LegacyPatch{
-			Hook: func(node *sql.DB) error {
-				// FIXME: Use the low-level *node* SQL db as backend for both the
-				//        db.Node and db.Cluster objects, since at this point we
-				//        haven't migrated the data to the cluster database yet.
-				cluster := d.cluster
-				defer func() {
-					d.cluster = cluster
-				}()
-				d.db = db.ForLegacyPatches(node)
-				d.cluster = db.ForLocalInspection(node)
-				return patch(d)
+			Hook: func(tx *sql.Tx) error {
+				return patch(tx)
 			},
 		}
-	}
-	for _, i := range legacyPatchesNeedingDB {
-		legacy[i].NeedsDB = true
 	}
 
 	// Hook to run when the local database is created from scratch. It will

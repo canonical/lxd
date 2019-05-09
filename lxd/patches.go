@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	stdlog "log"
@@ -3457,32 +3458,20 @@ func patchStorageApiUpdateContainerSnapshots(name string, d *Daemon) error {
 //
 // NOTE: don't add any legacy patch here, instead use the patches
 // mechanism above.
-var legacyPatches = map[int](func(d *Daemon) error){
+var legacyPatches = map[int](func(tx *sql.Tx) error){
 	11: patchUpdateFromV10,
 	12: patchUpdateFromV11,
 	16: patchUpdateFromV15,
 	30: patchUpdateFromV29,
 	31: patchUpdateFromV30,
 }
-var legacyPatchesNeedingDB = []int{11, 16} // Legacy patches doing DB work
 
-func patchUpdateFromV10(d *Daemon) error {
-	if shared.PathExists(shared.VarPath("lxc")) {
-		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
-		if err != nil {
-			return err
-		}
-
-		logger.Debugf("Restarting all the containers following directory rename")
-		s := d.State()
-		containersShutdown(s)
-		containersRestart(s)
-	}
-
+func patchUpdateFromV10(_ *sql.Tx) error {
+	// Logic was moved to Daemon.init().
 	return nil
 }
 
-func patchUpdateFromV11(d *Daemon) error {
+func patchUpdateFromV11(_ *sql.Tx) error {
 	containers, err := containersOnDisk()
 	if err != nil {
 		return err
@@ -3552,27 +3541,22 @@ func patchUpdateFromV11(d *Daemon) error {
 	return nil
 }
 
-func patchUpdateFromV15(d *Daemon) error {
+func patchUpdateFromV15(tx *sql.Tx) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	containers, err := containersOnDisk()
 	if err != nil {
 		return err
 	}
+	cNames := containers["default"]
 
 	vgName := ""
-	err = d.db.Transaction(func(tx *db.NodeTx) error {
-		config, err := tx.Config()
-		if err != nil {
-			return err
-		}
-		vgName = config["storage.lvm_vg_name"]
-		return nil
-	})
+	config, err := query.SelectConfig(tx, "config", "")
 	if err != nil {
 		return err
 	}
+	vgName = config["storage.lvm_vg_name"]
 
 	for _, cName := range cNames {
 		var lvLinkPath string
@@ -3613,7 +3597,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	return nil
 }
 
-func patchUpdateFromV29(d *Daemon) error {
+func patchUpdateFromV29(_ *sql.Tx) error {
 	if shared.PathExists(shared.VarPath("zfs.img")) {
 		err := os.Chmod(shared.VarPath("zfs.img"), 0600)
 		if err != nil {
@@ -3624,7 +3608,7 @@ func patchUpdateFromV29(d *Daemon) error {
 	return nil
 }
 
-func patchUpdateFromV30(d *Daemon) error {
+func patchUpdateFromV30(_ *sql.Tx) error {
 	entries, err := ioutil.ReadDir(shared.VarPath("containers"))
 	if err != nil {
 		/* If the directory didn't exist before, the user had never
