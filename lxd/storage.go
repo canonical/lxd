@@ -777,7 +777,7 @@ func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) erro
 			jsonIdmap = "[]"
 		}
 
-		err := container.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		err := container.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonIdmap})
 		if err != nil {
 			return err
 		}
