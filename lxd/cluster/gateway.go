@@ -30,11 +30,11 @@ import (
 // When a new gateway is created, the node-level database is queried to check
 // what kind of role this node plays and if it's exposed over the network. It
 // will initialize internal data structures accordingly, for example starting a
-// dqlite driver if this node is a database node.
+// local dqlite server if this node is a database node.
 //
 // After creation, the Daemon is expected to expose whatever http handlers the
-// HandlerFuncs method returns and to access the dqlite cluster using the gRPC
-// dialer returned by the Dialer method.
+// HandlerFuncs method returns and to access the dqlite cluster using the
+// dialer returned by the DialFunc method.
 func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
