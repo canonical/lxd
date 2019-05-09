@@ -762,3 +762,6 @@ decide to trigger various actions.
 This introduces the `lxc_features` section output from the `lxc info` command
 via the `GET /1.0/` route. It outputs the result of checks for key features being present in the
 underlying LXC library.
+
+## container\_nic\_ipvlan
+This introduces the `ipvlan` "nic" device type.
