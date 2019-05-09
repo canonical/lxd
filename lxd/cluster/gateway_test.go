@@ -140,7 +140,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 
 }
 
-// RaftNodes returns an error if the underlying raft instance is not the leader.
+// RaftNodes returns all nodes of the cluster.
 func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	db, cleanup := db.NewTestNode(t)
 	defer cleanup()
