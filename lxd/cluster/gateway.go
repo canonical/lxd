@@ -268,6 +268,11 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
+		if !tlsCheckCert(r, g.cert) {
+			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
+			return
+		}
+
 		// If this node is not clustered return a 404.
 		if g.raft.HandlerFunc() == nil {
 			http.NotFound(w, r)
