@@ -3,7 +3,6 @@ package cluster
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -14,13 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
-	"github.com/CanonicalLtd/raft-http"
-	"github.com/CanonicalLtd/raft-membership"
-	"github.com/boltdb/bolt"
-	"github.com/hashicorp/go-hclog"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
+	rafthttp "github.com/CanonicalLtd/raft-http"
+	raftmembership "github.com/CanonicalLtd/raft-membership"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
-	"github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
@@ -80,11 +78,11 @@ func newRaft(database *db.Node, cert *shared.CertInfo, latency float64) (*raftIn
 // A LXD-specific wrapper around raft.Raft, which also holds a reference to its
 // network transport and dqlite FSM.
 type raftInstance struct {
+	info              dqlite.ServerInfo
 	layer             *rafthttp.Layer       // HTTP-based raft transport layer
 	handler           http.HandlerFunc      // Handles join/leave/connect requests
 	membershipChanger func(*raft.Raft)      // Forwards to raft membership requests from handler
 	logs              *raftboltdb.BoltStore // Raft logs store, needs to be closed upon shutdown
-	registry          *dqlite.Registry      // The dqlite Registry linked to the FSM and the Driver
 	fsm               raft.FSM              // The dqlite FSM linked to the raft instance
 	raft              *raft.Raft            // The actual raft instance
 }
@@ -92,48 +90,11 @@ type raftInstance struct {
 // Create a new raftFactory, instantiating all needed raft dependencies.
 func raftInstanceInit(
 	db *db.Node, node *db.RaftNode, cert *shared.CertInfo, latency float64) (*raftInstance, error) {
-	// FIXME: should be a parameter
-	timeout := 5 * time.Second
 
-	raftLogger := raftLogger()
-
-	// Raft config.
-	config := raftConfig(latency)
-	config.Logger = raftLogger
-	config.LocalID = raft.ServerID(strconv.Itoa(int(node.ID)))
-
-	// Raft transport
-	var handler *rafthttp.Handler
-	var membershipChanger func(*raft.Raft)
-	var layer *rafthttp.Layer
-	var transport raft.Transport
 	addr := node.Address
 	if addr == "" {
-		// This should normally be used only for testing as it can
-		// cause split-brian, but since we are not exposing raft to the
-		// network at all it's safe to do so. When this node gets
-		// exposed to the network and assigned an address, we need to
-		// restart raft anyways.
-		config.StartAsLeader = true
-		transport = raftMemoryTransport()
-	} else {
-		dial, err := raftDial(cert)
-		if err != nil {
-			return nil, err
-		}
-
-		transport, handler, layer, err = raftNetworkTransport(db, addr, log.New(&raftLogWriter{}, "", 0), timeout, dial)
-		if err != nil {
-			return nil, err
-		}
-		membershipChanger = func(raft *raft.Raft) {
-			raftmembership.HandleChangeRequests(raft, handler.Requests())
-		}
-	}
-
-	err := raft.ValidateConfig(config)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid raft configuration")
+		// This is a standalone node not exposed to the network.
+		addr = "1"
 	}
 
 	// Rename legacy data directory if needed.
@@ -158,70 +119,14 @@ func raftInstanceInit(
 		}
 	}
 
-	// Raft logs store
-	logs, err := raftboltdb.New(raftboltdb.Options{
-		Path:        filepath.Join(dir, "logs.db"),
-		BoltOptions: &bolt.Options{Timeout: timeout},
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create bolt store for raft logs")
-	}
-
-	// Raft snapshot store (don't log snapshots since we take them frequently)
-	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, 2, log.New(ioutil.Discard, "", 0))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create file snapshot store")
-	}
-
-	// If we are the initial node, we use the last index persisted in the
-	// logs store and other checks to determine if we have ever
-	// bootstrapped the cluster, and if not we do so (see raft.HasExistingState).
-	if node.ID == 1 {
-		err := raftMaybeBootstrap(config, logs, snaps, transport)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to boostrap cluster")
-		}
-	}
-
-	// The dqlite registry and FSM.
-	registry := dqlite.NewRegistry(strconv.Itoa(serial))
-	serial++
-	fsm := dqlite.NewFSM(registry)
-
-	// The actual raft instance.
-	raft, err := raft.NewRaft(config, fsm, logs, logs, snaps, transport)
-	if err != nil {
-		logs.Close()
-		return nil, errors.Wrap(err, "failed to start raft")
-	}
-
-	if membershipChanger != nil {
-		// Process Raft connections over HTTP. This goroutine will
-		// terminate when instance.handler.Close() is called, which
-		// happens indirectly when the raft instance is shutdown in
-		// instance.Shutdown(), and the associated transport is closed.
-		go membershipChanger(raft)
-	}
-
-	instance := &raftInstance{
-		layer:             layer,
-		handler:           raftHandler(cert, handler),
-		membershipChanger: membershipChanger,
-		logs:              logs,
-		registry:          registry,
-		fsm:               fsm,
-		raft:              raft,
-	}
+	instance := &raftInstance{}
+	instance.info.ID = uint64(node.ID)
+	instance.info.Address = addr
 
 	return instance, nil
 }
 
 var serial = 99
-
-// Registry returns the dqlite Registry associated with the raft instance.
-func (i *raftInstance) Registry() *dqlite.Registry {
-	return i.registry
-}
 
 // FSM returns the dqlite FSM associated with the raft instance.
 func (i *raftInstance) FSM() raft.FSM {
@@ -394,30 +299,6 @@ func raftConfig(latency float64) *raft.Config {
 	config.TrailingLogs = 512
 
 	return config
-}
-
-// Helper to bootstrap the raft cluster if needed.
-func raftMaybeBootstrap(
-	conf *raft.Config,
-	logs *raftboltdb.BoltStore,
-	snaps raft.SnapshotStore,
-	trans raft.Transport) error {
-	// First check if we were already bootstrapped.
-	hasExistingState, err := raft.HasExistingState(logs, logs, snaps)
-	if err != nil {
-		return errors.Wrap(err, "failed to check if raft has existing state")
-	}
-	if hasExistingState {
-		return nil
-	}
-	server := raft.Server{
-		ID:      conf.LocalID,
-		Address: trans.LocalAddr(),
-	}
-	configuration := raft.Configuration{
-		Servers: []raft.Server{server},
-	}
-	return raft.BootstrapCluster(conf, logs, logs, snaps, trans, configuration)
 }
 
 func raftHandler(info *shared.CertInfo, handler *rafthttp.Handler) http.HandlerFunc {
