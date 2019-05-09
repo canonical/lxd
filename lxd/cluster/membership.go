@@ -19,7 +19,6 @@ import (
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // Bootstrap turns a non-clustered LXD instance into the first (and leader)
