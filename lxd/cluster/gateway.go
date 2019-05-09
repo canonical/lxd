@@ -531,6 +531,20 @@ func (g *Gateway) init() error {
 			return errors.Wrap(err, "Failed to create dqlite server")
 		}
 
+		if raft.info.Address == "1" {
+			// Bootstrap the node. This is a no-op if we are
+			// already bootstrapped..
+			err := server.Bootstrap([]dqlite.ServerInfo{raft.info})
+			if err != nil && err != dqlite.ErrServerCantBootstrap {
+				return errors.Wrap(err, "Failed to bootstrap dqlite server")
+			}
+		}
+
+		err = server.Start(listener)
+		if err != nil {
+			return errors.Wrap(err, "Failed to start dqlite server")
+		}
+
 		g.lock.Lock()
 		g.server = server
 		g.raft = raft
