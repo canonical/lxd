@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -164,6 +164,9 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 		return nil, errors.Wrap(err, "failed to open database")
 	}
 
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
 	// Test that the cluster database is operational. We wait up to the
 	// given timeout , in case there's no quorum of nodes online yet.
 	timer := time.After(timeout)
@@ -209,9 +212,6 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure schema")
 	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 
 	if !nodesVersionsMatch {
 		cluster := &Cluster{
