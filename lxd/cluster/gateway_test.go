@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -46,16 +46,27 @@ func TestGateway_Single(t *testing.T) {
 	}
 
 	dial := gateway.DialFunc()
-	conn, err := dial(context.Background(), "")
+	netConn, err := dial(context.Background(), "")
 	assert.NoError(t, err)
-	assert.NotNil(t, conn)
+	assert.NotNil(t, netConn)
+	require.NoError(t, netConn.Close())
 
 	leader, err := gateway.LeaderAddress()
 	assert.Equal(t, "", leader)
 	assert.EqualError(t, err, "Node is not clustered")
+
+	driver, err := dqlite.NewDriver(
+		gateway.ServerStore(),
+		dqlite.WithDialFunc(gateway.DialFunc()))
+	require.NoError(t, err)
+
+	conn, err := driver.Open("test.db")
+	require.NoError(t, err)
+
+	require.NoError(t, conn.Close())
 }
 
-// If there's a network address configured, we expose the gRPC endpoint with
+// If there's a network address configured, we expose the dqlite endpoint with
 // an HTTP handler.
 func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	db, cleanup := db.NewTestNode(t)
