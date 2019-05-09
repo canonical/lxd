@@ -588,6 +588,14 @@ func (g *Gateway) waitLeadership() error {
 	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
+func (g *Gateway) isLeader() bool {
+	if g.server == nil {
+		return false
+	}
+	info := g.server.Leader()
+	return info != nil && info.ID == g.raft.info.ID
+}
+
 // Return information about the LXD nodes that a currently part of the raft
 // cluster, as configured in the raft log. It returns an error if this node is
 // not the leader.

@@ -11,6 +11,11 @@ func (g *Gateway) Raft() *raft.Raft {
 	return g.raft.raft
 }
 
+// IsLeader returns true if this node is the leader.
+func (g *Gateway) IsLeader() bool {
+	return g.isLeader()
+}
+
 // Cert returns the gateway's internal TLS certificate information.
 func (g *Gateway) Cert() *shared.CertInfo {
 	return g.cert
