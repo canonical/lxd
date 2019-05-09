@@ -643,52 +643,54 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 	return addresses, nil
 }
 
-func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, error) {
+func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader bool) (net.Conn, error) {
 	config, err := tlsClientConfig(g.cert)
 	if err != nil {
 		return nil, err
 	}
 
-	// Make a probe HEAD request to check if the target node is the leader.
 	path := fmt.Sprintf("https://%s%s", addr, databaseEndpoint)
-	request, err := http.NewRequest("HEAD", path, nil)
-	if err != nil {
-		return nil, err
-	}
-	request = request.WithContext(ctx)
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-
-	// If the remote server has detected that we are out of date, let's
-	// trigger an upgrade.
-	if response.StatusCode == http.StatusUpgradeRequired {
-		g.lock.Lock()
-		defer g.lock.Unlock()
-		if !g.upgradeTriggered {
-			err = triggerUpdate()
-			if err == nil {
-				g.upgradeTriggered = true
-			}
+	if checkLeader {
+		// Make a probe HEAD request to check if the target node is the leader.
+		request, err := http.NewRequest("HEAD", path, nil)
+		if err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("Upgrade needed")
-	}
+		request = request.WithContext(ctx)
+		client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
+		response, err := client.Do(request)
+		if err != nil {
+			return nil, err
+		}
 
-	// If the endpoint does not exists, it means that the target node is
-	// running version 1 of dqlite protocol. In that case we simply behave
-	// as the node was at an older LXD version.
-	if response.StatusCode == http.StatusNotFound {
-		return nil, db.ErrSomeNodesAreBehind
-	}
+		// If the remote server has detected that we are out of date, let's
+		// trigger an upgrade.
+		if response.StatusCode == http.StatusUpgradeRequired {
+			g.lock.Lock()
+			defer g.lock.Unlock()
+			if !g.upgradeTriggered {
+				err = triggerUpdate()
+				if err == nil {
+					g.upgradeTriggered = true
+				}
+			}
+			return nil, fmt.Errorf("Upgrade needed")
+		}
 
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(response.Status)
+		// If the endpoint does not exists, it means that the target node is
+		// running version 1 of dqlite protocol. In that case we simply behave
+		// as the node was at an older LXD version.
+		if response.StatusCode == http.StatusNotFound {
+			return nil, db.ErrSomeNodesAreBehind
+		}
+
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf(response.Status)
+		}
 	}
 
 	// Establish the connection
-	request = &http.Request{
+	request := &http.Request{
 		Method:     "POST",
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
@@ -717,7 +719,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 		return nil, errors.Wrap(err, "Sending HTTP request failed")
 	}
 
-	response, err = http.ReadResponse(bufio.NewReader(conn), request)
+	response, err := http.ReadResponse(bufio.NewReader(conn), request)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read response")
 	}
