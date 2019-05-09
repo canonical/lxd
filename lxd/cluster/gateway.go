@@ -511,21 +511,27 @@ func (g *Gateway) init() error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to allocate loopback port")
 		}
+		options := []dqlite.ServerOption{
+			dqlite.WithServerLogFunc(DqliteLog),
+		}
 
-		if raft.HandlerFunc() == nil {
+		if raft.info.Address == "1" {
+			if raft.info.ID != 1 {
+				panic("unexpected server ID")
+			}
 			g.memoryDial = dqliteMemoryDial(listener)
 			g.store.inMemory = dqlite.NewInmemServerStore()
-			g.store.Set(context.Background(), []dqlite.ServerInfo{{Address: "0"}})
+			g.store.Set(context.Background(), []dqlite.ServerInfo{raft.info})
 		} else {
 			go runDqliteProxy(listener, g.acceptCh)
 			g.store.inMemory = nil
 		}
 
-		provider := &raftAddressProvider{db: g.db}
+		dir := filepath.Join(g.db.Dir(), "global")
 		server, err := dqlite.NewServer(
-			raft.Raft(), raft.Registry(), listener,
-			dqlite.WithServerAddressProvider(provider),
-			dqlite.WithServerLogFunc(DqliteLog),
+			raft.info,
+			dir,
+			options...,
 		)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create dqlite server")
