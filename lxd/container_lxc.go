@@ -7708,6 +7708,15 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		}
 	}
 
+	// Set the MTU
+	if m["mtu"] != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "mtu", m["mtu"])
+		if err != nil {
+			deviceRemoveInterface(dev)
+			return "", fmt.Errorf("Failed to set the MTU: %s", err)
+		}
+	}
+
 	// Bring the interface up
 	_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "up")
 	if err != nil {
