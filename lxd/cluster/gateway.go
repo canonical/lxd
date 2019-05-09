@@ -730,7 +730,41 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
 	}
 
-	return conn, err
+	listener, err := net.Listen("unix", "")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create unix listener")
+	}
+
+	goUnix, err := net.Dial("unix", listener.Addr().String())
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to connect to unix listener")
+	}
+
+	cUnix, err := listener.Accept()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to connect to unix listener")
+	}
+
+	listener.Close()
+
+	go func() {
+		_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
+		if err != nil {
+			logger.Warnf("Error during dqlite proxy copy: %v", err)
+		}
+		conn.Close()
+	}()
+
+	go func() {
+		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
+		if err != nil {
+			logger.Warnf("Error during dqlite proxy copy: %v", err)
+		}
+
+		goUnix.Close()
+	}()
+
+	return cUnix, nil
 }
 
 // Create a dial function that connects to the given listener.
