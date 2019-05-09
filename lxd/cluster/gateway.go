@@ -612,14 +612,14 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if g.raft == nil {
 		return nil, raft.ErrNotLeader
 	}
-	servers, err := g.raft.Servers()
+	servers, err := g.server.Cluster()
 	if err != nil {
 		return nil, err
 	}
 	provider := raftAddressProvider{db: g.db}
 	nodes := make([]db.RaftNode, len(servers))
 	for i, server := range servers {
-		address, err := provider.ServerAddr(server.ID)
+		address, err := provider.ServerAddr(raft.ServerID(fmt.Sprintf("%d", server.ID)))
 		if err != nil {
 			if err != db.ErrNoSuchObject {
 				return nil, errors.Wrap(err, "Failed to fetch raft server address")
@@ -627,13 +627,9 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			// Use the initial address as fallback. This is an edge
 			// case that happens when a new leader is elected and
 			// its raft_nodes table is not fully up-to-date yet.
-			address = server.Address
+			address = raft.ServerAddress(server.Address)
 		}
-		id, err := strconv.Atoi(string(server.ID))
-		if err != nil {
-			return nil, errors.Wrap(err, "Non-numeric server ID")
-		}
-		nodes[i].ID = int64(id)
+		nodes[i].ID = int64(server.ID)
 		nodes[i].Address = string(address)
 	}
 	return nodes, nil
