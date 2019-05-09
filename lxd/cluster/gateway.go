@@ -323,7 +323,14 @@ func (g *Gateway) DialFunc() dqlite.DialFunc {
 			return g.memoryDial(ctx, address)
 		}
 
-		return dqliteNetworkDial(ctx, address, g)
+		return dqliteNetworkDial(ctx, address, g, true)
+	}
+}
+
+// Dial function for establishing raft connections.
+func (g *Gateway) raftDial() dqlite.DialFunc {
+	return func(ctx context.Context, address string) (net.Conn, error) {
+		return dqliteNetworkDial(ctx, address, g.cert, false)
 	}
 }
 
@@ -531,6 +538,7 @@ func (g *Gateway) init() error {
 		} else {
 			go runDqliteProxy(listener, g.acceptCh)
 			g.store.inMemory = nil
+			options = append(options, dqlite.WithServerDialFunc(g.raftDial()))
 		}
 
 		dir := filepath.Join(g.db.Dir(), "global")
