@@ -504,8 +504,8 @@ func (g *Gateway) init() error {
 	}
 
 	// If the resulting raft instance is not nil, it means that this node
-	// should serve as database node, so create a dqlite driver to be
-	// exposed it over gRPC.
+	// should serve as database node, so create a dqlite driver possibly
+	// exposing it over the network.
 	if raft != nil {
 		listener, err := net.Listen("unix", "")
 		if err != nil {
