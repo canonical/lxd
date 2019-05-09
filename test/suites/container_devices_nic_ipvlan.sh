@@ -7,7 +7,7 @@ test_container_devices_nic_ipvlan() {
     return
   fi
 
-  ct_name="nictest$$"
+  ct_name="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
 
   # Test ipvlan support to offline container (hot plugging not supported).
