@@ -58,7 +58,10 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 		return nil, nil, err
 	}
 
-	legacyHook := legacyPatchHook(db, legacyPatches)
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	legacyHook := legacyPatchHook(legacyPatches)
 	hook := func(version int, tx *sql.Tx) error {
 		if version == node.UpdateFromPreClustering {
 			logger.Debug("Loading pre-clustering sqlite data")
@@ -88,9 +91,6 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 			}
 		}
 	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 
 	return node, dump, nil
 }
