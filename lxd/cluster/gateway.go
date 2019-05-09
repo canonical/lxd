@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -348,16 +348,6 @@ func (g *Gateway) Kill() {
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
 	logger.Debugf("Stop database gateway")
-
-	g.lock.RLock()
-	if g.raft != nil {
-		err := g.raft.Shutdown()
-		if err != nil {
-			g.lock.RUnlock()
-			return errors.Wrap(err, "Failed to shutdown raft")
-		}
-	}
-	g.lock.RUnlock()
 
 	if g.server != nil {
 		g.Sync()
