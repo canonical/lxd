@@ -111,7 +111,7 @@ func networkIsInUse(c container, name string) bool {
 			continue
 		}
 
-		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "physical", "sriov"}) {
+		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
 			continue
 		}
 
@@ -588,6 +588,28 @@ func networkValidAddressV6(value string) error {
 		return fmt.Errorf("Not an IPv6 address: %s", value)
 	}
 
+	return nil
+}
+
+func networkValidAddressV4List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := networkValidAddressV4(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func networkValidAddressV6List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := networkValidAddressV6(v)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
