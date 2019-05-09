@@ -306,20 +306,24 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 	// If we are listed among the database nodes, join the raft cluster.
 	id := ""
-	target := ""
+	var target *db.RaftNode
 	for _, node := range nodes {
 		if node.Address == address {
 			id = strconv.Itoa(int(node.ID))
 		} else {
-			target = node.Address
+			target = &node
 		}
 	}
 	if id != "" {
+		if target == nil {
+			panic("no other node found")
+		}
 		logger.Info(
 			"Joining dqlite raft cluster",
-			log15.Ctx{"id": id, "address": address, "target": target})
-		changer := gateway.raft.MembershipChanger()
-		err := changer.Join(raft.ServerID(id), raft.ServerAddress(target), 5*time.Second)
+			log15.Ctx{"id": id, "address": address, "target": target.Address})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := gateway.server.Join(ctx, gateway.ServerStore(), gateway.raftDial())
 		if err != nil {
 			return err
 		}
@@ -593,8 +597,10 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	logger.Info(
 		"Joining dqlite raft cluster",
 		log15.Ctx{"id": id, "address": address, "target": target})
-	changer := gateway.raft.MembershipChanger()
-	err = changer.Join(raft.ServerID(id), raft.ServerAddress(target), 5*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = gateway.server.Join(ctx, gateway.ServerStore(), gateway.raftDial())
 	if err != nil {
 		return err
 	}
