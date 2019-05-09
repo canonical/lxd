@@ -969,7 +969,7 @@ test_clustering_shutdown_nodes() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Init a container on node2, using a client connected to node1
+  # Init a container on node1, using a client connected to node1
   LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage foo
 
