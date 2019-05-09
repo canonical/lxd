@@ -57,7 +57,8 @@ func TestGateway_Single(t *testing.T) {
 
 	driver, err := dqlite.NewDriver(
 		gateway.ServerStore(),
-		dqlite.WithDialFunc(gateway.DialFunc()))
+		dqlite.WithDialFunc(gateway.DialFunc()),
+	)
 	require.NoError(t, err)
 
 	conn, err := driver.Open("test.db")
@@ -87,7 +88,10 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 		mux.HandleFunc(path, handler)
 	}
 
-	driver, err := dqlite.NewDriver(store, dqlite.WithDialFunc(gateway.DialFunc()))
+	driver, err := dqlite.NewDriver(
+		gateway.ServerStore(),
+		dqlite.WithDialFunc(gateway.DialFunc()),
+	)
 	require.NoError(t, err)
 
 	conn, err := driver.Open("test.db")
