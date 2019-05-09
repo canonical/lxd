@@ -808,7 +808,7 @@ func runDqliteProxy(listener net.Listener, acceptCh chan net.Conn) {
 		src := <-acceptCh
 		dst, err := net.Dial("unix", listener.Addr().String())
 		if err != nil {
-			panic(err)
+			continue
 		}
 
 		go func() {
