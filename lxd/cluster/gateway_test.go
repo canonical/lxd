@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	dqlite "github.com/CanonicalLtd/go-dqlite"
-	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -79,7 +78,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	defer server.Close()
 
 	address := server.Listener.Addr().String()
-	store := setRaftRole(t, db, address)
+	setRaftRole(t, db, address)
 
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
@@ -156,9 +155,12 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
 
-	// Get the node immediately, before the election has took place.
-	_, err := gateway.RaftNodes()
-	assert.Equal(t, raft.ErrNotLeader, err)
+	nodes, err := gateway.RaftNodes()
+	require.NoError(t, err)
+
+	assert.Len(t, nodes, 1)
+	assert.Equal(t, nodes[0].ID, int64(1))
+	assert.Equal(t, nodes[0].Address, address)
 }
 
 // Create a new test Gateway with the given parameters, and ensure no error
