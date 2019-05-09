@@ -187,11 +187,12 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
-		// Before actually establishing the gRPC SQL connection, our
-		// dialer probes the node to see if it's currently the leader
+		// Before actually establishing the connection, our dialer
+		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
-			if g.raft.Raft().State() != raft.Leader {
+			info := g.server.Leader()
+			if info == nil || info.ID != g.raft.info.ID {
 				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
@@ -421,11 +422,11 @@ func (g *Gateway) LeaderAddress() (string, error) {
 
 	// If this is a raft node, return the address of the current leader, or
 	// wait a bit until one is elected.
-	if g.raft != nil {
+	if g.server != nil {
 		for ctx.Err() == nil {
-			address := string(g.raft.Raft().Leader())
-			if address != "" {
-				return address, nil
+			info := g.server.Leader()
+			if info != nil {
+				return info.Address, nil
 			}
 			time.Sleep(time.Second)
 		}
@@ -577,7 +578,7 @@ func (g *Gateway) waitLeadership() error {
 	sleep := 250 * time.Millisecond
 	for i := 0; i < n; i++ {
 		g.lock.RLock()
-		if g.raft.raft.State() == raft.Leader {
+		if g.isLeader() {
 			g.lock.RUnlock()
 			return nil
 		}
