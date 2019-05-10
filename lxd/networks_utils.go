@@ -1045,3 +1045,19 @@ func networkClearLease(s *state.State, name string, network string, hwaddr strin
 
 	return nil
 }
+
+// networkGetDevMTU retrieves the current MTU setting for a named network device.
+func networkGetDevMTU(devName string) (uint64, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
+	if err != nil {
+		return 0, err
+	}
+
+	// Parse value
+	mtu, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return mtu, nil
+}
