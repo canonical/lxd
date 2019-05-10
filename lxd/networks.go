@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -1445,14 +1444,8 @@ func (n *network) Start() error {
 		}
 
 		// Update the MTU based on overlay device (if available)
-		content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
+		fanMtuInt, err := networkGetDevMTU(devName)
 		if err == nil {
-			// Parse value
-			fanMtuInt, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 32)
-			if err != nil {
-				return err
-			}
-
 			// Apply overhead
 			if n.config["fan.type"] == "ipip" {
 				fanMtuInt = fanMtuInt - 20
