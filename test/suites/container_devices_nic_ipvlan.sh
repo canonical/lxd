@@ -16,6 +16,7 @@ test_container_devices_nic_ipvlan() {
   # Check that starting IPVLAN container.
   sysctl net.ipv6.conf."${ct_name}".proxy_ndp=1
   sysctl net.ipv6.conf."${ct_name}".forwarding=1
+  sysctl net.ipv4.conf."${ct_name}".forwarding=1
   lxc init testimage "${ct_name}"
   lxc config device add "${ct_name}" eth0 nic \
     nictype=ipvlan \
