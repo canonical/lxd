@@ -8171,24 +8171,21 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.D
 		return nil, err
 	}
 
-	// Setup network device if not type ipvlan (which is done via liblxc only)
-	if m["nictype"] != "ipvlan" {
-		err := c.checkIPVLANSupport()
-		if err != nil {
-			return nil, err
-		}
+	// Block user trying to add an ipvlan nic on running container as is only supported via LXC
+	if m["nictype"] == "ipvlan" {
+		return nil, errors.New("Can't insert ipvlan device to running container")
+	}
 
-		// Create the interface
-		devName, err := c.createNetworkDevice(name, m)
-		if err != nil {
-			return nil, err
-		}
+	// Create the interface
+	devName, err := c.createNetworkDevice(name, m)
+	if err != nil {
+		return nil, err
+	}
 
-		// Add the interface to the container
-		err = c.c.AttachInterface(devName, m["name"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
-		}
+	// Add the interface to the container
+	err = c.c.AttachInterface(devName, m["name"])
+	if err != nil {
+		return nil, fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
 	}
 
 	return m, nil
