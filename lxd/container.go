@@ -637,7 +637,7 @@ type container interface {
 	// Live configuration
 	CGroupGet(key string) (string, error)
 	CGroupSet(key string, value string) error
-	ConfigKeySet(key string, value string) error
+	VolatileSet(changes map[string]string) error
 
 	// File handling
 	FileExists(path string) error
@@ -1349,7 +1349,7 @@ func containerConfigureInternal(c container) error {
 	if rootDiskDevice["size"] != "" {
 		storageTypeName := storage.GetStorageTypeName()
 		if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
-			err = c.ConfigKeySet("volatile.apply_quota", rootDiskDevice["size"])
+			err = c.VolatileSet(map[string]string{"volatile.apply_quota": rootDiskDevice["size"]})
 			if err != nil {
 				return err
 			}
