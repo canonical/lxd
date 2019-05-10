@@ -7895,7 +7895,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 
 	// Return empty list if not running
 	if !c.IsRunning() {
-		return fmt.Errorf("Can't insert device into stopped container")
+		return fmt.Errorf("Can't remove device from stopped container")
 	}
 
 	// Get a temporary device name
