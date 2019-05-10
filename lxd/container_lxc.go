@@ -1672,59 +1672,9 @@ func (c *containerLXC) initLXC(config bool) error {
 					return err
 				}
 			} else if m["nictype"] == "ipvlan" {
-				err = c.checkIPVLANSupport()
+				err = c.initLXCIPVLAN(cc, networkKeyPrefix, networkidx, m)
 				if err != nil {
 					return err
-				}
-
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "ipvlan")
-				if err != nil {
-					return err
-				}
-
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipvlan.mode", networkKeyPrefix, networkidx), "l3s")
-				if err != nil {
-					return err
-				}
-
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipvlan.isolation", networkKeyPrefix, networkidx), "bridge")
-				if err != nil {
-					return err
-				}
-
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.l2proxy", networkKeyPrefix, networkidx), "1")
-				if err != nil {
-					return err
-				}
-
-				if m["ipv4.address"] != "" {
-					for _, addr := range strings.Split(m["ipv4.address"], ",") {
-						addr = strings.TrimSpace(addr)
-						err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/32", addr))
-						if err != nil {
-							return err
-						}
-					}
-
-					err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.gateway", networkKeyPrefix, networkidx), "dev")
-					if err != nil {
-						return err
-					}
-				}
-
-				if m["ipv6.address"] != "" {
-					for _, addr := range strings.Split(m["ipv6.address"], ",") {
-						addr = strings.TrimSpace(addr)
-						err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/128", addr))
-						if err != nil {
-							return err
-						}
-					}
-
-					err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.gateway", networkKeyPrefix, networkidx), "dev")
-					if err != nil {
-						return err
-					}
 				}
 			}
 
@@ -1939,6 +1889,66 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 	c.c = cc
 	freeContainer = false
+
+	return nil
+}
+
+// initLXCIPVLAN runs as part of initLXC function and initialises liblxc with the IPVLAN config.
+func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string, networkidx int, m map[string]string) error {
+	err := c.checkIPVLANSupport()
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "ipvlan")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipvlan.mode", networkKeyPrefix, networkidx), "l3s")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipvlan.isolation", networkKeyPrefix, networkidx), "bridge")
+	if err != nil {
+		return err
+	}
+
+	err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.l2proxy", networkKeyPrefix, networkidx), "1")
+	if err != nil {
+		return err
+	}
+
+	if m["ipv4.address"] != "" {
+		for _, addr := range strings.Split(m["ipv4.address"], ",") {
+			addr = strings.TrimSpace(addr)
+			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/32", addr))
+			if err != nil {
+				return err
+			}
+		}
+
+		err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.gateway", networkKeyPrefix, networkidx), "dev")
+		if err != nil {
+			return err
+		}
+	}
+
+	if m["ipv6.address"] != "" {
+		for _, addr := range strings.Split(m["ipv6.address"], ",") {
+			addr = strings.TrimSpace(addr)
+			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/128", addr))
+			if err != nil {
+				return err
+			}
+		}
+
+		err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.gateway", networkKeyPrefix, networkidx), "dev")
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
