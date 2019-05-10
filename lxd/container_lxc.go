@@ -2615,6 +2615,90 @@ func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 	return nil
 }
 
+// restorePhysicalNic uses the data in c.localConfig to restore physical nic properties from the
+// volatile data gathered when the device was attached.
+func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string, netns string) error {
+	createdKey := "volatile." + deviceName + ".last_state.created"
+	mtuKey := "volatile." + deviceName + ".last_state.mtu"
+	macKey := "volatile." + deviceName + ".last_state.hwaddr"
+
+	// If a stop hook netns is supplied and the device isn't present on the host's namespace yet
+	// try detaching it as LXC may have not known about it if it was hot plugged.
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
+		if netns == "" {
+			return nil // Nothing to do if device doesn't exist and we can't retrieve it.
+		}
+
+		ifNameKey := "volatile." + deviceName + ".name"
+		err := c.detachInterfaceRename(netns, c.localConfig[ifNameKey], hostName)
+		if err != nil {
+			return fmt.Errorf("Failed to detach interface: %s to %s: %v", c.localConfig[ifNameKey], hostName, err)
+		}
+	}
+
+	// If we created the "physical" device and then it should be removed.
+	if shared.IsTrue(c.localConfig[createdKey]) {
+		return deviceRemoveInterface(hostName)
+	}
+
+	// Bring the interface down, as this is sometimes needed to change settings on the nic.
+	_, err := shared.RunCommand("ip", "link", "set", "dev", hostName, "down")
+	if err != nil {
+		return fmt.Errorf("Failed to bring down \"%s\": %v", hostName, err)
+	}
+
+	// If MTU value is specified then there is an original MTU that needs restoring.
+	if c.localConfig[mtuKey] != "" {
+		mtuInt, err := strconv.ParseUint(c.localConfig[mtuKey], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %v", hostName, c.localConfig[mtuKey], err)
+		}
+
+		err = networkSetDevMTU(hostName, mtuInt)
+		if err != nil {
+			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %v", hostName, mtuInt, err)
+		}
+	}
+
+	// If MAC value is specified then there is an original MAC that needs restoring.
+	if c.localConfig[macKey] != "" {
+		err := networkSetDevMAC(hostName, c.localConfig[macKey])
+		if err != nil {
+			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %v", hostName, c.localConfig[macKey], err)
+		}
+	}
+
+	return nil
+}
+
+// restorePhysicalParent restores parent device settings when removed from a container using the
+// volatile data that was stored when the device was first added with setupPhysicalParent().
+func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device, netns string) {
+	// Clear volatile data when function finishes.
+	defer func() {
+		// Volatile keys used for parent restore.
+		createdKey := "volatile." + deviceName + ".last_state.created"
+		mtuKey := "volatile." + deviceName + ".last_state.mtu"
+		macKey := "volatile." + deviceName + ".last_state.hwaddr"
+
+		err := c.VolatileSet(map[string]string{createdKey: "", mtuKey: "", macKey: ""})
+		if err != nil {
+			logger.Errorf("Failed to remove volatile config for %s: %v", deviceName, err)
+		}
+	}()
+
+	// Nothing to do if we don't know the original device name.
+	hostName := networkGetHostDevice(m["parent"], m["vlan"])
+	if hostName == "" {
+		return
+	}
+
+	err := c.restorePhysicalNic(deviceName, hostName, netns)
+	if err != nil {
+		logger.Errorf("%v", err)
+	}
+}
+
 func (c *containerLXC) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
@@ -3039,6 +3123,9 @@ func (c *containerLXC) OnStopNS(target string, netns string) error {
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
 
+	// Clean up networking devices
+	c.cleanupNetworkDevices(netns)
+
 	return nil
 }
 
@@ -3184,6 +3271,21 @@ func (c *containerLXC) cleanupHostVethDevices() error {
 	}
 
 	return nil
+}
+
+// cleanupNetworkDevices performs any needed network device cleanup steps when container is stopped.
+func (c *containerLXC) cleanupNetworkDevices(netns string) {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[k]
+		if m["type"] != "nic" {
+			continue
+		}
+
+		// Restore physical parent devices
+		if m["nictype"] == "physical" {
+			c.restorePhysicalParent(k, m, netns)
+		}
+	}
 }
 
 // OnNetworkUp is called by the LXD callhook when the LXC network up script is run.
@@ -7925,7 +8027,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Get a temporary device name
 	var hostName string
 	if m["nictype"] == "physical" {
-		hostName = m["parent"]
+		hostName = networkGetHostDevice(m["parent"], m["vlan"])
 	} else if m["nictype"] == "sriov" {
 		hostName = m["host_name"]
 	} else {
@@ -7949,8 +8051,13 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	if shared.StringInSlice(m["name"], ifaces) {
 		err = cc.DetachInterfaceRename(m["name"], hostName)
 		if err != nil {
-			return fmt.Errorf("Failed to detach interface: %s: %v", m["name"], err)
+			return fmt.Errorf("Failed to detach interface: %s to %s: %v", m["name"], hostName, err)
 		}
+	}
+
+	// If physical dev, restore MTU using value recorded on parent after removal from container.
+	if m["nictype"] == "physical" {
+		c.restorePhysicalParent(name, m, "")
 	}
 
 	// If a veth, destroy it
