@@ -290,12 +290,12 @@ func containersShutdown(s *state.State) error {
 			go func(c container, lastState string) {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
-				c.ConfigKeySet("volatile.last_state.power", lastState)
+				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 
 				wg.Done()
 			}(c, lastState)
 		} else {
-			c.ConfigKeySet("volatile.last_state.power", lastState)
+			c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 		}
 	}
 	wg.Wait()

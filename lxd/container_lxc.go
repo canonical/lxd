@@ -456,14 +456,14 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		jsonIdmap = "[]"
 	}
 
-	err = c.ConfigKeySet("volatile.idmap.next", jsonIdmap)
+	err = c.VolatileSet(map[string]string{"volatile.idmap.next": jsonIdmap})
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
-	err = c.ConfigKeySet("volatile.idmap.base", fmt.Sprintf("%v", base))
+	err = c.VolatileSet(map[string]string{"volatile.idmap.base": fmt.Sprintf("%v", base)})
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -475,7 +475,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 
 	// Set last_state if not currently set
 	if c.localConfig["volatile.last_state.idmap"] == "" {
-		err = c.ConfigKeySet("volatile.last_state.idmap", "[]")
+		err = c.VolatileSet(map[string]string{"volatile.last_state.idmap": "[]"})
 		if err != nil {
 			c.Delete()
 			logger.Error("Failed creating container", ctxMap)
@@ -543,7 +543,7 @@ func containerLXCUnload(c *containerLXC) {
 
 // Create a container struct without initializing it.
 func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLXC {
-	return &containerLXC{
+	c := &containerLXC{
 		state:        s,
 		id:           args.ID,
 		project:      args.Project,
@@ -561,6 +561,21 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 		node:         args.Node,
 		expiryDate:   args.ExpiryDate,
 	}
+
+	// Cleanup the zero values
+	if c.expiryDate.IsZero() {
+		c.expiryDate = time.Time{}
+	}
+
+	if c.creationDate.IsZero() {
+		c.creationDate = time.Time{}
+	}
+
+	if c.lastUsedDate.IsZero() {
+		c.lastUsedDate = time.Time{}
+	}
+
+	return c
 }
 
 // The LXC container driver
@@ -2158,7 +2173,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			jsonDiskIdmap = string(idmapBytes)
 		}
 
-		err = c.ConfigKeySet("volatile.last_state.idmap", jsonDiskIdmap)
+		err = c.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonDiskIdmap})
 		if err != nil {
 			return "", errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
 		}
@@ -2177,7 +2192,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	if c.localConfig["volatile.idmap.current"] != string(idmapBytes) {
-		err = c.ConfigKeySet("volatile.idmap.current", string(idmapBytes))
+		err = c.VolatileSet(map[string]string{"volatile.idmap.current": string(idmapBytes)})
 		if err != nil {
 			return "", errors.Wrapf(err, "Set volatile.idmap.current config key on container %q (id %d)", c.name, c.id)
 		}
@@ -3965,26 +3980,35 @@ func (c *containerLXC) CGroupSet(key string, value string) error {
 	return nil
 }
 
-func (c *containerLXC) ConfigKeySet(key string, value string) error {
-	c.localConfig[key] = value
-
-	args := db.ContainerArgs{
-		Architecture: c.architecture,
-		Config:       c.localConfig,
-		Description:  c.description,
-		Devices:      c.localDevices,
-		Ephemeral:    c.ephemeral,
-		Profiles:     c.profiles,
-		Project:      c.project,
-		ExpiryDate:   c.expiryDate,
+func (c *containerLXC) VolatileSet(changes map[string]string) error {
+	// Sanity check
+	for key := range changes {
+		if !strings.HasPrefix(key, "volatile.") {
+			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
+		}
 	}
 
-	err := c.Update(args, false)
+	// Update the database
+	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ContainerConfigUpdate(c.id, changes)
+	})
 	if err != nil {
-		errors.Wrap(err, "Failed to update container")
+		return errors.Wrap(err, "Failed to update database")
 	}
 
-	return err
+	// Apply the change locally
+	for key, value := range changes {
+		if value == "" {
+			delete(c.expandedConfig, key)
+			delete(c.localConfig, key)
+			continue
+		}
+
+		c.expandedConfig[key] = value
+		c.localConfig[key] = value
+	}
+
+	return nil
 }
 
 type backupFile struct {
@@ -5730,7 +5754,7 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 	// "create" and "copy" are deferred until next start
 	if shared.StringInSlice(trigger, []string{"create", "copy"}) {
 		// The two events are mutually exclusive so only keep the last one
-		err := c.ConfigKeySet("volatile.apply_template", trigger)
+		err := c.VolatileSet(map[string]string{"volatile.apply_template": trigger})
 		if err != nil {
 			return errors.Wrap(err, "Failed to set apply_template volatile key")
 		}
