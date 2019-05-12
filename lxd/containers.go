@@ -276,7 +276,7 @@ func containersShutdown(s *state.State) error {
 		}
 	}
 
-	var lastPriority int = 0
+	var lastPriority int
 
 	if len(containers) != 0 {
 		lastPriority, _ = strconv.Atoi(containers[0].ExpandedConfig()["boot.stop.priority"])
