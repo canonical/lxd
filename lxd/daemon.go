@@ -671,6 +671,7 @@ func (d *Daemon) init() error {
 	for {
 		logger.Info("Initializing global database")
 		dir := filepath.Join(d.os.VarDir, "database")
+
 		store := d.gateway.ServerStore()
 
 		contextTimeout := 5 * time.Second

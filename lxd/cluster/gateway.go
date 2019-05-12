@@ -515,6 +515,20 @@ func (g *Gateway) init() error {
 		return errors.Wrap(err, "Failed to create raft factory")
 	}
 
+	dir := filepath.Join(g.db.Dir(), "global")
+	if shared.PathExists(filepath.Join(dir, "logs.db")) {
+		err := shared.DirCopy(dir, dir+".bak")
+		if err != nil {
+			return errors.Wrap(err, "Failed to backup global database")
+		}
+		err = MigrateToDqlite10(dir)
+		if err != nil {
+			return errors.Wrap(err, "Failed to migrate to dqlite 1.0")
+		}
+		os.Remove(filepath.Join(dir, "logs.db"))
+		os.RemoveAll(filepath.Join(dir, "snapshots"))
+	}
+
 	// If the resulting raft instance is not nil, it means that this node
 	// should serve as database node, so create a dqlite driver possibly
 	// exposing it over the network.
@@ -540,7 +554,6 @@ func (g *Gateway) init() error {
 			options = append(options, dqlite.WithServerDialFunc(g.raftDial()))
 		}
 
-		dir := filepath.Join(g.db.Dir(), "global")
 		server, err := dqlite.NewServer(
 			raft.info,
 			dir,
