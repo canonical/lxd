@@ -4,19 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	stdlog "log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
-
-	"github.com/boltdb/bolt"
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/raft-boltdb"
-	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -24,6 +16,8 @@ import (
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 /* Patches are one-time actions that are sometimes needed to update
@@ -241,111 +235,9 @@ func patchNetworkPermissions(name string, d *Daemon) error {
 	return nil
 }
 
-// Shrink a database/global/logs.db that grew unwildly due to a bug in the 3.6
-// release.
+// This patch used to shrink the database/global/logs.db file, but it's not
+// needed anymore since dqlite 1.0.
 func patchShrinkLogsDBFile(name string, d *Daemon) error {
-	dir := filepath.Join(d.os.VarDir, "database", "global")
-	info, err := os.Stat(filepath.Join(dir, "logs.db"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			// The boltdb file is not there at all, nothing to do.
-			return nil
-		}
-		return errors.Wrap(err, "Get the size of the boltdb database")
-	}
-
-	if info.Size() < 1024*1024*100 {
-		// Only try to shrink databases bigger than 100 Megabytes.
-		return nil
-	}
-
-	snaps, err := raft.NewFileSnapshotStoreWithLogger(
-		dir, 2, stdlog.New(ioutil.Discard, "", 0))
-	if err != nil {
-		return errors.Wrap(err, "Open snapshots")
-	}
-
-	metas, err := snaps.List()
-	if err != nil {
-		return errors.Wrap(err, "Fetch snapshots")
-	}
-
-	if len(metas) == 0 {
-		// No snapshot is available, we can't shrink. This should never
-		// happen, in practice.
-		logger.Warnf("Can't shrink boltdb store, no raft snapshot is available")
-		return nil
-	}
-
-	meta := metas[0] // The most recent snapshot.
-
-	// Copy all log entries from the current boltdb file into a new one,
-	// which will be smaller since it excludes all truncated entries that
-	pathCur := filepath.Join(dir, "logs.db")
-	// got allocated before the latest snapshot.
-	logsCur, err := raftboltdb.New(raftboltdb.Options{
-		Path: pathCur,
-		BoltOptions: &bolt.Options{
-			Timeout:  10 * time.Second,
-			ReadOnly: true,
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "Open current boltdb store")
-	}
-	defer logsCur.Close()
-
-	pathNew := filepath.Join(dir, "logs.db.new")
-	logsNew, err := raftboltdb.New(raftboltdb.Options{
-		Path:        pathNew,
-		BoltOptions: &bolt.Options{Timeout: 10 * time.Second},
-	})
-	if err != nil {
-		return errors.Wrap(err, "Open new boltdb store")
-	}
-	defer logsNew.Close()
-
-	lastIndex, err := logsCur.LastIndex()
-	if err != nil {
-		return errors.Wrap(err, "Get most recent raft index")
-	}
-
-	for index := meta.Index; index <= lastIndex; index++ {
-		log := &raft.Log{}
-
-		err := logsCur.GetLog(index, log)
-		if err != nil {
-			return errors.Wrapf(err, "Get raft entry at index %d", index)
-		}
-
-		err = logsNew.StoreLog(log)
-		if err != nil {
-			return errors.Wrapf(err, "Store raft entry at index %d", index)
-		}
-	}
-
-	term, err := logsCur.GetUint64([]byte("CurrentTerm"))
-	if err != nil {
-		return errors.Wrap(err, "Get current term")
-	}
-	err = logsNew.SetUint64([]byte("CurrentTerm"), term)
-	if err != nil {
-		return errors.Wrap(err, "Store current term")
-	}
-
-	logsCur.Close()
-	logsNew.Close()
-
-	err = os.Remove(pathCur)
-	if err != nil {
-		return errors.Wrap(err, "Remove current boltdb store")
-	}
-
-	err = os.Rename(pathNew, pathCur)
-	if err != nil {
-		return errors.Wrap(err, "Rename new boltdb store")
-	}
-
 	return nil
 }
 
