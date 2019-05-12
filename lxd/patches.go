@@ -3464,7 +3464,7 @@ var legacyPatches = map[int](func(d *Daemon) error){
 	30: patchUpdateFromV29,
 	31: patchUpdateFromV30,
 }
-var legacyPatchesNeedingDB = []int{11, 12, 16} // Legacy patches doing DB work
+var legacyPatchesNeedingDB = []int{11, 16} // Legacy patches doing DB work
 
 func patchUpdateFromV10(d *Daemon) error {
 	if shared.PathExists(shared.VarPath("lxc")) {
@@ -3483,12 +3483,14 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
+	containers, err := containersOnDisk()
 	if err != nil {
 		return err
 	}
 
 	errors := 0
+
+	cNames := containers["default"]
 
 	for _, cName := range cNames {
 		snapParentName, snapOnlyName, _ := containerGetParentAndSnapshotName(cName)
