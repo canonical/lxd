@@ -1081,7 +1081,12 @@ func networkClearLease(s *state.State, name string, network string, hwaddr strin
 	if err != nil {
 		return err
 	}
-	defer n.Start()
+	defer func() {
+		err := n.Start()
+		if err != nil {
+			logger.Errorf("Failed to reload network '%s': %v", network, err)
+		}
+	}()
 
 	// Stop dnsmasq
 	err = networkKillDnsmasq(network, false)
