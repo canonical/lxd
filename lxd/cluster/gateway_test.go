@@ -31,7 +31,7 @@ func TestGateway_Single(t *testing.T) {
 	defer gateway.Shutdown()
 
 	handlerFuncs := gateway.HandlerFuncs()
-	assert.Len(t, handlerFuncs, 2)
+	assert.Len(t, handlerFuncs, 1)
 	for endpoint, f := range handlerFuncs {
 		c, err := x509.ParseCertificate(cert.KeyPair().Certificate[0])
 		require.NoError(t, err)
