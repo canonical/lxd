@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -52,7 +53,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 
 func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	destResource string, keepVolatile bool, ephemeral int, stateful bool,
-	containerOnly bool, mode string) error {
+	containerOnly bool, mode string, move bool) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -132,6 +133,8 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	var op lxd.RemoteOperation
+	var start bool
+
 	if shared.IsSnapshot(sourceName) {
 		if containerOnly {
 			return fmt.Errorf(i18n.G("--container-only can't be passed when the source is a snapshot"))
@@ -221,6 +224,10 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		entry, _, err := source.GetContainer(sourceName)
 		if err != nil {
 			return err
+		}
+
+		if entry.StatusCode == api.Running && move && !stateful {
+			start = true
 		}
 
 		// Allow adding additional profiles
@@ -317,6 +324,23 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
 	}
 
+	// Start the container if needed
+	if start {
+		req := api.ContainerStatePut{
+			Action: string(shared.Start),
+		}
+
+		op, err := dest.UpdateContainerState(destName, req, "")
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -346,10 +370,10 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
 		return c.copyContainer(conf, args[0], "", false, ephem,
-			stateful, c.flagContainerOnly, mode)
+			stateful, c.flagContainerOnly, mode, false)
 	}
 
 	// Normal copy with a pre-determined name
 	return c.copyContainer(conf, args[0], args[1], false, ephem,
-		stateful, c.flagContainerOnly, mode)
+		stateful, c.flagContainerOnly, mode, false)
 }

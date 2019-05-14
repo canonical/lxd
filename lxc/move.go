@@ -166,7 +166,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, c.flagContainerOnly, mode)
+	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, c.flagContainerOnly, mode, true)
 	if err != nil {
 		return err
 	}
