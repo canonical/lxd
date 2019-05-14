@@ -85,6 +85,7 @@ func containerValidConfigKey(os *sys.OS, key string, value string) error {
 }
 
 var containerNetworkLimitKeys = []string{"limits.max", "limits.ingress", "limits.egress"}
+var containerNetworkKeys = containerNetworkLimitKeys
 
 func containerValidDeviceConfigKey(t, k string) bool {
 	if k == "type" {

@@ -2989,7 +2989,28 @@ func (c *containerLXC) OnStop(target string) error {
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
 	device["host_name"] = hostName
-	return c.setNetworkLimits(device)
+	return c.setupHostVethDevice(device, types.Device{})
+}
+
+// setupHostVethDevice configures a nic device's host side veth settings.
+func (c *containerLXC) setupHostVethDevice(device types.Device, oldDevice types.Device) error {
+	// If not already, populate network device with host name.
+	if device["host_name"] == "" {
+		device["host_name"] = c.getHostInterface(device["name"])
+	}
+
+	// Check whether host device resolution succeeded.
+	if device["host_name"] == "" {
+		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
+	}
+
+	// Refresh tc limits
+	err := c.setNetworkLimits(device)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Freezer functions
@@ -4580,6 +4601,18 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				}
+				if m["type"] == "nic" && shared.StringMapHasStringKey(m, containerNetworkKeys...) && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+					// Populate network device with container nic names.
+					m, err := c.fillNetworkDevice(k, m)
+					if err != nil {
+						return err
+					}
+
+					err = c.setupHostVethDevice(m, oldExpandedDevices[k])
+					if err != nil {
+						return err
+					}
+				}
 			} else if m["type"] == "usb" {
 				if usbs == nil {
 					usbs, err = deviceLoadUsb()
@@ -4693,10 +4726,14 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 
-				if needsUpdate {
-					// Refresh tc limits
-					m["host_name"] = c.getHostInterface(m["name"])
-					err = c.setNetworkLimits(m)
+				if needsUpdate && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+					// Populate network device with container nic names.
+					m, err := c.fillNetworkDevice(k, m)
+					if err != nil {
+						return err
+					}
+
+					err = c.setupHostVethDevice(m, oldExpandedDevices[k])
 					if err != nil {
 						return err
 					}
