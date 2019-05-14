@@ -37,6 +37,8 @@ func TestGateway_Single(t *testing.T) {
 		require.NoError(t, err)
 		w := httptest.NewRecorder()
 		r := &http.Request{}
+		r.Header = http.Header{}
+		r.Header.Set("X-Dqlite-Version", "1")
 		r.TLS = &tls.ConnectionState{
 			PeerCertificates: []*x509.Certificate{c},
 		}
