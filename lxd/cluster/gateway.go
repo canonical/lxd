@@ -243,53 +243,9 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 
 		g.acceptCh <- conn
 	}
-	raft := func(w http.ResponseWriter, r *http.Request) {
-		g.lock.RLock()
-		defer g.lock.RUnlock()
-
-		// If we are not part of the raft cluster, reply with a
-		// redirect to one of the raft nodes that we know about.
-		if g.raft == nil {
-			var address string
-			err := g.db.Transaction(func(tx *db.NodeTx) error {
-				nodes, err := tx.RaftNodes()
-				if err != nil {
-					return err
-				}
-				address = nodes[0].Address
-				return nil
-			})
-			if err != nil {
-				http.Error(w, "500 failed to fetch raft nodes", http.StatusInternalServerError)
-				return
-			}
-			url := &url.URL{
-				Scheme:   "http",
-				Path:     r.URL.Path,
-				RawQuery: r.URL.RawQuery,
-				Host:     address,
-			}
-			http.Redirect(w, r, url.String(), http.StatusPermanentRedirect)
-			return
-		}
-
-		if !tlsCheckCert(r, g.cert) {
-			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
-			return
-		}
-
-		// If this node is not clustered return a 404.
-		if g.raft.HandlerFunc() == nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		g.raft.HandlerFunc()(w, r)
-	}
 
 	return map[string]http.HandlerFunc{
 		databaseEndpoint: database,
-		raftEndpoint:     raft,
 	}
 }
 
