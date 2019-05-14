@@ -3,9 +3,7 @@ package cluster
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"math"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -225,37 +223,6 @@ func raftDial(cert *shared.CertInfo) (rafthttp.Dial, error) {
 	dial := rafthttp.NewDialTLS(config)
 	return dial, nil
 }
-
-// Create a network raft transport that will handle connections using a
-// rafthttp.Handler.
-func raftNetworkTransport(
-	db *db.Node,
-	address string,
-	logger *log.Logger,
-	timeout time.Duration,
-	dial rafthttp.Dial) (raft.Transport, *rafthttp.Handler, *rafthttp.Layer, error) {
-	handler := rafthttp.NewHandlerWithLogger(logger)
-	addr, err := net.ResolveTCPAddr("tcp", address)
-	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "invalid node address")
-	}
-
-	layer := rafthttp.NewLayer(raftEndpoint, addr, handler, dial)
-	config := &raft.NetworkTransportConfig{
-		Logger:                logger,
-		Stream:                layer,
-		MaxPool:               2,
-		Timeout:               timeout,
-		ServerAddressProvider: &raftAddressProvider{db: db},
-	}
-	transport := raft.NewNetworkTransportWithConfig(config)
-
-	return transport, handler, layer, nil
-}
-
-// The LXD API endpoint path that gets routed to a rafthttp.Handler for
-// joining/leaving the cluster and exchanging raft commands between nodes.
-const raftEndpoint = "/internal/raft"
 
 // An address provider that looks up server addresses in the raft_nodes table.
 type raftAddressProvider struct {
