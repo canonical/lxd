@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -108,7 +109,12 @@ type Gateway struct {
 }
 
 // Current dqlite protocol version.
-const dqliteVersion = 0
+const dqliteVersion = 1
+
+// Set the dqlite version header.
+func setDqliteVersionHeader(request *http.Request) {
+	request.Header.Set("X-Dqlite-Version", fmt.Sprintf("%d", dqliteVersion))
+}
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
 // endpoint in order to handle database-related requests.
@@ -478,6 +484,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		if err != nil {
 			return "", err
 		}
+		setDqliteVersionHeader(request)
 		request = request.WithContext(ctx)
 		client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 		response, err := client.Do(request)
@@ -686,6 +693,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		if err != nil {
 			return nil, err
 		}
+		setDqliteVersionHeader(request)
 		request = request.WithContext(ctx)
 		client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 		response, err := client.Do(request)
@@ -734,6 +742,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 	}
 
 	request.Header.Set("Upgrade", "dqlite")
+	setDqliteVersionHeader(request)
 	request = request.WithContext(ctx)
 
 	deadline, _ := ctx.Deadline()

@@ -36,6 +36,7 @@ func NotifyUpgradeCompleted(state *state.State, cert *shared.CertInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create database notify upgrade request")
 		}
+		setDqliteVersionHeader(request)
 
 		httpClient, err := client.GetHTTPClient()
 		if err != nil {

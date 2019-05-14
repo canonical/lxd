@@ -214,6 +214,7 @@ func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInf
 	if err != nil {
 		return err
 	}
+	setDqliteVersionHeader(request)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	request = request.WithContext(ctx)
