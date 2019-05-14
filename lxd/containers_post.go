@@ -420,12 +420,6 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 			return err
 		}
 
-		if !migrationArgs.Live {
-			if req.Config["volatile.last_state.power"] == "RUNNING" {
-				return c.Start(false)
-			}
-		}
-
 		return nil
 	}
 
