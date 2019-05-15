@@ -291,7 +291,15 @@ func (g *Gateway) DialFunc() dqlite.DialFunc {
 // Dial function for establishing raft connections.
 func (g *Gateway) raftDial() dqlite.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
-		return dqliteNetworkDial(ctx, address, g.cert, false)
+		if address == "0" {
+			provider := raftAddressProvider{db: g.db}
+			addr, err := provider.ServerAddr(raft.ServerID("1"))
+			if err != nil {
+				return nil, err
+			}
+			address = string(addr)
+		}
+		return dqliteNetworkDial(ctx, address, g, false)
 	}
 }
 
