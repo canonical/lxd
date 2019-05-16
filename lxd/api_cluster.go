@@ -574,7 +574,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
 		if err != nil {
-			SmartError(errors.Wrap(err, "failed to cleanup the node"))
+			return SmartError(errors.Wrap(err, "failed to cleanup the node"))
 		}
 	}
 
