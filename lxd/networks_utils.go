@@ -1061,3 +1061,13 @@ func networkGetDevMTU(devName string) (uint64, error) {
 
 	return mtu, nil
 }
+
+// networkGetDevMAC retrieves the current MAC setting for a named network device.
+func networkGetDevMAC(devName string) (string, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+}
