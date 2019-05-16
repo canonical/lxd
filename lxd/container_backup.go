@@ -226,7 +226,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	oldName := name + shared.SnapshotDelimiter + backupName
 	backup, err := backupLoadByName(d.State(), project, oldName)
 	if err != nil {
-		SmartError(err)
+		return SmartError(err)
 	}
 
 	newName := name + shared.SnapshotDelimiter + req.Name

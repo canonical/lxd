@@ -342,3 +342,22 @@ test_backup_export() {
 
   lxc delete --force c1
 }
+
+test_backup_rename() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep "Error: not found" ; then
+    echo "invalid rename response for missing container"
+    false
+  fi
+
+  lxc launch testimage c1
+
+  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep "Error: not found" ; then
+    echo "invalid rename response for missing backup"
+    false
+  fi
+
+  lxc delete --force c1
+}
