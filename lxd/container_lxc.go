@@ -1921,6 +1921,16 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 	}
 
 	if m["ipv4.address"] != "" {
+		//Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
+		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", m["parent"])
+		sysctlVal, err := networkSysctlGet(ipv4FwdPath)
+		if err != nil {
+			return errors.Wrapf(err, "Error reading net sysctl %s", ipv4FwdPath)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv4.conf.%s.forwarding=1", m["parent"])
+		}
+
 		for _, addr := range strings.Split(m["ipv4.address"], ",") {
 			addr = strings.TrimSpace(addr)
 			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv4.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/32", addr))
@@ -1936,6 +1946,25 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 	}
 
 	if m["ipv6.address"] != "" {
+		//Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
+		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", m["parent"])
+		sysctlVal, err := networkSysctlGet(ipv6FwdPath)
+		if err != nil {
+			return errors.Wrapf(err, "Error reading net sysctl %s", ipv6FwdPath)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.forwarding=1", m["parent"])
+		}
+
+		ipv6ProxyNdpPath := fmt.Sprintf("ipv6/conf/%s/proxy_ndp", m["parent"])
+		sysctlVal, err = networkSysctlGet(ipv6ProxyNdpPath)
+		if err != nil {
+			return errors.Wrapf(err, "Error reading net sysctl %s", ipv6ProxyNdpPath)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", m["parent"])
+		}
+
 		for _, addr := range strings.Split(m["ipv6.address"], ",") {
 			addr = strings.TrimSpace(addr)
 			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.ipv6.address", networkKeyPrefix, networkidx), fmt.Sprintf("%s/128", addr))
