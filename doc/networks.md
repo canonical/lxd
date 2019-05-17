@@ -50,7 +50,7 @@ ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false     
 ipv6.firewall                   | boolean   | ipv6 address          | true                      | Whether to generate filtering firewall rules for this network
 ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
 ipv6.nat.order                  | string    | ipv6 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
-ipv4.nat.address                | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
+ipv6.nat.address                | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets to route to the bridge
 ipv6.routing                    | boolean   | ipv6 address          | true                      | Whether to route traffic in and out of the bridge
 raw.dnsmasq                     | string    | -                     | -                         | Additional dnsmasq configuration to append to the configuration
