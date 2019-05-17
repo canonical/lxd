@@ -599,7 +599,7 @@ empty (default), no snapshots will be created. `snapshots.schedule.stopped`
 controls whether or not stopped container are to be automatically snapshotted.
 It defaults to `false`. `snapshots.pattern` takes a pongo2 template string,
 and the pongo2 context contains the `creation_date` variable. Be aware that you
-should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) 
+should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`)
 in your template string to avoid forbidden characters in your snapshot name.
 Another way to avoid name collisions is to use the placeholder `%d`. If a snapshot
 with the same name (excluding the placeholder) already exists, all existing snapshot
