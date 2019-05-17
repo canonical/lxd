@@ -110,7 +110,7 @@ therefore only be given to users who would be trusted with root access
 to the host.
 
 When listening on the network, the same API is available on a TLS socket
-(HTTPs), specific access on the remote API can be restricted through
+(HTTPS), specific access on the remote API can be restricted through
 Canonical RBAC.
 
 
