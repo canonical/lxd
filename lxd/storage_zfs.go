@@ -1557,7 +1557,7 @@ func (s *storageZfs) ContainerRestore(target container, source container) error 
 	cName, snapOnlyName, _ := containerGetParentAndSnapshotName(source.Name())
 	snapName := fmt.Sprintf("snapshot-%s", snapOnlyName)
 
-	err = zfsPoolVolumeSnapshotRestore(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", cName), snapName)
+	err = zfsPoolVolumeSnapshotRestore(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", projectPrefix(source.Project(), cName)), snapName)
 	if err != nil {
 		return err
 	}
