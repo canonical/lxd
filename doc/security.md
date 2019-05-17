@@ -1,16 +1,30 @@
 # Security
 ## Introduction
-Local communications over the UNIX socket happen over a cleartext HTTP
-socket and access is restricted by socket ownership and mode.
+LXD is a daemon running as root.
 
+Access to that daemon is only possible over a local UNIX socket by default.
+Through configuration, it's then possible to expose the same API over
+the network on a TLS socket.
+
+**WARNING**: Local access to LXD through the UNIX socket always grants
+full access to LXD. This includes the ability to attach any filesystem
+paths or devices to any container as well as tweaking all security
+features on containers. You should only give such access to someone who
+you'd trust with root access to your system.
+
+The remote API uses either TLS client certificates or Candid based
+authentication. Canonical RBAC support can be used combined with Candid
+based authentication to limit what an API client may do on LXD.
+
+## TLS configuration
 Remote communications with the LXD daemon happen using JSON over HTTPS.
 The supported protocol must be TLS1.2 or better.
 
 All communications must use perfect forward secrecy and ciphers must be
 limited to strong elliptic curve ones (such as ECDHE-RSA or ECDHE-ECDSA).
 
-Any generated key should be at least 4096bit RSA and when using
-signatures, only SHA-2 signatures should be trusted.
+Any generated key should be at least 4096bit RSA, preferably EC384 and
+when using signatures, only SHA-2 signatures should be trusted.
 
 Since we control both client and server, there is no reason to support
 any backward compatibility to broken protocol or ciphers.
@@ -23,7 +37,27 @@ certificate for any client-server communication.
 To cause certificates to be regenerated, simply remove the old ones. On the
 next connection a new certificate will be generated.
 
-## Adding a remote with a default setup
+## Role Based Access Control (RBAC)
+LXD supports integrating with the Canonical RBAC service.
+
+This uses Candid based authentication with the RBAC service maintaining
+roles to user/group relationships. Roles can be assigned to individual
+projects, to all projects or to the entire LXD instance.
+
+The meaning of the roles when applied to a project is as follow:
+
+ - auditor: Read-only access to the project
+ - user: Ability to do normal lifecycle actions (start, stop, ...),
+   execute commands in the containers, attach to console, manage snapshots, ...
+ - operator: All of the above + the ability to create, re-configure and
+   delete containers and images
+ - admin: All of the above + the ability to reconfigure the project itself
+
+**WARNING**: Of those roles, only `auditor` and `user` are currently
+suitable for a user whom you wouldn't trust with root access to the
+host.
+
+## Adding a remote with TLS client certificate authentication
 In the default setup, when the user adds a new server with `lxc remote add`,
 the server will be contacted over HTTPs, its certificate downloaded and the
 fingerprint will be shown to the user.
@@ -41,7 +75,7 @@ any additional credentials.
 This is a workflow that's very similar to that of SSH where an initial
 connection to an unknown server triggers a prompt.
 
-## Adding a remote with a PKI based setup
+## Adding a remote with a TLS client in a PKI based setup
 In the PKI setup, a system administrator is managing a central PKI, that
 PKI then issues client certificates for all the lxc clients and server
 certificates for all the LXD daemons.
@@ -73,7 +107,7 @@ pre-generated files.
 
 After this is done, restarting the server will have it run in PKI mode.
 
-## Adding a remote with Candid
+## Adding a remote with Candid authentication
 When LXD is configured with Candid, it will request that clients trying to
 authenticating with it get a Discharge token from the authentication server
 specified by the `candid.api.url` setting.
@@ -88,9 +122,9 @@ presenting the token received from the authentication server.  The LXD server
 verifies the token, thus authenticating the request.  The token is stored as
 cookie and is presented by the client at each request to LXD.
 
-## Managing trusted clients
-The list of certificates trusted by a LXD server can be obtained with `lxc
-config trust list`.
+## Managing trusted TLS clients
+The list of TLS certificates trusted by a LXD server can be obtained with
+`lxc config trust list`.
 
 Clients can manually be added using `lxc config trust add <file>`,
 removing the need for a shared trust password by letting an existing
@@ -99,9 +133,10 @@ administrator add the new client certificate directly to the trust store.
 To revoke trust to a client its certificate can be removed with `lxc config
 trust remove FINGERPRINT`.
 
-## Password prompt
-To establish a new trust relationship, a password must be set on the
-server and send by the client when adding itself.
+## Password prompt with TLS authentication
+To establish a new trust relationship when not already setup by the
+administrator, a password must be set on the server and sent by the
+client when adding itself.
 
 A remote add operation should therefore go like this:
 
@@ -129,7 +164,6 @@ if the certificate did in fact change. If it did, then the certificate
 can be replaced by the new one or the remote be removed altogether and
 re-added.
 
-
 ### Server trust relationship revoked
 In this case, the server still uses the same certificate but all API
 calls return a 403 with an error indicating that the client isn't
@@ -137,7 +171,6 @@ trusted.
 
 This happens if another trusted client or the local server administrator
 removed the trust entry on the server.
-
 
 ## Production setup
 For production setup, it's recommended that `core.trust_password` is unset
