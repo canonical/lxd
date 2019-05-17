@@ -10,7 +10,7 @@ Name                            | Description
 `LXD_INSECURE_TLS`              | If set to true, allows all default Go ciphers both for client <-> server communication and server <-> image servers (server <-> server and clustering are not affected)
 `PATH`                          | List of paths to look into when resolving binaries
 `http_proxy`                    | Proxy server URL for HTTP
-`https_proxy`                   | Proxy server URL for HTTPs
+`https_proxy`                   | Proxy server URL for HTTPS
 `no_proxy`                      | List of domains that don't require the use of a proxy
 
 ## Client environment variable
