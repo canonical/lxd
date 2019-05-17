@@ -57,9 +57,29 @@ The meaning of the roles when applied to a project is as follow:
 suitable for a user whom you wouldn't trust with root access to the
 host.
 
+## Container security
+LXD containers can use a pretty wide range of features for security.
+
+By default containers are `unprivileged`, meaning that they operate
+inside a user namespace, restricting the abilities of users in the
+container to that of regular users on the host with limited privileges
+on the devices that the container owns.
+
+If data sharing between containers isn't needed, it is possible to
+enable `security.idmap.isolated` which will use non-overlapping uid/gid
+maps for each container, preventing potential DoS attacks on other
+containers.
+
+LXD can also run `privileged` containers if you so wish, do note that
+those aren't root safe and a user with root in such a container will be
+able to DoS the host as well as find ways to escape confinement.
+
+More details on container security and the kernel features we use can be found on the
+[LXC security page](https://linuxcontainers.org/lxc/security/).
+
 ## Adding a remote with TLS client certificate authentication
 In the default setup, when the user adds a new server with `lxc remote add`,
-the server will be contacted over HTTPs, its certificate downloaded and the
+the server will be contacted over HTTPS, its certificate downloaded and the
 fingerprint will be shown to the user.
 
 The user will then be asked to confirm that this is indeed the server's
