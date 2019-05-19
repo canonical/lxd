@@ -23,7 +23,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
   Call container lifecycle hook in LXD
 
   This internal command notifies LXD about a container lifecycle event
-  (start, stop, restart) and blocks until LXD has processed it.
+  (start, poststop, restart) and blocks until LXD has processed it.
 
 `
 	cmd.RunE = c.Run
@@ -66,7 +66,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 
 	// Prepare the request URL
 	url := fmt.Sprintf("/internal/containers/%s/on%s", id, state)
-	if state == "stop" {
+	if state == "poststop" {
 		target = os.Getenv("LXC_TARGET")
 		if target == "" {
 			target = "unknown"

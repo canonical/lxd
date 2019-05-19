@@ -34,7 +34,7 @@ var apiInternal = []APIEndpoint{
 	internalShutdownCmd,
 	internalContainerOnStartCmd,
 	internalContainerOnNetworkUpCmd,
-	internalContainerOnStopCmd,
+	internalContainerOnPostStopCmd,
 	internalContainersCmd,
 	internalSQLCmd,
 	internalClusterAcceptCmd,
@@ -63,10 +63,10 @@ var internalContainerOnStartCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: internalContainerOnStart},
 }
 
-var internalContainerOnStopCmd = APIEndpoint{
-	Name: "containers/{id}/onstop",
+var internalContainerOnPostStopCmd = APIEndpoint{
+	Name: "containers/{id}/onpoststop",
 
-	Get: APIEndpointAction{Handler: internalContainerOnStop},
+	Get: APIEndpointAction{Handler: internalContainerOnPostStop},
 }
 
 var internalContainerOnNetworkUpCmd = APIEndpoint{
@@ -136,7 +136,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func internalContainerOnStop(d *Daemon, r *http.Request) Response {
+func internalContainerOnPostStop(d *Daemon, r *http.Request) Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		return SmartError(err)
@@ -152,9 +152,9 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = c.OnStop(target)
+	err = c.OnPostStop(target)
 	if err != nil {
-		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})
+		logger.Error("The poststop hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 

@@ -1223,7 +1223,7 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.state.OS.ExecPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d poststop", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -3050,10 +3050,12 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-func (c *containerLXC) OnStop(target string) error {
+// OnPostStop is triggered by LXC's post-stop hook once a container is shutdown and after the
+// container's namespaces have been closed.
+func (c *containerLXC) OnPostStop(target string) error {
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
-		logger.Error("Container sent invalid target to OnStop", log.Ctx{"container": c.Name(), "target": target})
+		logger.Error("Container sent invalid target to OnPostStop", log.Ctx{"container": c.Name(), "target": target})
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
 
