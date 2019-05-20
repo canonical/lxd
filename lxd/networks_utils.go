@@ -1443,3 +1443,60 @@ func networkApplyBootRoutesV6(devName string, routes []string) error {
 
 	return nil
 }
+
+// virtFuncInfo holds information about SR-IOV virtual functions.
+type virtFuncInfo struct {
+	mac        string
+	vlan       int
+	spoofcheck bool
+}
+
+// networkGetVirtFuncInfo returns info about an SR-IOV virtual function from the ip tool.
+func networkGetVirtFuncInfo(devName string, vfID int) (vf virtFuncInfo, err error) {
+	cmd := exec.Command("ip", "link", "show", devName)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return
+	}
+	if err = cmd.Start(); err != nil {
+		return
+	}
+	defer stdout.Close()
+
+	// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
+	reVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+
+	// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
+	// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
+	reNoVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		// First try and find VF and reads its properties with VLAN activated.
+		res := reVlan.FindStringSubmatch(scanner.Text())
+		if len(res) == 4 {
+			vlan, err := strconv.Atoi(res[2])
+			if err != nil {
+				return vf, err
+			}
+
+			vf.mac = res[1]
+			vf.vlan = vlan
+			vf.spoofcheck = shared.IsTrue(res[3])
+			return vf, err
+		}
+
+		// Next try and find VF and reads its properties with VLAN missing.
+		res = reNoVlan.FindStringSubmatch(scanner.Text())
+		if len(res) == 3 {
+			vf.mac = res[1]
+			vf.vlan = 0 // Missing VLAN ID means 0 when resetting later.
+			vf.spoofcheck = shared.IsTrue(res[2])
+			return vf, err
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		return
+	}
+
+	return vf, fmt.Errorf("no matching virtual function found")
+}
