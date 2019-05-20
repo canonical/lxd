@@ -1147,6 +1147,11 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
+	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %d stopns", c.state.OS.ExecPath, shared.VarPath(""), c.id))
+	if err != nil {
+		return err
+	}
+
 	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
@@ -2922,6 +2927,20 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
+// OnStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
+// namespaces have been closed. The netns path of the stopped container is provided.
+func (c *containerLXC) OnStopNS(target string, netns string) error {
+	// Validate target
+	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
+		logger.Error("Container sent invalid target to OnStopNS", log.Ctx{"container": c.Name(), "target": target})
+		return fmt.Errorf("Invalid stop target: %s", target)
+	}
+
+	return nil
+}
+
+// OnStop is triggered by LXC's post-stop hook once a container is shutdown and after the
+// container's namespaces have been closed.
 func (c *containerLXC) OnStop(target string) error {
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
