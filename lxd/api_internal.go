@@ -34,6 +34,7 @@ var apiInternal = []APIEndpoint{
 	internalShutdownCmd,
 	internalContainerOnStartCmd,
 	internalContainerOnNetworkUpCmd,
+	internalContainerOnStopNSCmd,
 	internalContainerOnStopCmd,
 	internalContainersCmd,
 	internalSQLCmd,
@@ -61,6 +62,12 @@ var internalContainerOnStartCmd = APIEndpoint{
 	Name: "containers/{id}/onstart",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStart},
+}
+
+var internalContainerOnStopNSCmd = APIEndpoint{
+	Name: "containers/{id}/onstopns",
+
+	Get: APIEndpointAction{Handler: internalContainerOnStopNS},
 }
 
 var internalContainerOnStopCmd = APIEndpoint{
@@ -130,6 +137,32 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 	err = c.OnStart()
 	if err != nil {
 		logger.Error("The start hook failed", log.Ctx{"container": c.Name(), "err": err})
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		return SmartError(err)
+	}
+
+	target := queryParam(r, "target")
+	if target == "" {
+		target = "unknown"
+	}
+	netns := queryParam(r, "netns")
+
+	c, err := containerLoadById(d.State(), id)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	err = c.OnStopNS(target, netns)
+	if err != nil {
+		logger.Error("The stopns hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 

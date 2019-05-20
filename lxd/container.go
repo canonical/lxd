@@ -681,6 +681,7 @@ type container interface {
 
 	// Hooks
 	OnStart() error
+	OnStopNS(target string, netns string) error
 	OnStop(target string) error
 	OnNetworkUp(deviceName string, hostVeth string) error
 
