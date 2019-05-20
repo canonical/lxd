@@ -365,6 +365,8 @@ parent                  | string    | -                 | yes       | -         
 name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
+security.mac\_filtering | boolean   | false             | no        | network\_vlan\_sriov                   | Prevent the container from spoofing another's MAC address
+vlan                    | integer   | -                 | no        | network\_vlan\_sriov                   | The VLAN ID to attach to
 maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
 maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
 
