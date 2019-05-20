@@ -7824,7 +7824,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the MAC address
-	if m["nictype"] != "physical" && m["hwaddr"] == "" && m["type"] != "infiniband" {
+	if !shared.StringInSlice(m["nictype"], []string{"physical", "infiniband", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
