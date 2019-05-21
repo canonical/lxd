@@ -2674,6 +2674,28 @@ func (c *containerLXC) startCommon() (string, error) {
 	return configPath, nil
 }
 
+// snapshotPhysicalNic records properties of a network device into volatile map supplied.
+func (c *containerLXC) snapshotPhysicalNic(deviceName string, hostName string, volatile map[string]string) error {
+	mtuKey := "volatile." + deviceName + ".last_state.mtu"
+	macKey := "volatile." + deviceName + ".last_state.hwaddr"
+
+	// Store current MTU for restoration on detach
+	mtu, err := networkGetDevMTU(hostName)
+	if err != nil {
+		return err
+	}
+	volatile[mtuKey] = fmt.Sprintf("%d", mtu)
+
+	// Store current MAC for restoration on detach
+	mac, err := networkGetDevMAC(hostName)
+	if err != nil {
+		return err
+	}
+	volatile[macKey] = mac
+
+	return nil
+}
+
 func (c *containerLXC) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
