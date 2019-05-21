@@ -110,19 +110,24 @@ func maybeUpdate(state *state.State) {
 		return
 	}
 
+	triggerUpdate()
+}
+
+func triggerUpdate() error {
 	logger.Infof("Node is out-of-date with respect to other cluster nodes")
 
 	updateExecutable := os.Getenv("LXD_CLUSTER_UPDATE")
 	if updateExecutable == "" {
 		logger.Debug("No LXD_CLUSTER_UPDATE variable set, skipping auto-update")
-		return
+		return nil
 	}
 
 	logger.Infof("Triggering cluster update using: %s", updateExecutable)
 
-	_, err = shared.RunCommand(updateExecutable)
+	_, err := shared.RunCommand(updateExecutable)
 	if err != nil {
 		logger.Errorf("Cluster upgrade failed: '%v'", err.Error())
-		return
+		return err
 	}
+	return nil
 }

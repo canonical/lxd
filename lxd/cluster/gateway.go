@@ -98,11 +98,18 @@ type Gateway struct {
 	// their version.
 	upgradeCh chan struct{}
 
+	// Used to track whether we already triggered an upgrade because we
+	// detected a peer with an higher version.
+	upgradeTriggered bool
+
 	// ServerStore wrapper.
 	store *dqliteServerStore
 
 	lock sync.RWMutex
 }
+
+// Current dqlite protocol version.
+const dqliteVersion = 0
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
 // endpoint in order to handle database-related requests.
@@ -120,6 +127,29 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 
 		if !tlsCheckCert(r, g.cert) {
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
+			return
+		}
+
+		// Compare the dqlite version of the connecting client
+		// with our own one.
+		versionHeader := r.Header.Get("X-Dqlite-Version")
+		if versionHeader == "" {
+			// No version header means an old pre dqlite 1.0 client.
+			versionHeader = "0"
+		}
+		version, err := strconv.Atoi(versionHeader)
+		if err != nil {
+			http.Error(w, "400 invalid dqlite version", http.StatusBadRequest)
+			return
+		}
+		if version != dqliteVersion {
+			if !g.upgradeTriggered && version > dqliteVersion {
+				err = triggerUpdate()
+				if err == nil {
+					g.upgradeTriggered = true
+				}
+			}
+			http.Error(w, "503 dqlite version mismatch", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -287,7 +317,7 @@ func (g *Gateway) DialFunc() dqlite.DialFunc {
 			return g.memoryDial(ctx, address)
 		}
 
-		return dqliteNetworkDial(ctx, address, g.cert)
+		return dqliteNetworkDial(ctx, address, g)
 	}
 }
 
@@ -603,8 +633,8 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 	return addresses, nil
 }
 
-func dqliteNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) (net.Conn, error) {
-	config, err := tlsClientConfig(cert)
+func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, error) {
+	config, err := tlsClientConfig(g.cert)
 	if err != nil {
 		return nil, err
 	}
@@ -620,6 +650,20 @@ func dqliteNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) 
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
+	}
+
+	// If the remote server has detected that we are out of date, let's
+	// trigger an upgrade.
+	if response.StatusCode == http.StatusUpgradeRequired {
+		g.lock.Lock()
+		defer g.lock.Unlock()
+		if !g.upgradeTriggered {
+			err = triggerUpdate()
+			if err == nil {
+				g.upgradeTriggered = true
+			}
+		}
+		return nil, fmt.Errorf("Upgrade needed")
 	}
 
 	// If the endpoint does not exists, it means that the target node is
