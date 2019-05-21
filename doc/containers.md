@@ -86,21 +86,25 @@ user.\*                                 | string    | -                 | n/a   
 
 The following volatile keys are currently internally used by LXD:
 
-Key                                     | Type      | Default       | Description
-:--                                     | :---      | :------       | :----------
-volatile.apply\_quota                   | string    | -             | Disk quota to be applied on next container start
-volatile.apply\_template                | string    | -             | The name of a template hook which should be triggered upon next startup
-volatile.base\_image                    | string    | -             | The hash of the image the container was created from, if any.
-volatile.idmap.base                     | integer   | -             | The first id in the container's primary idmap range
-volatile.idmap.current                  | string    | -             | The idmap currently in use by the container
-volatile.idmap.next                     | string    | -             | The idmap to use next time the container starts
-volatile.last\_state.idmap              | string    | -             | Serialized container uid/gid map
-volatile.last\_state.power              | string    | -             | Container state as of last host shutdown
-volatile.\<name\>.host\_name            | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p, or nictype=sriov)
-volatile.\<name\>.hwaddr                | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
-volatile.\<name\>.last\_state.created   | string    | -             | Whether or not the network device physical device was created ("true" or "false")
-volatile.\<name\>.last\_state.mtu       | string    | -             | Network device original MTU used when moving a physical device into a container
-volatile.\<name\>.last\_state.hwaddr    | string    | -             | Network device original MAC used when moving a physical device into a container
+Key                                         | Type      | Default       | Description
+:--                                         | :---      | :------       | :----------
+volatile.apply\_quota                       | string    | -             | Disk quota to be applied on next container start
+volatile.apply\_template                    | string    | -             | The name of a template hook which should be triggered upon next startup
+volatile.base\_image                        | string    | -             | The hash of the image the container was created from, if any.
+volatile.idmap.base                         | integer   | -             | The first id in the container's primary idmap range
+volatile.idmap.current                      | string    | -             | The idmap currently in use by the container
+volatile.idmap.next                         | string    | -             | The idmap to use next time the container starts
+volatile.last\_state.idmap                  | string    | -             | Serialized container uid/gid map
+volatile.last\_state.power                  | string    | -             | Container state as of last host shutdown
+volatile.\<name\>.host\_name                | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p, or nictype=sriov)
+volatile.\<name\>.hwaddr                    | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
+volatile.\<name\>.last\_state.created       | string    | -             | Whether or not the network device physical device was created ("true" or "false")
+volatile.\<name\>.last\_state.mtu           | string    | -             | Network device original MTU used when moving a physical device into a container
+volatile.\<name\>.last\_state.hwaddr        | string    | -             | Network device original MAC used when moving a physical device into a container
+volatile.\<name\>.last\_state.vf.id         | string    | -             | SR-IOV Virtual function ID used when moving a VF into a container
+volatile.\<name\>.last\_state.vf.hwaddr     | string    | -             | SR-IOV Virtual function original MAC used when moving a VF into a container
+volatile.\<name\>.last\_state.vf.vlan       | string    | -             | SR-IOV Virtual function original VLAN used when moving a VF into a container
+volatile.\<name\>.last\_state.vf.spoofcheck | string    | -             | SR-IOV Virtual function original spoof check setting used when moving a VF into a container
 
 Additionally, those user keys have become common with images (support isn't guaranteed):
 
