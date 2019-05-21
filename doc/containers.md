@@ -300,6 +300,21 @@ maas.subnet.ipv6        | string    | -                 | no        | maas\_netw
 
 Sets up a new network device based on an existing one using the same MAC address but a different IP.
 
+LXD currently supports IPVLAN in L3S mode. It requires the following sysctls to be set:
+
+If using IPv4 addresses:
+
+```
+net.ipv4.conf.<parent>.forwarding=1
+```
+
+If using IPv6 addresses:
+
+```
+net.ipv6.conf.<parent>.forwarding=1
+net.ipv6.conf.<parent>.proxy_ndp=1
+```
+
 Device configuration properties:
 
 Key                     | Type      | Default           | Required  | API extension                          | Description
