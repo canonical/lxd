@@ -2988,7 +2988,23 @@ func (c *containerLXC) OnStop(target string) error {
 // OnNetworkUp is called by the LXD callhook when the LXC network up script is run.
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
-	device["host_name"] = hostName
+
+	// This hook is only for bridged and p2p nics currently.
+	if !shared.StringInSlice(device["nictype"], []string{"bridged", "p2p"}) {
+		return nil
+	}
+
+	// Record boot time host name of nic into volatile for use with routes/limits updates later.
+	// Only need to do this if host_name is not specified in nic config.
+	if device["host_name"] == "" {
+		device["host_name"] = hostName
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		err := c.VolatileSet(map[string]string{hostNameKey: hostName})
+		if err != nil {
+			return err
+		}
+	}
+
 	return c.setupHostVethDevice(deviceName, device, types.Device{})
 }
 
@@ -2996,8 +3012,8 @@ func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) error {
 	// If not populated already, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
-		device["host_name"] = c.localConfig[configKey]
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		device["host_name"] = c.localConfig[hostNameKey]
 	}
 
 	// Check whether host device resolution succeeded.
