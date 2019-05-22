@@ -190,6 +190,143 @@ test_container_devices_nic_p2p() {
   lxc launch testimage "${ctName}"
   lxc config device add "${ctName}" eth0 nic \
     nictype=p2p
+
+  # Now add some routes
+  lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.2${ipRand}/32"
+  lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::2${ipRand}/128"
+
+  # Check routes are applied on update. The host name is dynamic, so just check routes exist.
+  if ! ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Now update routes, check old routes go and new routes added.
+  lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.3${ipRand}/32"
+  lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::3${ipRand}/128"
+
+  # Check routes are applied on update. The host name is dynamic, so just check routes exist.
+  if ! ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Check old routes removed
+  if ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Now remove device, check routes go
   lxc config device remove "${ctName}" eth0
+
+  if ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Now add a nic to a stopped container with routes.
+  lxc stop "${ctName}"
+  lxc config device add "${ctName}" eth0 nic \
+    nictype=p2p \
+    ipv4.routes="192.0.2.2${ipRand}/32" \
+    ipv6.routes="2001:db8::2${ipRand}/128"
+
+  lxc start "${ctName}"
+
+  # Check routes are applied on start. The host name is dynamic, so just check routes exist.
+  if ! ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Now update routes on boot time nic, check old routes go and new routes added.
+  lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.3${ipRand}/32"
+  lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::3${ipRand}/128"
+
+  # Check routes are applied on update. The host name is dynamic, so just check routes exist.
+  if ! ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Check old routes removed
+  if ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Now remove boot time device
+  lxc config device remove "${ctName}" eth0
+
+  # Check old routes removed
+  if ip -4 r list | grep "192.0.2.3${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ip -6 r list | grep "2001:db8::3${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Add hot plug device with routes.
+  lxc config device add "${ctName}" eth0 nic \
+    nictype=p2p
+
+  # Now update routes on hotplug nic
+  lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.2${ipRand}/32"
+  lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::2${ipRand}/128"
+
+  # Check routes are applied. The host name is dynamic, so just check routes exist.
+  if ! ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
+  # Now remove hotplug device
+  lxc config device remove "${ctName}" eth0
+
+  # Check old routes removed
+  if ip -4 r list | grep "192.0.2.2${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ip -6 r list | grep "2001:db8::2${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
   lxc delete "${ctName}" -f
 }
