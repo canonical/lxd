@@ -3102,6 +3102,12 @@ func (c *containerLXC) OnStop(target string) error {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}
 
+	// Clean up networking routes
+	err = c.cleanupNetworkRoutes()
+	if err != nil {
+		logger.Error("Failed to cleanup network routes: ", log.Ctx{"container": c.Name(), "err": err})
+	}
+
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
 		err = nil
@@ -3157,23 +3163,42 @@ func (c *containerLXC) OnStop(target string) error {
 	return nil
 }
 
+// cleanupNetworkRoutes removes any static routes added on the host for nic devices.
+func (c *containerLXC) cleanupNetworkRoutes() error {
+	for _, k := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[k]
+		if m["type"] != "nic" {
+			continue
+		}
+
+		// Remove any static veth routes
+		if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+			c.removeNetworkRoutes(m)
+		}
+
+	}
+
+	return nil
+}
+
 // OnNetworkUp is called by the LXD callhook when the LXC network up script is run.
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
 	device["host_name"] = hostName
-	return c.setupHostVethDevice(device)
+	return c.setupHostVethDevice(deviceName, device, types.Device{})
 }
 
 // setupHostVethDevice configures a nic device's host side veth settings.
-func (c *containerLXC) setupHostVethDevice(device types.Device) error {
-	// If not already, populate network device with host name.
+func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) error {
+	// If not populated already, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
-		device["host_name"] = c.getHostInterface(device["name"])
+		configKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		device["host_name"] = c.localConfig[configKey]
 	}
 
 	// Check whether host device resolution succeeded.
 	if device["host_name"] == "" {
-		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
+		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
 	}
 
 	// Refresh tc limits
@@ -3183,7 +3208,7 @@ func (c *containerLXC) setupHostVethDevice(device types.Device) error {
 	}
 
 	// Setup static routes to container
-	err = c.setNetworkRoutes(device)
+	err = c.setNetworkRoutes(device, oldDevice)
 	if err != nil {
 		return err
 	}
@@ -4936,7 +4961,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.setupHostVethDevice(m)
+					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
 					if err != nil {
 						return err
 					}
@@ -5062,13 +5087,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					// Populate network device with host name.
-					m["host_name"] = c.getHostInterface(m["name"])
-					if m["host_name"] == "" {
-						return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
-					}
-
-					err = c.setupHostVethDevice(m)
+					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
 					if err != nil {
 						return err
 					}
@@ -7726,6 +7745,10 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
 		}
 
+		// Record the new device's host name for use in setupHostVethDevice()
+		configKey := fmt.Sprintf("volatile.%s.host_name", name)
+		c.localConfig[configKey] = n1
+
 		dev = n2
 	}
 
@@ -8096,7 +8119,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the host name (but don't generate a static one ourselves)
-	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "sriov"}) {
+	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"sriov"}) {
 		configKey := fmt.Sprintf("volatile.%s.host_name", name)
 		newDevice["host_name"] = c.localConfig[configKey]
 	}
@@ -8272,6 +8295,11 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 		if err != nil {
 			return fmt.Errorf("Failed to detach interface: %s: %v", m["name"], err)
 		}
+	}
+
+	// Remove any static veth routes
+	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+		c.removeNetworkRoutes(m)
 	}
 
 	// If a veth, destroy it
@@ -8824,28 +8852,25 @@ func (c *containerLXC) getHostInterface(name string) string {
 }
 
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
-func (c *containerLXC) setNetworkRoutes(m types.Device) error {
+func (c *containerLXC) setNetworkRoutes(m types.Device, oldDevice types.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
 		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
 	}
 
-	// Flush all IPv4 routes
-	_, err := shared.RunCommand("ip", "-4", "route", "flush", "dev", m["host_name"], "proto", "static")
-	if err != nil {
-		return err
-	}
+	// Remove any old routes that were setup for this nic device.
+	c.removeNetworkRoutes(oldDevice)
 
-	// Flush all IPv6 routes
-	_, err = shared.RunCommand("ip", "-6", "route", "flush", "dev", m["host_name"], "proto", "static")
-	if err != nil {
-		return err
+	// Decide whether the route should point to the veth parent or the bridge parent
+	routeDev := m["host_name"]
+	if m["nictype"] == "bridged" {
+		routeDev = m["parent"]
 	}
 
 	// Add additional IPv4 routes
 	if m["ipv4.routes"] != "" {
 		for _, route := range strings.Split(m["ipv4.routes"], ",") {
 			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-4", "route", "add", "dev", m["host_name"], route, "proto", "static")
+			_, err := shared.RunCommand("ip", "-4", "route", "add", route, "dev", routeDev, "proto", "static")
 			if err != nil {
 				return err
 			}
@@ -8856,7 +8881,7 @@ func (c *containerLXC) setNetworkRoutes(m types.Device) error {
 	if m["ipv6.routes"] != "" {
 		for _, route := range strings.Split(m["ipv6.routes"], ",") {
 			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-6", "route", "add", "dev", m["host_name"], route, "proto", "static")
+			_, err := shared.RunCommand("ip", "-6", "route", "add", route, "dev", routeDev, "proto", "static")
 			if err != nil {
 				return err
 			}
@@ -8864,6 +8889,49 @@ func (c *containerLXC) setNetworkRoutes(m types.Device) error {
 	}
 
 	return nil
+}
+
+// removeNetworkRoutes removes any routes created for this device on the host that were first added
+// with setNetworkRoutes(). Expects to be passed the device config from the oldExpandedDevices.
+func (c *containerLXC) removeNetworkRoutes(m types.Device) {
+	// Decide whether the route should point to the veth parent or the bridge parent
+	routeDev := m["host_name"]
+	if m["nictype"] == "bridged" {
+		routeDev = m["parent"]
+	}
+
+	if m["ipv4.routes"] != "" || m["ipv6.routes"] != "" {
+		if routeDev == "" {
+			logger.Errorf("Failed to remove static routes as route dev isn't set")
+			return
+		}
+
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", routeDev)) {
+			return //Routes will already be gone if device doesn't exist.
+		}
+	}
+
+	// Remove IPv4 routes
+	if m["ipv4.routes"] != "" {
+		for _, route := range strings.Split(m["ipv4.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-4", "route", "flush", route, "dev", routeDev, "proto", "static")
+			if err != nil {
+				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
+			}
+		}
+	}
+
+	// Remove IPv6 routes
+	if m["ipv6.routes"] != "" {
+		for _, route := range strings.Split(m["ipv6.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-6", "route", "flush", route, "dev", routeDev, "proto", "static")
+			if err != nil {
+				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
+			}
+		}
+	}
 }
 
 func (c *containerLXC) setNetworkLimits(m types.Device) error {
