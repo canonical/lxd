@@ -8817,56 +8817,6 @@ func (c *containerLXC) setNetworkPriority() error {
 	return nil
 }
 
-func (c *containerLXC) getHostInterface(name string) string {
-	// Pull directly from kernel
-	networks := c.networkState()
-	if networks[name].HostName != "" {
-		return networks[name].HostName
-	}
-
-	// Fallback to poking LXC
-	if c.IsRunning() {
-		networkKeyPrefix := "lxc.net"
-		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-			networkKeyPrefix = "lxc.network"
-		}
-
-		for i := 0; i < len(c.c.ConfigItem(networkKeyPrefix)); i++ {
-			nicName := c.c.RunningConfigItem(fmt.Sprintf("%s.%d.name", networkKeyPrefix, i))[0]
-			if nicName != name {
-				continue
-			}
-
-			veth := c.c.RunningConfigItem(fmt.Sprintf("%s.%d.veth.pair", networkKeyPrefix, i))[0]
-			if veth != "" {
-				return veth
-			}
-		}
-	}
-
-	// Fallback to parsing LXD config
-	for _, k := range c.expandedDevices.DeviceNames() {
-		dev := c.expandedDevices[k]
-		if dev["type"] != "nic" && dev["type"] != "infiniband" {
-			continue
-		}
-
-		m, err := c.fillNetworkDevice(k, dev)
-		if err != nil {
-			m = dev
-		}
-
-		if m["name"] != name {
-			continue
-		}
-
-		return m["host_name"]
-	}
-
-	// Fail
-	return ""
-}
-
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
 func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDevice types.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
