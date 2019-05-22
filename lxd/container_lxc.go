@@ -2930,6 +2930,12 @@ func (c *containerLXC) OnStop(target string) error {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}
 
+	// Clean up networking veth devices
+	err = c.cleanupHostVethDevices()
+	if err != nil {
+		logger.Error("Failed to cleanup veth devices: ", log.Ctx{"container": c.Name(), "err": err})
+	}
+
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
 		err = nil
@@ -2985,6 +2991,37 @@ func (c *containerLXC) OnStop(target string) error {
 	return nil
 }
 
+// cleanupHostVethDevices removes host side configuration for veth devices.
+func (c *containerLXC) cleanupHostVethDevices() error {
+	volatileNics := make([]string, 0)
+
+	for _, k := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[k]
+		if m["type"] != "nic" {
+			continue
+		}
+
+		m, err := c.fillNetworkDevice(k, m)
+		if err != nil {
+			continue
+		}
+	}
+
+	// Clear host side config from volatile nics
+	volatile := make(map[string]string)
+	for _, deviceName := range volatileNics {
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		volatile[hostNameKey] = "" // Remove volatile host_name for device
+	}
+
+	err := c.VolatileSet(volatile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // OnNetworkUp is called by the LXD callhook when the LXC network up script is run.
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
@@ -3010,10 +3047,9 @@ func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 
 // setupHostVethDevice configures a nic device's host side veth settings.
 func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) error {
-	// If not populated already, check if volatile data contains the most recently added host_name.
+	// If not configured, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
-		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
-		device["host_name"] = c.localConfig[hostNameKey]
+		device["host_name"] = c.getVolatileHostName(deviceName)
 	}
 
 	// Check whether host device resolution succeeded.
@@ -7220,8 +7256,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		}
 
 		// Record the new device's host name for use in setupHostVethDevice()
-		configKey := fmt.Sprintf("volatile.%s.host_name", name)
-		c.localConfig[configKey] = n1
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", name)
+		c.localConfig[hostNameKey] = n1
 
 		dev = n2
 	}
@@ -7426,8 +7462,8 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 	}
 
 	newDevice["host_name"] = nicName
-	configKey := fmt.Sprintf("volatile.%s.host_name", name)
-	c.localConfig[configKey] = nicName
+	hostNameKey := fmt.Sprintf("volatile.%s.host_name", name)
+	c.localConfig[hostNameKey] = nicName
 
 	return newDevice, nil
 }
@@ -7591,13 +7627,15 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		newDevice["name"] = volatileName
 	}
 
-	// Fill in the host name (but don't generate a static one ourselves)
-	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"sriov"}) {
-		configKey := fmt.Sprintf("volatile.%s.host_name", name)
-		newDevice["host_name"] = c.localConfig[configKey]
-	}
-
 	return newDevice, nil
+}
+
+// getVolatileHostName returns the last host_name stored for a nic device.
+// Can be used when the host_name of a nic is not statically defined in config and need to find
+// out what the most recently dynamically generated one is.
+func (c *containerLXC) getVolatileHostName(deviceName string) string {
+	hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+	return c.localConfig[hostNameKey]
 }
 
 func (c *containerLXC) createNetworkFilter(name string, bridge string, hwaddr string) error {
