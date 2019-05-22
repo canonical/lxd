@@ -3173,7 +3173,7 @@ func (c *containerLXC) cleanupNetworkRoutes() error {
 
 		// Remove any static veth routes
 		if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-			c.removeNetworkRoutes(m)
+			c.removeNetworkRoutes(k, m)
 		}
 
 	}
@@ -3184,7 +3184,23 @@ func (c *containerLXC) cleanupNetworkRoutes() error {
 // OnNetworkUp is called by the LXD callhook when the LXC network up script is run.
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
-	device["host_name"] = hostName
+
+	// This hook is only for bridged and p2p nics currently.
+	if !shared.StringInSlice(device["nictype"], []string{"bridged", "p2p"}) {
+		return nil
+	}
+
+	// Record boot time host name of nic into volatile for use with routes/limits updates later.
+	// Only need to do this if host_name is not specified in nic config.
+	if device["host_name"] == "" {
+		device["host_name"] = hostName
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		err := c.VolatileSet(map[string]string{hostNameKey: hostName})
+		if err != nil {
+			return err
+		}
+	}
+
 	return c.setupHostVethDevice(deviceName, device, types.Device{})
 }
 
@@ -3192,8 +3208,8 @@ func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) error {
 	// If not populated already, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
-		configKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
-		device["host_name"] = c.localConfig[configKey]
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		device["host_name"] = c.localConfig[hostNameKey]
 	}
 
 	// Check whether host device resolution succeeded.
@@ -3208,7 +3224,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 	}
 
 	// Setup static routes to container
-	err = c.setNetworkRoutes(device, oldDevice)
+	err = c.setNetworkRoutes(deviceName, device, oldDevice)
 	if err != nil {
 		return err
 	}
@@ -8299,7 +8315,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 
 	// Remove any static veth routes
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		c.removeNetworkRoutes(m)
+		c.removeNetworkRoutes(name, m)
 	}
 
 	// If a veth, destroy it
@@ -8852,13 +8868,13 @@ func (c *containerLXC) getHostInterface(name string) string {
 }
 
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
-func (c *containerLXC) setNetworkRoutes(m types.Device, oldDevice types.Device) error {
+func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDevice types.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
 		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
 	}
 
 	// Remove any old routes that were setup for this nic device.
-	c.removeNetworkRoutes(oldDevice)
+	c.removeNetworkRoutes(deviceName, oldDevice)
 
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
@@ -8893,7 +8909,13 @@ func (c *containerLXC) setNetworkRoutes(m types.Device, oldDevice types.Device) 
 
 // removeNetworkRoutes removes any routes created for this device on the host that were first added
 // with setNetworkRoutes(). Expects to be passed the device config from the oldExpandedDevices.
-func (c *containerLXC) removeNetworkRoutes(m types.Device) {
+func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
+	// If not populated already, check if volatile data contains the most recently added host_name.
+	if m["host_name"] == "" {
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		m["host_name"] = c.localConfig[hostNameKey]
+	}
+
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
 	if m["nictype"] == "bridged" {
