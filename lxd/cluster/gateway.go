@@ -148,13 +148,17 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 		if version != dqliteVersion {
-			if !g.upgradeTriggered && version > dqliteVersion {
-				err = triggerUpdate()
-				if err == nil {
-					g.upgradeTriggered = true
+			if version > dqliteVersion {
+				if !g.upgradeTriggered {
+					err = triggerUpdate()
+					if err == nil {
+						g.upgradeTriggered = true
+					}
 				}
+				http.Error(w, "503 unsupported dqlite version", http.StatusServiceUnavailable)
+			} else {
+				http.Error(w, "426 dqlite version too old ", http.StatusUpgradeRequired)
 			}
-			http.Error(w, "503 dqlite version mismatch", http.StatusServiceUnavailable)
 			return
 		}
 
