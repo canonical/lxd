@@ -2989,19 +2989,20 @@ func (c *containerLXC) OnStop(target string) error {
 func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 	device := c.expandedDevices[deviceName]
 	device["host_name"] = hostName
-	return c.setupHostVethDevice(device, types.Device{})
+	return c.setupHostVethDevice(deviceName, device, types.Device{})
 }
 
 // setupHostVethDevice configures a nic device's host side veth settings.
-func (c *containerLXC) setupHostVethDevice(device types.Device, oldDevice types.Device) error {
-	// If not already, populate network device with host name.
+func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) error {
+	// If not populated already, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
-		device["host_name"] = c.getHostInterface(device["name"])
+		configKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		device["host_name"] = c.localConfig[configKey]
 	}
 
 	// Check whether host device resolution succeeded.
 	if device["host_name"] == "" {
-		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
+		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
 	}
 
 	// Refresh tc limits
@@ -4608,7 +4609,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.setupHostVethDevice(m, oldExpandedDevices[k])
+					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
 					if err != nil {
 						return err
 					}
@@ -4733,7 +4734,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.setupHostVethDevice(m, oldExpandedDevices[k])
+					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
 					if err != nil {
 						return err
 					}
@@ -7202,6 +7203,10 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
 		}
 
+		// Record the new device's host name for use in setupHostVethDevice()
+		configKey := fmt.Sprintf("volatile.%s.host_name", name)
+		c.localConfig[configKey] = n1
+
 		dev = n2
 	}
 
@@ -7571,7 +7576,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the host name (but don't generate a static one ourselves)
-	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "sriov"}) {
+	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"sriov"}) {
 		configKey := fmt.Sprintf("volatile.%s.host_name", name)
 		newDevice["host_name"] = c.localConfig[configKey]
 	}
