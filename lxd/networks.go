@@ -582,6 +582,20 @@ func networkPut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	targetNode := queryParam(r, "target")
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// If no target node is specified and the daemon is clustered, we omit
+	// the node-specific fields.
+	if targetNode == "" && clustered {
+		for _, key := range db.NetworkNodeConfigKeys {
+			delete(dbInfo.Config, key)
+		}
+	}
+
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
 
@@ -605,6 +619,20 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	_, dbInfo, err := d.cluster.NetworkGet(name)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	targetNode := queryParam(r, "target")
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// If no target node is specified and the daemon is clustered, we omit
+	// the node-specific fields.
+	if targetNode == "" && clustered {
+		for _, key := range db.NetworkNodeConfigKeys {
+			delete(dbInfo.Config, key)
+		}
 	}
 
 	// Validate the ETag
