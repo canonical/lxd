@@ -2753,6 +2753,30 @@ func (c *containerLXC) setupPhysicalParent(deviceName string, m types.Device) (s
 	return hostName, nil
 }
 
+// detachInterfaceRename enters the container's network namespace and moves the named interface
+// in ifName back to the network namespace of the running process as the name specified in hostName.
+func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostName string) error {
+	lxdPID := os.Getpid()
+
+	// Run forknet detach
+	out, err := shared.RunCommand(
+		c.state.OS.ExecPath,
+		"forknet",
+		"detach",
+		netns,
+		fmt.Sprintf("%d", lxdPID),
+		ifName,
+		hostName,
+	)
+
+	// Process forknet detach response
+	if err != nil {
+		logger.Error("Error calling 'lxd forknet detach", log.Ctx{"container": c.name, "output": out, "pid": c.InitPID()})
+	}
+
+	return nil
+}
+
 func (c *containerLXC) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
