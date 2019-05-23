@@ -58,17 +58,6 @@ again:
 	return 0;
 }
 
-static int lxc_epoll_wait_nointr(int epfd, struct epoll_event* events,
-				 int maxevents, int timeout)
-{
-	int ret;
-again:
-	ret = epoll_wait(epfd, events, maxevents, timeout);
-	if (ret < 0 && errno == EINTR)
-		goto again;
-	return ret;
-}
-
 void forkproxy()
 {
 	int connect_pid, listen_pid, log_fd;
