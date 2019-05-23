@@ -4179,7 +4179,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Validate the new profiles
 	profiles, err := c.state.Cluster.Profiles(args.Project)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get project profiles")
+		return errors.Wrap(err, "Failed to get profiles")
 	}
 
 	checkedProfiles := []string{}
