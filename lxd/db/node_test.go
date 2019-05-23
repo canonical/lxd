@@ -287,8 +287,8 @@ INSERT INTO storage_pools (id, name, driver) VALUES (1, 'local', 'zfs')`)
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
-INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id)
-  VALUES ('data', 1, ?, ?, 1)`, id, db.StoragePoolVolumeTypeCustom)
+INSERT INTO storage_volumes(name, storage_pool_id, node_id, type)
+  VALUES ('data', 1, ?, ?)`, id, db.StoragePoolVolumeTypeCustom)
 	require.NoError(t, err)
 
 	message, err := tx.NodeIsEmpty(id)
