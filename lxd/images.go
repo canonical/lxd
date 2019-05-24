@@ -272,7 +272,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		return nil, err
 	}
 	if compressErr != nil {
-		return nil, err
+		return nil, compressErr
 	}
 	imageFile.Close()
 
