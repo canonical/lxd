@@ -5,8 +5,8 @@
 
 package term
 
-import "syscall"
+import "golang.org/x/sys/unix"
 
-const ioctlReadTermios = syscall.TIOCGETA
+const ioctlReadTermios = unix.TIOCGETA
 
-type Termios syscall.Termios
+type Termios unix.Termios

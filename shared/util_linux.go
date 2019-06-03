@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // --- pure Go functions ---
@@ -25,8 +27,8 @@ func Minor(dev uint64) int {
 
 func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	inode uint64, nlink int, err error) {
-	var stat syscall.Stat_t
-	err = syscall.Lstat(p, &stat)
+	var stat unix.Stat_t
+	err = unix.Lstat(p, &stat)
 	if err != nil {
 		return
 	}
@@ -36,7 +38,7 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	nlink = int(stat.Nlink)
 	major = -1
 	minor = -1
-	if stat.Mode&syscall.S_IFBLK != 0 || stat.Mode&syscall.S_IFCHR != 0 {
+	if stat.Mode&unix.S_IFBLK != 0 || stat.Mode&unix.S_IFCHR != 0 {
 		major = Major(stat.Rdev)
 		minor = Minor(stat.Rdev)
 	}
@@ -115,7 +117,7 @@ func SetSize(fd int, width int, height int) (err error) {
 	dimensions[0] = uint16(height)
 	dimensions[1] = uint16(width)
 
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
+	if _, _, err := unix.Syscall6(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TIOCSWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
 		return err
 	}
 	return nil
@@ -127,7 +129,7 @@ func SetSize(fd int, width int, height int) (err error) {
 // associated with the link itself are retrieved.
 func llistxattr(path string, list []byte) (sz int, err error) {
 	var _p0 *byte
-	_p0, err = syscall.BytePtrFromString(path)
+	_p0, err = unix.BytePtrFromString(path)
 	if err != nil {
 		return
 	}
@@ -137,7 +139,7 @@ func llistxattr(path string, list []byte) (sz int, err error) {
 	} else {
 		_p1 = unsafe.Pointer(nil)
 	}
-	r0, _, e1 := syscall.Syscall(syscall.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
+	r0, _, e1 := unix.Syscall(unix.SYS_LLISTXATTR, uintptr(unsafe.Pointer(_p0)), uintptr(_p1), uintptr(len(list)))
 	sz = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -195,7 +197,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		// second, to actually store the extended attributes in the
 		// buffer. Also, check if the size of the extended attribute
 		// hasn't changed between the two calls.
-		pre, err = syscall.Getxattr(path, xattr, nil)
+		pre, err = unix.Getxattr(path, xattr, nil)
 		if err != nil || pre < 0 {
 			return nil, err
 		}
@@ -203,7 +205,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		dest = make([]byte, pre)
 		post := 0
 		if pre > 0 {
-			post, err = syscall.Getxattr(path, xattr, dest)
+			post, err = unix.Getxattr(path, xattr, dest)
 			if err != nil || post < 0 {
 				return nil, err
 			}
@@ -273,7 +275,7 @@ func GetErrno(err error) (errno error, iserrno bool) {
 		return pathErr.Err, true
 	}
 
-	tmpErrno, ok := err.(syscall.Errno)
+	tmpErrno, ok := err.(unix.Errno)
 	if ok {
 		return tmpErrno, true
 	}
@@ -281,7 +283,7 @@ func GetErrno(err error) (errno error, iserrno bool) {
 	return nil, false
 }
 
-// Utsname returns the same info as syscall.Utsname, as strings
+// Utsname returns the same info as unix.Utsname, as strings
 type Utsname struct {
 	Sysname    string
 	Nodename   string
@@ -301,8 +303,8 @@ func Uname() (*Utsname, error) {
 	 * viz. github issue #206.
 	 */
 
-	uname := syscall.Utsname{}
-	err := syscall.Uname(&uname)
+	uname := unix.Utsname{}
+	err := unix.Uname(&uname)
 	if err != nil {
 		return nil, err
 	}
@@ -345,10 +347,10 @@ func intArrayToString(arr interface{}) string {
 	return s
 }
 
-func Statvfs(path string) (*syscall.Statfs_t, error) {
-	var st syscall.Statfs_t
+func Statvfs(path string) (*unix.Statfs_t, error) {
+	var st unix.Statfs_t
 
-	err := syscall.Statfs(path, &st)
+	err := unix.Statfs(path, &st)
 	if err != nil {
 		return nil, err
 	}

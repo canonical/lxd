@@ -3,8 +3,9 @@ package shared
 import (
 	"io/ioutil"
 	"os"
-	"syscall"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestGetAllXattr(t *testing.T) {
@@ -32,8 +33,8 @@ func TestGetAllXattr(t *testing.T) {
 	defer os.Remove(xattrDir)
 
 	for k, v := range testxattr {
-		err = syscall.Setxattr(xattrFile.Name(), k, []byte(v), 0)
-		if err == syscall.ENOTSUP {
+		err = unix.Setxattr(xattrFile.Name(), k, []byte(v), 0)
+		if err == unix.ENOTSUP {
 			t.Log(err)
 			return
 		}
@@ -41,8 +42,8 @@ func TestGetAllXattr(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		err = syscall.Setxattr(xattrDir, k, []byte(v), 0)
-		if err == syscall.ENOTSUP {
+		err = unix.Setxattr(xattrDir, k, []byte(v), 0)
+		if err == unix.ENOTSUP {
 			t.Log(err)
 			return
 		}

@@ -1,10 +1,8 @@
 package term
 
-import (
-	"syscall"
-)
+import "golang.org/x/sys/unix"
 
-const ioctlReadTermios = syscall.TIOCGETA
+const ioctlReadTermios = unix.TIOCGETA
 
 // Go 1.2 doesn't include Termios for FreeBSD. This should be added in 1.3 and this could be merged with terminal_darwin.
 type Termios struct {
