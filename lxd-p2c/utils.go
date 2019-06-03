@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
@@ -173,13 +173,13 @@ func setupSource(path string, mounts []string) error {
 		target := fmt.Sprintf("%s/%s", path, strings.TrimPrefix(mount, prefix))
 
 		// Mount the path
-		err := syscall.Mount(mount, target, "none", syscall.MS_BIND, "")
+		err := unix.Mount(mount, target, "none", unix.MS_BIND, "")
 		if err != nil {
 			return fmt.Errorf("Failed to mount %s: %v", mount, err)
 		}
 
 		// Make it read-only
-		err = syscall.Mount("", target, "none", syscall.MS_BIND|syscall.MS_RDONLY|syscall.MS_REMOUNT, "")
+		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
 			return fmt.Errorf("Failed to make %s read-only: %v", mount, err)
 		}

@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
@@ -94,7 +94,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 
 	// Automatically clean-up the temporary path on exit
 	defer func(path string) {
-		syscall.Unmount(path, syscall.MNT_DETACH)
+		unix.Unmount(path, unix.MNT_DETACH)
 		os.Remove(path)
 	}(path)
 
