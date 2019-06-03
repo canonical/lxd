@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -915,6 +916,7 @@ SELECT containers.name
   FROM containers
   JOIN projects ON projects.id = containers.project_id
 WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
+ORDER BY date(containers.creation_date)
 `
 	inargs := []interface{}{project, CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
@@ -938,7 +940,14 @@ func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]Co
 		Type:    int(CTypeSnapshot),
 	}
 
-	return c.ContainerList(filter)
+	snapshots, err := c.ContainerList(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
+
+	return snapshots, nil
 }
 
 // ContainerNextSnapshot returns the index the next snapshot of the container
