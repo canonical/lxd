@@ -498,7 +498,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		return err
 	}
 
-	poolID := int64(-1)
+	var poolID int64
 	pools, err := d.cluster.StoragePools()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
@@ -795,7 +795,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		return err
 	}
 
-	poolID := int64(-1)
+	var poolID int64
 	pools, err := d.cluster.StoragePools()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
@@ -1094,7 +1094,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	// Peek into the storage pool database to see whether any storage pools
 	// are already configured. If so, we can assume that a partial upgrade
 	// has been performed and can skip the next steps.
-	poolID := int64(-1)
+	var poolID int64
 	pools, err := d.cluster.StoragePools()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
@@ -1594,7 +1594,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// Peek into the storage pool database to see whether any storage pools
 	// are already configured. If so, we can assume that a partial upgrade
 	// has been performed and can skip the next steps.
-	poolID := int64(-1)
+	var poolID int64
 	pools, err := d.cluster.StoragePools()
 	if err == nil { // Already exist valid storage pools.
 		// Check if the storage pool already has a db entry.
