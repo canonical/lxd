@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
@@ -80,8 +80,8 @@ func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
 
 	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 	if err == nil {
-		syscall.Dup3(int(logFile.Fd()), 1, 0)
-		syscall.Dup3(int(logFile.Fd()), 2, 0)
+		unix.Dup3(int(logFile.Fd()), 1, 0)
+		unix.Dup3(int(logFile.Fd()), 2, 0)
 	}
 
 	return d.Start()

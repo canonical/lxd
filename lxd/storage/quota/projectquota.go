@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -157,8 +158,8 @@ var errNoDevice = fmt.Errorf("Couldn't find backing device for mountpoint")
 
 func devForPath(path string) (string, error) {
 	// Get major/minor
-	var stat syscall.Stat_t
-	err := syscall.Lstat(path, &stat)
+	var stat unix.Stat_t
+	err := unix.Lstat(path, &stat)
 	if err != nil {
 		return "", err
 	}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -148,7 +149,7 @@ func (s *consoleWs) Do(op *operation) error {
 			_, r, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader %s", err)
-				err := syscall.Kill(consolePid, syscall.SIGTERM)
+				err := unix.Kill(consolePid, unix.SIGTERM)
 				if err != nil {
 					logger.Debugf("Failed to send SIGTERM to pid %d", consolePid)
 				} else {
@@ -244,7 +245,7 @@ func (s *consoleWs) Do(op *operation) error {
 		status, _ := exitErr.Sys().(syscall.WaitStatus)
 		// If we received SIGTERM someone told us to detach from the
 		// console.
-		if status.Signaled() && status.Signal() == syscall.SIGTERM {
+		if status.Signaled() && status.Signal() == unix.SIGTERM {
 			return finisher(nil)
 		}
 	}
@@ -388,7 +389,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		if errno == syscall.ENODATA {
+		if errno == unix.ENODATA {
 			return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 		}
 
@@ -451,7 +452,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		if errno == syscall.ENODATA {
+		if errno == unix.ENODATA {
 			return SmartError(nil)
 		}
 
