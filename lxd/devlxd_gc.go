@@ -2,12 +2,10 @@
 
 package main
 
-import (
-	"syscall"
-)
+import "golang.org/x/sys/unix"
 
 func getUcred(fd int) (uint32, uint32, int32, error) {
-	cred, err := syscall.GetsockoptUcred(fd, syscall.SOL_SOCKET, syscall.SO_PEERCRED)
+	cred, err := unix.GetsockoptUcred(fd, unix.SOL_SOCKET, unix.SO_PEERCRED)
 	if err != nil {
 		return 0, 0, -1, err
 	}

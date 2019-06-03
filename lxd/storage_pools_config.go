@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -200,8 +201,8 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		}
 	} else {
 		if config["size"] == "" {
-			st := syscall.Statfs_t{}
-			err := syscall.Statfs(shared.VarPath(), &st)
+			st := unix.Statfs_t{}
+			err := unix.Statfs(shared.VarPath(), &st)
 			if err != nil {
 				return fmt.Errorf("Couldn't statfs %s: %s", shared.VarPath(), err)
 			}
