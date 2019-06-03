@@ -37,8 +37,8 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 		return nil, fmt.Errorf("Proxy device doesn't support the listener type: %s", listenerType)
 	}
 
-	listenPid := "-1"
-	connectPid := "-1"
+	var listenPid string
+	var connectPid string
 
 	bindVal, exists := device["bind"]
 
