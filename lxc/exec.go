@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
@@ -59,7 +58,7 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 }
 
 func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
-	width, height, err := termios.GetSize(int(syscall.Stdout))
+	width, height, err := termios.GetSize(getStdoutFd())
 	if err != nil {
 		return err
 	}
@@ -76,28 +75,6 @@ func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
 	msg.Args = make(map[string]string)
 	msg.Args["width"] = strconv.Itoa(width)
 	msg.Args["height"] = strconv.Itoa(height)
-
-	buf, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(buf)
-
-	w.Close()
-	return err
-}
-
-func (c *cmdExec) forwardSignal(control *websocket.Conn, sig syscall.Signal) error {
-	logger.Debugf("Forwarding signal: %s", sig)
-
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
-	msg := api.ContainerExecControl{}
-	msg.Command = "signal"
-	msg.Signal = int(sig)
 
 	buf, err := json.Marshal(msg)
 	if err != nil {
@@ -154,8 +131,8 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Configure the terminal
-	stdinFd := int(syscall.Stdin)
-	stdoutFd := int(syscall.Stdout)
+	stdinFd := getStdinFd()
+	stdoutFd := getStdoutFd()
 
 	stdinTerminal := termios.IsTerminal(stdinFd)
 	stdoutTerminal := termios.IsTerminal(stdoutFd)
@@ -192,7 +169,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	// Grab current terminal dimensions
 	var width, height int
 	if stdoutTerminal {
-		width, height, err = termios.GetSize(int(syscall.Stdout))
+		width, height, err = termios.GetSize(getStdoutFd())
 		if err != nil {
 			return err
 		}
@@ -204,7 +181,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		stdin = ioutil.NopCloser(bytes.NewReader(nil))
 	}
 
-	stdout := c.getStdout()
+	stdout := getStdout()
 
 	// Prepare the command
 	req := api.ContainerExecPost{

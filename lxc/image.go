@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"syscall"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -359,7 +358,7 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If stdin isn't a terminal, read text from it
-	if !termios.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err

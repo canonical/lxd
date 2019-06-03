@@ -3,14 +3,15 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/gorilla/websocket"
-	"github.com/mattn/go-colorable"
+	"golang.org/x/sys/windows"
 
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -23,10 +24,6 @@ type WrappedWriteCloser struct {
 
 func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
 	return wwc.wrapper.Write(p)
-}
-
-func (c *cmdExec) getStdout() io.WriteCloser {
-	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
 }
 
 func (c *cmdExec) getTERM() (string, bool) {
@@ -45,13 +42,35 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 		switch sig {
 		case os.Interrupt:
 			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
-			err := c.forwardSignal(control, syscall.SIGINT)
+			err := c.forwardSignal(control, windows.SIGINT)
 			if err != nil {
-				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGINT)
+				logger.Debugf("Failed to forward signal '%s'.", windows.SIGINT)
 				return
 			}
 		default:
 			break
 		}
 	}
+}
+
+func (c *cmdExec) forwardSignal(control *websocket.Conn, sig windows.Signal) error {
+	logger.Debugf("Forwarding signal: %s", sig)
+
+	w, err := control.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return err
+	}
+
+	msg := api.ContainerExecControl{}
+	msg.Command = "signal"
+	msg.Signal = int(sig)
+
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(buf)
+
+	w.Close()
+	return err
 }

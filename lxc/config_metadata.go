@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -103,7 +102,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Edit the metadata
-	if !termios.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(getStdinFd()) {
 		metadata := api.ImageMetadata{}
 		content, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
