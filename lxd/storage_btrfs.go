@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
@@ -230,7 +230,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// cannot call StoragePoolMount() since it will try to do the
 		// reverse operation. So instead we shamelessly mount using the
 		// block device path at the time of pool creation.
-		err1 = syscall.Mount(source, poolMntPoint, "btrfs", mountFlags, mountOptions)
+		err1 = unix.Mount(source, poolMntPoint, "btrfs", mountFlags, mountOptions)
 	} else {
 		_, err1 = s.StoragePoolMount()
 	}
@@ -388,7 +388,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		}
 	}
 
-	if shared.IsMountPoint(poolMntPoint) && (s.remount&syscall.MS_REMOUNT) == 0 {
+	if shared.IsMountPoint(poolMntPoint) && (s.remount&unix.MS_REMOUNT) == 0 {
 		return false, nil
 	}
 
@@ -414,7 +414,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 			defer loopF.Close()
 		} else if !isBlockDev && cleanSource != poolMntPoint {
 			mountSource = source
-			mountFlags |= syscall.MS_BIND
+			mountFlags |= unix.MS_BIND
 		} else if !isBlockDev && cleanSource == poolMntPoint && s.s.OS.BackingFS == "btrfs" {
 			return false, nil
 		}
@@ -438,7 +438,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	}
 
 	mountFlags |= s.remount
-	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, mountOptions)
+	err := unix.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf("Failed to mount BTRFS storage pool \"%s\" onto \"%s\" with mountoptions \"%s\": %s", mountSource, poolMntPoint, mountOptions, err)
 		return false, err
@@ -480,7 +480,7 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	defer removeLockFromMap()
 
 	if shared.IsMountPoint(poolMntPoint) {
-		err := syscall.Unmount(poolMntPoint, 0)
+		err := unix.Unmount(poolMntPoint, 0)
 		if err != nil {
 			return false, err
 		}
@@ -510,7 +510,7 @@ func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut,
 
 	if shared.StringInSlice("btrfs.mount_options", changedConfig) {
 		s.setBtrfsMountOptions(writable.Config["btrfs.mount_options"])
-		s.remount |= syscall.MS_REMOUNT
+		s.remount |= unix.MS_REMOUNT
 		_, err := s.StoragePoolMount()
 		if err != nil {
 			return err
@@ -1759,8 +1759,8 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 // isBtrfsSubVolume returns true if the given Path is a btrfs subvolume else
 // false.
 func isBtrfsSubVolume(subvolPath string) bool {
-	fs := syscall.Stat_t{}
-	err := syscall.Lstat(subvolPath, &fs)
+	fs := unix.Stat_t{}
+	err := unix.Lstat(subvolPath, &fs)
 	if err != nil {
 		return false
 	}
@@ -1783,9 +1783,9 @@ func isBtrfsFilesystem(path string) bool {
 }
 
 func isOnBtrfs(path string) bool {
-	fs := syscall.Statfs_t{}
+	fs := unix.Statfs_t{}
 
-	err := syscall.Statfs(path, &fs)
+	err := unix.Statfs(path, &fs)
 	if err != nil {
 		return false
 	}

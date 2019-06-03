@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
@@ -1410,8 +1410,8 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	// Shortcut for refquota
 	mountpoint := getContainerMountPoint(s.pool.Name, container.Name())
 	if property == "referenced" && shared.IsMountPoint(mountpoint) {
-		var stat syscall.Statfs_t
-		err := syscall.Statfs(mountpoint, &stat)
+		var stat unix.Statfs_t
+		err := unix.Statfs(mountpoint, &stat)
 		if err != nil {
 			return -1, err
 		}

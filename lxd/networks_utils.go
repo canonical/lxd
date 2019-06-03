@@ -17,8 +17,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -749,7 +750,7 @@ func networkKillDnsmasq(name string, reload bool) error {
 
 	// Actually kill the process
 	if reload {
-		err = syscall.Kill(pidInt, syscall.SIGHUP)
+		err = unix.Kill(pidInt, unix.SIGHUP)
 		if err != nil {
 			return err
 		}
@@ -757,7 +758,7 @@ func networkKillDnsmasq(name string, reload bool) error {
 		return nil
 	}
 
-	err = syscall.Kill(pidInt, syscall.SIGKILL)
+	err = unix.Kill(pidInt, unix.SIGKILL)
 	if err != nil {
 		return err
 	}

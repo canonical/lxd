@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
@@ -202,13 +202,13 @@ func (s *storageDir) StoragePoolMount() (bool, error) {
 	defer removeLockFromMap()
 
 	mountSource := cleanSource
-	mountFlags := syscall.MS_BIND
+	mountFlags := unix.MS_BIND
 
 	if shared.IsMountPoint(poolMntPoint) {
 		return false, nil
 	}
 
-	err := syscall.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
+	err := unix.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
 	if err != nil {
 		logger.Errorf(`Failed to mount DIR storage pool "%s" onto "%s": %s`, mountSource, poolMntPoint, err)
 		return false, err
@@ -262,7 +262,7 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 		return false, nil
 	}
 
-	err := syscall.Unmount(poolMntPoint, 0)
+	err := unix.Unmount(poolMntPoint, 0)
 	if err != nil {
 		return false, err
 	}

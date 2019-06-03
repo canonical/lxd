@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 
 	dbg "github.com/lxc/lxd/lxd/debug"
 	"github.com/lxc/lxd/lxd/sys"
@@ -85,15 +85,15 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	ch := make(chan os.Signal)
-	signal.Notify(ch, syscall.SIGPWR)
-	signal.Notify(ch, syscall.SIGINT)
-	signal.Notify(ch, syscall.SIGQUIT)
-	signal.Notify(ch, syscall.SIGTERM)
+	signal.Notify(ch, unix.SIGPWR)
+	signal.Notify(ch, unix.SIGINT)
+	signal.Notify(ch, unix.SIGQUIT)
+	signal.Notify(ch, unix.SIGTERM)
 
 	s := d.State()
 	select {
 	case sig := <-ch:
-		if sig == syscall.SIGPWR {
+		if sig == unix.SIGPWR {
 			logger.Infof("Received '%s signal', shutting down containers", sig)
 			containersShutdown(s)
 			networkShutdown(s)

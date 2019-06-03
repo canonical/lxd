@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -26,32 +27,32 @@ type mountOptions struct {
 }
 
 var MountOptions = map[string]mountOptions{
-	"async":         {false, syscall.MS_SYNCHRONOUS},
-	"atime":         {false, syscall.MS_NOATIME},
-	"bind":          {true, syscall.MS_BIND},
+	"async":         {false, unix.MS_SYNCHRONOUS},
+	"atime":         {false, unix.MS_NOATIME},
+	"bind":          {true, unix.MS_BIND},
 	"defaults":      {true, 0},
-	"dev":           {false, syscall.MS_NODEV},
-	"diratime":      {false, syscall.MS_NODIRATIME},
-	"dirsync":       {true, syscall.MS_DIRSYNC},
-	"exec":          {false, syscall.MS_NOEXEC},
+	"dev":           {false, unix.MS_NODEV},
+	"diratime":      {false, unix.MS_NODIRATIME},
+	"dirsync":       {true, unix.MS_DIRSYNC},
+	"exec":          {false, unix.MS_NOEXEC},
 	"lazytime":      {true, MS_LAZYTIME},
-	"mand":          {true, syscall.MS_MANDLOCK},
-	"noatime":       {true, syscall.MS_NOATIME},
-	"nodev":         {true, syscall.MS_NODEV},
-	"nodiratime":    {true, syscall.MS_NODIRATIME},
-	"noexec":        {true, syscall.MS_NOEXEC},
-	"nomand":        {false, syscall.MS_MANDLOCK},
-	"norelatime":    {false, syscall.MS_RELATIME},
-	"nostrictatime": {false, syscall.MS_STRICTATIME},
-	"nosuid":        {true, syscall.MS_NOSUID},
-	"rbind":         {true, syscall.MS_BIND | syscall.MS_REC},
-	"relatime":      {true, syscall.MS_RELATIME},
-	"remount":       {true, syscall.MS_REMOUNT},
-	"ro":            {true, syscall.MS_RDONLY},
-	"rw":            {false, syscall.MS_RDONLY},
-	"strictatime":   {true, syscall.MS_STRICTATIME},
-	"suid":          {false, syscall.MS_NOSUID},
-	"sync":          {true, syscall.MS_SYNCHRONOUS},
+	"mand":          {true, unix.MS_MANDLOCK},
+	"noatime":       {true, unix.MS_NOATIME},
+	"nodev":         {true, unix.MS_NODEV},
+	"nodiratime":    {true, unix.MS_NODIRATIME},
+	"noexec":        {true, unix.MS_NOEXEC},
+	"nomand":        {false, unix.MS_MANDLOCK},
+	"norelatime":    {false, unix.MS_RELATIME},
+	"nostrictatime": {false, unix.MS_STRICTATIME},
+	"nosuid":        {true, unix.MS_NOSUID},
+	"rbind":         {true, unix.MS_BIND | unix.MS_REC},
+	"relatime":      {true, unix.MS_RELATIME},
+	"remount":       {true, unix.MS_REMOUNT},
+	"ro":            {true, unix.MS_RDONLY},
+	"rw":            {false, unix.MS_RDONLY},
+	"strictatime":   {true, unix.MS_STRICTATIME},
+	"suid":          {false, unix.MS_NOSUID},
+	"sync":          {true, unix.MS_SYNCHRONOUS},
 }
 
 func lxdResolveMountoptions(options string) (uintptr, string) {
@@ -84,7 +85,7 @@ func tryMount(src string, dst string, fs string, flags uintptr, options string) 
 	var err error
 
 	for i := 0; i < 20; i++ {
-		err = syscall.Mount(src, dst, fs, flags, options)
+		err = unix.Mount(src, dst, fs, flags, options)
 		if err == nil {
 			break
 		}
@@ -103,7 +104,7 @@ func tryUnmount(path string, flags int) error {
 	var err error
 
 	for i := 0; i < 20; i++ {
-		err = syscall.Unmount(path, flags)
+		err = unix.Unmount(path, flags)
 		if err == nil {
 			break
 		}
@@ -111,7 +112,7 @@ func tryUnmount(path string, flags int) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	if err != nil && err == syscall.EBUSY {
+	if err != nil && err == unix.EBUSY {
 		return err
 	}
 

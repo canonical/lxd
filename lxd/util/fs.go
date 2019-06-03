@@ -1,7 +1,7 @@
 package util
 
 import (
-	"syscall"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -17,9 +17,9 @@ const (
 
 // FilesystemDetect returns the filesystem on which the passed-in path sits.
 func FilesystemDetect(path string) (string, error) {
-	fs := syscall.Statfs_t{}
+	fs := unix.Statfs_t{}
 
-	err := syscall.Statfs(path, &fs)
+	err := unix.Statfs(path, &fs)
 	if err != nil {
 		return "", err
 	}

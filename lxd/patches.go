@@ -7,20 +7,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
-
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 /* Patches are one-time actions that are sometimes needed to update
@@ -1185,7 +1185,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
-			err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
+			err := tryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
 			if err != nil {
 				logger.Errorf("Failed to unmount LVM logical volume \"%s\": %s", oldContainerMntPoint, err)
 				return err
@@ -1360,7 +1360,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				if shared.PathExists(oldLvDevPath) {
 					// Unmount the logical volume.
 					if shared.IsMountPoint(oldSnapshotMntPoint) {
-						err := tryUnmount(oldSnapshotMntPoint, syscall.MNT_DETACH)
+						err := tryUnmount(oldSnapshotMntPoint, unix.MNT_DETACH)
 						if err != nil {
 							logger.Errorf("Failed to unmount LVM logical volume \"%s\": %s", oldSnapshotMntPoint, err)
 							return err
@@ -1511,7 +1511,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldImageMntPoint := shared.VarPath("images", img+".lv")
 		if shared.IsMountPoint(oldImageMntPoint) {
-			err := tryUnmount(oldImageMntPoint, syscall.MNT_DETACH)
+			err := tryUnmount(oldImageMntPoint, unix.MNT_DETACH)
 			if err != nil {
 				return err
 			}
@@ -1711,7 +1711,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			_, err := shared.TryRunCommand("zfs", "unmount", "-f", ctDataset)
 			if err != nil {
 				logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount, trying lazy umount (MNT_DETACH)...")
-				err := tryUnmount(oldContainerMntPoint, syscall.MNT_DETACH)
+				err := tryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
 				if err != nil {
 					failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to umount zfs filesystem.", ct))
 					continue
@@ -1859,7 +1859,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			_, err := shared.TryRunCommand("zfs", "unmount", "-f", imageDataset)
 			if err != nil {
 				logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount, trying lazy umount (MNT_DETACH)...")
-				err := tryUnmount(oldImageMntPoint, syscall.MNT_DETACH)
+				err := tryUnmount(oldImageMntPoint, unix.MNT_DETACH)
 				if err != nil {
 					logger.Warnf("Failed to unmount ZFS filesystem: %s", err)
 				}
@@ -2746,9 +2746,9 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 		}
 
 		mountSource := cleanSource
-		mountFlags := syscall.MS_BIND
+		mountFlags := unix.MS_BIND
 
-		err = syscall.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
+		err = unix.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
 		if err != nil {
 			logger.Errorf(`Failed to mount DIR storage pool "%s" onto "%s": %s`, mountSource, poolMntPoint, err)
 			return err
@@ -2866,7 +2866,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 
 		if !c.IsRunning() {
 			for wipe := range hasDeviceEntry {
-				syscall.Unmount(wipe, syscall.MNT_DETACH)
+				unix.Unmount(wipe, unix.MNT_DETACH)
 				err := os.Remove(wipe)
 				if err != nil {
 					logger.Errorf("Failed to remove device \"%s\": %s", wipe, err)
@@ -2905,7 +2905,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 				// Try to unmount disk devices otherwise we get
 				// EBUSY when we try to rename block devices.
 				// But don't error out.
-				syscall.Unmount(devPathLegacy, syscall.MNT_DETACH)
+				unix.Unmount(devPathLegacy, unix.MNT_DETACH)
 
 				// Switch device to new device naming scheme.
 				devPathNew := filepath.Join(devicesPath, fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), hyphenatedDevName))
@@ -2961,7 +2961,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 
 			// This device is not associated with a device entry, so
 			// wipe it.
-			syscall.Unmount(k, syscall.MNT_DETACH)
+			unix.Unmount(k, unix.MNT_DETACH)
 			err := os.Remove(k)
 			if err != nil {
 				logger.Errorf("Failed to remove device \"%s\": %s", k, err)
@@ -3330,7 +3330,7 @@ func patchUpdateFromV30(d *Daemon) error {
 			return err
 		}
 
-		if int(info.Sys().(*syscall.Stat_t).Uid) == 0 {
+		if int(info.Sys().(*unix.Stat_t).Uid) == 0 {
 			err := os.Chmod(shared.VarPath("containers", entry.Name()), 0700)
 			if err != nil {
 				return err

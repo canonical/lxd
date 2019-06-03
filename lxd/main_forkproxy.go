@@ -7,10 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/eagain"
@@ -324,11 +324,11 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		err = netutils.AbstractUnixSendFd(forkproxyUDSSockFDNum, int(file.Fd()))
 		if err != nil {
 			errno, ok := shared.GetErrno(err)
-			if ok && (errno == syscall.EAGAIN) {
+			if ok && (errno == unix.EAGAIN) {
 				goto sAgain
 			}
 		}
-		syscall.Close(forkproxyUDSSockFDNum)
+		unix.Close(forkproxyUDSSockFDNum)
 
 		file.Close()
 		return err
@@ -338,16 +338,16 @@ rAgain:
 	file, err := netutils.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
 	if err != nil {
 		errno, ok := shared.GetErrno(err)
-		if ok && (errno == syscall.EAGAIN) {
+		if ok && (errno == unix.EAGAIN) {
 			goto rAgain
 		}
 
 		fmt.Printf("Failed to receive fd from listener process: %v\n", err)
-		syscall.Close(forkproxyUDSSockFDNum)
+		unix.Close(forkproxyUDSSockFDNum)
 		return err
 	}
 
-	syscall.Close(forkproxyUDSSockFDNum)
+	unix.Close(forkproxyUDSSockFDNum)
 
 	listener, err := net.FileListener(file)
 	if err != nil {
@@ -358,7 +358,7 @@ rAgain:
 	// Handle SIGTERM which is sent when the proxy is to be removed
 	terminate := false
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
+	signal.Notify(sigs, unix.SIGTERM)
 
 	// Wait for SIGTERM and close the listener in order to exit the loop below
 	go func() {

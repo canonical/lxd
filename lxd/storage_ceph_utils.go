@@ -10,11 +10,11 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/pborman/uuid"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	"github.com/pborman/uuid"
 )
 
 // cephOSDPoolExists checks whether a given OSD pool exists.

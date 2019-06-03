@@ -7,7 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -96,7 +97,7 @@ func killProxyProc(pidPath string) error {
 	}
 
 	// Actually kill the process
-	err = syscall.Kill(pidInt, syscall.SIGKILL)
+	err = unix.Kill(pidInt, unix.SIGKILL)
 	if err != nil {
 		return err
 	}

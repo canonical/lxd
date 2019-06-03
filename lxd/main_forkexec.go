@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -120,8 +120,8 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Handle exit code
-	var ws syscall.WaitStatus
-	wpid, err := syscall.Wait4(status, &ws, 0, nil)
+	var ws unix.WaitStatus
+	wpid, err := unix.Wait4(status, &ws, 0, nil)
 	if err != nil || wpid != status {
 		return fmt.Errorf("Failed finding process: %q", err)
 	}

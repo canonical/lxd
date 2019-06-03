@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -444,7 +444,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 
 	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if shared.IsMountPoint(volumeMntPoint) {
-		err := tryUnmount(volumeMntPoint, syscall.MNT_DETACH)
+		err := tryUnmount(volumeMntPoint, unix.MNT_DETACH)
 		if err != nil {
 			logger.Errorf(`Failed to unmount RBD storage volume "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
 		}
@@ -579,7 +579,7 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 	var customerr error
 	ourUmount := false
 	if shared.IsMountPoint(volumeMntPoint) {
-		customerr = tryUnmount(volumeMntPoint, syscall.MNT_DETACH)
+		customerr = tryUnmount(volumeMntPoint, unix.MNT_DETACH)
 		ourUmount = true
 	}
 
@@ -1465,7 +1465,7 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourc
 		// been committed to disk. If we don't then the rbd snapshot of
 		// the underlying filesystem can be inconsistent or - worst case
 		// - empty.
-		syscall.Sync()
+		unix.Sync()
 
 		msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--freeze", containerMntPoint)
 		logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
@@ -1717,7 +1717,7 @@ func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
 	}
 
 	// Unmount
-	err := tryUnmount(containerMntPoint, syscall.MNT_DETACH)
+	err := tryUnmount(containerMntPoint, unix.MNT_DETACH)
 	if err != nil {
 		logger.Errorf("Failed to unmount %s: %s", containerMntPoint, err)
 		return false, err
