@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -139,7 +138,7 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If stdin isn't a terminal, read text from it
-	if !termios.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(getStdinFd()) {
 		return c.filePush.Run(cmd, append([]string{os.Stdin.Name()}, args[0]))
 	}
 

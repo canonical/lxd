@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
-	"syscall"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -177,7 +176,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Edit container file template
-	if !termios.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(getStdinFd()) {
 		return resource.server.UpdateContainerTemplateFile(resource.name, args[1], os.Stdin)
 	}
 
