@@ -6,7 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -120,9 +121,9 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool, t
 	err = RunCommandWithFds(reader, nil, command, args...)
 	if err != nil {
 		// Check if we ran out of space
-		fs := syscall.Statfs_t{}
+		fs := unix.Statfs_t{}
 
-		err1 := syscall.Statfs(path, &fs)
+		err1 := unix.Statfs(path, &fs)
 		if err1 != nil {
 			return err1
 		}

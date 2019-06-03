@@ -10,8 +10,9 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -154,7 +155,7 @@ func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
 
 	ret := C.get_poll_revents(C.int(fd), C.int(timeout), C.int(flags), &revents, &saved_errno)
 	if int(ret) < 0 {
-		err = syscall.Errno(saved_errno)
+		err = unix.Errno(saved_errno)
 	}
 
 	return int(ret), int(revents), err
@@ -222,7 +223,7 @@ again:
 	if rv < 0 {
 		// OOM killer will take care of us if we end up doing this too
 		// often.
-		if errno == syscall.ERANGE {
+		if errno == unix.ERANGE {
 			bufSize *= 2
 			tmp := C.realloc(buf, C.size_t(bufSize))
 			if tmp == nil {
@@ -231,7 +232,7 @@ again:
 			buf = tmp
 			goto again
 		}
-		return -1, fmt.Errorf("failed user lookup: %s", syscall.Errno(rv))
+		return -1, fmt.Errorf("failed user lookup: %s", unix.Errno(rv))
 	}
 
 	if result == nil {
@@ -268,7 +269,7 @@ again:
 	if rv != 0 {
 		// OOM killer will take care of us if we end up doing this too
 		// often.
-		if errno == syscall.ERANGE {
+		if errno == unix.ERANGE {
 			bufSize *= 2
 			tmp := C.realloc(buf, C.size_t(bufSize))
 			if tmp == nil {
@@ -279,7 +280,7 @@ again:
 		}
 
 		C.free(buf)
-		return -1, fmt.Errorf("failed group lookup: %s", syscall.Errno(rv))
+		return -1, fmt.Errorf("failed group lookup: %s", unix.Errno(rv))
 	}
 	C.free(buf)
 

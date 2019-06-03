@@ -8,13 +8,14 @@
 package term
 
 import (
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // IsTty returns true if the given file descriptor is a terminal.
 func IsTty(fd uintptr) bool {
 	var termios Termios
-	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
+	_, _, err := unix.Syscall6(unix.SYS_IOCTL, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
 	return err == 0
 }

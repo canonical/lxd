@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -3330,7 +3331,7 @@ func patchUpdateFromV30(d *Daemon) error {
 			return err
 		}
 
-		if int(info.Sys().(*unix.Stat_t).Uid) == 0 {
+		if int(info.Sys().(*syscall.Stat_t).Uid) == 0 {
 			err := os.Chmod(shared.VarPath("containers", entry.Name()), 0700)
 			if err != nil {
 				return err
