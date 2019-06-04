@@ -1235,10 +1235,16 @@ func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sour
 
 func btrfsSnapshotDeleteInternal(poolName string, snapshotName string) error {
 	snapshotSubvolumeName := getSnapshotMountPoint(poolName, snapshotName)
-	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
-		err := btrfsSubVolumesDelete(snapshotSubvolumeName)
-		if err != nil {
-			return err
+
+	// Also delete any leftover .ro snapshot.
+	roSnapshotSubvolumeName := fmt.Sprintf("%s.ro", snapshotSubvolumeName)
+	names := []string{snapshotSubvolumeName, roSnapshotSubvolumeName}
+	for _, name := range names {
+		if shared.PathExists(name) && isBtrfsSubVolume(name) {
+			err := btrfsSubVolumesDelete(name)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
