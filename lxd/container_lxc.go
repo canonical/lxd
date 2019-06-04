@@ -23,6 +23,7 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
@@ -2622,7 +2623,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Unmount any previously mounted shiftfs
-	syscall.Unmount(c.RootfsPath(), syscall.MNT_DETACH)
+	unix.Unmount(c.RootfsPath(), unix.MNT_DETACH)
 
 	return configPath, nil
 }
@@ -4538,7 +4539,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if key == "security.devlxd" {
 				if value == "" || shared.IsTrue(value) {
-					err = c.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", syscall.MS_BIND)
+					err = c.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND)
 					if err != nil {
 						return err
 					}
@@ -6731,7 +6732,7 @@ func (c *containerLXC) StorageStart() (bool, error) {
 
 	isOurOperation, err := c.StorageStartSensitive()
 	// Remove this as soon as zfs is fixed
-	if c.storage.GetStorageType() == storageTypeZfs && err == syscall.EBUSY {
+	if c.storage.GetStorageType() == storageTypeZfs && err == unix.EBUSY {
 		return isOurOperation, nil
 	}
 
@@ -6819,11 +6820,11 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 		defer os.Remove(tmpMount)
 
 		// Mount the filesystem
-		err = syscall.Mount(source, tmpMount, fstype, uintptr(flags), "")
+		err = unix.Mount(source, tmpMount, fstype, uintptr(flags), "")
 		if err != nil {
 			return fmt.Errorf("Failed to setup temporary mount: %s", err)
 		}
-		defer syscall.Unmount(tmpMount, syscall.MNT_DETACH)
+		defer unix.Unmount(tmpMount, unix.MNT_DETACH)
 
 		// Move the mount inside the container
 		mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
@@ -6945,7 +6946,7 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMo
 		mode, err = shared.GetPathMode(srcPath)
 		if err != nil {
 			errno, isErrno := shared.GetErrno(err)
-			if !isErrno || errno != syscall.ENOENT {
+			if !isErrno || errno != unix.ENOENT {
 				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", m["path"], err)
 			}
 			mode = os.FileMode(0660)
@@ -6953,9 +6954,9 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMo
 	}
 
 	if m["type"] == "unix-block" {
-		mode |= syscall.S_IFBLK
+		mode |= unix.S_IFBLK
 	} else {
-		mode |= syscall.S_IFCHR
+		mode |= unix.S_IFCHR
 	}
 
 	// Get the device owner
@@ -6995,7 +6996,7 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMo
 	// Create the new entry
 	if !c.state.OS.RunningInUserNS {
 		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
-		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
+		if err := unix.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
 			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
 		}
 
@@ -7050,7 +7051,7 @@ func (c *containerLXC) insertUnixDevice(prefix string, m types.Device, defaultMo
 	tgtPath := paths[1]
 
 	// Bind-mount it into the container
-	err = c.insertMount(devPath, tgtPath, "none", syscall.MS_BIND)
+	err = c.insertMount(devPath, tgtPath, "none", unix.MS_BIND)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
@@ -7181,7 +7182,7 @@ func (c *containerLXC) removeUnixDevice(prefix string, m types.Device, eject boo
 
 	// Remove the host side
 	if c.state.OS.RunningInUserNS {
-		syscall.Unmount(devPath, syscall.MNT_DETACH)
+		unix.Unmount(devPath, unix.MNT_DETACH)
 	}
 
 	err = os.Remove(devPath)
@@ -8480,9 +8481,9 @@ func (c *containerLXC) insertDiskDevice(name string, m types.Device) error {
 		return nil
 	}
 
-	flags := syscall.MS_BIND
+	flags := unix.MS_BIND
 	if isRecursive {
-		flags |= syscall.MS_REC
+		flags |= unix.MS_REC
 	}
 
 	// Bind-mount it into the container
@@ -8560,7 +8561,7 @@ func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
 	}
 
 	// Unmount the host side
-	err = syscall.Unmount(devPath, syscall.MNT_DETACH)
+	err = unix.Unmount(devPath, unix.MNT_DETACH)
 	if err != nil {
 		return err
 	}
@@ -8607,7 +8608,7 @@ func (c *containerLXC) removeDiskDevices() error {
 		}
 
 		// Always try to unmount the host side
-		_ = syscall.Unmount(filepath.Join(c.DevicesPath(), f.Name()), syscall.MNT_DETACH)
+		_ = unix.Unmount(filepath.Join(c.DevicesPath(), f.Name()), unix.MNT_DETACH)
 
 		// Remove the entry
 		diskPath := filepath.Join(c.DevicesPath(), f.Name())

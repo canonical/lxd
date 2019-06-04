@@ -2,7 +2,8 @@ package eagain
 
 import (
 	"io"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -22,7 +23,7 @@ again:
 
 	// keep retrying on EAGAIN
 	errno, ok := shared.GetErrno(err)
-	if ok && (errno == syscall.EAGAIN || errno == syscall.EINTR) {
+	if ok && (errno == unix.EAGAIN || errno == unix.EINTR) {
 		goto again
 	}
 
@@ -44,7 +45,7 @@ again:
 
 	// keep retrying on EAGAIN
 	errno, ok := shared.GetErrno(err)
-	if ok && (errno == syscall.EAGAIN || errno == syscall.EINTR) {
+	if ok && (errno == unix.EAGAIN || errno == unix.EINTR) {
 		goto again
 	}
 

@@ -8,7 +8,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
@@ -127,8 +126,8 @@ func execIfAliases() error {
 	}
 
 	// Re-exec
-	environ := syscall.Environ()
+	environ := getEnviron()
 	environ = append(environ, "LXC_ALIASES=1")
-	ret := syscall.Exec(path, newArgs, environ)
+	ret := doExec(path, newArgs, environ)
 	return fmt.Errorf(i18n.G("Processing aliases failed: %s"), ret)
 }

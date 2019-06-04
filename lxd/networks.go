@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -2117,7 +2117,7 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
 	err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0600)
 	if err != nil {
-		syscall.Kill(cmd.Process.Pid, syscall.SIGKILL)
+		unix.Kill(cmd.Process.Pid, unix.SIGKILL)
 		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
 		return err
 	}

@@ -7,13 +7,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/pborman/uuid"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	"github.com/pborman/uuid"
 )
 
 // zfsIsEnabled returns whether zfs backend is supported.
@@ -251,7 +251,7 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 	}
 
 	if mountpoint != "none" && shared.IsMountPoint(mountpoint) {
-		err := syscall.Unmount(mountpoint, syscall.MNT_DETACH)
+		err := unix.Unmount(mountpoint, unix.MNT_DETACH)
 		if err != nil {
 			logger.Errorf("umount failed: %s", err)
 			return err
@@ -517,7 +517,7 @@ func zfsUmount(poolName string, path string, mountpoint string) error {
 		fmt.Sprintf("%s/%s", poolName, path))
 	if err != nil {
 		logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount: %s. Trying lazy umount (MNT_DETACH)...", output)
-		err := tryUnmount(mountpoint, syscall.MNT_DETACH)
+		err := tryUnmount(mountpoint, unix.MNT_DETACH)
 		if err != nil {
 			logger.Warnf("Failed to unmount ZFS filesystem via lazy umount (MNT_DETACH)...")
 			return err
@@ -682,7 +682,7 @@ func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bo
 		zfsMountOptions := fmt.Sprintf("rw,zfsutil,mntpoint=%s", containerPoolVolumeMntPoint)
 		mounterr := tryMount(source, containerPoolVolumeMntPoint, "zfs", 0, zfsMountOptions)
 		if mounterr != nil {
-			if mounterr != syscall.EBUSY {
+			if mounterr != unix.EBUSY {
 				logger.Errorf("Failed to mount ZFS dataset \"%s\" onto \"%s\": %v", source, containerPoolVolumeMntPoint, mounterr)
 				return false, mounterr
 			}

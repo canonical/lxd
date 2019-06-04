@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"sync"
-	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -38,7 +37,7 @@ func initSystemRoots() {
 	for {
 		cert, err = windows.CertEnumCertificatesInStore(store, cert)
 		if err != nil {
-			if errno, ok := err.(syscall.Errno); ok {
+			if errno, ok := err.(windows.Errno); ok {
 				if errno == CRYPT_E_NOT_FOUND {
 					break
 				}

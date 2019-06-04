@@ -9,10 +9,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -513,8 +513,8 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poo
 
 				pool.Config["source"] = cli.AskString("Path to the existing block device: ", "", deviceExists)
 			} else {
-				st := syscall.Statfs_t{}
-				err := syscall.Statfs(shared.VarPath(), &st)
+				st := unix.Statfs_t{}
+				err := unix.Statfs(shared.VarPath(), &st)
 				if err != nil {
 					return errors.Wrapf(err, "Couldn't statfs %s", shared.VarPath())
 				}

@@ -8,8 +8,9 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -319,7 +320,7 @@ func SupportsVFS3Fscaps(prefix string) bool {
 	err = cmd.Run()
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
-		if isErrno && (errno == syscall.ERANGE || errno == syscall.EOVERFLOW) {
+		if isErrno && (errno == unix.ERANGE || errno == unix.EOVERFLOW) {
 			return false
 		}
 

@@ -6,9 +6,9 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -19,7 +19,7 @@ func (c *cmdConsole) getStdout() io.WriteCloser {
 
 func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
-	signal.Notify(ch, syscall.SIGWINCH)
+	signal.Notify(ch, unix.SIGWINCH)
 
 	for {
 		sig := <-ch
