@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
@@ -21,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -474,13 +474,13 @@ func setupSharedMounts() error {
 	}
 
 	// Mount a new tmpfs
-	if err := syscall.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711"); err != nil {
+	if err := unix.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711"); err != nil {
 		return err
 	}
 
 	// Mark as MS_SHARED and MS_REC
-	var flags uintptr = syscall.MS_SHARED | syscall.MS_REC
-	if err := syscall.Mount(path, path, "none", flags, ""); err != nil {
+	var flags uintptr = unix.MS_SHARED | unix.MS_REC
+	if err := unix.Mount(path, path, "none", flags, ""); err != nil {
 		return err
 	}
 
@@ -652,7 +652,7 @@ func (d *Daemon) init() error {
 		// Attempt to Mount the devlxd tmpfs
 		devlxd := filepath.Join(d.os.VarDir, "devlxd")
 		if !shared.IsMountPoint(devlxd) {
-			syscall.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
+			unix.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
 		}
 	}
 
@@ -1082,8 +1082,8 @@ func (d *Daemon) Stop() error {
 	if shouldUnmount {
 		logger.Infof("Unmounting temporary filesystems")
 
-		syscall.Unmount(shared.VarPath("devlxd"), syscall.MNT_DETACH)
-		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
+		unix.Unmount(shared.VarPath("devlxd"), unix.MNT_DETACH)
+		unix.Unmount(shared.VarPath("shmounts"), unix.MNT_DETACH)
 
 		logger.Infof("Done unmounting temporary filesystems")
 	} else {

@@ -10,12 +10,13 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/pborman/uuid"
+	"golang.org/x/sys/unix"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-
-	"github.com/pborman/uuid"
 )
 
 // cephOSDPoolExists checks whether a given OSD pool exists.
@@ -1594,7 +1595,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 		// been committed to disk. If we don't then the rbd snapshot of
 		// the underlying filesystem can be inconsistent or - worst case
 		// - empty.
-		syscall.Sync()
+		unix.Sync()
 
 		// create snapshot
 		err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, sourceContainerOnlyName, storagePoolVolumeTypeNameContainer, snapshotName, s.UserName)
@@ -1654,7 +1655,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 		return err
 	}
 	logger.Debugf("Mounted RBD device %s onto %s", RBDDevPath, tmpContainerMntPoint)
-	defer tryUnmount(tmpContainerMntPoint, syscall.MNT_DETACH)
+	defer tryUnmount(tmpContainerMntPoint, unix.MNT_DETACH)
 
 	// Figure out the target name
 	targetName := sourceContainerName

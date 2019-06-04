@@ -18,10 +18,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"unsafe"
 
 	"github.com/jaypipes/pcidb"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -433,8 +433,8 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 					minor, err := findNvidiaMinor(tmpGpu.pci)
 					if err == nil {
 						nvidiaPath := "/dev/nvidia" + minor
-						stat := syscall.Stat_t{}
-						err = syscall.Stat(nvidiaPath, &stat)
+						stat := unix.Stat_t{}
+						err = unix.Stat(nvidiaPath, &stat)
 						if err != nil {
 							if os.IsNotExist(err) {
 								continue
@@ -508,8 +508,8 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 			}
 
 			nvidiaPath := filepath.Join("/dev", nvidiaEnt.Name())
-			stat := syscall.Stat_t{}
-			err = syscall.Stat(nvidiaPath, &stat)
+			stat := unix.Stat_t{}
+			err = unix.Stat(nvidiaPath, &stat)
 			if err != nil {
 				continue
 			}
@@ -583,21 +583,21 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
-	fd, err := syscall.Socket(
-		syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC,
+	fd, err := unix.Socket(
+		unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC,
 		NETLINK_KOBJECT_UEVENT,
 	)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	nl := syscall.SockaddrNetlink{
-		Family: syscall.AF_NETLINK,
+	nl := unix.SockaddrNetlink{
+		Family: unix.AF_NETLINK,
 		Pid:    uint32(os.Getpid()),
 		Groups: 1,
 	}
 
-	err = syscall.Bind(fd, &nl)
+	err = unix.Bind(fd, &nl)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -609,7 +609,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 	go func(chCPU chan []string, chNetwork chan []string, chUSB chan usbDevice) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
-			r, err := syscall.Read(fd, b)
+			r, err := unix.Read(fd, b)
 			if err != nil {
 				continue
 			}
@@ -1101,14 +1101,14 @@ func deviceTaskSchedulerTrigger(srcType string, srcName string, srcStatus string
 
 func deviceIsBlockdev(path string) bool {
 	// Get a stat struct from the provided path
-	stat := syscall.Stat_t{}
-	err := syscall.Stat(path, &stat)
+	stat := unix.Stat_t{}
+	err := unix.Stat(path, &stat)
 	if err != nil {
 		return false
 	}
 
 	// Check if it's a block device
-	if stat.Mode&syscall.S_IFMT == syscall.S_IFBLK {
+	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
 		return true
 	}
 
@@ -1133,17 +1133,17 @@ func deviceModeOct(strmode string) (int, error) {
 
 func deviceGetAttributes(path string) (string, int, int, error) {
 	// Get a stat struct from the provided path
-	stat := syscall.Stat_t{}
-	err := syscall.Stat(path, &stat)
+	stat := unix.Stat_t{}
+	err := unix.Stat(path, &stat)
 	if err != nil {
 		return "", 0, 0, err
 	}
 
 	// Check what kind of file it is
 	dType := ""
-	if stat.Mode&syscall.S_IFMT == syscall.S_IFBLK {
+	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
 		dType = "b"
-	} else if stat.Mode&syscall.S_IFMT == syscall.S_IFCHR {
+	} else if stat.Mode&unix.S_IFMT == unix.S_IFCHR {
 		dType = "c"
 	} else {
 		return "", 0, 0, fmt.Errorf("Not a device")
@@ -1191,7 +1191,7 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bo
 	// Prepare the mount flags
 	flags := 0
 	if readonly {
-		flags |= syscall.MS_RDONLY
+		flags |= unix.MS_RDONLY
 	}
 
 	// Detect the filesystem
@@ -1202,50 +1202,50 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bo
 			return err
 		}
 	} else {
-		flags |= syscall.MS_BIND
+		flags |= unix.MS_BIND
 		if propagation != "" {
 			switch propagation {
 			case "private":
-				flags |= syscall.MS_PRIVATE
+				flags |= unix.MS_PRIVATE
 			case "shared":
-				flags |= syscall.MS_SHARED
+				flags |= unix.MS_SHARED
 			case "slave":
-				flags |= syscall.MS_SLAVE
+				flags |= unix.MS_SLAVE
 			case "unbindable":
-				flags |= syscall.MS_UNBINDABLE
+				flags |= unix.MS_UNBINDABLE
 			case "rprivate":
-				flags |= syscall.MS_PRIVATE | syscall.MS_REC
+				flags |= unix.MS_PRIVATE | unix.MS_REC
 			case "rshared":
-				flags |= syscall.MS_SHARED | syscall.MS_REC
+				flags |= unix.MS_SHARED | unix.MS_REC
 			case "rslave":
-				flags |= syscall.MS_SLAVE | syscall.MS_REC
+				flags |= unix.MS_SLAVE | unix.MS_REC
 			case "runbindable":
-				flags |= syscall.MS_UNBINDABLE | syscall.MS_REC
+				flags |= unix.MS_UNBINDABLE | unix.MS_REC
 			default:
 				return fmt.Errorf("Invalid propagation mode '%s'", propagation)
 			}
 		}
 
 		if recursive {
-			flags |= syscall.MS_REC
+			flags |= unix.MS_REC
 		}
 	}
 
 	// Mount the filesystem
-	if err = syscall.Mount(srcPath, dstPath, fstype, uintptr(flags), ""); err != nil {
+	if err = unix.Mount(srcPath, dstPath, fstype, uintptr(flags), ""); err != nil {
 		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
 	}
 
 	// Remount bind mounts in readonly mode if requested
-	if readonly == true && flags&syscall.MS_BIND == syscall.MS_BIND {
-		flags = syscall.MS_RDONLY | syscall.MS_BIND | syscall.MS_REMOUNT
-		if err = syscall.Mount("", dstPath, fstype, uintptr(flags), ""); err != nil {
+	if readonly == true && flags&unix.MS_BIND == unix.MS_BIND {
+		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
+		if err = unix.Mount("", dstPath, fstype, uintptr(flags), ""); err != nil {
 			return fmt.Errorf("Unable to mount %s in readonly mode: %s", dstPath, err)
 		}
 	}
 
-	flags = syscall.MS_REC | syscall.MS_SLAVE
-	if err = syscall.Mount("", dstPath, "", uintptr(flags), ""); err != nil {
+	flags = unix.MS_REC | unix.MS_SLAVE
+	if err = unix.Mount("", dstPath, "", uintptr(flags), ""); err != nil {
 		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
 	}
 
@@ -1817,7 +1817,7 @@ func deviceInotifyInit(s *state.State) (int, error) {
 		return s.OS.InotifyWatch.Fd, nil
 	}
 
-	inFd, err := syscall.InotifyInit1(syscall.IN_CLOEXEC)
+	inFd, err := unix.InotifyInit1(unix.IN_CLOEXEC)
 	if err != nil {
 		logger.Errorf("Failed to initialize inotify")
 		return -1, err
@@ -1878,11 +1878,11 @@ func deviceInotifyAddTarget(s *state.State, path string) error {
 	}
 
 	mask := uint32(0)
-	mask |= syscall.IN_ONLYDIR
-	mask |= syscall.IN_CREATE
-	mask |= syscall.IN_DELETE
-	mask |= syscall.IN_DELETE_SELF
-	wd, err := syscall.InotifyAddWatch(inFd, path, mask)
+	mask |= unix.IN_ONLYDIR
+	mask |= unix.IN_CREATE
+	mask |= unix.IN_DELETE
+	mask |= unix.IN_DELETE_SELF
+	wd, err := unix.InotifyAddWatch(inFd, path, mask)
 	if err != nil {
 		return err
 	}
@@ -1905,13 +1905,13 @@ func deviceInotifyAddTarget(s *state.State, path string) error {
 
 func deviceInotifyDel(s *state.State) {
 	s.OS.InotifyWatch.Lock()
-	syscall.Close(s.OS.InotifyWatch.Fd)
+	unix.Close(s.OS.InotifyWatch.Fd)
 	s.OS.InotifyWatch.Fd = -1
 	s.OS.InotifyWatch.Unlock()
 }
 
 const LXD_BATCH_IN_EVENTS uint = 100
-const LXD_SINGLE_IN_EVENT_SIZE uint = (syscall.SizeofInotifyEvent + syscall.PathMax)
+const LXD_SINGLE_IN_EVENT_SIZE uint = (unix.SizeofInotifyEvent + unix.PathMax)
 const LXD_BATCH_IN_BUFSIZE uint = LXD_BATCH_IN_EVENTS * LXD_SINGLE_IN_EVENT_SIZE
 
 func deviceInotifyWatcher(s *state.State) (chan sys.InotifyTargetInfo, error) {
@@ -1919,9 +1919,9 @@ func deviceInotifyWatcher(s *state.State) (chan sys.InotifyTargetInfo, error) {
 	go func(target chan sys.InotifyTargetInfo) {
 		for {
 			buf := make([]byte, LXD_BATCH_IN_BUFSIZE)
-			n, errno := syscall.Read(s.OS.InotifyWatch.Fd, buf)
+			n, errno := unix.Read(s.OS.InotifyWatch.Fd, buf)
 			if errno != nil {
-				if errno == syscall.EINTR {
+				if errno == unix.EINTR {
 					continue
 				}
 
@@ -1929,18 +1929,18 @@ func deviceInotifyWatcher(s *state.State) (chan sys.InotifyTargetInfo, error) {
 				return
 			}
 
-			if n < syscall.SizeofInotifyEvent {
+			if n < unix.SizeofInotifyEvent {
 				continue
 			}
 
 			var offset uint32
-			for offset <= uint32(n-syscall.SizeofInotifyEvent) {
+			for offset <= uint32(n-unix.SizeofInotifyEvent) {
 				name := ""
-				event := (*syscall.InotifyEvent)(unsafe.Pointer(&buf[offset]))
+				event := (*unix.InotifyEvent)(unsafe.Pointer(&buf[offset]))
 
 				nameLen := uint32(event.Len)
 				if nameLen > 0 {
-					bytes := (*[syscall.PathMax]byte)(unsafe.Pointer(&buf[offset+syscall.SizeofInotifyEvent]))
+					bytes := (*[unix.PathMax]byte)(unsafe.Pointer(&buf[offset+unix.SizeofInotifyEvent]))
 					name = strings.TrimRight(string(bytes[0:nameLen]), "\000")
 				}
 
@@ -1950,7 +1950,7 @@ func deviceInotifyWatcher(s *state.State) (chan sys.InotifyTargetInfo, error) {
 					Wd:   int(event.Wd),
 				}
 
-				offset += (syscall.SizeofInotifyEvent + nameLen)
+				offset += (unix.SizeofInotifyEvent + nameLen)
 			}
 		}
 	}(targetChan)
@@ -1972,7 +1972,7 @@ func deviceInotifyDelWatcher(s *state.State, path string) error {
 		return nil
 	}
 
-	ret, err := syscall.InotifyRmWatch(s.OS.InotifyWatch.Fd, uint32(target.Wd))
+	ret, err := unix.InotifyRmWatch(s.OS.InotifyWatch.Fd, uint32(target.Wd))
 	if ret != 0 {
 		// When a file gets deleted the wd for that file will
 		// automatically be deleted from the inotify instance. So
@@ -1999,14 +1999,14 @@ func createAncestorPaths(cleanPath string) []string {
 }
 
 func deviceInotifyEvent(s *state.State, target *sys.InotifyTargetInfo) {
-	if (target.Mask & syscall.IN_ISDIR) > 0 {
-		if (target.Mask & syscall.IN_CREATE) > 0 {
+	if (target.Mask & unix.IN_ISDIR) > 0 {
+		if (target.Mask & unix.IN_CREATE) > 0 {
 			deviceInotifyDirCreateEvent(s, target)
-		} else if (target.Mask & syscall.IN_DELETE) > 0 {
+		} else if (target.Mask & unix.IN_DELETE) > 0 {
 			deviceInotifyDirDeleteEvent(s, target)
 		}
 		deviceInotifyDirRescan(s)
-	} else if (target.Mask & syscall.IN_DELETE_SELF) > 0 {
+	} else if (target.Mask & unix.IN_DELETE_SELF) > 0 {
 		deviceInotifyDirDeleteEvent(s, target)
 		deviceInotifyDirRescan(s)
 	} else {
@@ -2238,13 +2238,13 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 				continue
 			}
 
-			if (target.Mask & syscall.IN_CREATE) > 0 {
+			if (target.Mask & unix.IN_CREATE) > 0 {
 				err := c.insertUnixDevice(fmt.Sprintf("unix.%s", name), m, false)
 				if err != nil {
 					logger.Error("Failed to create unix device", log.Ctx{"err": err, "dev": m, "container": c.Name()})
 					continue
 				}
-			} else if (target.Mask & syscall.IN_DELETE) > 0 {
+			} else if (target.Mask & unix.IN_DELETE) > 0 {
 				err := c.removeUnixDevice(fmt.Sprintf("unix.%s", name), m, true)
 				if err != nil {
 					logger.Error("Failed to remove unix device", log.Ctx{"err": err, "dev": m, "container": c.Name()})

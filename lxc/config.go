@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -152,7 +151,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// If stdin isn't a terminal, read text from it
-		if !termios.IsTerminal(int(syscall.Stdin)) {
+		if !termios.IsTerminal(getStdinFd()) {
 			contents, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
 				return err
@@ -298,7 +297,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If stdin isn't a terminal, read text from it
-	if !termios.IsTerminal(int(syscall.Stdin)) {
+	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
@@ -500,7 +499,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 		key := args[len(args)-2]
 		value := args[len(args)-1]
 
-		if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
+		if !termios.IsTerminal(getStdinFd()) && value == "-" {
 			buf, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
 				return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)

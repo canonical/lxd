@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -52,13 +52,13 @@ func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Unshare a clean mount namespace
-	err := syscall.Unshare(syscall.CLONE_NEWNS)
+	err := unix.Unshare(unix.CLONE_NEWNS)
 	if err != nil {
 		return err
 	}
 
 	// Mark mount tree as private
-	err = syscall.Mount("none", "/", "", syscall.MS_REC|syscall.MS_PRIVATE, "")
+	err = unix.Mount("none", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (c *cmdForkZFS) Run(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		syscall.Unmount(rows[4], syscall.MNT_DETACH)
+		unix.Unmount(rows[4], unix.MNT_DETACH)
 	}
 
 	// Run the ZFS command
