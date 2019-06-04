@@ -1535,6 +1535,7 @@ func (n *network) Start() error {
 	// Configure the fan
 	dnsClustered := false
 	dnsClusteredAddress := ""
+	var overlaySubnet *net.IPNet
 	if n.config["bridge.mode"] == "fan" {
 		tunName := fmt.Sprintf("%s-fan", n.name)
 
@@ -1551,7 +1552,7 @@ func (n *network) Start() error {
 			overlay = "240.0.0.0/8"
 		}
 
-		_, overlaySubnet, err := net.ParseCIDR(overlay)
+		_, overlaySubnet, err = net.ParseCIDR(overlay)
 		if err != nil {
 			return err
 		}
@@ -1794,6 +1795,7 @@ func (n *network) Start() error {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", "__internal", "-S", "/__internal/"}...)
 				dnsmasqCmd = append(dnsmasqCmd, []string{"-S", fmt.Sprintf("/%s/%s#1053", dnsDomain, dnsClusteredAddress)}...)
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=15,%s", dnsDomain))
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--rev-server=%s,%s#1053", overlaySubnet, dnsClusteredAddress))
 			} else {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
 			}
@@ -2101,10 +2103,13 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 		dnsDomain = "lxd"
 	}
 
+	// Lease file to parse
+	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
+
 	// Spawn the daemon
 	cmd := exec.Cmd{}
 	cmd.Path = n.state.OS.ExecPath
-	cmd.Args = []string{n.state.OS.ExecPath, "forkdns", fmt.Sprintf("%s:1053", listenAddress), dnsDomain}
+	cmd.Args = []string{n.state.OS.ExecPath, "forkdns", fmt.Sprintf("%s:1053", listenAddress), dnsDomain, leaseFile}
 	cmd.Args = append(cmd.Args, addresses...)
 
 	err = cmd.Start()
