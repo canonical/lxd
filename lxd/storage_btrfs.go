@@ -1060,7 +1060,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 		}
 	}
 
-	err = s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false, true)
+	err = s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, true, true)
 	if err != nil {
 		return err
 	}
