@@ -2801,14 +2801,8 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 		}
 	}
 
-	containersMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, "")
-	err := createContainerMountpoint(containersMntPoint, args.Container.Path(), args.Container.IsPrivileged())
-	if err != nil {
-		return err
-	}
-
 	/* finally, do the real container */
-	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
+	containersMntPoint := getContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, projectPrefix(args.Container.Project(), containerName))
 	if err != nil {
 		return err
@@ -2820,6 +2814,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 		return err
 	}
 
+	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
 	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {
