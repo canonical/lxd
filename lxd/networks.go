@@ -1792,9 +1792,8 @@ func (n *network) Start() error {
 
 		if n.config["dns.mode"] != "none" {
 			if dnsClustered {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", "__internal", "-S", "/__internal/"}...)
-				dnsmasqCmd = append(dnsmasqCmd, []string{"-S", fmt.Sprintf("/%s/%s#1053", dnsDomain, dnsClusteredAddress)}...)
-				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=15,%s", dnsDomain))
+				dnsmasqCmd = append(dnsmasqCmd, "-s", dnsDomain)
+				dnsmasqCmd = append(dnsmasqCmd, "-S", fmt.Sprintf("/%s/%s#1053", dnsDomain, dnsClusteredAddress))
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--rev-server=%s,%s#1053", overlaySubnet, dnsClusteredAddress))
 			} else {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
