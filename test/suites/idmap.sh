@@ -46,6 +46,12 @@ test_idmap() {
 
   # Check a normal, non-isolated container (full LXD id range)
   lxc launch testimage idmap
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "$lxd_backend" = "btrfs" ]; then
+    lxc exec idmap -- btrfs subvolume create -r /aaa || true
+  fi
+
   [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $2}')" = "${UID_BASE}" ]
   [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $2}')" = "${GID_BASE}" ]
   [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "${UIDs}" ]
