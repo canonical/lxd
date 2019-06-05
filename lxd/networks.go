@@ -1672,9 +1672,17 @@ func (n *network) Start() error {
 		}
 
 		// Setup clustered DNS
-		dnsClustered, err = cluster.Enabled(n.state.Node)
+		clusterAddress, err := node.ClusterAddress(n.state.Node)
 		if err != nil {
 			return err
+		}
+
+		// If clusterAddress is non-empty, this indicates the intention for this node to be
+		// part of a cluster and so we should ensure that dnsmasq and forkdns are started
+		// in cluster mode. Note: During LXD initialisation the cluster may not actually be
+		// setup yet, but we want the DNS processes to be ready for when it is.
+		if clusterAddress != "" {
+			dnsClustered = true
 		}
 
 		dnsClusteredAddress = strings.Split(fanAddress, "/")[0]
