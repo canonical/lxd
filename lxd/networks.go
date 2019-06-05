@@ -2064,7 +2064,7 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 	}
 
 	// Grab the network address from the various nodes
-	addresses := []string{listenAddress}
+	addresses := []string{}
 
 	cert := n.state.Endpoints.NetworkCert()
 	for _, node := range nodes {
