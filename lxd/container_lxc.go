@@ -1910,6 +1910,43 @@ func (c *containerLXC) setupUnixDevice(prefix string, dev types.Device, major in
 	return lxcSetConfigItem(c.c, "lxc.mount.entry", val)
 }
 
+func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
+	var err error
+	roSubvols := []string{}
+	subvols, _ := btrfsSubVolumesGet(path)
+	sort.Sort(sort.StringSlice(subvols))
+	for _, subvol := range subvols {
+		subvol = filepath.Join(path, subvol)
+
+		if !btrfsSubVolumeIsRo(subvol) {
+			continue
+		}
+
+		roSubvols = append(roSubvols, subvol)
+		btrfsSubVolumeMakeRw(subvol)
+	}
+
+	if shift {
+		err = diskIdmap.ShiftRootfs(path, nil)
+	} else {
+		err = diskIdmap.UnshiftRootfs(path, nil)
+	}
+
+	for _, subvol := range roSubvols {
+		btrfsSubVolumeMakeRo(subvol)
+	}
+
+	return err
+}
+
+func ShiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
+	return shiftBtrfsRootfs(path, diskIdmap, true)
+}
+
+func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
+	return shiftBtrfsRootfs(path, diskIdmap, false)
+}
+
 // Start functions
 func (c *containerLXC) startCommon() (string, error) {
 	// Load the go-lxc struct
@@ -2020,6 +2057,8 @@ func (c *containerLXC) startCommon() (string, error) {
 		if diskIdmap != nil {
 			if c.Storage().GetStorageType() == storageTypeZfs {
 				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+			} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+				err = UnshiftBtrfsRootfs(c.RootfsPath(), diskIdmap)
 			} else {
 				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), nil)
 			}
@@ -2034,6 +2073,8 @@ func (c *containerLXC) startCommon() (string, error) {
 		if nextIdmap != nil {
 			if c.Storage().GetStorageType() == storageTypeZfs {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+			} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+				err = ShiftBtrfsRootfs(c.RootfsPath(), nextIdmap)
 			} else {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), nil)
 			}
@@ -5044,6 +5085,8 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 		if c.Storage().GetStorageType() == storageTypeZfs {
 			err = idmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+		} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+			err = UnshiftBtrfsRootfs(c.RootfsPath(), idmap)
 		} else {
 			err = idmap.UnshiftRootfs(c.RootfsPath(), nil)
 		}
@@ -5054,6 +5097,8 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 		if c.Storage().GetStorageType() == storageTypeZfs {
 			defer idmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+		} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+			defer ShiftBtrfsRootfs(c.RootfsPath(), idmap)
 		} else {
 			defer idmap.ShiftRootfs(c.RootfsPath(), nil)
 		}
@@ -5367,6 +5412,8 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 			if c.Storage().GetStorageType() == storageTypeZfs {
 				err = idmapset.ShiftRootfs(args.stateDir, zfsIdmapSetSkipper)
+			} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+				err = ShiftBtrfsRootfs(args.stateDir, idmapset)
 			} else {
 				err = idmapset.ShiftRootfs(args.stateDir, nil)
 			}

@@ -1803,6 +1803,25 @@ func isOnBtrfs(path string) bool {
 	return true
 }
 
+func btrfsSubVolumeIsRo(path string) bool {
+	output, err := shared.RunCommand("btrfs", "property", "get", "-ts", path)
+	if err != nil {
+		return false
+	}
+
+	return strings.HasPrefix(string(output), "ro=true")
+}
+
+func btrfsSubVolumeMakeRo(path string) error {
+	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
+	return err
+}
+
+func btrfsSubVolumeMakeRw(path string) error {
+	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
+	return err
+}
+
 func btrfsSubVolumesGet(path string) ([]string, error) {
 	result := []string{}
 
