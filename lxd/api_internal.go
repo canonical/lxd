@@ -495,7 +495,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return BadRequest(fmt.Errorf(`The storage pool "%s" `+
 				`the container was detected on does not match `+
 				`the storage pool "%s" specified in the `+
-				`backup file`, backup.Pool.Name, containerPoolName))
+				`backup file`, containerPoolName, backup.Pool.Name))
 		}
 
 		if backup.Pool.Driver != pool.Driver {
