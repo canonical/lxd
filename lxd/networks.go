@@ -1854,6 +1854,21 @@ func (n *network) Start() error {
 
 		// Spawn DNS forwarder if needed (backgrounded to avoid deadlocks during cluster boot)
 		if dnsClustered {
+			// Create forkdns servers directory
+			if !shared.PathExists(shared.VarPath("networks", n.name, forkdnsServersListPath)) {
+				err = os.MkdirAll(shared.VarPath("networks", n.name, forkdnsServersListPath), 0755)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Create forkdns servers.conf file if doesn't exist
+			f, err := os.OpenFile(shared.VarPath("networks", n.name, forkdnsServersListPath+"/"+forkdnsServersListFile), os.O_RDONLY|os.O_CREATE, 0666)
+			if err != nil {
+				return err
+			}
+			f.Close()
+
 			go n.spawnForkDNS(dnsClusteredAddress)
 		}
 	}
