@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
@@ -1870,7 +1869,10 @@ func (n *network) Start() error {
 			}
 			f.Close()
 
-			go n.spawnForkDNS(dnsClusteredAddress)
+			err = n.spawnForkDNS(dnsClusteredAddress)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -2074,70 +2076,25 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 }
 
 func (n *network) spawnForkDNS(listenAddress string) error {
-	// Get the list of nodes
-	nodes, err := cluster.List(n.state)
-	if err != nil {
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
-		return err
-	}
-
-	localAddress, err := node.HTTPSAddress(n.state.Node)
-	if err != nil {
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
-		return err
-	}
-
-	// Grab the network address from the various nodes
-	addresses := []string{}
-
-	cert := n.state.Endpoints.NetworkCert()
-	for _, node := range nodes {
-		address := strings.TrimPrefix(node.URL, "https://")
-		if address == localAddress {
-			continue
-		}
-
-	again:
-		client, err := cluster.Connect(address, cert, false)
-		if err != nil {
-			time.Sleep(30 * time.Second)
-			goto again
-		}
-
-		state, err := client.GetNetworkState(n.name)
-		if err != nil {
-			time.Sleep(30 * time.Second)
-			goto again
-		}
-
-		for _, addr := range state.Addresses {
-			if addr.Family != "inet" || addr.Scope != "global" {
-				continue
-			}
-
-			addresses = append(addresses, addr.Address)
-			break
-		}
-	}
-
 	// Setup the dnsmasq domain
 	dnsDomain := n.config["dns.domain"]
 	if dnsDomain == "" {
 		dnsDomain = "lxd"
 	}
 
-	// Lease file to parse
-	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
-
 	// Spawn the daemon
 	cmd := exec.Cmd{}
 	cmd.Path = n.state.OS.ExecPath
-	cmd.Args = []string{n.state.OS.ExecPath, "forkdns", fmt.Sprintf("%s:1053", listenAddress), dnsDomain, leaseFile}
-	cmd.Args = append(cmd.Args, addresses...)
+	cmd.Args = []string{
+		n.state.OS.ExecPath,
+		"forkdns",
+		fmt.Sprintf("%s:1053", listenAddress),
+		dnsDomain,
+		n.name,
+	}
 
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
 		return err
 	}
 
@@ -2146,7 +2103,6 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 	err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0600)
 	if err != nil {
 		unix.Kill(cmd.Process.Pid, unix.SIGKILL)
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
 		return err
 	}
 
