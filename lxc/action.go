@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -137,20 +138,24 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		state = true
 	}
 
+	logger.Errorf("stgraber: %s for %s: here", action, nameArg)
 	remote, name, err := conf.ParseRemote(nameArg)
 	if err != nil {
 		return err
 	}
 
+	logger.Errorf("stgraber: %s for %s: here1", action, nameArg)
 	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
+	logger.Errorf("stgraber: %s for %s: here2", action, nameArg)
 	if name == "" {
 		return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
 	}
 
+	logger.Errorf("stgraber: %s for %s: here3", action, nameArg)
 	if action == "start" {
 		current, _, err := d.GetContainer(name)
 		if err != nil {
@@ -168,6 +173,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		}
 	}
 
+	logger.Errorf("stgraber: %s for %s: here4", action, nameArg)
 	req := api.ContainerStatePut{
 		Action:   action,
 		Timeout:  c.flagTimeout,
@@ -175,11 +181,13 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		Stateful: state,
 	}
 
+	logger.Errorf("stgraber: %s for %s: here5", action, nameArg)
 	op, err := d.UpdateContainerState(name, req, "")
 	if err != nil {
 		return err
 	}
 
+	logger.Errorf("stgraber: %s for %s: here6", action, nameArg)
 	progress := utils.ProgressRenderer{
 		Quiet: c.global.flagQuiet,
 	}
@@ -190,12 +198,14 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	// Wait for operation to finish
+	logger.Errorf("stgraber: %s for %s: here7", action, nameArg)
 	err = utils.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
 	}
 
+	logger.Errorf("stgraber: %s for %s: here8", action, nameArg)
 	progress.Done("")
 
 	return nil
@@ -242,7 +252,9 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run the action for every listed container
+	logger.Errorf("stgraber: Running %s for %v", cmd.Name(), names)
 	results := runBatch(names, func(name string) error { return c.doAction(cmd.Name(), conf, name) })
+	logger.Errorf("stgraber: Results: %v", results)
 
 	// Single container is easy
 	if len(results) == 1 {
