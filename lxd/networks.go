@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -2150,4 +2151,75 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 	}
 
 	return nil
+}
+
+// refreshForkdnsServerAddresses retrieves the IPv4 address of each cluster node (excluding ourselves)
+// for this network. It then updates the forkdns server list file if there are changes.
+func (n *network) refreshForkdnsServerAddresses() {
+	addresses := []string{}
+
+	// Get the list of nodes
+	nodes, err := cluster.List(n.state)
+	if err != nil {
+		logger.Errorf("Failed to get forkdns cluster list for '%s': %v", n.name, err)
+		return
+	}
+
+	localAddress, err := node.HTTPSAddress(n.state.Node)
+	if err != nil {
+		logger.Errorf("Failed to get forkdns local cluster address for '%s': %v", n.name, err)
+		return
+	}
+
+	cert := n.state.Endpoints.NetworkCert()
+	for _, node := range nodes {
+		address := strings.TrimPrefix(node.URL, "https://")
+		if address == localAddress {
+			// No need to query ourselves.
+			continue
+		}
+
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			logger.Errorf("Failed to connect to cluster node '%s': %v", address, err)
+			return
+		}
+
+		state, err := client.GetNetworkState(n.name)
+		if err != nil {
+			logger.Errorf("Failed to get cluster network state for '%s': %v", address, err)
+			return
+		}
+
+		for _, addr := range state.Addresses {
+			// Only get IPv4 addresses of nodes on network.
+			if addr.Family != "inet" || addr.Scope != "global" {
+				continue
+			}
+
+			addresses = append(addresses, addr.Address)
+			break
+		}
+	}
+
+	// Compare current stored list to retrieved list and see if we need to update.
+	curList, err := networksGetForkdnsServersList(n.name)
+	if err != nil {
+		// Only warn here, but continue on to regenerate the servers list from cluster info.
+		logger.Warnf("Failed to load existing forkdns server list: %v", err)
+	}
+
+	// If current list is same as cluster list, nothing to do.
+	if err == nil && reflect.DeepEqual(curList, addresses) {
+		return
+	}
+
+	err = networkUpdateForkdnsServersFile(n.name, addresses)
+	if err != nil {
+		logger.Errorf("Failed to update forkdns servers list for '%s': %v", n.name, err)
+		return
+	}
+
+	logger.Infof("Updated forkdns server list for '%s': %v", n.name, addresses)
+	return
 }
