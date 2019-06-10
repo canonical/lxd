@@ -163,10 +163,6 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 			if config["block.filesystem"] != "" {
 				return fmt.Errorf("the key block.filesystem cannot be used with dir storage volumes")
 			}
-
-			if config["size"] != "" {
-				return fmt.Errorf("the key size cannot be used with dir storage volumes")
-			}
 		}
 	}
 
