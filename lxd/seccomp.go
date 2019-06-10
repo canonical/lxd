@@ -58,6 +58,9 @@ struct seccomp_notify_proxy_msg {
 
 static int device_allowed(dev_t dev, mode_t mode)
 {
+	if ((dev == makedev(0, 0)) && (mode & S_IFCHR)) // whiteout
+		return 0;
+
 	if ((dev == makedev(5, 1)) && (mode & S_IFCHR)) // /dev/console
 		return 0;
 
