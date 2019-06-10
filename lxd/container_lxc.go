@@ -8851,7 +8851,8 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	if m["nictype"] == "physical" {
 		hostName = networkGetHostDevice(m["parent"], m["vlan"])
 	} else if m["nictype"] == "sriov" {
-		hostName = m["host_name"]
+		// hostName for sriov devices can change on each boot, so get out of volatile.
+		hostName = c.getVolatileHostName(name)
 	} else {
 		hostName = deviceNextVeth()
 	}
