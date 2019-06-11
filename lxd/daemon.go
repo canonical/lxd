@@ -926,6 +926,9 @@ func (d *Daemon) startClusterTasks() {
 	// Auto-sync images across the cluster (daily)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
 
+	// Forkdns server list refresh
+	d.clusterTasks.Add(networkUpdateForkdnsServersTask(d))
+
 	// Start all background tasks
 	d.clusterTasks.Start()
 }

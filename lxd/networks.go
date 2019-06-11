@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
@@ -1672,9 +1672,17 @@ func (n *network) Start() error {
 		}
 
 		// Setup clustered DNS
-		dnsClustered, err = cluster.Enabled(n.state.Node)
+		clusterAddress, err := node.ClusterAddress(n.state.Node)
 		if err != nil {
 			return err
+		}
+
+		// If clusterAddress is non-empty, this indicates the intention for this node to be
+		// part of a cluster and so we should ensure that dnsmasq and forkdns are started
+		// in cluster mode. Note: During LXD initialisation the cluster may not actually be
+		// setup yet, but we want the DNS processes to be ready for when it is.
+		if clusterAddress != "" {
+			dnsClustered = true
 		}
 
 		dnsClusteredAddress = strings.Split(fanAddress, "/")[0]
@@ -1846,7 +1854,25 @@ func (n *network) Start() error {
 
 		// Spawn DNS forwarder if needed (backgrounded to avoid deadlocks during cluster boot)
 		if dnsClustered {
-			go n.spawnForkDNS(dnsClusteredAddress)
+			// Create forkdns servers directory
+			if !shared.PathExists(shared.VarPath("networks", n.name, forkdnsServersListPath)) {
+				err = os.MkdirAll(shared.VarPath("networks", n.name, forkdnsServersListPath), 0755)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Create forkdns servers.conf file if doesn't exist
+			f, err := os.OpenFile(shared.VarPath("networks", n.name, forkdnsServersListPath+"/"+forkdnsServersListFile), os.O_RDONLY|os.O_CREATE, 0666)
+			if err != nil {
+				return err
+			}
+			f.Close()
+
+			err = n.spawnForkDNS(dnsClusteredAddress)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -2050,43 +2076,79 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 }
 
 func (n *network) spawnForkDNS(listenAddress string) error {
+	// Setup the dnsmasq domain
+	dnsDomain := n.config["dns.domain"]
+	if dnsDomain == "" {
+		dnsDomain = "lxd"
+	}
+
+	// Spawn the daemon
+	cmd := exec.Cmd{}
+	cmd.Path = n.state.OS.ExecPath
+	cmd.Args = []string{
+		n.state.OS.ExecPath,
+		"forkdns",
+		fmt.Sprintf("%s:1053", listenAddress),
+		dnsDomain,
+		n.name,
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	// Write the PID file
+	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
+	err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0600)
+	if err != nil {
+		unix.Kill(cmd.Process.Pid, unix.SIGKILL)
+		return err
+	}
+
+	return nil
+}
+
+// refreshForkdnsServerAddresses retrieves the IPv4 address of each cluster node (excluding ourselves)
+// for this network. It then updates the forkdns server list file if there are changes.
+func (n *network) refreshForkdnsServerAddresses() {
+	addresses := []string{}
+
 	// Get the list of nodes
 	nodes, err := cluster.List(n.state)
 	if err != nil {
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
-		return err
+		logger.Errorf("Failed to get forkdns cluster list for '%s': %v", n.name, err)
+		return
 	}
 
 	localAddress, err := node.HTTPSAddress(n.state.Node)
 	if err != nil {
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
-		return err
+		logger.Errorf("Failed to get forkdns local cluster address for '%s': %v", n.name, err)
+		return
 	}
-
-	// Grab the network address from the various nodes
-	addresses := []string{}
 
 	cert := n.state.Endpoints.NetworkCert()
 	for _, node := range nodes {
 		address := strings.TrimPrefix(node.URL, "https://")
 		if address == localAddress {
+			// No need to query ourselves.
 			continue
 		}
 
-	again:
 		client, err := cluster.Connect(address, cert, false)
 		if err != nil {
-			time.Sleep(30 * time.Second)
-			goto again
+			logger.Errorf("Failed to connect to cluster node '%s': %v", address, err)
+			return
 		}
 
 		state, err := client.GetNetworkState(n.name)
 		if err != nil {
-			time.Sleep(30 * time.Second)
-			goto again
+			logger.Errorf("Failed to get cluster network state for '%s': %v", address, err)
+			return
 		}
 
 		for _, addr := range state.Addresses {
+			// Only get IPv4 addresses of nodes on network.
 			if addr.Family != "inet" || addr.Scope != "global" {
 				continue
 			}
@@ -2096,35 +2158,24 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 		}
 	}
 
-	// Setup the dnsmasq domain
-	dnsDomain := n.config["dns.domain"]
-	if dnsDomain == "" {
-		dnsDomain = "lxd"
-	}
-
-	// Lease file to parse
-	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
-
-	// Spawn the daemon
-	cmd := exec.Cmd{}
-	cmd.Path = n.state.OS.ExecPath
-	cmd.Args = []string{n.state.OS.ExecPath, "forkdns", fmt.Sprintf("%s:1053", listenAddress), dnsDomain, leaseFile}
-	cmd.Args = append(cmd.Args, addresses...)
-
-	err = cmd.Start()
+	// Compare current stored list to retrieved list and see if we need to update.
+	curList, err := networksGetForkdnsServersList(n.name)
 	if err != nil {
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
-		return err
+		// Only warn here, but continue on to regenerate the servers list from cluster info.
+		logger.Warnf("Failed to load existing forkdns server list: %v", err)
 	}
 
-	// Write the PID file
-	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
-	err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0600)
+	// If current list is same as cluster list, nothing to do.
+	if err == nil && reflect.DeepEqual(curList, addresses) {
+		return
+	}
+
+	err = networkUpdateForkdnsServersFile(n.name, addresses)
 	if err != nil {
-		unix.Kill(cmd.Process.Pid, unix.SIGKILL)
-		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
-		return err
+		logger.Errorf("Failed to update forkdns servers list for '%s': %v", n.name, err)
+		return
 	}
 
-	return nil
+	logger.Infof("Updated forkdns server list for '%s': %v", n.name, addresses)
+	return
 }
