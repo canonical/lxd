@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -2083,26 +2082,15 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 	}
 
 	// Spawn the daemon
-	cmd := exec.Cmd{}
-	cmd.Path = n.state.OS.ExecPath
-	cmd.Args = []string{
+	_, err := shared.RunCommand(
 		n.state.OS.ExecPath,
 		"forkdns",
+		shared.VarPath("networks", n.name, "forkdns.pid"),
 		fmt.Sprintf("%s:1053", listenAddress),
 		dnsDomain,
 		n.name,
-	}
-
-	err := cmd.Start()
+	)
 	if err != nil {
-		return err
-	}
-
-	// Write the PID file
-	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
-	err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0600)
-	if err != nil {
-		unix.Kill(cmd.Process.Pid, unix.SIGKILL)
 		return err
 	}
 
