@@ -31,6 +31,7 @@ import (
 )
 
 var networkStaticLock sync.Mutex
+var forkdnsServersLock sync.Mutex
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	_, dbInfo, err := cluster.NetworkGetInterface(devName)
@@ -1024,6 +1025,64 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	}
 
 	return nil
+}
+
+// networkUpdateForkdnsServersFile takes a list of node addresses and writes them atomically to
+// the forkdns.servers file ready for forkdns to notice and re-apply its config.
+func networkUpdateForkdnsServersFile(networkName string, addresses []string) error {
+	// We don't want to race with ourselves here
+	forkdnsServersLock.Lock()
+	defer forkdnsServersLock.Unlock()
+
+	permName := shared.VarPath("networks", networkName, forkdnsServersListPath+"/"+forkdnsServersListFile)
+	tmpName := permName + ".tmp"
+
+	// Open tmp file and truncate
+	tmpFile, err := os.Create(tmpName)
+	if err != nil {
+		return err
+	}
+	defer tmpFile.Close()
+
+	for _, address := range addresses {
+		_, err := tmpFile.WriteString(address + "\n")
+		if err != nil {
+			return err
+		}
+	}
+
+	tmpFile.Close()
+
+	// Atomically rename finished file into permanent location so forkdns can pick it up.
+	err = os.Rename(tmpName, permName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// networksGetForkdnsServersList reads the server list file and returns the list as a slice.
+func networksGetForkdnsServersList(networkName string) ([]string, error) {
+	servers := []string{}
+	file, err := os.Open(shared.VarPath("networks", networkName, forkdnsServersListPath, "/", forkdnsServersListFile))
+	if err != nil {
+		return servers, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) > 0 {
+			servers = append(servers, fields[0])
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return servers, err
+	}
+
+	return servers, nil
 }
 
 func networkSysctlGet(path string) (string, error) {
