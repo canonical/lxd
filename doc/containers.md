@@ -300,7 +300,13 @@ maas.subnet.ipv6        | string    | -                 | no        | maas\_netw
 
 Sets up a new network device based on an existing one using the same MAC address but a different IP.
 
-LXD currently supports IPVLAN in L3S mode. It requires the following sysctls to be set:
+LXD currently supports IPVLAN in L3S mode.
+
+In this mode, the gateway is automatically set by LXD, however IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before container is started.
+
+For DNS, the nameservers need to be configured inside the container, as these will not automatically be set.
+
+It requires the following sysctls to be set:
 
 If using IPv4 addresses:
 
