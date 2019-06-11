@@ -8,10 +8,13 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
+	"gopkg.in/fsnotify.v0"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/dnsutil"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -24,12 +27,56 @@ type cmdForkDNS struct {
 type dnsHandler struct {
 	domain    string
 	leaseFile string
-	servers   []string
 }
 
 const forkdnsServersListPath = "forkdns.servers"
 const forkdnsServersListFile = "servers.conf"
 
+var dnsServersFileLock sync.Mutex
+var dnsServersList []string
+
+// serversFileMonitor performs an initial load of the server list and then waits for the file to be
+// modified before triggering a reload.
+func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
+	err := loadServersList(networkName)
+	if err != nil {
+		logger.Errorf("Server list load error: %v", err)
+	}
+
+	for {
+		select {
+		case ev := <-watcher.Event:
+			// Ignore files events that dont concern the servers list file.
+			if !strings.HasSuffix(ev.Name, forkdnsServersListPath+"/"+forkdnsServersListFile) {
+				continue
+			}
+			err := loadServersList(networkName)
+			if err != nil {
+				logger.Errorf("Server list load error: %v", err)
+				continue
+			}
+		case err := <-watcher.Error:
+			logger.Errorf("Inotify error: %v", err)
+		}
+	}
+}
+
+// loadServersList reads the server list path and updates the internal servers list slice.
+func loadServersList(networkName string) error {
+	servers, err := networksGetForkdnsServersList(networkName)
+	if err != nil {
+		return err
+	}
+
+	// Safely apply new servers list to global list.
+	dnsServersFileLock.Lock()
+	dnsServersList = servers
+	dnsServersFileLock.Unlock()
+	logger.Infof("Server list loaded: %v", servers)
+	return nil
+}
+
+// ServeDNS handles each DNS request.
 func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var err error
 	msg := dns.Msg{}
@@ -108,8 +155,13 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 	// This tells the remote node we only want to query their local data (to stop loops).
 	r.RecursionDesired = false
 
-	// Query all the servers
-	for _, server := range h.servers {
+	// Get current list of servers safely.
+	dnsServersFileLock.Lock()
+	servers := dnsServersList
+	dnsServersFileLock.Unlock()
+
+	// Query all the servers.
+	for _, server := range servers {
 		resp, err := dns.Exchange(r, fmt.Sprintf("%s:1053", server))
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
@@ -200,8 +252,13 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 	// This tells the remote node we only want to query their local data (to stop loops).
 	r.RecursionDesired = false
 
-	// Query all the servers
-	for _, server := range h.servers {
+	// Get current list of servers safely.
+	dnsServersFileLock.Lock()
+	servers := dnsServersList
+	dnsServersFileLock.Unlock()
+
+	// Query all the servers.
+	for _, server := range servers {
 		resp, err := dns.Exchange(r, fmt.Sprintf("%s:1053", server))
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
@@ -246,7 +303,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 func (c *cmdForkDNS) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkdns <listen address> <domain> <leases file> <servers...>"
+	cmd.Use = "forkdns <listen address> <domain> <network name>"
 	cmd.Short = "Internal DNS proxy for clustering"
 	cmd.Long = `Description:
   Spawns a specialised DNS server designed for relaying A and PTR queries that cannot be answered by
@@ -267,7 +324,7 @@ func (c *cmdForkDNS) Command() *cobra.Command {
 
 func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	if len(args) < 4 {
+	if len(args) < 3 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -282,6 +339,22 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	logger.Log = log
+
+	// Setup watcher on servers file.
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return fmt.Errorf("Unable to setup fsnotify: %s", err)
+	}
+
+	networkName := args[2]
+	err = watcher.Watch(shared.VarPath("networks", networkName, forkdnsServersListPath))
+	if err != nil {
+		return fmt.Errorf("Unable to setup fsnotify watch: %s", err)
+	}
+
+	// Run the server list monitor concurrently waiting for file changes.
+	go serversFileMonitor(watcher, networkName)
+
 	logger.Info("Started")
 
 	srv := &dns.Server{
@@ -291,8 +364,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 
 	srv.Handler = &dnsHandler{
 		domain:    args[1],
-		leaseFile: args[2],
-		servers:   args[3:],
+		leaseFile: shared.VarPath("networks", networkName, "dnsmasq.leases"),
 	}
 
 	err = srv.ListenAndServe()
