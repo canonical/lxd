@@ -20,10 +20,12 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1060,6 +1062,46 @@ func networkUpdateForkdnsServersFile(networkName string, addresses []string) err
 	}
 
 	return nil
+}
+
+// networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
+func networkUpdateForkdnsServersTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		s := d.State()
+
+		// Get a list of managed networks
+		networks, err := s.Cluster.NetworksNotPending()
+		if err != nil {
+			logger.Errorf("Failed to get networks: %v", err)
+			return
+		}
+
+		for _, name := range networks {
+			n, err := networkLoadByName(s, name)
+			if err != nil {
+				logger.Errorf("Failed to load network: %v", err)
+				return
+			}
+
+			if n.config["bridge.mode"] == "fan" {
+				n.refreshForkdnsServerAddresses()
+			}
+		}
+	}
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Second * 30
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
 }
 
 // networksGetForkdnsServersList reads the server list file and returns the list as a slice.
