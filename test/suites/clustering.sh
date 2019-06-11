@@ -1309,8 +1309,7 @@ test_clustering_dns() {
   mkdir "${lxdDir}"/networks/lxdtest1/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
-  lxd forkdns 127.0.1.1"${ipRand}":1053 lxd lxdtest1 &
-  forkdns_pid1=$!
+  lxd forkdns "${lxdDir}"/forkdns1.log "${lxdDir}"/forkdns1.pid 127.0.1.1"${ipRand}":1053 lxd lxdtest1
 
   # Create first dummy interface for forkdns
   ip link add "${prefix}2" type dummy
@@ -1321,11 +1320,12 @@ test_clustering_dns() {
   mkdir "${lxdDir}"/networks/lxdtest2/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
-  lxd forkdns 127.0.1.2"${ipRand}":1053 lxd lxdtest2 &
-  forkdns_pid2=$!
+  lxd forkdns "${lxdDir}"/forkdns2.log "${lxdDir}"/forkdns2.pid 127.0.1.2"${ipRand}":1053 lxd lxdtest2
 
   # Let the processes come up
   sleep 1
+  forkdns_pid1=$(cat "${lxdDir}/forkdns1.pid")
+  forkdns_pid2=$(cat "${lxdDir}/forkdns2.pid")
 
   # Create servers list file for forkdns1 pointing at forkdns2 (should be live reloaded)
   echo "127.0.1.2${ipRand}" > "${lxdDir}"/networks/lxdtest1/forkdns.servers/servers.conf
@@ -1360,8 +1360,8 @@ test_clustering_dns() {
   fi
 
   # Cleanup
-  kill ${forkdns_pid1}
-  kill ${forkdns_pid2}
+  kill "${forkdns_pid1}"
+  kill "${forkdns_pid2}"
   ip link delete "${prefix}1"
   ip link delete "${prefix}2"
 }
