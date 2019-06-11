@@ -1020,6 +1020,14 @@ func (n *network) Rename(name string) error {
 		}
 	}
 
+	forkDNSLogPath := fmt.Sprintf("forkdns.%s.log", n.name)
+	if shared.PathExists(shared.LogPath(forkDNSLogPath)) {
+		err := os.Rename(forkDNSLogPath, shared.LogPath(fmt.Sprintf("forkdns.%s.log", name)))
+		if err != nil {
+			return err
+		}
+	}
+
 	// Rename the database entry
 	err := n.state.Cluster.NetworkRename(n.name, name)
 	if err != nil {
@@ -2085,6 +2093,7 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 	_, err := shared.RunCommand(
 		n.state.OS.ExecPath,
 		"forkdns",
+		shared.LogPath(fmt.Sprintf("forkdns.%s.log", n.name)),
 		shared.VarPath("networks", n.name, "forkdns.pid"),
 		fmt.Sprintf("%s:1053", listenAddress),
 		dnsDomain,

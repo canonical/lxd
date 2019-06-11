@@ -61,10 +61,25 @@ void forkdns()
 	ssize_t ret;
 	pid_t pid;
 	FILE *pid_file;
-	char *pid_path;
+	int log_fd;
+	char *pid_path, *log_path;
+
+	close(STDIN_FILENO);
+
+	log_path = advance_arg(true);
+	log_fd = open(log_path, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC, 0600);
+	if (log_fd < 0)
+		_exit(EXIT_FAILURE);
+
+	ret = dup3(log_fd, STDOUT_FILENO, O_CLOEXEC);
+	if (ret < 0)
+		_exit(EXIT_FAILURE);
+
+	ret = dup3(log_fd, STDERR_FILENO, O_CLOEXEC);
+	if (ret < 0)
+		_exit(EXIT_FAILURE);
 
 	pid_path = advance_arg(true);
-
 	pid_file = fopen(pid_path, "we+");
 	if (!pid_file) {
 		fprintf(stderr,
@@ -98,7 +113,7 @@ void forkdns()
 				pid, pid_path);
 			ret = EXIT_FAILURE;
 		}
-		close(STDIN_FILENO);
+
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
 		_exit(EXIT_SUCCESS);
@@ -417,7 +432,7 @@ func (c *cmdForkDNS) Command() *cobra.Command {
 
 func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	if len(args) < 4 {
+	if len(args) < 5 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -439,7 +454,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Unable to setup fsnotify: %s", err)
 	}
 
-	networkName := args[3]
+	networkName := args[4]
 	path := shared.VarPath("networks", networkName, forkdnsServersListPath)
 	err = watcher.Watch(path)
 	if err != nil {
@@ -456,12 +471,12 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	logger.Info("Started")
 
 	srv := &dns.Server{
-		Addr: args[1],
+		Addr: args[2],
 		Net:  "udp",
 	}
 
 	srv.Handler = &dnsHandler{
-		domain:    args[2],
+		domain:    args[3],
 		leaseFile: shared.VarPath("networks", networkName, "dnsmasq.leases"),
 	}
 
