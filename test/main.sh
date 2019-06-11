@@ -46,7 +46,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl dnsmasq jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen socat
+check_dependencies lxd lxc curl dnsmasq jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen socat dig
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -239,6 +239,7 @@ run_test test_clustering_shutdown_nodes "clustering shutdown"
 run_test test_clustering_projects "clustering projects"
 run_test test_clustering_address "clustering address"
 run_test test_clustering_image_replication "clustering image replication"
+run_test test_clustering_dns "clustering DNS"
 #run_test test_clustering_upgrade "clustering upgrade"
 
 # shellcheck disable=SC2034
