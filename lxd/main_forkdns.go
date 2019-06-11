@@ -27,6 +27,9 @@ type dnsHandler struct {
 	servers   []string
 }
 
+const forkdnsServersListPath = "forkdns.servers"
+const forkdnsServersListFile = "servers.conf"
+
 func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var err error
 	msg := dns.Msg{}
