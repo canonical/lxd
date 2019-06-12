@@ -1379,3 +1379,67 @@ func networkSetDevMAC(devName string, mac string) error {
 
 	return nil
 }
+
+// networkListBootRoutesV4 returns a list of IPv4 boot routes on a named network device.
+func networkListBootRoutesV4(devName string) ([]string, error) {
+	routes := []string{}
+	cmd := exec.Command("ip", "-4", "route", "show", "dev", devName, "proto", "boot")
+	ipOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return routes, err
+	}
+	cmd.Start()
+	scanner := bufio.NewScanner(ipOut)
+	for scanner.Scan() {
+		route := scanner.Text()
+		routes = append(routes, route)
+	}
+	cmd.Wait()
+	return routes, nil
+}
+
+// networkListBootRoutesV6 returns a list of IPv6 boot routes on a named network device.
+func networkListBootRoutesV6(devName string) ([]string, error) {
+	routes := []string{}
+	cmd := exec.Command("ip", "-6", "route", "show", "dev", devName, "proto", "boot")
+	ipOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return routes, err
+	}
+	cmd.Start()
+	scanner := bufio.NewScanner(ipOut)
+	for scanner.Scan() {
+		route := scanner.Text()
+		routes = append(routes, route)
+	}
+	cmd.Wait()
+	return routes, nil
+}
+
+// networkApplyBootRoutesV4 applies a list of IPv4 boot routes to a named network device.
+func networkApplyBootRoutesV4(devName string, routes []string) error {
+	for _, route := range routes {
+		cmd := []string{"-4", "route", "replace", "dev", devName, "proto", "boot"}
+		cmd = append(cmd, strings.Fields(route)...)
+		_, err := shared.RunCommand("ip", cmd...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// networkApplyBootRoutesV6 applies a list of IPv6 boot routes to a named network device.
+func networkApplyBootRoutesV6(devName string, routes []string) error {
+	for _, route := range routes {
+		cmd := []string{"-6", "route", "replace", "dev", devName, "proto", "boot"}
+		cmd = append(cmd, strings.Fields(route)...)
+		_, err := shared.RunCommand("ip", cmd...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
