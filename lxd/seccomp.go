@@ -203,8 +203,10 @@ init_module errno 38
 finit_module errno 38
 delete_module errno 38
 `
-const SECCOMP_NOTIFY_POLICY = `mknod notify
-mknodat notify`
+const SECCOMP_NOTIFY_POLICY = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
+mknod notify [1,24576,SCMP_CMP_MASKED_EQ,61440]
+mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
+mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]`
 
 const COMPAT_BLOCKING_POLICY = `[%s]
 compat_sys_rt_sigaction errno 38
