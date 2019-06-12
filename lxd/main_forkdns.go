@@ -25,14 +25,9 @@ import (
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -66,7 +61,13 @@ void forkdns()
 
 	close(STDIN_FILENO);
 
-	log_path = advance_arg(true);
+	log_path = advance_arg(false);
+	pid_path = advance_arg(false);
+
+	// If arguments are missing, fall through to Go part without double forking to output usage info.
+	if (log_path == NULL || pid_path == NULL)
+		return;
+
 	log_fd = open(log_path, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC, 0600);
 	if (log_fd < 0)
 		_exit(EXIT_FAILURE);
@@ -79,7 +80,6 @@ void forkdns()
 	if (ret < 0)
 		_exit(EXIT_FAILURE);
 
-	pid_path = advance_arg(true);
 	pid_file = fopen(pid_path, "we+");
 	if (!pid_file) {
 		fprintf(stderr,
