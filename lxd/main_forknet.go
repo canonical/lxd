@@ -21,9 +21,19 @@ import (
 
 extern char *advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
+extern int dosetns_file(char *file, char *nstype);
 
 void forkdonetinfo(pid_t pid) {
 	if (dosetns(pid, "net") < 0) {
+		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	// Jump back to Go for the rest
+}
+
+void forkdonetdetach(char *file) {
+	if (dosetns_file(file, "net") < 0) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
@@ -48,7 +58,6 @@ void forknet() {
 	if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
 		return;
 	}
-	pid = atoi(cur);
 
 	// Check that we're root
 	if (geteuid() != 0) {
@@ -58,12 +67,17 @@ void forknet() {
 
 	// Call the subcommands
 	if (strcmp(command, "info") == 0) {
+		pid = atoi(cur);
 		forkdonetinfo(pid);
 	}
+
+	if (strcmp(command, "detach") == 0)
+		forkdonetdetach(cur);
 }
 */
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
+import "github.com/lxc/lxd/shared"
 
 type cmdForknet struct {
 	global *cmdGlobal
@@ -89,6 +103,13 @@ func (c *cmdForknet) Command() *cobra.Command {
 	cmdInfo.RunE = c.RunInfo
 	cmd.AddCommand(cmdInfo)
 
+	// detach
+	cmdDetach := &cobra.Command{}
+	cmdDetach.Use = "detach <netns file> <LXD PID> <ifname> <hostname>"
+	cmdDetach.Args = cobra.ExactArgs(4)
+	cmdDetach.RunE = c.RunDetach
+	cmd.AddCommand(cmdDetach)
+
 	return cmd
 }
 
@@ -105,5 +126,27 @@ func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("%s\n", buf)
 
+	return nil
+}
+
+func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
+	lxdPID := args[1]
+	ifName := args[2]
+	hostName := args[3]
+
+	// Remove all IP addresses from interface before moving to parent netns.
+	// This is to avoid any container address config leaking into host.
+	_, err := shared.RunCommand("ip", "address", "flush", "dev", ifName)
+	if err != nil {
+		return err
+	}
+
+	// Rename the interface, set it down, and move into parent netns.
+	_, err = shared.RunCommand("ip", "link", "set", ifName, "down", "name", hostName, "netns", lxdPID)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("OK")
 	return nil
 }

@@ -1317,3 +1317,65 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 	network.Counters = shared.NetworkGetCounters(netIf.Name)
 	return network
 }
+
+// networkGetDevMTU retrieves the current MTU setting for a named network device.
+func networkGetDevMTU(devName string) (uint64, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
+	if err != nil {
+		return 0, err
+	}
+
+	// Parse value
+	mtu, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return mtu, nil
+}
+
+// networkSetDevMTU sets the MTU setting for a named network device if different from current.
+func networkSetDevMTU(devName string, mtu uint64) error {
+	curMTU, err := networkGetDevMTU(devName)
+	if err != nil {
+		return err
+	}
+
+	// Only try and change the MTU if the requested mac is different to current one.
+	if curMTU != mtu {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "mtu", fmt.Sprintf("%d", mtu))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// networkGetDevMAC retrieves the current MAC setting for a named network device.
+func networkGetDevMAC(devName string) (string, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+}
+
+// networkSetDevMAC sets the MAC setting for a named network device if different from current.
+func networkSetDevMAC(devName string, mac string) error {
+	curMac, err := networkGetDevMAC(devName)
+	if err != nil {
+		return err
+	}
+
+	// Only try and change the MAC if the requested mac is different to current one.
+	if curMac != mac {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "address", mac)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
