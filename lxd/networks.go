@@ -1206,8 +1206,21 @@ func (n *network) Start() error {
 		return err
 	}
 
+	// Snapshot container specific IPv4 routes (added with boot proto) before removing IPv4 addresses.
+	// This is because the kernel removes any static routes on an interface when all addresses removed.
+	ctRoutes, err := networkListBootRoutesV4(n.name)
+	if err != nil {
+		return err
+	}
+
 	// Flush all IPv4 addresses and routes
 	_, err = shared.RunCommand("ip", "-4", "addr", "flush", "dev", n.name, "scope", "global")
+	if err != nil {
+		return err
+	}
+
+	// Restore container specific IPv4 routes to interface.
+	err = networkApplyBootRoutesV4(n.name, ctRoutes)
 	if err != nil {
 		return err
 	}
@@ -1375,8 +1388,21 @@ func (n *network) Start() error {
 		return err
 	}
 
+	// Snapshot container specific IPv6 routes (added with boot proto) before removing IPv6 addresses.
+	// This is because the kernel removes any static routes on an interface when all addresses removed.
+	ctRoutes, err = networkListBootRoutesV6(n.name)
+	if err != nil {
+		return err
+	}
+
 	// Flush all IPv6 addresses and routes
 	_, err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
+	if err != nil {
+		return err
+	}
+
+	// Restore container specific IPv6 routes to interface.
+	err = networkApplyBootRoutesV6(n.name, ctRoutes)
 	if err != nil {
 		return err
 	}

@@ -9120,22 +9120,22 @@ func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDe
 		routeDev = m["parent"]
 	}
 
-	// Add additional IPv4 routes
+	// Add additional IPv4 routes (using boot proto to avoid conflicts with network static routes)
 	if m["ipv4.routes"] != "" {
 		for _, route := range strings.Split(m["ipv4.routes"], ",") {
 			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-4", "route", "add", route, "dev", routeDev, "proto", "static")
+			_, err := shared.RunCommand("ip", "-4", "route", "add", route, "dev", routeDev, "proto", "boot")
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	// Add additional IPv6 routes
+	// Add additional IPv6 routes (using boot proto to avoid conflicts with network static routes)
 	if m["ipv6.routes"] != "" {
 		for _, route := range strings.Split(m["ipv6.routes"], ",") {
 			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-6", "route", "add", route, "dev", routeDev, "proto", "static")
+			_, err := shared.RunCommand("ip", "-6", "route", "add", route, "dev", routeDev, "proto", "boot")
 			if err != nil {
 				return err
 			}
@@ -9174,7 +9174,7 @@ func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
 	if m["ipv4.routes"] != "" {
 		for _, route := range strings.Split(m["ipv4.routes"], ",") {
 			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-4", "route", "flush", route, "dev", routeDev, "proto", "static")
+			_, err := shared.RunCommand("ip", "-4", "route", "flush", route, "dev", routeDev, "proto", "boot")
 			if err != nil {
 				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
 			}
@@ -9185,7 +9185,7 @@ func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
 	if m["ipv6.routes"] != "" {
 		for _, route := range strings.Split(m["ipv6.routes"], ",") {
 			route = strings.TrimSpace(route)
-			_, err := shared.RunCommand("ip", "-6", "route", "flush", route, "dev", routeDev, "proto", "static")
+			_, err := shared.RunCommand("ip", "-6", "route", "flush", route, "dev", routeDev, "proto", "boot")
 			if err != nil {
 				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
 			}
