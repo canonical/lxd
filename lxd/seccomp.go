@@ -63,7 +63,7 @@ struct seccomp_notif_resp {
 	__s64 val;
 	__s32 error;
 	__u32 flags;
-}
+};
 #endif
 
 struct seccomp_notify_proxy_msg {
@@ -123,22 +123,47 @@ static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_p
 	resp->flags = req->flags;
 	resp->val = 0;
 
-	if (req->data.nr != __NR_mknod) {
-		resp->error = -ENOSYS;
+	switch (req->data.nr) {
+	case __NR_mknod:
+		resp->error = device_allowed(req->data.args[2], req->data.args[1]);
+		if (resp->error) {
+			errno = EPERM;
+			return -1;
+		}
+
+		bytes = pread(fd_mem, buf, size, req->data.args[0]);
+		if (bytes < 0)
+			return -1;
+
+		*mode = req->data.args[1];
+		*dev = req->data.args[2];
+		*pid = req->pid;
+
+		break;
+	case __NR_mknodat:
+		if (req->data.args[0] != AT_FDCWD) {
+			errno = EINVAL;
+			return -1;
+		}
+
+		resp->error = device_allowed(req->data.args[3], req->data.args[2]);
+		if (resp->error) {
+			errno = EPERM;
+			return -EPERM;
+		}
+
+		bytes = pread(fd_mem, buf, size, req->data.args[1]);
+		if (bytes < 0)
+			return -1;
+
+		*mode = req->data.args[2];
+		*dev = req->data.args[3];
+		*pid = req->pid;
+
+		break;
+	default:
 		return -1;
 	}
-
-	resp->error = device_allowed(req->data.args[2], req->data.args[1]);
-	if (resp->error)
-		return -1;
-
-	bytes = pread(fd_mem, buf, size, req->data.args[0]);
-	if (bytes < 0)
-		return -1;
-
-	*mode = req->data.args[1];
-	*dev = req->data.args[2];
-	*pid = req->pid;
 
 	return 0;
 }
@@ -178,7 +203,10 @@ init_module errno 38
 finit_module errno 38
 delete_module errno 38
 `
-const SECCOMP_NOTIFY_POLICY = `mknod notify`
+const SECCOMP_NOTIFY_POLICY = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
+mknod notify [1,24576,SCMP_CMP_MASKED_EQ,61440]
+mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
+mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]`
 
 const COMPAT_BLOCKING_POLICY = `[%s]
 compat_sys_rt_sigaction errno 38
