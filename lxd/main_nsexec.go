@@ -81,17 +81,34 @@ void error(char *msg)
 }
 
 int dosetns(int pid, char *nstype) {
-	__do_close_prot_errno int mntns = -EBADF;
+	__do_close_prot_errno int ns_fd = -EBADF;
 	char buf[PATH_MAX];
 
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
-	mntns = open(buf, O_RDONLY);
-	if (mntns < 0) {
-		error("error: open mntns");
+	ns_fd = open(buf, O_RDONLY);
+	if (ns_fd < 0) {
+		error("error: open namespace");
 		return -1;
 	}
 
-	if (setns(mntns, 0) < 0) {
+	if (setns(ns_fd, 0) < 0) {
+		error("error: setns");
+		return -1;
+	}
+
+	return 0;
+}
+
+int dosetns_file(char *file, char *nstype) {
+	__do_close_prot_errno int ns_fd = -EBADF;
+
+	ns_fd = open(file, O_RDONLY);
+	if (ns_fd < 0) {
+		error("error: open namespace");
+		return -1;
+	}
+
+	if (setns(ns_fd, 0) < 0) {
 		error("error: setns");
 		return -1;
 	}
