@@ -63,7 +63,7 @@ struct seccomp_notif_resp {
 	__s64 val;
 	__s32 error;
 	__u32 flags;
-}
+};
 #endif
 
 struct seccomp_notify_proxy_msg {
