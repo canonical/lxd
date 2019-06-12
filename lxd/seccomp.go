@@ -42,6 +42,30 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifndef SECCOMP_RET_USER_NOTIF
+#define SECCOMP_RET_USER_NOTIF 0x7fc00000U
+
+struct seccomp_notif_sizes {
+	__u16 seccomp_notif;
+	__u16 seccomp_notif_resp;
+	__u16 seccomp_data;
+};
+
+struct seccomp_notif {
+	__u64 id;
+	__u32 pid;
+	__u32 flags;
+	struct seccomp_data data;
+};
+
+struct seccomp_notif_resp {
+	__u64 id;
+	__s64 val;
+	__s32 error;
+	__u32 flags;
+}
+#endif
+
 struct seccomp_notify_proxy_msg {
 	uint32_t version;
 #ifdef SECCOMP_RET_USER_NOTIF
