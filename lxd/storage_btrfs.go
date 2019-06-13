@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -1560,6 +1559,9 @@ func btrfsSubVolumeCreate(subvol string) error {
 	return nil
 }
 
+var btrfsErrNoQuota = fmt.Errorf("Quotas disabled on filesystem")
+var btrfsErrNoQGroup = fmt.Errorf("Unable to find quota group")
+
 func btrfsSubVolumeQGroup(subvol string) (string, error) {
 	output, err := shared.RunCommand(
 		"btrfs",
@@ -1570,7 +1572,7 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 		"-f")
 
 	if err != nil {
-		return "", db.ErrNoSuchObject
+		return "", btrfsErrNoQuota
 	}
 
 	var qgroup string
@@ -1588,7 +1590,7 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 	}
 
 	if qgroup == "" {
-		return "", fmt.Errorf("Unable to find quota group")
+		return "", btrfsErrNoQGroup
 	}
 
 	return qgroup, nil
@@ -2298,17 +2300,54 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 	}
 
 	qgroup, err := btrfsSubVolumeQGroup(subvol)
-	if err != nil {
-		if err != db.ErrNoSuchObject {
-			return err
+	if err != nil && !s.s.OS.RunningInUserNS {
+		var output string
+
+		if err == btrfsErrNoQuota {
+			// Enable quotas
+			poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+
+			output, err = shared.RunCommand("btrfs", "quota", "enable", poolMntPoint)
+			if err != nil {
+				return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
+			}
+
+			// Retry
+			qgroup, err = btrfsSubVolumeQGroup(subvol)
 		}
 
-		// Enable quotas
-		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-		output, err := shared.RunCommand(
-			"btrfs", "quota", "enable", poolMntPoint)
-		if err != nil && !s.s.OS.RunningInUserNS {
-			return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
+		if err == btrfsErrNoQGroup {
+			// Find the volume ID
+			output, err = shared.RunCommand("btrfs", "subvolume", "show", subvol)
+			if err != nil {
+				return fmt.Errorf("Failed to get subvol information: %s", output)
+			}
+
+			id := ""
+			for _, line := range strings.Split(output, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "Subvolume ID:") {
+					fields := strings.Split(line, ":")
+					id = strings.TrimSpace(fields[len(fields)-1])
+				}
+			}
+
+			if id == "" {
+				return fmt.Errorf("Failed to find subvolume id")
+			}
+
+			// Create qgroup
+			output, err = shared.RunCommand("btrfs", "qgroup", "create", fmt.Sprintf("0/%s", id), subvol)
+			if err != nil {
+				return fmt.Errorf("Failed to create missing qgroup: %s", output)
+			}
+
+			// Retry
+			qgroup, err = btrfsSubVolumeQGroup(subvol)
+		}
+
+		if err != nil {
+			return err
 		}
 	}
 
