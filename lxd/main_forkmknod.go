@@ -119,15 +119,6 @@ void forkmknod()
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
 
-	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
-	bytes = readlink(cwd, cwd_path, sizeof(cwd_path));
-	if (bytes < 0 || bytes >= sizeof(cwd_path)) {
-		fprintf(stderr, "Failed to retrieve cwd of target process: %s\n",
-			strerror(errno));
-		_exit(EXIT_FAILURE);
-	}
-	cwd_path[bytes] = '\0';
-
 	uid = get_root_uid(pid);
 	if (uid < 0)
 		fprintf(stderr, "No root uid found (%d)\n", uid);
@@ -136,13 +127,14 @@ void forkmknod()
 	if (gid < 0)
 		fprintf(stderr, "No root gid found (%d)\n", gid);
 
-	snprintf(cwd, sizeof(cwd), "/proc/%d/root", pid);
-	if (chroot(cwd)) {
+	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
+	if (chdir(cwd)) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
 	}
 
-	if (chdir(cwd_path)) {
+	snprintf(cwd, sizeof(cwd), "/proc/%d/root", pid);
+	if (chroot(cwd)) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
 	}
