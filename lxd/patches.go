@@ -70,6 +70,8 @@ var patches = []patch{
 	{name: "storage_api_rename_container_snapshots_dir", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "storage_api_rename_container_snapshots_links", run: patchStorageApiUpdateContainerSnapshots},
 	{name: "fix_lvm_pool_volume_names", run: patchRenameCustomVolumeLVs},
+	{name: "storage_api_rename_container_snapshots_dir_again", run: patchStorageApiRenameContainerSnapshotsDir},
+	{name: "storage_api_rename_container_snapshots_links_again", run: patchStorageApiUpdateContainerSnapshots},
 }
 
 type patch struct {
@@ -3256,23 +3258,35 @@ func patchMoveBackups(name string, d *Daemon) error {
 }
 
 func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
-	storagePoolsPath := shared.VarPath("storage-pools")
-	storagePoolsDir, err := os.Open(storagePoolsPath)
-	if err != nil {
+	pools, err := d.cluster.StoragePools()
+	if err != nil && err == db.ErrNoSuchObject {
+		// No pool was configured in the previous update. So we're on a
+		// pristine LXD instance.
+		return nil
+	} else if err != nil {
+		// Database is screwed.
+		logger.Errorf("Failed to query database: %s", err)
 		return err
 	}
 
-	// Get a list of all storage pools.
-	storagePoolNames, err := storagePoolsDir.Readdirnames(-1)
-	storagePoolsDir.Close()
-	if err != nil {
-		return err
-	}
+	for _, poolName := range pools {
+		pool, err := storagePoolInit(d.State(), poolName)
+		if err != nil {
+			return err
+		}
 
-	for _, poolName := range storagePoolNames {
+		ourMount, err := pool.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+
+		if ourMount {
+			defer pool.StoragePoolUmount()
+		}
+
 		containerSnapshotDirOld := shared.VarPath("storage-pools", poolName, "snapshots")
 		containerSnapshotDirNew := shared.VarPath("storage-pools", poolName, "containers-snapshots")
-		err := shared.FileMove(containerSnapshotDirOld, containerSnapshotDirNew)
+		err = shared.FileMove(containerSnapshotDirOld, containerSnapshotDirNew)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
