@@ -2155,9 +2155,9 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 		"btrfs",
 		"qgroup",
 		"show",
-		subvol,
 		"-e",
-		"-f")
+		"-f",
+		subvol)
 
 	if err != nil {
 		return "", btrfsErrNoQuota
@@ -2189,9 +2189,9 @@ func (s *storageBtrfs) btrfsPoolVolumeQGroupUsage(subvol string) (int64, error) 
 		"btrfs",
 		"qgroup",
 		"show",
-		subvol,
 		"-e",
-		"-f")
+		"-f",
+		subvol)
 
 	if err != nil {
 		return -1, fmt.Errorf("BTRFS quotas not supported. Try enabling them with \"btrfs quota enable\"")
