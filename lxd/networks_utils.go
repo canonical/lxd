@@ -1548,3 +1548,16 @@ func networkDeviceBind(pciSlotName string, driverPath string) error {
 
 	return nil
 }
+
+// networkDeviceBindWait waits for network interface to appear after being binded.
+func networkDeviceBindWait(devName string) error {
+	for i := 0; i < 10; i++ {
+		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", devName)) {
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Bind of interface \"%s\" took too long", devName)
+}
