@@ -109,45 +109,11 @@ static int device_allowed(dev_t dev, mode_t mode)
 	return -EPERM;
 }
 
-#ifndef __NR_mknod
-	#ifdef __x86_64__
-		#define __NR_mknod 133
-	#elif defined __arm__
-		#define __NR_mknod 14
-	#elif defined __aarch64__
-		#define __NR_mknod 14
-	#elif defined __s390__
-		#define __NR_mknod 14
-	#elif defined __s390x__
-		#define __NR_mknod 14
-	#elif __mips__ && _MIPSEB && _MIPS_SIM ==_ABIO32
-		#define __NR_mknod 14
-	#elif __mips__ && _MIPSEL && _MIPS_SIM==_ABIO32
-		#define __NR_mknod 14
-	#elif __mips__ && _MIPSEB && _MIPS_SIM==_ABI64
-		#define __NR_mknod 131
-	#elif __mips__ && _MIPSEL && _MIPS_SIM==_ABI64
-		#define __NR_mknod 131
-	#elif __mips__ && _MIPSEB && _MIPS_SIM==_ABIN32
-		#define __NR_mknod 131
-	#elif __mips__ && _MIPSEL && _MIPS_SIM==_ABIN32
-		#define __NR_mknod 131
-	#elif defined __i386__
-		#define __NR_mknod 14
-	#elif defined __alpha__
-		#define __NR_mknod 14
-	#elif defined __ia64__
-		#define __NR_mknod 13
-	#elif defined __m68k__
-		#define __NR_mknod 14
-	#elif defined __sparc__
-		#define __NR_mknod 14
-	#elif defined __powerpc__
-		#define __NR_mknod 14
-	#elif defined __sh__
-		#define __NR_mknod 14
-	#else
-		#warning "__NR_mknod unknown for your architecture"
+#ifndef __NR_mknodat
+	#error missing kernel headers
+#else
+	#ifdef __NR_mknod
+		#define LXD_MUST_CHECK_MKNOD
 	#endif
 #endif
 
@@ -166,6 +132,7 @@ static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_p
 	resp->val = 0;
 
 	switch (req->data.nr) {
+#ifdef LXD_MUST_CHECK_MKNOD
 	case __NR_mknod:
 		resp->error = device_allowed(req->data.args[2], req->data.args[1]);
 		if (resp->error) {
@@ -182,6 +149,7 @@ static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_p
 		*pid = req->pid;
 
 		break;
+#endif
 	case __NR_mknodat:
 		if (req->data.args[0] != AT_FDCWD) {
 			errno = EINVAL;
