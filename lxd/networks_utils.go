@@ -1500,3 +1500,51 @@ func networkGetVirtFuncInfo(devName string, vfID int) (vf virtFuncInfo, err erro
 
 	return vf, fmt.Errorf("no matching virtual function found")
 }
+
+// networkGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
+func networkGetVFDevicePCISlot(parentName string, vfID string) (string, error) {
+	file, err := os.Open(fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", parentName, vfID))
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		// Looking for something like this "PCI_SLOT_NAME=0000:05:10.0"
+		fields := strings.SplitN(scanner.Text(), "=", 2)
+		if len(fields) == 2 && fields[0] == "PCI_SLOT_NAME" {
+			return fields[1], nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", fmt.Errorf("PCI_SLOT_NAME not found")
+}
+
+// networkGetVFDeviceDriverPath returns the path to the network virtual function device driver in /sys.
+func networkGetVFDeviceDriverPath(parentName string, vfID string) (string, error) {
+	return filepath.EvalSymlinks(fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/driver", parentName, vfID))
+}
+
+// networkDeviceUnbind unbinds a network device from the OS using its PCI Slot Name and driver path.
+func networkDeviceUnbind(pciSlotName string, driverPath string) error {
+	err := ioutil.WriteFile(fmt.Sprintf("%s/unbind", driverPath), []byte(pciSlotName), 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// networkDeviceUnbind binds a network device to the OS using its PCI Slot Name and driver path.
+func networkDeviceBind(pciSlotName string, driverPath string) error {
+	err := ioutil.WriteFile(fmt.Sprintf("%s/bind", driverPath), []byte(pciSlotName), 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
