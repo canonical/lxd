@@ -27,21 +27,21 @@ test_static_analysis() {
     fi
 
     ## Functions starting by empty line
-    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" | grep -v "./vendor/" | grep -v "./lxd/sqlite/" || true)
+    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false
     fi
 
     ## Mixed tabs/spaces in scripts
-    OUT=$(grep -Pr '\t' . | grep -v "./vendor/" | grep '\.sh:' || true)
+    OUT=$(grep -Pr '\t' . | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: mixed tabs and spaces in script: ${OUT}"
       false
     fi
 
     ## Trailing whitespace in scripts
-    OUT=$(grep -r " $" . | grep -v "./vendor/" | grep '\.sh:' || true)
+    OUT=$(grep -r " $" . | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: trailing whitespace in script: ${OUT}"
       false
@@ -124,7 +124,7 @@ test_static_analysis() {
 
     ## misspell
     if which misspell >/dev/null 2>&1; then
-      OUT=$(misspell ./ | grep -v po/ | grep -v "vendor/" | grep -Ev "test/includes/lxd.sh.*monitord" | grep -Ev "test/suites/static_analysis.sh.*monitord" || true)
+      OUT=$(misspell ./ | grep -v po/ | grep -Ev "test/includes/lxd.sh.*monitord" | grep -Ev "test/suites/static_analysis.sh.*monitord" || true)
       if [ -n "${OUT}" ]; then
         echo "Found some typos"
         echo "${OUT}"
@@ -145,7 +145,6 @@ test_static_analysis() {
     # go fmt
     git add -u :/
     gofmt -w -s ./
-    git checkout HEAD ./vendor
     git diff --exit-code
 
     # make sure the .pot is updated
