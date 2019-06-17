@@ -725,6 +725,7 @@ type container interface {
 	Storage() storage
 	TemplateApply(trigger string) error
 	DaemonState() *state.State
+	InsertSeccompUnixDevice(prefix string, m types.Device, pid int) error
 
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
