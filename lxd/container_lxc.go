@@ -1,7 +1,6 @@
 package main
 
 import (
-	"archive/tar"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -37,6 +36,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/containerwriter"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
@@ -5951,10 +5951,9 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	// Create the tarball
-	tw := tar.NewWriter(w)
+	ctw := containerwriter.NewContainerTarWriter(w, idmap)
 
 	// Keep track of the first path we saw for each path with nlink>1
-	linkmap := map[uint64]string{}
 	cDir := c.Path()
 
 	// Path inside the tar image is the pathname starting after cDir
@@ -5965,7 +5964,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			return err
 		}
 
-		err = c.tarStoreFile(linkmap, offset, tw, path, fi)
+		err = ctw.WriteFile(offset, path, fi)
 		if err != nil {
 			logger.Debugf("Error tarring up %s: %s", path, err)
 			return err
@@ -5979,7 +5978,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		// Generate a new metadata.yaml
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
-			tw.Close()
+			ctw.Close()
 			logger.Error("Failed exporting container", ctxMap)
 			return err
 		}
@@ -5991,7 +5990,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			parentName, _, _ := containerGetParentAndSnapshotName(c.name)
 			parent, err := containerLoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
-				tw.Close()
+				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)
 				return err
 			}
@@ -6017,7 +6016,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
-			tw.Close()
+			ctw.Close()
 			logger.Error("Failed exporting container", ctxMap)
 			return err
 		}
@@ -6026,21 +6025,21 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		fnam = filepath.Join(tempDir, "metadata.yaml")
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
-			tw.Close()
+			ctw.Close()
 			logger.Error("Failed exporting container", ctxMap)
 			return err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			tw.Close()
+			ctw.Close()
 			logger.Error("Failed exporting container", ctxMap)
 			return err
 		}
 
 		tmpOffset := len(path.Dir(fnam)) + 1
-		if err := c.tarStoreFile(linkmap, tmpOffset, tw, fnam, fi); err != nil {
-			tw.Close()
+		if err := ctw.WriteFile(tmpOffset, fnam, fi); err != nil {
+			ctw.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting container", ctxMap)
 			return err
@@ -6050,7 +6049,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			// Parse the metadata
 			content, err := ioutil.ReadFile(fnam)
 			if err != nil {
-				tw.Close()
+				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)
 				return err
 			}
@@ -6058,7 +6057,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			metadata := new(api.ImageMetadata)
 			err = yaml.Unmarshal(content, &metadata)
 			if err != nil {
-				tw.Close()
+				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)
 				return err
 			}
@@ -6067,7 +6066,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			// Generate a new metadata.yaml
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
-				tw.Close()
+				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)
 				return err
 			}
@@ -6075,7 +6074,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 			data, err := yaml.Marshal(&metadata)
 			if err != nil {
-				tw.Close()
+				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)
 				return err
 			}
@@ -6084,7 +6083,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			fnam = filepath.Join(tempDir, "metadata.yaml")
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
-				tw.Close()
+				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)
 				return err
 			}
@@ -6093,7 +6092,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		// Include metadata.yaml in the tarball
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			tw.Close()
+			ctw.Close()
 			logger.Debugf("Error statting %s during export", fnam)
 			logger.Error("Failed exporting container", ctxMap)
 			return err
@@ -6101,12 +6100,12 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 		if properties != nil {
 			tmpOffset := len(path.Dir(fnam)) + 1
-			err = c.tarStoreFile(linkmap, tmpOffset, tw, fnam, fi)
+			err = ctw.WriteFile(tmpOffset, fnam, fi)
 		} else {
-			err = c.tarStoreFile(linkmap, offset, tw, fnam, fi)
+			err = ctw.WriteFile(offset, fnam, fi)
 		}
 		if err != nil {
-			tw.Close()
+			ctw.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting container", ctxMap)
 			return err
@@ -6131,7 +6130,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		}
 	}
 
-	err = tw.Close()
+	err = ctw.Close()
 	if err != nil {
 		logger.Error("Failed exporting container", ctxMap)
 		return err
@@ -7178,101 +7177,6 @@ func (c *containerLXC) processesState() int64 {
 	}
 
 	return int64(len(pids))
-}
-
-func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *tar.Writer, path string, fi os.FileInfo) error {
-	var err error
-	var major, minor, nlink int
-	var ino uint64
-
-	link := ""
-	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-		link, err = os.Readlink(path)
-		if err != nil {
-			return fmt.Errorf("failed to resolve symlink: %s", err)
-		}
-	}
-
-	// Sockets cannot be stored in tarballs, just skip them (consistent with tar)
-	if fi.Mode()&os.ModeSocket == os.ModeSocket {
-		return nil
-	}
-
-	hdr, err := tar.FileInfoHeader(fi, link)
-	if err != nil {
-		return fmt.Errorf("failed to create tar info header: %s", err)
-	}
-
-	hdr.Name = path[offset:]
-	if fi.IsDir() || fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-		hdr.Size = 0
-	} else {
-		hdr.Size = fi.Size()
-	}
-
-	hdr.Uid, hdr.Gid, major, minor, ino, nlink, err = shared.GetFileStat(path)
-	if err != nil {
-		return fmt.Errorf("failed to get file stat: %s", err)
-	}
-
-	// Unshift the id under /rootfs/ for unpriv containers
-	if strings.HasPrefix(hdr.Name, "/rootfs") {
-		idmapset, err := c.DiskIdmap()
-		if err != nil {
-			return err
-		}
-
-		if idmapset != nil {
-			huid, hgid := idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
-			hdr.Uid = int(huid)
-			hdr.Gid = int(hgid)
-			if hdr.Uid == -1 || hdr.Gid == -1 {
-				return nil
-			}
-		}
-	}
-
-	if major != -1 {
-		hdr.Devmajor = int64(major)
-		hdr.Devminor = int64(minor)
-	}
-
-	// If it's a hardlink we've already seen use the old name
-	if fi.Mode().IsRegular() && nlink > 1 {
-		if firstpath, found := linkmap[ino]; found {
-			hdr.Typeflag = tar.TypeLink
-			hdr.Linkname = firstpath
-			hdr.Size = 0
-		} else {
-			linkmap[ino] = hdr.Name
-		}
-	}
-
-	// Handle xattrs (for real files only)
-	if link == "" {
-		hdr.Xattrs, err = shared.GetAllXattr(path)
-		if err != nil {
-			return fmt.Errorf("Failed to read xattr for '%s': %s", path, err)
-		}
-	}
-
-	if err := tw.WriteHeader(hdr); err != nil {
-		return fmt.Errorf("Failed to write tar header: %s", err)
-	}
-
-	if hdr.Typeflag == tar.TypeReg {
-		f, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("Failed to open the file: %s", err)
-		}
-		defer f.Close()
-
-		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("Failed to copy file content: %s", err)
-		}
-	}
-
-	return nil
 }
 
 // Storage functions
