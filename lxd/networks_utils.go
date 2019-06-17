@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
@@ -1550,4 +1552,49 @@ func networkDeviceBindWait(devName string) error {
 	}
 
 	return fmt.Errorf("Bind of interface \"%s\" took too long", devName)
+}
+
+// networkDHCPv4Release sends a DHCPv4 release packet to a DHCP server.
+func networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP, dstIP net.IP) error {
+	dstAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:67", dstIP.String()))
+	if err != nil {
+		return err
+	}
+	conn, err := net.DialUDP("udp", nil, dstAddr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	//Random DHCP transaction ID
+	xid := rand.Uint32()
+
+	// Construct a DHCP packet pretending to be from the source IP and MAC supplied.
+	dhcp := layers.DHCPv4{
+		Operation:    layers.DHCPOpRequest,
+		HardwareType: layers.LinkTypeEthernet,
+		ClientHWAddr: srcMAC,
+		ClientIP:     srcIP,
+		Xid:          xid,
+	}
+
+	// Add options to DHCP release packet.
+	dhcp.Options = append(dhcp.Options,
+		layers.NewDHCPOption(layers.DHCPOptMessageType, []byte{byte(layers.DHCPMsgTypeRelease)}),
+		layers.NewDHCPOption(layers.DHCPOptServerID, dstIP.To4()),
+	)
+
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		ComputeChecksums: true,
+		FixLengths:       true,
+	}
+
+	err = gopacket.SerializeLayers(buf, opts, &dhcp)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(buf.Bytes())
+	return err
 }
