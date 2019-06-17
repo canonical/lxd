@@ -10,8 +10,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	"github.com/lxc/lxd/lxd/cluster/raft"
 	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
@@ -82,12 +81,12 @@ func MigrateToDqlite10(dir string) error {
 }
 
 // Open the hashicorp/raft store in the given dir.
-func openLegacyRaftStore(dir string) (*raftboltdb.BoltStore, raft.SnapshotStore, error) {
-	options := raftboltdb.Options{
+func openLegacyRaftStore(dir string) (*raft.BoltStore, raft.SnapshotStore, error) {
+	options := raft.Options{
 		Path:        filepath.Join(dir, "logs.db"),
 		BoltOptions: &bolt.Options{ReadOnly: true},
 	}
-	logs, err := raftboltdb.New(options)
+	logs, err := raft.New(options)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Open boltdb file")
 	}

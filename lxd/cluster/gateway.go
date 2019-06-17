@@ -15,7 +15,6 @@ import (
 	"time"
 
 	dqlite "github.com/CanonicalLtd/go-dqlite"
-	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -258,7 +257,8 @@ func (g *Gateway) Snapshot() error {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	return g.raft.Snapshot()
+	// TODO: implement support for forcing a snapshot in dqlite v1
+	return fmt.Errorf("Not supported")
 }
 
 // WaitUpgradeNotification waits for a notification from another node that all
@@ -297,7 +297,7 @@ func (g *Gateway) raftDial() dqlite.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		if address == "0" {
 			provider := raftAddressProvider{db: g.db}
-			addr, err := provider.ServerAddr(raft.ServerID("1"))
+			addr, err := provider.ServerAddr(1)
 			if err != nil {
 				return nil, err
 			}
@@ -597,6 +597,9 @@ func (g *Gateway) isLeader() bool {
 	return info != nil && info.ID == g.raft.info.ID
 }
 
+// Internal error signalling that a node not the leader.
+var errNotLeader = fmt.Errorf("Not leader")
+
 // Return information about the LXD nodes that a currently part of the raft
 // cluster, as configured in the raft log. It returns an error if this node is
 // not the leader.
@@ -605,7 +608,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	defer g.lock.RUnlock()
 
 	if g.raft == nil {
-		return nil, raft.ErrNotLeader
+		return nil, errNotLeader
 	}
 	servers, err := g.server.Cluster()
 	if err != nil {
@@ -614,7 +617,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	provider := raftAddressProvider{db: g.db}
 	nodes := make([]db.RaftNode, len(servers))
 	for i, server := range servers {
-		address, err := provider.ServerAddr(raft.ServerID(fmt.Sprintf("%d", server.ID)))
+		address, err := provider.ServerAddr(int(server.ID))
 		if err != nil {
 			if err != db.ErrNoSuchObject {
 				return nil, errors.Wrap(err, "Failed to fetch raft server address")
@@ -622,7 +625,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			// Use the initial address as fallback. This is an edge
 			// case that happens when a new leader is elected and
 			// its raft_nodes table is not fully up-to-date yet.
-			address = raft.ServerAddress(server.Address)
+			address = server.Address
 		}
 		nodes[i].ID = int64(server.ID)
 		nodes[i].Address = string(address)

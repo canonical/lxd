@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -31,7 +30,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		}
 
 		raftNodes, err := gateway.currentRaftNodes()
-		if err == raft.ErrNotLeader {
+		if err == errNotLeader {
 			return
 		}
 		logger.Debugf("Starting heartbeat round")

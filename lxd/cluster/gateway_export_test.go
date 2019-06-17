@@ -1,15 +1,9 @@
 package cluster
 
 import (
-	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 )
-
-// Raft returns the gateway's internal raft instance.
-func (g *Gateway) Raft() *raft.Raft {
-	return g.raft.raft
-}
 
 // IsLeader returns true if this node is the leader.
 func (g *Gateway) IsLeader() bool {
