@@ -10,11 +10,14 @@ import (
 	"net"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -130,6 +133,7 @@ static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_p
 	resp->id = req->id;
 	resp->flags = req->flags;
 	resp->val = 0;
+	resp->error = 0;
 
 	switch (req->data.nr) {
 #ifdef LXD_MUST_CHECK_MKNOD
@@ -441,6 +445,38 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	return &s, nil
 }
 
+func doMknod(c container, dev types.Device, requestPID int) (error, int) {
+	goErrno := int(-C.EPERM)
+
+	cwdLink := fmt.Sprintf("/proc/%d/cwd", requestPID)
+	prefixPath, err := os.Readlink(cwdLink)
+	if err != nil {
+		return err, goErrno
+	}
+
+	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
+	rootPath, err := os.Readlink(rootLink)
+	if err != nil {
+		return err, goErrno
+	}
+
+	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
+	dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
+	errnoMsg, err := shared.RunCommand(util.GetExecPath(),
+		"forkmknod", dev["pid"], dev["path"],
+		dev["mode_t"], dev["dev_t"], dev["hostpath"])
+	if err != nil {
+		tmp, err2 := strconv.Atoi(errnoMsg)
+		if err2 == nil {
+			goErrno = -tmp
+		}
+
+		return err, goErrno
+	}
+
+	return nil, 0
+}
+
 func (s *SeccompServer) Handler(c net.Conn, ucred *ucred, buf []byte, fdMem int) error {
 	logger.Debugf("Handling seccomp notification from: %v", ucred.pid)
 
@@ -451,33 +487,44 @@ func (s *SeccompServer) Handler(c net.Conn, ucred *ucred, buf []byte, fdMem int)
 	var cMode C.mode_t
 	var cDev C.dev_t
 	var cPid C.pid_t
+	var err error
+	goErrno := 0
 	cPathBuf := [unix.PathMax]C.char{}
 	ret := C.seccomp_notify_mknod_set_response(C.int(fdMem), &msg,
 		&cPathBuf[0],
 		unix.PathMax, &cMode,
 		&cDev, &cPid)
 	if ret == 0 {
-		errnoMsg, err := shared.RunCommand(util.GetExecPath(),
-			"forkmknod",
-			fmt.Sprintf("%d", cPid),
-			C.GoString(&cPathBuf[0]),
-			fmt.Sprintf("%d", cMode),
-			fmt.Sprintf("%d", cDev))
-		if err != nil {
-			cErrno := C.int(-C.EPERM)
-			goErrno, err2 := strconv.Atoi(errnoMsg)
-			if err2 == nil {
-				cErrno = -C.int(goErrno)
-			}
+		dev := types.Device{}
+		dev["type"] = "unix-char"
+		dev["mode"] = fmt.Sprintf("%#o", cMode)
+		dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(cDev)))
+		dev["minor"] = fmt.Sprintf("%d", unix.Minor(uint64(cDev)))
+		dev["pid"] = fmt.Sprintf("%d", cPid)
+		dev["path"] = C.GoString(&cPathBuf[0])
+		dev["mode_t"] = fmt.Sprintf("%d", cMode)
+		dev["dev_t"] = fmt.Sprintf("%d", cDev)
 
-			C.seccomp_notify_mknod_update_response(&msg, cErrno)
-			logger.Errorf("Failed to create device node: %s", err)
+		c, _ := findContainerForPid(int32(msg.monitor_pid), s.d)
+		if c != nil {
+			err, goErrno = doMknod(c, dev, int(cPid))
+			if err != nil && (goErrno == int(-C.EPERM)) && c != nil {
+				err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+				if err != nil {
+					goErrno = int(-C.EPERM)
+				}
+			}
+		}
+
+		if err != nil {
+			logger.Errorf("Failed to inject device node into container %s (errno = %d)", c.Name(), -goErrno)
 		}
 	}
 
+	C.seccomp_notify_mknod_update_response(&msg, C.int(goErrno))
 	C.memcpy(unsafe.Pointer(&buf[0]), unsafe.Pointer(&msg), C.SECCOMP_PROXY_MSG_SIZE)
 
-	_, err := c.Write(buf)
+	_, err = c.Write(buf)
 	if err != nil {
 		logger.Debugf("Disconnected from seccomp socket after write: pid=%v", ucred.pid)
 		return err
