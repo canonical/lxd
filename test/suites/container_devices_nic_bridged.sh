@@ -12,12 +12,15 @@ test_container_devices_nic_bridged() {
   lxc network create "${brName}"
   lxc network set "${brName}" dns.mode dynamic
   lxc network set "${brName}" dns.domain blah
+  lxc network set "${brName}" ipv4.nat true
   lxc network set "${brName}" ipv4.routing false
   lxc network set "${brName}" ipv6.routing false
   lxc network set "${brName}" ipv6.dhcp.stateful true
   lxc network set "${brName}" bridge.hwaddr 00:11:22:33:44:55
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
+  lxc network set "${brName}" ipv4.routes 192.0.3.0/24
+  lxc network set "${brName}" ipv6.routes 2001:db8::3:0/64
   [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
 
   # Test pre-launch profile config is applied at launch
@@ -39,7 +42,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ! ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
-    echo "ipv4.routes invalid"
+    echo "ipv6.routes invalid"
     false
   fi
 
@@ -92,7 +95,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
-    echo "ipv4.routes remain"
+    echo "ipv6.routes remain"
     false
   fi
 
@@ -102,7 +105,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ! ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
-    echo "ipv4.routes invalid"
+    echo "ipv6.routes invalid"
     false
   fi
 
@@ -137,7 +140,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
-    echo "ipv4.routes remain"
+    echo "ipv6.routes remain"
     false
   fi
 
@@ -147,7 +150,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ! ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
-    echo "ipv4.routes invalid"
+    echo "ipv6.routes invalid"
     false
   fi
 
@@ -189,7 +192,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
-    echo "ipv4.routes remain"
+    echo "ipv6.routes remain"
     false
   fi
 
@@ -199,7 +202,7 @@ test_container_devices_nic_bridged() {
     false
   fi
   if ! ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
-    echo "ipv4.routes invalid"
+    echo "ipv6.routes invalid"
     false
   fi
 
@@ -222,6 +225,32 @@ test_container_devices_nic_bridged() {
   # Check custom MAC is applied update.
   if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
+    false
+  fi
+
+
+  # Add an external 3rd party route to the bridge interface and check that it and the container
+  # routes remain when the network is reconfigured.
+  ip -4 route add 192.0.2"${ipRand}".0/24 via 192.0.2.1"${ipRand}" dev "${brName}"
+
+  # Now change something that will trigger a network restart
+  lxc network set "${brName}" ipv4.nat false
+
+  # Check external routes are applied on update.
+  if ! ip -4 r list dev "${brName}" | grep "192.0.2${ipRand}.0/24 via 192.0.2.1${ipRand}" ; then
+    echo "external ipv4 routes invalid after network update"
+    false
+  fi
+
+  # Check container routes are applied on update.
+  if ! ip -4 r list dev "${brName}" | grep "192.0.2.2${ipRand}" ; then
+    echo "container ipv4 routes invalid after network update"
+    false
+  fi
+
+  # Check network routes are applied on update.
+  if ! ip -4 r list dev "${brName}" | grep "192.0.3.0/24" ; then
+    echo "network ipv4 routes invalid after network update"
     false
   fi
 
