@@ -70,7 +70,7 @@ test_container_devices_nic_bridged() {
   lxc exec "${ctName}" -- ip -4 route add default dev eth0
   ping -c2 -W1 "192.0.2.1${ipRand}"
   lxc exec "${ctName}" -- ip -6 addr add "2001:db8::1${ipRand}/128" dev eth0
-  sleep 1 #Wait for link local gateway advert.
+  sleep 2 #Wait for link local gateway advert.
   ping6 -c2 -W1 "2001:db8::1${ipRand}"
 
   # Test hot plugging a container nic with different settings to profile with the same name.
