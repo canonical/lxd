@@ -1391,7 +1391,7 @@ func networkListBootRoutesV4(devName string) ([]string, error) {
 	cmd.Start()
 	scanner := bufio.NewScanner(ipOut)
 	for scanner.Scan() {
-		route := scanner.Text()
+		route := strings.Replace(scanner.Text(), "linkdown", "", -1)
 		routes = append(routes, route)
 	}
 	cmd.Wait()
@@ -1409,7 +1409,7 @@ func networkListBootRoutesV6(devName string) ([]string, error) {
 	cmd.Start()
 	scanner := bufio.NewScanner(ipOut)
 	for scanner.Scan() {
-		route := scanner.Text()
+		route := strings.Replace(scanner.Text(), "linkdown", "", -1)
 		routes = append(routes, route)
 	}
 	cmd.Wait()

@@ -1219,12 +1219,6 @@ func (n *network) Start() error {
 		return err
 	}
 
-	// Restore container specific IPv4 routes to interface.
-	err = networkApplyBootRoutesV4(n.name, ctRoutes)
-	if err != nil {
-		return err
-	}
-
 	_, err = shared.RunCommand("ip", "-4", "route", "flush", "dev", n.name, "proto", "static")
 	if err != nil {
 		return err
@@ -1375,6 +1369,12 @@ func (n *network) Start() error {
 				}
 			}
 		}
+
+		// Restore container specific IPv4 routes to interface.
+		err = networkApplyBootRoutesV4(n.name, ctRoutes)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Remove any existing IPv6 iptables rules
@@ -1397,12 +1397,6 @@ func (n *network) Start() error {
 
 	// Flush all IPv6 addresses and routes
 	_, err = shared.RunCommand("ip", "-6", "addr", "flush", "dev", n.name, "scope", "global")
-	if err != nil {
-		return err
-	}
-
-	// Restore container specific IPv6 routes to interface.
-	err = networkApplyBootRoutesV6(n.name, ctRoutes)
 	if err != nil {
 		return err
 	}
@@ -1561,6 +1555,12 @@ func (n *network) Start() error {
 					return err
 				}
 			}
+		}
+
+		// Restore container specific IPv6 routes to interface.
+		err = networkApplyBootRoutesV6(n.name, ctRoutes)
+		if err != nil {
+			return err
 		}
 	}
 
