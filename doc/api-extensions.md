@@ -765,3 +765,6 @@ underlying LXC library.
 
 ## container\_nic\_ipvlan
 This introduces the `ipvlan` "nic" device type.
+
+## network\_vlan\_sriov
+This introduces VLAN (`vlan`) and MAC filtering (`security.mac_filtering`) support for SR-IOV devices.

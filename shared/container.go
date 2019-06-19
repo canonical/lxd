@@ -339,6 +339,18 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		if strings.HasSuffix(key, ".created") {
 			return IsAny, nil
 		}
+
+		if strings.HasSuffix(key, ".id") {
+			return IsAny, nil
+		}
+
+		if strings.HasSuffix(key, ".vlan") {
+			return IsAny, nil
+		}
+
+		if strings.HasSuffix(key, ".spoofcheck") {
+			return IsAny, nil
+		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {

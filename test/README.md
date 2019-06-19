@@ -22,3 +22,4 @@ LXD\_OFFLINE                    | 0                         | Skip anything that
 LXD\_SKIP\_STATIC               | ""                        | Skip static analysis tests
 LXD\_TEST\_IMAGE                | "" (busybox test image)   | Path to an image tarball to use instead of the default busybox image
 LXD\_TMPFS                      | 0                         | Sets up a tmpfs for the whole testsuite to run on (fast but needs memory)
+LXD\_NIC\_SRIOV\_PARENT         | ""                        | Enables SR-IOV NIC tests using the specified parent device
