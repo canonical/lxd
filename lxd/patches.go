@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	stdlog "log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -72,6 +73,7 @@ var patches = []patch{
 	{name: "fix_lvm_pool_volume_names", run: patchRenameCustomVolumeLVs},
 	{name: "storage_api_rename_container_snapshots_dir_again", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "storage_api_rename_container_snapshots_links_again", run: patchStorageApiUpdateContainerSnapshots},
+	{name: "storage_api_rename_container_snapshots_dir_again_again", run: patchStorageApiRenameContainerSnapshotsDir},
 }
 
 type patch struct {
@@ -3260,8 +3262,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 	pools, err := d.cluster.StoragePools()
 	if err != nil && err == db.ErrNoSuchObject {
-		// No pool was configured in the previous update. So we're on a
-		// pristine LXD instance.
+		// No pool was configured so we're on a pristine LXD instance.
 		return nil
 	} else if err != nil {
 		// Database is screwed.
@@ -3269,7 +3270,9 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 		return err
 	}
 
+	// Iterate through all configured pools
 	for _, poolName := range pools {
+		// Make sure the pool is mounted
 		pool, err := storagePoolInit(d.State(), poolName)
 		if err != nil {
 			return err
@@ -3284,15 +3287,111 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 			defer pool.StoragePoolUmount()
 		}
 
+		// Figure out source/target path
 		containerSnapshotDirOld := shared.VarPath("storage-pools", poolName, "snapshots")
 		containerSnapshotDirNew := shared.VarPath("storage-pools", poolName, "containers-snapshots")
-		err = shared.FileMove(containerSnapshotDirOld, containerSnapshotDirNew)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
+		if !shared.PathExists(containerSnapshotDirOld) {
+			continue
+		}
+
+		if !shared.PathExists(containerSnapshotDirNew) {
+			// Simple and easy rename (common path)
+			err = os.Rename(containerSnapshotDirOld, containerSnapshotDirNew)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Check if btrfs might have been used
+			hasBtrfs := false
+			_, err = exec.LookPath("btrfs")
+			if err == nil {
+				hasBtrfs = true
 			}
 
-			return err
+			// Get all containers
+			containersDir, err := os.Open(shared.VarPath("storage-pools", poolName, "snapshots"))
+			if err != nil {
+				return err
+			}
+			defer containersDir.Close()
+
+			entries, err := containersDir.Readdirnames(-1)
+			if err != nil {
+				return err
+			}
+
+			for _, entry := range entries {
+				// Create the target (straight rename won't work with btrfs)
+				if !shared.PathExists(filepath.Join(containerSnapshotDirNew, entry)) {
+					err = os.Mkdir(filepath.Join(containerSnapshotDirNew, entry), 0700)
+					if err != nil {
+						return err
+					}
+				}
+
+				// Get all snapshots
+				snapshotsDir, err := os.Open(shared.VarPath("storage-pools", poolName, "snapshots", entry))
+				if err != nil {
+					return err
+				}
+				defer snapshotsDir.Close()
+
+				snaps, err := snapshotsDir.Readdirnames(-1)
+				if err != nil {
+					return err
+				}
+
+				// Disable the read-only properties
+				if hasBtrfs {
+					path := snapshotsDir.Name()
+					subvols, _ := btrfsSubVolumesGet(path)
+					for _, subvol := range subvols {
+						subvol = filepath.Join(path, subvol)
+						newSubvol := filepath.Join(shared.VarPath("storage-pools", poolName, "containers-snapshots", entry), subvol)
+
+						if !btrfsSubVolumeIsRo(subvol) {
+							continue
+						}
+
+						btrfsSubVolumeMakeRw(subvol)
+						defer btrfsSubVolumeMakeRo(newSubvol)
+					}
+				}
+
+				// Rename the snapshots
+				for _, snap := range snaps {
+					err = os.Rename(filepath.Join(containerSnapshotDirOld, entry, snap), filepath.Join(containerSnapshotDirNew, entry, snap))
+					if err != nil {
+						return err
+					}
+				}
+
+				// Cleanup
+				err = os.Remove(snapshotsDir.Name())
+				if err != nil {
+					if hasBtrfs {
+						err1 := btrfsSubVolumeDelete(snapshotsDir.Name())
+						if err1 != nil {
+							return err
+						}
+					} else {
+						return err
+					}
+				}
+			}
+
+			// Cleanup
+			err = os.Remove(containersDir.Name())
+			if err != nil {
+				if hasBtrfs {
+					err1 := btrfsSubVolumeDelete(containersDir.Name())
+					if err1 != nil {
+						return err
+					}
+				} else {
+					return err
+				}
+			}
 		}
 	}
 
