@@ -11,11 +11,14 @@ import (
 #define _GNU_SOURCE 1
 #endif
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/vfs.h>
 #include <unistd.h>
 
 #include "include/memory_utils.h"
@@ -81,19 +84,50 @@ found:
 	return nsid;
 }
 
+static int __do_chowmknod(const char *path, mode_t mode, dev_t dev,
+			  uid_t uid, gid_t gid)
+{
+	int ret;
+
+	ret = mknodat(AT_FDCWD, path, mode, dev);
+	if (ret)
+		return -1;
+
+	return chown(path, uid, gid);
+}
+
+static int __do_chdirchroot(const char *cwd, const char *root)
+{
+	if (cwd && chdir(cwd))
+		return -1;
+
+	return chroot(root);
+}
+
+static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
+			       struct statfs *sfs1, struct statfs *sfs2)
+{
+	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev) && (s1->st_ino == s2->st_ino));
+}
+
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 void forkmknod()
 {
+	__do_close_prot_errno int target_fd = -EBADF;
+	__do_free char *p1 = NULL, *p2 = NULL;
+	int ret;
 	ssize_t bytes = 0;
-	char *cur = NULL;
-	char *path = NULL;
+	char *cur = NULL, *path = NULL, *rootfs_path = NULL,
+		*dir_name_ct = NULL, *dir_name_host = NULL, *base_name = NULL;
 	mode_t mode = 0;
 	dev_t dev = 0;
 	pid_t pid = 0;
 	uid_t uid = -1;
 	gid_t gid = -1;
-	char cwd[256], cwd_path[PATH_MAX];
+	char cwd[256], root[256], cwd_path[PATH_MAX];
+	struct stat s1, s2;
+	struct statfs sfs1, sfs2;
 
 	// Get the subcommand
 	cur = advance_arg(false);
@@ -113,9 +147,6 @@ void forkmknod()
 
 	// path to create
 	path = advance_arg(true);
-	if (!path)
-		_exit(EXIT_FAILURE);
-
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
 
@@ -127,29 +158,76 @@ void forkmknod()
 	if (gid < 0)
 		fprintf(stderr, "No root gid found (%d)\n", gid);
 
+	rootfs_path = advance_arg(true);
+	if (*rootfs_path) {
+		// dirname() can modify its argument
+		p1 = strdup(rootfs_path);
+		if (!p1)
+			_exit(EXIT_FAILURE);
+
+		target_fd = open(dirname(p1), O_PATH | O_RDONLY | O_CLOEXEC);
+	}
+
 	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
-	if (chdir(cwd)) {
-		fprintf(stderr, "%d", errno);
-		_exit(EXIT_FAILURE);
+	snprintf(root, sizeof(root), "/proc/%d/root", pid);
+	ret = __do_chdirchroot(cwd, root);
+	if (ret)
+		goto eperm;
+
+	ret = __do_chowmknod(path, mode, dev, uid, gid);
+	if (ret) {
+		if (errno == EEXIST) {
+			fprintf(stderr, "%d", errno);
+			_exit(EXIT_FAILURE);
+		}
+	} else {
+		_exit(EXIT_SUCCESS);
 	}
 
-	snprintf(cwd, sizeof(cwd), "/proc/%d/root", pid);
-	if (chroot(cwd)) {
-		fprintf(stderr, "%d", errno);
-		_exit(EXIT_FAILURE);
-	}
+	if (!*rootfs_path || target_fd < 0)
+		goto eperm;
 
-	if (mknod(path, mode, dev)) {
-		fprintf(stderr, "%d", errno);
-		_exit(EXIT_FAILURE);
-	}
+	dir_name_ct = dirname(path);
+	ret = stat(dir_name_ct, &s1);
+	if (ret)
+		goto eperm;
 
-	if (chown(path, uid, gid)) {
-		fprintf(stderr, "%d", errno);
-		_exit(EXIT_FAILURE);
+	ret = statfs(dir_name_ct, &sfs1);
+	if (ret)
+		goto eperm;
+
+	ret = fstat(target_fd, &s2);
+	if (ret)
+		goto eperm;
+
+	ret = fstatfs(target_fd, &sfs2);
+	if (ret)
+		goto eperm;
+
+	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2))
+		goto eperm;
+
+	// basename() can modify its argument
+	p2 = strdup(rootfs_path);
+	if (!p2)
+		goto eperm;
+
+	base_name = basename(p2);
+	ret = mknodat(target_fd, base_name, mode, dev);
+	if (ret) {
+		if (errno == EEXIST) {
+			fprintf(stderr, "%d", errno);
+			_exit(EXIT_FAILURE);
+		}
+
+		goto eperm;
 	}
 
 	_exit(EXIT_SUCCESS);
+
+eperm:
+	fprintf(stderr, "%d", EPERM);
+	_exit(EXIT_FAILURE);
 }
 */
 import "C"

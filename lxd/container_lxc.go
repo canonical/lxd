@@ -7335,74 +7335,86 @@ func (c *containerLXC) StorageStop() (bool, error) {
 }
 
 // Mount handling
-func (c *containerLXC) insertMount(source, target, fstype string, flags int) error {
-	var err error
-
-	// Get the init PID
-	pid := c.InitPID()
-	if pid == -1 {
-		// Container isn't running
-		return fmt.Errorf("Can't insert mount into stopped container")
+func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, mntnsPID int) error {
+	pid := mntnsPID
+	if pid <= 0 {
+		// Get the init PID
+		pid = c.InitPID()
+		if pid == -1 {
+			// Container isn't running
+			return fmt.Errorf("Can't insert mount into stopped container")
+		}
 	}
 
-	if c.state.OS.LXCFeatures["mount_injection_file"] {
-		cname := projectPrefix(c.Project(), c.Name())
-		configPath := filepath.Join(c.LogPath(), "lxc.conf")
-		if fstype == "" {
-			fstype = "none"
-		}
-
-		if !strings.HasPrefix(target, "/") {
-			target = "/" + target
-		}
-
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", cname, c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
+	// Create the temporary mount target
+	var tmpMount string
+	var err error
+	if shared.IsDir(source) {
+		tmpMount, err = ioutil.TempDir(c.ShmountsPath(), "lxdmount_")
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to create shmounts path: %s", err)
 		}
 	} else {
-		// Create the temporary mount target
-		var tmpMount string
-		if shared.IsDir(source) {
-			tmpMount, err = ioutil.TempDir(c.ShmountsPath(), "lxdmount_")
-			if err != nil {
-				return fmt.Errorf("Failed to create shmounts path: %s", err)
-			}
-		} else {
-			f, err := ioutil.TempFile(c.ShmountsPath(), "lxdmount_")
-			if err != nil {
-				return fmt.Errorf("Failed to create shmounts path: %s", err)
-			}
-
-			tmpMount = f.Name()
-			f.Close()
-		}
-		defer os.Remove(tmpMount)
-
-		// Mount the filesystem
-		err = unix.Mount(source, tmpMount, fstype, uintptr(flags), "")
+		f, err := ioutil.TempFile(c.ShmountsPath(), "lxdmount_")
 		if err != nil {
-			return fmt.Errorf("Failed to setup temporary mount: %s", err)
+			return fmt.Errorf("Failed to create shmounts path: %s", err)
 		}
-		defer unix.Unmount(tmpMount, unix.MNT_DETACH)
 
-		// Move the mount inside the container
-		mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
-		pidStr := fmt.Sprintf("%d", pid)
+		tmpMount = f.Name()
+		f.Close()
+	}
+	defer os.Remove(tmpMount)
 
-		out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target)
+	// Mount the filesystem
+	err = unix.Mount(source, tmpMount, fstype, uintptr(flags), "")
+	if err != nil {
+		return fmt.Errorf("Failed to setup temporary mount: %s", err)
+	}
+	defer unix.Unmount(tmpMount, unix.MNT_DETACH)
 
-		if out != "" {
-			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-				logger.Debugf("forkmount: %s", line)
-			}
+	// Move the mount inside the container
+	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
+	pidStr := fmt.Sprintf("%d", pid)
+
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target)
+
+	if out != "" {
+		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+			logger.Debugf("forkmount: %s", line)
 		}
-		if err != nil {
-			return err
-		}
+	}
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (c *containerLXC) insertMountLXC(source, target, fstype string, flags int) error {
+	cname := projectPrefix(c.Project(), c.Name())
+	configPath := filepath.Join(c.LogPath(), "lxc.conf")
+	if fstype == "" {
+		fstype = "none"
+	}
+
+	if !strings.HasPrefix(target, "/") {
+		target = "/" + target
+	}
+
+	_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", cname, c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *containerLXC) insertMount(source, target, fstype string, flags int) error {
+	if c.state.OS.LXCFeatures["mount_injection_file"] {
+		return c.insertMountLXC(source, target, fstype, flags)
+	}
+
+	return c.insertMountLXD(source, target, fstype, flags, -1)
 }
 
 func (c *containerLXC) removeMount(mount string) error {
@@ -7656,6 +7668,37 @@ func (c *containerLXC) insertUnixDevice(prefix string, m types.Device, defaultMo
 	}
 
 	return nil
+}
+
+func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pid int) error {
+	if pid < 0 {
+		return fmt.Errorf("Invalid request PID specified")
+	}
+
+	cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)
+	prefixPath, err := os.Readlink(cwdLink)
+	if err != nil {
+		return err
+	}
+
+	rootLink := fmt.Sprintf("/proc/%d/root", pid)
+	rootPath, err := os.Readlink(rootLink)
+	if err != nil {
+		return err
+	}
+
+	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
+	m["path"] = filepath.Join(rootPath, prefixPath, m["path"])
+	paths, err := c.createUnixDevice(prefix, m, true)
+	if err != nil {
+		return fmt.Errorf("Failed to setup device: %s", err)
+	}
+	devPath := paths[0]
+	tgtPath := paths[1]
+
+	// Bind-mount it into the container
+	defer os.Remove(devPath)
+	return c.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid)
 }
 
 func (c *containerLXC) insertUnixDeviceNum(name string, m types.Device, major int, minor int, path string, defaultMode bool) error {
@@ -8020,7 +8063,7 @@ func (c *containerLXC) removeUnixDevices() error {
 	// Go through all the unix devices
 	for _, f := range dents {
 		// Skip non-Unix devices
-		if !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), "infiniband.unix.") {
+		if !strings.HasPrefix(f.Name(), "forkmknod.unix.") && !strings.HasPrefix(f.Name(), "unix.") && !strings.HasPrefix(f.Name(), "infiniband.unix.") {
 			continue
 		}
 
