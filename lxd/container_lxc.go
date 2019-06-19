@@ -2476,9 +2476,17 @@ func (c *containerLXC) startCommon() (string, error) {
 					continue
 				}
 
-				m, err = c.fillSriovNetworkDevice(dName, m, reserved)
-				if err != nil {
-					return "", err
+				// Fill in some fields from volatile and setup the virtual function
+				if m["nictype"] == "sriov" {
+					m, err = c.fillSriovNetworkDevice(dName, m, reserved)
+					if err != nil {
+						return "", err
+					}
+
+					err = c.setupSriovParent(dName, m)
+					if err != nil {
+						return "", err
+					}
 				}
 
 				// Make sure that no one called dibs.
@@ -2858,6 +2866,264 @@ func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device, 
 	err := c.restorePhysicalNic(deviceName, hostName, netns)
 	if err != nil {
 		logger.Errorf("%v", err)
+	}
+}
+
+// setupSriovParent configures a SR-IOV virtual function (VF) device on parent and tracks original
+// properties of the physical device for restoration on detach.
+func (c *containerLXC) setupSriovParent(deviceName string, m types.Device) error {
+	// Check for required fields in device config.
+	if m["parent"] == "" {
+		return fmt.Errorf("Missing parent for 'sriov' nic '%s'", deviceName)
+	}
+
+	if m["vfID"] == "" {
+		return fmt.Errorf("Missing vfID for 'sriov' nic '%s'", deviceName)
+	}
+
+	hostNameKey := "volatile." + deviceName + ".host_name"
+	createdKey := "volatile." + deviceName + ".last_state.created"
+	macKey := "volatile." + deviceName + ".last_state.hwaddr"
+	vfIDKey := "volatile." + deviceName + ".last_state.vf.id"
+	vfMacKey := "volatile." + deviceName + ".last_state.vf.hwaddr"
+	vfVlanKey := "volatile." + deviceName + ".last_state.vf.vlan"
+	vfSpoofCheckKey := "volatile." + deviceName + ".last_state.vf.spoofcheck"
+
+	// Record properties of virtual function settings on parent.
+	vfID, err := strconv.Atoi(m["vfID"])
+	if err != nil {
+		return err
+	}
+
+	vfInfo, err := networkGetVirtFuncInfo(m["parent"], vfID)
+	if err != nil {
+		return err
+	}
+
+	volatile := map[string]string{
+		hostNameKey:     m["host_name"],
+		createdKey:      "false",
+		vfIDKey:         m["vfID"],
+		vfMacKey:        vfInfo.mac,
+		vfVlanKey:       fmt.Sprintf("%d", vfInfo.vlan),
+		vfSpoofCheckKey: fmt.Sprintf("%t", vfInfo.spoofcheck),
+	}
+
+	// Record properties of VF instance device.
+	err = c.snapshotPhysicalNic(deviceName, m["host_name"], volatile)
+	if err != nil {
+		return err
+	}
+
+	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
+	vfPCISlot, err := networkGetVFDevicePCISlot(m["parent"], m["vfID"])
+	if err != nil {
+		return err
+	}
+
+	// Get the path to the VF device's driver now, as once it is unbound we won't be able to
+	// determine its driver path in order to rebind it.
+	vfDriverPath, err := networkGetVFDeviceDriverPath(m["parent"], m["vfID"])
+	if err != nil {
+		return err
+	}
+
+	// Unbind VF device from the host so that the settings will take effect when we rebind it.
+	err = networkDeviceUnbind(vfPCISlot, vfDriverPath)
+	if err != nil {
+		return err
+	}
+
+	// However we return from this function, we must try to rebind the VF so its not orphaned.
+	// The OS won't let an already bound device be bound again so is safe to call twice.
+	defer networkDeviceBind(vfPCISlot, vfDriverPath)
+
+	// Setup VF VLAN if specified.
+	if m["vlan"] != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", m["vfID"], "vlan", m["vlan"])
+		if err != nil {
+			return err
+		}
+	}
+
+	// Setup VF MAC spoofing protection if specified.
+	// The ordering of this section is very important, as Intel cards require a very specific
+	// order of setup to allow LXD to set custom MACs when using spoof check mode.
+	if shared.IsTrue(m["security.mac_filtering"]) {
+		// If no MAC specified in config, use current VF interface MAC.
+		mac := m["hwaddr"]
+		if mac == "" {
+			mac = volatile[macKey]
+		}
+
+		// Set MAC on VF (this combined with spoof checking prevents any other MAC being used).
+		_, err = shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", m["vfID"], "mac", mac)
+		if err != nil {
+			return err
+		}
+
+		// Now that MAC is set on VF, we can enable spoof checking.
+		_, err = shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", m["vfID"], "spoofchk", "on")
+		if err != nil {
+			return err
+		}
+	} else {
+		// Reset VF to ensure no previous MAC restriction exists.
+		_, err := shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", m["vfID"], "mac", "00:00:00:00:00:00")
+		if err != nil {
+			return err
+		}
+
+		// Ensure spoof checking is disabled if not enabled in container.
+		_, err = shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", m["vfID"], "spoofchk", "off")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Bind VF device onto the host so that the settings will take effect.
+	err = networkDeviceBind(vfPCISlot, vfDriverPath)
+	if err != nil {
+		return err
+	}
+
+	// Wait for VF driver to be reloaded, this will remove the VF interface temporarily, and
+	// it will re-appear shortly after. Unfortunately the time between sending the bind event
+	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
+	// otherwise next steps of applying settings to interface will fail.
+	err = networkDeviceBindWait(m["host_name"])
+	if err != nil {
+		return err
+	}
+
+	// If no errors, then save the volatile config.
+	err = c.VolatileSet(volatile)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// restoreSriovParent restores SR-IOV parent device settings when removed from a container using the
+// volatile data that was stored when the device was first added with setupSriovParent().
+func (c *containerLXC) restoreSriovParent(deviceName string, m types.Device, netns string) {
+	// Volatile keys used for parent restore.
+	hostNameKey := "volatile." + deviceName + ".host_name"
+	vfIDKey := "volatile." + deviceName + ".last_state.vf.id"
+	vfMacKey := "volatile." + deviceName + ".last_state.vf.hwaddr"
+	vfVlanKey := "volatile." + deviceName + ".last_state.vf.vlan"
+	vfSpoofCheckKey := "volatile." + deviceName + ".last_state.vf.spoofcheck"
+
+	// Clear volatile data when function finishes.
+	defer func() {
+		// Volatile keys used for parent instance restore.
+		createdKey := "volatile." + deviceName + ".last_state.created"
+		mtuKey := "volatile." + deviceName + ".last_state.mtu"
+		macKey := "volatile." + deviceName + ".last_state.hwaddr"
+
+		volatile := map[string]string{
+			createdKey:      "",
+			mtuKey:          "",
+			macKey:          "",
+			hostNameKey:     "",
+			vfIDKey:         "",
+			vfMacKey:        "",
+			vfVlanKey:       "",
+			vfSpoofCheckKey: "",
+		}
+
+		err := c.VolatileSet(volatile)
+		if err != nil {
+			logger.Errorf("Failed to remove volatile config for %s: %v", deviceName, err)
+		}
+	}()
+
+	// Nothing to do if we don't know the original device name or the VF ID.
+	if c.localConfig[hostNameKey] == "" || c.localConfig[vfIDKey] == "" || m["parent"] == "" {
+		return
+	}
+
+	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
+	vfPCISlot, err := networkGetVFDevicePCISlot(m["parent"], c.localConfig[vfIDKey])
+	if err != nil {
+		logger.Errorf("Failed to get sriov VF PCI slot \"%s.%s\": %v", m["parent"], c.localConfig[vfIDKey], err)
+		return
+	}
+
+	// Get the path to the VF device's driver now, as once it is unbound we won't be able to
+	// determine its driver path in order to rebind it.
+	vfDriverPath, err := networkGetVFDeviceDriverPath(m["parent"], c.localConfig[vfIDKey])
+	if err != nil {
+		logger.Errorf("Failed to get sriov VF driver path \"%s.%s\": %v", m["parent"], c.localConfig[vfIDKey], err)
+		return
+	}
+
+	// Unbind VF device from the host so that the settings will take effect when we rebind it.
+	err = networkDeviceUnbind(vfPCISlot, vfDriverPath)
+	if err != nil {
+		return
+	}
+
+	// However we return from this function, we must try to rebind the VF so its not orphaned.
+	// The OS won't let an already bound device be bound again so is safe to call twice.
+	defer networkDeviceBind(vfPCISlot, vfDriverPath)
+
+	// Reset VF VLAN if specified
+	if c.localConfig[vfVlanKey] != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", c.localConfig[vfIDKey], "vlan", c.localConfig[vfVlanKey])
+		if err != nil {
+			logger.Errorf("Failed to restore sriov VF \"%s.%s\" vlan to \"%s\": %v", m["parent"], c.localConfig[vfIDKey], c.localConfig[vfVlanKey], err)
+			return
+		}
+	}
+
+	// Reset VF MAC spoofing protection if recorded. Do this first before resetting the MAC
+	// to avoid any issues with zero MACs refusing to be set whilst spoof check is on.
+	if c.localConfig[vfSpoofCheckKey] != "" {
+		mode := "off"
+		if shared.IsTrue(c.localConfig[vfSpoofCheckKey]) {
+			mode = "on"
+		}
+
+		_, err := shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", c.localConfig[vfIDKey], "spoofchk", mode)
+		if err != nil {
+			logger.Errorf("Failed to restore sriov VF \"%s.%s\" spoofchk mode to \"%s\": %v", m["parent"], c.localConfig[vfIDKey], mode, err)
+			return
+		}
+	}
+
+	// Reset VF MAC specified if specified.
+	if c.localConfig[vfMacKey] != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", m["parent"], "vf", c.localConfig[vfIDKey], "mac", c.localConfig[vfMacKey])
+		if err != nil {
+			logger.Errorf("Failed to restore sriov VF \"%s.%s\" mac to \"%s\": %v", m["parent"], c.localConfig[vfIDKey], c.localConfig[vfMacKey], err)
+			return
+		}
+	}
+
+	// Bind VF device onto the host so that the settings will take effect.
+	err = networkDeviceBind(vfPCISlot, vfDriverPath)
+	if err != nil {
+		logger.Errorf("Failed to bind sriov VF \"%s.%s\": %v", m["parent"], c.localConfig[vfIDKey], err)
+		return
+	}
+
+	// Wait for VF driver to be reloaded, this will remove the VF interface from the container
+	// and it will re-appear on the host. Unfortunately the time between sending the bind event
+	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
+	// otherwise next step of restoring MAC and MTU settings in restorePhysicalNic will fail.
+	err = networkDeviceBindWait(c.localConfig[hostNameKey])
+	if err != nil {
+		logger.Errorf("Failed to bind wait sriov VF \"%s.%s\": %v", m["parent"], c.localConfig[vfIDKey], err)
+		return
+	}
+
+	// Restore VF interface settings.
+	err = c.restorePhysicalNic(deviceName, c.localConfig[hostNameKey], netns)
+	if err != nil {
+		logger.Errorf("%v", err)
+		return
 	}
 }
 
@@ -3462,6 +3728,11 @@ func (c *containerLXC) cleanupNetworkDevices(netns string) {
 		// Restore physical parent devices
 		if m["nictype"] == "physical" {
 			c.restorePhysicalParent(k, m, netns)
+		}
+
+		// Restore sriov parent devices
+		if m["nictype"] == "sriov" {
+			c.restoreSriovParent(k, m, netns)
 		}
 	}
 }
@@ -8174,6 +8445,7 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 
 	// Check if any VFs are already enabled
 	nicName := ""
+	vfID := 0
 	for i := 0; i < sriovNum; i++ {
 		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", m["parent"], i)) {
 			continue
@@ -8201,6 +8473,7 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 			}
 
 			nicName = ent.Name()
+			vfID = i
 			break
 		}
 
@@ -8240,6 +8513,7 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 
 			// found a free one
 			nicName = ents[0].Name()
+			vfID = i
 			break
 		}
 	}
@@ -8249,6 +8523,7 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 	}
 
 	newDevice["host_name"] = nicName
+	newDevice["vfID"] = fmt.Sprintf("%d", vfID)
 	hostNameKey := fmt.Sprintf("volatile.%s.host_name", name)
 	c.localConfig[hostNameKey] = nicName
 
@@ -8349,7 +8624,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the MAC address
-	if !shared.StringInSlice(m["nictype"], []string{"physical", "ipvlan", "infiniband"}) && m["hwaddr"] == "" {
+	if !shared.StringInSlice(m["nictype"], []string{"physical", "ipvlan", "infiniband", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
@@ -8516,10 +8791,17 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.D
 		return nil, fmt.Errorf("Can't insert device into stopped container")
 	}
 
-	// Fill in some fields from volatile
-	m, err = c.fillSriovNetworkDevice(name, m, []string{})
-	if err != nil {
-		return nil, err
+	// Fill in some fields from volatile and setup the virtual function
+	if m["nictype"] == "sriov" {
+		m, err = c.fillSriovNetworkDevice(name, m, []string{})
+		if err != nil {
+			return nil, err
+		}
+
+		err = c.setupSriovParent(name, m)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Block user trying to add an ipvlan nic on running container as is only supported via LXC
@@ -8569,7 +8851,8 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	if m["nictype"] == "physical" {
 		hostName = networkGetHostDevice(m["parent"], m["vlan"])
 	} else if m["nictype"] == "sriov" {
-		hostName = m["host_name"]
+		// hostName for sriov devices can change on each boot, so get out of volatile.
+		hostName = c.getVolatileHostName(name)
 	} else {
 		hostName = deviceNextVeth()
 	}
@@ -8604,6 +8887,11 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// If physical dev, restore MTU using value recorded on parent after removal from container.
 	if m["nictype"] == "physical" {
 		c.restorePhysicalParent(name, m, "")
+	}
+
+	// Restore sriov parent devices
+	if m["nictype"] == "sriov" {
+		c.restoreSriovParent(name, m, "")
 	}
 
 	// If a veth, destroy it
