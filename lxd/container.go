@@ -154,6 +154,10 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "security.mac_filtering":
 			return true
+		case "security.ipv4_filtering":
+			return true
+		case "security.ipv6_filtering":
+			return true
 		case "maas.subnet.ipv4":
 			return true
 		case "maas.subnet.ipv6":
