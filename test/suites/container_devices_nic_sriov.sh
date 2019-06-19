@@ -69,7 +69,7 @@ test_container_devices_nic_sriov() {
     fi
   fi
 
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
 
   # Set custom MAC
   lxc config device set "${ctName}" eth0 hwaddr "${ctMAC1}"
@@ -82,7 +82,7 @@ test_container_devices_nic_sriov() {
     false
   fi
 
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
 
   # Disable mac filtering and try fresh boot
   lxc config device set "${ctName}" eth0 security.mac_filtering false
@@ -108,7 +108,7 @@ test_container_devices_nic_sriov() {
     false
   fi
 
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
 
   # Test setting MAC offline
   lxc config device set "${ctName}" eth1 hwaddr "${ctMAC2}"
@@ -121,5 +121,5 @@ test_container_devices_nic_sriov() {
     false
   fi
 
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
 }

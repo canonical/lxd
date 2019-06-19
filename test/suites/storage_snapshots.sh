@@ -44,7 +44,7 @@ test_storage_volume_snapshots() {
   # is attached to the container
   ! lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0 || false
 
-  lxc stop c1
+  lxc stop -f c1
   lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0
 
   lxc start c1
