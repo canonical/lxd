@@ -109,9 +109,7 @@ the ability to attach host devices and filesystems, this should
 therefore only be given to users who would be trusted with root access
 to the host.
 
-When listening on the network, the same API is available on a TLS socket
-(HTTPS), specific access on the remote API can be restricted through
-Canonical RBAC.
+When listening on the network, the same API is available on a TLS socket (HTTPS).
 
 
 More details are [available here](security.md).
