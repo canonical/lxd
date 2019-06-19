@@ -38,7 +38,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Stop container and check MTU is restored.
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
 
   # Check original MTU is restored on physical device.
   if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
@@ -164,7 +164,7 @@ test_container_devices_nic_physical() {
     mtu=1402 #Higher than 1400 boot time value above
 
   # Stop the container, LXC doesn't know about the nic, so we will rely on LXD to restore it.
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
 
   # Check original MTU is restored on physical device.
   if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
