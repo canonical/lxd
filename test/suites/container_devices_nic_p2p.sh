@@ -242,7 +242,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Now add a nic to a stopped container with routes.
-  lxc stop "${ctName}"
+  lxc stop -f "${ctName}"
   lxc config device add "${ctName}" eth0 nic \
     nictype=p2p \
     ipv4.routes="192.0.2.2${ipRand}/32" \
