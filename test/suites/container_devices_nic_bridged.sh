@@ -10,7 +10,7 @@ test_container_devices_nic_bridged() {
 
   # Standard bridge with random subnet and a bunch of options
   lxc network create "${brName}"
-  lxc network set "${brName}" dns.mode dynamic
+  lxc network set "${brName}" dns.mode managed
   lxc network set "${brName}" dns.domain blah
   lxc network set "${brName}" ipv4.routing false
   lxc network set "${brName}" ipv6.routing false
@@ -147,7 +147,36 @@ test_container_devices_nic_bridged() {
 
   # Cleanup.
   lxc config device remove "${ctName}" eth0
+
+  # Test DHCP lease clearance.
   lxc delete "${ctName}" -f
+  lxc launch testimage "${ctName}" -p "${ctName}"
+
+  # Request DHCPv4 lease with custom name (to check managed name is allocated instead).
+  lxc exec "${ctName}" -- /sbin/udhcpc -i eth0 -F "${ctName}custom"
+
+  # Check DHCPv4 lease is allocated.
+  if ! grep -i "${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+    echo "DHCPv4 lease not allocated"
+    false
+  fi
+
+  # Check DHCPv4 lease has DNS record assigned.
+  if ! dig @192.0.2.1 "${ctName}.blah" | grep "${ctName}.blah.\+0.\+IN.\+A.\+192.0.2." ; then
+    echo "DNS resolution of DHCP name failed"
+    false
+  fi
+
+  # Delete container, check LXD releases lease.
+  lxc delete "${ctName}" -f
+
+  # Check DHCPv4 lease is released.
+  if grep -i "${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+    echo "DHCPv4 lease not released"
+    false
+  fi
+
+  # Cleanup.
   lxc network delete "${brName}"
   lxc profile delete "${ctName}"
 }
