@@ -15,10 +15,8 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv4.routing false
   lxc network set "${brName}" ipv6.routing false
   lxc network set "${brName}" ipv6.dhcp.stateful true
-  lxc network set "${brName}" bridge.hwaddr 00:11:22:33:44:55
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
-  [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
 
   # Test pre-launch profile config is applied at launch
   lxc profile copy default "${ctName}"
@@ -97,16 +95,6 @@ test_container_devices_nic_bridged() {
   # Test removing hot plugged device and check profile nic is restored.
   lxc config device remove "${ctName}" eth0
 
-  # Check routes are removed on hot-plug.
-  if ip -4 r list dev "${brName}" | grep "192.0.2.2${ipRand}" ; then
-    echo "ipv4.routes remain"
-    false
-  fi
-  if ip -6 r list dev "${brName}" | grep "2001:db8::2${ipRand}" ; then
-    echo "ipv4.routes remain"
-    false
-  fi
-
   # Check profile limits are applie on hot-removal.
   if ! tc class show dev "${vethHostName}" | grep "1Mbit" ; then
     echo "limits.ingress invalid"
@@ -128,12 +116,8 @@ test_container_devices_nic_bridged() {
     nictype=bridged \
     name=eth0 \
     parent=${brName} \
-    host_name="${vethHostName}" \
-    ipv4.routes="192.0.2.1${ipRand}/32" \
-    ipv6.routes="2001:db8::1${ipRand}/128"
+    host_name="${vethHostName}"
 
-  lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.2${ipRand}/32"
-  lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::2${ipRand}/128"
   lxc config device set "${ctName}" eth0 limits.ingress 3Mbit
   lxc config device set "${ctName}" eth0 limits.egress 4Mbit
   lxc config device set "${ctName}" eth0 mtu 1402

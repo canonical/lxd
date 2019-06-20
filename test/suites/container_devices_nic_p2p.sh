@@ -39,18 +39,6 @@ test_container_devices_nic_p2p() {
     false
   fi
 
-  # Add IP alias to container and check routes actually work.
-  ip -4 addr add 192.0.2.1/32 dev "${vethHostName}"
-  lxc exec "${ctName}" -- ip -4 addr add "192.0.2.1${ipRand}/32" dev eth0
-  lxc exec "${ctName}" -- ip -4 route add default dev eth0
-  sleep 1
-  ping -c2 -W1 "192.0.2.1${ipRand}"
-  ip -6 addr add 2001:db8::1/128 dev "${vethHostName}"
-  lxc exec "${ctName}" -- ip -6 addr add "2001:db8::1${ipRand}/128" dev eth0
-  lxc exec "${ctName}" -- ip -6 route add default dev eth0
-  sleep 1
-  ping6 -c2 -W1 "2001:db8::1${ipRand}"
-
   # Test hot plugging a container nic with different settings to profile with the same name.
   lxc config device add "${ctName}" eth0 nic \
     nictype=p2p \
