@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
@@ -1178,65 +1180,98 @@ func networkClearLease(s *state.State, name string, network string, hwaddr strin
 		return nil
 	}
 
-	// Restart the network when we're done here
-	n, err := networkLoadByName(s, network)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := n.Start()
-		if err != nil {
-			logger.Errorf("Failed to reload network '%s': %v", network, err)
-		}
-	}()
-
-	// Stop dnsmasq
-	err = networkKillDnsmasq(network, false)
+	// Convert MAC string to bytes to avoid any case comparison issues later.
+	srcMAC, err := net.ParseMAC(hwaddr)
 	if err != nil {
 		return err
 	}
 
-	// Mangle the lease file
-	leases, err := ioutil.ReadFile(leaseFile)
+	iface, err := net.InterfaceByName(network)
 	if err != nil {
 		return err
 	}
 
-	fd, err := os.Create(leaseFile)
+	// Get IPv4 and IPv6 address of interface running dnsmasq on host.
+	addrs, err := iface.Addrs()
 	if err != nil {
 		return err
 	}
 
-	knownMac := networkGetMacSlice(hwaddr)
-	for _, lease := range strings.Split(string(leases), "\n") {
-		if lease == "" {
-			continue
-		}
-
-		fields := strings.Fields(lease)
-		if len(fields) > 2 {
-			if strings.Contains(fields[1], ":") {
-				leaseMac := networkGetMacSlice(fields[1])
-				leaseMacStr := strings.Join(leaseMac, ":")
-
-				knownMacStr := strings.Join(knownMac[len(knownMac)-len(leaseMac):], ":")
-				if knownMacStr == leaseMacStr {
-					continue
-				}
-			} else if len(fields) > 3 && fields[3] == name {
-				// Mostly IPv6 leases which don't contain a MAC address...
-				continue
-			}
-		}
-
-		_, err := fd.WriteString(fmt.Sprintf("%s\n", lease))
+	var dstIPv4, dstIPv6 net.IP
+	for _, addr := range addrs {
+		ip, _, err := net.ParseCIDR(addr.String())
 		if err != nil {
 			return err
 		}
+		if !ip.IsGlobalUnicast() {
+			continue
+		}
+		if ip.To4() == nil {
+			dstIPv6 = ip
+		} else {
+			dstIPv4 = ip
+		}
 	}
 
-	err = fd.Close()
+	// Iterate the dnsmasq leases file looking for matching leases for this container to release.
+	file, err := os.Open(leaseFile)
 	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	var dstDUID string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		fieldsLen := len(fields)
+
+		// Handle lease lines
+		if fieldsLen == 5 {
+			if srcMAC.String() == fields[1] { // Handle IPv4 leases by matching MAC address to lease.
+				srcIP := net.ParseIP(fields[2])
+
+				if dstIPv4 == nil {
+					logger.Errorf("Failed to release DHCPv4 lease for container \"%s\", IP \"%s\", MAC \"%s\", %v", name, srcIP, srcMAC, "No server address found")
+					continue
+				}
+
+				err = networkDHCPv4Release(srcMAC, srcIP, dstIPv4)
+				if err != nil {
+					logger.Errorf("Failed to release DHCPv4 lease for container \"%s\", IP \"%s\", MAC \"%s\", %v", name, srcIP, srcMAC, err)
+				}
+			} else if name == fields[3] { // Handle IPv6 addresses by matching hostname to lease.
+				IAID := fields[1]
+				srcIP := net.ParseIP(fields[2])
+				DUID := fields[4]
+
+				// Skip IPv4 addresses.
+				if srcIP.To4() != nil {
+					continue
+				}
+
+				if dstIPv6 == nil {
+					logger.Errorf("Failed to release DHCPv6 lease for container \"%s\", IP \"%s\", DUID \"%s\", IAID \"%s\": %s", name, srcIP, DUID, IAID, "No server address found")
+					continue // Cant send release packet if no dstIP found.
+				}
+
+				if dstDUID == "" {
+					logger.Errorf("Failed to release DHCPv6 lease for container \"%s\", IP \"%s\", DUID \"%s\", IAID \"%s\": %s", name, srcIP, DUID, IAID, "No server DUID found")
+					continue // Cant send release packet if no dstDUID found.
+				}
+
+				err = networkDHCPv6Release(DUID, IAID, srcIP, dstIPv6, dstDUID)
+				if err != nil {
+					logger.Errorf("Failed to release DHCPv6 lease for container \"%s\", IP \"%s\", DUID \"%s\", IAID \"%s\": %v", name, srcIP, DUID, IAID, err)
+				}
+			}
+		} else if fieldsLen == 2 && fields[0] == "duid" {
+			// Handle server DUID line needed for releasing IPv6 leases.
+			// This should come before the IPv6 leases in the lease file.
+			dstDUID = fields[1]
+		}
+	}
+	if err := scanner.Err(); err != nil {
 		return err
 	}
 
@@ -1550,4 +1585,131 @@ func networkDeviceBindWait(devName string) error {
 	}
 
 	return fmt.Errorf("Bind of interface \"%s\" took too long", devName)
+}
+
+// networkDHCPv4Release sends a DHCPv4 release packet to a DHCP server.
+func networkDHCPv4Release(srcMAC net.HardwareAddr, srcIP net.IP, dstIP net.IP) error {
+	dstAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:67", dstIP.String()))
+	if err != nil {
+		return err
+	}
+	conn, err := net.DialUDP("udp", nil, dstAddr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	//Random DHCP transaction ID
+	xid := rand.Uint32()
+
+	// Construct a DHCP packet pretending to be from the source IP and MAC supplied.
+	dhcp := layers.DHCPv4{
+		Operation:    layers.DHCPOpRequest,
+		HardwareType: layers.LinkTypeEthernet,
+		ClientHWAddr: srcMAC,
+		ClientIP:     srcIP,
+		Xid:          xid,
+	}
+
+	// Add options to DHCP release packet.
+	dhcp.Options = append(dhcp.Options,
+		layers.NewDHCPOption(layers.DHCPOptMessageType, []byte{byte(layers.DHCPMsgTypeRelease)}),
+		layers.NewDHCPOption(layers.DHCPOptServerID, dstIP.To4()),
+	)
+
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		ComputeChecksums: true,
+		FixLengths:       true,
+	}
+
+	err = gopacket.SerializeLayers(buf, opts, &dhcp)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(buf.Bytes())
+	return err
+}
+
+// networkDHCPv6Release sends a DHCPv6 release packet to a DHCP server.
+func networkDHCPv6Release(srcDUID string, srcIAID string, srcIP net.IP, dstIP net.IP, dstDUID string) error {
+	dstAddr, err := net.ResolveUDPAddr("udp6", fmt.Sprintf("[%s]:547", dstIP.String()))
+	if err != nil {
+		return err
+	}
+	conn, err := net.DialUDP("udp6", nil, dstAddr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// Construct a DHCPv6 packet pretending to be from the source IP and MAC supplied.
+	dhcp := layers.DHCPv6{
+		MsgType: layers.DHCPv6MsgTypeRelease,
+	}
+
+	// Convert Server DUID from string to byte array
+	dstDUIDRaw, err := hex.DecodeString(strings.Replace(dstDUID, ":", "", -1))
+	if err != nil {
+		return err
+	}
+
+	// Convert DUID from string to byte array
+	srcDUIDRaw, err := hex.DecodeString(strings.Replace(srcDUID, ":", "", -1))
+	if err != nil {
+		return err
+	}
+
+	// Convert IAID string to int
+	srcIAIDRaw, err := strconv.Atoi(srcIAID)
+	if err != nil {
+		return err
+	}
+
+	// Build the Identity Association details option manually (as not provided by gopacket).
+	iaAddr := networkDHCPv6CreateIAAddress(srcIP)
+	ianaRaw := networkDHCPv6CreateIANA(srcIAIDRaw, iaAddr)
+
+	// Add options to DHCP release packet.
+	dhcp.Options = append(dhcp.Options,
+		layers.NewDHCPv6Option(layers.DHCPv6OptServerID, dstDUIDRaw),
+		layers.NewDHCPv6Option(layers.DHCPv6OptClientID, srcDUIDRaw),
+		layers.NewDHCPv6Option(layers.DHCPv6OptIANA, ianaRaw),
+	)
+
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		ComputeChecksums: true,
+		FixLengths:       true,
+	}
+
+	err = gopacket.SerializeLayers(buf, opts, &dhcp)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(buf.Bytes())
+	return err
+}
+
+// networkDHCPv6CreateIANA creates a DHCPv6 Identity Association for Non-temporary Address (rfc3315 IA_NA) option.
+func networkDHCPv6CreateIANA(IAID int, IAAddr []byte) []byte {
+	data := make([]byte, 12)
+	binary.BigEndian.PutUint32(data[0:4], uint32(IAID)) // Identity Association Identifier
+	binary.BigEndian.PutUint32(data[4:8], uint32(0))    // T1
+	binary.BigEndian.PutUint32(data[8:12], uint32(0))   // T2
+	data = append(data, IAAddr...)                      // Append the IA Address details
+	return data
+}
+
+// networkDHCPv6CreateIAAddress creates a DHCPv6 Identity Association Address (rfc3315) option.
+func networkDHCPv6CreateIAAddress(IP net.IP) []byte {
+	data := make([]byte, 28)
+	binary.BigEndian.PutUint16(data[0:2], uint16(layers.DHCPv6OptIAAddr)) // Sub-Option type
+	binary.BigEndian.PutUint16(data[2:4], uint16(24))                     // Length (fixed at 24 bytes)
+	copy(data[4:20], IP)                                                  // IPv6 address to be released
+	binary.BigEndian.PutUint32(data[20:24], uint32(0))                    // Preferred liftetime
+	binary.BigEndian.PutUint32(data[24:28], uint32(0))                    // Valid lifetime
+	return data
 }
