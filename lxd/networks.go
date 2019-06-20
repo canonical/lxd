@@ -1286,14 +1286,22 @@ func (n *network) Start() error {
 	dnsmasqCmd := []string{"dnsmasq", "--strict-order", "--bind-interfaces",
 		fmt.Sprintf("--pid-file=%s", shared.VarPath("networks", n.name, "dnsmasq.pid")),
 		"--except-interface=lo",
+		"--no-ping", // --no-ping is very important to prevent delays to lease file updates.
 		fmt.Sprintf("--interface=%s", n.name)}
+
+	dnsmasqVersion, err := networkGetDnsmasqVersion()
+
+	// --dhcp-rapid-commit option is only supported on >2.79
+	minVer, _ := version.NewDottedVersion("2.79")
+	if dnsmasqVersion.Compare(minVer) > 0 {
+		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-rapid-commit")
+	}
 
 	if !debug {
 		// --quiet options are only supported on >2.67
 		minVer, _ := version.NewDottedVersion("2.67")
 
-		v, err := networkGetDnsmasqVersion()
-		if err == nil && v.Compare(minVer) > 0 {
+		if err == nil && dnsmasqVersion.Compare(minVer) > 0 {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
 		}
 	}
