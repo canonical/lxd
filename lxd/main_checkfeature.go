@@ -66,7 +66,6 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
 	__do_close_prot_errno int sock_fd = -EBADF;
 	int netnsid, ret;
-	struct netns_ifaddrs *ifaddrs;
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (*hostnetns_fd < 0) {
