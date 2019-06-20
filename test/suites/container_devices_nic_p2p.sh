@@ -5,7 +5,6 @@ test_container_devices_nic_p2p() {
   vethHostName="veth$$"
   ctName="nt$$"
   ctMAC="0A:92:a7:0d:b7:D9"
-  ipRand=$(shuf -i 0-9 -n 1)
 
   # Test pre-launch profile config is applied at launch.
   lxc profile copy default ${ctName}
