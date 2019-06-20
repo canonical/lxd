@@ -612,7 +612,7 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	logger.Infof(`Updating CEPH storage volume "%s"`, s.pool.Name)
+	logger.Infof(`Updating CEPH storage volume "%s"`, s.volume.Name)
 
 	changeable := changeableStoragePoolVolumeProperties["ceph"]
 	unchangeable := []string{}
@@ -644,7 +644,7 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 		}
 	}
 
-	logger.Infof(`Updated CEPH storage volume "%s"`, s.pool.Name)
+	logger.Infof(`Updated CEPH storage volume "%s"`, s.volume.Name)
 	return nil
 }
 
@@ -930,6 +930,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 	if shared.PathExists(containerMntPoint) {
 		_, err := s.ContainerUmount(container, containerPath)
 		if err != nil {
+			logger.Errorf("Failed to unmount RBD storage volume for container %q on storage pool %q: %v", containerName, s.pool.Name, err)
 			return err
 		}
 	}
@@ -956,7 +957,6 @@ func (s *storageCeph) ContainerDelete(container container) error {
 			containerName, s.pool.Name, err)
 		return err
 	}
-	logger.Debugf(`Deleted mountpoint %s for RBD storage volume of container "%s" for RBD storage volume on storage pool "%s"`, containerMntPoint, containerName, s.pool.Name)
 
 	logger.Debugf(`Deleted RBD storage volume for container "%s" on storage pool "%s"`, containerName, s.pool.Name)
 	return nil
@@ -965,15 +965,13 @@ func (s *storageCeph) ContainerDelete(container container) error {
 func (s *storageCeph) ContainerCopy(target container, source container,
 	containerOnly bool) error {
 	sourceContainerName := source.Name()
-	logger.Debugf(`Copying RBD container storage %s to %s`,
-		sourceContainerName, target.Name())
+	logger.Debugf(`Copying RBD container storage %s to %s`, sourceContainerName, target.Name())
 
 	// Handle cross pool copies
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf(`Copying containers between different ` +
-			`storage pools is not implemented`)
+		return fmt.Errorf(`Copying containers between different storage pools is not implemented`)
 	}
 
 	revert := true
@@ -987,8 +985,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		sourceContainerName)
 
 	targetContainerName := target.Name()
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
-		targetContainerName)
+	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
 	if containerOnly || len(snapshots) == 0 {
 		if s.pool.Config["ceph.rbd.clone_copy"] != "" &&
 			!shared.IsTrue(s.pool.Config["ceph.rbd.clone_copy"]) {
@@ -1110,8 +1107,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			}()
 
 			// create snapshot mountpoint
-			newTargetName := fmt.Sprintf("%s/%s",
-				targetContainerName, snapOnlyName)
+			newTargetName := fmt.Sprintf("%s/%s", targetContainerName, snapOnlyName)
 
 			containersPath := getSnapshotMountPoint(
 				s.pool.Name,
@@ -1168,7 +1164,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		logger.Debugf(`Copied RBD container storage %s to %s`, sourceVolumeName, targetVolumeName)
 
 		// Re-generate the UUID
-		err := s.cephRBDGenerateUUID(targetVolumeName, storagePoolVolumeTypeNameContainer)
+		err := s.cephRBDGenerateUUID(targetContainerName, storagePoolVolumeTypeNameContainer)
 		if err != nil {
 			return err
 		}
@@ -1514,8 +1510,7 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error
 	}
 
 	// check if snapshot directory is empty
-	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name,
-		sourceContainerName)
+	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
 		// remove snapshot directory for container
