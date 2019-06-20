@@ -3256,6 +3256,11 @@ func (c *containerLXC) cleanupHostVethDevices() error {
 		if err != nil {
 			continue
 		}
+
+		// Remove any static host side veth routes
+		if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+			volatileNics = append(volatileNics, k) // Record for volatile removal
+		}
 	}
 
 	// Clear host side config from volatile nics
