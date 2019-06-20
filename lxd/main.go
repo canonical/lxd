@@ -36,8 +36,8 @@ type cmdGlobal struct {
 
 func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Set logging global variables
-	debug = c.flagLogVerbose
-	verbose = c.flagLogDebug
+	debug = c.flagLogDebug
+	verbose = c.flagLogVerbose
 
 	// Setup logger
 	syslog := ""
