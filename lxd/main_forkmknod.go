@@ -98,7 +98,7 @@ static int __do_chowmknod(const char *path, mode_t mode, dev_t dev,
 
 static int __do_chdirchroot(const char *cwd, const char *root)
 {
-	if (cwd && chdir(cwd))
+	if (chdir(cwd))
 		return -1;
 
 	return chroot(root);
@@ -117,7 +117,6 @@ void forkmknod()
 	__do_close_prot_errno int target_fd = -EBADF;
 	__do_free char *p1 = NULL, *p2 = NULL;
 	int ret;
-	ssize_t bytes = 0;
 	char *cur = NULL, *path = NULL, *rootfs_path = NULL,
 		*dir_name_ct = NULL, *dir_name_host = NULL, *base_name = NULL;
 	mode_t mode = 0;
@@ -125,7 +124,7 @@ void forkmknod()
 	pid_t pid = 0;
 	uid_t uid = -1;
 	gid_t gid = -1;
-	char cwd[256], root[256], cwd_path[PATH_MAX];
+	char cwd[256], root[256];
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
 
