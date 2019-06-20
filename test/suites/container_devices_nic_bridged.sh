@@ -268,7 +268,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check DHCPv4 lease has DNS record assigned.
-  if ! dig @192.0.2.1 "${ctName}.blah" | grep "${ctName}.blah.\+0.\+IN.\+A.\+192.0.2." ; then
+  if ! dig @192.0.2.1 "${ctName}.blah" | grep "${ctName}.blah.\\+0.\\+IN.\\+A.\\+192.0.2." ; then
     echo "DNS resolution of DHCP name failed"
     false
   fi
