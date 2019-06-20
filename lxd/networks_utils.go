@@ -1531,22 +1531,12 @@ func networkGetVFDeviceDriverPath(parentName string, vfID string) (string, error
 
 // networkDeviceUnbind unbinds a network device from the OS using its PCI Slot Name and driver path.
 func networkDeviceUnbind(pciSlotName string, driverPath string) error {
-	err := ioutil.WriteFile(fmt.Sprintf("%s/unbind", driverPath), []byte(pciSlotName), 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ioutil.WriteFile(fmt.Sprintf("%s/unbind", driverPath), []byte(pciSlotName), 0600)
 }
 
 // networkDeviceUnbind binds a network device to the OS using its PCI Slot Name and driver path.
 func networkDeviceBind(pciSlotName string, driverPath string) error {
-	err := ioutil.WriteFile(fmt.Sprintf("%s/bind", driverPath), []byte(pciSlotName), 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ioutil.WriteFile(fmt.Sprintf("%s/bind", driverPath), []byte(pciSlotName), 0600)
 }
 
 // networkDeviceBindWait waits for network interface to appear after being binded.
