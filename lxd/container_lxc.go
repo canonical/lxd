@@ -1719,9 +1719,6 @@ func (c *containerLXC) initLXC(config bool) error {
 			vethName := ""
 			if m["host_name"] != "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 				vethName = m["host_name"]
-			} else if shared.IsTrue(m["security.mac_filtering"]) {
-				// We need a known device name for MAC filtering
-				vethName = deviceNextVeth()
 			}
 
 			if vethName != "" {
@@ -2525,39 +2522,6 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 
 				err := c.addInfinibandDevices(k, &ifDev, false)
-				if err != nil {
-					return "", err
-				}
-			}
-
-			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
-				// Read device name from config
-				vethName := ""
-				for i := 0; i < len(c.c.ConfigItem(networkKeyPrefix)); i++ {
-					val := c.c.ConfigItem(fmt.Sprintf("%s.%d.hwaddr", networkKeyPrefix, i))
-					if len(val) == 0 || val[0] != m["hwaddr"] {
-						continue
-					}
-
-					val = c.c.ConfigItem(fmt.Sprintf("%s.%d.link", networkKeyPrefix, i))
-					if len(val) == 0 || val[0] != m["parent"] {
-						continue
-					}
-
-					val = c.c.ConfigItem(fmt.Sprintf("%s.%d.veth.pair", networkKeyPrefix, i))
-					if len(val) == 0 {
-						continue
-					}
-
-					vethName = val[0]
-					break
-				}
-
-				if vethName == "" {
-					return "", fmt.Errorf("Failed to find device name for mac_filtering")
-				}
-
-				err = c.setNetworkFilters(k, m)
 				if err != nil {
 					return "", err
 				}
