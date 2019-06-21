@@ -83,13 +83,14 @@ type storageType int
 const (
 	storageTypeBtrfs storageType = iota
 	storageTypeCeph
+	storageTypeCephFs
 	storageTypeDir
 	storageTypeLvm
 	storageTypeMock
 	storageTypeZfs
 )
 
-var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "dir", "lvm", "zfs"}
+var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
 
 func storageTypeToString(sType storageType) (string, error) {
 	switch sType {
@@ -97,6 +98,8 @@ func storageTypeToString(sType storageType) (string, error) {
 		return "btrfs", nil
 	case storageTypeCeph:
 		return "ceph", nil
+	case storageTypeCephFs:
+		return "cephfs", nil
 	case storageTypeDir:
 		return "dir", nil
 	case storageTypeLvm:
@@ -116,6 +119,8 @@ func storageStringToType(sName string) (storageType, error) {
 		return storageTypeBtrfs, nil
 	case "ceph":
 		return storageTypeCeph, nil
+	case "cephfs":
+		return storageTypeCephFs, nil
 	case "dir":
 		return storageTypeDir, nil
 	case "lvm":
@@ -266,6 +271,13 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &ceph, nil
+	case storageTypeCephFs:
+		cephfs := storageCephFs{}
+		err = cephfs.StorageCoreInit()
+		if err != nil {
+			return nil, err
+		}
+		return &cephfs, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		err = lvm.StorageCoreInit()
@@ -356,6 +368,17 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &ceph, nil
+	case storageTypeCephFs:
+		cephfs := storageCephFs{}
+		cephfs.poolID = poolID
+		cephfs.pool = pool
+		cephfs.volume = volume
+		cephfs.s = s
+		err = cephfs.StoragePoolInit()
+		if err != nil {
+			return nil, err
+		}
+		return &cephfs, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
