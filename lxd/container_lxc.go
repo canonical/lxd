@@ -3584,10 +3584,7 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// Clean up networking veth devices
-	err = c.cleanupHostVethDevices()
-	if err != nil {
-		logger.Error("Failed to cleanup veth devices: ", log.Ctx{"container": c.Name(), "err": err})
-	}
+	c.cleanupHostVethDevices()
 
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
@@ -3639,40 +3636,50 @@ func (c *containerLXC) OnStop(target string) error {
 }
 
 // cleanupHostVethDevices removes host side configuration for veth devices.
-func (c *containerLXC) cleanupHostVethDevices() error {
-	volatileNics := make([]string, 0)
-
+func (c *containerLXC) cleanupHostVethDevices() {
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
-		if m["type"] != "nic" {
+		if m["type"] != "nic" || !shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 			continue
 		}
 
 		m, err := c.fillNetworkDevice(k, m)
 		if err != nil {
+			logger.Error("Failed to cleanup veth device: ", log.Ctx{"container": c.Name(), "device": k, "err": err})
 			continue
 		}
 
-		// Remove any static host side veth routes
-		if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-			c.removeNetworkRoutes(k, m)
-			volatileNics = append(volatileNics, k) // Record for volatile removal
+		c.cleanupHostVethDevice(k, m)
+	}
+}
+
+func (c *containerLXC) cleanupHostVethDevice(deviceName string, m types.Device) {
+	// If not configured, check if volatile data contains the most recently added host_name.
+	if m["host_name"] == "" {
+		m["host_name"] = c.getVolatileHostName(deviceName)
+	}
+
+	// Check whether host device resolution succeeded.
+	if m["host_name"] == "" {
+		logger.Error("Failed to cleanup veth device: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": fmt.Errorf("host_name not set")})
+	}
+
+	// Remove any filters
+	if m["nictype"] == "bridged" {
+		c.removeNetworkFilters(deviceName, m)
+	}
+
+	// Remove any static host side veth routes
+	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+		c.removeNetworkRoutes(deviceName, m)
+
+		// Remove volatile host_name for device
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		err := c.VolatileSet(map[string]string{hostNameKey: ""})
+		if err != nil {
+			logger.Error("Failed to cleanup veth device: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 		}
 	}
-
-	// Clear host side config from volatile nics
-	volatile := make(map[string]string)
-	for _, deviceName := range volatileNics {
-		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
-		volatile[hostNameKey] = "" // Remove volatile host_name for device
-	}
-
-	err := c.VolatileSet(volatile)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // cleanupNetworkDevices performs any needed network device cleanup steps when container is stopped.
