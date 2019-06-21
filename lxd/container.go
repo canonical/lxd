@@ -91,10 +91,6 @@ func containerValidConfigKey(os *sys.OS, key string, value string) error {
 	return nil
 }
 
-var containerNetworkLimitKeys = []string{"limits.max", "limits.ingress", "limits.egress"}
-var containerNetworkRouteKeys = []string{"ipv4.routes", "ipv6.routes"}
-var containerNetworkKeys = append(containerNetworkLimitKeys, containerNetworkRouteKeys...)
-
 func containerValidDeviceConfigKey(t, k string) bool {
 	if k == "type" {
 		return true
