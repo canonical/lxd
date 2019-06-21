@@ -27,28 +27,25 @@ func IsTerminal(fd int) bool {
 
 // GetState returns the current state of a terminal which may be useful to restore the terminal after a signal.
 func GetState(fd int) (*State, error) {
-	termios := unix.Termios{}
-
-	ret, err := C.tcgetattr(C.int(fd), (*C.struct_termios)(unsafe.Pointer(&termios)))
-	if ret != 0 {
-		return nil, err.(unix.Errno)
+	termios, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
+		return nil, err
 	}
 
 	state := State{}
-	state.Termios = termios
+	state.Termios = *termios
 
 	return &state, nil
 }
 
 // GetSize returns the dimensions of the given terminal.
 func GetSize(fd int) (int, int, error) {
-	var dimensions [4]uint16
-
-	if _, _, err := unix.Syscall6(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TIOCGWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
+	winsize, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
+	if err != nil {
 		return -1, -1, err
 	}
 
-	return int(dimensions[1]), int(dimensions[0]), nil
+	return int(winsize.Col), int(winsize.Row), nil
 }
 
 // MakeRaw put the terminal connected to the given file descriptor into raw mode and returns the previous state of the terminal so that it can be restored.
