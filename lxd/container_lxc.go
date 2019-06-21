@@ -1717,7 +1717,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 			// Host Virtual NIC name
 			vethName := ""
-			if m["host_name"] != "" && m["nictype"] != "sriov" {
+			if m["host_name"] != "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 				vethName = m["host_name"]
 			} else if shared.IsTrue(m["security.mac_filtering"]) {
 				// We need a known device name for MAC filtering
