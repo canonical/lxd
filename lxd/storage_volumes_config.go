@@ -59,6 +59,11 @@ var changeableStoragePoolVolumeProperties = map[string][]string{
 		"security.unmapped",
 		"size"},
 
+	"cephfs": {
+		"security.unmapped",
+		"size",
+	},
+
 	"dir": {
 		"security.unmapped",
 	},
@@ -75,7 +80,7 @@ var changeableStoragePoolVolumeProperties = map[string][]string{
 		"zfs.use_refquota"},
 }
 
-// btrfs, ceph, dir, lvm, zfs
+// btrfs, ceph, cephfs, dir, lvm, zfs
 var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.filesystem": func(value string) ([]string, error) {
 		err := shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
@@ -93,7 +98,7 @@ var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
-			return []string{"btrfs", "ceph", "lvm", "zfs"}, nil
+			return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
 		}
 
 		_, err := shared.ParseByteSizeString(value)
@@ -101,7 +106,7 @@ var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 			return nil, err
 		}
 
-		return []string{"btrfs", "ceph", "lvm", "zfs"}, nil
+		return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
 	},
 	"volatile.idmap.last": func(value string) ([]string, error) {
 		return supportedPoolTypes, shared.IsAny(value)
