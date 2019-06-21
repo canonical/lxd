@@ -5519,7 +5519,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 
-				if m["type"] == "nic" && shared.StringMapHasStringKey(m, containerNetworkKeys...) && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+				if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 					// Populate network device with container nic names.
 					m, err := c.fillNetworkDevice(k, m)
 					if err != nil {
@@ -5635,27 +5635,16 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		for k, m := range updateDevices {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
-			} else if m["type"] == "nic" || m["type"] == "infiniband" {
-				// Check to see if network keys have change
-				needsUpdate := false
-				for _, v := range containerNetworkKeys {
-					needsUpdate = shared.StringInSlice(v, updateDiff)
-					if needsUpdate {
-						break
-					}
+			} else if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+				// Populate network device with container nic names.
+				m, err := c.fillNetworkDevice(k, m)
+				if err != nil {
+					return err
 				}
 
-				if needsUpdate && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-					// Populate network device with container nic names.
-					m, err := c.fillNetworkDevice(k, m)
-					if err != nil {
-						return err
-					}
-
-					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
-					if err != nil {
-						return err
-					}
+				err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
+				if err != nil {
+					return err
 				}
 			} else if m["type"] == "proxy" {
 				err = c.updateProxyDevice(k, m)
