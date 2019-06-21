@@ -448,6 +448,24 @@ func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 		return updateStoragePoolVolumeError(unchangeable, "dir")
 	}
 
+	if shared.StringInSlice("size", changedConfig) {
+		if s.volume.Type != storagePoolVolumeTypeNameCustom {
+			return updateStoragePoolVolumeError([]string{"size"}, "dir")
+		}
+
+		if s.volume.Config["size"] != writable.Config["size"] {
+			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			if err != nil {
+				return err
+			}
+
+			err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	logger.Infof(`Updated DIR storage volume "%s"`, s.volume.Name)
 	return nil
 }
