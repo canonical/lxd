@@ -3732,9 +3732,37 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		device["host_name"] = c.getVolatileHostName(deviceName)
 	}
 
+	// If not configured, check if volatile data contains the most recently added hwaddr.
+	if device["hwaddr"] == "" {
+		device["hwaddr"] = c.getVolatileHwaddr(deviceName)
+	}
+
+	// If not configured, copy the volatile host_name into old device to support live updates.
+	if oldDevice["host_name"] == "" {
+		oldDevice["host_name"] = c.getVolatileHostName(deviceName)
+	}
+
+	// If not configured, copy the volatile host_name into old device to support live updates.
+	if oldDevice["hwaddr"] == "" {
+		oldDevice["hwaddr"] = c.getVolatileHwaddr(deviceName)
+	}
+
 	// Check whether host device resolution succeeded.
 	if device["host_name"] == "" {
 		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
+	}
+
+	// Remove any old network filters
+	if oldDevice["nictype"] == "bridged" && shared.IsTrue(oldDevice["security.mac_filtering"]) || shared.IsTrue(oldDevice["security.ipv4_filtering"]) || shared.IsTrue(oldDevice["security.ipv6_filtering"]) {
+		c.removeNetworkFilters(deviceName, oldDevice)
+	}
+
+	// Setup network filters
+	if device["nictype"] == "bridged" && shared.IsTrue(device["security.mac_filtering"]) || shared.IsTrue(device["security.ipv4_filtering"]) || shared.IsTrue(device["security.ipv6_filtering"]) {
+		err := c.setNetworkFilters(deviceName, device)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Refresh tc limits
@@ -3743,8 +3771,13 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		return err
 	}
 
+	if shared.StringInSlice(oldDevice["nictype"], []string{"bridged", "p2p"}) {
+		// Remove any old routes that were setup for this nic device.
+		c.removeNetworkRoutes(deviceName, oldDevice)
+	}
+
 	// Setup static routes to container
-	err = c.setNetworkRoutes(deviceName, device, oldDevice)
+	err = c.setNetworkRoutes(deviceName, device)
 	if err != nil {
 		return err
 	}
@@ -5497,7 +5530,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
+					err = c.setupHostVethDevice(k, m, types.Device{})
 					if err != nil {
 						return err
 					}
@@ -8279,14 +8312,6 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
 	}
 
-	// Set the filter
-	if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
-		err = c.setNetworkFilters(name, m)
-		if err != nil {
-			return "", err
-		}
-	}
-
 	return dev, nil
 }
 
@@ -8932,9 +8957,10 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 		}
 	}
 
-	// Remove any static veth routes
+	// Remove host side veth settings and remove veth interface
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		c.removeNetworkRoutes(name, m)
+		c.cleanupHostVethDevice(name, m)
+		deviceRemoveInterface(hostName)
 	}
 
 	// If physical dev, restore MTU using value recorded on parent after removal from container.
@@ -8945,16 +8971,6 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Restore sriov parent devices
 	if m["nictype"] == "sriov" {
 		c.restoreSriovParent(name, m, "")
-	}
-
-	// If a veth, destroy it
-	if m["nictype"] != "physical" && m["nictype"] != "sriov" {
-		deviceRemoveInterface(hostName)
-	}
-
-	// Remove any filter
-	if m["nictype"] == "bridged" {
-		c.removeNetworkFilters(name, m)
 	}
 
 	return nil
@@ -9444,13 +9460,10 @@ func (c *containerLXC) setNetworkPriority() error {
 }
 
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
-func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDevice types.Device) error {
+func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
 		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
 	}
-
-	// Remove any old routes that were setup for this nic device.
-	c.removeNetworkRoutes(deviceName, oldDevice)
 
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
@@ -9486,11 +9499,6 @@ func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDe
 // removeNetworkRoutes removes any routes created for this device on the host that were first added
 // with setNetworkRoutes(). Expects to be passed the device config from the oldExpandedDevices.
 func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
-	// If not configured, check if volatile data contains the most recently added host_name.
-	if m["host_name"] == "" {
-		m["host_name"] = c.getVolatileHostName(deviceName)
-	}
-
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
 	if m["nictype"] == "bridged" {
