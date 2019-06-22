@@ -35,7 +35,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string, xattrs bool) (st
 
 	args := []string{
 		"-a",
-		"-HAX",
+		"-HA",
 		"--sparse",
 		"--devices",
 		"--delete",
