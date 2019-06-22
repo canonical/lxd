@@ -423,7 +423,7 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
+	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
 		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 	}
@@ -1032,7 +1032,7 @@ func (s *storageLvm) copyVolumeLv(sourcePool string, source string, target strin
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit)
+	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstMountPoint)
 		logger.Errorf("Failed to rsync into LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
