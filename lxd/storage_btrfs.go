@@ -1114,7 +1114,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 	if !containerOnly {
 		for _, snap := range snapshots {
 			srcSnapshotMntPoint := getSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit)
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
 			if err != nil {
 				logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 				return err
@@ -1130,7 +1130,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 	}
 
 	srcContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, source.Name())
-	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
+	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
 	if err != nil {
 		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
@@ -1346,7 +1346,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 			// Use rsync to fill the empty volume.  Sync by using
 			// the subvolume name.
 			bwlimit := s.pool.Config["rsync.bwlimit"]
-			output, err := rsyncLocalCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName, bwlimit)
+			output, err := rsyncLocalCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName, bwlimit, true)
 			if err != nil {
 				s.ContainerDelete(container)
 				logger.Errorf("ContainerRestore: rsync failed: %s", string(output))
@@ -1708,7 +1708,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source container) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
+		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
@@ -3107,7 +3107,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 		for _, snap := range snapshots {
 			srcSnapshotMntPoint := getStoragePoolVolumeSnapshotMountPoint(sourcePool, snap)
 
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destVolumeMntPoint, bwlimit)
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destVolumeMntPoint, bwlimit, true)
 			if err != nil {
 				logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 				return err
@@ -3133,7 +3133,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 		srcVolumeMntPoint = getStoragePoolVolumeMountPoint(sourcePool, sourceName)
 	}
 
-	_, err = rsyncLocalCopy(srcVolumeMntPoint, destVolumeMntPoint, bwlimit)
+	_, err = rsyncLocalCopy(srcVolumeMntPoint, destVolumeMntPoint, bwlimit, true)
 	if err != nil {
 		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
