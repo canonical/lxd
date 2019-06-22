@@ -836,7 +836,7 @@ func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut,
 			targetVolumeMntPoint := getStoragePoolVolumeMountPoint(poolName, s.volume.Name)
 
 			bwlimit := s.pool.Config["rsync.bwlimit"]
-			output, err := rsyncLocalCopy(sourceVolumeMntPoint, targetVolumeMntPoint, bwlimit)
+			output, err := rsyncLocalCopy(sourceVolumeMntPoint, targetVolumeMntPoint, bwlimit, true)
 			if err != nil {
 				return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 			}
@@ -1508,7 +1508,7 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		defer target.Unfreeze()
 
 		bwlimit := s.pool.Config["rsync.bwlimit"]
-		output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
+		output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 		}
@@ -1700,7 +1700,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
+		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}

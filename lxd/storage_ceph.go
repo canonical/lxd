@@ -1082,7 +1082,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 	if !containerOnly {
 		for _, snap := range snapshots {
 			srcSnapshotMntPoint := getSnapshotMountPoint(snap.Project(), sourcePool, snap.Name())
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit)
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
 			if err != nil {
 				return err
 			}
@@ -1110,7 +1110,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 	}
 
 	srcContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, source.Name())
-	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
+	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
 	if err != nil {
 		if !refresh {
 			s.StoragePoolVolumeDelete()
