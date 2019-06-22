@@ -1575,7 +1575,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
+		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
@@ -1917,7 +1917,7 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
 			srcSnapshotMntPoint := getStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
 
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit)
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit, true)
 			if err != nil {
 				return err
 			}
@@ -1937,7 +1937,7 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 		srcVolumeMntPoint = getStoragePoolVolumeMountPoint(source.Pool, source.Name)
 	}
 
-	_, err = rsyncLocalCopy(srcVolumeMntPoint, dstVolumeMntPoint, bwlimit)
+	_, err = rsyncLocalCopy(srcVolumeMntPoint, dstVolumeMntPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstVolumeMntPoint)
 		logger.Errorf("Failed to rsync into RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)

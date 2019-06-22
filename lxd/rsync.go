@@ -18,7 +18,7 @@ import (
 )
 
 // rsyncCopy copies a directory using rsync (with the --devices option).
-func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) {
+func rsyncLocalCopy(source string, dest string, bwlimit string, xattrs bool) (string, error) {
 	err := os.MkdirAll(dest, 0755)
 	if err != nil {
 		return "", err
@@ -33,7 +33,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 		bwlimit = "0"
 	}
 
-	msg, err := shared.RunCommand("rsync",
+	args := []string{
 		"-a",
 		"-HAX",
 		"--sparse",
@@ -41,11 +41,21 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 		"--delete",
 		"--checksum",
 		"--numeric-ids",
-		"--xattrs",
-		"--bwlimit", bwlimit,
+	}
+
+	if xattrs {
+		args = append(args, "--xattrs")
+	}
+
+	if bwlimit != "" {
+		args = append(args, "--bwlimit", bwlimit)
+	}
+
+	args = append(args,
 		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest)
+	msg, err := shared.RunCommand("rsync", args...)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
