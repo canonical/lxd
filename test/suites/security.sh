@@ -6,7 +6,7 @@ test_security() {
   if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_INIT_DIR}"
-    spawn_lxd "${LXD_INIT_DIR}" false false
+    spawn_lxd "${LXD_INIT_DIR}" false
 
     ZFS_POOL="lxdtest-$(basename "${LXD_DIR}")-init"
     LXD_DIR=${LXD_INIT_DIR} lxd init --storage-backend zfs --storage-create-loop 1 --storage-pool "${ZFS_POOL}" --auto
@@ -62,7 +62,7 @@ test_security() {
   # Enforce that only unprivileged containers can be created
   LXD_UNPRIVILEGED_ONLY=true
   export LXD_UNPRIVILEGED_ONLY
-  spawn_lxd "${LXD_STORAGE_DIR}" true true
+  spawn_lxd "${LXD_STORAGE_DIR}" true
   unset LXD_UNPRIVILEGED_ONLY
 
   (
