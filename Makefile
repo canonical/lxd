@@ -46,6 +46,30 @@ deps:
 		git log -1 --format="format:%H" > manifest.uuid && \
 		make
 
+	# libco
+	@if [ -d "$(GOPATH)/deps/libco" ]; then \
+		cd "$(GOPATH)/deps/libco"; \
+		git pull; \
+	else \
+		git clone --depth=1 "https://github.com/freeekanayaka/libco" "$(GOPATH)/deps/libco"; \
+	fi
+
+	cd "$(GOPATH)/deps/libco" && \
+		make
+
+	# raft
+	@if [ -d "$(GOPATH)/deps/raft" ]; then \
+		cd "$(GOPATH)/deps/raft"; \
+		git pull; \
+	else \
+		git clone --depth=1 "https://github.com/CanonicalLtd/raft" "$(GOPATH)/deps/raft"; \
+	fi
+
+	cd "$(GOPATH)/deps/raft" && \
+		autoreconf -i && \
+		./configure && \
+		make
+
 	# dqlite
 	@if [ -d "$(GOPATH)/deps/dqlite" ]; then \
 		cd "$(GOPATH)/deps/dqlite"; \
@@ -56,15 +80,15 @@ deps:
 
 	cd "$(GOPATH)/deps/dqlite" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(GOPATH)/deps/sqlite/" ./configure && \
-		make CFLAGS="-I$(GOPATH)/deps/sqlite/" LDFLAGS="-L$(GOPATH)/deps/sqlite/.libs/"
+		PKG_CONFIG_PATH="$(GOPATH)/deps/sqlite/:$(GOPATH)/deps/libco/:$(GOPATH)/deps/raft/" ./configure && \
+		make CFLAGS="-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/libco/ -I$(GOPATH)/deps/raft/include/" LDFLAGS="-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/libco/ -L$(GOPATH)/deps/raft/.libs/"
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/dqlite/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/dqlite/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/sqlite/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/libco/ -I$(GOPATH)/deps/raft/include/ -I$(GOPATH)/deps/dqlite/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/libco/ -L$(GOPATH)/deps/raft/.libs -L$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/sqlite/.libs/:$(GOPATH)/deps/libco/:$(GOPATH)/deps/raft/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
 
 .PHONY: update
 update:
