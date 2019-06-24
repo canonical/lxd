@@ -10,8 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CanonicalLtd/go-dqlite"
-	"github.com/hashicorp/raft"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -32,12 +31,14 @@ func TestGateway_Single(t *testing.T) {
 	defer gateway.Shutdown()
 
 	handlerFuncs := gateway.HandlerFuncs()
-	assert.Len(t, handlerFuncs, 2)
+	assert.Len(t, handlerFuncs, 1)
 	for endpoint, f := range handlerFuncs {
 		c, err := x509.ParseCertificate(cert.KeyPair().Certificate[0])
 		require.NoError(t, err)
 		w := httptest.NewRecorder()
 		r := &http.Request{}
+		r.Header = http.Header{}
+		r.Header.Set("X-Dqlite-Version", "1")
 		r.TLS = &tls.ConnectionState{
 			PeerCertificates: []*x509.Certificate{c},
 		}
@@ -46,16 +47,28 @@ func TestGateway_Single(t *testing.T) {
 	}
 
 	dial := gateway.DialFunc()
-	conn, err := dial(context.Background(), "")
+	netConn, err := dial(context.Background(), "")
 	assert.NoError(t, err)
-	assert.NotNil(t, conn)
+	assert.NotNil(t, netConn)
+	require.NoError(t, netConn.Close())
 
 	leader, err := gateway.LeaderAddress()
 	assert.Equal(t, "", leader)
 	assert.EqualError(t, err, "Node is not clustered")
+
+	driver, err := dqlite.NewDriver(
+		gateway.ServerStore(),
+		dqlite.WithDialFunc(gateway.DialFunc()),
+	)
+	require.NoError(t, err)
+
+	conn, err := driver.Open("test.db")
+	require.NoError(t, err)
+
+	require.NoError(t, conn.Close())
 }
 
-// If there's a network address configured, we expose the gRPC endpoint with
+// If there's a network address configured, we expose the dqlite endpoint with
 // an HTTP handler.
 func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	db, cleanup := db.NewTestNode(t)
@@ -67,7 +80,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	defer server.Close()
 
 	address := server.Listener.Addr().String()
-	store := setRaftRole(t, db, address)
+	setRaftRole(t, db, address)
 
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
@@ -76,7 +89,10 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 		mux.HandleFunc(path, handler)
 	}
 
-	driver, err := dqlite.NewDriver(store, dqlite.WithDialFunc(gateway.DialFunc()))
+	driver, err := dqlite.NewDriver(
+		gateway.ServerStore(),
+		dqlite.WithDialFunc(gateway.DialFunc()),
+	)
 	require.NoError(t, err)
 
 	conn, err := driver.Open("test.db")
@@ -125,7 +141,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 
 }
 
-// RaftNodes returns an error if the underlying raft instance is not the leader.
+// RaftNodes returns all nodes of the cluster.
 func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	db, cleanup := db.NewTestNode(t)
 	defer cleanup()
@@ -141,9 +157,12 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
 
-	// Get the node immediately, before the election has took place.
-	_, err := gateway.RaftNodes()
-	assert.Equal(t, raft.ErrNotLeader, err)
+	nodes, err := gateway.RaftNodes()
+	require.NoError(t, err)
+
+	assert.Len(t, nodes, 1)
+	assert.Equal(t, nodes[0].ID, int64(1))
+	assert.Equal(t, nodes[0].Address, address)
 }
 
 // Create a new test Gateway with the given parameters, and ensure no error

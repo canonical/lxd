@@ -6,8 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
-	"github.com/hashicorp/raft"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -160,7 +159,7 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 
 	for {
 		for _, gateway := range f.gateways {
-			if gateway.Raft().State() == raft.Leader {
+			if gateway.IsLeader() {
 				return gateway
 			}
 		}
@@ -184,7 +183,7 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 
 	for {
 		for _, gateway := range f.gateways {
-			if gateway.Raft().State() == raft.Follower {
+			if !gateway.IsLeader() {
 				return gateway
 			}
 		}

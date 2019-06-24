@@ -8,9 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	rafthttp "github.com/CanonicalLtd/raft-http"
-	raftmembership "github.com/CanonicalLtd/raft-membership"
-	"github.com/hashicorp/raft"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
@@ -131,8 +129,8 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// Make sure we can actually connect to the cluster database through
 	// the network endpoint. This also releases the previously acquired
 	// lock and makes the Go SQL pooling system invalidate the old
-	// connection, so new queries will be executed over the new gRPC
-	// network connection.
+	// connection, so new queries will be executed over the new network
+	// connection.
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
 		_, err := tx.Nodes()
 		return err
@@ -306,20 +304,24 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 	// If we are listed among the database nodes, join the raft cluster.
 	id := ""
-	target := ""
+	var target *db.RaftNode
 	for _, node := range nodes {
 		if node.Address == address {
 			id = strconv.Itoa(int(node.ID))
 		} else {
-			target = node.Address
+			target = &node
 		}
 	}
 	if id != "" {
+		if target == nil {
+			panic("no other node found")
+		}
 		logger.Info(
 			"Joining dqlite raft cluster",
-			log15.Ctx{"id": id, "address": address, "target": target})
-		changer := gateway.raft.MembershipChanger()
-		err := changer.Join(raft.ServerID(id), raft.ServerAddress(target), 5*time.Second)
+			log15.Ctx{"id": id, "address": address, "target": target.Address})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := gateway.server.Join(ctx, gateway.ServerStore(), gateway.raftDial())
 		if err != nil {
 			return err
 		}
@@ -593,8 +595,10 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	logger.Info(
 		"Joining dqlite raft cluster",
 		log15.Ctx{"id": id, "address": address, "target": target})
-	changer := gateway.raft.MembershipChanger()
-	err = changer.Join(raft.ServerID(id), raft.ServerAddress(target), 5*time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = gateway.server.Join(ctx, gateway.ServerStore(), gateway.raftDial())
 	if err != nil {
 		return err
 	}
@@ -674,19 +678,15 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 		return address, nil
 	}
 
-	id := strconv.Itoa(int(raftNodes[raftNodeRemoveIndex].ID))
+	id := uint64(raftNodes[raftNodeRemoveIndex].ID)
 	// Get the address of another database node,
 	target := raftNodes[(raftNodeRemoveIndex+1)%len(raftNodes)].Address
 	logger.Info(
 		"Remove node from dqlite raft cluster",
 		log15.Ctx{"id": id, "address": address, "target": target})
-	dial, err := raftDial(gateway.cert)
-	if err != nil {
-		return "", err
-	}
-	err = rafthttp.ChangeMembership(
-		raftmembership.LeaveRequest, raftEndpoint, dial,
-		raft.ServerID(id), address, target, 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = dqlite.Leave(ctx, uint64(id), gateway.ServerStore(), gateway.raftDial())
 	if err != nil {
 		return "", err
 	}
