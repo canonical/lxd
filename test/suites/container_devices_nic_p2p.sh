@@ -328,5 +328,8 @@ test_container_devices_nic_p2p() {
     false
   fi
 
+  # Test hotplugging nic with new name (rather than updating existing nic).
+  lxc config device add "${ctName}" eth1 nic nictype=p2p
+
   lxc delete "${ctName}" -f
 }
