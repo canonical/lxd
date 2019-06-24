@@ -40,6 +40,10 @@ func (c *cmdDaemon) Command() *cobra.Command {
 }
 
 func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
+	if len(args) > 1 || (len(args) == 1 && args[0] != "daemon") {
+		return fmt.Errorf("unknown command \"%s\" for \"%s\"", args[0], cmd.CommandPath())
+	}
+
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
