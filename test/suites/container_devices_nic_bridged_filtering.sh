@@ -84,6 +84,64 @@ test_container_devices_nic_bridged_filtering() {
       false
   fi
 
+  # Add a fake IPv4 and check connectivity
+  lxc start "${ctPrefix}A"
+  lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
+  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.254/24 dev eth0
+  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
+
+  # Enable IPv4 filtering on CT A and test (disable security.mac_filtering to check its applied too).
+  lxc config device set "${ctPrefix}A" eth0 ipv4.address 192.0.2.2
+  lxc config device set "${ctPrefix}A" eth0 security.mac_filtering false
+  lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering true
+
+  # Check MAC filter is present in ebtables.
+  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+      echo "mac filter not applied as part of ipv4_filtering in ebtables"
+      false
+  fi
+
+  # Check IPv4 filter is present in ebtables.
+  if ! ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+      echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
+      false
+  fi
+
+  # Check DHCPv4 allocation still works.
+  lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
+  lxc exec "${ctPrefix}A" -- /sbin/udhcpc -i eth0 -n
+  lxc exec "${ctPrefix}A" -- ip a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
+
+  # Check basic connectivity with IPv4 filtering and real IPs configured.
+  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
+
+  # Add a fake IP
+  lxc exec "${ctPrefix}A" -- ip a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.254/24 dev eth0
+
+  # Check that ping is no longer working (i.e its filtered after fake IP setup).
+  if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1; then
+      echo "IPv4 filter not working to host"
+      false
+  fi
+
+  # Check that ping is no longer working (i.e its filtered after fake IP setup).
+  if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3; then
+      echo "IPv4 filter not working to other container"
+      false
+  fi
+
+  # Stop CT A and check filters are cleaned up.
+  lxc stop "${ctPrefix}A"
+  if ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+      echo "IPv4 filter still applied as part of ipv4_filtering in ebtables"
+      false
+  fi
+
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
   lxc network delete "${brName}"
