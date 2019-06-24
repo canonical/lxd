@@ -142,6 +142,89 @@ test_container_devices_nic_bridged_filtering() {
       false
   fi
 
+  # Make sure br_netfilter is loaded, needed for IPv6 filtering.
+  modprobe br_netfilter || true
+  if ! grep 1 /proc/sys/net/bridge/bridge-nf-call-ip6tables ; then
+    echo "br_netfilter didn't load, skipping IPv6 filter checks"
+    lxc delete -f "${ctPrefix}A"
+    lxc delete -f "${ctPrefix}B"
+    lxc network delete "${brName}"
+    lxc profile delete "${ctPrefix}"
+    return
+  fi
+
+  # Add a fake IPv6 and check connectivity
+  lxc start "${ctPrefix}A"
+  lxc exec "${ctPrefix}B" -- ip -6 a add 2001:db8::3/64 dev eth0
+  lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254 dev eth0
+  sleep 2 # Wait for DAD.
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::1
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::3
+
+  # Enable IPv6 filtering on CT A and test (disable security.mac_filtering to check its applied too).
+  lxc config device set "${ctPrefix}A" eth0 ipv6.address 2001:db8::2
+  lxc config device set "${ctPrefix}A" eth0 security.mac_filtering false
+  lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
+
+  # Check MAC filter is present in ebtables.
+  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+      echo "MAC filter not applied as part of ipv6_filtering in ebtables"
+      false
+  fi
+
+  # Check MAC filter is present in ip6tables.
+  macHex=$(echo "${ctAMAC}" |sed "s/://g")
+  if ! ip6tables -S -w -t filter | grep -e "${macHex}" ; then
+      echo "MAC filter not applied as part of ipv6_filtering in ip6tables"
+      false
+  fi
+
+  # Check IPv6 filter is present in ebtables.
+  if ! ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+       echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
+      false
+  fi
+
+  # Check IPv6 filter is present in ip6tables.
+  if ! ip6tables -S -w -t filter | grep -e "20010db8000000000000000000000002" ; then
+      echo "IPv6 filter not applied as part of ipv6_filtering in ip6tables"
+      false
+  fi
+
+  # TODO: Cannot test DHCPv6 as busybox doesn't contain a DHCPv6 client yet.
+  lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::2/64 dev eth0
+  sleep 2 # Wait for DAD.
+
+  # Check basic connectivity with IPv6 filtering and real IPs configured.
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::2
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::3
+
+  # Add a fake IP
+  lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254/64 dev eth0
+
+  # Check that ping is no longer working (i.e its filtered after fake IP setup).
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::2; then
+      echo "IPv6 filter not working to host"
+      false
+  fi
+
+  # Check that ping is no longer working (i.e its filtered after fake IP setup).
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::3; then
+      echo "IPv6 filter not working to other container"
+      false
+  fi
+
+  # Stop CT A and check filters are cleaned up.
+  lxc stop "${ctPrefix}A"
+  if ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+      echo "IPv6 filter still applied as part of ipv6_filtering in ebtables"
+      false
+  fi
+
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
   lxc network delete "${brName}"
