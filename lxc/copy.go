@@ -221,15 +221,20 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			}
 		}
 
-		// Strip the volatile keys if requested
-		if !keepVolatile {
-			for k := range entry.Config {
-				if k == "volatile.base_image" {
-					continue
-				}
+		if entry.Config != nil {
+			// Strip the last_state.power key in all cases
+			delete(entry.Config, "volatile.last_state.power")
 
-				if strings.HasPrefix(k, "volatile") {
-					delete(entry.Config, k)
+			if !keepVolatile {
+				// Strip all volatile keys
+				for k := range entry.Config {
+					if k == "volatile.base_image" {
+						continue
+					}
+
+					if strings.HasPrefix(k, "volatile") {
+						delete(entry.Config, k)
+					}
 				}
 			}
 		}
