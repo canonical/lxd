@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -31,7 +30,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		}
 
 		raftNodes, err := gateway.currentRaftNodes()
-		if err == raft.ErrNotLeader {
+		if err == errNotLeader {
 			return
 		}
 		logger.Debugf("Starting heartbeat round")
@@ -214,6 +213,7 @@ func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInf
 	if err != nil {
 		return err
 	}
+	setDqliteVersionHeader(request)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	request = request.WithContext(ctx)

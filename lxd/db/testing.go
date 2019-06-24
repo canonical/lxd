@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
-	"github.com/CanonicalLtd/raft-test"
-	"github.com/hashicorp/raft"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,38 +106,51 @@ func newDqliteServer(t *testing.T) (*dqlite.DatabaseServerStore, func()) {
 
 	address := listener.Addr().String()
 
-	store, err := dqlite.DefaultServerStore(":memory:")
+	dir, dirCleanup := newDir(t)
+
+	info := dqlite.ServerInfo{ID: uint64(1), Address: listener.Addr().String()}
+	server, err := dqlite.NewServer(info, dir)
 	require.NoError(t, err)
-	require.NoError(t, store.Set(context.Background(), []dqlite.ServerInfo{{Address: address}}))
 
-	id := fmt.Sprintf("%d", dqliteSerial)
-	dqliteSerial++
-	registry := dqlite.NewRegistry(id)
+	err = server.Bootstrap([]dqlite.ServerInfo{info})
+	require.NoError(t, err)
 
-	fsm := dqlite.NewFSM(registry)
-
-	r, raftCleanup := rafttest.Server(t, fsm, rafttest.Transport(func(i int) raft.Transport {
-		require.Equal(t, i, 0)
-		address := raft.ServerAddress(listener.Addr().String())
-		_, transport := raft.NewInmemTransport(address)
-		return transport
-	}))
-
-	log := newLogFunc(t)
-
-	server, err := dqlite.NewServer(
-		r, registry, listener, dqlite.WithServerLogFunc(log))
+	err = server.Start(listener)
 	require.NoError(t, err)
 
 	cleanup := func() {
 		require.NoError(t, server.Close())
-		raftCleanup()
+		dirCleanup()
 	}
+
+	store, err := dqlite.DefaultServerStore(":memory:")
+	require.NoError(t, err)
+	ctx := context.Background()
+	require.NoError(t, store.Set(ctx, []dqlite.ServerInfo{{Address: address}}))
 
 	return store, cleanup
 }
 
 var dqliteSerial = 0
+
+// Return a new temporary directory.
+func newDir(t *testing.T) (string, func()) {
+	t.Helper()
+
+	dir, err := ioutil.TempDir("", "dqlite-replication-test-")
+	assert.NoError(t, err)
+
+	cleanup := func() {
+		_, err := os.Stat(dir)
+		if err != nil {
+			assert.True(t, os.IsNotExist(err))
+		} else {
+			assert.NoError(t, os.RemoveAll(dir))
+		}
+	}
+
+	return dir, cleanup
+}
 
 func newLogFunc(t *testing.T) dqlite.LogFunc {
 	return func(l dqlite.LogLevel, format string, a ...interface{}) {

@@ -19,6 +19,7 @@ func TestLoadPreClusteringData(t *testing.T) {
 	// config
 	assert.Equal(t, []string{"id", "key", "value"}, dump.Schema["config"])
 	assert.Len(t, dump.Data["config"], 3)
+	assert.Equal(t, "1.2.3.4:666", dump.Data["config"][0][2])
 	rows := []interface{}{int64(1), "core.https_address", "1.2.3.4:666"}
 	assert.Equal(t, rows, dump.Data["config"][0])
 	rows = []interface{}{int64(2), "core.trust_password", "sekret"}

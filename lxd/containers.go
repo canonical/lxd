@@ -204,6 +204,34 @@ func (slice containerStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
+// Return the names of all local containers, grouped by project. The
+// information is obtained by reading the data directory.
+func containersOnDisk() (map[string][]string, error) {
+	containers := map[string][]string{}
+
+	files, err := ioutil.ReadDir(shared.VarPath("containers"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		name := file.Name()
+		project := "default"
+		if strings.Contains(name, "_") {
+			fields := strings.Split(file.Name(), "_")
+			project = fields[0]
+			name = fields[1]
+		}
+		names, ok := containers[project]
+		if !ok {
+			names = []string{}
+		}
+		containers[project] = append(names, name)
+	}
+
+	return containers, nil
+}
+
 func containersShutdown(s *state.State) error {
 	var wg sync.WaitGroup
 
@@ -217,30 +245,24 @@ func containersShutdown(s *state.State) error {
 		containers = []container{}
 
 		// List all containers on disk
-		files, err := ioutil.ReadDir(shared.VarPath("containers"))
+		cnames, err := containersOnDisk()
 		if err != nil {
 			return err
 		}
 
-		for _, file := range files {
-			project := "default"
-			name := file.Name()
-			if strings.Contains(name, "_") {
-				fields := strings.Split(file.Name(), "_")
-				project = fields[0]
-				name = fields[1]
-			}
+		for project, names := range cnames {
+			for _, name := range names {
+				c, err := containerLXCLoad(s, db.ContainerArgs{
+					Project: project,
+					Name:    name,
+					Config:  make(map[string]string),
+				}, nil)
+				if err != nil {
+					return err
+				}
 
-			c, err := containerLXCLoad(s, db.ContainerArgs{
-				Project: project,
-				Name:    name,
-				Config:  make(map[string]string),
-			}, nil)
-			if err != nil {
-				return err
+				containers = append(containers, c)
 			}
-
-			containers = append(containers, c)
 		}
 	}
 
@@ -254,7 +276,7 @@ func containersShutdown(s *state.State) error {
 		}
 	}
 
-	var lastPriority int = 0
+	var lastPriority int
 
 	if len(containers) != 0 {
 		lastPriority, _ = strconv.Atoi(containers[0].ExpandedConfig()["boot.stop.priority"])

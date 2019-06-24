@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -58,7 +58,10 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 		return nil, nil, err
 	}
 
-	legacyHook := legacyPatchHook(db, legacyPatches)
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	legacyHook := legacyPatchHook(legacyPatches)
 	hook := func(version int, tx *sql.Tx) error {
 		if version == node.UpdateFromPreClustering {
 			logger.Debug("Loading pre-clustering sqlite data")
@@ -88,9 +91,6 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 			}
 		}
 	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 
 	return node, dump, nil
 }
@@ -164,6 +164,9 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 		return nil, errors.Wrap(err, "failed to open database")
 	}
 
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
 	// Test that the cluster database is operational. We wait up to the
 	// given timeout , in case there's no quorum of nodes online yet.
 	timer := time.After(timeout)
@@ -209,9 +212,6 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure schema")
 	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 
 	if !nodesVersionsMatch {
 		cluster := &Cluster{
