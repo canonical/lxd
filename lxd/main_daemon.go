@@ -40,7 +40,7 @@ func (c *cmdDaemon) Command() *cobra.Command {
 }
 
 func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
-	if len(args) > 1 || (len(args) == 1 && args[0] != "daemon") {
+	if len(args) > 1 || (len(args) == 1 && args[0] != "daemon" && args[0] != "") {
 		return fmt.Errorf("unknown command \"%s\" for \"%s\"", args[0], cmd.CommandPath())
 	}
 
