@@ -33,6 +33,14 @@ test_storage_volume_snapshots() {
   lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'name: snap0'
 
+  # Test snapshot renaming
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
+  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/snap1"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap1" | grep 'name: snap1'
+  lxc storage volume rename "${storage_pool}" "${storage_volume}/snap1" "${storage_volume}/foo"
+  lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/foo"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/foo" | grep 'name: foo'
+
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
   # Delete file on volume
   lxc file delete c1/mnt/testfile
