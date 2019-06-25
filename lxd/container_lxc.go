@@ -3777,7 +3777,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 	}
 
 	// Setup static routes to container
-	err = c.setNetworkRoutes(deviceName, device)
+	err = c.setNetworkRoutes(device)
 	if err != nil {
 		return err
 	}
@@ -9460,7 +9460,7 @@ func (c *containerLXC) setNetworkPriority() error {
 }
 
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
-func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device) error {
+func (c *containerLXC) setNetworkRoutes(m types.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
 		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
 	}
