@@ -2795,7 +2795,7 @@ func (s *storageCeph) doPoolVolumeSnapshotDelete(name string) error {
 		}
 	}
 
-	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, name)
 	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
 	if err == nil && empty {
 		os.RemoveAll(storageVolumeSnapshotPath)
