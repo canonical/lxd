@@ -3465,9 +3465,11 @@ func (s *storageZfs) StoragePoolVolumeSnapshotDelete() error {
 }
 
 func (s *storageZfs) StoragePoolVolumeSnapshotRename(newName string) error {
-	logger.Infof("Renaming ZFS storage volume snapshot on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
-
 	sourceName, snapshotOnlyName, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+
+	logger.Infof("Renaming ZFS storage volume snapshot on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, fullSnapshotName)
+
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -3479,7 +3481,7 @@ func (s *storageZfs) StoragePoolVolumeSnapshotRename(newName string) error {
 		return err
 	}
 
-	logger.Infof("Renamed ZFS storage volume snapshot on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+	logger.Infof("Renamed ZFS storage volume snapshot on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, fullSnapshotName)
 
 	return s.s.Cluster.StoragePoolVolumeRename("default", s.volume.Name, fmt.Sprintf("%s/%s", sourceName, newName), storagePoolVolumeTypeCustom, s.poolID)
 }
