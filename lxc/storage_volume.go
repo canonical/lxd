@@ -1219,7 +1219,7 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	if isSnapshot {
 		// Create the storage volume entry
 		vol := api.StorageVolumeSnapshotPost{}
-		vol.Name = args[2]
+		vol.Name = shared.ExtractSnapshotName(args[2])
 
 		// If a target member was specified, get the volume with the matching
 		// name on that member, if any.
