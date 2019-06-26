@@ -205,9 +205,13 @@ func writeRaftSnapshot(dir string, index uint64) error {
 		return err
 	}
 
-	wal, err := ioutil.ReadFile(filepath.Join(dir, "db.bin-wal"))
-	if err != nil {
-		return err
+	walPath := filepath.Join(dir, "db.bin-wal")
+	wal := []byte{}
+	if shared.PathExists(walPath) {
+		wal, err = ioutil.ReadFile(walPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	buf := encodeRaftSnapshot(db, wal)
