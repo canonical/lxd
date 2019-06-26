@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1716,11 +1717,8 @@ func (c *containerLXC) initLXC(config bool) error {
 
 			// Host Virtual NIC name
 			vethName := ""
-			if m["host_name"] != "" && m["nictype"] != "sriov" {
+			if m["host_name"] != "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 				vethName = m["host_name"]
-			} else if shared.IsTrue(m["security.mac_filtering"]) {
-				// We need a known device name for MAC filtering
-				vethName = deviceNextVeth()
 			}
 
 			if vethName != "" {
@@ -2292,7 +2290,6 @@ func (c *containerLXC) startCommon() (string, error) {
 	// Cleanup any existing leftover devices
 	c.removeUnixDevices()
 	c.removeDiskDevices()
-	c.removeNetworkFilters()
 	c.removeProxyDevices()
 
 	var usbs []usbDevice
@@ -2525,39 +2522,6 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 
 				err := c.addInfinibandDevices(k, &ifDev, false)
-				if err != nil {
-					return "", err
-				}
-			}
-
-			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
-				// Read device name from config
-				vethName := ""
-				for i := 0; i < len(c.c.ConfigItem(networkKeyPrefix)); i++ {
-					val := c.c.ConfigItem(fmt.Sprintf("%s.%d.hwaddr", networkKeyPrefix, i))
-					if len(val) == 0 || val[0] != m["hwaddr"] {
-						continue
-					}
-
-					val = c.c.ConfigItem(fmt.Sprintf("%s.%d.link", networkKeyPrefix, i))
-					if len(val) == 0 || val[0] != m["parent"] {
-						continue
-					}
-
-					val = c.c.ConfigItem(fmt.Sprintf("%s.%d.veth.pair", networkKeyPrefix, i))
-					if len(val) == 0 {
-						continue
-					}
-
-					vethName = val[0]
-					break
-				}
-
-				if vethName == "" {
-					return "", fmt.Errorf("Failed to find device name for mac_filtering")
-				}
-
-				err = c.createNetworkFilter(vethName, m["parent"], m["hwaddr"])
 				if err != nil {
 					return "", err
 				}
@@ -3620,10 +3584,7 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// Clean up networking veth devices
-	err = c.cleanupHostVethDevices()
-	if err != nil {
-		logger.Error("Failed to cleanup veth devices: ", log.Ctx{"container": c.Name(), "err": err})
-	}
+	c.cleanupHostVethDevices()
 
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
@@ -3655,12 +3616,6 @@ func (c *containerLXC) OnStop(target string) error {
 			logger.Error("Unable to remove disk devices", log.Ctx{"container": c.Name(), "err": err})
 		}
 
-		// Clean all network filters
-		err = c.removeNetworkFilters()
-		if err != nil {
-			logger.Error("Unable to remove network filters", log.Ctx{"container": c.Name(), "err": err})
-		}
-
 		// Reboot the container
 		if target == "reboot" {
 			// Start the container again
@@ -3681,40 +3636,50 @@ func (c *containerLXC) OnStop(target string) error {
 }
 
 // cleanupHostVethDevices removes host side configuration for veth devices.
-func (c *containerLXC) cleanupHostVethDevices() error {
-	volatileNics := make([]string, 0)
-
+func (c *containerLXC) cleanupHostVethDevices() {
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
-		if m["type"] != "nic" {
+		if m["type"] != "nic" || !shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 			continue
 		}
 
 		m, err := c.fillNetworkDevice(k, m)
 		if err != nil {
+			logger.Error("Failed to cleanup veth device: ", log.Ctx{"container": c.Name(), "device": k, "err": err})
 			continue
 		}
 
-		// Remove any static host side veth routes
-		if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-			c.removeNetworkRoutes(k, m)
-			volatileNics = append(volatileNics, k) // Record for volatile removal
+		c.cleanupHostVethDevice(k, m)
+	}
+}
+
+func (c *containerLXC) cleanupHostVethDevice(deviceName string, m types.Device) {
+	// If not configured, check if volatile data contains the most recently added host_name.
+	if m["host_name"] == "" {
+		m["host_name"] = c.getVolatileHostName(deviceName)
+	}
+
+	// Check whether host device resolution succeeded.
+	if m["host_name"] == "" {
+		logger.Error("Failed to cleanup veth device: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": fmt.Errorf("host_name not set")})
+	}
+
+	// Remove any filters
+	if m["nictype"] == "bridged" {
+		c.removeNetworkFilters(deviceName, m)
+	}
+
+	// Remove any static host side veth routes
+	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+		c.removeNetworkRoutes(deviceName, m)
+
+		// Remove volatile host_name for device
+		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
+		err := c.VolatileSet(map[string]string{hostNameKey: ""})
+		if err != nil {
+			logger.Error("Failed to cleanup veth device: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 		}
 	}
-
-	// Clear host side config from volatile nics
-	volatile := make(map[string]string)
-	for _, deviceName := range volatileNics {
-		hostNameKey := fmt.Sprintf("volatile.%s.host_name", deviceName)
-		volatile[hostNameKey] = "" // Remove volatile host_name for device
-	}
-
-	err := c.VolatileSet(volatile)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // cleanupNetworkDevices performs any needed network device cleanup steps when container is stopped.
@@ -3767,9 +3732,37 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		device["host_name"] = c.getVolatileHostName(deviceName)
 	}
 
+	// If not configured, check if volatile data contains the most recently added hwaddr.
+	if device["hwaddr"] == "" {
+		device["hwaddr"] = c.getVolatileHwaddr(deviceName)
+	}
+
+	// If not configured, copy the volatile host_name into old device to support live updates.
+	if oldDevice["host_name"] == "" {
+		oldDevice["host_name"] = c.getVolatileHostName(deviceName)
+	}
+
+	// If not configured, copy the volatile host_name into old device to support live updates.
+	if oldDevice["hwaddr"] == "" {
+		oldDevice["hwaddr"] = c.getVolatileHwaddr(deviceName)
+	}
+
 	// Check whether host device resolution succeeded.
 	if device["host_name"] == "" {
 		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
+	}
+
+	// Remove any old network filters
+	if oldDevice["nictype"] == "bridged" && shared.IsTrue(oldDevice["security.mac_filtering"]) || shared.IsTrue(oldDevice["security.ipv4_filtering"]) || shared.IsTrue(oldDevice["security.ipv6_filtering"]) {
+		c.removeNetworkFilters(deviceName, oldDevice)
+	}
+
+	// Setup network filters
+	if device["nictype"] == "bridged" && shared.IsTrue(device["security.mac_filtering"]) || shared.IsTrue(device["security.ipv4_filtering"]) || shared.IsTrue(device["security.ipv6_filtering"]) {
+		err := c.setNetworkFilters(deviceName, device)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Refresh tc limits
@@ -3778,8 +3771,13 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		return err
 	}
 
+	if shared.StringInSlice(oldDevice["nictype"], []string{"bridged", "p2p"}) {
+		// Remove any old routes that were setup for this nic device.
+		c.removeNetworkRoutes(deviceName, oldDevice)
+	}
+
 	// Setup static routes to container
-	err = c.setNetworkRoutes(deviceName, device, oldDevice)
+	err = c.setNetworkRoutes(device)
 	if err != nil {
 		return err
 	}
@@ -4256,7 +4254,6 @@ func (c *containerLXC) cleanup() {
 	// Unmount any leftovers
 	c.removeUnixDevices()
 	c.removeDiskDevices()
-	c.removeNetworkFilters()
 	c.removeProxyDevices()
 
 	// Remove the security profiles
@@ -5526,14 +5523,14 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 
-				if m["type"] == "nic" && shared.StringMapHasStringKey(m, containerNetworkKeys...) && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+				if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 					// Populate network device with container nic names.
 					m, err := c.fillNetworkDevice(k, m)
 					if err != nil {
 						return err
 					}
 
-					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
+					err = c.setupHostVethDevice(k, m, types.Device{})
 					if err != nil {
 						return err
 					}
@@ -5642,27 +5639,16 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		for k, m := range updateDevices {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
-			} else if m["type"] == "nic" || m["type"] == "infiniband" {
-				// Check to see if network keys have change
-				needsUpdate := false
-				for _, v := range containerNetworkKeys {
-					needsUpdate = shared.StringInSlice(v, updateDiff)
-					if needsUpdate {
-						break
-					}
+			} else if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+				// Populate network device with container nic names.
+				m, err := c.fillNetworkDevice(k, m)
+				if err != nil {
+					return err
 				}
 
-				if needsUpdate && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-					// Populate network device with container nic names.
-					m, err := c.fillNetworkDevice(k, m)
-					if err != nil {
-						return err
-					}
-
-					err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
-					if err != nil {
-						return err
-					}
+				err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
+				if err != nil {
+					return err
 				}
 			} else if m["type"] == "proxy" {
 				err = c.updateProxyDevice(k, m)
@@ -8326,14 +8312,6 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
 	}
 
-	// Set the filter
-	if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
-		err = c.createNetworkFilter(dev, m["parent"], m["hwaddr"])
-		if err != nil {
-			return "", err
-		}
-	}
-
 	return dev, nil
 }
 
@@ -8649,72 +8627,224 @@ func (c *containerLXC) getVolatileHostName(deviceName string) string {
 	return c.localConfig[hostNameKey]
 }
 
-func (c *containerLXC) createNetworkFilter(name string, bridge string, hwaddr string) error {
-	_, err := shared.RunCommand("ebtables", "-A", "FORWARD", "-s", "!", hwaddr, "-i", name, "-o", bridge, "-j", "DROP")
+// getVolatileHwaddr returns the last hwaddr stored for a nic device.
+// Can be used when the hwaddr of a nic is not statically defined in config and need to find
+// out what the most recently dynamically generated one is.
+func (c *containerLXC) getVolatileHwaddr(deviceName string) string {
+	hwaddrKey := fmt.Sprintf("volatile.%s.hwaddr", deviceName)
+	return c.localConfig[hwaddrKey]
+}
+
+// generateNetworkFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
+func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device) [][]string {
+	// MAC source filtering rules. Blocks any packet coming from container with an incorrect Ethernet source MAC.
+	// This is required for IP filtering too.
+	rules := [][]string{
+		{"ebtables", "-t", "filter", "-A", "INPUT", "-s", "!", m["hwaddr"], "-i", m["host_name"], "-j", "DROP"},
+		{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", m["hwaddr"], "-i", m["host_name"], "-j", "DROP"},
+	}
+
+	if shared.IsTrue(m["security.ipv4_filtering"]) && m["ipv4.address"] != "" {
+		rules = append(rules,
+			// Prevent ARP MAC spoofing (prevents the container poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-mac-src", "!", m["hwaddr"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-mac-src", "!", m["hwaddr"], "-j", "DROP"},
+			// Prevent ARP IP spoofing (prevents the container redirecting traffic for IPs that are not its own).
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", m["hwaddr"], "-i", m["host_name"], "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
+			// IP source filtering rules. Blocks any packet coming from container with an incorrect IP source address.
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+		)
+	}
+
+	if shared.IsTrue(m["security.ipv6_filtering"]) && m["ipv6.address"] != "" {
+		rules = append(rules,
+			// Allow DHCPv6 and Router Solicitation to the host only. This must come before the IP source filtering rules below.
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", m["hwaddr"], "-i", m["host_name"], "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::1:2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "udp", "--ip6-dport", "547", "-j", "ACCEPT"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", m["hwaddr"], "-i", m["host_name"], "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-solicitation", "-j", "ACCEPT"},
+			// IP source filtering rules. Blocks any packet coming from container with an incorrect IP source address.
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", m["ipv6.address"]), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", m["ipv6.address"]), "-j", "DROP"},
+		)
+	}
+
+	return rules
+}
+
+// generateNetworkFilterIptablesRules returns a customised set of iptables filter rules based on the device.
+func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device) (rules [][]string, err error) {
+	mac, err := net.ParseMAC(m["hwaddr"])
+	if err != nil {
+		return
+	}
+
+	macHex := hex.EncodeToString(mac)
+
+	// These rules below are implemented using ip6tables because the functionality to inspect
+	// the contents of an ICMPv6 packet does not exist in ebtables (unlike for IPv4 ARP).
+	// Additionally, ip6tables doesn't really provide a nice way to do what we need here, so we
+	// have resorted to doing a raw hex comparison of the packet contents at fixed positions.
+	// If these rules are not added then it is possible to hijack traffic for another IP that is
+	// not assigned to the container by sending a specially crafted gratuitous NDP packet with
+	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
+	// inside the ICMPv6 NDP packet.
+	if shared.IsTrue(m["security.ipv6_filtering"]) && m["ipv6.address"] != "" {
+		ipv6 := net.ParseIP(m["ipv6.address"])
+		if ipv6 == nil {
+			err = fmt.Errorf("Invalid IPv6 address")
+			return
+		}
+
+		ipv6Hex := hex.EncodeToString(ipv6)
+
+		rules = append(rules,
+			// Prevent Neighbor Advertisement IP spoofing (prevents the container redirecting traffic for IPs that are not its own).
+			[]string{"ipv6", "INPUT", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+			[]string{"ipv6", "FORWARD", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+			// Prevent Neighbor Advertisement MAC spoofing (prevents the container poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
+			[]string{"ipv6", "INPUT", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+			[]string{"ipv6", "FORWARD", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+		)
+	}
+
+	return
+}
+
+// setNetworkFilters sets up any network level filters defined for the container.
+// These are controlled by the security.mac_filtering, security.ipv4_Filtering and security.ipv6_filtering config keys.
+func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err error) {
+	if m["hwaddr"] == "" {
+		return fmt.Errorf("Failed to set network filters: require hwaddr defined")
+	}
+
+	if m["host_name"] == "" {
+		return fmt.Errorf("Failed to set network filters: require host_name defined")
+	}
+
+	if m["parent"] == "" {
+		return fmt.Errorf("Failed to set network filters: require parent defined")
+	}
+
+	if shared.IsTrue(m["security.ipv6_filtering"]) {
+		// Check br_netfilter is loaded and enabled for IPv6.
+		sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+		if err != nil || sysctlVal != "1\n" {
+			return errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
+		}
+	}
+
+	// If anything goes wrong, clean up so we don't leave orphaned rules.
+	defer func() {
+		if err != nil {
+			c.removeNetworkFilters(deviceName, m)
+		}
+	}()
+
+	rules := c.generateNetworkFilterEbtablesRules(m)
+	for _, rule := range rules {
+		_, err = shared.RunCommand(rule[0], rule[1:]...)
+		if err != nil {
+			return err
+		}
+	}
+
+	rules, err = c.generateNetworkFilterIptablesRules(m)
 	if err != nil {
 		return err
 	}
 
-	_, err = shared.RunCommand("ebtables", "-A", "INPUT", "-s", "!", hwaddr, "-i", name, "-j", "DROP")
-	if err != nil {
-		return err
+	for _, rule := range rules {
+		err = containerIptablesPrepend(rule[0], fmt.Sprintf("%s - %s_filtering", c.Name(), rule[0]), "filter", rule[1], rule[2:]...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
-	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
-	if err != nil {
-		return err
+// removeNetworkFilters removes any network level filters defined for the container.
+func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
+	if m["hwaddr"] == "" {
+		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": "hwaddr not defined"})
+		return
 	}
 
+	if m["host_name"] == "" {
+		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": "host_name not defined"})
+		return
+	}
+
+	// Remove any IPv6 filters used for this container.
+	err := containerIptablesClear("ipv6", fmt.Sprintf("%s - ipv6_filtering", c.Name()), "filter")
+	if err != nil {
+		logger.Error("Failed to clear ip6tables ipv6_filter rules: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+	}
+
+	// Get a current list of rules active on the host.
+	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
+	if err != nil {
+		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+		return
+	}
+
+	// Get a list of rules that we would have applied on container start.
+	rules := c.generateNetworkFilterEbtablesRules(m)
+
+	// Iterate through each active rule on the host and try and match it to one the LXD rules.
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		fields := strings.Fields(line)
+		fieldsLen := len(fields)
 
-		if len(fields) == 12 {
-			match := []string{"ebtables", "-t", "filter", "-A", "INPUT", "-s", "!", hwaddr, "-i", fields[9], "-j", "DROP"}
-			if reflect.DeepEqual(fields, match) {
-				fields[3] = "-D"
-				_, err = shared.RunCommand(fields[0], fields[1:]...)
-				if err != nil {
-					return err
-				}
+		for _, rule := range rules {
+			// Rule doesn't match if the field lenths aren't the same, move on.
+			if len(rule) != fieldsLen {
+				continue
 			}
-		} else if len(fields) == 14 {
-			match := []string{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", hwaddr, "-i", fields[9], "-o", bridge, "-j", "DROP"}
-			if reflect.DeepEqual(fields, match) {
-				fields[3] = "-D"
-				_, err = shared.RunCommand(fields[0], fields[1:]...)
-				if err != nil {
-					return err
-				}
+
+			// Check whether active rule matches one of our rules to delete.
+			if !c.matchEbtablesRule(fields, rule, true) {
+				continue
+			}
+
+			// If we get this far, then the current host rule matches one of our LXD
+			// rules, so we should run the modified command to delete it.
+			_, err = shared.RunCommand(fields[0], fields[1:]...)
+			if err != nil {
+				logger.Error("Failed to remove network filter rule: ", log.Ctx{"container": c.Name(), "err": err})
 			}
 		}
+
 	}
 
-	return nil
+	return
 }
 
-func (c *containerLXC) removeNetworkFilters() error {
-	for k, m := range c.expandedDevices {
-		if m["type"] != "nic" || m["nictype"] != "bridged" {
+// matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
+// If deleteMode is true then the "-A" flag in the active rule will be modified to "-D" and will
+// not be part of the equality match. This allows delete commands to be generated from dumped add commands.
+func (c *containerLXC) matchEbtablesRule(activeRule []string, matchRule []string, deleteMode bool) bool {
+	for i := range matchRule {
+		// Active rules will be dumped in "add" format, we need to detect
+		// this and switch it to "delete" mode if requested. If this has already been
+		// done then move on, as we don't want to break the comparison below.
+		if deleteMode && (activeRule[i] == "-A" || activeRule[i] == "-D") {
+			activeRule[i] = "-D"
 			continue
 		}
 
-		m, err := c.fillNetworkDevice(k, m)
-		if err != nil {
-			return err
-		}
-
-		err = c.removeNetworkFilter(m["hwaddr"], m["parent"])
-		if err != nil {
-			return err
+		// Check the match rule field matches the active rule field.
+		// If they don't match, then this isn't one of our rules.
+		if activeRule[i] != matchRule[i] {
+			return false
 		}
 	}
 
-	return nil
+	return true
 }
 
 func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.Device, error) {
@@ -8827,9 +8957,10 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 		}
 	}
 
-	// Remove any static veth routes
+	// Remove host side veth settings and remove veth interface
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		c.removeNetworkRoutes(name, m)
+		c.cleanupHostVethDevice(name, m)
+		deviceRemoveInterface(hostName)
 	}
 
 	// If physical dev, restore MTU using value recorded on parent after removal from container.
@@ -8840,19 +8971,6 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Restore sriov parent devices
 	if m["nictype"] == "sriov" {
 		c.restoreSriovParent(name, m, "")
-	}
-
-	// If a veth, destroy it
-	if m["nictype"] != "physical" && m["nictype"] != "sriov" {
-		deviceRemoveInterface(hostName)
-	}
-
-	// Remove any filter
-	if m["nictype"] == "bridged" {
-		err = c.removeNetworkFilter(m["hwaddr"], m["parent"])
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -9342,13 +9460,10 @@ func (c *containerLXC) setNetworkPriority() error {
 }
 
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
-func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDevice types.Device) error {
+func (c *containerLXC) setNetworkRoutes(m types.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
 		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
 	}
-
-	// Remove any old routes that were setup for this nic device.
-	c.removeNetworkRoutes(deviceName, oldDevice)
 
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
@@ -9384,11 +9499,6 @@ func (c *containerLXC) setNetworkRoutes(deviceName string, m types.Device, oldDe
 // removeNetworkRoutes removes any routes created for this device on the host that were first added
 // with setNetworkRoutes(). Expects to be passed the device config from the oldExpandedDevices.
 func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
-	// If not configured, check if volatile data contains the most recently added host_name.
-	if m["host_name"] == "" {
-		m["host_name"] = c.getVolatileHostName(deviceName)
-	}
-
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
 	if m["nictype"] == "bridged" {
