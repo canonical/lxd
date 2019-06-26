@@ -17,7 +17,7 @@ ceph.osd.pool\_name             | string    | ceph driver                       
 ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | storage\_driver\_ceph              | Whether to use RBD lightweight clones rather than full dataset copies.
 ceph.user.name                  | string    | ceph driver                       | admin                      | storage\_ceph\_user\_name          | The ceph user to use when creating storage pools and volumes.
 cephfs.cluster\_name            | string    | cephfs driver                     | ceph                       | storage\_driver\_cephfs            | Name of the ceph cluster in which to create new storage pools.
-cephfs.path                     | string    | cephfs driver                     | /                          | storage\_driver\_cephfs            | The base path for the CEPH fs mount
+cephfs.path                     | string    | cephfs driver                     | /                          | storage\_driver\_cephfs            | The base path for the CEPHFS mount
 cephfs.user.name                | string    | cephfs driver                     | admin                      | storage\_driver\_cephfs            | The ceph user to use when creating storage pools and volumes.
 lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | storage                            | Thin pool where images and containers are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool        | Whether the storage pool uses a thinpool for logical volumes.

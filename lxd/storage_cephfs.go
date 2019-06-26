@@ -81,7 +81,6 @@ func (s *storageCephFs) StoragePoolInit() error {
 	return nil
 }
 
-// Initialize a full storage interface.
 func (s *storageCephFs) StoragePoolCheck() error {
 	return nil
 }
@@ -93,7 +92,7 @@ func (s *storageCephFs) StoragePoolCreate() error {
 	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
 
 	if s.pool.Config["source"] == "" {
-		return fmt.Errorf("A ceph fs name OR name/path source is required")
+		return fmt.Errorf("A CEPHFS name or name/path source is required")
 	}
 
 	if s.pool.Config["cephfs.path"] != "" && s.pool.Config["cephfs.path"] != s.pool.Config["source"] {
@@ -121,7 +120,7 @@ func (s *storageCephFs) StoragePoolCreate() error {
 
 	// Check that the filesystem exists
 	if !cephFsExists(s.ClusterName, s.UserName, fsName) {
-		return fmt.Errorf("The requested '%v' CEPH fs doesn't exist", fsName)
+		return fmt.Errorf("The requested '%v' CEPHFS doesn't exist", fsName)
 	}
 
 	// Create a temporary mountpoint
@@ -164,7 +163,7 @@ func (s *storageCephFs) StoragePoolCreate() error {
 	// Check that the existing path is empty
 	ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
 	if !ok {
-		return fmt.Errorf("Only empty CEPH fs paths can be used as a LXD storage pool")
+		return fmt.Errorf("Only empty CEPHFS paths can be used as a LXD storage pool")
 	}
 
 	// Create the mountpoint for the storage pool.
@@ -174,13 +173,13 @@ func (s *storageCephFs) StoragePoolCreate() error {
 		return err
 	}
 
-	logger.Infof(`Created CEPH fs storage pool "%s" in cluster "%s"`, s.pool.Name, s.ClusterName)
+	logger.Infof(`Created CEPHFS storage pool "%s" in cluster "%s"`, s.pool.Name, s.ClusterName)
 
 	return nil
 }
 
 func (s *storageCephFs) StoragePoolDelete() error {
-	logger.Infof(`Deleting CEPH fs storage pool "%s" in cluster "%s"`, s.pool.Name, s.ClusterName)
+	logger.Infof(`Deleting CEPHFS storage pool "%s" in cluster "%s"`, s.pool.Name, s.ClusterName)
 
 	// Parse the namespace / path
 	fields := strings.SplitN(s.FsName, "/", 2)
@@ -235,7 +234,7 @@ func (s *storageCephFs) StoragePoolDelete() error {
 		// Confirm that the path is now empty
 		ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
 		if !ok {
-			return fmt.Errorf("Only empty CEPH fs paths can be used as a LXD storage pool")
+			return fmt.Errorf("Only empty CEPHFS paths can be used as a LXD storage pool")
 		}
 
 		// Delete the path itself
@@ -260,10 +259,10 @@ func (s *storageCephFs) StoragePoolDelete() error {
 		if err != nil {
 			return err
 		}
-		logger.Debugf(`Deleted mountpoint "%s" for CEPH fs storage pool "%s" in cluster "%s"`, poolMntPoint, s.FsName, s.ClusterName)
+		logger.Debugf(`Deleted mountpoint "%s" for CEPHFS storage pool "%s" in cluster "%s"`, poolMntPoint, s.FsName, s.ClusterName)
 	}
 
-	logger.Infof(`Deleted CEPH fs storage pool "%s" in cluster "%s"`, s.pool.Name, s.ClusterName)
+	logger.Infof(`Deleted CEPHFS storage pool "%s" in cluster "%s"`, s.pool.Name, s.ClusterName)
 	return nil
 }
 
@@ -365,7 +364,7 @@ func (s *storageCephFs) StoragePoolUmount() (bool, error) {
 	}
 
 	// Unmount
-	err := syscall.Unmount(poolMntPoint, 0)
+	err := tryUnmount(poolMntPoint, syscall.MNT_DETACH)
 	if err != nil {
 		return false, err
 	}
@@ -602,87 +601,87 @@ func (s *storageCephFs) ContainerCreateFromImage(container container, imageFinge
 }
 
 func (s *storageCephFs) ContainerCanRestore(container container, sourceContainer container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerDelete(container container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerCopy(target container, source container, containerOnly bool) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerRefresh(target container, source container, snapshots []container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerMount(c container) (bool, error) {
-	return false, fmt.Errorf("CEPHfs cannot be used for containers")
+	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerUmount(c container, path string) (bool, error) {
-	return false, fmt.Errorf("CEPHfs cannot be used for containers")
+	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerRename(container container, newName string) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerRestore(container container, sourceContainer container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerGetUsage(c container) (int64, error) {
-	return -1, fmt.Errorf("CEPHfs cannot be used for containers")
+	return -1, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerSnapshotDelete(snapshotContainer container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerSnapshotRename(snapshotContainer container, newName string) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerSnapshotStart(container container) (bool, error) {
-	return false, fmt.Errorf("CEPHfs cannot be used for containers")
+	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerSnapshotStop(container container) (bool, error) {
-	return false, fmt.Errorf("CEPHfs cannot be used for containers")
+	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerBackupCreate(backup backup, source container) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
-	return fmt.Errorf("CEPHfs cannot be used for containers")
+	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
 func (s *storageCephFs) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
-	return fmt.Errorf("CEPHfs cannot be used for images")
+	return fmt.Errorf("CEPHFS cannot be used for images")
 }
 
 func (s *storageCephFs) ImageDelete(fingerprint string) error {
-	return fmt.Errorf("CEPHfs cannot be used for images")
+	return fmt.Errorf("CEPHFS cannot be used for images")
 }
 
 func (s *storageCephFs) ImageMount(fingerprint string) (bool, error) {
-	return false, fmt.Errorf("CEPHfs cannot be used for images")
+	return false, fmt.Errorf("CEPHFS cannot be used for images")
 }
 
 func (s *storageCephFs) ImageUmount(fingerprint string) (bool, error) {
-	return false, fmt.Errorf("CEPHfs cannot be used for images")
+	return false, fmt.Errorf("CEPHFS cannot be used for images")
 }
 
 func (s *storageCephFs) MigrationType() migration.MigrationFSType {
