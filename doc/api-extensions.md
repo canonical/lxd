@@ -768,3 +768,8 @@ This introduces the `ipvlan` "nic" device type.
 
 ## network\_vlan\_sriov
 This introduces VLAN (`vlan`) and MAC filtering (`security.mac_filtering`) support for SR-IOV devices.
+
+## storage\_cephfs
+Add support for CEPHFS as a storage pool driver. This can only be used
+for custom volumes, images and containers should be on CEPH (RBD)
+instead.

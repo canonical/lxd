@@ -628,7 +628,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 			}
 
 			for _, snap := range snapshots {
-				_, err := storagePoolVolumeSnapshotCreateInternal(state, poolName, vol, shared.ExtractSnapshotName(snap))
+				_, err := storagePoolVolumeSnapshotCopyInternal(state, poolName, vol, shared.ExtractSnapshotName(snap))
 				if err != nil {
 					return err
 				}
@@ -646,7 +646,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	return nil
 }
 
-func storagePoolVolumeSnapshotCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost, snapshotName string) (storage, error) {
+func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, vol *api.StorageVolumesPost, snapshotName string) (storage, error) {
 	volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
 	if err != nil {
 		return nil, err
@@ -659,7 +659,7 @@ func storagePoolVolumeSnapshotCreateInternal(state *state.State, poolName string
 		return nil, err
 	}
 
-	volumeID, err := state.Cluster.StoragePoolNodeVolumeGetTypeID(fullSnapshotName, volumeType, sourcePoolID)
+	volumeID, err := state.Cluster.StoragePoolNodeVolumeGetTypeID(vol.Source.Name, volumeType, sourcePoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -670,7 +670,7 @@ func storagePoolVolumeSnapshotCreateInternal(state *state.State, poolName string
 	}
 
 	dbArgs := &db.StorageVolumeArgs{
-		Name:        fmt.Sprintf("%s/%s", vol.Name, snapshotName),
+		Name:        fullSnapshotName,
 		PoolName:    poolName,
 		TypeName:    vol.Type,
 		Snapshot:    true,

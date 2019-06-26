@@ -155,6 +155,7 @@ var APIExtensions = []string{
 	"lxc_features",
 	"container_nic_ipvlan",
 	"network_vlan_sriov",
+	"storage_cephfs",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

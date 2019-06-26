@@ -25,6 +25,9 @@ var changeableStoragePoolProperties = map[string][]string{
 		"volume.block.mount_options",
 		"volume.size"},
 
+	"cephfs": {
+		"rsync.bwlimit"},
+
 	"dir": {
 		"rsync.bwlimit"},
 
@@ -64,6 +67,11 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	},
 	"ceph.rbd.clone_copy": shared.IsBool,
 	"ceph.user.name":      shared.IsAny,
+
+	// valid drivers: cephfs
+	"cephfs.cluster_name": shared.IsAny,
+	"cephfs.path":         shared.IsAny,
+	"cephfs.user.name":    shared.IsAny,
 
 	// valid drivers: lvm
 	"lvm.thinpool_name": shared.IsAny,
@@ -154,7 +162,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 
 		prfx := strings.HasPrefix
-		if driver == "dir" || driver == "ceph" {
+		if driver == "dir" || driver == "ceph" || driver == "cephfs" {
 			if key == "size" {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
@@ -194,7 +202,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 }
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
-	if driver == "dir" || driver == "ceph" {
+	if driver == "dir" || driver == "ceph" || driver == "cephfs" {
 		if config["size"] != "" {
 			return fmt.Errorf(`The "size" property does not apply `+
 				`to %s storage pools`, driver)
@@ -237,7 +245,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		}
 	}
 
-	if driver == "btrfs" || driver == "ceph" || driver == "lvm" || driver == "zfs" {
+	if driver == "btrfs" || driver == "ceph" || driver == "cephfs" || driver == "lvm" || driver == "zfs" {
 		if config["volume.size"] != "" {
 			_, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
