@@ -1,10 +1,12 @@
 test_storage_driver_ceph() {
-  ensure_import_testimage
-
   # shellcheck disable=2039
   local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
+  if [ "$lxd_backend" != "ceph" ]; then
+    return
+  fi
+
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
@@ -13,10 +15,6 @@ test_storage_driver_ceph() {
     set -e
     # shellcheck disable=2030
     LXD_DIR="${LXD_STORAGE_DIR}"
-
-    if [ "$lxd_backend" != "ceph" ]; then
-      exit 0
-    fi
 
     # shellcheck disable=SC1009
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" ceph volume.size=25MB ceph.osd.pg_num=1
@@ -132,7 +130,6 @@ test_storage_driver_ceph() {
     lxc profile device remove default root
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
-
   )
 
   # shellcheck disable=SC2031

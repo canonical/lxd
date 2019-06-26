@@ -939,7 +939,7 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 
 	// If this is a ceph volume, we want to duplicate the change across the
 	// the rows for all other nodes.
-	if driver == "ceph" {
+	if driver == "ceph" || driver == "cephfs" {
 		volumeIDs, err = storageVolumeIDsGet(tx, project, volumeName, volumeType, poolID)
 		if err != nil {
 			return err
@@ -968,7 +968,7 @@ func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription
 			return err
 		}
 		// If the driver is ceph, create a volume entry for each node.
-		if driver == "ceph" {
+		if driver == "ceph" || driver == "cephfs" {
 			nodeIDs, err = query.SelectIntegers(tx.tx, "SELECT id FROM nodes")
 			if err != nil {
 				return err
