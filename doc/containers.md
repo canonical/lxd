@@ -266,23 +266,25 @@ Uses an existing bridge on the host and creates a virtual device pair to connect
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-host\_name              | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
-limits.ingress          | string    | -                 | no        | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string    | -                 | no        | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max              | string    | -                 | no        | -                                      | Same as modifying both limits.ingress and limits.egress
-ipv4.address            | string    | -                 | no        | network                                | An IPv4 address to assign to the container through DHCP
-ipv6.address            | string    | -                 | no        | network                                | An IPv6 address to assign to the container through DHCP
-ipv4.routes             | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv4 static routes to add on host to nic
-ipv6.routes             | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv6 static routes to add on host to nic
-security.mac\_filtering | boolean   | false             | no        | network                                | Prevent the container from spoofing another's MAC address
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
+Key                      | Type      | Default           | Required  | API extension                          | Description
+:--                      | :--       | :--               | :--       | :--                                    | :--
+parent                   | string    | -                 | yes       | -                                      | The name of the host device
+name                     | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+mtu                      | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
+hwaddr                   | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
+host\_name               | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
+limits.ingress           | string    | -                 | no        | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress            | string    | -                 | no        | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max               | string    | -                 | no        | -                                      | Same as modifying both limits.ingress and limits.egress
+ipv4.address             | string    | -                 | no        | network                                | An IPv4 address to assign to the container through DHCP
+ipv6.address             | string    | -                 | no        | network                                | An IPv6 address to assign to the container through DHCP
+ipv4.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv4 static routes to add on host to nic
+ipv6.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv6 static routes to add on host to nic
+security.mac\_filtering  | boolean   | false             | no        | network                                | Prevent the container from spoofing another's MAC address
+security.ipv4\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv4 address (enables mac_filtering)
+security.ipv6\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv6 address (enables mac_filtering)
+maas.subnet.ipv4         | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
+maas.subnet.ipv6         | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
 
 #### nictype: macvlan
 

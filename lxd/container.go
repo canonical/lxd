@@ -91,10 +91,6 @@ func containerValidConfigKey(os *sys.OS, key string, value string) error {
 	return nil
 }
 
-var containerNetworkLimitKeys = []string{"limits.max", "limits.ingress", "limits.egress"}
-var containerNetworkRouteKeys = []string{"ipv4.routes", "ipv6.routes"}
-var containerNetworkKeys = append(containerNetworkLimitKeys, containerNetworkRouteKeys...)
-
 func containerValidDeviceConfigKey(t, k string) bool {
 	if k == "type" {
 		return true
@@ -153,6 +149,10 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		case "ipv6.routes":
 			return true
 		case "security.mac_filtering":
+			return true
+		case "security.ipv4_filtering":
+			return true
+		case "security.ipv6_filtering":
 			return true
 		case "maas.subnet.ipv4":
 			return true
@@ -430,6 +430,32 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 					if err != nil {
 						return err
 					}
+				}
+			}
+
+			if shared.IsTrue(m["security.mac_filtering"]) {
+				if !shared.StringInSlice(m["nictype"], []string{"bridged", "sriov"}) {
+					return fmt.Errorf("Bad nic type for security.mac_filtering: %s", m["nictype"])
+				}
+			}
+
+			if shared.IsTrue(m["security.ipv4_filtering"]) {
+				if m["nictype"] != "bridged" {
+					return fmt.Errorf("Bad nic type for security.ipv4_filtering: %s", m["nictype"])
+				}
+
+				if m["ipv4.address"] == "" {
+					return fmt.Errorf("ipv4.address required for security.ipv4_filtering")
+				}
+			}
+
+			if shared.IsTrue(m["security.ipv6_filtering"]) {
+				if m["nictype"] != "bridged" {
+					return fmt.Errorf("Bad nic type for security.ipv6_filtering: %s", m["nictype"])
+				}
+
+				if m["ipv6.address"] == "" {
+					return fmt.Errorf("ipv6.address required for security.ipv6_filtering")
 				}
 			}
 		} else if m["type"] == "infiniband" {

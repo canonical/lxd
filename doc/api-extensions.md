@@ -773,3 +773,6 @@ This introduces VLAN (`vlan`) and MAC filtering (`security.mac_filtering`) suppo
 Add support for CEPHFS as a storage pool driver. This can only be used
 for custom volumes, images and containers should be on CEPH (RBD)
 instead.
+
+## container\_nic\_ipfilter
+This introduces container IP filtering (`security.ipv4_filtering` and `security.ipv6_filtering`) support for `bridged` nic devices.
