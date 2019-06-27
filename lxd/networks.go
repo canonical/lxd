@@ -924,10 +924,9 @@ func networkStateGet(d *Daemon, r *http.Request) Response {
 
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := d.cluster.NetworkGet(name)
 
 	// Sanity check
-	if osInfo == nil || dbInfo == nil {
+	if osInfo == nil {
 		return NotFound(fmt.Errorf("Interface '%s' not found", name))
 	}
 
