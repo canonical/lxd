@@ -5790,12 +5790,15 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 	}
 
-	// Update network leases
+	// Update network leases if a bridged device has changed.
 	needsUpdate := false
-	for _, m := range updateDevices {
-		if m["type"] == "nic" && m["nictype"] == "bridged" {
-			needsUpdate = true
-			break
+	deviceLists := []map[string]types.Device{removeDevices, addDevices, updateDevices}
+	for _, deviceList := range deviceLists {
+		for _, m := range deviceList {
+			if m["type"] == "nic" && m["nictype"] == "bridged" {
+				needsUpdate = true
+				break
+			}
 		}
 	}
 
