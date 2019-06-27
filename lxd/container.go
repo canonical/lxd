@@ -443,19 +443,11 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 				if m["nictype"] != "bridged" {
 					return fmt.Errorf("Bad nic type for security.ipv4_filtering: %s", m["nictype"])
 				}
-
-				if m["ipv4.address"] == "" {
-					return fmt.Errorf("ipv4.address required for security.ipv4_filtering")
-				}
 			}
 
 			if shared.IsTrue(m["security.ipv6_filtering"]) {
 				if m["nictype"] != "bridged" {
 					return fmt.Errorf("Bad nic type for security.ipv6_filtering: %s", m["nictype"])
-				}
-
-				if m["ipv6.address"] == "" {
-					return fmt.Errorf("ipv6.address required for security.ipv6_filtering")
 				}
 			}
 		} else if m["type"] == "infiniband" {
