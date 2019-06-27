@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -445,6 +446,57 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	return &s, nil
 }
 
+func taskUidGid(pid int) (error, int32, int32) {
+	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		return err, -1, -1
+	}
+
+	reUid := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)")
+	reGid := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)")
+	var gid int32
+	var uid int32
+	uidFound := false
+	gidFound := false
+	for _, line := range strings.Split(string(status), "\n") {
+		if uidFound && gidFound {
+			break
+		}
+
+		if !uidFound {
+			m := reUid.FindStringSubmatch(line)
+			if m != nil && len(m) > 2 {
+				// effective uid
+				result, err := strconv.Atoi(m[2])
+				if err != nil {
+					return err, -1, -1
+				}
+
+				uid = int32(result)
+				uidFound = true
+				continue
+			}
+		}
+
+		if !gidFound {
+			m := reGid.FindStringSubmatch(line)
+			if m != nil && len(m) > 2 {
+				// effective gid
+				result, err := strconv.Atoi(m[2])
+				if err != nil {
+					return err, -1, -1
+				}
+
+				gid = int32(result)
+				gidFound = true
+				continue
+			}
+		}
+	}
+
+	return nil, uid, gid
+}
+
 func doMknod(c container, dev types.Device, requestPID int) (error, int) {
 	goErrno := int(-C.EPERM)
 
@@ -460,11 +512,17 @@ func doMknod(c container, dev types.Device, requestPID int) (error, int) {
 		return err, goErrno
 	}
 
+	err, uid, gid := taskUidGid(requestPID)
+	if err != nil {
+		return err, goErrno
+	}
+
 	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
 	dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
 	errnoMsg, err := shared.RunCommand(util.GetExecPath(),
 		"forkmknod", dev["pid"], dev["path"],
-		dev["mode_t"], dev["dev_t"], dev["hostpath"])
+		dev["mode_t"], dev["dev_t"], dev["hostpath"],
+		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid))
 	if err != nil {
 		tmp, err2 := strconv.Atoi(errnoMsg)
 		if err2 == nil {

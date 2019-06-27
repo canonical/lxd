@@ -26,66 +26,60 @@ import (
 extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
-static uid_t get_root_uid(pid_t pid)
+static uid_t get_host_uid(uid_t uid, pid_t pid)
 {
-	char *line = NULL;
-	size_t sz = 0;
-	uid_t nsid, hostid, range;
-	FILE *f;
+        __do_free char *line = NULL;
+        __do_fclose FILE *f = NULL;
+        size_t sz = 0;
 	char path[256];
+        uid_t nsid, hostid, range;
 
 	snprintf(path, sizeof(path), "/proc/%d/uid_map", pid);
 	f = fopen(path, "re");
 	if (!f)
 		return -1;
 
-	while (getline(&line, &sz, f) != -1) {
-		if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
-			continue;
+        while (getline(&line, &sz, f) != -1) {
+                if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
+                        continue;
 
-		if (nsid == 0)
+                if (nsid <= uid && nsid + range > uid) {
+                        hostid += uid - nsid;
 			return hostid;
-	}
+                }
+        }
 
-	nsid = -1;
-
-found:
-	fclose(f);
-	free(line);
-	return nsid;
+        return -1;
 }
 
-static gid_t get_root_gid(pid_t pid)
+static gid_t get_host_gid(uid_t gid, pid_t pid)
 {
-	char *line = NULL;
-	size_t sz = 0;
-	gid_t nsid, hostid, range;
-	FILE *f;
+        __do_free char *line = NULL;
+        __do_fclose FILE *f = NULL;
+        size_t sz = 0;
 	char path[256];
+        uid_t nsid, hostid, range;
 
 	snprintf(path, sizeof(path), "/proc/%d/gid_map", pid);
 	f = fopen(path, "re");
 	if (!f)
 		return -1;
 
-	while (getline(&line, &sz, f) != -1) {
-		if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
-			continue;
+        while (getline(&line, &sz, f) != -1) {
+                if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
+                        continue;
 
-		if (nsid == 0)
+                if (nsid <= gid && nsid + range > gid) {
+                        hostid += gid - nsid;
 			return hostid;
-	}
+                }
+        }
 
-	nsid = -1;
-
-found:
-	fclose(f);
-	free(line);
-	return nsid;
+        return -1;
 }
 
 static int chowmknod(const char *path, mode_t mode, dev_t dev,
-			  uid_t uid, gid_t gid)
+		     uid_t uid, gid_t gid)
 {
 	int ret;
 
@@ -93,7 +87,25 @@ static int chowmknod(const char *path, mode_t mode, dev_t dev,
 	if (ret)
 		return -1;
 
-	return chown(path, uid, gid);
+	ret = chown(path, uid, gid);
+	if (ret)
+		(void)unlink(path);
+	return ret;
+}
+
+static int fchowmknodat(int fd, const char *path, mode_t mode, dev_t dev,
+		        uid_t uid, gid_t gid)
+{
+	int ret;
+
+	ret = mknodat(fd, path, mode, dev);
+	if (ret)
+		return -1;
+
+	ret = fchownat(fd, path, uid, gid, 0);
+	if (ret)
+		(void)unlinkat(fd, path, 0);
+	return ret;
 }
 
 static int chdirchroot(pid_t pid)
@@ -170,14 +182,20 @@ void forkmknod()
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
 	target_host = advance_arg(true);
+	uid = atoi(advance_arg(true));
+	gid = atoi(advance_arg(true));
 
-	uid = get_root_uid(pid);
-	if (uid < 0)
-		fprintf(stderr, "No root uid found (%d)\n", uid);
+	if (uid < 0) {
+		uid = get_host_uid(0, pid);
+		if (uid < 0)
+			fprintf(stderr, "No root uid found (%d)\n", uid);
+	}
 
-	gid = get_root_gid(pid);
-	if (gid < 0)
-		fprintf(stderr, "No root gid found (%d)\n", gid);
+	if (gid < 0) {
+		gid = get_host_gid(0, pid);
+		if (gid < 0)
+			fprintf(stderr, "No root gid found (%d)\n", gid);
+	}
 
 	// dirname() can modify its argument
 	target_host_dup = strdup(target_host);
@@ -216,7 +234,7 @@ void forkmknod()
 
 	// basename() can modify its argument so accessing target_host is
 	// invalid from now on.
-	ret = mknodat(target_fd, basename(target_host), mode, dev);
+	ret = fchowmknodat(target_fd, basename(target_host), mode, dev, uid, gid);
 	if (ret) {
 		if (errno == EEXIST) {
 			fprintf(stderr, "%d", errno);
