@@ -7582,6 +7582,14 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 		return err
 	}
 
+	err, uid, gid := taskUidGid(pid)
+	if err != nil {
+		return err
+	}
+
+	m["uid"] = fmt.Sprintf("%d", uid)
+	m["gid"] = fmt.Sprintf("%d", gid)
+
 	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
 	m["path"] = filepath.Join(rootPath, prefixPath, m["path"])
 	paths, err := c.createUnixDevice(prefix, m, true)
