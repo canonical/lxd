@@ -282,6 +282,12 @@ test_container_devices_nic_bridged() {
     false
   fi
 
+  # Check dnsmasq host config file is removed.
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+    echo "dnsmasq host config file not removed"
+    false
+  fi
+
   # Cleanup.
   lxc network delete "${brName}"
   lxc profile delete "${ctName}"
