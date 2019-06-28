@@ -4399,7 +4399,9 @@ func (c *containerLXC) Delete() error {
 	}
 
 	if !c.IsSnapshot() {
-		// Remove any static lease file
+		// Remove any static lease file *after* container config has been removed from cluster.
+		// This ordering is important, as if it is done earlier than c.state.Cluster.ContainerRemove
+		// then the static host config is re-created and left after the container is deleted.
 		networkUpdateStatic(c.state, "")
 	}
 
