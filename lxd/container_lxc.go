@@ -4360,9 +4360,6 @@ func (c *containerLXC) Delete() error {
 			return err
 		}
 
-		// Remove any static lease file
-		networkUpdateStatic(c.state, "")
-
 		// Update network files
 		for k, m := range c.expandedDevices {
 			if m["type"] != "nic" || m["nictype"] != "bridged" {
@@ -4399,6 +4396,11 @@ func (c *containerLXC) Delete() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if !c.IsSnapshot() {
+		// Remove any static lease file
+		networkUpdateStatic(c.state, "")
 	}
 
 	logger.Info("Deleted container", ctxMap)
