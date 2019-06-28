@@ -4360,9 +4360,6 @@ func (c *containerLXC) Delete() error {
 			return err
 		}
 
-		// Remove any static lease file
-		networkUpdateStatic(c.state, "")
-
 		// Update network files
 		for k, m := range c.expandedDevices {
 			if m["type"] != "nic" || m["nictype"] != "bridged" {
@@ -4399,6 +4396,13 @@ func (c *containerLXC) Delete() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if !c.IsSnapshot() {
+		// Remove any static lease file *after* container config has been removed from cluster.
+		// This ordering is important, as if it is done earlier than c.state.Cluster.ContainerRemove
+		// then the static host config is re-created and left after the container is deleted.
+		networkUpdateStatic(c.state, "")
 	}
 
 	logger.Info("Deleted container", ctxMap)
