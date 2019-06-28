@@ -288,7 +288,36 @@ test_container_devices_nic_bridged() {
     false
   fi
 
+  # Check dnsmasq host file is updated on new device.
+  lxc init testimage "${ctName}" -p "${ctName}"
+  lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0 ipv4.address=192.0.2.200 ipv6.address=2001:db8::200
+
+  ls -lR "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/"
+
+  if ! grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+    echo "dnsmasq host config not updated with IPv4 address"
+    false
+  fi
+
+  if ! grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+    echo "dnsmasq host config not updated with IPv6 address"
+    false
+  fi
+
+  lxc config device remove "${ctName}" eth0
+
+  if grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+    echo "dnsmasq host config still has old IPv4 address"
+    false
+  fi
+
+  if grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+    echo "dnsmasq host config still has old IPv6 address"
+    false
+  fi
+
   # Cleanup.
+  lxc delete "${ctName}" -f
   lxc network delete "${brName}"
   lxc profile delete "${ctName}"
 }
