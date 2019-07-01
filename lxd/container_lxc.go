@@ -8754,6 +8754,9 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 		}
 	}
 
+	// Retrieve existing IPs, or allocate new ones if needed.
+	IPv4, IPv6, err := c.allocateNetworkFilterIPs(deviceName, m)
+
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
 	defer func() {
 		if err != nil {
@@ -8761,7 +8764,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 		}
 	}()
 
-	rules := c.generateNetworkFilterEbtablesRules(m)
+	rules := c.generateNetworkFilterEbtablesRules(m, IPv4, IPv6)
 	for _, rule := range rules {
 		_, err = shared.RunCommand(rule[0], rule[1:]...)
 		if err != nil {
@@ -8769,7 +8772,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 		}
 	}
 
-	rules, err = c.generateNetworkFilterIptablesRules(m)
+	rules, err = c.generateNetworkFilterIptablesRules(m, IPv6)
 	if err != nil {
 		return err
 	}
