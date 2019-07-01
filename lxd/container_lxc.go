@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -8781,6 +8782,129 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 	}
 
 	return nil
+}
+
+// allocateNetworkFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
+func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Device) (net.IP, net.IP, error) {
+	var IPv4, IPv6 net.IP
+
+	// Check if there is a valid static IPv4 address defined.
+	if m["ipv4.address"] != "" {
+		IPv4 = net.ParseIP(m["ipv4.address"])
+		if IPv4 == nil {
+			return IPv4, IPv6, fmt.Errorf("Invalid static IPv4 address %s", m["ipv4.address"])
+		}
+	}
+
+	// Check if there is a valid static IPv6 address defined.
+	if m["ipv6.address"] != "" {
+		IPv6 = net.ParseIP(m["ipv6.address"])
+		if IPv6 == nil {
+			return IPv4, IPv6, fmt.Errorf("Invalid static IPv6 address %s", m["ipv6.address"])
+		}
+	}
+
+	// Read current static IP allocation configured from dnsmasq host config (if exists).
+	curIPv4, curIPv6, err := networkDHCPStaticContainerIPs(m["parent"], c.Name())
+	if err != nil && !os.IsNotExist(err) {
+		return IPv4, IPv6, err
+	}
+
+	n, err := networkLoadByName(c.state, m["parent"])
+	if err != nil {
+		return IPv4, IPv6, err
+	}
+	netConfig := n.Config()
+
+	// If no static IPv4, then check if there is a valid volatile IPv4 address defined.
+	if IPv4 == nil && curIPv4.IP != nil {
+		_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+
+		// Check the existing volatile IP is still valid in the subnet & ranges, if not
+		// then we'll need to generate a new one.
+		ranges := networkDHCPv4Ranges(netConfig)
+		if networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
+			IPv4 = curIPv4.IP.To4()
+		}
+	}
+
+	// If no static IPv6, then check if there is a valid volatile IPv6 address defined.
+	if IPv6 == nil && curIPv6.IP != nil {
+		_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+
+		// Check the existing volatile IP is still valid in the subnet & ranges, if not
+		// then we'll need to generate a new one.
+		ranges := networkDHCPv6Ranges(netConfig)
+		if networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
+			IPv6 = curIPv6.IP.To16()
+		}
+	}
+
+	// If we need to generate either a new IPv4 or IPv6, load existing IPs used in network.
+	if IPv4 == nil || IPv6 == nil {
+		networkStaticLock.Lock()
+
+		// Get existing allocations in network.
+		IPv4Allocs, IPv6Allocs, err := networkDHCPAllocatedIPs(m["parent"])
+		if err != nil {
+			networkStaticLock.Unlock()
+			return IPv4, IPv6, err
+		}
+
+		// Allocate a new IPv4 address is IPv4 filtering enabled.
+		if IPv4 == nil && shared.IsTrue(m["security.ipv4_filtering"]) {
+			IPv4, err = networkDHCPFindFreeIPv4(IPv4Allocs, netConfig, c.Name(), m["hwaddr"])
+			if err != nil {
+				networkStaticLock.Unlock()
+				return IPv4, IPv6, err
+			}
+		}
+
+		// Allocate a new IPv6 address is IPv6 filtering enabled.
+		if IPv6 == nil && shared.IsTrue(m["security.ipv6_filtering"]) {
+			IPv6, err = networkDHCPFindFreeIPv6(IPv6Allocs, netConfig, c.Name(), m["hwaddr"])
+			if err != nil {
+				networkStaticLock.Unlock()
+				return IPv4, IPv6, err
+			}
+		}
+
+		networkStaticLock.Unlock()
+	}
+
+	// If either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
+	if (IPv4 != nil && bytes.Compare(curIPv4.IP, IPv4.To4()) != 0) || (IPv6 != nil && bytes.Compare(curIPv6.IP, IPv6.To16()) != 0) {
+		var IPv4Str, IPv6Str string
+
+		if IPv4 != nil {
+			IPv4Str = IPv4.String()
+		}
+
+		if IPv6 != nil {
+			IPv6Str = IPv6.String()
+		}
+
+		networkStaticLock.Lock()
+		defer networkStaticLock.Unlock()
+
+		err = networkUpdateStaticContainer(m["parent"], c.Project(), c.Name(), netConfig, m["hwaddr"], IPv4Str, IPv6Str)
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+
+		err = networkKillDnsmasq(m["parent"], true)
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+	}
+
+	return IPv4, IPv6, nil
 }
 
 // removeNetworkFilters removes any network level filters defined for the container.
