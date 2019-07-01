@@ -3760,12 +3760,12 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
 	}
 
-	// Remove any old network filters
+	// Remove any old network filters.
 	if oldDevice["nictype"] == "bridged" && shared.IsTrue(oldDevice["security.mac_filtering"]) || shared.IsTrue(oldDevice["security.ipv4_filtering"]) || shared.IsTrue(oldDevice["security.ipv6_filtering"]) {
 		c.removeNetworkFilters(deviceName, oldDevice)
 	}
 
-	// Setup network filters
+	// Setup network filters.
 	if device["nictype"] == "bridged" && shared.IsTrue(device["security.mac_filtering"]) || shared.IsTrue(device["security.ipv4_filtering"]) || shared.IsTrue(device["security.ipv6_filtering"]) {
 		err := c.setNetworkFilters(deviceName, device)
 		if err != nil {
@@ -3773,7 +3773,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		}
 	}
 
-	// Refresh tc limits
+	// Refresh tc limits.
 	err := c.setNetworkLimits(device)
 	if err != nil {
 		return err
@@ -3784,7 +3784,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		c.removeNetworkRoutes(deviceName, oldDevice)
 	}
 
-	// Setup static routes to container
+	// Setup static routes to container.
 	err = c.setNetworkRoutes(device)
 	if err != nil {
 		return err
