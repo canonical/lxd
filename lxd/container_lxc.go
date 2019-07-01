@@ -8698,7 +8698,7 @@ func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device, IPv4 n
 }
 
 // generateNetworkFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device) (rules [][]string, err error) {
+func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(m["hwaddr"])
 	if err != nil {
 		return
@@ -8714,14 +8714,8 @@ func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device) (rules
 	// not assigned to the container by sending a specially crafted gratuitous NDP packet with
 	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
 	// inside the ICMPv6 NDP packet.
-	if shared.IsTrue(m["security.ipv6_filtering"]) && m["ipv6.address"] != "" {
-		ipv6 := net.ParseIP(m["ipv6.address"])
-		if ipv6 == nil {
-			err = fmt.Errorf("Invalid IPv6 address")
-			return
-		}
-
-		ipv6Hex := hex.EncodeToString(ipv6)
+	if shared.IsTrue(m["security.ipv6_filtering"]) && IPv6 != nil {
+		ipv6Hex := hex.EncodeToString(IPv6)
 
 		rules = append(rules,
 			// Prevent Neighbor Advertisement IP spoofing (prevents the container redirecting traffic for IPs that are not its own).
