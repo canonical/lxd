@@ -8659,7 +8659,7 @@ func (c *containerLXC) getVolatileHwaddr(deviceName string) string {
 }
 
 // generateNetworkFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
-func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device) [][]string {
+func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device, IPv4 net.IP, IPv6 net.IP) [][]string {
 	// MAC source filtering rules. Blocks any packet coming from container with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
@@ -8667,30 +8667,30 @@ func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device) [][]st
 		{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", m["hwaddr"], "-i", m["host_name"], "-j", "DROP"},
 	}
 
-	if shared.IsTrue(m["security.ipv4_filtering"]) && m["ipv4.address"] != "" {
+	if shared.IsTrue(m["security.ipv4_filtering"]) && IPv4 != nil {
 		rules = append(rules,
 			// Prevent ARP MAC spoofing (prevents the container poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-mac-src", "!", m["hwaddr"], "-j", "DROP"},
 			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-mac-src", "!", m["hwaddr"], "-j", "DROP"},
 			// Prevent ARP IP spoofing (prevents the container redirecting traffic for IPs that are not its own).
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", m["ipv4.address"], "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
 			// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", m["hwaddr"], "-i", m["host_name"], "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
 			// IP source filtering rules. Blocks any packet coming from container with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", m["ipv4.address"], "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", IPv4.String(), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", IPv4.String(), "-j", "DROP"},
 		)
 	}
 
-	if shared.IsTrue(m["security.ipv6_filtering"]) && m["ipv6.address"] != "" {
+	if shared.IsTrue(m["security.ipv6_filtering"]) && IPv6 != nil {
 		rules = append(rules,
 			// Allow DHCPv6 and Router Solicitation to the host only. This must come before the IP source filtering rules below.
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", m["hwaddr"], "-i", m["host_name"], "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::1:2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "udp", "--ip6-dport", "547", "-j", "ACCEPT"},
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", m["hwaddr"], "-i", m["host_name"], "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-solicitation", "-j", "ACCEPT"},
 			// IP source filtering rules. Blocks any packet coming from container with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", m["ipv6.address"]), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", m["ipv6.address"]), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
 		)
 	}
 
