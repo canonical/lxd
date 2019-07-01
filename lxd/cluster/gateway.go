@@ -607,7 +607,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.raft == nil {
+	if g.raft == nil || !g.isLeader() {
 		return nil, errNotLeader
 	}
 	servers, err := g.server.Cluster()
