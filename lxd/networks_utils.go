@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/mdlayher/eui64"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
@@ -1024,6 +1025,226 @@ func networkDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAllocation, map[[1
 	}
 
 	return IPv4s, IPv6s, nil
+}
+
+// dhcpRange represents a range of IPs from start to end.
+type dhcpRange struct {
+	Start net.IP
+	End   net.IP
+}
+
+// networkDHCPv6Ranges returns a parsed set of DHCPv6 ranges for a particular network.
+func networkDHCPv6Ranges(netConfig map[string]string) []dhcpRange {
+	dhcpRanges := make([]dhcpRange, 0)
+	if netConfig["ipv6.dhcp.ranges"] != "" {
+		for _, r := range strings.Split(netConfig["ipv6.dhcp.ranges"], ",") {
+			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
+			if len(parts) == 2 {
+				startIP := net.ParseIP(parts[0])
+				endIP := net.ParseIP(parts[1])
+				dhcpRanges = append(dhcpRanges, dhcpRange{
+					Start: startIP.To16(),
+					End:   endIP.To16(),
+				})
+			}
+		}
+	}
+
+	return dhcpRanges
+}
+
+// networkDHCPv4Ranges returns a parsed set of DHCPv4 ranges for a particular network.
+func networkDHCPv4Ranges(netConfig map[string]string) []dhcpRange {
+	dhcpRanges := make([]dhcpRange, 0)
+	if netConfig["ipv4.dhcp.ranges"] != "" {
+		for _, r := range strings.Split(netConfig["ipv4.dhcp.ranges"], ",") {
+			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
+			if len(parts) == 2 {
+				startIP := net.ParseIP(parts[0])
+				endIP := net.ParseIP(parts[1])
+				dhcpRanges = append(dhcpRanges, dhcpRange{
+					Start: startIP.To4(),
+					End:   endIP.To4(),
+				})
+			}
+		}
+	}
+
+	return dhcpRanges
+}
+
+// networkDHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
+func networkDHCPValidIP(subnet *net.IPNet, ranges []dhcpRange, IP net.IP) bool {
+	inSubnet := subnet.Contains(IP)
+	if !inSubnet {
+		return false
+	}
+
+	if len(ranges) > 0 {
+		for _, IPRange := range ranges {
+			if bytes.Compare(IP, IPRange.Start) >= 0 && bytes.Compare(IP, IPRange.End) <= 0 {
+				return true
+			}
+		}
+	} else if inSubnet {
+		return true
+	}
+
+	return false
+}
+
+// networkDHCPFindFreeIPv6 attempts to find a free IPv6 address for the device.
+// It first checks whether there is an existing allocation for the container. Due to the limitations
+// of dnsmasq lease file format, we can only search for previous static allocations.
+// If no previous allocation, then if SLAAC (stateless) mode is enabled on the network, or if
+// DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
+// device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
+// from the ranges configured.
+func networkDHCPFindFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
+	if err != nil {
+		return nil, err
+	}
+
+	dhcpRanges := networkDHCPv6Ranges(netConfig)
+
+	// Lets see if there is already an allocation for our device and that it sits within subnet.
+	// Because of dnsmasq's lease file format we can only match safely against static
+	// allocations using container name. If there are custom DHCP ranges defined, check also
+	// that the IP falls within one of the ranges.
+	for _, DHCP := range usedIPs {
+		if ctName == DHCP.Name && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+			return DHCP.IP, nil
+		}
+	}
+
+	// Try using an EUI64 IP when in either SLAAC or DHCPv6 stateful mode without custom ranges.
+	if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
+		MAC, err := net.ParseMAC(deviceMAC)
+		if err != nil {
+			return nil, err
+		}
+
+		IP, err := eui64.ParseMAC(subnet.IP, MAC)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check IP is not already allocated and not the LXD IP.
+		var IPKey [16]byte
+		copy(IPKey[:], IP.To16())
+		_, inUse := usedIPs[IPKey]
+		if !inUse && !IP.Equal(lxdIP) {
+			return IP, nil
+		}
+	}
+
+	// If no custom ranges defined, convert subnet pool to a range.
+	if len(dhcpRanges) <= 0 {
+		dhcpRanges = append(dhcpRanges, dhcpRange{Start: networkGetIP(subnet, 1).To16(), End: networkGetIP(subnet, -1).To16()})
+	}
+
+	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
+	// Try and find a free one in the subnet pool/ranges.
+	for _, IPRange := range dhcpRanges {
+		inc := big.NewInt(1)
+		startBig := big.NewInt(0)
+		startBig.SetBytes(IPRange.Start)
+		endBig := big.NewInt(0)
+		endBig.SetBytes(IPRange.End)
+
+		for {
+			if startBig.Cmp(endBig) >= 0 {
+				break
+			}
+
+			IP := net.IP(startBig.Bytes())
+
+			// Check IP generated is not LXD's IP.
+			if IP.Equal(lxdIP) {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			// Check IP is not already allocated.
+			var IPKey [16]byte
+			copy(IPKey[:], IP.To16())
+			if _, inUse := usedIPs[IPKey]; inUse {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			// Used by networkUpdateStatic temporarily to build new static allocations.
+			return IP, nil
+		}
+	}
+
+	return nil, fmt.Errorf("No available IP could not be found")
+}
+
+// networkDHCPFindFreeIPv4 attempts to find a free IPv4 address for the device.
+// It first checks whether there is an existing allocation for the container.
+// If no previous allocation, then a free IP is picked from the ranges configured.
+func networkDHCPFindFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+	MAC, err := net.ParseMAC(deviceMAC)
+	if err != nil {
+		return nil, err
+	}
+
+	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+	if err != nil {
+		return nil, err
+	}
+
+	dhcpRanges := networkDHCPv4Ranges(netConfig)
+
+	// Lets see if there is already an allocation for our device and that it sits within subnet.
+	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
+	for _, DHCP := range usedIPs {
+		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+			return DHCP.IP, nil
+		}
+	}
+
+	// If no custom ranges defined, convert subnet pool to a range.
+	if len(dhcpRanges) <= 0 {
+		dhcpRanges = append(dhcpRanges, dhcpRange{Start: networkGetIP(subnet, 1).To4(), End: networkGetIP(subnet, -2).To4()})
+	}
+
+	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
+	for _, IPRange := range dhcpRanges {
+		inc := big.NewInt(1)
+		startBig := big.NewInt(0)
+		startBig.SetBytes(IPRange.Start)
+		endBig := big.NewInt(0)
+		endBig.SetBytes(IPRange.End)
+
+		for {
+			if startBig.Cmp(endBig) >= 0 {
+				break
+			}
+
+			IP := net.IP(startBig.Bytes())
+
+			// Check IP generated is not LXD's IP.
+			if IP.Equal(lxdIP) {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			// Check IP is not already allocated.
+			var IPKey [4]byte
+			copy(IPKey[:], IP.To4())
+			if _, inUse := usedIPs[IPKey]; inUse {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			return IP, nil
+		}
+	}
+
+	return nil, fmt.Errorf("No available IP could not be found")
 }
 
 func networkUpdateStatic(s *state.State, networkName string) error {
