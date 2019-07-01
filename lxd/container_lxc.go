@@ -2134,6 +2134,14 @@ func (c *containerLXC) startCommon() (string, error) {
 			if m["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
 				return "", fmt.Errorf("Missing parent '%s' for nic '%s'", m["parent"], name)
 			}
+
+			if shared.IsTrue(m["security.ipv6_filtering"]) {
+				// Check br_netfilter is loaded and enabled for IPv6.
+				sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+				if err != nil || sysctlVal != "1\n" {
+					return "", errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
+				}
+			}
 		case "unix-char", "unix-block":
 			srcPath, exist := m["source"]
 			if !exist {
