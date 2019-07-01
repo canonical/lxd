@@ -1321,6 +1321,21 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 				entries[d["parent"]] = [][]string{}
 			}
 
+			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
+				curIPv4, curIPv6, err := networkDHCPStaticContainerIPs(d["parent"], c.Name())
+				if err != nil && !os.IsNotExist(err) {
+					return err
+				}
+
+				if d["ipv4.address"] == "" && curIPv4.IP != nil {
+					d["ipv4.address"] = curIPv4.IP.String()
+				}
+
+				if d["ipv6.address"] == "" && curIPv6.IP != nil {
+					d["ipv6.address"] = curIPv6.IP.String()
+				}
+			}
+
 			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], c.Project(), c.Name(), d["ipv4.address"], d["ipv6.address"]})
 		}
 	}
