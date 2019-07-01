@@ -1411,23 +1411,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			}
 
 			// Generate the dhcp-host line
-			if ipv4Address != "" {
-				line += fmt.Sprintf(",%s", ipv4Address)
-			}
-
-			if ipv6Address != "" {
-				line += fmt.Sprintf(",[%s]", ipv6Address)
-			}
-
-			if config["dns.mode"] == "" || config["dns.mode"] == "managed" {
-				line += fmt.Sprintf(",%s", cName)
-			}
-
-			if line == hwaddr {
-				continue
-			}
-
-			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", projectPrefix(project, cName)), []byte(line+"\n"), 0644)
+			err := networkUpdateStaticContainer(network, project, cName, config, hwaddr, ipv4Address, ipv6Address)
 			if err != nil {
 				return err
 			}
