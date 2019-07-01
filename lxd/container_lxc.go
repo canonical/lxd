@@ -8913,30 +8913,36 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 // removeNetworkFilters removes any network level filters defined for the container.
 func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
 	if m["hwaddr"] == "" {
-		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": "hwaddr not defined"})
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": "hwaddr not defined"})
 		return
 	}
 
 	if m["host_name"] == "" {
-		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": "host_name not defined"})
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": "host_name not defined"})
 		return
 	}
 
 	// Remove any IPv6 filters used for this container.
 	err := containerIptablesClear("ipv6", fmt.Sprintf("%s - ipv6_filtering", c.Name()), "filter")
 	if err != nil {
-		logger.Error("Failed to clear ip6tables ipv6_filter rules: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+		logger.Error("Failed to clear ip6tables ipv6_filter rules", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+	}
+
+	// Read current static IP allocation configured from dnsmasq host config (if exists).
+	IPv4, IPv6, err := networkDHCPStaticContainerIPs(m["parent"], c.Name())
+	if err != nil {
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 	}
 
 	// Get a current list of rules active on the host.
 	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
-		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 		return
 	}
 
 	// Get a list of rules that we would have applied on container start.
-	rules := c.generateNetworkFilterEbtablesRules(m)
+	rules := c.generateNetworkFilterEbtablesRules(m, IPv4.IP, IPv6.IP)
 
 	// Iterate through each active rule on the host and try and match it to one the LXD rules.
 	for _, line := range strings.Split(out, "\n") {
@@ -8959,7 +8965,7 @@ func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
 			// rules, so we should run the modified command to delete it.
 			_, err = shared.RunCommand(fields[0], fields[1:]...)
 			if err != nil {
-				logger.Error("Failed to remove network filter rule: ", log.Ctx{"container": c.Name(), "err": err})
+				logger.Error("Failed to remove network filter rule", log.Ctx{"container": c.Name(), "err": err})
 			}
 		}
 
