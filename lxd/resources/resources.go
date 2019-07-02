@@ -18,10 +18,17 @@ func GetResources() (*api.Resources, error) {
 		return nil, err
 	}
 
+	// Get GPU information
+	gpu, err := GetGPU()
+	if err != nil {
+		return nil, err
+	}
+
 	// Build the final struct
 	resources := api.Resources{
 		CPU:    *cpu,
 		Memory: *memory,
+		GPU:    *gpu,
 	}
 
 	return &resources, nil

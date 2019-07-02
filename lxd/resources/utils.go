@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var sysBusPci = "/sys/bus/pci/devices"
+
 func readUint(path string) (uint64, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -34,6 +36,15 @@ func readInt(path string) (int64, error) {
 	}
 
 	return value, nil
+}
+
+func stringInSlice(key string, list []string) bool {
+	for _, entry := range list {
+		if entry == key {
+			return true
+		}
+	}
+	return false
 }
 
 func sysfsExists(path string) bool {
