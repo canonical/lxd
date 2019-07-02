@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type storageCeph struct {
@@ -83,7 +84,7 @@ func (s *storageCeph) StoragePoolInit() error {
 
 	// set default placement group number
 	if s.pool.Config["ceph.osd.pg_num"] != "" {
-		_, err = shared.ParseByteSizeString(s.pool.Config["ceph.osd.pg_num"])
+		_, err = units.ParseByteSizeString(s.pool.Config["ceph.osd.pg_num"])
 		if err != nil {
 			return err
 		}
@@ -420,7 +421,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 
 	// Apply quota
 	if s.volume.Config["size"] != "" {
-		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		size, err := units.ParseByteSizeString(s.volume.Config["size"])
 		if err != nil {
 			return err
 		}
@@ -672,7 +673,7 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 		}
 
 		if s.volume.Config["size"] != writable.Config["size"] {
-			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			size, err := units.ParseByteSizeString(writable.Config["size"])
 			if err != nil {
 				return err
 			}
@@ -937,7 +938,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	}
 
 	if s.volume.Config["size"] != "" && imageVol.Config["size"] != s.volume.Config["size"] {
-		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		size, err := units.ParseByteSizeString(s.volume.Config["size"])
 		if err != nil {
 			return err
 		}
@@ -2455,7 +2456,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 		return fmt.Errorf("Failed to get mapped RBD path")
 	}
 
-	oldSize, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	oldSize, err := units.ParseByteSizeString(s.volume.Config["size"])
 	if err != nil {
 		return err
 	}
@@ -2478,7 +2479,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 	}
 
 	// Update the database
-	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
+	s.volume.Config["size"] = units.GetByteSizeString(size, 0)
 	err = s.s.Cluster.StoragePoolVolumeUpdate(
 		s.volume.Name,
 		volumeType,

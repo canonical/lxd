@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 
 	log "github.com/lxc/lxd/shared/log15"
@@ -488,7 +489,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			Tracker: &ioprogress.ProgressTracker{
 				Length: raw.ContentLength,
 				Handler: func(percent int64, speed int64) {
-					progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
 				},
 			},
 		}

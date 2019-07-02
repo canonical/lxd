@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/units"
 )
 
 func storageVolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolDriver string) (map[string]string, error) {
@@ -101,7 +102,7 @@ var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 			return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
 		}
 
-		_, err := shared.ParseByteSizeString(value)
+		_, err := units.ParseByteSizeString(value)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +206,7 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 		}
 	} else {
 		if config["size"] != "" {
-			_, err := shared.ParseByteSizeString(config["size"])
+			_, err := units.ParseByteSizeString(config["size"])
 			if err != nil {
 				return err
 			}
