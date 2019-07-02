@@ -776,3 +776,22 @@ instead.
 
 ## container\_nic\_ipfilter
 This introduces container IP filtering (`security.ipv4\_filtering` and `security.ipv6\_filtering`) support for `bridged` nic devices.
+
+## resources\_v2
+Rework the resources API at /1.0/resources, especially:
+ - CPU
+   - Fix reporting to track sockets, cores and threads
+   - Track NUMA node per core
+   - Track base and turbo frequency per socket
+   - Track current frequency per core
+   - Add CPU cache information
+   - Export the CPU architecture
+   - Show online/offline status of threads
+ - Memory
+   - Add hugepages tracking
+   - Track memory consumption per NUMA node too
+ - GPU
+   - Split DRM information to separate struct
+   - Export device names and nodes in DRM struct
+   - Export device name and node in NVIDIA struct
+   - Add SR-IOV VF tracking
