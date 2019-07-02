@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // Container handling functions
@@ -1890,7 +1891,7 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 			Tracker: &ioprogress.ProgressTracker{
 				Length: response.ContentLength,
 				Handler: func(percent int64, speed int64) {
-					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
 				},
 			},
 		}
