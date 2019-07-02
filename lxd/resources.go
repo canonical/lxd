@@ -2,12 +2,10 @@ package main
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/resources"
 )
 
 var api10ResourcesCmd = APIEndpoint{
@@ -32,67 +30,10 @@ func api10ResourcesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get the local resource usage
-	res := api.Resources{}
-
-	cpu, err := util.CPUResource()
+	res, err := resources.GetResources()
 	if err != nil {
 		return SmartError(err)
 	}
-
-	cards, _, err := deviceLoadGpu(false)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	gpus := api.ResourcesGPU{}
-	gpus.Cards = []api.ResourcesGPUCard{}
-
-	processedCards := map[uint64]bool{}
-	for _, card := range cards {
-		id, err := strconv.ParseUint(card.id, 10, 64)
-		if err != nil {
-			continue
-		}
-
-		if processedCards[id] {
-			continue
-		}
-
-		gpu := api.ResourcesGPUCard{}
-		gpu.ID = id
-		gpu.Driver = card.driver
-		gpu.DriverVersion = card.driverVersion
-		gpu.PCIAddress = card.pci
-		gpu.Vendor = card.vendorName
-		gpu.VendorID = card.vendorID
-		gpu.Product = card.productName
-		gpu.ProductID = card.productID
-		gpu.NUMANode = card.numaNode
-
-		if card.isNvidia {
-			gpu.Nvidia = &api.ResourcesGPUCardNvidia{
-				CUDAVersion:  card.nvidia.cudaVersion,
-				NVRMVersion:  card.nvidia.nvrmVersion,
-				Brand:        card.nvidia.brand,
-				Model:        card.nvidia.model,
-				UUID:         card.nvidia.uuid,
-				Architecture: card.nvidia.architecture,
-			}
-		}
-
-		gpus.Cards = append(gpus.Cards, gpu)
-		gpus.Total += 1
-		processedCards[id] = true
-	}
-
-	mem, err := util.MemoryResource()
-	if err != nil {
-		return SmartError(err)
-	}
-
-	res.CPU = *cpu
-	res.GPU = gpus
-	res.Memory = *mem
 
 	return SyncResponse(true, res)
 }
