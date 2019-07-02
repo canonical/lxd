@@ -29,6 +29,7 @@ import (
 
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/units"
 )
 
 const SnapshotDelimiter = "/"
@@ -882,11 +883,11 @@ func SetProgressMetadata(metadata map[string]interface{}, stage, displayPrefix s
 
 	// <stage>_progress with formatted text sent for lxc cli.
 	if percent > 0 {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, units.GetByteSizeString(speed, 2))
 	} else if processed > 0 {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s (%s/s)", displayPrefix, GetByteSizeString(processed, 2), GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s (%s/s)", displayPrefix, units.GetByteSizeString(processed, 2), units.GetByteSizeString(speed, 2))
 	} else {
-		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s/s", displayPrefix, GetByteSizeString(speed, 2))
+		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s/s", displayPrefix, units.GetByteSizeString(speed, 2))
 	}
 }
 
@@ -925,9 +926,9 @@ func DownloadFileHash(httpClient *http.Client, useragent string, progress func(p
 				Length: r.ContentLength,
 				Handler: func(percent int64, speed int64) {
 					if filename != "" {
-						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%s: %d%% (%s/s)", filename, percent, GetByteSizeString(speed, 2))})
+						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%s: %d%% (%s/s)", filename, percent, units.GetByteSizeString(speed, 2))})
 					} else {
-						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, GetByteSizeString(speed, 2))})
+						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
 					}
 				},
 			},
