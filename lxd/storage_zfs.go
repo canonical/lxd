@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 
 	"github.com/pborman/uuid"
 )
@@ -184,7 +185,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 			return fmt.Errorf("Failed to chmod %s: %s", vdev, err)
 		}
 
-		size, err := shared.ParseByteSizeString(s.pool.Config["size"])
+		size, err := units.ParseByteSizeString(s.pool.Config["size"])
 		if err != nil {
 			return err
 		}
@@ -441,7 +442,7 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 
 	// apply quota
 	if s.volume.Config["size"] != "" {
-		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		size, err := units.ParseByteSizeString(s.volume.Config["size"])
 		if err != nil {
 			return err
 		}
@@ -719,7 +720,7 @@ func (s *storageZfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 		}
 
 		if s.volume.Config["size"] != writable.Config["size"] {
-			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			size, err := units.ParseByteSizeString(writable.Config["size"])
 			if err != nil {
 				return err
 			}
@@ -3346,7 +3347,7 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 
 	// apply quota
 	if s.volume.Config["size"] != "" {
-		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		size, err := units.ParseByteSizeString(s.volume.Config["size"])
 		if err != nil {
 			return err
 		}

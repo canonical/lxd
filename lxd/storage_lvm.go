@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type storageLvm struct {
@@ -167,7 +168,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 			return fmt.Errorf("Failed to chmod %s: %s", source, err)
 		}
 
-		size, err := shared.ParseByteSizeString(s.pool.Config["size"])
+		size, err := units.ParseByteSizeString(s.pool.Config["size"])
 		if err != nil {
 			return err
 		}
@@ -520,7 +521,7 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 
 	// apply quota
 	if s.volume.Config["size"] != "" {
-		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		size, err := units.ParseByteSizeString(s.volume.Config["size"])
 		if err != nil {
 			return err
 		}
@@ -867,7 +868,7 @@ func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut,
 		}
 
 		if s.volume.Config["size"] != writable.Config["size"] {
-			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			size, err := units.ParseByteSizeString(writable.Config["size"])
 			if err != nil {
 				return err
 			}
@@ -2123,7 +2124,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 		mountpoint = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
-	oldSize, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	oldSize, err := units.ParseByteSizeString(s.volume.Config["size"])
 	if err != nil {
 		return err
 	}
@@ -2144,7 +2145,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 	}
 
 	// Update the database
-	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
+	s.volume.Config["size"] = units.GetByteSizeString(size, 0)
 	err = s.s.Cluster.StoragePoolVolumeUpdate(
 		s.volume.Name,
 		volumeType,

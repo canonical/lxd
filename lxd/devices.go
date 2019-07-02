@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -1477,7 +1478,7 @@ func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, in
 				return -1, -1, err
 			}
 		} else {
-			bps, err = shared.ParseByteSizeString(value)
+			bps, err = units.ParseByteSizeString(value)
 			if err != nil {
 				return -1, -1, err
 			}

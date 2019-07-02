@@ -8,11 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // Schema for the local database.
@@ -408,7 +410,7 @@ func updateFromV18(tx *sql.Tx) error {
 		value += "B"
 
 		// Deal with completely broken values
-		_, err = shared.ParseByteSizeString(value)
+		_, err = units.ParseByteSizeString(value)
 		if err != nil {
 			logger.Debugf("Invalid container memory limit, id=%d value=%s, removing", id, value)
 			_, err = tx.Exec("DELETE FROM containers_config WHERE id=?;", id)
@@ -453,7 +455,7 @@ func updateFromV18(tx *sql.Tx) error {
 		value += "B"
 
 		// Deal with completely broken values
-		_, err = shared.ParseByteSizeString(value)
+		_, err = units.ParseByteSizeString(value)
 		if err != nil {
 			logger.Debugf("Invalid profile memory limit, id=%d value=%s, removing", id, value)
 			_, err = tx.Exec("DELETE FROM profiles_config WHERE id=?;", id)

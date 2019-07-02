@@ -15,13 +15,14 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
 
 func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
 	// Round the size to closest 512 bytes
 	lvSize = int64(lvSize/512) * 512
-	lvSizeString := shared.GetByteSizeString(lvSize, 0)
+	lvSizeString := units.GetByteSizeString(lvSize, 0)
 
 	msg, err := shared.TryRunCommand(
 		"lvextend",
@@ -65,7 +66,7 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 
 	// Round the size to closest 512 bytes
 	lvSize = int64(lvSize/512) * 512
-	lvSizeString := shared.GetByteSizeString(lvSize, 0)
+	lvSizeString := units.GetByteSizeString(lvSize, 0)
 
 	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, lvPath, fsMntPoint, lvSize, data)
 	if cleanupFunc != nil {
@@ -118,14 +119,14 @@ func (s *storageLvm) getLvmFilesystem() string {
 }
 
 func (s *storageLvm) getLvmVolumeSize() (string, error) {
-	sz, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	sz, err := units.ParseByteSizeString(s.volume.Config["size"])
 	if err != nil {
 		return "", err
 	}
 
 	// Safety net: Set to default value.
 	if sz == 0 {
-		sz, _ = shared.ParseByteSizeString("10GB")
+		sz, _ = units.ParseByteSizeString("10GB")
 	}
 
 	return fmt.Sprintf("%d", sz), nil
@@ -215,13 +216,13 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 		}
 
 		// Round the size to closest 512 bytes
-		lvSizeInt, err := shared.ParseByteSizeString(lvSize)
+		lvSizeInt, err := units.ParseByteSizeString(lvSize)
 		if err != nil {
 			return "", err
 		}
 
 		lvSizeInt = int64(lvSizeInt/512) * 512
-		lvSizeString := shared.GetByteSizeString(lvSizeInt, 0)
+		lvSizeString := units.GetByteSizeString(lvSizeInt, 0)
 
 		args = append(args, "--size", lvSizeString)
 	}
@@ -684,7 +685,7 @@ func lvmGetLVSize(lvPath string) (string, error) {
 		return "", err
 	}
 
-	detectedSize := shared.GetByteSizeString(size, 0)
+	detectedSize := units.GetByteSizeString(size, 0)
 
 	return detectedSize, nil
 }
@@ -829,13 +830,13 @@ func lvmCreateLv(project, vgName string, thinPoolName string, lvName string, lvF
 	var err error
 
 	// Round the size to closest 512 bytes
-	lvSizeInt, err := shared.ParseByteSizeString(lvSize)
+	lvSizeInt, err := units.ParseByteSizeString(lvSize)
 	if err != nil {
 		return err
 	}
 
 	lvSizeInt = int64(lvSizeInt/512) * 512
-	lvSizeString := shared.GetByteSizeString(lvSizeInt, 0)
+	lvSizeString := units.GetByteSizeString(lvSizeInt, 0)
 
 	lvmPoolVolumeName := getPrefixedLvName(project, volumeType, lvName)
 	if makeThinLv {
