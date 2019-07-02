@@ -12,9 +12,16 @@ func GetResources() (*api.Resources, error) {
 		return nil, err
 	}
 
+	// Get memory information
+	memory, err := GetMemory()
+	if err != nil {
+		return nil, err
+	}
+
 	// Build the final struct
 	resources := api.Resources{
-		CPU: *cpu,
+		CPU:    *cpu,
+		Memory: *memory,
 	}
 
 	return &resources, nil
