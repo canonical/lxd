@@ -2760,24 +2760,10 @@ func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 
 // restorePhysicalNic uses the data in c.localConfig to restore physical nic properties from the
 // volatile data gathered when the device was attached.
-func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string, netns string) error {
+func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) error {
 	createdKey := "volatile." + deviceName + ".last_state.created"
 	mtuKey := "volatile." + deviceName + ".last_state.mtu"
 	macKey := "volatile." + deviceName + ".last_state.hwaddr"
-
-	// If a stop hook netns is supplied and the device isn't present on the host's namespace yet
-	// try detaching it as LXC may have not known about it if it was hot plugged.
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
-		if netns == "" {
-			return nil // Nothing to do if device doesn't exist and we can't retrieve it.
-		}
-
-		ifNameKey := "volatile." + deviceName + ".name"
-		err := c.detachInterfaceRename(netns, c.localConfig[ifNameKey], hostName)
-		if err != nil {
-			return fmt.Errorf("Failed to detach interface: %s to %s: %v", c.localConfig[ifNameKey], hostName, err)
-		}
-	}
 
 	// If we created the "physical" device and then it should be removed.
 	if shared.IsTrue(c.localConfig[createdKey]) {
@@ -2816,7 +2802,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string, ne
 
 // restorePhysicalParent restores parent device settings when removed from a container using the
 // volatile data that was stored when the device was first added with setupPhysicalParent().
-func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device, netns string) {
+func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device) {
 	// Clear volatile data when function finishes.
 	defer func() {
 		// Volatile keys used for parent restore.
@@ -2836,7 +2822,7 @@ func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device, 
 		return
 	}
 
-	err := c.restorePhysicalNic(deviceName, hostName, netns)
+	err := c.restorePhysicalNic(deviceName, hostName)
 	if err != nil {
 		logger.Errorf("%v", err)
 	}
@@ -2980,7 +2966,7 @@ func (c *containerLXC) setupSriovParent(deviceName string, m types.Device) error
 
 // restoreSriovParent restores SR-IOV parent device settings when removed from a container using the
 // volatile data that was stored when the device was first added with setupSriovParent().
-func (c *containerLXC) restoreSriovParent(deviceName string, m types.Device, netns string) {
+func (c *containerLXC) restoreSriovParent(deviceName string, m types.Device) {
 	// Volatile keys used for parent restore.
 	hostNameKey := "volatile." + deviceName + ".host_name"
 	vfIDKey := "volatile." + deviceName + ".last_state.vf.id"
@@ -3093,7 +3079,7 @@ func (c *containerLXC) restoreSriovParent(deviceName string, m types.Device, net
 	}
 
 	// Restore VF interface settings.
-	err = c.restorePhysicalNic(deviceName, c.localConfig[hostNameKey], netns)
+	err = c.restorePhysicalNic(deviceName, c.localConfig[hostNameKey])
 	if err != nil {
 		logger.Errorf("%v", err)
 		return
@@ -3699,14 +3685,29 @@ func (c *containerLXC) cleanupNetworkDevices(netns string) {
 			continue
 		}
 
+		// Currently liblxc does not move devices back to the host on stop that were added
+		// after the the container was started. For this reason we utilise the lxc.hook.stop
+		// hook so that we can capture the netns path, enter the namespace and move the
+		// physical and sriov nics back to the host and rename them.
+		if shared.StringInSlice(m["nictype"], []string{"physical", "sriov"}) {
+			hostName := c.localConfig[fmt.Sprintf("volatile.%s.host_name", k)]
+			if hostName != "" && netns != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
+				err := c.detachInterfaceRename(netns, k, hostName)
+				if err != nil {
+					logger.Errorf("Failed to detach interface: %s to %s: %v", k, hostName, err)
+					return
+				}
+			}
+		}
+
 		// Restore physical parent devices
 		if m["nictype"] == "physical" {
-			c.restorePhysicalParent(k, m, netns)
+			c.restorePhysicalParent(k, m)
 		}
 
 		// Restore sriov parent devices
 		if m["nictype"] == "sriov" {
-			c.restoreSriovParent(k, m, netns)
+			c.restoreSriovParent(k, m)
 		}
 	}
 }
@@ -9115,12 +9116,12 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 
 	// If physical dev, restore MTU using value recorded on parent after removal from container.
 	if m["nictype"] == "physical" {
-		c.restorePhysicalParent(name, m, "")
+		c.restorePhysicalParent(name, m)
 	}
 
 	// Restore sriov parent devices
 	if m["nictype"] == "sriov" {
-		c.restoreSriovParent(name, m, "")
+		c.restoreSriovParent(name, m)
 	}
 
 	return nil
