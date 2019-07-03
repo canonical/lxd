@@ -2160,34 +2160,65 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 }
 
 func (s *storageLvm) StoragePoolResources() (*api.ResourcesStoragePool, error) {
-	args := []string{s.pool.Config["lvm.vg_name"], "--noheadings",
-		"--units", "b", "--nosuffix", "-o"}
-
-	totalBuf, err := shared.TryRunCommand("vgs", append(args, "vg_size")...)
-	if err != nil {
-		return nil, err
-	}
-
-	totalStr := string(totalBuf)
-	totalStr = strings.TrimSpace(totalStr)
-	total, err := strconv.ParseUint(totalStr, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
 	res := api.ResourcesStoragePool{}
-	res.Space.Total = total
 
-	// Thinpools will always report zero free space so no use in calculating
-	// a used count. It'll be useless information for the user.
-	if !s.useThinpool {
-		freeBuf, err := shared.TryRunCommand("vgs", append(args, "vg_free")...)
+	// Thinpools will always report zero free space on the volume group, so calculate approx
+	// used space using the thinpool logical volume allocated (data and meta) percentages.
+	if s.useThinpool {
+		args := []string{fmt.Sprintf("%s/%s", s.vgName, s.thinPoolName), "--noheadings",
+			"--units", "b", "--nosuffix", "--separator", ",", "-o", "lv_size,data_percent,metadata_percent"}
+
+		out, err := shared.TryRunCommand("lvs", args...)
 		if err != nil {
 			return nil, err
 		}
-		freeStr := string(freeBuf)
-		freeStr = strings.TrimSpace(freeStr)
-		free, err := strconv.ParseUint(freeStr, 10, 64)
+
+		parts := strings.Split(strings.TrimSpace(out), ",")
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("Unexpected output from lvs command")
+		}
+
+		total, err := strconv.ParseUint(parts[0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		res.Space.Total = total
+
+		dataPerc, err := strconv.ParseFloat(parts[1], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		metaPerc, err := strconv.ParseFloat(parts[2], 64)
+		if err != nil {
+			return nil, err
+		}
+
+		res.Space.Used = uint64(float64(total) * ((dataPerc + metaPerc) / 100))
+	} else {
+		// If thinpools are not in use, calculate used space in volume group.
+		args := []string{s.vgName, "--noheadings",
+			"--units", "b", "--nosuffix", "--separator", ",", "-o", "vg_size,vg_free"}
+
+		out, err := shared.TryRunCommand("vgs", args...)
+		if err != nil {
+			return nil, err
+		}
+
+		parts := strings.Split(strings.TrimSpace(out), ",")
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("Unexpected output from vgs command")
+		}
+
+		total, err := strconv.ParseUint(parts[0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		res.Space.Total = total
+
+		free, err := strconv.ParseUint(parts[1], 10, 64)
 		if err != nil {
 			return nil, err
 		}
