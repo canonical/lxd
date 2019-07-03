@@ -2743,7 +2743,7 @@ func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 
 	// Process forknet detach response
 	if err != nil {
-		logger.Error("Error calling 'lxd forknet detach", log.Ctx{"container": c.name, "output": out, "pid": c.InitPID()})
+		logger.Error("Error calling 'lxd forknet detach", log.Ctx{"container": c.name, "output": out, "netns": netns, "ifName": ifName, "hostName": hostName, "pid": lxdPID})
 	}
 
 	return nil
