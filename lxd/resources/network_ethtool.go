@@ -3,6 +3,7 @@ package resources
 import (
 	"unsafe"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -98,7 +99,7 @@ func ethtoolAddInfo(info *api.ResourcesNetworkCardPort) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to open IPPROTO_IP socket")
 	}
 	defer unix.Close(ethtoolFd)
 
@@ -114,7 +115,7 @@ func ethtoolAddInfo(info *api.ResourcesNetworkCardPort) error {
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
-		return unix.Errno(errno)
+		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINK")
 	}
 
 	info.LinkDetected = ethGlink.data == 1
@@ -127,7 +128,7 @@ func ethtoolAddInfo(info *api.ResourcesNetworkCardPort) error {
 
 	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
-		return unix.Errno(errno)
+		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GSET")
 	}
 
 	// Link negotiation

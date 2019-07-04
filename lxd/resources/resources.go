@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -9,25 +11,25 @@ func GetResources() (*api.Resources, error) {
 	// Get CPU information
 	cpu, err := GetCPU()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to retrieve CPU information")
 	}
 
 	// Get memory information
 	memory, err := GetMemory()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to retrieve memory information")
 	}
 
 	// Get GPU information
 	gpu, err := GetGPU()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to retrieve GPU information")
 	}
 
 	// Get network card information
 	network, err := GetNetwork()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to retrieve network information")
 	}
 
 	// Build the final struct
