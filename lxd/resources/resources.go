@@ -24,11 +24,18 @@ func GetResources() (*api.Resources, error) {
 		return nil, err
 	}
 
+	// Get network card information
+	network, err := GetNetwork()
+	if err != nil {
+		return nil, err
+	}
+
 	// Build the final struct
 	resources := api.Resources{
-		CPU:    *cpu,
-		Memory: *memory,
-		GPU:    *gpu,
+		CPU:     *cpu,
+		Memory:  *memory,
+		GPU:     *gpu,
+		Network: *network,
 	}
 
 	return &resources, nil
