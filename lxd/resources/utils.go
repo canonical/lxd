@@ -83,3 +83,8 @@ func sysfsNumaNode(path string) (uint64, error) {
 	// Didn't find a NUMA node for the device, assume single-node
 	return 0, nil
 }
+
+func hasBit(n uint32, pos uint) bool {
+	val := n & (1 << pos)
+	return (val > 0)
+}
