@@ -32,12 +32,19 @@ func GetResources() (*api.Resources, error) {
 		return nil, errors.Wrap(err, "Failed to retrieve network information")
 	}
 
+	// Get storage information
+	storage, err := GetStorage()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to retrieve storage information")
+	}
+
 	// Build the final struct
 	resources := api.Resources{
 		CPU:     *cpu,
 		Memory:  *memory,
 		GPU:     *gpu,
 		Network: *network,
+		Storage: *storage,
 	}
 
 	return &resources, nil
