@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -31,7 +33,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 	// Open meminfo
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to open \"%s\"", path)
 	}
 	defer f.Close()
 	memInfo := bufio.NewScanner(f)
@@ -51,7 +53,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "MemTotal" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse MemTotal")
 			}
 
 			memory.Total = uint64(bytes)
@@ -61,7 +63,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "MemFree" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse MemFree")
 			}
 
 			memory.Free = uint64(bytes)
@@ -71,7 +73,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "MemUsed" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse MemUsed")
 			}
 
 			memory.Used = uint64(bytes)
@@ -81,7 +83,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "Cached" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse Cached")
 			}
 
 			memory.Cached = uint64(bytes)
@@ -91,7 +93,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "Buffers" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse Buffers")
 			}
 
 			memory.Buffers = uint64(bytes)
@@ -101,7 +103,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "HugePages_Total" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse HugePages_Total")
 			}
 
 			memory.HugepagesTotal = uint64(bytes)
@@ -111,7 +113,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "HugePages_Free" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse HugePages_Free")
 			}
 
 			memory.HugepagesFree = uint64(bytes)
@@ -121,7 +123,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "Hugepagesize" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to parse Hugepagesize")
 			}
 
 			memory.HugepagesSize = uint64(bytes)
@@ -139,7 +141,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 	// Parse main meminfo
 	info, err := parseMeminfo("/proc/meminfo")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to parse /proc/meminfo")
 	}
 
 	// Fill used values
@@ -157,7 +159,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 		// List all the nodes
 		entries, err := ioutil.ReadDir(sysDevicesNode)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysDevicesNode)
 		}
 
 		// Iterate and add to our list
@@ -173,13 +175,13 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			nodeName := strings.TrimPrefix(entryName, "node")
 			nodeNumber, err := strconv.ParseUint(nodeName, 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "Failed to find NUMA node")
 			}
 
 			// Parse NUMA meminfo
 			info, err := parseMeminfo(filepath.Join(entryPath, "meminfo"))
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to parse \"%s\"", filepath.Join(entryPath, "meminfo"))
 			}
 
 			// Setup the entry

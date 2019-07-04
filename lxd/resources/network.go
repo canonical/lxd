@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jaypipes/pcidb"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -27,12 +28,12 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 		// Get maximum and current VF count
 		vfMaximum, err := readUint(filepath.Join(devicePath, "sriov_totalvfs"))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "sriov_totalvfs"))
 		}
 
 		vfCurrent, err := readUint(filepath.Join(devicePath, "sriov_numvfs"))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "sriov_numvfs"))
 		}
 
 		sriov.MaximumVFs = vfMaximum
@@ -46,7 +47,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if sysfsExists(filepath.Join(devicePath, "numa_node")) {
 		numaNode, err := readInt(filepath.Join(devicePath, "numa_node"))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "numa_node"))
 		}
 
 		if numaNode > 0 {
@@ -59,7 +60,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if sysfsExists(deviceVendorPath) {
 		id, err := ioutil.ReadFile(deviceVendorPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", deviceVendorPath)
 		}
 
 		card.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
@@ -69,7 +70,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if sysfsExists(deviceDevicePath) {
 		id, err := ioutil.ReadFile(deviceDevicePath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", deviceDevicePath)
 		}
 
 		card.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
@@ -95,7 +96,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 	if sysfsExists(driverPath) {
 		linkTarget, err := filepath.EvalSymlinks(driverPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to track down \"%s\"", driverPath)
 		}
 
 		// Set the driver name
@@ -117,7 +118,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 
 		entries, err := ioutil.ReadDir(netPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to list \"%s\"", netPath)
 		}
 
 		// Iterate and record port data
@@ -128,10 +129,10 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			}
 
 			// Add type
-			if sysfsExists(filepath.Join(interfacepath, "type")) {
+			if sysfsExists(filepath.Join(interfacePath, "type")) {
 				devType, err := readUint(filepath.Join(interfacePath, "type"))
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(interfacePath, "type"))
 				}
 
 				protocol, ok := netProtocols[devType]
@@ -146,7 +147,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			if sysfsExists(filepath.Join(interfacePath, "address")) {
 				address, err := ioutil.ReadFile(filepath.Join(interfacePath, "address"))
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(interfacePath, "address"))
 				}
 
 				info.Address = strings.TrimSpace(string(address))
@@ -156,7 +157,7 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 			if sysfsExists(filepath.Join(interfacePath, "dev_port")) {
 				port, err := readUint(filepath.Join(interfacePath, "dev_port"))
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(interfacePath, "dev_port"))
 				}
 
 				info.Port = port
@@ -187,7 +188,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 	uname := unix.Utsname{}
 	err := unix.Uname(&uname)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get uname")
 	}
 
 	// Load PCI database
@@ -204,7 +205,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 	if sysfsExists(sysClassNet) {
 		entries, err := ioutil.ReadDir(sysClassNet)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysClassNet)
 		}
 
 		// Iterate and add to our list
@@ -224,7 +225,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			// PCI address
 			linkTarget, err := filepath.EvalSymlinks(devicePath)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to track down \"%s\"", devicePath)
 			}
 
 			if strings.HasPrefix(linkTarget, "/sys/devices/pci") && sysfsExists(filepath.Join(devicePath, "subsystem")) {
@@ -235,7 +236,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 
 				subsystem, err := filepath.EvalSymlinks(filepath.Join(devicePath, "subsystem"))
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
 				}
 
 				if filepath.Base(subsystem) == "pci" || virtio {
@@ -253,7 +254,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			// Add device information for PFs
 			err = networkAddDeviceInfo(devicePath, pciDB, uname, &card)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to add device information for \"%s\"", devicePath)
 			}
 
 			// Add to list
@@ -261,7 +262,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 
@@ -280,7 +281,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 	if sysfsExists(sysBusPci) {
 		entries, err := ioutil.ReadDir(sysBusPci)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysBusPci)
 		}
 
 		// Iterate and add to our list
@@ -300,7 +301,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 
 			class, err := ioutil.ReadFile(filepath.Join(devicePath, "class"))
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "class"))
 			}
 
 			// Only care about VGA devices
@@ -315,7 +316,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 			// Add device information
 			err = networkAddDeviceInfo(devicePath, pciDB, uname, &card)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to add device information for \"%s\"", devicePath)
 			}
 
 			// Add to list
@@ -323,7 +324,7 @@ func GetNetwork() (*api.ResourcesNetwork, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 

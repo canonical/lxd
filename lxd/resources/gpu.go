@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jaypipes/pcidb"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -22,20 +23,20 @@ func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	// Check for nvidia-container-cli
 	_, err := exec.LookPath("nvidia-container-cli")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to locate nvidia-container-cli")
 	}
 
 	// Prepare nvidia-container-cli call
 	cmd := exec.Command("nvidia-container-cli", "info", "--csv")
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to setup PIPE for nvidia-container-cli")
 	}
 
 	// Run the command
 	err = cmd.Start()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to start nvidia-container-cli")
 	}
 
 	// Parse the data
@@ -78,7 +79,7 @@ func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	// wait for nvidia-container-cli
 	err = cmd.Wait()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "nvidia-container-cli failed")
 	}
 
 	return nvidiaCards, nil
@@ -92,12 +93,12 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		// Get maximum and current VF count
 		vfMaximum, err := readUint(filepath.Join(devicePath, "sriov_totalvfs"))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "sriov_totalvfs"))
 		}
 
 		vfCurrent, err := readUint(filepath.Join(devicePath, "sriov_numvfs"))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "sriov_numvfs"))
 		}
 
 		sriov.MaximumVFs = vfMaximum
@@ -111,7 +112,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 	if sysfsExists(filepath.Join(devicePath, "numa_node")) {
 		numaNode, err := readInt(filepath.Join(devicePath, "numa_node"))
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "numa_node"))
 		}
 
 		if numaNode > 0 {
@@ -124,7 +125,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 	if sysfsExists(deviceVendorPath) {
 		id, err := ioutil.ReadFile(deviceVendorPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", deviceVendorPath)
 		}
 
 		card.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
@@ -134,7 +135,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 	if sysfsExists(deviceDevicePath) {
 		id, err := ioutil.ReadFile(deviceDevicePath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to read \"%s\"", deviceDevicePath)
 		}
 
 		card.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
@@ -160,7 +161,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 	if sysfsExists(driverPath) {
 		linkTarget, err := filepath.EvalSymlinks(driverPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to track down \"%s\"", driverPath)
 		}
 
 		// Set the driver name
@@ -196,7 +197,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		// List all the devices
 		entries, err := ioutil.ReadDir(drmPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to list \"%s\"", drmPath)
 		}
 
 		// Fill in the struct
@@ -209,12 +210,12 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 				idStr := strings.TrimPrefix(entryName, "card")
 				id, err := strconv.ParseUint(idStr, 10, 64)
 				if err != nil {
-					return err
+					return errors.Wrap(err, "Failed to parse card number")
 				}
 
 				dev, err := ioutil.ReadFile(filepath.Join(entryPath, "dev"))
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "dev"))
 				}
 
 				drm.ID = id
@@ -225,7 +226,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 			if strings.HasPrefix(entryName, "controlD") {
 				dev, err := ioutil.ReadFile(filepath.Join(entryPath, "dev"))
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "dev"))
 				}
 
 				drm.ControlName = entryName
@@ -235,7 +236,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 			if strings.HasPrefix(entryName, "renderD") {
 				dev, err := ioutil.ReadFile(filepath.Join(entryPath, "dev"))
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(entryPath, "dev"))
 				}
 
 				drm.RenderName = entryName
@@ -258,7 +259,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 	uname := unix.Utsname{}
 	err := unix.Uname(&uname)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get uname")
 	}
 
 	// Load PCI database
@@ -281,7 +282,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 	if sysfsExists(sysClassDrm) {
 		entries, err := ioutil.ReadDir(sysClassDrm)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysClassDrm)
 		}
 
 		// Iterate and add to our list
@@ -306,7 +307,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			// PCI address
 			linkTarget, err := filepath.EvalSymlinks(devicePath)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to track down \"%s\"", devicePath)
 			}
 
 			if strings.HasPrefix(linkTarget, "/sys/devices/pci") && sysfsExists(filepath.Join(devicePath, "subsystem")) {
@@ -317,7 +318,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 
 				subsystem, err := filepath.EvalSymlinks(filepath.Join(devicePath, "subsystem"))
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "subsystem"))
 				}
 
 				if filepath.Base(subsystem) == "pci" || virtio {
@@ -335,7 +336,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			// Add device information
 			err = gpuAddDeviceInfo(devicePath, nvidiaCards, pciDB, uname, &card)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to add device information for \"%s\"", devicePath)
 			}
 
 			// Add to list
@@ -343,7 +344,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 
@@ -362,7 +363,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 	if sysfsExists(sysBusPci) {
 		entries, err := ioutil.ReadDir(sysBusPci)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Failed to list \"%s\"", sysBusPci)
 		}
 
 		// Iterate and add to our list
@@ -382,7 +383,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 
 			class, err := ioutil.ReadFile(filepath.Join(devicePath, "class"))
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "class"))
 			}
 
 			// Only care about VGA devices
@@ -397,7 +398,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			// Add device information
 			err = gpuAddDeviceInfo(devicePath, nvidiaCards, pciDB, uname, &card)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Failed to add device information for \"%s\"", devicePath)
 			}
 
 			// Add to list
@@ -405,7 +406,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Failed to track down \"%s\"", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 
