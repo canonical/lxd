@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // Image handling functions
@@ -184,7 +185,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 			Tracker: &ioprogress.ProgressTracker{
 				Length: response.ContentLength,
 				Handler: func(percent int64, speed int64) {
-					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
 				},
 			},
 		}
@@ -403,7 +404,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 				Tracker: &ioprogress.ProgressTracker{
 					Length: size,
 					Handler: func(percent int64, speed int64) {
-						args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+						args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2))})
 					},
 				},
 			}

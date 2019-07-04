@@ -759,7 +759,7 @@ by a container that a registered syscall has been performed. LXD can then
 decide to trigger various actions.
 
 ## lxc\_features
-This introduces the `lxc_features` section output from the `lxc info` command
+This introduces the `lxc\_features` section output from the `lxc info` command
 via the `GET /1.0/` route. It outputs the result of checks for key features being present in the
 underlying LXC library.
 
@@ -767,7 +767,7 @@ underlying LXC library.
 This introduces the `ipvlan` "nic" device type.
 
 ## network\_vlan\_sriov
-This introduces VLAN (`vlan`) and MAC filtering (`security.mac_filtering`) support for SR-IOV devices.
+This introduces VLAN (`vlan`) and MAC filtering (`security.mac\_filtering`) support for SR-IOV devices.
 
 ## storage\_cephfs
 Add support for CEPHFS as a storage pool driver. This can only be used
@@ -775,4 +775,4 @@ for custom volumes, images and containers should be on CEPH (RBD)
 instead.
 
 ## container\_nic\_ipfilter
-This introduces container IP filtering (`security.ipv4_filtering` and `security.ipv6_filtering`) support for `bridged` nic devices.
+This introduces container IP filtering (`security.ipv4\_filtering` and `security.ipv6\_filtering`) support for `bridged` nic devices.

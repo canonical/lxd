@@ -9,6 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/robfig/cron.v2"
+
+	"github.com/lxc/lxd/shared/units"
 )
 
 type ContainerAction string
@@ -223,7 +225,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 			return nil
 		}
 
-		_, err := ParseByteSizeString(value)
+		_, err := units.ParseByteSizeString(value)
 		if err != nil {
 			return err
 		}

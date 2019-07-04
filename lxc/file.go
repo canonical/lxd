@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type cmdFile struct {
@@ -344,8 +345,8 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 					progress.UpdateProgress(ioprogress.ProgressData{
 						Text: fmt.Sprintf("%s (%s/s)",
-							shared.GetByteSizeString(bytesReceived, 2),
-							shared.GetByteSizeString(speed, 2))})
+							units.GetByteSizeString(bytesReceived, 2),
+							units.GetByteSizeString(speed, 2))})
 				},
 			},
 		}
@@ -599,7 +600,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 				Length: fstat.Size(),
 				Handler: func(percent int64, speed int64) {
 					progress.UpdateProgress(ioprogress.ProgressData{
-						Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2)),
+						Text: fmt.Sprintf("%d%% (%s/s)", percent, units.GetByteSizeString(speed, 2)),
 					})
 				},
 			},
@@ -663,8 +664,8 @@ func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p s
 				Handler: func(bytesReceived int64, speed int64) {
 					progress.UpdateProgress(ioprogress.ProgressData{
 						Text: fmt.Sprintf("%s (%s/s)",
-							shared.GetByteSizeString(bytesReceived, 2),
-							shared.GetByteSizeString(speed, 2))})
+							units.GetByteSizeString(bytesReceived, 2),
+							units.GetByteSizeString(speed, 2))})
 				},
 			},
 		}
@@ -767,7 +768,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 					Handler: func(percent int64, speed int64) {
 						progress.UpdateProgress(ioprogress.ProgressData{
 							Text: fmt.Sprintf("%d%% (%s/s)", percent,
-								shared.GetByteSizeString(speed, 2))})
+								units.GetByteSizeString(speed, 2))})
 					},
 				},
 			}, args.Content)

@@ -18,6 +18,7 @@ import (
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type cmdNetwork struct {
@@ -784,8 +785,8 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 	// Network usage
 	fmt.Println("")
 	fmt.Println(i18n.G("Network usage:"))
-	fmt.Printf("  %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(state.Counters.BytesReceived, 2))
-	fmt.Printf("  %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(state.Counters.BytesSent, 2))
+	fmt.Printf("  %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(state.Counters.BytesReceived, 2))
+	fmt.Printf("  %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(state.Counters.BytesSent, 2))
 	fmt.Printf("  %s: %d\n", i18n.G("Packets received"), state.Counters.PacketsReceived)
 	fmt.Printf("  %s: %d\n", i18n.G("Packets sent"), state.Counters.PacketsSent)
 

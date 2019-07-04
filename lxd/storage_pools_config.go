@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/units"
 )
 
 func updateStoragePoolError(unchangeable []string, driverName string) error {
@@ -62,7 +63,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 			return nil
 		}
 
-		_, err := shared.ParseByteSizeString(value)
+		_, err := units.ParseByteSizeString(value)
 		return err
 	},
 	"ceph.rbd.clone_copy": shared.IsBool,
@@ -84,7 +85,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 			return nil
 		}
 
-		_, err := shared.ParseByteSizeString(value)
+		_, err := units.ParseByteSizeString(value)
 		return err
 	},
 
@@ -111,7 +112,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 			return nil
 		}
 
-		_, err := shared.ParseByteSizeString(value)
+		_, err := units.ParseByteSizeString(value)
 		return err
 	},
 
@@ -142,7 +143,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 
 	v, ok := config["rsync.bwlimit"]
 	if ok && v != "" {
-		_, err := shared.ParseByteSizeString(v)
+		_, err := units.ParseByteSizeString(v)
 		if err != nil {
 			return err
 		}
@@ -225,7 +226,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 			}
 			config["size"] = strconv.FormatUint(uint64(size), 10) + "GB"
 		} else {
-			_, err := shared.ParseByteSizeString(config["size"])
+			_, err := units.ParseByteSizeString(config["size"])
 			if err != nil {
 				return err
 			}
@@ -247,7 +248,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 
 	if driver == "btrfs" || driver == "ceph" || driver == "cephfs" || driver == "lvm" || driver == "zfs" {
 		if config["volume.size"] != "" {
-			_, err := shared.ParseByteSizeString(config["volume.size"])
+			_, err := units.ParseByteSizeString(config["volume.size"])
 			if err != nil {
 				return err
 			}
