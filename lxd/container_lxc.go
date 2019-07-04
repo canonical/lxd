@@ -4380,7 +4380,7 @@ func (c *containerLXC) Delete() error {
 				continue
 			}
 
-			err = networkClearLease(c.state, c.name, m["parent"], m["hwaddr"])
+			err = networkClearLease(c.name, m["parent"], m["hwaddr"])
 			if err != nil {
 				logger.Error("Failed to delete DHCP lease", log.Ctx{"name": c.Name(), "err": err, "device": k, "hwaddr": m["hwaddr"]})
 			}
