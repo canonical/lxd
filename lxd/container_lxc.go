@@ -43,6 +43,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/units"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -1402,7 +1403,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 				valueInt = int64((memoryTotal / 100) * percent)
 			} else {
-				valueInt, err = shared.ParseByteSizeString(memory)
+				valueInt, err = units.ParseByteSizeString(memory)
 				if err != nil {
 					return err
 				}
@@ -2181,7 +2182,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			return "", errors.Wrap(err, "Initialize storage")
 		}
 
-		size, err := shared.ParseByteSizeString(newSize)
+		size, err := units.ParseByteSizeString(newSize)
 		if err != nil {
 			return "", err
 		}
@@ -5063,7 +5064,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		if (storageTypeName == "lvm" || storageTypeName == "ceph") && isRunning || !storageIsReady {
 			c.localConfig["volatile.apply_quota"] = newRootDiskDeviceSize
 		} else {
-			size, err := shared.ParseByteSizeString(newRootDiskDeviceSize)
+			size, err := units.ParseByteSizeString(newRootDiskDeviceSize)
 			if err != nil {
 				return err
 			}
@@ -5179,7 +5180,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					memory = fmt.Sprintf("%d", int64((memoryTotal/100)*percent))
 				} else {
-					valueInt, err := shared.ParseByteSizeString(memory)
+					valueInt, err := units.ParseByteSizeString(memory)
 					if err != nil {
 						return err
 					}
@@ -9711,7 +9712,7 @@ func (c *containerLXC) setNetworkLimits(m types.Device) error {
 	// Parse the values
 	var ingressInt int64
 	if m["limits.ingress"] != "" {
-		ingressInt, err = shared.ParseBitSizeString(m["limits.ingress"])
+		ingressInt, err = units.ParseBitSizeString(m["limits.ingress"])
 		if err != nil {
 			return err
 		}
@@ -9719,7 +9720,7 @@ func (c *containerLXC) setNetworkLimits(m types.Device) error {
 
 	var egressInt int64
 	if m["limits.egress"] != "" {
-		egressInt, err = shared.ParseBitSizeString(m["limits.egress"])
+		egressInt, err = units.ParseBitSizeString(m["limits.egress"])
 		if err != nil {
 			return err
 		}

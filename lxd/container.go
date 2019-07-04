@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/robfig/cron.v2"
@@ -29,7 +30,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
-	"github.com/pkg/errors"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // Helper functions
@@ -1374,7 +1375,7 @@ func containerConfigureInternal(c container) error {
 				return err
 			}
 		} else {
-			size, err := shared.ParseByteSizeString(rootDiskDevice["size"])
+			size, err := units.ParseByteSizeString(rootDiskDevice["size"])
 			if err != nil {
 				return err
 			}

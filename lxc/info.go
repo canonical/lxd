@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/units"
 )
 
 type cmdInfo struct {
@@ -131,9 +132,9 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 		}
 
 		fmt.Printf("\n" + i18n.G("Memory:") + "\n")
-		fmt.Printf("  "+i18n.G("Free: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Total-resources.Memory.Used), 2))
-		fmt.Printf("  "+i18n.G("Used: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Used), 2))
-		fmt.Printf("  "+i18n.G("Total: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Total), 2))
+		fmt.Printf("  "+i18n.G("Free: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.Total-resources.Memory.Used), 2))
+		fmt.Printf("  "+i18n.G("Used: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.Used), 2))
+		fmt.Printf("  "+i18n.G("Total: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.Total), 2))
 
 		renderGPU := func(gpu api.ResourcesGPUCard, prefix string) {
 			if gpu.Vendor != "" {
@@ -258,7 +259,7 @@ func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 		if cs.Disk != nil {
 			for entry, disk := range cs.Disk {
 				if disk.Usage != 0 {
-					diskInfo += fmt.Sprintf("    %s: %s\n", entry, shared.GetByteSizeString(disk.Usage, 2))
+					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeString(disk.Usage, 2))
 				}
 			}
 		}
@@ -282,19 +283,19 @@ func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 		// Memory usage
 		memoryInfo := ""
 		if cs.Memory.Usage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), shared.GetByteSizeString(cs.Memory.Usage, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeString(cs.Memory.Usage, 2))
 		}
 
 		if cs.Memory.UsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), shared.GetByteSizeString(cs.Memory.UsagePeak, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeString(cs.Memory.UsagePeak, 2))
 		}
 
 		if cs.Memory.SwapUsage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), shared.GetByteSizeString(cs.Memory.SwapUsage, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeString(cs.Memory.SwapUsage, 2))
 		}
 
 		if cs.Memory.SwapUsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), shared.GetByteSizeString(cs.Memory.SwapUsagePeak, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeString(cs.Memory.SwapUsagePeak, 2))
 		}
 
 		if memoryInfo != "" {
@@ -307,8 +308,8 @@ func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 		if cs.Network != nil {
 			for netName, net := range cs.Network {
 				networkInfo += fmt.Sprintf("    %s:\n", netName)
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(net.Counters.BytesReceived, 2))
-				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(net.Counters.BytesSent, 2))
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(net.Counters.BytesReceived, 2))
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(net.Counters.BytesSent, 2))
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
 			}
