@@ -134,6 +134,18 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 	ifName := args[2]
 	hostName := args[3]
 
+	if lxdPID == "" {
+		return fmt.Errorf("LXD PID argument is required")
+	}
+
+	if ifName == "" {
+		return fmt.Errorf("ifname argument is required")
+	}
+
+	if hostName == "" {
+		return fmt.Errorf("hostname argument is required")
+	}
+
 	// Remove all IP addresses from interface before moving to parent netns.
 	// This is to avoid any container address config leaking into host.
 	_, err := shared.RunCommand("ip", "address", "flush", "dev", ifName)
@@ -147,6 +159,5 @@ func (c *cmdForknet) RunDetach(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println("OK")
 	return nil
 }

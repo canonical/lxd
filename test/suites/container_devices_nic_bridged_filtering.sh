@@ -78,7 +78,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
 
   # Stop CT A and check filters are cleaned up.
-  lxc stop "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}A"
   if ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter still applied in ebtables"
       false
@@ -136,7 +136,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Stop CT A and check filters are cleaned up.
-  lxc stop "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}A"
   if ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
       echo "IPv4 filter still applied as part of ipv4_filtering in ebtables"
       false
@@ -219,7 +219,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Stop CT A and check filters are cleaned up.
-  lxc stop "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}A"
   if ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
       echo "IPv6 filter still applied as part of ipv6_filtering in ebtables"
       false
