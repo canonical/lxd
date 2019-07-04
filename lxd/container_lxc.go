@@ -5535,19 +5535,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				}
-
-				if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-					// Populate network device with container nic names.
-					m, err := c.fillNetworkDevice(k, m)
-					if err != nil {
-						return err
-					}
-
-					err = c.setupHostVethDevice(k, m, types.Device{})
-					if err != nil {
-						return err
-					}
-				}
 			} else if m["type"] == "usb" {
 				if usbs == nil {
 					usbs, err = deviceLoadUsb()
@@ -5652,14 +5639,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		for k, m := range updateDevices {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
-			} else if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-				// Populate network device with container nic names.
-				m, err := c.fillNetworkDevice(k, m)
-				if err != nil {
-					return err
-				}
-
-				err = c.setupHostVethDevice(k, m, oldExpandedDevices[k])
+			} else if m["type"] == "nic" {
+				c.updateNetworkDevice(k, m, oldExpandedDevices[k])
 				if err != nil {
 					return err
 				}
@@ -9049,6 +9030,13 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.D
 		return nil, fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
 	}
 
+	if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+		err = c.setupHostVethDevice(name, m, types.Device{})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return m, nil
 }
 
@@ -9060,6 +9048,23 @@ func (c *containerLXC) checkIPVLANSupport() error {
 	}
 
 	return errors.New("LXC is missing one or more API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
+}
+
+func (c *containerLXC) updateNetworkDevice(name string, m types.Device, oldDevice types.Device) error {
+	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+		// Populate network device with container nic names.
+		m, err := c.fillNetworkDevice(name, m)
+		if err != nil {
+			return err
+		}
+
+		err = c.setupHostVethDevice(name, m, oldDevice)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
