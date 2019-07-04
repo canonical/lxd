@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/mdlayher/eui64"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
@@ -879,6 +880,402 @@ func networkGetDnsmasqVersion() (*version.DottedVersion, error) {
 	return version.NewDottedVersion(lines[2])
 }
 
+// dhcpAllocation represents an IP allocation from dnsmasq.
+type dhcpAllocation struct {
+	IP     net.IP
+	Name   string
+	MAC    net.HardwareAddr
+	Static bool
+}
+
+// networkDHCPStaticContainerIPs retrieves the dnsmasq statically allocated IPs for a container.
+// Returns IPv4 and IPv6 dhcpAllocation structs respectively.
+func networkDHCPStaticContainerIPs(network string, containerName string) (dhcpAllocation, dhcpAllocation, error) {
+	var IPv4, IPv6 dhcpAllocation
+
+	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts") + "/" + containerName)
+	if err != nil {
+		return IPv4, IPv6, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.SplitN(scanner.Text(), ",", -1)
+		for _, field := range fields {
+			// Check if field is IPv4 or IPv6 address.
+			if strings.Count(field, ".") == 3 {
+				IP := net.ParseIP(field)
+				if IP.To4() == nil {
+					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
+				}
+				IPv4 = dhcpAllocation{Name: containerName, Static: true, IP: IP.To4()}
+
+			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
+				IP := net.ParseIP(field[1 : len(field)-1])
+				if IP == nil {
+					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
+				}
+				IPv6 = dhcpAllocation{Name: containerName, Static: true, IP: IP}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return IPv4, IPv6, err
+	}
+
+	return IPv4, IPv6, nil
+}
+
+// networkDHCPAllocatedIPs returns a map of IPs currently allocated (statically and dynamically)
+// in dnsmasq for a specific network. The returned map is keyed by a 16 byte array representing
+// the net.IP format. The value of each map item is a dhcpAllocation struct containing at least
+// whether the allocation was static or dynamic and optionally container name or MAC address.
+// MAC addresses are only included for dynamic IPv4 allocations (where name is not reliable).
+// Static allocations are not overridden by dynamic allocations, allowing for container name to be
+// included for static IPv6 allocations. IPv6 addresses that are dynamically assigned cannot be
+// reliably linked to containers using either name or MAC because dnsmasq does not record the MAC
+// address for these records, and the recorded host name can be set by the container if the dns.mode
+// for the network is set to "dynamic" and so cannot be trusted, so in this case we do not return
+// any identifying info.
+func networkDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAllocation, map[[16]byte]dhcpAllocation, error) {
+	IPv4s := make(map[[4]byte]dhcpAllocation)
+	IPv6s := make(map[[16]byte]dhcpAllocation)
+
+	// First read all statically allocated IPs.
+	files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+	if err != nil {
+		return IPv4s, IPv6s, err
+	}
+
+	for _, entry := range files {
+		IPv4, IPv6, err := networkDHCPStaticContainerIPs(network, entry.Name())
+		if err != nil {
+			return IPv4s, IPv6s, err
+		}
+
+		if IPv4.IP != nil {
+			var IPKey [4]byte
+			copy(IPKey[:], IPv4.IP.To4())
+			IPv4s[IPKey] = IPv4
+		}
+
+		if IPv6.IP != nil {
+			var IPKey [16]byte
+			copy(IPKey[:], IPv6.IP.To16())
+			IPv6s[IPKey] = IPv6
+		}
+	}
+
+	// Next read all dynamic allocated IPs.
+	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.leases"))
+	if err != nil {
+		return IPv4s, IPv6s, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) == 5 {
+			IP := net.ParseIP(fields[2])
+			if IP == nil {
+				return IPv4s, IPv6s, fmt.Errorf("Error parsing IP address: %v", fields[2])
+			}
+
+			// Handle IPv6 addresses.
+			if IP.To4() == nil {
+				var IPKey [16]byte
+				copy(IPKey[:], IP.To16())
+
+				// Don't replace IPs from static config as more reliable.
+				if IPv6s[IPKey].Name != "" {
+					continue
+				}
+
+				IPv6s[IPKey] = dhcpAllocation{
+					Static: false,
+					IP:     IP.To16(),
+				}
+			} else {
+				// MAC only available in IPv4 leases.
+				MAC, err := net.ParseMAC(fields[1])
+				if err != nil {
+					return IPv4s, IPv6s, err
+				}
+
+				var IPKey [4]byte
+				copy(IPKey[:], IP.To4())
+
+				// Don't replace IPs from static config as more reliable.
+				if IPv4s[IPKey].Name != "" {
+					continue
+				}
+
+				IPv4s[IPKey] = dhcpAllocation{
+					MAC:    MAC,
+					Static: false,
+					IP:     IP.To4(),
+				}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return IPv4s, IPv6s, err
+	}
+
+	return IPv4s, IPv6s, nil
+}
+
+// dhcpRange represents a range of IPs from start to end.
+type dhcpRange struct {
+	Start net.IP
+	End   net.IP
+}
+
+// networkDHCPv6Ranges returns a parsed set of DHCPv6 ranges for a particular network.
+func networkDHCPv6Ranges(netConfig map[string]string) []dhcpRange {
+	dhcpRanges := make([]dhcpRange, 0)
+	if netConfig["ipv6.dhcp.ranges"] != "" {
+		for _, r := range strings.Split(netConfig["ipv6.dhcp.ranges"], ",") {
+			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
+			if len(parts) == 2 {
+				startIP := net.ParseIP(parts[0])
+				endIP := net.ParseIP(parts[1])
+				dhcpRanges = append(dhcpRanges, dhcpRange{
+					Start: startIP.To16(),
+					End:   endIP.To16(),
+				})
+			}
+		}
+	}
+
+	return dhcpRanges
+}
+
+// networkDHCPv4Ranges returns a parsed set of DHCPv4 ranges for a particular network.
+func networkDHCPv4Ranges(netConfig map[string]string) []dhcpRange {
+	dhcpRanges := make([]dhcpRange, 0)
+	if netConfig["ipv4.dhcp.ranges"] != "" {
+		for _, r := range strings.Split(netConfig["ipv4.dhcp.ranges"], ",") {
+			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
+			if len(parts) == 2 {
+				startIP := net.ParseIP(parts[0])
+				endIP := net.ParseIP(parts[1])
+				dhcpRanges = append(dhcpRanges, dhcpRange{
+					Start: startIP.To4(),
+					End:   endIP.To4(),
+				})
+			}
+		}
+	}
+
+	return dhcpRanges
+}
+
+// networkDHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
+func networkDHCPValidIP(subnet *net.IPNet, ranges []dhcpRange, IP net.IP) bool {
+	inSubnet := subnet.Contains(IP)
+	if !inSubnet {
+		return false
+	}
+
+	if len(ranges) > 0 {
+		for _, IPRange := range ranges {
+			if bytes.Compare(IP, IPRange.Start) >= 0 && bytes.Compare(IP, IPRange.End) <= 0 {
+				return true
+			}
+		}
+	} else if inSubnet {
+		return true
+	}
+
+	return false
+}
+
+// networkDHCPFindFreeIPv6 attempts to find a free IPv6 address for the device.
+// It first checks whether there is an existing allocation for the container. Due to the limitations
+// of dnsmasq lease file format, we can only search for previous static allocations.
+// If no previous allocation, then if SLAAC (stateless) mode is enabled on the network, or if
+// DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
+// device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
+// from the ranges configured.
+func networkDHCPFindFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
+	if err != nil {
+		return nil, err
+	}
+
+	dhcpRanges := networkDHCPv6Ranges(netConfig)
+
+	// Lets see if there is already an allocation for our device and that it sits within subnet.
+	// Because of dnsmasq's lease file format we can only match safely against static
+	// allocations using container name. If there are custom DHCP ranges defined, check also
+	// that the IP falls within one of the ranges.
+	for _, DHCP := range usedIPs {
+		if ctName == DHCP.Name && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+			return DHCP.IP, nil
+		}
+	}
+
+	// Try using an EUI64 IP when in either SLAAC or DHCPv6 stateful mode without custom ranges.
+	if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
+		MAC, err := net.ParseMAC(deviceMAC)
+		if err != nil {
+			return nil, err
+		}
+
+		IP, err := eui64.ParseMAC(subnet.IP, MAC)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check IP is not already allocated and not the LXD IP.
+		var IPKey [16]byte
+		copy(IPKey[:], IP.To16())
+		_, inUse := usedIPs[IPKey]
+		if !inUse && !IP.Equal(lxdIP) {
+			return IP, nil
+		}
+	}
+
+	// If no custom ranges defined, convert subnet pool to a range.
+	if len(dhcpRanges) <= 0 {
+		dhcpRanges = append(dhcpRanges, dhcpRange{Start: networkGetIP(subnet, 1).To16(), End: networkGetIP(subnet, -1).To16()})
+	}
+
+	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
+	// Try and find a free one in the subnet pool/ranges.
+	for _, IPRange := range dhcpRanges {
+		inc := big.NewInt(1)
+		startBig := big.NewInt(0)
+		startBig.SetBytes(IPRange.Start)
+		endBig := big.NewInt(0)
+		endBig.SetBytes(IPRange.End)
+
+		for {
+			if startBig.Cmp(endBig) >= 0 {
+				break
+			}
+
+			IP := net.IP(startBig.Bytes())
+
+			// Check IP generated is not LXD's IP.
+			if IP.Equal(lxdIP) {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			// Check IP is not already allocated.
+			var IPKey [16]byte
+			copy(IPKey[:], IP.To16())
+			if _, inUse := usedIPs[IPKey]; inUse {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			// Used by networkUpdateStatic temporarily to build new static allocations.
+			return IP, nil
+		}
+	}
+
+	return nil, fmt.Errorf("No available IP could not be found")
+}
+
+// networkDHCPFindFreeIPv4 attempts to find a free IPv4 address for the device.
+// It first checks whether there is an existing allocation for the container.
+// If no previous allocation, then a free IP is picked from the ranges configured.
+func networkDHCPFindFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+	MAC, err := net.ParseMAC(deviceMAC)
+	if err != nil {
+		return nil, err
+	}
+
+	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+	if err != nil {
+		return nil, err
+	}
+
+	dhcpRanges := networkDHCPv4Ranges(netConfig)
+
+	// Lets see if there is already an allocation for our device and that it sits within subnet.
+	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
+	for _, DHCP := range usedIPs {
+		if (ctName == DHCP.Name || bytes.Compare(MAC, DHCP.MAC) == 0) && networkDHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+			return DHCP.IP, nil
+		}
+	}
+
+	// If no custom ranges defined, convert subnet pool to a range.
+	if len(dhcpRanges) <= 0 {
+		dhcpRanges = append(dhcpRanges, dhcpRange{Start: networkGetIP(subnet, 1).To4(), End: networkGetIP(subnet, -2).To4()})
+	}
+
+	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
+	for _, IPRange := range dhcpRanges {
+		inc := big.NewInt(1)
+		startBig := big.NewInt(0)
+		startBig.SetBytes(IPRange.Start)
+		endBig := big.NewInt(0)
+		endBig.SetBytes(IPRange.End)
+
+		for {
+			if startBig.Cmp(endBig) >= 0 {
+				break
+			}
+
+			IP := net.IP(startBig.Bytes())
+
+			// Check IP generated is not LXD's IP.
+			if IP.Equal(lxdIP) {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			// Check IP is not already allocated.
+			var IPKey [4]byte
+			copy(IPKey[:], IP.To4())
+			if _, inUse := usedIPs[IPKey]; inUse {
+				startBig.Add(startBig, inc)
+				continue
+			}
+
+			return IP, nil
+		}
+	}
+
+	return nil, fmt.Errorf("No available IP could not be found")
+}
+
+// networkUpdateStaticContainer writes a single dhcp-host line for a container/network combination.
+func networkUpdateStaticContainer(network string, project string, cName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
+	line := hwaddr
+
+	// Generate the dhcp-host line
+	if ipv4Address != "" {
+		line += fmt.Sprintf(",%s", ipv4Address)
+	}
+
+	if ipv6Address != "" {
+		line += fmt.Sprintf(",[%s]", ipv6Address)
+	}
+
+	if netConfig["dns.mode"] == "" || netConfig["dns.mode"] == "managed" {
+		line += fmt.Sprintf(",%s", cName)
+	}
+
+	if line == hwaddr {
+		return nil
+	}
+
+	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", projectPrefix(project, cName)), []byte(line+"\n"), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func networkUpdateStatic(s *state.State, networkName string) error {
 	// We don't want to race with ourselves here
 	networkStaticLock.Lock()
@@ -922,6 +1319,21 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			_, ok := entries[d["parent"]]
 			if !ok {
 				entries[d["parent"]] = [][]string{}
+			}
+
+			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
+				curIPv4, curIPv6, err := networkDHCPStaticContainerIPs(d["parent"], c.Name())
+				if err != nil && !os.IsNotExist(err) {
+					return err
+				}
+
+				if d["ipv4.address"] == "" && curIPv4.IP != nil {
+					d["ipv4.address"] = curIPv4.IP.String()
+				}
+
+				if d["ipv6.address"] == "" && curIPv6.IP != nil {
+					d["ipv6.address"] = curIPv6.IP.String()
+				}
 			}
 
 			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], c.Project(), c.Name(), d["ipv4.address"], d["ipv6.address"]})
@@ -999,23 +1411,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			}
 
 			// Generate the dhcp-host line
-			if ipv4Address != "" {
-				line += fmt.Sprintf(",%s", ipv4Address)
-			}
-
-			if ipv6Address != "" {
-				line += fmt.Sprintf(",[%s]", ipv6Address)
-			}
-
-			if config["dns.mode"] == "" || config["dns.mode"] == "managed" {
-				line += fmt.Sprintf(",%s", cName)
-			}
-
-			if line == hwaddr {
-				continue
-			}
-
-			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", projectPrefix(project, cName)), []byte(line+"\n"), 0644)
+			err := networkUpdateStaticContainer(network, project, cName, config, hwaddr, ipv4Address, ipv6Address)
 			if err != nil {
 				return err
 			}

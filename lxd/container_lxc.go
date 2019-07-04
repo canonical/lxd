@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -2134,6 +2135,14 @@ func (c *containerLXC) startCommon() (string, error) {
 			if m["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
 				return "", fmt.Errorf("Missing parent '%s' for nic '%s'", m["parent"], name)
 			}
+
+			if shared.IsTrue(m["security.ipv6_filtering"]) {
+				// Check br_netfilter is loaded and enabled for IPv6.
+				sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+				if err != nil || sysctlVal != "1\n" {
+					return "", errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
+				}
+			}
 		case "unix-char", "unix-block":
 			srcPath, exist := m["source"]
 			if !exist {
@@ -3752,12 +3761,12 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
 	}
 
-	// Remove any old network filters
+	// Remove any old network filters.
 	if oldDevice["nictype"] == "bridged" && shared.IsTrue(oldDevice["security.mac_filtering"]) || shared.IsTrue(oldDevice["security.ipv4_filtering"]) || shared.IsTrue(oldDevice["security.ipv6_filtering"]) {
 		c.removeNetworkFilters(deviceName, oldDevice)
 	}
 
-	// Setup network filters
+	// Setup network filters.
 	if device["nictype"] == "bridged" && shared.IsTrue(device["security.mac_filtering"]) || shared.IsTrue(device["security.ipv4_filtering"]) || shared.IsTrue(device["security.ipv6_filtering"]) {
 		err := c.setNetworkFilters(deviceName, device)
 		if err != nil {
@@ -3765,7 +3774,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		}
 	}
 
-	// Refresh tc limits
+	// Refresh tc limits.
 	err := c.setNetworkLimits(device)
 	if err != nil {
 		return err
@@ -3776,7 +3785,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 		c.removeNetworkRoutes(deviceName, oldDevice)
 	}
 
-	// Setup static routes to container
+	// Setup static routes to container.
 	err = c.setNetworkRoutes(device)
 	if err != nil {
 		return err
@@ -8651,7 +8660,7 @@ func (c *containerLXC) getVolatileHwaddr(deviceName string) string {
 }
 
 // generateNetworkFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
-func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device) [][]string {
+func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device, IPv4 net.IP, IPv6 net.IP) [][]string {
 	// MAC source filtering rules. Blocks any packet coming from container with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
@@ -8659,30 +8668,30 @@ func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device) [][]st
 		{"ebtables", "-t", "filter", "-A", "FORWARD", "-s", "!", m["hwaddr"], "-i", m["host_name"], "-j", "DROP"},
 	}
 
-	if shared.IsTrue(m["security.ipv4_filtering"]) && m["ipv4.address"] != "" {
+	if shared.IsTrue(m["security.ipv4_filtering"]) && IPv4 != nil {
 		rules = append(rules,
 			// Prevent ARP MAC spoofing (prevents the container poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-mac-src", "!", m["hwaddr"], "-j", "DROP"},
 			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-mac-src", "!", m["hwaddr"], "-j", "DROP"},
 			// Prevent ARP IP spoofing (prevents the container redirecting traffic for IPs that are not its own).
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", m["ipv4.address"], "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", m["host_name"], "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
 			// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", m["hwaddr"], "-i", m["host_name"], "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
 			// IP source filtering rules. Blocks any packet coming from container with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", m["ipv4.address"], "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", m["ipv4.address"], "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", IPv4.String(), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", m["host_name"], "--ip-src", "!", IPv4.String(), "-j", "DROP"},
 		)
 	}
 
-	if shared.IsTrue(m["security.ipv6_filtering"]) && m["ipv6.address"] != "" {
+	if shared.IsTrue(m["security.ipv6_filtering"]) && IPv6 != nil {
 		rules = append(rules,
 			// Allow DHCPv6 and Router Solicitation to the host only. This must come before the IP source filtering rules below.
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", m["hwaddr"], "-i", m["host_name"], "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::1:2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "udp", "--ip6-dport", "547", "-j", "ACCEPT"},
 			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", m["hwaddr"], "-i", m["host_name"], "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-solicitation", "-j", "ACCEPT"},
 			// IP source filtering rules. Blocks any packet coming from container with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", m["ipv6.address"]), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", m["ipv6.address"]), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
+			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", m["host_name"], "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
 		)
 	}
 
@@ -8690,7 +8699,7 @@ func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device) [][]st
 }
 
 // generateNetworkFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device) (rules [][]string, err error) {
+func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(m["hwaddr"])
 	if err != nil {
 		return
@@ -8706,14 +8715,8 @@ func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device) (rules
 	// not assigned to the container by sending a specially crafted gratuitous NDP packet with
 	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
 	// inside the ICMPv6 NDP packet.
-	if shared.IsTrue(m["security.ipv6_filtering"]) && m["ipv6.address"] != "" {
-		ipv6 := net.ParseIP(m["ipv6.address"])
-		if ipv6 == nil {
-			err = fmt.Errorf("Invalid IPv6 address")
-			return
-		}
-
-		ipv6Hex := hex.EncodeToString(ipv6)
+	if shared.IsTrue(m["security.ipv6_filtering"]) && IPv6 != nil {
+		ipv6Hex := hex.EncodeToString(IPv6)
 
 		rules = append(rules,
 			// Prevent Neighbor Advertisement IP spoofing (prevents the container redirecting traffic for IPs that are not its own).
@@ -8751,6 +8754,9 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 		}
 	}
 
+	// Retrieve existing IPs, or allocate new ones if needed.
+	IPv4, IPv6, err := c.allocateNetworkFilterIPs(deviceName, m)
+
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
 	defer func() {
 		if err != nil {
@@ -8758,7 +8764,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 		}
 	}()
 
-	rules := c.generateNetworkFilterEbtablesRules(m)
+	rules := c.generateNetworkFilterEbtablesRules(m, IPv4, IPv6)
 	for _, rule := range rules {
 		_, err = shared.RunCommand(rule[0], rule[1:]...)
 		if err != nil {
@@ -8766,7 +8772,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 		}
 	}
 
-	rules, err = c.generateNetworkFilterIptablesRules(m)
+	rules, err = c.generateNetworkFilterIptablesRules(m, IPv6)
 	if err != nil {
 		return err
 	}
@@ -8781,33 +8787,162 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 	return nil
 }
 
+// allocateNetworkFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
+func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Device) (net.IP, net.IP, error) {
+	var IPv4, IPv6 net.IP
+
+	// Check if there is a valid static IPv4 address defined.
+	if m["ipv4.address"] != "" {
+		IPv4 = net.ParseIP(m["ipv4.address"])
+		if IPv4 == nil {
+			return IPv4, IPv6, fmt.Errorf("Invalid static IPv4 address %s", m["ipv4.address"])
+		}
+	}
+
+	// Check if there is a valid static IPv6 address defined.
+	if m["ipv6.address"] != "" {
+		IPv6 = net.ParseIP(m["ipv6.address"])
+		if IPv6 == nil {
+			return IPv4, IPv6, fmt.Errorf("Invalid static IPv6 address %s", m["ipv6.address"])
+		}
+	}
+
+	// Read current static IP allocation configured from dnsmasq host config (if exists).
+	curIPv4, curIPv6, err := networkDHCPStaticContainerIPs(m["parent"], c.Name())
+	if err != nil && !os.IsNotExist(err) {
+		return IPv4, IPv6, err
+	}
+
+	n, err := networkLoadByName(c.state, m["parent"])
+	if err != nil {
+		return IPv4, IPv6, err
+	}
+	netConfig := n.Config()
+
+	// If no static IPv4, then check if there is a valid volatile IPv4 address defined.
+	if IPv4 == nil && curIPv4.IP != nil {
+		_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+
+		// Check the existing volatile IP is still valid in the subnet & ranges, if not
+		// then we'll need to generate a new one.
+		ranges := networkDHCPv4Ranges(netConfig)
+		if networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
+			IPv4 = curIPv4.IP.To4()
+		}
+	}
+
+	// If no static IPv6, then check if there is a valid volatile IPv6 address defined.
+	if IPv6 == nil && curIPv6.IP != nil {
+		_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+
+		// Check the existing volatile IP is still valid in the subnet & ranges, if not
+		// then we'll need to generate a new one.
+		ranges := networkDHCPv6Ranges(netConfig)
+		if networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
+			IPv6 = curIPv6.IP.To16()
+		}
+	}
+
+	// If we need to generate either a new IPv4 or IPv6, load existing IPs used in network.
+	if IPv4 == nil || IPv6 == nil {
+		networkStaticLock.Lock()
+
+		// Get existing allocations in network.
+		IPv4Allocs, IPv6Allocs, err := networkDHCPAllocatedIPs(m["parent"])
+		if err != nil {
+			networkStaticLock.Unlock()
+			return IPv4, IPv6, err
+		}
+
+		// Allocate a new IPv4 address is IPv4 filtering enabled.
+		if IPv4 == nil && shared.IsTrue(m["security.ipv4_filtering"]) {
+			IPv4, err = networkDHCPFindFreeIPv4(IPv4Allocs, netConfig, c.Name(), m["hwaddr"])
+			if err != nil {
+				networkStaticLock.Unlock()
+				return IPv4, IPv6, err
+			}
+		}
+
+		// Allocate a new IPv6 address is IPv6 filtering enabled.
+		if IPv6 == nil && shared.IsTrue(m["security.ipv6_filtering"]) {
+			IPv6, err = networkDHCPFindFreeIPv6(IPv6Allocs, netConfig, c.Name(), m["hwaddr"])
+			if err != nil {
+				networkStaticLock.Unlock()
+				return IPv4, IPv6, err
+			}
+		}
+
+		networkStaticLock.Unlock()
+	}
+
+	// If either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
+	if (IPv4 != nil && bytes.Compare(curIPv4.IP, IPv4.To4()) != 0) || (IPv6 != nil && bytes.Compare(curIPv6.IP, IPv6.To16()) != 0) {
+		var IPv4Str, IPv6Str string
+
+		if IPv4 != nil {
+			IPv4Str = IPv4.String()
+		}
+
+		if IPv6 != nil {
+			IPv6Str = IPv6.String()
+		}
+
+		networkStaticLock.Lock()
+		defer networkStaticLock.Unlock()
+
+		err = networkUpdateStaticContainer(m["parent"], c.Project(), c.Name(), netConfig, m["hwaddr"], IPv4Str, IPv6Str)
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+
+		err = networkKillDnsmasq(m["parent"], true)
+		if err != nil {
+			return IPv4, IPv6, err
+		}
+	}
+
+	return IPv4, IPv6, nil
+}
+
 // removeNetworkFilters removes any network level filters defined for the container.
 func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
 	if m["hwaddr"] == "" {
-		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": "hwaddr not defined"})
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": "hwaddr not defined"})
 		return
 	}
 
 	if m["host_name"] == "" {
-		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": "host_name not defined"})
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": "host_name not defined"})
 		return
 	}
 
 	// Remove any IPv6 filters used for this container.
 	err := containerIptablesClear("ipv6", fmt.Sprintf("%s - ipv6_filtering", c.Name()), "filter")
 	if err != nil {
-		logger.Error("Failed to clear ip6tables ipv6_filter rules: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+		logger.Error("Failed to clear ip6tables ipv6_filter rules", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+	}
+
+	// Read current static IP allocation configured from dnsmasq host config (if exists).
+	IPv4, IPv6, err := networkDHCPStaticContainerIPs(m["parent"], c.Name())
+	if err != nil {
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 	}
 
 	// Get a current list of rules active on the host.
 	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
-		logger.Error("Failed to remove network filters: ", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
+		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 		return
 	}
 
 	// Get a list of rules that we would have applied on container start.
-	rules := c.generateNetworkFilterEbtablesRules(m)
+	rules := c.generateNetworkFilterEbtablesRules(m, IPv4.IP, IPv6.IP)
 
 	// Iterate through each active rule on the host and try and match it to one the LXD rules.
 	for _, line := range strings.Split(out, "\n") {
@@ -8830,7 +8965,7 @@ func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
 			// rules, so we should run the modified command to delete it.
 			_, err = shared.RunCommand(fields[0], fields[1:]...)
 			if err != nil {
-				logger.Error("Failed to remove network filter rule: ", log.Ctx{"container": c.Name(), "err": err})
+				logger.Error("Failed to remove network filter rule", log.Ctx{"container": c.Name(), "err": err})
 			}
 		}
 
