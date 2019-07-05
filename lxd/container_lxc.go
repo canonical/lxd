@@ -4157,6 +4157,31 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 	if c.IsRunning() {
 		wasRunning = true
 
+		ephemeral := c.IsEphemeral()
+		if ephemeral {
+			// Unset ephemeral flag
+			args := db.ContainerArgs{
+				Architecture: c.Architecture(),
+				Config:       c.LocalConfig(),
+				Description:  c.Description(),
+				Devices:      c.LocalDevices(),
+				Ephemeral:    false,
+				Profiles:     c.Profiles(),
+				Project:      c.Project(),
+			}
+
+			err := c.Update(args, false)
+			if err != nil {
+				return err
+			}
+
+			// On function return, set the flag back on
+			defer func() {
+				args.Ephemeral = ephemeral
+				c.Update(args, true)
+			}()
+		}
+
 		// This will unmount the container storage.
 		err := c.Stop(false)
 		if err != nil {
