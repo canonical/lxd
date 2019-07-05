@@ -1568,7 +1568,13 @@ func networkGetMacSlice(hwaddr string) []string {
 	return buf
 }
 
-func networkClearLease(name string, network string, hwaddr string) error {
+const (
+	clearLeaseAll = iota
+	clearLeaseIPv4Only
+	clearLeaseIPv6Only
+)
+
+func networkClearLease(name string, network string, hwaddr string, mode int) error {
 	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
 
 	// Check that we are in fact running a dnsmasq for the network
@@ -1624,7 +1630,7 @@ func networkClearLease(name string, network string, hwaddr string) error {
 
 		// Handle lease lines
 		if fieldsLen == 5 {
-			if srcMAC.String() == fields[1] { // Handle IPv4 leases by matching MAC address to lease.
+			if (mode == clearLeaseAll || mode == clearLeaseIPv4Only) && srcMAC.String() == fields[1] { // Handle IPv4 leases by matching MAC address to lease.
 				srcIP := net.ParseIP(fields[2])
 
 				if dstIPv4 == nil {
@@ -1636,7 +1642,7 @@ func networkClearLease(name string, network string, hwaddr string) error {
 				if err != nil {
 					logger.Errorf("Failed to release DHCPv4 lease for container \"%s\", IP \"%s\", MAC \"%s\", %v", name, srcIP, srcMAC, err)
 				}
-			} else if name == fields[3] { // Handle IPv6 addresses by matching hostname to lease.
+			} else if (mode == clearLeaseAll || mode == clearLeaseIPv6Only) && name == fields[3] { // Handle IPv6 addresses by matching hostname to lease.
 				IAID := fields[1]
 				srcIP := net.ParseIP(fields[2])
 				DUID := fields[4]
