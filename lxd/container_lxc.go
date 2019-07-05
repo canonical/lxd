@@ -3733,11 +3733,15 @@ func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 		}
 	}
 
-	return c.setupHostVethDevice(deviceName, device, types.Device{})
+	_, err := c.setupHostVethDevice(deviceName, device, types.Device{})
+
+	return err
 }
 
 // setupHostVethDevice configures a nic device's host side veth settings.
-func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) error {
+func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) ([]string, error) {
+	bounceInterfaces := []string{} // A place to store interfaces we would like to be bounced.
+
 	// If not configured, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
 		device["host_name"] = c.getVolatileHostName(deviceName)
@@ -3760,7 +3764,7 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 
 	// Check whether host device resolution succeeded.
 	if device["host_name"] == "" {
-		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
+		return bounceInterfaces, fmt.Errorf("Failed to find host side veth name for device \"%s\"", deviceName)
 	}
 
 	// Remove any old network filters.
@@ -3772,14 +3776,14 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 	if device["nictype"] == "bridged" && shared.IsTrue(device["security.mac_filtering"]) || shared.IsTrue(device["security.ipv4_filtering"]) || shared.IsTrue(device["security.ipv6_filtering"]) {
 		err := c.setNetworkFilters(deviceName, device)
 		if err != nil {
-			return err
+			return bounceInterfaces, err
 		}
 	}
 
 	// Refresh tc limits.
 	err := c.setNetworkLimits(device)
 	if err != nil {
-		return err
+		return bounceInterfaces, err
 	}
 
 	if shared.StringInSlice(oldDevice["nictype"], []string{"bridged", "p2p"}) {
@@ -3790,10 +3794,19 @@ func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Devic
 	// Setup static routes to container.
 	err = c.setNetworkRoutes(device)
 	if err != nil {
-		return err
+		return bounceInterfaces, err
 	}
 
-	return nil
+	// If an IPv6 address has changed, flush all existing IPv6 leases for container.
+	if device["nictype"] == "bridged" && oldDevice["nictype"] == "bridged" && device["ipv6.address"] != oldDevice["ipv6.address"] {
+		networkClearLease(c.Name(), device["parent"], device["hwaddr"], clearLeaseIPv6Only)
+
+		// Queue the interface to be bounched once dnsmasq config has been reloaded to give
+		// container a chance to detect the change and re-apply for the updated leases.
+		bounceInterfaces = append(bounceInterfaces, device["host_name"])
+	}
+
+	return bounceInterfaces, nil
 }
 
 // Freezer functions
@@ -4382,7 +4395,7 @@ func (c *containerLXC) Delete() error {
 				continue
 			}
 
-			err = networkClearLease(c.name, m["parent"], m["hwaddr"])
+			err = networkClearLease(c.name, m["parent"], m["hwaddr"], clearLeaseAll)
 			if err != nil {
 				logger.Error("Failed to delete DHCP lease", log.Ctx{"name": c.Name(), "err": err, "device": k, "hwaddr": m["hwaddr"]})
 			}
@@ -5092,6 +5105,9 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 	}
 
+	// Interfaces to bring down then up when changing dnsmasq config.
+	var bounceInterfaces []string
+
 	// Apply the live changes
 	if isRunning {
 		// Live update the container config
@@ -5642,7 +5658,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
 			} else if m["type"] == "nic" {
-				c.updateNetworkDevice(k, m, oldExpandedDevices[k])
+				bounceInterfaces, err = c.updateNetworkDevice(k, m, oldExpandedDevices[k])
 				if err != nil {
 					return err
 				}
@@ -5796,6 +5812,21 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 	if needsUpdate {
 		networkUpdateStatic(c.state, "")
+
+		// After dnsmasq config is updated and reloaded, reset any interfaces requested,
+		// this will cause the container to have a carrier lost/carrier gained event, and
+		// some DHCP clients (such as systemd) will then re-apply for their leases allowing
+		// static IP changes to take effect.
+		for _, hostName := range bounceInterfaces {
+			_, err := shared.RunCommand("ip", "link", "set", hostName, "down")
+			if err != nil {
+				return err
+			}
+			_, err = shared.RunCommand("ip", "link", "set", hostName, "up")
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Send devlxd notifications
@@ -9033,7 +9064,7 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.D
 	}
 
 	if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		err = c.setupHostVethDevice(name, m, types.Device{})
+		_, err = c.setupHostVethDevice(name, m, types.Device{})
 		if err != nil {
 			return nil, err
 		}
@@ -9052,21 +9083,23 @@ func (c *containerLXC) checkIPVLANSupport() error {
 	return errors.New("LXC is missing one or more API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
 }
 
-func (c *containerLXC) updateNetworkDevice(name string, m types.Device, oldDevice types.Device) error {
+func (c *containerLXC) updateNetworkDevice(name string, m types.Device, oldDevice types.Device) ([]string, error) {
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		// Populate network device with container nic names.
 		m, err := c.fillNetworkDevice(name, m)
 		if err != nil {
-			return err
+			return []string{}, err
 		}
 
-		err = c.setupHostVethDevice(name, m, oldDevice)
+		bounceInterfaces, err := c.setupHostVethDevice(name, m, oldDevice)
 		if err != nil {
-			return err
+			return []string{}, err
 		}
+
+		return bounceInterfaces, nil
 	}
 
-	return nil
+	return []string{}, nil
 }
 
 func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
