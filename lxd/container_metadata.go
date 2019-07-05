@@ -47,6 +47,11 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 		defer c.StorageStop()
 	}
 
+	// If missing, just return empty result
+	if !shared.PathExists(metadataPath) {
+		return SyncResponse(true, api.ImageMetadata{})
+	}
+
 	// Read the metadata
 	metadataFile, err := os.Open(metadataPath)
 	if err != nil {
@@ -149,6 +154,11 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
+		templates := []string{}
+		if !shared.PathExists(filepath.Join(c.Path(), "templates")) {
+			return SyncResponse(true, templates)
+		}
+
 		// List templates
 		templatesPath := filepath.Join(c.Path(), "templates")
 		filesInfo, err := ioutil.ReadDir(templatesPath)
@@ -156,7 +166,6 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		templates := []string{}
 		for _, info := range filesInfo {
 			if !info.IsDir() {
 				templates = append(templates, info.Name())
@@ -173,7 +182,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if !shared.PathExists(templatePath) {
-		return NotFound(fmt.Errorf("Path '%s' not found", templatePath))
+		return NotFound(fmt.Errorf("Template '%s' not found", templateName))
 	}
 
 	// Create a temporary file with the template content (since the container
@@ -235,6 +244,13 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 	templateName := r.FormValue("path")
 	if templateName == "" {
 		return BadRequest(fmt.Errorf("missing path argument"))
+	}
+
+	if !shared.PathExists(filepath.Join(c.Path(), "templates")) {
+		err := os.MkdirAll(filepath.Join(c.Path(), "templates"), 0711)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	// Check if the template already exists
@@ -304,7 +320,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	if !shared.PathExists(templatePath) {
-		return NotFound(fmt.Errorf("Path '%s' not found", templatePath))
+		return NotFound(fmt.Errorf("Template '%s' not found", templateName))
 	}
 
 	// Delete the template
