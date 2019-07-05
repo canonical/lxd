@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-07-04 21:59-0400\n"
-"PO-Revision-Date: 2019-02-26 09:18+0000\n"
+"POT-Creation-Date: 2019-07-05 10:42-0400\n"
+"PO-Revision-Date: 2019-06-13 16:56+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/es/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 3.5-dev\n"
+"X-Generator: Weblate 3.7-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -235,7 +235,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/info.go:277
+#: lxc/info.go:276
 #, c-format
 msgid "%d (id: %d, online: %v)"
 msgstr ""
@@ -264,7 +264,7 @@ msgstr "%s no es un tipo de archivo soportado."
 msgid "(none)"
 msgstr "(ninguno)"
 
-#: lxc/info.go:266
+#: lxc/info.go:265
 #, c-format
 msgid "- Level %d (type: %s): %s"
 msgstr ""
@@ -281,14 +281,14 @@ msgstr ""
 
 #: lxc/copy.go:153
 msgid "--container-only can't be passed when the source is a snapshot"
-msgstr ""
+msgstr "--container-only no se puede pasar cuando la fuente es una instantánea"
 
 #: lxc/copy.go:164
 msgid "--refresh can only be used with containers"
 msgstr ""
 
 #: lxc/config.go:150 lxc/config.go:406 lxc/config.go:496 lxc/config.go:623
-#: lxc/info.go:408
+#: lxc/info.go:407
 msgid "--target cannot be used with containers"
 msgstr ""
 
@@ -369,7 +369,7 @@ msgstr ""
 msgid "Aliases:"
 msgstr "Aliases:"
 
-#: lxc/image.go:842 lxc/info.go:431
+#: lxc/image.go:842 lxc/info.go:430
 #, c-format
 msgid "Architecture: %s"
 msgstr "Arquitectura: %s"
@@ -468,11 +468,11 @@ msgstr "Ambas: todas y el nombre del contenedor dado"
 msgid "Brand: %v"
 msgstr "Creado: %s"
 
-#: lxc/info.go:524 lxc/network.go:788
+#: lxc/info.go:523 lxc/network.go:788
 msgid "Bytes received"
 msgstr "Bytes recibidos"
 
-#: lxc/info.go:525 lxc/network.go:789
+#: lxc/info.go:524 lxc/network.go:789
 msgid "Bytes sent"
 msgstr "Bytes enviados"
 
@@ -484,20 +484,20 @@ msgstr ""
 msgid "COMMON NAME"
 msgstr "NOMBRE COMÚN"
 
-#: lxc/info.go:312
+#: lxc/info.go:311
 #, fuzzy, c-format
 msgid "CPU (%s):"
 msgstr "Uso de CPU:"
 
-#: lxc/info.go:488
+#: lxc/info.go:487
 msgid "CPU usage (in seconds)"
 msgstr "Uso de CPU (en segundos)"
 
-#: lxc/info.go:492
+#: lxc/info.go:491
 msgid "CPU usage:"
 msgstr "Uso de CPU:"
 
-#: lxc/info.go:315
+#: lxc/info.go:314
 #, c-format
 msgid "CPUs (%s):"
 msgstr ""
@@ -520,7 +520,7 @@ msgstr ""
 msgid "Cached: %s"
 msgstr "Cacheado: %s"
 
-#: lxc/info.go:264
+#: lxc/info.go:263
 #, fuzzy
 msgid "Caches:"
 msgstr "Cacheado: %s"
@@ -573,7 +573,7 @@ msgstr ""
 msgid "Candid domain to use"
 msgstr ""
 
-#: lxc/info.go:358 lxc/info.go:370
+#: lxc/info.go:357 lxc/info.go:369
 #, c-format
 msgid "Card %d:"
 msgstr ""
@@ -731,12 +731,12 @@ msgstr "Copiando la imagen: %s"
 msgid "Copying the storage volume: %s"
 msgstr ""
 
-#: lxc/info.go:272
+#: lxc/info.go:271
 #, fuzzy, c-format
 msgid "Core %d"
 msgstr "Expira: %s"
 
-#: lxc/info.go:270
+#: lxc/info.go:269
 #, fuzzy
 msgid "Cores:"
 msgstr "Expira: %s"
@@ -802,7 +802,7 @@ msgstr ""
 msgid "Create the container with no profiles applied"
 msgstr ""
 
-#: lxc/image.go:848 lxc/info.go:433
+#: lxc/image.go:848 lxc/info.go:432
 #, c-format
 msgid "Created: %s"
 msgstr "Creado: %s"
@@ -991,21 +991,21 @@ msgstr ""
 msgid "Disable stdin (reads from /dev/null)"
 msgstr ""
 
-#: lxc/info.go:382
+#: lxc/info.go:381
 #, fuzzy, c-format
 msgid "Disk %d:"
 msgstr "Uso del disco:"
 
-#: lxc/info.go:481
+#: lxc/info.go:480
 msgid "Disk usage:"
 msgstr "Uso del disco:"
 
-#: lxc/info.go:377
+#: lxc/info.go:376
 #, fuzzy
 msgid "Disk:"
 msgstr "Uso del disco:"
 
-#: lxc/info.go:380
+#: lxc/info.go:379
 #, fuzzy
 msgid "Disks:"
 msgstr "Uso del disco:"
@@ -1265,26 +1265,26 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
-#: lxc/info.go:326 lxc/info.go:337 lxc/info.go:341 lxc/info.go:347
+#: lxc/info.go:325 lxc/info.go:336 lxc/info.go:340 lxc/info.go:346
 #, c-format
 msgid "Free: %v"
 msgstr ""
 
-#: lxc/info.go:273 lxc/info.go:285
+#: lxc/info.go:272 lxc/info.go:284
 #, c-format
 msgid "Frequency: %vMhz"
 msgstr ""
 
-#: lxc/info.go:283
+#: lxc/info.go:282
 #, c-format
 msgid "Frequency: %vMhz (min: %vMhz, max: %vMhz)"
 msgstr ""
 
-#: lxc/info.go:353
+#: lxc/info.go:352
 msgid "GPU:"
 msgstr ""
 
-#: lxc/info.go:356
+#: lxc/info.go:355
 msgid "GPUs:"
 msgstr ""
 
@@ -1332,7 +1332,7 @@ msgstr ""
 msgid "HOSTNAME"
 msgstr ""
 
-#: lxc/info.go:325 lxc/info.go:336
+#: lxc/info.go:324 lxc/info.go:335
 msgid "Hugepages:\n"
 msgstr ""
 
@@ -1512,7 +1512,7 @@ msgstr ""
 msgid "Invalid target %s"
 msgstr ""
 
-#: lxc/info.go:462 lxc/network.go:780
+#: lxc/info.go:461 lxc/network.go:780
 msgid "Ips:"
 msgstr ""
 
@@ -1723,12 +1723,12 @@ msgstr ""
 msgid "List, show and delete background operations"
 msgstr ""
 
-#: lxc/info.go:425
+#: lxc/info.go:424
 #, c-format
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:581
+#: lxc/info.go:580
 msgid "Log:"
 msgstr "Registro:"
 
@@ -1868,19 +1868,19 @@ msgstr ""
 msgid "Member %s renamed to %s"
 msgstr ""
 
-#: lxc/info.go:499
+#: lxc/info.go:498
 msgid "Memory (current)"
 msgstr ""
 
-#: lxc/info.go:503
+#: lxc/info.go:502
 msgid "Memory (peak)"
 msgstr ""
 
-#: lxc/info.go:515
+#: lxc/info.go:514
 msgid "Memory usage:"
 msgstr ""
 
-#: lxc/info.go:323
+#: lxc/info.go:322
 msgid "Memory:"
 msgstr ""
 
@@ -2018,11 +2018,11 @@ msgstr ""
 msgid "NAME"
 msgstr ""
 
-#: lxc/info.go:365
+#: lxc/info.go:364
 msgid "NIC:"
 msgstr ""
 
-#: lxc/info.go:368
+#: lxc/info.go:367
 msgid "NICs:"
 msgstr ""
 
@@ -2031,12 +2031,12 @@ msgstr ""
 msgid "NO"
 msgstr ""
 
-#: lxc/info.go:88 lxc/info.go:150 lxc/info.go:219 lxc/info.go:274
+#: lxc/info.go:88 lxc/info.go:150 lxc/info.go:219 lxc/info.go:273
 #, c-format
 msgid "NUMA node: %v"
 msgstr ""
 
-#: lxc/info.go:332
+#: lxc/info.go:331
 msgid "NUMA nodes:\n"
 msgstr ""
 
@@ -2049,12 +2049,12 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:423 lxc/network.go:773
+#: lxc/info.go:422 lxc/network.go:773
 #, c-format
 msgid "Name: %s"
 msgstr ""
 
-#: lxc/info.go:260
+#: lxc/info.go:259
 #, c-format
 msgid "Name: %v"
 msgstr ""
@@ -2083,7 +2083,7 @@ msgstr ""
 msgid "Network name"
 msgstr ""
 
-#: lxc/info.go:532 lxc/network.go:787
+#: lxc/info.go:531 lxc/network.go:787
 msgid "Network usage:"
 msgstr ""
 
@@ -2120,7 +2120,7 @@ msgstr ""
 msgid "No value found in %q"
 msgstr ""
 
-#: lxc/info.go:334
+#: lxc/info.go:333
 #, c-format
 msgid "Node %d:\n"
 msgstr ""
@@ -2187,11 +2187,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:526 lxc/network.go:790
+#: lxc/info.go:525 lxc/network.go:790
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:527 lxc/network.go:791
+#: lxc/info.go:526 lxc/network.go:791
 msgid "Packets sent"
 msgstr ""
 
@@ -2212,7 +2212,7 @@ msgstr ""
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/info.go:444
+#: lxc/info.go:443
 #, c-format
 msgid "Pid: %d"
 msgstr ""
@@ -2252,7 +2252,7 @@ msgstr ""
 msgid "Print version number"
 msgstr ""
 
-#: lxc/info.go:468
+#: lxc/info.go:467
 #, c-format
 msgid "Processes: %d"
 msgstr "Procesos: %d"
@@ -2310,7 +2310,7 @@ msgstr ""
 msgid "Profiles %s applied to %s"
 msgstr ""
 
-#: lxc/info.go:442
+#: lxc/info.go:441
 #, c-format
 msgid "Profiles: %s"
 msgstr ""
@@ -2422,7 +2422,7 @@ msgstr ""
 msgid "Remote operation canceled by user"
 msgstr ""
 
-#: lxc/info.go:428
+#: lxc/info.go:427
 #, c-format
 msgid "Remote: %s"
 msgstr ""
@@ -2512,7 +2512,7 @@ msgstr ""
 msgid "Require user confirmation"
 msgstr ""
 
-#: lxc/info.go:465
+#: lxc/info.go:464
 msgid "Resources:"
 msgstr ""
 
@@ -2774,11 +2774,11 @@ msgstr "Auto actualización: %s"
 msgid "Snapshot storage volumes"
 msgstr ""
 
-#: lxc/info.go:546
+#: lxc/info.go:545
 msgid "Snapshots:"
 msgstr ""
 
-#: lxc/info.go:317
+#: lxc/info.go:316
 #, c-format
 msgid "Socket %d:"
 msgstr ""
@@ -2806,7 +2806,7 @@ msgstr ""
 msgid "State: %s"
 msgstr "Auto actualización: %s"
 
-#: lxc/info.go:436
+#: lxc/info.go:435
 #, c-format
 msgid "Status: %s"
 msgstr ""
@@ -2879,11 +2879,11 @@ msgstr ""
 msgid "Supported ports: %s"
 msgstr ""
 
-#: lxc/info.go:507
+#: lxc/info.go:506
 msgid "Swap (current)"
 msgstr ""
 
-#: lxc/info.go:511
+#: lxc/info.go:510
 msgid "Swap (peak)"
 msgstr ""
 
@@ -2970,7 +2970,7 @@ msgstr ""
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/info.go:275
+#: lxc/info.go:274
 msgid "Threads:"
 msgstr ""
 
@@ -2999,11 +2999,11 @@ msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 
 #: lxc/config.go:293 lxc/config.go:418 lxc/config.go:537 lxc/config.go:603
-#: lxc/copy.go:116 lxc/info.go:294 lxc/network.go:761 lxc/storage.go:420
+#: lxc/copy.go:116 lxc/info.go:293 lxc/network.go:761 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
-#: lxc/info.go:328 lxc/info.go:339 lxc/info.go:343 lxc/info.go:349
+#: lxc/info.go:327 lxc/info.go:338 lxc/info.go:342 lxc/info.go:348
 #, c-format
 msgid "Total: %v"
 msgstr ""
@@ -3045,11 +3045,11 @@ msgstr ""
 msgid "Type: %s"
 msgstr "Expira: %s"
 
-#: lxc/info.go:438
+#: lxc/info.go:437
 msgid "Type: ephemeral"
 msgstr ""
 
-#: lxc/info.go:440
+#: lxc/info.go:439
 msgid "Type: persistent"
 msgstr ""
 
@@ -3128,7 +3128,7 @@ msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
 
-#: lxc/info.go:327 lxc/info.go:338 lxc/info.go:342 lxc/info.go:348
+#: lxc/info.go:326 lxc/info.go:337 lxc/info.go:341 lxc/info.go:347
 #, c-format
 msgid "Used: %v"
 msgstr ""
@@ -3147,7 +3147,7 @@ msgstr ""
 msgid "VFs: %d"
 msgstr ""
 
-#: lxc/info.go:256
+#: lxc/info.go:255
 #, c-format
 msgid "Vendor: %v"
 msgstr ""
@@ -3454,7 +3454,7 @@ msgstr ""
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
-#: lxc/info.go:557
+#: lxc/info.go:556
 #, fuzzy, c-format
 msgid "expires at %s"
 msgstr "Expira: %s"
@@ -4049,11 +4049,11 @@ msgstr ""
 msgid "start [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
-#: lxc/info.go:561
+#: lxc/info.go:560
 msgid "stateful"
 msgstr ""
 
-#: lxc/info.go:563
+#: lxc/info.go:562
 msgid "stateless"
 msgstr ""
 
@@ -4073,7 +4073,7 @@ msgstr ""
 msgid "switch [<remote>:] <project>"
 msgstr ""
 
-#: lxc/info.go:553
+#: lxc/info.go:552
 #, c-format
 msgid "taken at %s"
 msgstr ""
