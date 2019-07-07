@@ -267,7 +267,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\[2001:db8::216:3eff:fe92:f3c1\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "\\[2001:db8::216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
     echo "dnsmasq host config doesnt contain dynamically allocated static IPv6 config"
     false
   fi
@@ -283,7 +283,7 @@ test_container_devices_nic_bridged_filtering() {
   respawn_lxd "${LXD_DIR}" true
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\[2001:db8::2\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "\\[2001:db8::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
     false
   fi

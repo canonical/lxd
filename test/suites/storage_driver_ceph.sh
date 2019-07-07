@@ -133,6 +133,5 @@ test_storage_driver_ceph() {
   )
 
   # shellcheck disable=SC2031
-  LXD_DIR="${LXD_DIR}"
   kill_lxd "${LXD_STORAGE_DIR}"
 }

@@ -13,13 +13,9 @@ test_migration() {
   # workaround for kernel/criu
   umount /sys/kernel/debug >/dev/null 2>&1 || true
 
-  if ! lxc_remote remote list | grep -q l1; then
-    # shellcheck disable=2153
-    lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
-  fi
-  if ! lxc_remote remote list | grep -q l2; then
-    lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
-  fi
+  # shellcheck disable=2153
+  lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
+  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
 
   migration "$LXD2_DIR"
 
@@ -50,6 +46,7 @@ test_migration() {
     lxc_remote storage delete l2:"$storage_pool2"
   fi
 
+  lxc_remote remote remove l1
   lxc_remote remote remove l2
   kill_lxd "$LXD2_DIR"
 }

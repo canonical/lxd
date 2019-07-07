@@ -25,27 +25,28 @@ test_remote_url() {
 }
 
 test_remote_admin() {
-  lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || true
+  ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || false
   ! lxc_remote list badpass: || false
 
-  lxc_remote remote add localhost "${LXD_ADDR}" --accept-certificate --password foo
-  lxc_remote remote list | grep 'localhost'
-
-  lxc_remote remote set-default localhost
-  [ "$(lxc_remote remote get-default)" = "localhost" ]
-
-  lxc_remote remote rename localhost foo
+  lxc_remote remote add foo "${LXD_ADDR}" --accept-certificate --password foo
   lxc_remote remote list | grep 'foo'
-  lxc_remote remote list | grep -v 'localhost'
+
+  lxc_remote remote set-default foo
   [ "$(lxc_remote remote get-default)" = "foo" ]
 
-  ! lxc_remote remote remove foo || false
+  lxc_remote remote rename foo bar
+  lxc_remote remote list | grep 'bar'
+  lxc_remote remote list | grep -v 'foo'
+  [ "$(lxc_remote remote get-default)" = "bar" ]
+
+  ! lxc_remote remote remove bar || false
   lxc_remote remote set-default local
-  lxc_remote remote remove foo
+  lxc_remote remote remove bar
 
   # This is a test for #91, we expect this to hang asking for a password if we
   # tried to re-add our cert.
-  echo y | lxc_remote remote add localhost "${LXD_ADDR}"
+  echo y | lxc_remote remote add foo "${LXD_ADDR}"
+  lxc_remote remote remove foo
 
   # we just re-add our cert under a different name to test the cert
   # manipulation mechanism.
@@ -53,6 +54,7 @@ test_remote_admin() {
 
   # Test for #623
   lxc_remote remote add test-623 "${LXD_ADDR}" --accept-certificate --password foo
+  lxc_remote remote remove test-623
 
   # now re-add under a different alias
   lxc_remote config trust add "${LXD_CONF}/client2.crt"
@@ -62,11 +64,11 @@ test_remote_admin() {
   fi
 
   # Check that we can add domains with valid certs without confirmation:
-
-  # avoid default high port behind some proxies:
   if [ -z "${LXD_OFFLINE:-}" ]; then
     lxc_remote remote add images1 images.linuxcontainers.org
     lxc_remote remote add images2 images.linuxcontainers.org:443
+    lxc_remote remote remove images1
+    lxc_remote remote remove images2
   fi
 }
 
@@ -162,6 +164,9 @@ test_remote_usage() {
 
   mv "${LXD_CONF}/client.crt.bak" "${LXD_CONF}/client.crt"
   mv "${LXD_CONF}/client.key.bak" "${LXD_CONF}/client.key"
+
+  lxc_remote remote remove lxd2
+  lxc_remote remote remove lxd2-public
 
   kill_lxd "$LXD2_DIR"
 }
