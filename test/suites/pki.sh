@@ -49,6 +49,7 @@ test_pki() {
     export LXD_CONF=${LXC5_DIR}
     lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo
     lxc_remote info pki-lxd:
+    lxc_remote remote remove pki-lxd
   )
 
   # Confirm that a normal, non-PKI certificate doesn't
