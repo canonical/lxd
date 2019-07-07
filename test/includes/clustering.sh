@@ -114,6 +114,9 @@ teardown_clustering_netns() {
 }
 
 spawn_lxd_and_bootstrap_cluster() {
+  # shellcheck disable=2039
+  local LXD_NETNS
+
   set -e
   ns="${1}"
   bridge="${2}"
@@ -199,6 +202,9 @@ EOF
 }
 
 spawn_lxd_and_join_cluster() {
+  # shellcheck disable=2039,2034
+  local LXD_NETNS
+
   set -e
   ns="${1}"
   bridge="${2}"
