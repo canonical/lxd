@@ -714,7 +714,7 @@ test_clustering_network() {
 
 test_clustering_upgrade() {
   # shellcheck disable=2039
-  local LXD_DIR
+  local LXD_DIR LXD_NETNS
 
   setup_clustering_bridge
   prefix="lxd$$"
@@ -929,8 +929,8 @@ EOF
 }
 
 test_clustering_join_api() {
-  # shellcheck disable=2039
-  local LXD_DIR
+  # shellcheck disable=2039,2034
+  local LXD_DIR LXD_NETNS
 
   setup_clustering_bridge
   prefix="lxd$$"
