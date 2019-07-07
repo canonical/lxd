@@ -8,14 +8,9 @@ test_image_expiry() {
 
   ensure_import_testimage
 
-  if ! lxc_remote remote list | grep -q l1; then
-    # shellcheck disable=2153
-    lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
-  fi
-
-  if ! lxc_remote remote list | grep -q l2; then
-    lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
-  fi
+  # shellcheck disable=2153
+  lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
+  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
 
   # Create a container from a remote image
   lxc_remote init l1:testimage l2:c1
@@ -43,6 +38,7 @@ test_image_expiry() {
   # Cleanup and reset
   lxc_remote delete l2:c1
   lxc_remote config set l2: images.remote_cache_expiry 10
+  lxc_remote remote remove l1
   lxc_remote remote remove l2
   kill_lxd "$LXD2_DIR"
 }

@@ -1125,6 +1125,8 @@ test_clustering_address() {
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
+  lxc remote remove cluster
+
   teardown_clustering_netns
   teardown_clustering_bridge
 
