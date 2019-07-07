@@ -1,4 +1,7 @@
 test_clustering_enable() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_INIT_DIR}"
   spawn_lxd "${LXD_INIT_DIR}" false
@@ -34,6 +37,9 @@ test_clustering_enable() {
 }
 
 test_clustering_membership() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -180,6 +186,9 @@ test_clustering_membership() {
 }
 
 test_clustering_containers() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -346,6 +355,9 @@ test_clustering_containers() {
 }
 
 test_clustering_storage() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -629,6 +641,9 @@ test_clustering_storage() {
 }
 
 test_clustering_network() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -698,6 +713,9 @@ test_clustering_network() {
 }
 
 test_clustering_upgrade() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -790,6 +808,9 @@ test_clustering_upgrade() {
 }
 
 test_clustering_publish() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -836,6 +857,9 @@ test_clustering_publish() {
 }
 
 test_clustering_profiles() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -905,6 +929,9 @@ EOF
 }
 
 test_clustering_join_api() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -942,6 +969,9 @@ test_clustering_join_api() {
 }
 
 test_clustering_shutdown_nodes() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -1008,6 +1038,9 @@ test_clustering_shutdown_nodes() {
 }
 
 test_clustering_projects() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -1060,6 +1093,9 @@ test_clustering_projects() {
 }
 
 test_clustering_address() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -1135,6 +1171,9 @@ test_clustering_address() {
 }
 
 test_clustering_image_replication() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -1294,6 +1333,9 @@ test_clustering_image_replication() {
 }
 
 test_clustering_dns() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
   # Because we do not want tests to only run on Ubuntu (due to cluster's fan network dependency)
   # instead we will just spawn forkdns directly and check DNS resolution.
 
