@@ -116,7 +116,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		var currentNodes []db.NodeInfo
 		err = cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			nodes, err = tx.Nodes()
+			currentNodes, err = tx.Nodes()
 			if err != nil {
 				return err
 			}
@@ -139,6 +139,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 
 			if !found {
 				// We found a new node
+				nodes = append(nodes, currentNode)
 				heartbeatsWg.Add(1)
 				go sendHeartbeat(currentNode.ID, currentNode.Address, false)
 			}
