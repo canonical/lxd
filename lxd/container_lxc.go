@@ -1197,7 +1197,7 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.state.OS.ExecPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %d start", os.Getpid(), shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -1689,7 +1689,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 			// Run network up hook for bridged and p2p nics.
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("/proc/%d/exe callhook %s %d network-up %s", os.Getpid(), shared.VarPath(""), c.id, k))
 				if err != nil {
 					return err
 				}
