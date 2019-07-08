@@ -214,7 +214,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 //
 // The cert parameter must contain the keypair/CA material of the cluster being
 // joined.
-func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, nodes []db.RaftNode) error {
+func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, raftNodes []db.RaftNode) error {
 	// Check parameters
 	if name == "" {
 		return fmt.Errorf("node name must not be empty")
@@ -236,7 +236,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Set the raft nodes list to the one that was returned by Accept().
-		err = tx.RaftNodesReplace(nodes)
+		err = tx.RaftNodesReplace(raftNodes)
 		if err != nil {
 			return errors.Wrap(err, "failed to set raft nodes")
 		}
@@ -255,6 +255,8 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
 	var operations []db.Operation
+	var offlineThreshold time.Duration
+
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		pools, err = tx.StoragePoolsNodeConfig()
 		if err != nil {
@@ -268,6 +270,12 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
+
+		offlineThreshold, err = tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -305,7 +313,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// If we are listed among the database nodes, join the raft cluster.
 	id := ""
 	var target *db.RaftNode
-	for _, node := range nodes {
+	for _, node := range raftNodes {
 		if node.Address == address {
 			id = strconv.Itoa(int(node.ID))
 		} else {
@@ -415,9 +423,16 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrapf(err, "failed to unmark the node as pending")
 		}
 
-		// Attempt to send a heartbeat to all other nodes
-		for _, node := range nodes {
-			go heartbeatNode(context.Background(), node.Address, cert, nodes)
+		// Generate partial heartbeat request containing just a raft node list.
+		hbState := &APIHeartbeat{}
+		hbState.update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
+
+		// Attempt to send a heartbeat to all other raft nodes to notify them of new node.
+		for _, raftNode := range raftNodes {
+			if raftNode.ID == node.ID {
+				continue
+			}
+			go heartbeatNode(context.Background(), raftNode.Address, cert, hbState)
 		}
 
 		return nil
