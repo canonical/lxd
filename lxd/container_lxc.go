@@ -7173,6 +7173,14 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 		result = nw
 	}
 
+	// Get host_name from volatile data if not set already.
+	for name, dev := range result {
+		if dev.HostName == "" {
+			dev.HostName = c.localConfig[fmt.Sprintf("volatile.%s.host_name", name)]
+			result[name] = dev
+		}
+	}
+
 	return result
 }
 
