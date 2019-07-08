@@ -2109,6 +2109,8 @@ func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 
 // Start functions
 func (c *containerLXC) startCommon() (string, error) {
+	var ourStart bool
+
 	// Load the go-lxc struct
 	err := c.initLXC(true)
 	if err != nil {
@@ -2174,7 +2176,6 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
-	var ourStart bool
 	newSize, ok := c.LocalConfig()["volatile.apply_quota"]
 	if ok {
 		err := c.initStorage()
@@ -2629,13 +2630,9 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
+	// If starting stateless, wipe state
 	if !c.IsStateful() && shared.PathExists(c.StatePath()) {
 		os.RemoveAll(c.StatePath())
-	}
-
-	_, err = c.StorageStop()
-	if err != nil {
-		return "", err
 	}
 
 	// Update time container was last started
