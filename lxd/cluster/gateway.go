@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -124,7 +125,7 @@ func setDqliteVersionHeader(request *http.Request) {
 // These handlers might return 404, either because this LXD node is a
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
-func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
+func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
@@ -161,22 +162,48 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
-		// Handle heatbeats.
+		// Handle heatbeats (these normally come from leader, but can come from joining nodes too).
 		if r.Method == "PUT" {
-			var nodes []db.RaftNode
-			err := shared.ReadToJSON(r.Body, &nodes)
+			var heartbeatData APIHeartbeat
+			err := json.NewDecoder(r.Body).Decode(&heartbeatData)
 			if err != nil {
-				http.Error(w, "400 invalid raft nodes payload", http.StatusBadRequest)
+				logger.Errorf("Error decoding heartbeat body: %v", err)
+				http.Error(w, "400 invalid heartbeat payload", http.StatusBadRequest)
 				return
 			}
+
+			nodes := make([]db.RaftNode, 0)
+			for _, node := range heartbeatData.Members {
+				if node.Raft {
+					nodes = append(nodes, db.RaftNode{
+						ID:      node.ID,
+						Address: node.Address,
+					})
+				}
+			}
+
+			// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
 			logger.Debugf("Replace current raft nodes with %+v", nodes)
 			err = g.db.Transaction(func(tx *db.NodeTx) error {
 				return tx.RaftNodesReplace(nodes)
 			})
 			if err != nil {
+				logger.Errorf("Error updating raft nodes: %v", err)
 				http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
 				return
 			}
+
+			// Only perform node refresh task if we have received a full state list from leader.
+			if !heartbeatData.FullStateList {
+				logger.Debugf("Partial node list heartbeat received, skipping full update")
+				return
+			}
+
+			// If node refresh task is specified, run it async.
+			if nodeRefreshTask != nil {
+				go nodeRefreshTask(&heartbeatData)
+			}
+
 			return
 		}
 
