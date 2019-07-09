@@ -25,7 +25,7 @@ func RestServer(d *Daemon) *http.Server {
 		SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
-	for endpoint, f := range d.gateway.HandlerFuncs() {
+	for endpoint, f := range d.gateway.HandlerFuncs(d.NodeRefreshTask) {
 		mux.HandleFunc(endpoint, f)
 	}
 
