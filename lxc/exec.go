@@ -29,6 +29,9 @@ type cmdExec struct {
 	flagForceInteractive    bool
 	flagForceNonInteractive bool
 	flagDisableStdin        bool
+	flagUser                uint32
+	flagGroup               uint32
+	flagCwd                 string
 }
 
 func (c *cmdExec) Command() *cobra.Command {
@@ -53,6 +56,9 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 	cmd.Flags().BoolVarP(&c.flagForceInteractive, "force-interactive", "t", false, i18n.G("Force pseudo-terminal allocation"))
 	cmd.Flags().BoolVarP(&c.flagForceNonInteractive, "force-noninteractive", "T", false, i18n.G("Disable pseudo-terminal allocation"))
 	cmd.Flags().BoolVarP(&c.flagDisableStdin, "disable-stdin", "n", false, i18n.G("Disable stdin (reads from /dev/null)"))
+	cmd.Flags().Uint32Var(&c.flagUser, "user", 0, i18n.G("User ID to run the command as (default 0)")+"``")
+	cmd.Flags().Uint32Var(&c.flagGroup, "group", 0, i18n.G("Group ID to run the command as (default 0)")+"``")
+	cmd.Flags().StringVar(&c.flagCwd, "cwd", "", i18n.G("Group ID to run the command as (default /root)")+"``")
 
 	return cmd
 }
@@ -191,6 +197,9 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		Environment: env,
 		Width:       width,
 		Height:      height,
+		User:        c.flagUser,
+		Group:       c.flagGroup,
+		Cwd:         c.flagCwd,
 	}
 
 	execArgs := lxd.ContainerExecArgs{
