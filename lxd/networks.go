@@ -2134,40 +2134,30 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 
 // refreshForkdnsServerAddresses retrieves the IPv4 address of each cluster node (excluding ourselves)
 // for this network. It then updates the forkdns server list file if there are changes.
-func (n *network) refreshForkdnsServerAddresses() {
+func (n *network) refreshForkdnsServerAddresses(heartbeatData *cluster.APIHeartbeat) error {
 	addresses := []string{}
-
-	// Get the list of nodes
-	nodes, err := cluster.List(n.state)
-	if err != nil {
-		logger.Errorf("Failed to get forkdns cluster list for '%s': %v", n.name, err)
-		return
-	}
-
 	localAddress, err := node.HTTPSAddress(n.state.Node)
 	if err != nil {
-		logger.Errorf("Failed to get forkdns local cluster address for '%s': %v", n.name, err)
-		return
+		return err
 	}
 
+	logger.Infof("Refreshing forkdns peers for %v", n.name)
+
 	cert := n.state.Endpoints.NetworkCert()
-	for _, node := range nodes {
-		address := strings.TrimPrefix(node.URL, "https://")
-		if address == localAddress {
+	for _, node := range heartbeatData.Members {
+		if node.Address == localAddress {
 			// No need to query ourselves.
 			continue
 		}
 
-		client, err := cluster.Connect(address, cert, false)
+		client, err := cluster.Connect(node.Address, cert, false)
 		if err != nil {
-			logger.Errorf("Failed to connect to cluster node '%s': %v", address, err)
-			return
+			return err
 		}
 
 		state, err := client.GetNetworkState(n.name)
 		if err != nil {
-			logger.Errorf("Failed to get cluster network state for '%s': %v", address, err)
-			return
+			return err
 		}
 
 		for _, addr := range state.Addresses {
@@ -2190,15 +2180,14 @@ func (n *network) refreshForkdnsServerAddresses() {
 
 	// If current list is same as cluster list, nothing to do.
 	if err == nil && reflect.DeepEqual(curList, addresses) {
-		return
+		return nil
 	}
 
 	err = networkUpdateForkdnsServersFile(n.name, addresses)
 	if err != nil {
-		logger.Errorf("Failed to update forkdns servers list for '%s': %v", n.name, err)
-		return
+		return err
 	}
 
 	logger.Infof("Updated forkdns server list for '%s': %v", n.name, addresses)
-	return
+	return nil
 }
