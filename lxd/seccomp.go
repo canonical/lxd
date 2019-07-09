@@ -534,8 +534,8 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 						fdMem = int(fds[0])
 					}
 
-					cleanup := func() {
-						c.Close()
+					handleInvalidRequest := func() {
+						s.InvalidHandler(c, int(unixFile.Fd()))
 						if fdMem >= 0 {
 							unix.Close(fdMem)
 						}
@@ -549,33 +549,38 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 					}
 
 					if uint64(bytes) < uint64(C.SECCOMP_MSG_SIZE_MIN) {
-						logger.Debugf("Disconnected from seccomp socket after incomplete receive: pid=%v", ucred.pid)
-						cleanup()
-						return
+						logger.Warnf("Disconnected from seccomp socket after incomplete receive: pid=%v",
+							ucred.pid)
+						go handleInvalidRequest()
+						continue
 					}
 
 					if msg.__reserved != 0 {
-						logger.Debugf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v", ucred.pid)
-						cleanup()
-						return
+						logger.Warnf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v",
+							ucred.pid)
+						go handleInvalidRequest()
+						continue
 					}
 
 					if msg.sizes.seccomp_notif != C.expected_sizes.seccomp_notif {
-						logger.Debugf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v", msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, ucred.pid)
-						cleanup()
-						return
+						logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v",
+							msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, ucred.pid)
+						go handleInvalidRequest()
+						continue
 					}
 
 					if msg.sizes.seccomp_notif_resp != C.expected_sizes.seccomp_notif_resp {
-						logger.Debugf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v", msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, ucred.pid)
-						cleanup()
-						return
+						logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v",
+							msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, ucred.pid)
+						go handleInvalidRequest()
+						continue
 					}
 
 					if msg.sizes.seccomp_data != C.expected_sizes.seccomp_data {
-						logger.Debugf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v", msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, ucred.pid)
-						cleanup()
-						return
+						logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v",
+							msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, ucred.pid)
+						go handleInvalidRequest()
+						continue
 					}
 
 					go s.Handler(c, int(unixFile.Fd()), ucred, fdMem, fdProc, iov, msg, req, resp, cookie)
@@ -674,6 +679,13 @@ func doMknod(c container, dev types.Device, requestPID int) (error, int) {
 	}
 
 	return nil, 0
+}
+
+// InvalidHandler sends a dummy message to LXC. LXC will notice the short write
+// and send a default message to the kernel thereby avoiding a 30s hang.
+func (s *SeccompServer) InvalidHandler(c net.Conn, clientFd int) {
+	msghdr := C.struct_msghdr{}
+	C.sendmsg(C.int(clientFd), &msghdr, C.MSG_NOSIGNAL)
 }
 
 func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
