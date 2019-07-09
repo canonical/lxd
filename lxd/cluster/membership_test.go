@@ -121,7 +121,7 @@ func TestBootstrap(t *testing.T) {
 	assert.True(t, shared.PathExists(filepath.Join(state.OS.VarDir, "cluster.crt")))
 
 	// The dqlite driver is now exposed over the network.
-	for path, handler := range gateway.HandlerFuncs() {
+	for path, handler := range gateway.HandlerFuncs(nil) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -246,7 +246,7 @@ func TestJoin(t *testing.T) {
 	targetGateway := newGateway(t, targetState.Node, targetCert)
 	defer targetGateway.Shutdown()
 
-	for path, handler := range targetGateway.HandlerFuncs() {
+	for path, handler := range targetGateway.HandlerFuncs(nil) {
 		targetMux.HandleFunc(path, handler)
 	}
 
@@ -285,7 +285,7 @@ func TestJoin(t *testing.T) {
 
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs() {
+	for path, handler := range gateway.HandlerFuncs(nil) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -370,7 +370,7 @@ func FLAKY_TestPromote(t *testing.T) {
 	targetGateway := newGateway(t, targetState.Node, targetCert)
 	defer targetGateway.Shutdown()
 
-	for path, handler := range targetGateway.HandlerFuncs() {
+	for path, handler := range targetGateway.HandlerFuncs(nil) {
 		targetMux.HandleFunc(path, handler)
 	}
 
@@ -405,7 +405,7 @@ func FLAKY_TestPromote(t *testing.T) {
 	gateway := newGateway(t, state.Node, targetCert)
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs() {
+	for path, handler := range gateway.HandlerFuncs(nil) {
 		mux.HandleFunc(path, handler)
 	}
 
