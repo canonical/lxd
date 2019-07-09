@@ -24,12 +24,11 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/eui64"
-
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1464,43 +1463,28 @@ func networkUpdateForkdnsServersFile(networkName string, addresses []string) err
 }
 
 // networkUpdateForkdnsServersTask runs every 30s and refreshes the forkdns servers list.
-func networkUpdateForkdnsServersTask(d *Daemon) (task.Func, task.Schedule) {
-	f := func(ctx context.Context) {
-		s := d.State()
+func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIHeartbeat) error {
+	// Get a list of managed networks
+	networks, err := s.Cluster.NetworksNotPending()
+	if err != nil {
+		return err
+	}
 
-		// Get a list of managed networks
-		networks, err := s.Cluster.NetworksNotPending()
+	for _, name := range networks {
+		n, err := networkLoadByName(s, name)
 		if err != nil {
-			logger.Errorf("Failed to get networks: %v", err)
-			return
+			return err
 		}
 
-		for _, name := range networks {
-			n, err := networkLoadByName(s, name)
+		if n.config["bridge.mode"] == "fan" {
+			err := n.refreshForkdnsServerAddresses(heartbeatData)
 			if err != nil {
-				logger.Errorf("Failed to load network: %v", err)
-				return
-			}
-
-			if n.config["bridge.mode"] == "fan" {
-				n.refreshForkdnsServerAddresses()
+				return err
 			}
 		}
 	}
 
-	first := true
-	schedule := func() (time.Duration, error) {
-		interval := time.Second * 30
-
-		if first {
-			first = false
-			return interval, task.ErrSkip
-		}
-
-		return interval, nil
-	}
-
-	return f, schedule
+	return nil
 }
 
 // networksGetForkdnsServersList reads the server list file and returns the list as a slice.
