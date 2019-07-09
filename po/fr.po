@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-07-05 10:42-0400\n"
+"POT-Creation-Date: 2019-07-09 17:29-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -991,7 +991,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:151 lxc/config_template.go:235
 #: lxc/config_template.go:297 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:38 lxc/export.go:31
+#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:31
 #: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
 #: lxc/file.go:377 lxc/image.go:41 lxc/image.go:130 lxc/image.go:264
 #: lxc/image.go:315 lxc/image.go:438 lxc/image.go:578 lxc/image.go:792
@@ -1074,11 +1074,11 @@ msgstr "Serveur distant : %s"
 msgid "Directory import is not available on this platform"
 msgstr "L'importation de répertoire n'est pas disponible sur cette plateforme"
 
-#: lxc/exec.go:54
+#: lxc/exec.go:57
 msgid "Disable pseudo-terminal allocation"
 msgstr "Désactiver l'allocation pseudo-terminal"
 
-#: lxc/exec.go:55
+#: lxc/exec.go:58
 msgid "Disable stdin (reads from /dev/null)"
 msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 
@@ -1191,7 +1191,7 @@ msgid ""
 "  for the address if not yet set."
 msgstr ""
 
-#: lxc/exec.go:51
+#: lxc/exec.go:54
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 
@@ -1208,11 +1208,11 @@ msgstr "Erreur de mise à jour du modèle de fichier : %s"
 msgid "Event type to listen for"
 msgstr "Type d'évènements à surveiller"
 
-#: lxc/exec.go:37
+#: lxc/exec.go:40
 msgid "Execute commands in containers"
 msgstr ""
 
-#: lxc/exec.go:38
+#: lxc/exec.go:41
 #, fuzzy
 msgid ""
 "Execute commands in containers\n"
@@ -1326,7 +1326,7 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr "Empreinte : %s"
 
-#: lxc/exec.go:53
+#: lxc/exec.go:56
 msgid "Force pseudo-terminal allocation"
 msgstr "Forcer l'allocation d'un pseudo-terminal"
 
@@ -1441,6 +1441,14 @@ msgstr ""
 
 #: lxc/storage_volume.go:978 lxc/storage_volume.go:979
 msgid "Get values for storage volume configuration keys"
+msgstr ""
+
+#: lxc/exec.go:61
+msgid "Group ID to run the command as (default /root)"
+msgstr ""
+
+#: lxc/exec.go:60
+msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
 #: lxc/network.go:978
@@ -2375,7 +2383,7 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Override the source project"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/exec.go:52
+#: lxc/exec.go:55
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
@@ -3423,6 +3431,10 @@ msgstr ""
 msgid "Used: %v"
 msgstr "Publié : %s"
 
+#: lxc/exec.go:59
+msgid "User ID to run the command as (default 0)"
+msgstr ""
+
 #: lxc/cluster.go:280 lxc/delete.go:47
 #, fuzzy
 msgid "User aborted delete operation"
@@ -3479,11 +3491,11 @@ msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur
 msgid "YES"
 msgstr "OUI"
 
-#: lxc/exec.go:99
+#: lxc/exec.go:105
 msgid "You can't pass -t and -T at the same time"
 msgstr "Il est impossible de passer -t et -T simultanément"
 
-#: lxc/exec.go:103
+#: lxc/exec.go:109
 #, fuzzy
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "impossible de copier vers le même nom de conteneur"
@@ -3787,7 +3799,7 @@ msgstr "activé"
 msgid "error: %v"
 msgstr "erreur : %v"
 
-#: lxc/exec.go:36
+#: lxc/exec.go:39
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 

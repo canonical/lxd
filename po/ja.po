@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-07-05 10:42-0400\n"
+"POT-Creation-Date: 2019-07-09 17:29-0400\n"
 "PO-Revision-Date: 2019-05-18 08:49+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -846,7 +846,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:151 lxc/config_template.go:235
 #: lxc/config_template.go:297 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:38 lxc/export.go:31
+#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:31
 #: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
 #: lxc/file.go:377 lxc/image.go:41 lxc/image.go:130 lxc/image.go:264
 #: lxc/image.go:315 lxc/image.go:438 lxc/image.go:578 lxc/image.go:792
@@ -929,11 +929,11 @@ msgstr "リモート名: %s"
 msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
-#: lxc/exec.go:54
+#: lxc/exec.go:57
 msgid "Disable pseudo-terminal allocation"
 msgstr "擬似端末の割り当てを無効にします"
 
-#: lxc/exec.go:55
+#: lxc/exec.go:58
 msgid "Disable stdin (reads from /dev/null)"
 msgstr "標準入力を無効にします (/dev/null から読み込みます)"
 
@@ -1053,7 +1053,7 @@ msgstr ""
 "  これは 'lxc config get core.https_address' コマンドでチェックできます。\n"
 "  まだ使用可能でない場合は、アドレスを設定することもできます。"
 
-#: lxc/exec.go:51
+#: lxc/exec.go:54
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
@@ -1070,11 +1070,11 @@ msgstr "テンプレートファイル更新のエラー: %s"
 msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
-#: lxc/exec.go:37
+#: lxc/exec.go:40
 msgid "Execute commands in containers"
 msgstr "コンテナ内でコマンドを実行します"
 
-#: lxc/exec.go:38
+#: lxc/exec.go:41
 msgid ""
 "Execute commands in containers\n"
 "\n"
@@ -1186,7 +1186,7 @@ msgstr "情報表示のフィルタリングはまだサポートされていま
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/exec.go:53
+#: lxc/exec.go:56
 msgid "Force pseudo-terminal allocation"
 msgstr "強制的に擬似端末を割り当てます"
 
@@ -1297,6 +1297,14 @@ msgstr "ストレージプールの設定値を取得します"
 #: lxc/storage_volume.go:978 lxc/storage_volume.go:979
 msgid "Get values for storage volume configuration keys"
 msgstr "ストレージボリュームの設定値を取得します"
+
+#: lxc/exec.go:61
+msgid "Group ID to run the command as (default /root)"
+msgstr ""
+
+#: lxc/exec.go:60
+msgid "Group ID to run the command as (default 0)"
+msgstr ""
 
 #: lxc/network.go:978
 msgid "HOSTNAME"
@@ -2236,7 +2244,7 @@ msgstr "バックグラウンド操作 %s を削除しました"
 msgid "Override the source project"
 msgstr "プロジェクトを指定します"
 
-#: lxc/exec.go:52
+#: lxc/exec.go:55
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
@@ -3238,6 +3246,10 @@ msgstr ""
 msgid "Used: %v"
 msgstr "アップロード日時: %s"
 
+#: lxc/exec.go:59
+msgid "User ID to run the command as (default 0)"
+msgstr ""
+
 #: lxc/cluster.go:280 lxc/delete.go:47
 msgid "User aborted delete operation"
 msgstr "ユーザが削除操作を中断しました"
@@ -3293,11 +3305,11 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "YES"
 msgstr ""
 
-#: lxc/exec.go:99
+#: lxc/exec.go:105
 msgid "You can't pass -t and -T at the same time"
 msgstr "-t と -T は同時に指定できません"
 
-#: lxc/exec.go:103
+#: lxc/exec.go:109
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
@@ -3562,7 +3574,7 @@ msgstr "有効"
 msgid "error: %v"
 msgstr "エラー: %v"
 
-#: lxc/exec.go:36
+#: lxc/exec.go:39
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 

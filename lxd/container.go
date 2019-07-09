@@ -684,7 +684,7 @@ type container interface {
 	         *      (the PID returned in the first return argument). It can however
 	         *      be used to e.g. forward signals.)
 	*/
-	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (*exec.Cmd, int, int, error)
+	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)
