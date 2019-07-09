@@ -702,6 +702,12 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 		}
 	}
 
+	if exec.User > 0 || exec.Group > 0 || exec.Cwd != "" {
+		if !r.HasExtension("container_exec_user_group_cwd") {
+			return nil, fmt.Errorf("The server is missing the required \"container_exec_user_group_cwd\" API extension")
+		}
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", url.QueryEscape(containerName)), exec, "")
 	if err != nil {
