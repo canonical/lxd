@@ -844,20 +844,27 @@ func (c *Cluster) ContainersResetState() error {
 // ContainerSetState sets the the power state of the container with the given ID.
 func (c *Cluster) ContainerSetState(id int, state string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		// Set the new value
-		str := fmt.Sprintf("INSERT OR REPLACE INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
-		stmt, err := tx.tx.Prepare(str)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-
-		if _, err = stmt.Exec(id, state); err != nil {
-			return err
-		}
-		return nil
+		return tx.ContainerSetState(id, state)
 	})
 	return err
+}
+
+// ContainerSetState sets the the power state of the container with the given ID.
+func (c *ClusterTx) ContainerSetState(id int, state string) error {
+	// Set the new value
+	str := fmt.Sprintf("INSERT OR REPLACE INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
+	stmt, err := c.tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(id, state)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ContainerUpdate updates the description, architecture and ephemeral flag of
@@ -898,10 +905,20 @@ func (c *Cluster) ContainerCreationUpdate(id int, date time.Time) error {
 
 // ContainerLastUsedUpdate updates the last_use_date field of the container
 // with the given ID.
-func (c *Cluster) ContainerLastUsedUpdate(id int, date time.Time) error {
-	stmt := `UPDATE containers SET last_use_date=? WHERE id=?`
-	err := exec(c.db, stmt, date, id)
-	return err
+func (c *ClusterTx) ContainerLastUsedUpdate(id int, date time.Time) error {
+	str := `UPDATE containers SET last_use_date=? WHERE id=?`
+	stmt, err := c.tx.Prepare(str)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(date, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ContainerGetSnapshots returns the names of all snapshots of the container
