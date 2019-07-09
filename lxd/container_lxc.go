@@ -2635,12 +2635,6 @@ func (c *containerLXC) startCommon() (string, error) {
 		os.RemoveAll(c.StatePath())
 	}
 
-	// Update time container was last started
-	err = c.state.Cluster.ContainerLastUsedUpdate(c.id, time.Now().UTC())
-	if err != nil {
-		return "", fmt.Errorf("Error updating last used: %v", err)
-	}
-
 	// Unmount any previously mounted shiftfs
 	unix.Unmount(c.RootfsPath(), unix.MNT_DETACH)
 
@@ -3320,8 +3314,22 @@ func (c *containerLXC) OnStart() error {
 		}
 	}
 
-	// Record current state
-	err = c.state.Cluster.ContainerSetState(c.id, "RUNNING")
+	// Database updates
+	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Record current state
+		err = tx.ContainerSetState(c.id, "RUNNING")
+		if err != nil {
+			return errors.Wrap(err, "Error updating container state")
+		}
+
+		// Update time container last started time
+		err = tx.ContainerLastUsedUpdate(c.id, time.Now().UTC())
+		if err != nil {
+			return errors.Wrap(err, "Error updating last used")
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
