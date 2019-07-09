@@ -18,4 +18,9 @@ type ContainerExecPost struct {
 
 	// API extension: container_exec_recording
 	RecordOutput bool `json:"record-output" yaml:"record-output"`
+
+	// API extension: container_user_group_cwd
+	User  uint32 `json:"user" yaml:"user"`
+	Group uint32 `json:"group" yaml:"group"`
+	Cwd   string `json:"cwd" yaml:"cwd"`
 }
