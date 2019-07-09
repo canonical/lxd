@@ -25,7 +25,15 @@ Translations        | Weblate               | [![Translation status](https://hos
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
 ## Installing LXD from packages
-Instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
+The LXD daemon only works on Linux but the client tool (`lxc`) is available on most platforms.
+
+OS                  | Format                                            | Command
+---                 | ---                                               | ---
+Linux               | [Snap](https://snapcraft.io/lxd)                  | snap install lxd
+Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | choco install lxc
+MacOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | brew install lxc
+
+More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
 
 ## Installing LXD from source
 We recommend having the latest versions of liblxc (>= 2.0.0 required)
@@ -77,9 +85,9 @@ And then download it as usual:
 go get -d -v github.com/lxc/lxd/lxd
 cd $GOPATH/src/github.com/lxc/lxd
 make deps
-export CGO_CFLAGS="${CGO_CFLAGS} -I${GOPATH}/deps/sqlite/ -I${GOPATH}/deps/dqlite/include/"
-export CGO_LDFLAGS="${CGO_LDFLAGS} -L${GOPATH}/deps/sqlite/.libs/ -L${GOPATH}/deps/dqlite/.libs/"
-export LD_LIBRARY_PATH="${GOPATH}/deps/sqlite/.libs/:${GOPATH}/deps/dqlite/.libs/:${LD_LIBRARY_PATH}"
+export CGO_CFLAGS="${CGO_CFLAGS} -I${GOPATH}/deps/sqlite/ -I${GOPATH}/deps/dqlite/include/ -I${GOPATH}/deps/raft/include/ -I${GOPATH}/deps/libco/"
+export CGO_LDFLAGS="${CGO_LDFLAGS} -L${GOPATH}/deps/sqlite/.libs/ -L${GOPATH}/deps/dqlite/.libs/ -L${GOPATH}/deps/raft/.libs -L${GOPATH}/deps/libco/"
+export LD_LIBRARY_PATH="${GOPATH}/deps/sqlite/.libs/:${GOPATH}/deps/dqlite/.libs/:${GOPATH}/deps/raft/.libs:${GOPATH}/deps/libco/:${LD_LIBRARY_PATH}"
 make
 ```
 
