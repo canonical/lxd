@@ -795,3 +795,6 @@ Rework the resources API at /1.0/resources, especially:
    - Export device names and nodes in DRM struct
    - Export device name and node in NVIDIA struct
    - Add SR-IOV VF tracking
+
+## container\_exec\_user\_group\_cwd
+Adds support for specifying User, Group and Cwd during `POST /1.0/containers/NAME/exec`.
