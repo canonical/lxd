@@ -43,6 +43,9 @@ type execWs struct {
 	fds              map[int]string
 	width            int
 	height           int
+	uid              uint32
+	gid              uint32
+	cwd              string
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -308,7 +311,7 @@ func (s *execWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
+	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false, s.cwd, s.uid, s.gid)
 	if err != nil {
 		return err
 	}
@@ -406,19 +409,22 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	// Set default value for HOME
-	_, ok = env["HOME"]
-	if !ok {
-		env["HOME"] = "/root"
+	// If running as root, set some env variables
+	if post.User == 0 {
+		// Set default value for HOME
+		_, ok = env["HOME"]
+		if !ok {
+			env["HOME"] = "/root"
+		}
+
+		// Set default value for USER
+		_, ok = env["USER"]
+		if !ok {
+			env["USER"] = "root"
+		}
 	}
 
-	// Set default value for USER
-	_, ok = env["USER"]
-	if !ok {
-		env["USER"] = "root"
-	}
-
-	// Set default value for USER
+	// Set default value for LANG
 	_, ok = env["LANG"]
 	if !ok {
 		env["LANG"] = "C.UTF-8"
@@ -461,6 +467,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws.width = post.Width
 		ws.height = post.Height
 
+		ws.cwd = post.Cwd
+		ws.uid = post.User
+		ws.gid = post.Group
+
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
 
@@ -492,7 +502,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			defer stderr.Close()
 
 			// Run the command
-			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, true)
+			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, true, post.Cwd, post.User, post.Group)
 
 			// Update metadata with the right URLs
 			metadata["return"] = cmdResult
@@ -501,7 +511,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, c.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true)
+			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true, post.Cwd, post.User, post.Group)
 			metadata["return"] = cmdResult
 		}
 

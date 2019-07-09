@@ -6933,7 +6933,7 @@ func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	return string(msg), nil
 }
 
-func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (*exec.Cmd, int, int, error) {
+func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error) {
 	// Prepare the environment
 	envSlice := []string{}
 
@@ -6950,7 +6950,16 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 
 	// Prepare the subcommand
 	cname := projectPrefix(c.Project(), c.Name())
-	args := []string{c.state.OS.ExecPath, "forkexec", cname, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{
+		c.state.OS.ExecPath,
+		"forkexec",
+		cname,
+		c.state.OS.LxcPath,
+		filepath.Join(c.LogPath(), "lxc.conf"),
+		cwd,
+		fmt.Sprintf("%d", uid),
+		fmt.Sprintf("%d", gid),
+	}
 
 	args = append(args, "--")
 	args = append(args, "env")

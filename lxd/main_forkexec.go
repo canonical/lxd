@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,7 +19,7 @@ type cmdForkexec struct {
 func (c *cmdForkexec) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkexec <container name> <containers path> <config> -- env [key=value...] -- cmd <args...>"
+	cmd.Use = "forkexec <container name> <containers path> <config> <cwd> <uid> <gid> -- env [key=value...] -- cmd <args...>"
 	cmd.Short = "Execute a task inside the container"
 	cmd.Long = `Description:
   Execute a task inside the container
@@ -34,7 +35,7 @@ func (c *cmdForkexec) Command() *cobra.Command {
 
 func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	if len(args) < 4 {
+	if len(args) < 7 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -44,13 +45,23 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	name := args[0]
-	lxcpath := args[1]
-	configPath := args[2]
-
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
+	}
+
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
+	cwd := args[3]
+	uid, err := strconv.ParseUint(args[4], 10, 32)
+	if err != nil {
+		return err
+	}
+
+	gid, err := strconv.ParseUint(args[5], 10, 32)
+	if err != nil {
+		return err
 	}
 
 	// Get the status
@@ -74,13 +85,15 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	opts.StdinFd = 3
 	opts.StdoutFd = 4
 	opts.StderrFd = 5
+	opts.UID = int(uid)
+	opts.GID = int(gid)
 
 	// Parse the command line
 	env := []string{}
 	command := []string{}
 
 	section := ""
-	for _, arg := range args[3:] {
+	for _, arg := range args[6:] {
 		// The "cmd" section must come last as it may contain a --
 		if arg == "--" && section != "cmd" {
 			section = ""
@@ -106,6 +119,9 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	opts.Env = env
+	if cwd != "" {
+		opts.Cwd = cwd
+	}
 
 	// Exec the command
 	status, err := d.RunCommandNoWait(command, opts)
