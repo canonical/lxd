@@ -40,11 +40,16 @@ import (
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#ifndef SECCOMP_GET_NOTIF_SIZES
+#define SECCOMP_GET_NOTIF_SIZES 3
+#endif
 
 #ifndef SECCOMP_RET_USER_NOTIF
 #define SECCOMP_RET_USER_NOTIF 0x7fc00000U
@@ -68,21 +73,41 @@ struct seccomp_notif_resp {
 	__s32 error;
 	__u32 flags;
 };
-#endif
+
+#endif // !SECCOMP_RET_USER_NOTIF
+
+struct seccomp_notif_sizes expected_sizes;
 
 struct seccomp_notify_proxy_msg {
-	uint32_t version;
-#ifdef SECCOMP_RET_USER_NOTIF
-	struct seccomp_notif req;
-	struct seccomp_notif_resp resp;
-#endif // SECCOMP_RET_USER_NOTIF
+	uint64_t __reserved;
 	pid_t monitor_pid;
 	pid_t init_pid;
+	struct seccomp_notif_sizes sizes;
+	uint64_t cookie_len;
+	// followed by: seccomp_notif, seccomp_notif_resp, cookie
 };
 
 #define SECCOMP_PROXY_MSG_SIZE (sizeof(struct seccomp_notify_proxy_msg))
+#define SECCOMP_NOTIFY_SIZE (sizeof(struct seccomp_notif))
+#define SECCOMP_RESPONSE_SIZE (sizeof(struct seccomp_notif_resp))
+#define SECCOMP_MSG_SIZE_MIN (SECCOMP_PROXY_MSG_SIZE + SECCOMP_NOTIFY_SIZE + SECCOMP_RESPONSE_SIZE)
+#define SECCOMP_COOKIE_SIZE (64 * sizeof(char))
+#define SECCOMP_MSG_SIZE_MAX (SECCOMP_MSG_SIZE_MIN + SECCOMP_COOKIE_SIZE)
 
 #ifdef SECCOMP_RET_USER_NOTIF
+
+static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
+{
+	if (syscall(SYS_seccomp, SECCOMP_GET_NOTIF_SIZES, 0, sizes) != 0)
+		return -1;
+
+	if (sizes->seccomp_notif != sizeof(struct seccomp_notif) ||
+	    sizes->seccomp_notif_resp != sizeof(struct seccomp_notif_resp) ||
+	    sizes->seccomp_data != sizeof(struct seccomp_data))
+		return -1;
+
+	return 0;
+}
 
 static int device_allowed(dev_t dev, mode_t mode)
 {
@@ -121,13 +146,13 @@ static int device_allowed(dev_t dev, mode_t mode)
 	#endif
 #endif
 
-static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_proxy_msg *msg,
+static int seccomp_notify_mknod_set_response(int fd_mem,
+					     struct seccomp_notif *req,
+					     struct seccomp_notif_resp *resp,
 					     char *buf, size_t size,
 					     mode_t *mode, dev_t *dev,
 					     pid_t *pid)
 {
-	struct seccomp_notif *req = &msg->req;
-	struct seccomp_notif_resp *resp = &msg->resp;
 	int ret;
 	ssize_t bytes;
 
@@ -183,13 +208,48 @@ static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_p
 	return 0;
 }
 
-static void seccomp_notify_mknod_update_response(struct seccomp_notify_proxy_msg *msg,
+static void seccomp_notify_mknod_update_response(struct seccomp_notif_resp *resp,
 						 int new_neg_errno)
 {
-	msg->resp.error = new_neg_errno;
+	resp->error = new_neg_errno;
 }
+
+static void prepare_seccomp_iovec(struct iovec *iov,
+				  struct seccomp_notify_proxy_msg *msg,
+				  struct seccomp_notif *notif,
+				  struct seccomp_notif_resp *resp, char *cookie)
+{
+	iov[0].iov_base = msg;
+	iov[0].iov_len = SECCOMP_PROXY_MSG_SIZE;
+
+	iov[1].iov_base = notif;
+	iov[1].iov_len = SECCOMP_NOTIFY_SIZE;
+
+	iov[2].iov_base = resp;
+	iov[2].iov_len = SECCOMP_RESPONSE_SIZE;
+
+	iov[3].iov_base = cookie;
+	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
+}
+
 #else
-static int seccomp_notify_mknod_set_response(int fd_mem, struct seccomp_notify_proxy_msg *msg,
+
+static void prepare_seccomp_iovec(struct iovec *iov,
+				  struct seccomp_notify_proxy_msg *msg,
+				  struct seccomp_notif *notif,
+				  struct seccomp_notif_resp *resp, char *cookie)
+{
+}
+
+static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
+{
+	errno = ENOSYS;
+	return -1;
+}
+
+static int seccomp_notify_mknod_set_response(int fd_mem,
+					     struct seccomp_notif *req,
+					     struct seccomp_notif_resp *resp,
 					     char *buf, size_t size,
 					     mode_t *mode, dev_t *dev,
 					     pid_t *pid)
@@ -380,6 +440,11 @@ type SeccompServer struct {
 }
 
 func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
+	ret := C.seccomp_notify_get_sizes(&C.expected_sizes)
+	if ret < 0 {
+		return nil, fmt.Errorf("Failed to query kernel for seccomp notifier sizes")
+	}
+
 	// Cleanup existing sockets
 	if shared.PathExists(path) {
 		err := os.Remove(path)
@@ -389,7 +454,7 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	}
 
 	// Bind new socket
-	l, err := net.Listen("unix", path)
+	l, err := net.Listen("unixpacket", path)
 	if err != nil {
 		return nil, err
 	}
@@ -429,15 +494,91 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 				}
 
 				for {
-					buf := make([]byte, C.SECCOMP_PROXY_MSG_SIZE)
-					fdMem, err := netutils.AbstractUnixReceiveFdData(int(unixFile.Fd()), buf)
+
+					msg_ptr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
+					msg := (*C.struct_seccomp_notify_proxy_msg)(msg_ptr)
+					C.memset(msg_ptr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
+
+					req_ptr := C.malloc(C.sizeof_struct_seccomp_notif)
+					req := (*C.struct_seccomp_notif)(req_ptr)
+					C.memset(req_ptr, 0, C.sizeof_struct_seccomp_notif)
+
+					resp_ptr := C.malloc(C.sizeof_struct_seccomp_notif_resp)
+					resp := (*C.struct_seccomp_notif_resp)(resp_ptr)
+					C.memset(resp_ptr, 0, C.sizeof_struct_seccomp_notif_resp)
+
+					cookie_ptr := C.malloc(64 * C.sizeof_char)
+					cookie := (*C.char)(cookie_ptr)
+					C.memset(cookie_ptr, 0, 64*C.sizeof_char)
+
+					iov_unsafe_ptr := C.malloc(4 * C.sizeof_struct_iovec)
+					iov := (*C.struct_iovec)(iov_unsafe_ptr)
+					C.memset(iov_unsafe_ptr, 0, 4*C.sizeof_struct_iovec)
+
+					C.prepare_seccomp_iovec(iov, msg, req, resp, cookie)
+
+					bytes, fds, err := netutils.AbstractUnixReceiveFdData(int(unixFile.Fd()), 2, iov_unsafe_ptr, 4)
 					if err != nil || err == io.EOF {
-						logger.Debugf("Disconnected from seccomp socket after receive: pid=%v", ucred.pid)
+						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.pid, err)
 						c.Close()
 						return
 					}
 
-					go s.Handler(c, ucred, buf, fdMem)
+					fdMem := -1
+					fdProc := -1
+
+					if len(fds) == 2 {
+						fdProc = int(fds[0])
+						fdMem = int(fds[1])
+					} else {
+						fdMem = int(fds[0])
+					}
+
+					cleanup := func() {
+						c.Close()
+						if fdMem >= 0 {
+							unix.Close(fdMem)
+						}
+						if fdProc >= 0 {
+							unix.Close(fdProc)
+						}
+						C.free(unsafe.Pointer(msg))
+						C.free(unsafe.Pointer(req))
+						C.free(unsafe.Pointer(resp))
+						C.free(unsafe.Pointer(cookie))
+					}
+
+					if uint64(bytes) < uint64(C.SECCOMP_MSG_SIZE_MIN) {
+						logger.Debugf("Disconnected from seccomp socket after incomplete receive: pid=%v", ucred.pid)
+						cleanup()
+						return
+					}
+
+					if msg.__reserved != 0 {
+						logger.Debugf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v", ucred.pid)
+						cleanup()
+						return
+					}
+
+					if msg.sizes.seccomp_notif != C.expected_sizes.seccomp_notif {
+						logger.Debugf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v", msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, ucred.pid)
+						cleanup()
+						return
+					}
+
+					if msg.sizes.seccomp_notif_resp != C.expected_sizes.seccomp_notif_resp {
+						logger.Debugf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v", msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, ucred.pid)
+						cleanup()
+						return
+					}
+
+					if msg.sizes.seccomp_data != C.expected_sizes.seccomp_data {
+						logger.Debugf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v", msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, ucred.pid)
+						cleanup()
+						return
+					}
+
+					go s.Handler(c, int(unixFile.Fd()), ucred, fdMem, fdProc, iov, msg, req, resp, cookie)
 				}
 			}()
 		}
@@ -535,12 +676,24 @@ func doMknod(c container, dev types.Device, requestPID int) (error, int) {
 	return nil, 0
 }
 
-func (s *SeccompServer) Handler(c net.Conn, ucred *ucred, buf []byte, fdMem int) error {
+func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
+	fdMem int, fdProc int, iov *C.struct_iovec, msg *C.struct_seccomp_notify_proxy_msg,
+	req *C.struct_seccomp_notif, resp *C.struct_seccomp_notif_resp,
+	cookie *C.char) error {
 	logger.Debugf("Handling seccomp notification from: %v", ucred.pid)
 
-	defer unix.Close(fdMem)
-	var msg C.struct_seccomp_notify_proxy_msg
-	C.memcpy(unsafe.Pointer(&msg), unsafe.Pointer(&buf[0]), C.SECCOMP_PROXY_MSG_SIZE)
+	defer func() {
+		if fdMem >= 0 {
+			unix.Close(fdMem)
+		}
+		if fdProc >= 0 {
+			unix.Close(fdProc)
+		}
+		C.free(unsafe.Pointer(msg))
+		C.free(unsafe.Pointer(req))
+		C.free(unsafe.Pointer(resp))
+		C.free(unsafe.Pointer(cookie))
+	}()
 
 	var cMode C.mode_t
 	var cDev C.dev_t
@@ -548,7 +701,7 @@ func (s *SeccompServer) Handler(c net.Conn, ucred *ucred, buf []byte, fdMem int)
 	var err error
 	goErrno := 0
 	cPathBuf := [unix.PathMax]C.char{}
-	ret := C.seccomp_notify_mknod_set_response(C.int(fdMem), &msg,
+	ret := C.seccomp_notify_mknod_set_response(C.int(fdMem), req, resp,
 		&cPathBuf[0],
 		unix.PathMax, &cMode,
 		&cDev, &cPid)
@@ -579,12 +732,19 @@ func (s *SeccompServer) Handler(c net.Conn, ucred *ucred, buf []byte, fdMem int)
 		}
 	}
 
-	C.seccomp_notify_mknod_update_response(&msg, C.int(goErrno))
-	C.memcpy(unsafe.Pointer(&buf[0]), unsafe.Pointer(&msg), C.SECCOMP_PROXY_MSG_SIZE)
+	C.seccomp_notify_mknod_update_response(resp, C.int(goErrno))
 
-	_, err = c.Write(buf)
-	if err != nil {
-		logger.Debugf("Disconnected from seccomp socket after write: pid=%v", ucred.pid)
+	msghdr := C.struct_msghdr{}
+	msghdr.msg_iov = iov
+	msghdr.msg_iovlen = 4 - 1 // without cookie
+	bytes := C.sendmsg(C.int(clientFd), &msghdr, C.MSG_NOSIGNAL)
+	if bytes < 0 {
+		logger.Debugf("Disconnected from seccomp socket after failed write: pid=%v", ucred.pid)
+		return err
+	}
+
+	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
+		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", ucred.pid)
 		return err
 	}
 
