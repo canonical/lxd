@@ -43,7 +43,7 @@ func TestHeartbeat(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform the heartbeat requests.
-	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster)
+	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster, nil)
 	ctx := context.Background()
 	heartbeat(ctx)
 
@@ -92,7 +92,7 @@ func DISABLE_TestHeartbeat_MarkAsDown(t *testing.T) {
 
 	// Shutdown the follower node and perform the heartbeat requests.
 	f.Server(follower).Close()
-	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster)
+	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster, nil)
 	ctx := context.Background()
 	heartbeat(ctx)
 
@@ -239,7 +239,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	mux := http.NewServeMux()
 	server := newServer(cert, mux)
 
-	for path, handler := range gateway.HandlerFuncs() {
+	for path, handler := range gateway.HandlerFuncs(nil) {
 		mux.HandleFunc(path, handler)
 	}
 
