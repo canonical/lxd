@@ -233,18 +233,18 @@ func instanceParseType(value string) (map[string]string, error) {
 			fields := strings.Split(value, "-")
 			for _, field := range fields {
 				if len(field) < 2 || (field[0] != 'c' && field[0] != 'm') {
-					return nil, fmt.Errorf("Bad instance type: %s", value)
+					return nil, fmt.Errorf("Provided instance type doesn't exist: %s", value)
 				}
 
-				value, err := strconv.ParseFloat(field[1:], 32)
+				floatValue, err := strconv.ParseFloat(field[1:], 32)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("Bad custom instance type: %s", value)
 				}
 
 				if field[0] == 'c' {
-					newLimits.CPU = float32(value)
+					newLimits.CPU = float32(floatValue)
 				} else if field[0] == 'm' {
-					newLimits.Memory = float32(value)
+					newLimits.Memory = float32(floatValue)
 				}
 			}
 
