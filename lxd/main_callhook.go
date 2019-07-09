@@ -58,7 +58,11 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	if socket == "" {
 		socket = filepath.Join(path, "unix.socket")
 	}
-	d, err := lxd.ConnectLXDUnix(socket, nil)
+
+	lxdArgs := lxd.ConnectionArgs{
+		SkipGetServer: true,
+	}
+	d, err := lxd.ConnectLXDUnix(socket, &lxdArgs)
 	if err != nil {
 		return err
 	}

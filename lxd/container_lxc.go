@@ -1197,7 +1197,7 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.state.OS.ExecPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/proc/%d/exe callhook %s %d start", os.Getpid(), shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -1689,7 +1689,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 			// Run network up hook for bridged and p2p nics.
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("%s callhook %s %d network-up %s", c.state.OS.ExecPath, shared.VarPath(""), c.id, k))
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.script.up", networkKeyPrefix, networkidx), fmt.Sprintf("/proc/%d/exe callhook %s %d network-up %s", os.Getpid(), shared.VarPath(""), c.id, k))
 				if err != nil {
 					return err
 				}
@@ -2109,6 +2109,8 @@ func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 
 // Start functions
 func (c *containerLXC) startCommon() (string, error) {
+	var ourStart bool
+
 	// Load the go-lxc struct
 	err := c.initLXC(true)
 	if err != nil {
@@ -2174,7 +2176,6 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
-	var ourStart bool
 	newSize, ok := c.LocalConfig()["volatile.apply_quota"]
 	if ok {
 		err := c.initStorage()
@@ -2629,13 +2630,9 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
+	// If starting stateless, wipe state
 	if !c.IsStateful() && shared.PathExists(c.StatePath()) {
 		os.RemoveAll(c.StatePath())
-	}
-
-	_, err = c.StorageStop()
-	if err != nil {
-		return "", err
 	}
 
 	// Update time container was last started
