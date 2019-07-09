@@ -56,20 +56,18 @@ int lxc_abstract_unix_send_fds(int fd, int *sendfds, int num_sendfds,
 	return sendmsg(fd, &msg, MSG_NOSIGNAL);
 }
 
-int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
-			       void *data, size_t size)
+static int lxc_abstract_unix_recv_fds_iov(int fd, int *recvfds, int num_recvfds,
+					  struct iovec *iov, size_t iovlen)
 {
 	__do_free char *cmsgbuf = NULL;
 	int ret;
 	struct msghdr msg;
-	struct iovec iov;
 	struct cmsghdr *cmsg = NULL;
 	char buf[1] = {0};
 	size_t cmsgbufsize = CMSG_SPACE(sizeof(struct ucred)) +
 			     CMSG_SPACE(num_recvfds * sizeof(int));
 
 	memset(&msg, 0, sizeof(msg));
-	memset(&iov, 0, sizeof(iov));
 
 	cmsgbuf = malloc(cmsgbufsize);
 	if (!cmsgbuf) {
@@ -80,10 +78,8 @@ int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
 	msg.msg_control = cmsgbuf;
 	msg.msg_controllen = cmsgbufsize;
 
-	iov.iov_base = data ? data : buf;
-	iov.iov_len = data ? size : sizeof(buf);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	msg.msg_iov = iov;
+	msg.msg_iovlen = iovlen;
 
 again:
 	ret = recvmsg(fd, &msg, 0);
@@ -111,4 +107,15 @@ again:
 
 out:
 	return ret;
+}
+
+int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
+			       void *data, size_t size)
+{
+	char buf[1] = {0};
+	struct iovec iov = {
+		.iov_base = data ? data : buf,
+		.iov_len = data ? size : sizeof(buf),
+	};
+	return lxc_abstract_unix_recv_fds_iov(fd, recvfds, num_recvfds, &iov, 1);
 }
