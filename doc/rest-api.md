@@ -836,6 +836,9 @@ Input (run bash):
         "interactive": true,            # Whether to allocate a pts device instead of PIPEs
         "width": 80,                    # Initial width of the terminal (optional)
         "height": 25,                   # Initial height of the terminal (optional)
+        "user": 1000,                   # User to run the command as (optional)
+        "group: 1000,                   # Group to run the command as (optional)
+        "cwd": "/tmp"                   # Current working directory (optional)
     }
 
 `wait-for-websocket` indicates whether the operation should block and wait for
