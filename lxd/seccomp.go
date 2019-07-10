@@ -861,6 +861,8 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 				err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
 				if err != nil {
 					goErrno = int(-C.EPERM)
+				} else {
+					goErrno = 0
 				}
 			}
 		}
