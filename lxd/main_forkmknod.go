@@ -26,7 +26,7 @@ import (
 extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
-static uid_t get_host_uid(uid_t uid, pid_t pid)
+static uid_t get_ns_uid(uid_t uid, pid_t pid)
 {
         __do_free char *line = NULL;
         __do_fclose FILE *f = NULL;
@@ -44,15 +44,15 @@ static uid_t get_host_uid(uid_t uid, pid_t pid)
                         continue;
 
                 if (nsid <= uid && nsid + range > uid) {
-                        hostid += uid - nsid;
-			return hostid;
+                        nsid += uid - hostid;
+			return nsid;
                 }
         }
 
         return -1;
 }
 
-static gid_t get_host_gid(uid_t gid, pid_t pid)
+static gid_t get_ns_gid(uid_t gid, pid_t pid)
 {
         __do_free char *line = NULL;
         __do_fclose FILE *f = NULL;
@@ -70,8 +70,8 @@ static gid_t get_host_gid(uid_t gid, pid_t pid)
                         continue;
 
                 if (nsid <= gid && nsid + range > gid) {
-                        hostid += gid - nsid;
-			return hostid;
+                        nsid += gid - hostid;
+			return nsid;
                 }
         }
 
@@ -163,6 +163,7 @@ void forkmknod()
 	gid_t gid = -1;
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
+	int is_shiftfs = 0;
 
 	// Get the subcommand
 	cur = advance_arg(false);
@@ -184,15 +185,14 @@ void forkmknod()
 	target_host = advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
+	is_shiftfs = atoi(advance_arg(true));
 
-	if (uid < 0) {
-		uid = get_host_uid(0, pid);
+	if (is_shiftfs == 1) {
+		uid = get_ns_uid(uid, pid);
 		if (uid < 0)
 			fprintf(stderr, "No root uid found (%d)\n", uid);
-	}
 
-	if (gid < 0) {
-		gid = get_host_gid(0, pid);
+		gid = get_ns_gid(gid, pid);
 		if (gid < 0)
 			fprintf(stderr, "No root gid found (%d)\n", gid);
 	}
