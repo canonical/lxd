@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	lxc "gopkg.in/lxc/go-lxc.v2"
 
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -609,6 +609,7 @@ func (d *Daemon) init() error {
 	if shared.StringInSlice("dqlite", trace) {
 		clusterLogLevel = "TRACE"
 	}
+	os.Setenv("GO_DQLITE_DEBUG", "1")
 	d.gateway, err = cluster.NewGateway(
 		d.db,
 		certInfo,
