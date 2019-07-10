@@ -786,22 +786,12 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int) (
 		return err, goErrno
 	}
 
-	diskIdmap, err := c.DiskIdmap()
-	if err != nil {
-		return err, goErrno
-	}
-
-	isShiftfs := 0
-	if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-		isShiftfs = 1
-	}
-
 	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
 	dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
 	errnoMsg, err := shared.RunCommand(util.GetExecPath(),
 		"forkmknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
-		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid), fmt.Sprintf("%d", isShiftfs))
+		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid))
 	if err != nil {
 		tmp, err2 := strconv.Atoi(errnoMsg)
 		if err2 == nil {
@@ -856,13 +846,23 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 
 		c, _ := findContainerForPid(int32(msg.monitor_pid), s.d)
 		if c != nil {
-			err, goErrno = s.doMknod(c, dev, int(cPid))
-			if err != nil && (goErrno == int(-C.EPERM)) && c != nil {
+			diskIdmap, err2 := c.DiskIdmap()
+			if err2 != nil {
+				goErrno = int(-C.EPERM)
+				goto send_response
+			}
+
+			if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
 				err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
-				if err != nil {
-					goErrno = int(-C.EPERM)
-				} else {
-					goErrno = 0
+			} else {
+				err, goErrno = s.doMknod(c, dev, int(cPid))
+				if err != nil && (goErrno == int(-C.ENOMEDIUM)) && c != nil {
+					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+					if err != nil {
+						goErrno = int(-C.EPERM)
+					} else {
+						goErrno = 0
+					}
 				}
 			}
 		}
@@ -872,6 +872,7 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 		}
 	}
 
+send_response:
 	C.seccomp_notify_mknod_update_response(resp, C.int(goErrno))
 
 	msghdr := C.struct_msghdr{}
