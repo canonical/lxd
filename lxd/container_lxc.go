@@ -7660,8 +7660,8 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 		return err
 	}
 
-	m["uid"] = fmt.Sprintf("%d", uid)
-	m["gid"] = fmt.Sprintf("%d", gid)
+	m["uid"] = fmt.Sprintf("%d", GetNSUid(uint(uid), pid))
+	m["gid"] = fmt.Sprintf("%d", GetNSGid(uint(gid), pid))
 
 	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
 	m["path"] = filepath.Join(rootPath, prefixPath, m["path"])
