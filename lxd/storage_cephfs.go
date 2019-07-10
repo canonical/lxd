@@ -143,17 +143,27 @@ func (s *storageCephFs) StoragePoolCreate() error {
 	}
 
 	// Get the credentials and host
-	monAddress, userSecret, err := cephFsConfig(s.ClusterName, s.UserName)
+	monAddresses, userSecret, err := cephFsConfig(s.ClusterName, s.UserName)
 	if err != nil {
 		return err
 	}
 
-	uri := fmt.Sprintf("%s:6789:/", monAddress)
-	err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
-	if err != nil {
+	connected := false
+	for _, monAddress := range monAddresses {
+		uri := fmt.Sprintf("%s:6789:/", monAddress)
+		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
+		if err != nil {
+			continue
+		}
+
+		connected = true
+		defer tryUnmount(mountPoint, syscall.MNT_DETACH)
+		break
+	}
+
+	if !connected {
 		return err
 	}
-	defer tryUnmount(mountPoint, syscall.MNT_DETACH)
 
 	// Create the path if missing
 	err = os.MkdirAll(filepath.Join(mountPoint, fsPath), 0755)
@@ -209,17 +219,27 @@ func (s *storageCephFs) StoragePoolDelete() error {
 	}
 
 	// Get the credentials and host
-	monAddress, userSecret, err := cephFsConfig(s.ClusterName, s.UserName)
+	monAddresses, userSecret, err := cephFsConfig(s.ClusterName, s.UserName)
 	if err != nil {
 		return err
 	}
 
-	uri := fmt.Sprintf("%s:6789:/", monAddress)
-	err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
-	if err != nil {
+	connected := false
+	for _, monAddress := range monAddresses {
+		uri := fmt.Sprintf("%s:6789:/", monAddress)
+		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
+		if err != nil {
+			continue
+		}
+
+		connected = true
+		defer tryUnmount(mountPoint, syscall.MNT_DETACH)
+		break
+	}
+
+	if !connected {
 		return err
 	}
-	defer tryUnmount(mountPoint, syscall.MNT_DETACH)
 
 	if shared.PathExists(filepath.Join(mountPoint, fsPath)) {
 		// Delete the usual directories
@@ -311,15 +331,25 @@ func (s *storageCephFs) StoragePoolMount() (bool, error) {
 	}
 
 	// Get the credentials and host
-	monAddress, secret, err := cephFsConfig(s.ClusterName, s.UserName)
+	monAddresses, secret, err := cephFsConfig(s.ClusterName, s.UserName)
 	if err != nil {
 		return false, err
 	}
 
 	// Do the actual mount
-	uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
-	err = tryMount(uri, poolMntPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, secret, fsName))
-	if err != nil {
+	connected := false
+	for _, monAddress := range monAddresses {
+		uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
+		err = tryMount(uri, poolMntPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, secret, fsName))
+		if err != nil {
+			continue
+		}
+
+		connected = true
+		break
+	}
+
+	if !connected {
 		return false, err
 	}
 
@@ -991,14 +1021,14 @@ func cephFsExists(clusterName string, userName string, fsName string) bool {
 	return true
 }
 
-func cephFsConfig(clusterName string, userName string) (string, string, error) {
+func cephFsConfig(clusterName string, userName string) ([]string, string, error) {
 	// Parse the CEPH configuration
 	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", clusterName))
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 
-	var cephMon string
+	cephMon := []string{}
 
 	scan := bufio.NewScanner(cephConf)
 	for scan.Scan() {
@@ -1015,19 +1045,22 @@ func cephFsConfig(clusterName string, userName string) (string, string, error) {
 				continue
 			}
 
-			cephMon = strings.TrimSpace(fields[1])
+			servers := strings.Split(fields[1], ",")
+			for _, server := range servers {
+				cephMon = append(cephMon, strings.TrimSpace(server))
+			}
 			break
 		}
 	}
 
-	if cephMon == "" {
-		return "", "", fmt.Errorf("Couldn't find a CPEH mon")
+	if len(cephMon) == 0 {
+		return nil, "", fmt.Errorf("Couldn't find a CPEH mon")
 	}
 
 	// Parse the CEPH keyring
 	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", clusterName, userName))
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 
 	var cephSecret string
@@ -1053,7 +1086,7 @@ func cephFsConfig(clusterName string, userName string) (string, string, error) {
 	}
 
 	if cephSecret == "" {
-		return "", "", fmt.Errorf("Couldn't find a keyring entry")
+		return nil, "", fmt.Errorf("Couldn't find a keyring entry")
 	}
 
 	return cephMon, cephSecret, nil
