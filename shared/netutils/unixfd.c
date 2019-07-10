@@ -107,7 +107,7 @@ out:
 	return ret;
 }
 
-ssize_t lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
+static ssize_t lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
 				   void *data, size_t size)
 {
 	char buf[1] = {0};
