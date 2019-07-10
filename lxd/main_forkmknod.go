@@ -257,6 +257,14 @@ type cmdForkmknod struct {
 	global *cmdGlobal
 }
 
+func GetNSUid(uid uint, pid int) int {
+	return int(C.get_ns_uid(C.uid_t(uid), C.pid_t(pid)))
+}
+
+func GetNSGid(gid uint, pid int) int {
+	return int(C.get_ns_gid(C.gid_t(gid), C.pid_t(pid)))
+}
+
 func (c *cmdForkmknod) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
