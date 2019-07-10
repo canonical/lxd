@@ -609,7 +609,6 @@ func (d *Daemon) init() error {
 	if shared.StringInSlice("dqlite", trace) {
 		clusterLogLevel = "TRACE"
 	}
-	os.Setenv("GO_DQLITE_DEBUG", "1")
 	d.gateway, err = cluster.NewGateway(
 		d.db,
 		certInfo,
