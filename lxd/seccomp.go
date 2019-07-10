@@ -138,13 +138,134 @@ static int device_allowed(dev_t dev, mode_t mode)
 	return -EPERM;
 }
 
-#ifndef __NR_mknodat
-	#error missing kernel headers
-#else
-	#ifdef __NR_mknod
-		#define LXD_MUST_CHECK_MKNOD
-	#endif
+#include <linux/audit.h>
+
+struct lxd_seccomp_data_arch {
+	int arch;
+	int nr_mknod;
+	int nr_mknodat;
+};
+
+// ordered by likelihood of usage...
+static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
+#ifdef AUDIT_ARCH_X86_64
+	{ AUDIT_ARCH_X86_64,      133, 259 },
 #endif
+#ifdef AUDIT_ARCH_I386
+	{ AUDIT_ARCH_I386,         14, 297 },
+#endif
+#ifdef AUDIT_ARCH_AARCH64
+	{ AUDIT_ARCH_AARCH64,      -1,  33 },
+#endif
+#ifdef AUDIT_ARCH_ARM
+	{ AUDIT_ARCH_ARM,          14, 324 },
+#endif
+#ifdef AUDIT_ARCH_ARMEB
+	{ AUDIT_ARCH_ARMEB,        14, 324 },
+#endif
+#ifdef AUDIT_ARCH_S390
+	{ AUDIT_ARCH_S390,         14, 290 },
+#endif
+#ifdef AUDIT_ARCH_S390X
+	{ AUDIT_ARCH_S390X,        14, 290 },
+#endif
+#ifdef AUDIT_ARCH_RISCV32
+	{ AUDIT_ARCH_RISCV32,      -1,  33 },
+#endif
+#ifdef AUDIT_ARCH_RISCV64
+	{ AUDIT_ARCH_RISCV64,      -1,  33 },
+#endif
+#ifdef AUDIT_ARCH_PPC
+	{ AUDIT_ARCH_PPC,          14, 288 },
+#endif
+#ifdef AUDIT_ARCH_PPC64
+	{ AUDIT_ARCH_PPC64,        14, 288 },
+#endif
+#ifdef AUDIT_ARCH_PPC64LE
+	{ AUDIT_ARCH_PPC64LE,      14, 288 },
+#endif
+#ifdef AUDIT_ARCH_IA64
+	{ AUDIT_ARCH_IA64,         13, 259 },
+#endif
+#ifdef AUDIT_ARCH_SPARC
+	{ AUDIT_ARCH_SPARC,        14, 286 },
+#endif
+#ifdef AUDIT_ARCH_SPARC64
+	{ AUDIT_ARCH_SPARC64,      14, 286 },
+#endif
+#ifdef AUDIT_ARCH_ALPHA
+	{ AUDIT_ARCH_ALPHA,        14, 452 },
+#endif
+#ifdef AUDIT_ARCH_OPENRISC
+	{ AUDIT_ARCH_OPENRISC,     -1,  33 },
+#endif
+#ifdef AUDIT_ARCH_PARISC
+	{ AUDIT_ARCH_PARISC,       14, 277 },
+#endif
+#ifdef AUDIT_ARCH_PARISC64
+	{ AUDIT_ARCH_PARISC64,     14, 277 },
+#endif
+#ifdef AUDIT_ARCH_CRIS
+	{ AUDIT_ARCH_CRIS,         -1,  -1 },
+#endif
+#ifdef AUDIT_ARCH_CSKY
+	{ AUDIT_ARCH_CSKY,         -1,  33 },
+#endif
+#ifdef AUDIT_ARCH_FRV
+	{ AUDIT_ARCH_FRV,          -1,  -1 },
+#endif
+#ifdef AUDIT_ARCH_M32R
+	{ AUDIT_ARCH_M32R,         -1,  -1 },
+#endif
+#ifdef AUDIT_ARCH_M68K
+	{ AUDIT_ARCH_M68K,         14, 290 },
+#endif
+#ifdef AUDIT_ARCH_MICROBLAZE
+	{ AUDIT_ARCH_MICROBLAZE,   14, 297 },
+#endif
+#ifdef AUDIT_ARCH_MIPS
+	{ AUDIT_ARCH_MIPS,         14, 290 },
+#endif
+#ifdef AUDIT_ARCH_MIPSEL
+	{ AUDIT_ARCH_MIPSEL,       14, 290 },
+#endif
+#ifdef AUDIT_ARCH_MIPS64
+	{ AUDIT_ARCH_MIPS64,      131, 249 },
+#endif
+#ifdef AUDIT_ARCH_MIPS64N32
+	{ AUDIT_ARCH_MIPS64N32,   131, 253 },
+#endif
+#ifdef AUDIT_ARCH_MIPSEL64
+	{ AUDIT_ARCH_MIPSEL64,    131, 249 },
+#endif
+#ifdef AUDIT_ARCH_MIPSEL64N32
+	{ AUDIT_ARCH_MIPSEL64N32, 131, 253 },
+#endif
+#ifdef AUDIT_ARCH_SH
+	{ AUDIT_ARCH_SH,           14, 297 },
+#endif
+#ifdef AUDIT_ARCH_SHEL
+	{ AUDIT_ARCH_SHEL,         14, 297 },
+#endif
+#ifdef AUDIT_ARCH_SH64
+	{ AUDIT_ARCH_SH64,         14, 297 },
+#endif
+#ifdef AUDIT_ARCH_SHEL64
+	{ AUDIT_ARCH_SHEL64,       14, 297 },
+#endif
+#ifdef AUDIT_ARCH_TILEGX
+	{ AUDIT_ARCH_TILEGX,       -1,  -1 },
+#endif
+#ifdef AUDIT_ARCH_TILEGX32
+	{ AUDIT_ARCH_TILEGX32,     -1,  -1 },
+#endif
+#ifdef AUDIT_ARCH_TILEPRO
+	{ AUDIT_ARCH_TILEPRO,      -1,  -1 },
+#endif
+#ifdef AUDIT_ARCH_XTENSA
+	{ AUDIT_ARCH_XTENSA,       36, 290 },
+#endif
+};
 
 static int seccomp_notify_mknod_set_response(int fd_mem,
 					     struct seccomp_notif *req,
@@ -161,51 +282,58 @@ static int seccomp_notify_mknod_set_response(int fd_mem,
 	resp->val = 0;
 	resp->error = 0;
 
-	switch (req->data.nr) {
-#ifdef LXD_MUST_CHECK_MKNOD
-	case __NR_mknod:
-		resp->error = device_allowed(req->data.args[2], req->data.args[1]);
-		if (resp->error) {
-			errno = EPERM;
-			return -1;
+	for (size_t i = 0; i < (sizeof(seccomp_notify_syscall_table) / sizeof(seccomp_notify_syscall_table[0])); i++) {
+		const struct lxd_seccomp_data_arch *entry = &seccomp_notify_syscall_table[i];
+
+		if (entry->arch != req->data.arch)
+			continue;
+
+		if (entry->nr_mknod == req->data.nr) {
+			resp->error = device_allowed(req->data.args[2], req->data.args[1]);
+			if (resp->error) {
+				errno = EPERM;
+				return -EPERM;
+			}
+
+			bytes = pread(fd_mem, buf, size, req->data.args[0]);
+			if (bytes < 0)
+				return -errno;
+
+			*mode = req->data.args[1];
+			*dev = req->data.args[2];
+			*pid = req->pid;
+
+			return 0;
 		}
 
-		bytes = pread(fd_mem, buf, size, req->data.args[0]);
-		if (bytes < 0)
-			return -1;
+		if (entry->nr_mknodat == req->data.nr) {
+			if ((int)req->data.args[0] != AT_FDCWD) {
+				errno = EINVAL;
+				return -EINVAL;
+			}
 
-		*mode = req->data.args[1];
-		*dev = req->data.args[2];
-		*pid = req->pid;
+			resp->error = device_allowed(req->data.args[3], req->data.args[2]);
+			if (resp->error) {
+				errno = EPERM;
+				return -EPERM;
+			}
+
+			bytes = pread(fd_mem, buf, size, req->data.args[1]);
+			if (bytes < 0)
+				return -errno;
+
+			*mode = req->data.args[2];
+			*dev = req->data.args[3];
+			*pid = req->pid;
+
+			return 0;
+		}
 
 		break;
-#endif
-	case __NR_mknodat:
-		if (req->data.args[0] != AT_FDCWD) {
-			errno = EINVAL;
-			return -1;
-		}
-
-		resp->error = device_allowed(req->data.args[3], req->data.args[2]);
-		if (resp->error) {
-			errno = EPERM;
-			return -EPERM;
-		}
-
-		bytes = pread(fd_mem, buf, size, req->data.args[1]);
-		if (bytes < 0)
-			return -1;
-
-		*mode = req->data.args[2];
-		*dev = req->data.args[3];
-		*pid = req->pid;
-
-		break;
-	default:
-		return -1;
 	}
 
-	return 0;
+	errno = EPERM;
+	return -EPERM;
 }
 
 static void seccomp_notify_mknod_update_response(struct seccomp_notif_resp *resp,
@@ -701,11 +829,11 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 	var err error
 	goErrno := 0
 	cPathBuf := [unix.PathMax]C.char{}
-	ret := C.seccomp_notify_mknod_set_response(C.int(fdMem), req, resp,
+	goErrno = int(C.seccomp_notify_mknod_set_response(C.int(fdMem), req, resp,
 		&cPathBuf[0],
 		unix.PathMax, &cMode,
-		&cDev, &cPid)
-	if ret == 0 {
+		&cDev, &cPid))
+	if goErrno == 0 {
 		dev := types.Device{}
 		dev["type"] = "unix-char"
 		dev["mode"] = fmt.Sprintf("%#o", cMode)
