@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 // A node can unblock other nodes that were waiting for a cluster upgrade to

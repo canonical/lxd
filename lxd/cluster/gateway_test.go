@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -17,7 +18,6 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 // Basic creation and shutdown. By default, the gateway runs an in-memory gRPC
