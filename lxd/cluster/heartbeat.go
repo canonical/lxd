@@ -295,7 +295,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIH
 					continue
 				}
 
-				err := tx.NodeHeartbeat(node.Address, node.LastHeartbeat)
+				err := tx.NodeHeartbeat(node.Address, time.Now())
 				if err != nil {
 					return err
 				}
