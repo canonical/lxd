@@ -1,13 +1,12 @@
 package task
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // Group of tasks sharing the same lifecycle.

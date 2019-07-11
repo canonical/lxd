@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"

@@ -1,9 +1,8 @@
 package task
 
 import (
+	"context"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // Task executes a certain function periodically, according to a certain

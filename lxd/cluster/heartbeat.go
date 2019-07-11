@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -14,7 +15,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // Heartbeat returns a task function that performs leader-initiated heartbeat

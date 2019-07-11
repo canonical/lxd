@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"database/sql/driver"
 	"io/ioutil"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 // Test migrating legacy db data to the dqlite 1.0 format.

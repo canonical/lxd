@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"golang.org/x/net/context"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
