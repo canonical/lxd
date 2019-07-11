@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"time"
 
 	lxd "github.com/lxc/lxd/client"
@@ -10,7 +11,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"golang.org/x/net/context"
 )
 
 // Events starts a task that continuously monitors the list of cluster nodes and

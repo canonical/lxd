@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"database/sql"
 	"database/sql/driver"
@@ -19,7 +20,6 @@ import (
 	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 

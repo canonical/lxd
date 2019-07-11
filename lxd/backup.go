@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"

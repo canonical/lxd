@@ -1,7 +1,7 @@
 package task
 
 import (
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Func captures the signature of a function executable by a Task.
