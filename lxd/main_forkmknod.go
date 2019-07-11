@@ -114,6 +114,7 @@ void forkmknod()
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
 	cap_t caps;
+	int chk_perm_only;
 
 	// Get the subcommand
 	cur = advance_arg(false);
@@ -135,6 +136,7 @@ void forkmknod()
 	target_host = advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
+	chk_perm_only = atoi(advance_arg(true));
 
 	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
 	target_fd = open(cwd, O_PATH | O_RDONLY | O_CLOEXEC);
@@ -185,19 +187,29 @@ void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	ret = fstat_fstatfs(host_target_fd, &s1, &sfs1);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
 	ret = fstat_fstatfs(target_fd, &s2, &sfs2);
 	if (ret) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
-	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2) || !(sfs2.f_flags & MS_NODEV)) {
+	if (sfs2.f_flags & MS_NODEV) {
+		fprintf(stderr, "%d", EPERM);
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = fstat_fstatfs(host_target_fd, &s1, &sfs1);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2)) {
+		fprintf(stderr, "%d", ENOMEDIUM);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (chk_perm_only) {
 		fprintf(stderr, "%d", ENOMEDIUM);
 		_exit(EXIT_FAILURE);
 	}
