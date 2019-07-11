@@ -7643,12 +7643,6 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 		return fmt.Errorf("Invalid request PID specified")
 	}
 
-	cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)
-	prefixPath, err := os.Readlink(cwdLink)
-	if err != nil {
-		return err
-	}
-
 	rootLink := fmt.Sprintf("/proc/%d/root", pid)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
@@ -7663,8 +7657,18 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 	m["uid"] = fmt.Sprintf("%d", GetNSUid(uint(uid), pid))
 	m["gid"] = fmt.Sprintf("%d", GetNSGid(uint(gid), pid))
 
-	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
-	m["path"] = filepath.Join(rootPath, prefixPath, m["path"])
+	if !path.IsAbs(m["path"]) {
+		cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)
+		prefixPath, err := os.Readlink(cwdLink)
+		if err != nil {
+			return err
+		}
+
+		prefixPath = strings.TrimPrefix(prefixPath, rootPath)
+		m["path"] = filepath.Join(rootPath, prefixPath, m["path"])
+	} else {
+		m["path"] = filepath.Join(rootPath, m["path"])
+	}
 	paths, err := c.createUnixDevice(prefix, m, true)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)

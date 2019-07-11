@@ -16,6 +16,9 @@ import (
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/capability.h>
+#include <sys/fsuid.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -78,63 +81,10 @@ static gid_t get_ns_gid(uid_t gid, pid_t pid)
         return -1;
 }
 
-static int chowmknod(const char *path, mode_t mode, dev_t dev,
-		     uid_t uid, gid_t gid)
-{
-	int ret;
-
-	ret = mknodat(AT_FDCWD, path, mode, dev);
-	if (ret)
-		return -1;
-
-	ret = chown(path, uid, gid);
-	if (ret)
-		(void)unlink(path);
-	return ret;
-}
-
-static int fchowmknodat(int fd, const char *path, mode_t mode, dev_t dev,
-		        uid_t uid, gid_t gid)
-{
-	int ret;
-
-	ret = mknodat(fd, path, mode, dev);
-	if (ret)
-		return -1;
-
-	ret = fchownat(fd, path, uid, gid, 0);
-	if (ret)
-		(void)unlinkat(fd, path, 0);
-	return ret;
-}
-
-static int chdirchroot(pid_t pid)
-{
-	char path[256];
-
-	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-	if (chdir(path))
-		return -1;
-
-	snprintf(path, sizeof(path), "/proc/%d/root", pid);
-	return chroot(path);
-}
-
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 			       struct statfs *sfs1, struct statfs *sfs2)
 {
 	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev) && (s1->st_ino == s2->st_ino));
-}
-
-static int stat_statfs(const char *path, struct stat *s, struct statfs *sfs)
-{
-	if (stat(path, s))
-		return -1;
-
-	if (statfs(path, sfs))
-		return -1;
-
-	return 0;
 }
 
 static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
@@ -152,10 +102,10 @@ static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 void forkmknod()
 {
-	__do_close_prot_errno int target_fd = -EBADF;
-	__do_free char *target_host_dup = NULL;
+	__do_close_prot_errno int target_fd = -EBADF, host_target_fd;
 	int ret;
 	char *cur = NULL, *target = NULL, *target_host = NULL;
+	char cwd[256];
 	mode_t mode = 0;
 	dev_t dev = 0;
 	pid_t pid = 0;
@@ -163,7 +113,7 @@ void forkmknod()
 	gid_t gid = -1;
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
-	int is_shiftfs = 0;
+	cap_t caps;
 
 	// Get the subcommand
 	cur = advance_arg(false);
@@ -174,7 +124,7 @@ void forkmknod()
 
 	// Check that we're root
 	if (geteuid() != 0) {
-		fprintf(stderr, "Error: forkmknod requires root privileges\n");
+		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
@@ -185,72 +135,86 @@ void forkmknod()
 	target_host = advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
-	is_shiftfs = atoi(advance_arg(true));
 
-	if (is_shiftfs == 1) {
-		uid = get_ns_uid(uid, pid);
-		if (uid < 0)
-			fprintf(stderr, "No root uid found (%d)\n", uid);
-
-		gid = get_ns_gid(gid, pid);
-		if (gid < 0)
-			fprintf(stderr, "No root gid found (%d)\n", gid);
-	}
-
-	// dirname() can modify its argument
-	target_host_dup = strdup(target_host);
-	if (!target_host_dup)
+	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
+	target_fd = open(cwd, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (target_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
-
-	target_fd = open(dirname(target_host_dup), O_PATH | O_RDONLY | O_CLOEXEC);
-
-	ret = chdirchroot(pid);
-	if (ret)
-		goto eperm;
-
-	ret = chowmknod(target, mode, dev, uid, gid);
-	if (ret) {
-		if (errno == EEXIST) {
-			fprintf(stderr, "%d", errno);
-			_exit(EXIT_FAILURE);
-		}
-	} else {
-		_exit(EXIT_SUCCESS);
 	}
 
-	if (target_fd < 0)
-		goto eperm;
+	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC);
+	if (host_target_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
 
-	ret = stat_statfs(dirname(target), &s1, &sfs1);
-	if (ret)
-		goto eperm;
+	(void)dosetns(pid, "mnt");
+
+	caps = cap_get_pid(pid);
+	if (!caps) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = prctl(PR_SET_KEEPCAPS, 1);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = setegid(gid);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	setfsgid(gid);
+
+	ret = seteuid(uid);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	setfsuid(uid);
+
+	ret = cap_set_proc(caps);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	ret = fstat_fstatfs(host_target_fd, &s1, &sfs1);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
 
 	ret = fstat_fstatfs(target_fd, &s2, &sfs2);
-	if (ret)
-		goto eperm;
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
 
-	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2))
-		goto eperm;
+	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2)) {
+		fprintf(stderr, "%d", ENOMEDIUM);
+		_exit(EXIT_FAILURE);
+	}
 
 	// basename() can modify its argument so accessing target_host is
 	// invalid from now on.
-	ret = fchowmknodat(target_fd, basename(target_host), mode, dev, uid, gid);
+	ret = mknodat(target_fd, target, mode, dev);
 	if (ret) {
-		if (errno == EEXIST) {
-			fprintf(stderr, "%d", errno);
-			_exit(EXIT_FAILURE);
-		}
-
-		goto eperm;
+		fprintf(stderr, "%d", errno);
+		_exit(EXIT_FAILURE);
 	}
 
 	_exit(EXIT_SUCCESS);
-
-eperm:
-	fprintf(stderr, "%d", EPERM);
-	_exit(EXIT_FAILURE);
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo LDFLAGS: -lcap
 import "C"
 
 type cmdForkmknod struct {
