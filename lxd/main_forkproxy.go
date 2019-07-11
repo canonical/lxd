@@ -866,7 +866,7 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 	<-chRecv
 }
 
-func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
+func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan error) {
 	dataBuf := make([]byte, 4096)
 	oobBuf := make([]byte, 4096)
 
@@ -879,8 +879,7 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
 			if ok && errno == unix.EAGAIN {
 				goto readAgain
 			}
-			fmt.Printf("Disconnected during read: %v\n", err)
-			ch <- true
+			ch <- err
 			return
 		}
 
@@ -888,16 +887,14 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
 		if sOob > 0 {
 			entries, err := unix.ParseSocketControlMessage(oobBuf[:sOob])
 			if err != nil {
-				fmt.Printf("Failed to parse control message: %v\n", err)
-				ch <- true
+				ch <- err
 				return
 			}
 
 			for _, msg := range entries {
 				fds, err = unix.ParseUnixRights(&msg)
 				if err != nil {
-					fmt.Printf("Failed to get fd list for control message: %v\n", err)
-					ch <- true
+					ch <- err
 					return
 				}
 			}
@@ -911,14 +908,12 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
 			if ok && errno == unix.EAGAIN {
 				goto writeAgain
 			}
-			fmt.Printf("Disconnected during write: %v\n", err)
-			ch <- true
+			ch <- err
 			return
 		}
 
 		if sData != tData || sOob != tOob {
-			fmt.Printf("Some data got lost during transfer, disconnecting.")
-			ch <- true
+			ch <- fmt.Errorf("Lost oob data during transfer")
 			return
 		}
 
@@ -927,8 +922,7 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
 			for _, fd := range fds {
 				err := unix.Close(fd)
 				if err != nil {
-					fmt.Printf("Failed to close fd %d: %v\n", fd, err)
-					ch <- true
+					ch <- err
 					return
 				}
 			}
@@ -937,17 +931,30 @@ func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
 }
 
 func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
-	chSend := make(chan bool)
+	chSend := make(chan error)
 	go unixRelayer(dst.(*net.UnixConn), src.(*net.UnixConn), chSend)
 
-	chRecv := make(chan bool)
+	chRecv := make(chan error)
 	go unixRelayer(src.(*net.UnixConn), dst.(*net.UnixConn), chRecv)
 
-	<-chSend
-	<-chRecv
+	select {
+	case errSnd := <-chSend:
+		if errSnd != nil {
+			fmt.Printf("Error while sending data: %v\n", errSnd)
+		}
+
+	case errRcv := <-chRecv:
+		if errRcv != nil {
+			fmt.Printf("Error while reading data: %v\n", errRcv)
+		}
+	}
 
 	src.Close()
 	dst.Close()
+
+	// Empty the channels
+	<-chSend
+	<-chRecv
 }
 
 func tryListen(protocol string, addr string) (net.Listener, error) {
