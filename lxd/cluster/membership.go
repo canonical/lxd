@@ -425,14 +425,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Generate partial heartbeat request containing just a raft node list.
 		hbState := &APIHeartbeat{}
-		hbState.update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
+		hbState.Update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
 
 		// Attempt to send a heartbeat to all other raft nodes to notify them of new node.
 		for _, raftNode := range raftNodes {
 			if raftNode.ID == node.ID {
 				continue
 			}
-			go heartbeatNode(context.Background(), raftNode.Address, cert, hbState)
+			go HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
 		}
 
 		return nil

@@ -46,9 +46,9 @@ type APIHeartbeat struct {
 	FullStateList bool
 }
 
-// updates an existing APIHeartbeat struct with the raft and all node states supplied.
+// Update updates an existing APIHeartbeat struct with the raft and all node states supplied.
 // If allNodes provided is an empty set then this is considered a non-full state list.
-func (hbState *APIHeartbeat) update(fullStateList bool, raftNodes []db.RaftNode, allNodes []db.NodeInfo, offlineThreshold time.Duration) {
+func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode, allNodes []db.NodeInfo, offlineThreshold time.Duration) {
 	var maxSchemaVersion, maxAPIExtensionsVersion int
 	hbState.Time = time.Now()
 
@@ -109,7 +109,7 @@ func (hbState *APIHeartbeat) update(fullStateList bool, raftNodes []db.RaftNode,
 }
 
 // sends heartbeat requests to the nodes supplied and updates heartbeat state.
-func (hbState *APIHeartbeat) send(ctx context.Context, cert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
+func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
 	heartbeatsWg := sync.WaitGroup{}
 	sendHeartbeat := func(nodeID int64, address string, delay bool, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
@@ -120,7 +120,7 @@ func (hbState *APIHeartbeat) send(ctx context.Context, cert *shared.CertInfo, lo
 		}
 		logger.Debugf("Sending heartbeat to %s", address)
 
-		err := heartbeatNode(ctx, address, cert, heartbeatData)
+		err := HeartbeatNode(ctx, address, cert, heartbeatData)
 
 		if err == nil {
 			hbState.Lock()
@@ -232,16 +232,16 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIH
 		// Send stale set to all nodes in database to get a fresh set of active nodes.
 		if lastLeaderHeartbeat.IsZero() || time.Since(*lastLeaderHeartbeat) >= offlineThreshold {
 			logger.Warnf("Leader has not initiated heartbeat since '%v', doing initial heartbeat rounds", *lastLeaderHeartbeat)
-			hbState.update(false, raftNodes, allNodes, offlineThreshold)
-			hbState.send(ctx, gateway.cert, localAddress, allNodes, false)
+			hbState.Update(false, raftNodes, allNodes, offlineThreshold)
+			hbState.Send(ctx, gateway.cert, localAddress, allNodes, false)
 			logger.Debugf("Completed initial heartbeat round phase 1")
 			// We have the latest set of node states now, lets send that state set to all nodes.
-			hbState.update(true, raftNodes, allNodes, offlineThreshold)
-			hbState.send(ctx, gateway.cert, localAddress, allNodes, false)
+			hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+			hbState.Send(ctx, gateway.cert, localAddress, allNodes, false)
 			logger.Debugf("Completed initial heartbeat round phase 2")
 		} else {
-			hbState.update(true, raftNodes, allNodes, offlineThreshold)
-			hbState.send(ctx, gateway.cert, localAddress, allNodes, true)
+			hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+			hbState.Send(ctx, gateway.cert, localAddress, allNodes, true)
 		}
 
 		// Look for any new node which appeared since sending last heartbeat.
@@ -279,8 +279,8 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIH
 
 		// If any new nodes found, send heartbeat to just them (with full node state).
 		if len(newNodes) > 0 {
-			hbState.update(true, raftNodes, allNodes, offlineThreshold)
-			hbState.send(ctx, gateway.cert, localAddress, newNodes, false)
+			hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+			hbState.Send(ctx, gateway.cert, localAddress, newNodes, false)
 		}
 
 		// If the context has been cancelled, return immediately.
@@ -337,8 +337,8 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIH
 // heartbeatInterval Number of seconds to wait between to heartbeat rounds.
 const heartbeatInterval = 10
 
-// Perform a single heartbeat request against the node with the given address.
-func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
+// HeartbeatNode performs a single heartbeat request against the node with the given address.
+func HeartbeatNode(taskCtx context.Context, address string, cert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
 	logger.Debugf("Sending heartbeat request to %s", address)
 
 	config, err := tlsClientConfig(cert)
