@@ -197,7 +197,7 @@ void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2)) {
+	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2) || !(sfs2.f_flags & MS_NODEV)) {
 		fprintf(stderr, "%d", ENOMEDIUM);
 		_exit(EXIT_FAILURE);
 	}
