@@ -11,7 +11,7 @@ connect to. It's multi-threaded so multiple clients can be connected at the
 same time.
 
 ## Implementation details
-LXD on the host binds `/var/lib/lxd/devlxd` and starts listening for new
+LXD on the host binds `/var/lib/lxd/devlxd/sock` and starts listening for new
 connections on it.
 
 This socket is then bind-mounted into every single container started by
