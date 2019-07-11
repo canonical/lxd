@@ -1,7 +1,6 @@
 package cluster_test
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
