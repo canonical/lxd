@@ -214,7 +214,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 //
 // The cert parameter must contain the keypair/CA material of the cluster being
 // joined.
-func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, nodes []db.RaftNode) error {
+func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, raftNodes []db.RaftNode) error {
 	// Check parameters
 	if name == "" {
 		return fmt.Errorf("node name must not be empty")
@@ -236,7 +236,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Set the raft nodes list to the one that was returned by Accept().
-		err = tx.RaftNodesReplace(nodes)
+		err = tx.RaftNodesReplace(raftNodes)
 		if err != nil {
 			return errors.Wrap(err, "failed to set raft nodes")
 		}
@@ -255,6 +255,8 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
 	var operations []db.Operation
+	var offlineThreshold time.Duration
+
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		pools, err = tx.StoragePoolsNodeConfig()
 		if err != nil {
@@ -268,6 +270,12 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
+
+		offlineThreshold, err = tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -305,7 +313,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// If we are listed among the database nodes, join the raft cluster.
 	id := ""
 	var target *db.RaftNode
-	for _, node := range nodes {
+	for _, node := range raftNodes {
 		if node.Address == address {
 			id = strconv.Itoa(int(node.ID))
 		} else {
@@ -415,9 +423,16 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrapf(err, "failed to unmark the node as pending")
 		}
 
-		// Attempt to send a heartbeat to all other nodes
-		for _, node := range nodes {
-			go heartbeatNode(context.Background(), node.Address, cert, nodes)
+		// Generate partial heartbeat request containing just a raft node list.
+		hbState := &APIHeartbeat{}
+		hbState.Update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
+
+		// Attempt to send a heartbeat to all other raft nodes to notify them of new node.
+		for _, raftNode := range raftNodes {
+			if raftNode.ID == node.ID {
+				continue
+			}
+			go HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
 		}
 
 		return nil
@@ -453,6 +468,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	// Check if we have a spare node that we can turn into a database one.
 	address := ""
+	id := int64(-1)
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
@@ -473,6 +489,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 			logger.Debugf(
 				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
 			address = node.Address
+			id = node.ID
 			break
 		}
 
@@ -484,27 +501,13 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	if address == "" {
 		// No node to promote
-		return "", nil, nil
+		return "", currentRaftNodes, nil
 	}
 
 	// Update the local raft_table adding the new member and building a new
 	// list.
-	updatedRaftNodes := currentRaftNodes
-	err = gateway.db.Transaction(func(tx *db.NodeTx) error {
-		id, err := tx.RaftNodeAdd(address)
-		if err != nil {
-			return errors.Wrap(err, "failed to add new raft node")
-		}
-		updatedRaftNodes = append(updatedRaftNodes, db.RaftNode{ID: id, Address: address})
-		err = tx.RaftNodesReplace(updatedRaftNodes)
-		if err != nil {
-			return errors.Wrap(err, "failed to update raft nodes")
-		}
-		return nil
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	updatedRaftNodes := append(currentRaftNodes, db.RaftNode{ID: id, Address: address})
+
 	return address, updatedRaftNodes, nil
 }
 

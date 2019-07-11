@@ -22,6 +22,8 @@ type Group struct {
 
 // Add a new task to the group, returning its index.
 func (g *Group) Add(f Func, schedule Schedule) *Task {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	i := len(g.tasks)
 	g.tasks = append(g.tasks, Task{
 		f:        f,
@@ -33,26 +35,27 @@ func (g *Group) Add(f Func, schedule Schedule) *Task {
 
 // Start all the tasks in the group.
 func (g *Group) Start() {
+	// Lock access to the g.running and g.tasks map for the entirety of this function so that
+	// concurrent calls to Start() or Add(0) don't race. This ensures all tasks in this group
+	// are started based on a consistent snapshot of g.running and g.tasks.
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	ctx := context.Background()
 	ctx, g.cancel = context.WithCancel(ctx)
 	g.wg.Add(len(g.tasks))
 
-	g.mu.Lock()
 	if g.running == nil {
 		g.running = make(map[int]bool)
 	}
-	g.mu.Unlock()
 
 	for i := range g.tasks {
-		g.mu.Lock()
 		if g.running[i] {
-			g.mu.Unlock()
 			continue
 		}
 
 		g.running[i] = true
 		task := g.tasks[i] // Local variable for the closure below.
-		g.mu.Unlock()
 
 		go func(i int) {
 			task.loop(ctx)
@@ -98,6 +101,8 @@ func (g *Group) Stop(timeout time.Duration) error {
 	select {
 	case <-ctx.Done():
 		running := []string{}
+		g.mu.Lock()
+		defer g.mu.Unlock()
 		for i, value := range g.running {
 			if value {
 				running = append(running, strconv.Itoa(i))
