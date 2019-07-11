@@ -771,24 +771,32 @@ func taskUidGid(pid int) (error, int32, int32) {
 	return nil, uid, gid
 }
 
-func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int) (error, int) {
+func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, permissionsOnly bool) int {
 	goErrno := int(-C.EPERM)
 
 	cwdLink := fmt.Sprintf("/proc/%d/cwd", requestPID)
 	prefixPath, err := os.Readlink(cwdLink)
 	if err != nil {
-		return err, goErrno
+		return goErrno
 	}
 
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
-		return err, goErrno
+		return goErrno
 	}
 
 	err, uid, gid := taskUidGid(requestPID)
 	if err != nil {
-		return err, goErrno
+		return goErrno
+	}
+
+	deBool := func() int {
+		if permissionsOnly {
+			return 1
+		}
+
+		return 0
 	}
 
 	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
@@ -796,17 +804,18 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int) (
 	errnoMsg, err := shared.RunCommand(util.GetExecPath(),
 		"forkmknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
-		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid))
+		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
+		fmt.Sprintf("%d", deBool()))
 	if err != nil {
 		tmp, err2 := strconv.Atoi(errnoMsg)
 		if err2 == nil {
 			goErrno = -tmp
 		}
 
-		return err, goErrno
+		return goErrno
 	}
 
-	return nil, 0
+	return 0
 }
 
 // InvalidHandler sends a dummy message to LXC. LXC will notice the short write
@@ -865,21 +874,24 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 			}
 
 			if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-				err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
-			} else {
-				err, goErrno = s.doMknod(c, dev, int(cPid))
-				if err != nil && (goErrno == int(-C.ENOMEDIUM)) && c != nil {
+				goErrno = s.doMknod(c, dev, int(cPid), true)
+				if goErrno == int(-C.ENOMEDIUM) {
 					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
-					if err != nil {
-						goErrno = int(-C.EPERM)
-					} else {
-						goErrno = 0
-					}
 				}
+			} else {
+				goErrno = s.doMknod(c, dev, int(cPid), false)
+				if goErrno == int(-C.ENOMEDIUM) {
+					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+				}
+			}
+			if err != nil {
+				goErrno = int(-C.EPERM)
+			} else {
+				goErrno = 0
 			}
 		}
 
-		if err != nil {
+		if goErrno != 0 {
 			logger.Errorf("Failed to inject device node into container %s (errno = %d)", c.Name(), -goErrno)
 		}
 	}
@@ -893,12 +905,12 @@ send_response:
 	bytes := C.sendmsg(C.int(clientFd), &msghdr, C.MSG_NOSIGNAL)
 	if bytes < 0 {
 		logger.Debugf("Disconnected from seccomp socket after failed write: pid=%v", ucred.pid)
-		return err
+		return fmt.Errorf("Failed to send response to seccomp client %v", ucred.pid)
 	}
 
 	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
 		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", ucred.pid)
-		return err
+		return fmt.Errorf("Failed to send full response to seccomp client %v", ucred.pid)
 	}
 
 	logger.Debugf("Handled seccomp notification from: %v", ucred.pid)
