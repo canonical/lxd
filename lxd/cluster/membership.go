@@ -468,6 +468,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	// Check if we have a spare node that we can turn into a database one.
 	address := ""
+	id := int64(-1)
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
@@ -488,6 +489,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 			logger.Debugf(
 				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
 			address = node.Address
+			id = node.ID
 			break
 		}
 
@@ -504,22 +506,8 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	// Update the local raft_table adding the new member and building a new
 	// list.
-	updatedRaftNodes := currentRaftNodes
-	err = gateway.db.Transaction(func(tx *db.NodeTx) error {
-		id, err := tx.RaftNodeAdd(address)
-		if err != nil {
-			return errors.Wrap(err, "failed to add new raft node")
-		}
-		updatedRaftNodes = append(updatedRaftNodes, db.RaftNode{ID: id, Address: address})
-		err = tx.RaftNodesReplace(updatedRaftNodes)
-		if err != nil {
-			return errors.Wrap(err, "failed to update raft nodes")
-		}
-		return nil
-	})
-	if err != nil {
-		return "", nil, err
-	}
+	updatedRaftNodes := append(currentRaftNodes, db.RaftNode{ID: id, Address: address})
+
 	return address, updatedRaftNodes, nil
 }
 
