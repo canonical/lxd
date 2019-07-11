@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
