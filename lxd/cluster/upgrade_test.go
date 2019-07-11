@@ -1,7 +1,6 @@
 package cluster_test
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -34,7 +33,7 @@ func TestNotifyUpgradeCompleted(t *testing.T) {
 
 // The task function checks if the node is out of date and runs whatever is in
 // LXD_CLUSTER_UPDATE if so.
-func TestKeepUpdated_Upgrade(t *testing.T) {
+func TestMaybeUpdate_Upgrade(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 
@@ -79,15 +78,14 @@ func TestKeepUpdated_Upgrade(t *testing.T) {
 	os.Setenv("LXD_CLUSTER_UPDATE", script)
 	defer os.Unsetenv("LXD_CLUSTER_UPDATE")
 
-	f, _ := cluster.KeepUpdated(state)
-	f(context.Background())
+	cluster.MaybeUpdate(state)
 
 	_, err = os.Stat(stamp)
 	require.NoError(t, err)
 }
 
 // If the node is up-to-date, nothing is done.
-func TestKeepUpdated_NothingToDo(t *testing.T) {
+func TestMaybeUpdate_NothingToDo(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 
@@ -106,8 +104,7 @@ func TestKeepUpdated_NothingToDo(t *testing.T) {
 	os.Setenv("LXD_CLUSTER_UPDATE", script)
 	defer os.Unsetenv("LXD_CLUSTER_UPDATE")
 
-	f, _ := cluster.KeepUpdated(state)
-	f(context.Background())
+	cluster.MaybeUpdate(state)
 
 	_, err = os.Stat(stamp)
 	require.True(t, os.IsNotExist(err))

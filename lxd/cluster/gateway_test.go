@@ -30,7 +30,7 @@ func TestGateway_Single(t *testing.T) {
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
 
-	handlerFuncs := gateway.HandlerFuncs()
+	handlerFuncs := gateway.HandlerFuncs(nil)
 	assert.Len(t, handlerFuncs, 1)
 	for endpoint, f := range handlerFuncs {
 		c, err := x509.ParseCertificate(cert.KeyPair().Certificate[0])
@@ -85,7 +85,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs() {
+	for path, handler := range gateway.HandlerFuncs(nil) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -122,7 +122,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
 
-	for path, handler := range gateway.HandlerFuncs() {
+	for path, handler := range gateway.HandlerFuncs(nil) {
 		mux.HandleFunc(path, handler)
 	}
 
@@ -132,7 +132,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	require.NoError(t, err)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 
-	for path := range gateway.HandlerFuncs() {
+	for path := range gateway.HandlerFuncs(nil) {
 		url := fmt.Sprintf("https://%s%s", address, path)
 		response, err := client.Head(url)
 		require.NoError(t, err)

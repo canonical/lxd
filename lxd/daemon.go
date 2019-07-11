@@ -75,6 +75,12 @@ type Daemon struct {
 	proxy func(req *http.Request) (*url.URL, error)
 
 	externalAuth *externalAuth
+
+	// Stores the last time this node initiated a leader heartbeat run.
+	lastLeaderHeartbeat time.Time
+
+	// Stores last heartbeat node information to detect node changes.
+	lastNodeList *cluster.APIHeartbeat
 }
 
 type externalAuth struct {
@@ -704,7 +710,7 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
-			stop, _ := task.Start(cluster.Heartbeat(d.gateway, d.cluster))
+			stop, _ := task.Start(cluster.Heartbeat(d.gateway, d.cluster, d.NodeRefreshTask, &d.lastLeaderHeartbeat))
 			d.gateway.WaitUpgradeNotification()
 			stop(time.Second)
 
@@ -909,19 +915,13 @@ func (d *Daemon) init() error {
 
 func (d *Daemon) startClusterTasks() {
 	// Heartbeats
-	d.clusterTasks.Add(cluster.Heartbeat(d.gateway, d.cluster))
+	d.clusterTasks.Add(cluster.Heartbeat(d.gateway, d.cluster, d.NodeRefreshTask, &d.lastLeaderHeartbeat))
 
 	// Events
 	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
 
-	// Cluster update trigger
-	d.clusterTasks.Add(cluster.KeepUpdated(d.State()))
-
 	// Auto-sync images across the cluster (daily)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
-
-	// Forkdns server list refresh
-	d.clusterTasks.Add(networkUpdateForkdnsServersTask(d))
 
 	// Start all background tasks
 	d.clusterTasks.Start()
@@ -1321,4 +1321,63 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	}
 
 	return dump, nil
+}
+
+func (d *Daemon) hasNodeListChanged(heartbeatData *cluster.APIHeartbeat) bool {
+	// No previous heartbeat data.
+	if d.lastNodeList == nil {
+		return true
+	}
+
+	// Member count has changed.
+	if len(d.lastNodeList.Members) != len(heartbeatData.Members) {
+		return true
+	}
+
+	// Check for node address changes.
+	for lastMemberID, lastMember := range d.lastNodeList.Members {
+		if heartbeatData.Members[lastMemberID].Address != lastMember.Address {
+			return true
+		}
+	}
+
+	return false
+}
+
+// NodeRefreshTask is run each time a fresh node is generated.
+// This can be used to trigger actions when the node list changes.
+func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
+	// If the max version of the cluster has changed, check whether we need to upgrade.
+	if d.lastNodeList == nil || d.lastNodeList.Version.APIExtensions != heartbeatData.Version.APIExtensions || d.lastNodeList.Version.Schema != heartbeatData.Version.Schema {
+		err := cluster.MaybeUpdate(d.State())
+		if err != nil {
+			logger.Errorf("Error updating: %v", err)
+			return
+		}
+	}
+
+	// Only refresh forkdns peers if the full state list has been generated.
+	if heartbeatData.FullStateList {
+		for i, node := range heartbeatData.Members {
+			// Exclude nodes that the leader considers offline.
+			// This is to avoid forkdns delaying results by querying an offline node.
+			if !node.Online {
+				logger.Warnf("Excluding offline node from refresh: %+v", node)
+				delete(heartbeatData.Members, i)
+			}
+		}
+
+		nodeListChanged := d.hasNodeListChanged(heartbeatData)
+		if nodeListChanged {
+			err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
+			if err != nil {
+				logger.Errorf("Error refreshing forkdns: %v", err)
+				return
+			}
+		}
+	}
+
+	// Only update the node list if the task succeeded.
+	// If it fails then it will get to run again next heartbeat.
+	d.lastNodeList = heartbeatData
 }

@@ -1,16 +1,13 @@
 package cluster
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
@@ -56,39 +53,16 @@ func NotifyUpgradeCompleted(state *state.State, cert *shared.CertInfo) error {
 	})
 }
 
-// KeepUpdated is a task that continuously monitor this node's version to see it
-// it's out of date with respect to other nodes. In the node is out of date,
-// and the LXD_CLUSTER_UPDATE environment variable is set, then the task
-// executes the executable that the variable is pointing at.
-func KeepUpdated(state *state.State) (task.Func, task.Schedule) {
-	f := func(ctx context.Context) {
-		ch := make(chan struct{})
-		go func() {
-			maybeUpdate(state)
-			close(ch)
-		}()
-		select {
-		case <-ctx.Done():
-		case <-ch:
-		}
-	}
-
-	schedule := task.Every(5 * time.Minute)
-
-	return f, schedule
-}
-
-// Check this node's version and possibly run LXD_CLUSTER_UPDATE.
-func maybeUpdate(state *state.State) {
+// MaybeUpdate Check this node's version and possibly run LXD_CLUSTER_UPDATE.
+func MaybeUpdate(state *state.State) error {
 	shouldUpdate := false
 
 	enabled, err := Enabled(state.Node)
 	if err != nil {
-		logger.Errorf("Failed to check clustering is enabled: %v", err)
-		return
+		return errors.Wrap(err, "Failed to check clustering is enabled")
 	}
 	if !enabled {
-		return
+		return nil
 	}
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -102,16 +76,15 @@ func maybeUpdate(state *state.State) {
 
 	if err != nil {
 		// Just log the error and return.
-		logger.Errorf("Failed to check if this node is out-of-date: %v", err)
-		return
+		return errors.Wrap(err, "Failed to check if this node is out-of-date")
 	}
 
 	if !shouldUpdate {
 		logger.Debugf("Cluster node is up-to-date")
-		return
+		return nil
 	}
 
-	triggerUpdate()
+	return triggerUpdate()
 }
 
 func triggerUpdate() error {
