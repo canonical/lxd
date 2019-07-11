@@ -2732,7 +2732,7 @@ func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 	lxdPID := os.Getpid()
 
 	// Run forknet detach
-	out, err := shared.RunCommand(
+	_, err := shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forknet",
 		"detach",
@@ -2744,7 +2744,7 @@ func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 
 	// Process forknet detach response
 	if err != nil {
-		logger.Error("Error calling 'lxd forknet detach", log.Ctx{"container": c.name, "output": out, "netns": netns, "ifName": ifName, "hostName": hostName, "pid": lxdPID})
+		logger.Error("Error calling 'lxd forknet detach", log.Ctx{"container": c.name, "err": err, "netns": netns, "ifName": ifName, "hostName": hostName, "pid": lxdPID})
 	}
 
 	return nil
@@ -3173,20 +3173,12 @@ func (c *containerLXC) Start(stateful bool) error {
 	name := projectPrefix(c.Project(), c.name)
 
 	// Start the LXC container
-	out, err := shared.RunCommand(
+	_, err = shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forkstart",
 		name,
 		c.state.OS.LxcPath,
 		configPath)
-
-	// Capture debug output
-	if out != "" {
-		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-			logger.Debugf("forkstart: %s", line)
-		}
-	}
-
 	if err != nil && !c.IsRunning() {
 		// Attempt to extract the LXC errors
 		lxcLog := ""
@@ -6328,8 +6320,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
 		}
 
-		var out string
-		out, migrateErr = shared.RunCommand(
+		_, migrateErr = shared.RunCommand(
 			c.state.OS.ExecPath,
 			"forkmigrate",
 			c.name,
@@ -6337,12 +6328,6 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			configPath,
 			finalStateDir,
 			fmt.Sprintf("%v", preservesInodes))
-
-		if out != "" {
-			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-				logger.Debugf("forkmigrate: %s", line)
-			}
-		}
 
 		if migrateErr == nil {
 			// Start proxy devices
@@ -6599,7 +6584,7 @@ func (c *containerLXC) FileExists(path string) error {
 	}
 
 	// Check if the file exists in the container
-	out, err := shared.RunCommand(
+	_, stderr, err := shared.RunCommandSplit(
 		c.state.OS.ExecPath,
 		"forkfile",
 		"exists",
@@ -6617,12 +6602,12 @@ func (c *containerLXC) FileExists(path string) error {
 	}
 
 	// Process forkcheckfile response
-	if out != "" {
-		if strings.HasPrefix(out, "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(out, "\n"), "error: "))
+	if stderr != "" {
+		if strings.HasPrefix(stderr, "error:") {
+			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(stderr, "\n"), "error: "))
 		}
 
-		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+		for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
 			logger.Debugf("forkcheckfile: %s", line)
 		}
 	}
@@ -6646,7 +6631,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	}
 
 	// Get the file from the container
-	out, err := shared.RunCommand(
+	_, stderr, err := shared.RunCommandSplit(
 		c.state.OS.ExecPath,
 		"forkfile",
 		"pull",
@@ -6672,7 +6657,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	var errStr string
 
 	// Process forkgetfile response
-	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -6790,7 +6775,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	}
 
 	// Push the file to the container
-	out, err := shared.RunCommand(
+	_, stderr, err := shared.RunCommandSplit(
 		c.state.OS.ExecPath,
 		"forkfile",
 		"push",
@@ -6817,7 +6802,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	}
 
 	// Process forkgetfile response
-	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -6859,7 +6844,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	// Remove the file from the container
-	out, err := shared.RunCommand(
+	_, stderr, err := shared.RunCommandSplit(
 		c.state.OS.ExecPath,
 		"forkfile",
 		"remove",
@@ -6877,7 +6862,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	// Process forkremovefile response
-	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -7169,7 +7154,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 
 		// Process forkgetnet response
 		if err != nil {
-			logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": out, "pid": pid})
+			logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "err": err, "pid": pid})
 			return result
 		}
 
@@ -7344,13 +7329,7 @@ func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, 
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target)
-
-	if out != "" {
-		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-			logger.Debugf("forkmount: %s", line)
-		}
-	}
+	_, err = shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target)
 	if err != nil {
 		return err
 	}
@@ -7408,14 +7387,7 @@ func (c *containerLXC) removeMount(mount string) error {
 	} else {
 		// Remove the mount from the container
 		pidStr := fmt.Sprintf("%d", pid)
-		out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-umount", pidStr, mount)
-
-		if out != "" {
-			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-				logger.Debugf("forkumount: %s", line)
-			}
-		}
-
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-umount", pidStr, mount)
 		if err != nil {
 			return err
 		}
