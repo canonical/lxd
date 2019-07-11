@@ -801,13 +801,13 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 
 	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
 	dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
-	errnoMsg, err := shared.RunCommand(util.GetExecPath(),
+	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
 		"forkmknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
 		fmt.Sprintf("%d", deBool()))
 	if err != nil {
-		tmp, err2 := strconv.Atoi(errnoMsg)
+		tmp, err2 := strconv.Atoi(stderr)
 		if err2 == nil {
 			goErrno = -tmp
 		}

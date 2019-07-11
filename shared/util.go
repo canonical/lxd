@@ -765,25 +765,41 @@ func RemoveDuplicatesFromString(s string, sep string) string {
 }
 
 type RunError struct {
-	msg string
-	Err error
+	msg    string
+	Err    error
+	Stdout string
+	Stderr string
 }
 
 func (e RunError) Error() string {
 	return e.msg
 }
 
-func RunCommand(name string, arg ...string) (string, error) {
-	output, err := exec.Command(name, arg...).CombinedOutput()
+func RunCommandSplit(name string, arg ...string) (string, string, error) {
+	cmd := exec.Command(name, arg...)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
 		err := RunError{
-			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output))),
-			Err: err,
+			msg:    fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(stderr.Bytes()))),
+			Stdout: string(stdout.Bytes()),
+			Stderr: string(stderr.Bytes()),
+			Err:    err,
 		}
-		return string(output), err
+		return string(stdout.Bytes()), string(stderr.Bytes()), err
 	}
 
-	return string(output), nil
+	return string(stdout.Bytes()), string(stderr.Bytes()), nil
+}
+
+func RunCommand(name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(name, arg...)
+	return stdout, err
 }
 
 func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...string) error {
