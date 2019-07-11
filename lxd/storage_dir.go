@@ -269,7 +269,7 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 		return false, nil
 	}
 
-	err := unix.Unmount(poolMntPoint, 0)
+	err := unix.Unmount(poolMntPoint, unix.MNT_DETACH)
 	if err != nil {
 		return false, err
 	}
