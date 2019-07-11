@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -21,7 +22,6 @@ import (
 	"github.com/lxc/lxd/shared/eagain"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // NewGateway creates a new Gateway for managing access to the dqlite cluster.

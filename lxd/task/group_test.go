@@ -1,12 +1,12 @@
 package task_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestGroup_Add(t *testing.T) {

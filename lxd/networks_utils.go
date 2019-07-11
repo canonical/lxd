@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -23,7 +24,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/eui64"
-	"golang.org/x/net/context"
+
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"

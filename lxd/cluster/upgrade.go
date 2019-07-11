@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // NotifyUpgradeCompleted sends a notification to all other nodes in the
