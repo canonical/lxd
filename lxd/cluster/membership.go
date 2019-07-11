@@ -499,7 +499,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	if address == "" {
 		// No node to promote
-		return "", nil, nil
+		return "", currentRaftNodes, nil
 	}
 
 	// Update the local raft_table adding the new member and building a new
