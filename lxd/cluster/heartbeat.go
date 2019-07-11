@@ -264,7 +264,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIH
 		for _, currentNode := range currentNodes {
 			existing := false
 			for _, node := range allNodes {
-				if node.ID == currentNode.ID {
+				if node.Address == currentNode.Address && node.ID == currentNode.ID {
 					existing = true
 					break
 				}
