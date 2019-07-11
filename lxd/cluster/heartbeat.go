@@ -345,8 +345,13 @@ func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInf
 	if err != nil {
 		return err
 	}
+
+	timeout := 2 * time.Second
 	url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
+	client := &http.Client{
+		Transport: &http.Transport{TLSClientConfig: config},
+		Timeout:   timeout,
+	}
 
 	buffer := bytes.Buffer{}
 	err = json.NewEncoder(&buffer).Encode(heartbeatData)
@@ -359,31 +364,22 @@ func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInf
 		return err
 	}
 	setDqliteVersionHeader(request)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+	// Use 1s later timeout to give HTTP client chance timeout with more useful info.
+	ctx, cancel := context.WithTimeout(context.Background(), timeout+time.Second)
 	defer cancel()
 	request = request.WithContext(ctx)
 	request.Close = true // Immediately close the connection after the request is done
 
-	// Perform the request asynchronously, so we can abort it if the task context is done.
-	errCh := make(chan error)
-	go func() {
-		response, err := client.Do(request)
-		if err != nil {
-			errCh <- errors.Wrap(err, "failed to send HTTP request")
-			return
-		}
-		defer response.Body.Close()
-		if response.StatusCode != http.StatusOK {
-			errCh <- fmt.Errorf("HTTP request failed: %s", response.Status)
-			return
-		}
-		errCh <- nil
-	}()
-
-	select {
-	case err := <-errCh:
-		return err
-	case <-taskCtx.Done():
-		return taskCtx.Err()
+	response, err := client.Do(request)
+	if err != nil {
+		return errors.Wrap(err, "failed to send HTTP request")
 	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP request failed: %s", response.Status)
+	}
+
+	return nil
 }
