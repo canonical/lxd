@@ -67,18 +67,21 @@ var changeableStoragePoolVolumeProperties = map[string][]string{
 
 	"dir": {
 		"security.unmapped",
+		"size",
 	},
 
 	"lvm": {
 		"block.mount_options",
 		"security.unmapped",
-		"size"},
+		"size",
+	},
 
 	"zfs": {
 		"security.unmapped",
 		"size",
 		"zfs.remove_snapshots",
-		"zfs.use_refquota"},
+		"zfs.use_refquota",
+	},
 }
 
 // btrfs, ceph, cephfs, dir, lvm, zfs
