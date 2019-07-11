@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1081,8 +1082,41 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if address == "" {
-		return SyncResponse(true, nil) // Nothing to change
+		// If no node could be found to promote, notify all nodes about current set of DB nodes
+		var offlineThreshold time.Duration
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+
+			offlineThreshold, err = tx.NodeOfflineThreshold()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return InternalError(err)
+		}
+
+		hbState := &cluster.APIHeartbeat{}
+		hbState.Update(false, nodes, []db.NodeInfo{}, offlineThreshold)
+
+		cert, err := util.LoadCert(d.os.VarDir)
+		if err != nil {
+			return InternalError(errors.Wrap(err, "failed to parse cluster certificate"))
+		}
+
+		for _, raftNode := range nodes {
+			if raftNode.Address == localAddress {
+				continue
+			}
+
+			go cluster.HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
+		}
+
+		return SyncResponse(true, nil)
 	}
 
 	// Tell the node to promote itself.
