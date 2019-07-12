@@ -234,17 +234,17 @@ func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
 	return file, nil
 }
 
-func AbstractUnixReceiveFdData(sockFD int, num_fds int, iov unsafe.Pointer, iovLen int32) (int64, []C.int, error) {
+func AbstractUnixReceiveFdData(sockFD int, num_fds int, iov unsafe.Pointer, iovLen int32) (uint64, []C.int, error) {
 	cfd := make([]C.int, num_fds)
 	sk_fd := C.int(sockFD)
 	ret, errno := C.lxc_abstract_unix_recv_fds_iov(sk_fd, (*C.int)(&cfd[0]), C.int(num_fds), (*C.struct_iovec)(iov), C.size_t(iovLen))
 	if ret < 0 {
-		return -1, []C.int{-C.EBADF}, fmt.Errorf("Failed to receive file descriptor via abstract unix socket: errno=%d", errno)
+		return 0, []C.int{-C.EBADF}, fmt.Errorf("Failed to receive file descriptor via abstract unix socket: errno=%d", errno)
 	}
 
 	if ret == 0 {
-		return -1, []C.int{-C.EBADF}, io.EOF
+		return 0, []C.int{-C.EBADF}, io.EOF
 	}
 
-	return int64(ret), cfd, nil
+	return uint64(ret), cfd, nil
 }
