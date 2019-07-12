@@ -567,6 +567,134 @@ type SeccompServer struct {
 	l    net.Listener
 }
 
+type SeccompIovec struct {
+	ucred  *ucred
+	memFd  int
+	procFd int
+	msg    *C.struct_seccomp_notify_proxy_msg
+	req    *C.struct_seccomp_notif
+	resp   *C.struct_seccomp_notif_resp
+	cookie *C.char
+	iov    *C.struct_iovec
+}
+
+func NewSeccompIovec(ucred *ucred) *SeccompIovec {
+	msg_ptr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
+	msg := (*C.struct_seccomp_notify_proxy_msg)(msg_ptr)
+	C.memset(msg_ptr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
+
+	req_ptr := C.malloc(C.sizeof_struct_seccomp_notif)
+	req := (*C.struct_seccomp_notif)(req_ptr)
+	C.memset(req_ptr, 0, C.sizeof_struct_seccomp_notif)
+
+	resp_ptr := C.malloc(C.sizeof_struct_seccomp_notif_resp)
+	resp := (*C.struct_seccomp_notif_resp)(resp_ptr)
+	C.memset(resp_ptr, 0, C.sizeof_struct_seccomp_notif_resp)
+
+	cookie_ptr := C.malloc(64 * C.sizeof_char)
+	cookie := (*C.char)(cookie_ptr)
+	C.memset(cookie_ptr, 0, 64*C.sizeof_char)
+
+	iov_unsafe_ptr := C.malloc(4 * C.sizeof_struct_iovec)
+	iov := (*C.struct_iovec)(iov_unsafe_ptr)
+	C.memset(iov_unsafe_ptr, 0, 4*C.sizeof_struct_iovec)
+
+	C.prepare_seccomp_iovec(iov, msg, req, resp, cookie)
+
+	return &SeccompIovec{
+		memFd:  -1,
+		procFd: -1,
+		msg:    msg,
+		req:    req,
+		resp:   resp,
+		cookie: cookie,
+		iov:    iov,
+		ucred:  ucred,
+	}
+}
+
+func (siov *SeccompIovec) PutSeccompIovec() {
+	if siov.memFd >= 0 {
+		unix.Close(siov.memFd)
+	}
+	if siov.procFd >= 0 {
+		unix.Close(siov.procFd)
+	}
+	C.free(unsafe.Pointer(siov.msg))
+	C.free(unsafe.Pointer(siov.req))
+	C.free(unsafe.Pointer(siov.resp))
+	C.free(unsafe.Pointer(siov.cookie))
+	C.free(unsafe.Pointer(siov.iov))
+}
+
+func (siov *SeccompIovec) ReceiveSeccompIovec(fd int) (uint64, error) {
+	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 2, unsafe.Pointer(siov.iov), 4)
+	if err != nil || err == io.EOF {
+		return 0, err
+	}
+
+	if len(fds) == 2 {
+		siov.procFd = int(fds[0])
+		siov.memFd = int(fds[1])
+	} else {
+		siov.memFd = int(fds[0])
+	}
+
+	return bytes, nil
+}
+
+func (siov *SeccompIovec) IsValidSeccompIovec(size uint64) bool {
+	if size < uint64(C.SECCOMP_MSG_SIZE_MIN) {
+		logger.Warnf("Disconnected from seccomp socket after incomplete receive")
+		return false
+	}
+	if siov.msg.__reserved != 0 {
+		logger.Warnf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v",
+			siov.ucred.pid)
+		return false
+	}
+
+	if siov.msg.sizes.seccomp_notif != C.expected_sizes.seccomp_notif {
+		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v",
+			siov.msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, siov.ucred.pid)
+		return false
+	}
+
+	if siov.msg.sizes.seccomp_notif_resp != C.expected_sizes.seccomp_notif_resp {
+		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v",
+			siov.msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, siov.ucred.pid)
+		return false
+	}
+
+	if siov.msg.sizes.seccomp_data != C.expected_sizes.seccomp_data {
+		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v",
+			siov.msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, siov.ucred.pid)
+		return false
+	}
+
+	return true
+}
+
+func (siov *SeccompIovec) SendSeccompIovec(fd int, goErrno int) error {
+	C.seccomp_notify_mknod_update_response(siov.resp, C.int(goErrno))
+
+	msghdr := C.struct_msghdr{}
+	msghdr.msg_iov = siov.iov
+	msghdr.msg_iovlen = 4 - 1 // without cookie
+	bytes := C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)
+	if bytes < 0 {
+		logger.Debugf("Disconnected from seccomp socket after failed write: pid=%v", siov.ucred.pid)
+		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.pid)
+	}
+
+	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
+		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", siov.ucred.pid)
+		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.pid)
+	}
+
+	return nil
+}
+
 func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	ret := C.seccomp_notify_get_sizes(&C.expected_sizes)
 	if ret < 0 {
@@ -622,96 +750,19 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 				}
 
 				for {
-
-					msg_ptr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
-					msg := (*C.struct_seccomp_notify_proxy_msg)(msg_ptr)
-					C.memset(msg_ptr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
-
-					req_ptr := C.malloc(C.sizeof_struct_seccomp_notif)
-					req := (*C.struct_seccomp_notif)(req_ptr)
-					C.memset(req_ptr, 0, C.sizeof_struct_seccomp_notif)
-
-					resp_ptr := C.malloc(C.sizeof_struct_seccomp_notif_resp)
-					resp := (*C.struct_seccomp_notif_resp)(resp_ptr)
-					C.memset(resp_ptr, 0, C.sizeof_struct_seccomp_notif_resp)
-
-					cookie_ptr := C.malloc(64 * C.sizeof_char)
-					cookie := (*C.char)(cookie_ptr)
-					C.memset(cookie_ptr, 0, 64*C.sizeof_char)
-
-					iov_unsafe_ptr := C.malloc(4 * C.sizeof_struct_iovec)
-					iov := (*C.struct_iovec)(iov_unsafe_ptr)
-					C.memset(iov_unsafe_ptr, 0, 4*C.sizeof_struct_iovec)
-
-					C.prepare_seccomp_iovec(iov, msg, req, resp, cookie)
-
-					bytes, fds, err := netutils.AbstractUnixReceiveFdData(int(unixFile.Fd()), 2, iov_unsafe_ptr, 4)
-					if err != nil || err == io.EOF {
+					siov := NewSeccompIovec(ucred)
+					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
+					if err != nil {
 						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.pid, err)
 						c.Close()
 						return
 					}
 
-					fdMem := -1
-					fdProc := -1
-
-					if len(fds) == 2 {
-						fdProc = int(fds[0])
-						fdMem = int(fds[1])
+					if siov.IsValidSeccompIovec(bytes) {
+						go s.Handler(c, int(unixFile.Fd()), siov)
 					} else {
-						fdMem = int(fds[0])
+						go s.InvalidHandler(c, int(unixFile.Fd()), siov)
 					}
-
-					handleInvalidRequest := func() {
-						s.InvalidHandler(c, int(unixFile.Fd()))
-						if fdMem >= 0 {
-							unix.Close(fdMem)
-						}
-						if fdProc >= 0 {
-							unix.Close(fdProc)
-						}
-						C.free(unsafe.Pointer(msg))
-						C.free(unsafe.Pointer(req))
-						C.free(unsafe.Pointer(resp))
-						C.free(unsafe.Pointer(cookie))
-					}
-
-					if uint64(bytes) < uint64(C.SECCOMP_MSG_SIZE_MIN) {
-						logger.Warnf("Disconnected from seccomp socket after incomplete receive: pid=%v",
-							ucred.pid)
-						go handleInvalidRequest()
-						continue
-					}
-
-					if msg.__reserved != 0 {
-						logger.Warnf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v",
-							ucred.pid)
-						go handleInvalidRequest()
-						continue
-					}
-
-					if msg.sizes.seccomp_notif != C.expected_sizes.seccomp_notif {
-						logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v",
-							msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, ucred.pid)
-						go handleInvalidRequest()
-						continue
-					}
-
-					if msg.sizes.seccomp_notif_resp != C.expected_sizes.seccomp_notif_resp {
-						logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v",
-							msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, ucred.pid)
-						go handleInvalidRequest()
-						continue
-					}
-
-					if msg.sizes.seccomp_data != C.expected_sizes.seccomp_data {
-						logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v",
-							msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, ucred.pid)
-						go handleInvalidRequest()
-						continue
-					}
-
-					go s.Handler(c, int(unixFile.Fd()), ucred, fdMem, fdProc, iov, msg, req, resp, cookie)
 				}
 			}()
 		}
@@ -774,12 +825,6 @@ func taskUidGid(pid int) (error, int32, int32) {
 func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, permissionsOnly bool) int {
 	goErrno := int(-C.EPERM)
 
-	cwdLink := fmt.Sprintf("/proc/%d/cwd", requestPID)
-	prefixPath, err := os.Readlink(cwdLink)
-	if err != nil {
-		return goErrno
-	}
-
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
@@ -799,8 +844,19 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 		return 0
 	}
 
-	prefixPath = strings.TrimPrefix(prefixPath, rootPath)
-	dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
+	if !path.IsAbs(dev["path"]) {
+		cwdLink := fmt.Sprintf("/proc/%d/cwd", requestPID)
+		prefixPath, err := os.Readlink(cwdLink)
+		if err != nil {
+			return goErrno
+		}
+
+		prefixPath = strings.TrimPrefix(prefixPath, rootPath)
+		dev["hostpath"] = filepath.Join(rootPath, prefixPath, dev["path"])
+	} else {
+		dev["hostpath"] = filepath.Join(rootPath, dev["path"])
+	}
+
 	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
 		"forkmknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
@@ -808,7 +864,7 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 		fmt.Sprintf("%d", deBool()))
 	if err != nil {
 		tmp, err2 := strconv.Atoi(stderr)
-		if err2 == nil {
+		if err2 == nil && tmp != C.ENOANO {
 			goErrno = -tmp
 		}
 
@@ -820,29 +876,16 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 
 // InvalidHandler sends a dummy message to LXC. LXC will notice the short write
 // and send a default message to the kernel thereby avoiding a 30s hang.
-func (s *SeccompServer) InvalidHandler(c net.Conn, clientFd int) {
+func (s *SeccompServer) InvalidHandler(c net.Conn, clientFd int, siov *SeccompIovec) {
 	msghdr := C.struct_msghdr{}
 	C.sendmsg(C.int(clientFd), &msghdr, C.MSG_NOSIGNAL)
+	siov.PutSeccompIovec()
 }
 
-func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
-	fdMem int, fdProc int, iov *C.struct_iovec, msg *C.struct_seccomp_notify_proxy_msg,
-	req *C.struct_seccomp_notif, resp *C.struct_seccomp_notif_resp,
-	cookie *C.char) error {
-	logger.Debugf("Handling seccomp notification from: %v", ucred.pid)
+func (s *SeccompServer) Handler(c net.Conn, clientFd int, siov *SeccompIovec) error {
+	logger.Debugf("Handling seccomp notification from: %v", siov.ucred.pid)
 
-	defer func() {
-		if fdMem >= 0 {
-			unix.Close(fdMem)
-		}
-		if fdProc >= 0 {
-			unix.Close(fdProc)
-		}
-		C.free(unsafe.Pointer(msg))
-		C.free(unsafe.Pointer(req))
-		C.free(unsafe.Pointer(resp))
-		C.free(unsafe.Pointer(cookie))
-	}()
+	defer siov.PutSeccompIovec()
 
 	var cMode C.mode_t
 	var cDev C.dev_t
@@ -850,7 +893,7 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 	var err error
 	goErrno := 0
 	cPathBuf := [unix.PathMax]C.char{}
-	goErrno = int(C.seccomp_notify_mknod_set_response(C.int(fdMem), req, resp,
+	goErrno = int(C.seccomp_notify_mknod_set_response(C.int(siov.memFd), siov.req, siov.resp,
 		&cPathBuf[0],
 		unix.PathMax, &cMode,
 		&cDev, &cPid))
@@ -865,29 +908,33 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 		dev["mode_t"] = fmt.Sprintf("%d", cMode)
 		dev["dev_t"] = fmt.Sprintf("%d", cDev)
 
-		c, _ := findContainerForPid(int32(msg.monitor_pid), s.d)
+		c, _ := findContainerForPid(int32(siov.msg.monitor_pid), s.d)
 		if c != nil {
 			diskIdmap, err2 := c.DiskIdmap()
 			if err2 != nil {
-				goErrno = int(-C.EPERM)
-				goto send_response
+				return siov.SendSeccompIovec(clientFd, int(-C.EPERM))
 			}
 
 			if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
 				goErrno = s.doMknod(c, dev, int(cPid), true)
 				if goErrno == int(-C.ENOMEDIUM) {
 					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+					if err != nil {
+						goErrno = int(-C.EPERM)
+					} else {
+						goErrno = 0
+					}
 				}
 			} else {
 				goErrno = s.doMknod(c, dev, int(cPid), false)
 				if goErrno == int(-C.ENOMEDIUM) {
 					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+					if err != nil {
+						goErrno = int(-C.EPERM)
+					} else {
+						goErrno = 0
+					}
 				}
-			}
-			if err != nil {
-				goErrno = int(-C.EPERM)
-			} else {
-				goErrno = 0
 			}
 		}
 
@@ -896,24 +943,12 @@ func (s *SeccompServer) Handler(c net.Conn, clientFd int, ucred *ucred,
 		}
 	}
 
-send_response:
-	C.seccomp_notify_mknod_update_response(resp, C.int(goErrno))
-
-	msghdr := C.struct_msghdr{}
-	msghdr.msg_iov = iov
-	msghdr.msg_iovlen = 4 - 1 // without cookie
-	bytes := C.sendmsg(C.int(clientFd), &msghdr, C.MSG_NOSIGNAL)
-	if bytes < 0 {
-		logger.Debugf("Disconnected from seccomp socket after failed write: pid=%v", ucred.pid)
-		return fmt.Errorf("Failed to send response to seccomp client %v", ucred.pid)
+	err = siov.SendSeccompIovec(clientFd, goErrno)
+	if err != nil {
+		return err
 	}
 
-	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
-		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", ucred.pid)
-		return fmt.Errorf("Failed to send full response to seccomp client %v", ucred.pid)
-	}
-
-	logger.Debugf("Handled seccomp notification from: %v", ucred.pid)
+	logger.Debugf("Handled seccomp notification from: %v", siov.ucred.pid)
 	return nil
 }
 
