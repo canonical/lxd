@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -495,19 +496,19 @@ func AANamespace(c container) string {
 	 */
 	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	lxddir = mkApparmorName(lxddir)
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func AAProfileFull(c container) string {
 	lxddir := shared.VarPath("")
 	lxddir = mkApparmorName(lxddir)
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func AAProfileShort(c container) string {
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s", name)
 }
 
