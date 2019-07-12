@@ -20,6 +20,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -1190,17 +1191,17 @@ func (n *network) Start() error {
 	}
 
 	// Remove any existing IPv4 iptables rules
-	err = networkIptablesClear("ipv4", n.name, "")
+	err = iptables.NetworkClear("ipv4", n.name, "")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv4", n.name, "mangle")
+	err = iptables.NetworkClear("ipv4", n.name, "mangle")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv4", n.name, "nat")
+	err = iptables.NetworkClear("ipv4", n.name, "nat")
 	if err != nil {
 		return err
 	}
@@ -1236,7 +1237,7 @@ func (n *network) Start() error {
 				{"ipv4", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
 			for _, rule := range rules {
-				err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+				err = iptables.NetworkPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
 				if err != nil {
 					return err
 				}
@@ -1245,7 +1246,7 @@ func (n *network) Start() error {
 
 		// Attempt a workaround for broken DHCP clients
 		if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-			networkIptablesPrepend("ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
+			iptables.NetworkPrepend("ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
 		}
 
 		// Allow forwarding
@@ -1256,24 +1257,24 @@ func (n *network) Start() error {
 			}
 
 			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
+				err = iptables.NetworkPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 
-				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
+				err = iptables.NetworkPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 			}
 		} else {
 			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
+				err = iptables.NetworkPrepend("ipv4", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
 				if err != nil {
 					return err
 				}
 
-				err = networkIptablesPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
+				err = iptables.NetworkPrepend("ipv4", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
 				if err != nil {
 					return err
 				}
@@ -1354,12 +1355,12 @@ func (n *network) Start() error {
 			}
 
 			if n.config["ipv4.nat.order"] == "after" {
-				err = networkIptablesAppend("ipv4", n.name, "nat", "POSTROUTING", args...)
+				err = iptables.NetworkAppend("ipv4", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", args...)
+				err = iptables.NetworkPrepend("ipv4", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
@@ -1385,12 +1386,12 @@ func (n *network) Start() error {
 	}
 
 	// Remove any existing IPv6 iptables rules
-	err = networkIptablesClear("ipv6", n.name, "")
+	err = iptables.NetworkClear("ipv6", n.name, "")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv6", n.name, "nat")
+	err = iptables.NetworkClear("ipv6", n.name, "nat")
 	if err != nil {
 		return err
 	}
@@ -1440,7 +1441,7 @@ func (n *network) Start() error {
 				{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
 			for _, rule := range rules {
-				err = networkIptablesPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+				err = iptables.NetworkPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
 				if err != nil {
 					return err
 				}
@@ -1503,24 +1504,24 @@ func (n *network) Start() error {
 			}
 
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
+				err = iptables.NetworkPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 
-				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
+				err = iptables.NetworkPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "ACCEPT")
 				if err != nil {
 					return err
 				}
 			}
 		} else {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
+				err = iptables.NetworkPrepend("ipv6", n.name, "", "FORWARD", "-i", n.name, "-j", "REJECT")
 				if err != nil {
 					return err
 				}
 
-				err = networkIptablesPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
+				err = iptables.NetworkPrepend("ipv6", n.name, "", "FORWARD", "-o", n.name, "-j", "REJECT")
 				if err != nil {
 					return err
 				}
@@ -1541,12 +1542,12 @@ func (n *network) Start() error {
 			}
 
 			if n.config["ipv6.nat.order"] == "after" {
-				err = networkIptablesAppend("ipv6", n.name, "nat", "POSTROUTING", args...)
+				err = iptables.NetworkAppend("ipv6", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", args...)
+				err = iptables.NetworkPrepend("ipv6", n.name, "nat", "POSTROUTING", args...)
 				if err != nil {
 					return err
 				}
@@ -1699,7 +1700,7 @@ func (n *network) Start() error {
 		}
 
 		// Configure NAT
-		err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
+		err = iptables.NetworkPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
 		if err != nil {
 			return err
 		}
@@ -1931,27 +1932,27 @@ func (n *network) Stop() error {
 	}
 
 	// Cleanup iptables
-	err := networkIptablesClear("ipv4", n.name, "")
+	err := iptables.NetworkClear("ipv4", n.name, "")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv4", n.name, "mangle")
+	err = iptables.NetworkClear("ipv4", n.name, "mangle")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv4", n.name, "nat")
+	err = iptables.NetworkClear("ipv4", n.name, "nat")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv6", n.name, "")
+	err = iptables.NetworkClear("ipv6", n.name, "")
 	if err != nil {
 		return err
 	}
 
-	err = networkIptablesClear("ipv6", n.name, "nat")
+	err = iptables.NetworkClear("ipv6", n.name, "nat")
 	if err != nil {
 		return err
 	}

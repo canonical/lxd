@@ -1,4 +1,4 @@
-package main
+package iptables
 
 import (
 	"fmt"
@@ -103,30 +103,30 @@ func iptablesClear(protocol string, comment string, table string) error {
 	return nil
 }
 
-func networkIptablesAppend(protocol string, comment string, table string, chain string,
+func NetworkAppend(protocol string, comment string, table string, chain string,
 	rule ...string) error {
 	return iptablesAppend(protocol, fmt.Sprintf("LXD network %s", comment),
 		table, chain, rule...)
 }
 
-func networkIptablesPrepend(protocol string, comment string, table string, chain string,
+func NetworkPrepend(protocol string, comment string, table string, chain string,
 	rule ...string) error {
 	return iptablesPrepend(protocol, fmt.Sprintf("LXD network %s", comment),
 		table, chain, rule...)
 }
 
-func networkIptablesClear(protocol string, comment string, table string) error {
+func NetworkClear(protocol string, comment string, table string) error {
 	return iptablesClear(protocol, fmt.Sprintf("LXD network %s", comment),
 		table)
 }
 
-func containerIptablesPrepend(protocol string, comment string, table string,
+func ContainerPrepend(protocol string, comment string, table string,
 	chain string, rule ...string) error {
 	return iptablesPrepend(protocol, fmt.Sprintf("LXD container %s", comment),
 		table, chain, rule...)
 }
 
-func containerIptablesClear(protocol string, comment string, table string) error {
+func ContainerClear(protocol string, comment string, table string) error {
 	return iptablesClear(protocol, fmt.Sprintf("LXD container %s", comment),
 		table)
 }
