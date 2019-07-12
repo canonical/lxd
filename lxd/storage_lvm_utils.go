@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -284,8 +285,8 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	if targetIsSnapshot {
 		targetContainerMntPoint = getSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
 		sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(sourceContainer.Project(), sourceName))
-		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(sourceContainer.Project(), sourceName))
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(sourceContainer.Project(), sourceName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(sourceContainer.Project(), sourceName))
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
 		targetContainerMntPoint = getContainerMountPoint(sourceContainer.Project(), targetPool, targetContainerName)
@@ -347,8 +348,8 @@ func (s *storageLvm) copySnapshot(target container, source container, refresh bo
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
 	containersPath := getSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(target.Project(), targetParentName))
-	snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(target.Project(), targetParentName))
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
+	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
 	err = createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
@@ -803,8 +804,8 @@ func containerNameToLVName(containerName string) string {
 	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
 }
 
-func getLvmDevPath(project, lvmPool string, volumeType string, lvmVolume string) string {
-	lvmVolume = projectPrefix(project, lvmVolume)
+func getLvmDevPath(projectName, lvmPool string, volumeType string, lvmVolume string) string {
+	lvmVolume = project.Prefix(projectName, lvmVolume)
 	if volumeType == "" {
 		return fmt.Sprintf("/dev/%s/%s", lvmPool, lvmVolume)
 	}
@@ -820,12 +821,12 @@ func getLVName(lvmPool string, volumeType string, lvmVolume string) string {
 	return fmt.Sprintf("%s/%s_%s", lvmPool, volumeType, lvmVolume)
 }
 
-func getPrefixedLvName(project, volumeType string, lvmVolume string) string {
-	lvmVolume = projectPrefix(project, lvmVolume)
+func getPrefixedLvName(projectName, volumeType string, lvmVolume string) string {
+	lvmVolume = project.Prefix(projectName, lvmVolume)
 	return fmt.Sprintf("%s_%s", volumeType, lvmVolume)
 }
 
-func lvmCreateLv(project, vgName string, thinPoolName string, lvName string, lvFsType string, lvSize string, volumeType string, makeThinLv bool) error {
+func lvmCreateLv(projectName, vgName string, thinPoolName string, lvName string, lvFsType string, lvSize string, volumeType string, makeThinLv bool) error {
 	var output string
 	var err error
 
@@ -838,7 +839,7 @@ func lvmCreateLv(project, vgName string, thinPoolName string, lvName string, lvF
 	lvSizeInt = int64(lvSizeInt/512) * 512
 	lvSizeString := units.GetByteSizeString(lvSizeInt, 0)
 
-	lvmPoolVolumeName := getPrefixedLvName(project, volumeType, lvName)
+	lvmPoolVolumeName := getPrefixedLvName(projectName, volumeType, lvName)
 	if makeThinLv {
 		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
 		output, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSizeString, targetVg)
@@ -850,7 +851,7 @@ func lvmCreateLv(project, vgName string, thinPoolName string, lvName string, lvF
 		return fmt.Errorf("Could not create thin LV named %s", lvmPoolVolumeName)
 	}
 
-	fsPath := getLvmDevPath(project, vgName, volumeType, lvName)
+	fsPath := getLvmDevPath(projectName, vgName, volumeType, lvName)
 
 	output, err = makeFSType(fsPath, lvFsType, nil)
 	if err != nil {

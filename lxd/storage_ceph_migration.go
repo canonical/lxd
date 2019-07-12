@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -33,7 +34,7 @@ func (s *rbdMigrationSourceDriver) Cleanup() {
 
 	if s.stoppedSnapName != "" {
 		err := cephRBDSnapshotDelete(s.ceph.ClusterName, s.ceph.OSDPoolName,
-			projectPrefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
+			project.Prefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
 			s.stoppedSnapName, s.ceph.UserName)
 		if err != nil {
 			logger.Warnf(`Failed to delete RBD snapshot "%s" of container "%s"`, s.stoppedSnapName, containerName)
@@ -42,7 +43,7 @@ func (s *rbdMigrationSourceDriver) Cleanup() {
 
 	if s.runningSnapName != "" {
 		err := cephRBDSnapshotDelete(s.ceph.ClusterName, s.ceph.OSDPoolName,
-			projectPrefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
+			project.Prefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
 			s.runningSnapName, s.ceph.UserName)
 		if err != nil {
 			logger.Warnf(`Failed to delete RBD snapshot "%s" of container "%s"`, s.runningSnapName, containerName)
@@ -54,7 +55,7 @@ func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 	containerName := s.container.Name()
 	s.stoppedSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
 	err := cephRBDSnapshotCreate(s.ceph.ClusterName, s.ceph.OSDPoolName,
-		projectPrefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
+		project.Prefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
 		s.stoppedSnapName, s.ceph.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to create snapshot "%s" for RBD storage volume for image "%s" on storage pool "%s": %s`, s.stoppedSnapName, containerName, s.ceph.pool.Name, err)
@@ -62,7 +63,7 @@ func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 	}
 
 	cur := fmt.Sprintf("%s/container_%s@%s", s.ceph.OSDPoolName,
-		projectPrefix(s.container.Project(), containerName), s.stoppedSnapName)
+		project.Prefix(s.container.Project(), containerName), s.stoppedSnapName)
 	err = s.rbdSend(conn, cur, s.runningSnapName, nil)
 	if err != nil {
 		logger.Errorf(`Failed to send exported diff of RBD storage volume "%s" from snapshot "%s": %s`, cur, s.runningSnapName, err)
@@ -110,7 +111,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 			sendSnapName := fmt.Sprintf(
 				"%s/container_%s@%s",
 				s.ceph.OSDPoolName,
-				projectPrefix(s.container.Project(), containerName),
+				project.Prefix(s.container.Project(), containerName),
 				snap)
 
 			wrapper := StorageProgressReader(op, "fs_progress", snap)
@@ -130,7 +131,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 
 	s.runningSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
 	err := cephRBDSnapshotCreate(s.ceph.ClusterName, s.ceph.OSDPoolName,
-		projectPrefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
+		project.Prefix(s.container.Project(), containerName), storagePoolVolumeTypeNameContainer,
 		s.runningSnapName, s.ceph.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to create snapshot "%s" for RBD storage volume for image "%s" on storage pool "%s": %s`, s.runningSnapName, containerName, s.ceph.pool.Name, err)
@@ -138,7 +139,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	}
 
 	cur := fmt.Sprintf("%s/container_%s@%s", s.ceph.OSDPoolName,
-		projectPrefix(s.container.Project(), containerName), s.runningSnapName)
+		project.Prefix(s.container.Project(), containerName), s.runningSnapName)
 	wrapper := StorageProgressReader(op, "fs_progress", containerName)
 	err = s.rbdSend(conn, cur, lastSnap, wrapper)
 	if err != nil {
@@ -191,7 +192,7 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 	// that we send the oldest to newest snapshot, hopefully saving on xfer
 	// costs. Then, after all that, we send the container itself.
 	snapshots, err := cephRBDVolumeListSnapshots(s.ClusterName,
-		s.OSDPoolName, projectPrefix(args.Container.Project(), containerName),
+		s.OSDPoolName, project.Prefix(args.Container.Project(), containerName),
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		if err != db.ErrNoSuchObject {
@@ -249,8 +250,8 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	// set to the correct cluster name for that LXD instance. Yeah, I think
 	// that's actually correct.
 	containerName := args.Container.Name()
-	if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, projectPrefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, s.UserName) {
-		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, projectPrefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, "0", s.UserName)
+	if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, project.Prefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, s.UserName) {
+		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, project.Prefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, "0", s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" for cluster "%s" in OSD pool "%s" on storage pool "%s": %s`, containerName, s.ClusterName, s.OSDPoolName, s.pool.Name, err)
 			return err
@@ -259,8 +260,8 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	}
 
 	if len(args.Snapshots) > 0 {
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(args.Container.Project(), containerName))
-		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(args.Container.Project(), containerName))
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(args.Container.Project(), containerName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(args.Container.Project(), containerName))
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -270,7 +271,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	}
 
 	// Now we're ready to receive the actual fs.
-	recvName := fmt.Sprintf("%s/container_%s", s.OSDPoolName, projectPrefix(args.Container.Project(), containerName))
+	recvName := fmt.Sprintf("%s/container_%s", s.OSDPoolName, project.Prefix(args.Container.Project(), containerName))
 	for _, snap := range args.Snapshots {
 		curSnapName := snap.GetName()
 		ctArgs := snapshotProtobufToContainerArgs(args.Container.Project(), containerName, snap)
@@ -310,7 +311,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	}
 
 	defer func() {
-		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, projectPrefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, s.UserName)
+		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, project.Prefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, s.UserName)
 		if err == nil {
 			for _, snap := range snaps {
 				snapOnlyName, _, _ := containerGetParentAndSnapshotName(snap)
@@ -318,7 +319,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 					continue
 				}
 
-				err := cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, projectPrefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, snapOnlyName, s.UserName)
+				err := cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, project.Prefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, snapOnlyName, s.UserName)
 				if err != nil {
 					logger.Warnf(`Failed to delete RBD container storage for snapshot "%s" of container "%s"`, snapOnlyName, containerName)
 				}
@@ -345,7 +346,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	}
 
 	// Re-generate the UUID
-	err = s.cephRBDGenerateUUID(projectPrefix(args.Container.Project(), args.Container.Name()), storagePoolVolumeTypeNameContainer)
+	err = s.cephRBDGenerateUUID(project.Prefix(args.Container.Project(), args.Container.Name()), storagePoolVolumeTypeNameContainer)
 	if err != nil {
 		return err
 	}

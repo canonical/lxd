@@ -12,6 +12,7 @@ import (
 	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -634,12 +635,12 @@ func zfsFilesystemEntityExists(pool string, path string) bool {
 	return detectedName == vdev
 }
 
-func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bool, error) {
+func (s *storageZfs) doContainerMount(projectName, name string, privileged bool) (bool, error) {
 	logger.Debugf("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	volumeName := projectPrefix(project, name)
+	volumeName := project.Prefix(projectName, name)
 	fs := fmt.Sprintf("containers/%s", volumeName)
-	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, name)
+	containerPoolVolumeMntPoint := getContainerMountPoint(projectName, s.pool.Name, name)
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -699,13 +700,13 @@ func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bo
 	return ourMount, nil
 }
 
-func (s *storageZfs) doContainerDelete(project, name string) error {
+func (s *storageZfs) doContainerDelete(projectName, name string) error {
 	logger.Debugf("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
 	containerName := name
-	fs := fmt.Sprintf("containers/%s", projectPrefix(project, containerName))
-	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, containerName)
+	fs := fmt.Sprintf("containers/%s", project.Prefix(projectName, containerName))
+	containerPoolVolumeMntPoint := getContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	if zfsFilesystemEntityExists(poolName, fs) {
 		removable := true
@@ -756,7 +757,7 @@ func (s *storageZfs) doContainerDelete(project, name string) error {
 		}
 	}
 
-	err := deleteContainerMountpoint(containerPoolVolumeMntPoint, shared.VarPath("containers", projectPrefix(project, name)), s.GetStorageTypeName())
+	err := deleteContainerMountpoint(containerPoolVolumeMntPoint, shared.VarPath("containers", project.Prefix(projectName, name)), s.GetStorageTypeName())
 	if err != nil {
 		return err
 	}
@@ -765,7 +766,7 @@ func (s *storageZfs) doContainerDelete(project, name string) error {
 	zfsPoolVolumeDestroy(poolName, snapshotZfsDataset)
 
 	// Delete potential leftover snapshot mountpoints.
-	snapshotMntPoint := getSnapshotMountPoint(project, s.pool.Name, containerName)
+	snapshotMntPoint := getSnapshotMountPoint(projectName, s.pool.Name, containerName)
 	if shared.PathExists(snapshotMntPoint) {
 		err := os.RemoveAll(snapshotMntPoint)
 		if err != nil {
@@ -775,7 +776,7 @@ func (s *storageZfs) doContainerDelete(project, name string) error {
 
 	// Delete potential leftover snapshot symlinks:
 	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
-	snapshotSymlink := shared.VarPath("snapshots", projectPrefix(project, containerName))
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, containerName))
 	if shared.PathExists(snapshotSymlink) {
 		err := os.Remove(snapshotSymlink)
 		if err != nil {
@@ -787,15 +788,15 @@ func (s *storageZfs) doContainerDelete(project, name string) error {
 	return nil
 }
 
-func (s *storageZfs) doContainerCreate(project, name string, privileged bool) error {
+func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool) error {
 	logger.Debugf("Creating empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	containerPath := shared.VarPath("containers", projectPrefix(project, name))
+	containerPath := shared.VarPath("containers", project.Prefix(projectName, name))
 	containerName := name
-	fs := fmt.Sprintf("containers/%s", projectPrefix(project, containerName))
+	fs := fmt.Sprintf("containers/%s", project.Prefix(projectName, containerName))
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
-	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := getContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	// Create volume.
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
