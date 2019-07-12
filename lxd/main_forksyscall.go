@@ -23,6 +23,7 @@ import (
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 
 #include "include/memory_utils.h"
@@ -249,6 +250,143 @@ static void forkmknod()
 	}
 }
 
+static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
+{
+	__do_close_prot_errno int fd = -EBADF;
+
+	if (prctl(PR_SET_KEEPCAPS, 1))
+		return false;
+
+	fd = openat(ns_fd, "user", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWUSER))
+		return false;
+	close(fd);
+
+	fd = openat(ns_fd, "mnt", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWNS))
+		return false;
+	close(fd);
+
+	fd = openat(ns_fd, "cgroup", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWCGROUP))
+		return false;
+	close(fd);
+
+	fd = openat(ns_fd, "ipc", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWIPC))
+		return false;
+	close(fd);
+
+	fd = openat(ns_fd, "net", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWNET))
+		return false;
+	close(fd);
+
+	fd = openat(ns_fd, "pid", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWPID))
+		return false;
+	close(fd);
+
+	fd = openat(ns_fd, "uts", O_RDONLY | O_CLOEXEC);
+	if (setns(fd, CLONE_NEWUTS))
+		return false;
+	// compiler taking care of fd again now
+
+	if (setegid(nsgid))
+		return false;
+
+	setfsgid(nsgid);
+
+	if (seteuid(nsuid))
+		return false;
+
+	setfsuid(nsuid);
+
+	if (cap_set_proc(caps))
+		return false;
+
+	return true;
+}
+
+static void forksetxattr()
+{
+	__do_close_prot_errno int ns_fd = -EBADF, target_fd = -EBADF;
+	int flags = 0;
+	char *name, *path;
+	char ns_path[PATH_MAX];
+	uid_t nsuid;
+	gid_t nsgid;
+	pid_t pid = 0;
+	cap_t caps;
+	cap_flag_value_t flag;
+	int whiteout;
+	void *data;
+	size_t size;
+
+	pid = atoi(advance_arg(true));
+	nsuid = atoi(advance_arg(true));
+	nsgid = atoi(advance_arg(true));
+	name = advance_arg(true);
+	path = advance_arg(true);
+	flags = atoi(advance_arg(true));
+	whiteout = atoi(advance_arg(true));
+	size = atoi(advance_arg(true));
+	data = advance_arg(true);
+
+	snprintf(ns_path, sizeof(ns_path), "/proc/%d/ns", pid);
+	ns_fd = open(ns_path, O_RDONLY | O_CLOEXEC);
+	if (ns_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (!chdirchroot(pid)) {
+		fprintf(stderr, "%d", errno);
+		_exit(EXIT_FAILURE);
+	}
+
+	target_fd = open(path, O_RDWR | O_CLOEXEC);
+	if (target_fd < 0) {
+		fprintf(stderr, "%d", errno);
+		_exit(EXIT_FAILURE);
+	}
+
+	caps = cap_get_pid(pid);
+	if (!caps) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (whiteout == 1) {
+		if (cap_get_flag(caps,  CAP_SYS_ADMIN, CAP_EFFECTIVE, &flag) != 0) {
+			fprintf(stderr, "%d", EPERM);
+			_exit(EXIT_FAILURE);
+		}
+
+		if (flag == CAP_CLEAR) {
+			fprintf(stderr, "%d", EPERM);
+			_exit(EXIT_FAILURE);
+		}
+	}
+
+	if (whiteout == 1) {
+		if (setxattr(path, "trusted.overlay.opaque", "y", 1, flags)) {
+			fprintf(stderr, "%d", errno);
+			_exit(EXIT_FAILURE);
+		}
+	} else {
+		if (!change_creds(ns_fd, caps, nsuid, nsgid)) {
+			fprintf(stderr, "%d", EFAULT);
+			_exit(EXIT_FAILURE);
+		}
+
+		if (fsetxattr(target_fd, name, data, size, flags)) {
+			fprintf(stderr, "%d", errno);
+			_exit(EXIT_FAILURE);
+		}
+	}
+}
+
 void forksyscall()
 {
 	char *syscall = NULL;
@@ -266,6 +404,8 @@ void forksyscall()
 
 	if (strcmp(syscall, "mknod") == 0)
 		forkmknod();
+	else if (strcmp(syscall, "setxattr") == 0)
+		forksetxattr();
 	else
 		_exit(EXIT_FAILURE);
 
