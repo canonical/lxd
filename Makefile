@@ -142,6 +142,8 @@ dist:
 	# Download the cluster-enabled sqlite/dqlite
 	git clone --depth=1 https://github.com/CanonicalLtd/dqlite $(TMP)/dist/dqlite
 	git clone --depth=1 https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
+	git clone --depth=1 https://github.com/freeekanayaka/libco $(TMP)/dist/libco
+	git clone --depth=1 https://github.com/CanonicalLtd/raft $(TMP)/dist/raft
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
