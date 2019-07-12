@@ -267,12 +267,10 @@ static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #endif
 };
 
-static int seccomp_notify_mknod_set_response(int fd_mem,
-					     struct seccomp_notif *req,
-					     struct seccomp_notif_resp *resp,
-					     char *buf, size_t size,
-					     mode_t *mode, dev_t *dev,
-					     pid_t *pid)
+static int seccomp_notify_verify_syscall(int fd_mem, struct seccomp_notif *req,
+					 struct seccomp_notif_resp *resp,
+					 char *buf, size_t size, mode_t *mode,
+					 dev_t *dev, pid_t *pid)
 {
 	int ret;
 	ssize_t bytes;
@@ -282,7 +280,9 @@ static int seccomp_notify_mknod_set_response(int fd_mem,
 	resp->val = 0;
 	resp->error = 0;
 
-	for (size_t i = 0; i < (sizeof(seccomp_notify_syscall_table) / sizeof(seccomp_notify_syscall_table[0])); i++) {
+	for (size_t i = 0; i < (sizeof(seccomp_notify_syscall_table) /
+				sizeof(seccomp_notify_syscall_table[0]));
+	     i++) {
 		const struct lxd_seccomp_data_arch *entry = &seccomp_notify_syscall_table[i];
 
 		if (entry->arch != req->data.arch)
@@ -375,12 +375,10 @@ static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
 	return -1;
 }
 
-static int seccomp_notify_mknod_set_response(int fd_mem,
-					     struct seccomp_notif *req,
-					     struct seccomp_notif_resp *resp,
-					     char *buf, size_t size,
-					     mode_t *mode, dev_t *dev,
-					     pid_t *pid)
+static int seccomp_notify_verify_syscall(int fd_mem, struct seccomp_notif *req,
+					 struct seccomp_notif_resp *resp,
+					 char *buf, size_t size, mode_t *mode,
+					 dev_t *dev, pid_t *pid)
 {
 	errno = ENOSYS;
 	return -1;
@@ -675,15 +673,20 @@ func (siov *SeccompIovec) IsValidSeccompIovec(size uint64) bool {
 	return true
 }
 
-func (siov *SeccompIovec) SendSeccompIovec(fd int, goErrno int) error {
-	C.seccomp_notify_mknod_update_response(siov.resp, C.int(goErrno))
+func (siov *SeccompIovec) SendSeccompIovec(fd int, errno int) error {
+	C.seccomp_notify_mknod_update_response(siov.resp, C.int(errno))
 
 	msghdr := C.struct_msghdr{}
 	msghdr.msg_iov = siov.iov
 	msghdr.msg_iovlen = 4 - 1 // without cookie
-	bytes := C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)
+retry:
+	bytes, err := C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)
 	if bytes < 0 {
-		logger.Debugf("Disconnected from seccomp socket after failed write: pid=%v", siov.ucred.pid)
+		if err == unix.EINTR {
+			logger.Debugf("Caught EINTR, retrying...")
+			goto retry
+		}
+		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.pid, err)
 		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.pid)
 	}
 
@@ -759,9 +762,9 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 					}
 
 					if siov.IsValidSeccompIovec(bytes) {
-						go s.Handler(c, int(unixFile.Fd()), siov)
+						go s.Handler(int(unixFile.Fd()), siov)
 					} else {
-						go s.InvalidHandler(c, int(unixFile.Fd()), siov)
+						go s.InvalidHandler(int(unixFile.Fd()), siov)
 					}
 				}
 			}()
@@ -822,18 +825,16 @@ func taskUidGid(pid int) (error, int32, int32) {
 	return nil, uid, gid
 }
 
-func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, permissionsOnly bool) int {
-	goErrno := int(-C.EPERM)
-
+func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnly bool) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
-		return goErrno
+		return int(-C.EPERM)
 	}
 
 	err, uid, gid := taskUidGid(requestPID)
 	if err != nil {
-		return goErrno
+		return int(-C.EPERM)
 	}
 
 	deBool := func() int {
@@ -848,13 +849,13 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 		cwdLink := fmt.Sprintf("/proc/%d/cwd", requestPID)
 		prefixPath, err := os.Readlink(cwdLink)
 		if err != nil {
-			return goErrno
+			return int(-C.EPERM)
 		}
 
 		prefixPath = strings.TrimPrefix(prefixPath, rootPath)
-		dev["hostpath"] = filepath.Join(rootPath, prefixPath, dev["path"])
+		dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
 	} else {
-		dev["hostpath"] = filepath.Join(rootPath, dev["path"])
+		dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, dev["path"])
 	}
 
 	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
@@ -863,12 +864,12 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
 		fmt.Sprintf("%d", deBool()))
 	if err != nil {
-		tmp, err2 := strconv.Atoi(stderr)
-		if err2 == nil && tmp != C.ENOANO {
-			goErrno = -tmp
+		errno, err := strconv.Atoi(stderr)
+		if err != nil || errno == C.ENOANO {
+			return int(-C.EPERM)
 		}
 
-		return goErrno
+		return -errno
 	}
 
 	return 0
@@ -876,75 +877,86 @@ func (s *SeccompServer) doMknod(c container, dev types.Device, requestPID int, p
 
 // InvalidHandler sends a dummy message to LXC. LXC will notice the short write
 // and send a default message to the kernel thereby avoiding a 30s hang.
-func (s *SeccompServer) InvalidHandler(c net.Conn, clientFd int, siov *SeccompIovec) {
+func (s *SeccompServer) InvalidHandler(fd int, siov *SeccompIovec) {
 	msghdr := C.struct_msghdr{}
-	C.sendmsg(C.int(clientFd), &msghdr, C.MSG_NOSIGNAL)
+	C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)
 	siov.PutSeccompIovec()
 }
 
-func (s *SeccompServer) Handler(c net.Conn, clientFd int, siov *SeccompIovec) error {
+func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int {
+	var cMode C.mode_t
+	var cDev C.dev_t
+	var cPid C.pid_t
+	cPathBuf := [unix.PathMax]C.char{}
+	errno := int(C.seccomp_notify_verify_syscall(C.int(siov.memFd),
+		siov.req,
+		siov.resp,
+		&cPathBuf[0],
+		unix.PathMax, &cMode,
+		&cDev, &cPid))
+	if errno != 0 {
+		return errno
+	}
+
+	diskIdmap, err := c.DiskIdmap()
+	if err != nil {
+		return int(-C.EPERM)
+	}
+
+	dev := types.Device{}
+	dev["type"] = "unix-char"
+	dev["mode"] = fmt.Sprintf("%#o", cMode)
+	dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(cDev)))
+	dev["minor"] = fmt.Sprintf("%d", unix.Minor(uint64(cDev)))
+	dev["pid"] = fmt.Sprintf("%d", cPid)
+	dev["path"] = C.GoString(&cPathBuf[0])
+	dev["mode_t"] = fmt.Sprintf("%d", cMode)
+	dev["dev_t"] = fmt.Sprintf("%d", cDev)
+
+	if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
+		errno = CallForkmknod(c, dev, int(cPid), true)
+		if errno != int(-C.ENOMEDIUM) {
+			return errno
+		}
+
+		err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+		if err != nil {
+			return int(-C.EPERM)
+		}
+
+		return 0
+	}
+
+	errno = CallForkmknod(c, dev, int(cPid), false)
+	if errno != int(-C.ENOMEDIUM) {
+		return errno
+	}
+
+	err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+	if err != nil {
+		return int(-C.EPERM)
+	}
+
+	return 0
+}
+
+func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
 	logger.Debugf("Handling seccomp notification from: %v", siov.ucred.pid)
 
 	defer siov.PutSeccompIovec()
 
-	var cMode C.mode_t
-	var cDev C.dev_t
-	var cPid C.pid_t
-	var err error
-	goErrno := 0
-	cPathBuf := [unix.PathMax]C.char{}
-	goErrno = int(C.seccomp_notify_mknod_set_response(C.int(siov.memFd), siov.req, siov.resp,
-		&cPathBuf[0],
-		unix.PathMax, &cMode,
-		&cDev, &cPid))
-	if goErrno == 0 {
-		dev := types.Device{}
-		dev["type"] = "unix-char"
-		dev["mode"] = fmt.Sprintf("%#o", cMode)
-		dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(cDev)))
-		dev["minor"] = fmt.Sprintf("%d", unix.Minor(uint64(cDev)))
-		dev["pid"] = fmt.Sprintf("%d", cPid)
-		dev["path"] = C.GoString(&cPathBuf[0])
-		dev["mode_t"] = fmt.Sprintf("%d", cMode)
-		dev["dev_t"] = fmt.Sprintf("%d", cDev)
-
-		c, _ := findContainerForPid(int32(siov.msg.monitor_pid), s.d)
-		if c != nil {
-			diskIdmap, err2 := c.DiskIdmap()
-			if err2 != nil {
-				return siov.SendSeccompIovec(clientFd, int(-C.EPERM))
-			}
-
-			if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-				goErrno = s.doMknod(c, dev, int(cPid), true)
-				if goErrno == int(-C.ENOMEDIUM) {
-					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
-					if err != nil {
-						goErrno = int(-C.EPERM)
-					} else {
-						goErrno = 0
-					}
-				}
-			} else {
-				goErrno = s.doMknod(c, dev, int(cPid), false)
-				if goErrno == int(-C.ENOMEDIUM) {
-					err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
-					if err != nil {
-						goErrno = int(-C.EPERM)
-					} else {
-						goErrno = 0
-					}
-				}
-			}
-		}
-
-		if goErrno != 0 {
-			logger.Errorf("Failed to inject device node into container %s (errno = %d)", c.Name(), -goErrno)
-		}
+	c, err := findContainerForPid(int32(siov.msg.monitor_pid), s.d)
+	if err != nil {
+		siov.SendSeccompIovec(fd, int(-C.EPERM))
+		logger.Errorf("Failed to find container for monitor %d", siov.msg.monitor_pid)
+		return err
 	}
 
-	err = siov.SendSeccompIovec(clientFd, goErrno)
+	errno := s.HandleMknodSyscall(c, siov)
+
+	err = siov.SendSeccompIovec(fd, errno)
 	if err != nil {
+		logger.Errorf("Failed to handle seccomp notification from: %v", siov.ucred.pid)
 		return err
 	}
 
