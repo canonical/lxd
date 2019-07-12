@@ -514,6 +514,7 @@ func (g *Gateway) init() error {
 		}
 		options := []dqlite.ServerOption{
 			dqlite.WithServerLogFunc(DqliteLog),
+			dqlite.WithServerWatchFunc(watchFunc),
 		}
 
 		if raft.info.Address == "1" {
@@ -787,6 +788,12 @@ func dqliteMemoryDial(listener net.Listener) dqlite.DialFunc {
 // The LXD API endpoint path that gets routed to a dqlite server handler for
 // performing SQL queries against the dqlite server running on this node.
 const databaseEndpoint = "/internal/database"
+
+func watchFunc(oldState int, newState int) {
+	if newState == dqlite.Leader {
+		logger.Info("Elected as leader")
+	}
+}
 
 // DqliteLog redirects dqlite's logs to our own logger
 func DqliteLog(l dqlite.LogLevel, format string, a ...interface{}) {
