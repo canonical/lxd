@@ -146,6 +146,9 @@ struct lxd_seccomp_data_arch {
 	int nr_mknodat;
 };
 
+#define LXD_SECCOMP_NOTIFY_MKNOD    0
+#define LXD_SECCOMP_NOTIFY_MKNODAT  1
+
 // ordered by likelihood of usage...
 static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #ifdef AUDIT_ARCH_X86_64
@@ -267,14 +270,9 @@ static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #endif
 };
 
-static int seccomp_notify_verify_syscall(int fd_mem, struct seccomp_notif *req,
-					 struct seccomp_notif_resp *resp,
-					 char *buf, size_t size, mode_t *mode,
-					 dev_t *dev, pid_t *pid)
+static int seccomp_notify_get_syscall(struct seccomp_notif *req,
+				      struct seccomp_notif_resp *resp)
 {
-	int ret;
-	ssize_t bytes;
-
 	resp->id = req->id;
 	resp->flags = req->flags;
 	resp->val = 0;
@@ -288,56 +286,21 @@ static int seccomp_notify_verify_syscall(int fd_mem, struct seccomp_notif *req,
 		if (entry->arch != req->data.arch)
 			continue;
 
-		if (entry->nr_mknod == req->data.nr) {
-			resp->error = device_allowed(req->data.args[2], req->data.args[1]);
-			if (resp->error) {
-				errno = EPERM;
-				return -EPERM;
-			}
+		if (entry->nr_mknod == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_MKNOD;
 
-			bytes = pread(fd_mem, buf, size, req->data.args[0]);
-			if (bytes < 0)
-				return -errno;
-
-			*mode = req->data.args[1];
-			*dev = req->data.args[2];
-			*pid = req->pid;
-
-			return 0;
-		}
-
-		if (entry->nr_mknodat == req->data.nr) {
-			if ((int)req->data.args[0] != AT_FDCWD) {
-				errno = EINVAL;
-				return -EINVAL;
-			}
-
-			resp->error = device_allowed(req->data.args[3], req->data.args[2]);
-			if (resp->error) {
-				errno = EPERM;
-				return -EPERM;
-			}
-
-			bytes = pread(fd_mem, buf, size, req->data.args[1]);
-			if (bytes < 0)
-				return -errno;
-
-			*mode = req->data.args[2];
-			*dev = req->data.args[3];
-			*pid = req->pid;
-
-			return 0;
-		}
+		if (entry->nr_mknodat == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_MKNODAT;
 
 		break;
 	}
 
-	errno = EPERM;
-	return -EPERM;
+	errno = EINVAL;
+	return -EINVAL;
 }
 
-static void seccomp_notify_mknod_update_response(struct seccomp_notif_resp *resp,
-						 int new_neg_errno)
+static void seccomp_notify_update_response(struct seccomp_notif_resp *resp,
+					   int new_neg_errno)
 {
 	resp->error = new_neg_errno;
 }
@@ -359,39 +322,13 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_base = cookie;
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
-
-#else
-
-static void prepare_seccomp_iovec(struct iovec *iov,
-				  struct seccomp_notify_proxy_msg *msg,
-				  struct seccomp_notif *notif,
-				  struct seccomp_notif_resp *resp, char *cookie)
-{
-}
-
-static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
-static int seccomp_notify_verify_syscall(int fd_mem, struct seccomp_notif *req,
-					 struct seccomp_notif_resp *resp,
-					 char *buf, size_t size, mode_t *mode,
-					 dev_t *dev, pid_t *pid)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
-static void seccomp_notify_mknod_update_response(struct seccomp_notify_proxy_msg *msg,
-						 int new_neg_errno)
-{
-}
 #endif // SECCOMP_RET_USER_NOTIF
 */
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
+
+const LxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
+const LxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT
 
 const SECCOMP_HEADER = `2
 `
@@ -674,7 +611,7 @@ func (siov *SeccompIovec) IsValidSeccompIovec(size uint64) bool {
 }
 
 func (siov *SeccompIovec) SendSeccompIovec(fd int, errno int) error {
-	C.seccomp_notify_mknod_update_response(siov.resp, C.int(errno))
+	C.seccomp_notify_update_response(siov.resp, C.int(errno))
 
 	msghdr := C.struct_msghdr{}
 	msghdr.msg_iov = siov.iov
@@ -859,7 +796,7 @@ func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnl
 	}
 
 	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
-		"forkmknod", dev["pid"], dev["path"],
+		"forksyscall", "mknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
 		fmt.Sprintf("%d", deBool()))
@@ -883,21 +820,14 @@ func (s *SeccompServer) InvalidHandler(fd int, siov *SeccompIovec) {
 	siov.PutSeccompIovec()
 }
 
-func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int {
-	var cMode C.mode_t
-	var cDev C.dev_t
-	var cPid C.pid_t
-	cPathBuf := [unix.PathMax]C.char{}
-	errno := int(C.seccomp_notify_verify_syscall(C.int(siov.memFd),
-		siov.req,
-		siov.resp,
-		&cPathBuf[0],
-		unix.PathMax, &cMode,
-		&cDev, &cPid))
-	if errno != 0 {
-		return errno
-	}
+type MknodArgs struct {
+	cMode C.mode_t
+	cDev  C.dev_t
+	cPid  C.pid_t
+	path  string
+}
 
+func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *SeccompIovec) int {
 	diskIdmap, err := c.DiskIdmap()
 	if err != nil {
 		return int(-C.EPERM)
@@ -905,21 +835,21 @@ func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int 
 
 	dev := types.Device{}
 	dev["type"] = "unix-char"
-	dev["mode"] = fmt.Sprintf("%#o", cMode)
-	dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(cDev)))
-	dev["minor"] = fmt.Sprintf("%d", unix.Minor(uint64(cDev)))
-	dev["pid"] = fmt.Sprintf("%d", cPid)
-	dev["path"] = C.GoString(&cPathBuf[0])
-	dev["mode_t"] = fmt.Sprintf("%d", cMode)
-	dev["dev_t"] = fmt.Sprintf("%d", cDev)
+	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
+	dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(args.cDev)))
+	dev["minor"] = fmt.Sprintf("%d", unix.Minor(uint64(args.cDev)))
+	dev["pid"] = fmt.Sprintf("%d", args.cPid)
+	dev["path"] = args.path
+	dev["mode_t"] = fmt.Sprintf("%d", args.cMode)
+	dev["dev_t"] = fmt.Sprintf("%d", args.cDev)
 
 	if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-		errno = CallForkmknod(c, dev, int(cPid), true)
+		errno := CallForkmknod(c, dev, int(args.cPid), true)
 		if errno != int(-C.ENOMEDIUM) {
 			return errno
 		}
 
-		err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+		err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
 		if err != nil {
 			return int(-C.EPERM)
 		}
@@ -927,17 +857,81 @@ func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int 
 		return 0
 	}
 
-	errno = CallForkmknod(c, dev, int(cPid), false)
+	errno := CallForkmknod(c, dev, int(args.cPid), false)
 	if errno != int(-C.ENOMEDIUM) {
 		return errno
 	}
 
-	err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(cPid)), dev, int(cPid))
+	err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
 	if err != nil {
 		return int(-C.EPERM)
 	}
 
 	return 0
+}
+
+func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int {
+	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1]))
+	if siov.resp.error != 0 {
+		logger.Errorf("Device not allowed")
+		return int(siov.resp.error)
+	}
+
+	cPathBuf := [unix.PathMax]C.char{}
+	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
+	if err != nil {
+		logger.Errorf("Failed to read memory for mknod syscall: %s", err)
+		return int(-C.EPERM)
+	}
+
+	args := MknodArgs{
+		cMode: C.mode_t(siov.req.data.args[1]),
+		cDev:  C.dev_t(siov.req.data.args[2]),
+		cPid:  C.pid_t(siov.req.pid),
+		path:  C.GoString(&cPathBuf[0]),
+	}
+
+	return s.doDeviceSyscall(c, &args, siov)
+}
+
+func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) int {
+	if int(siov.req.data.args[0]) != int(C.AT_FDCWD) {
+		logger.Errorf("Non AT_FDCWD mknodat calls are not allowed")
+		return int(-C.EINVAL)
+	}
+
+	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[3]), C.mode_t(siov.req.data.args[2]))
+	if siov.resp.error != 0 {
+		logger.Errorf("Device not allowed")
+		return int(siov.resp.error)
+	}
+
+	cPathBuf := [unix.PathMax]C.char{}
+	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
+	if err != nil {
+		logger.Errorf("Failed to read memory for mknodat syscall: %s", err)
+		return int(-C.EPERM)
+	}
+
+	args := MknodArgs{
+		cMode: C.mode_t(siov.req.data.args[2]),
+		cDev:  C.dev_t(siov.req.data.args[3]),
+		cPid:  C.pid_t(siov.req.pid),
+		path:  C.GoString(&cPathBuf[0]),
+	}
+
+	return s.doDeviceSyscall(c, &args, siov)
+}
+
+func (s *SeccompServer) HandleSyscall(c container, siov *SeccompIovec) int {
+	switch int(C.seccomp_notify_get_syscall(siov.req, siov.resp)) {
+	case LxdSeccompNotifyMknod:
+		return s.HandleMknodSyscall(c, siov)
+	case LxdSeccompNotifyMknodat:
+		return s.HandleMknodatSyscall(c, siov)
+	}
+
+	return int(-C.EINVAL)
 }
 
 func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
@@ -952,7 +946,7 @@ func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
 		return err
 	}
 
-	errno := s.HandleMknodSyscall(c, siov)
+	errno := s.HandleSyscall(c, siov)
 
 	err = siov.SendSeccompIovec(fd, errno)
 	if err != nil {

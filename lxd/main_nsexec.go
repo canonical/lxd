@@ -38,7 +38,7 @@ package main
 // External functions
 extern void checkfeature();
 extern void forkfile();
-extern void forkmknod();
+extern void forksyscall();
 extern void forkmount();
 extern void forknet();
 extern void forkdns();
@@ -284,8 +284,8 @@ __attribute__((constructor)) void init(void) {
 	// Intercepts some subcommands
 	if (strcmp(cmdline_cur, "forkfile") == 0)
 		forkfile();
-	else if (strcmp(cmdline_cur, "forkmknod") == 0)
-		forkmknod();
+	else if (strcmp(cmdline_cur, "forksyscall") == 0)
+		forksyscall();
 	else if (strcmp(cmdline_cur, "forkmount") == 0)
 		forkmount();
 	else if (strcmp(cmdline_cur, "forknet") == 0)
