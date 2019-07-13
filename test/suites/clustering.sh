@@ -403,7 +403,7 @@ test_clustering_storage() {
       driver_config="size=20GB"
   fi
   if [ "${driver}" = "ceph" ]; then
-      driver_config="source=lxdtest-$(basename "${TEST_DIR}")"
+      driver_config="source=lxdtest-$(basename "${TEST_DIR}")-pool1"
   fi
   driver_config_node1="${driver_config}"
   driver_config_node2="${driver_config}"
