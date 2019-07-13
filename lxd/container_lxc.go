@@ -31,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/project"
@@ -8847,7 +8848,7 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 	}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	curIPv4, curIPv6, err := networkDHCPStaticContainerIPs(m["parent"], c.Name())
+	curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(m["parent"], c.Name())
 	if err != nil && !os.IsNotExist(err) {
 		return IPv4, IPv6, err
 	}
@@ -8890,12 +8891,12 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 
 	// If we need to generate either a new IPv4 or IPv6, load existing IPs used in network.
 	if IPv4 == nil || IPv6 == nil {
-		networkStaticLock.Lock()
+		dnsmasq.ConfigMutex.Lock()
 
 		// Get existing allocations in network.
-		IPv4Allocs, IPv6Allocs, err := networkDHCPAllocatedIPs(m["parent"])
+		IPv4Allocs, IPv6Allocs, err := dnsmasq.DHCPAllocatedIPs(m["parent"])
 		if err != nil {
-			networkStaticLock.Unlock()
+			dnsmasq.ConfigMutex.Unlock()
 			return IPv4, IPv6, err
 		}
 
@@ -8903,7 +8904,7 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 		if IPv4 == nil && shared.IsTrue(m["security.ipv4_filtering"]) {
 			IPv4, err = networkDHCPFindFreeIPv4(IPv4Allocs, netConfig, c.Name(), m["hwaddr"])
 			if err != nil {
-				networkStaticLock.Unlock()
+				dnsmasq.ConfigMutex.Unlock()
 				return IPv4, IPv6, err
 			}
 		}
@@ -8912,12 +8913,12 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 		if IPv6 == nil && shared.IsTrue(m["security.ipv6_filtering"]) {
 			IPv6, err = networkDHCPFindFreeIPv6(IPv6Allocs, netConfig, c.Name(), m["hwaddr"])
 			if err != nil {
-				networkStaticLock.Unlock()
+				dnsmasq.ConfigMutex.Unlock()
 				return IPv4, IPv6, err
 			}
 		}
 
-		networkStaticLock.Unlock()
+		dnsmasq.ConfigMutex.Unlock()
 	}
 
 	// If either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
@@ -8932,15 +8933,15 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 			IPv6Str = IPv6.String()
 		}
 
-		networkStaticLock.Lock()
-		defer networkStaticLock.Unlock()
+		dnsmasq.ConfigMutex.Lock()
+		defer dnsmasq.ConfigMutex.Unlock()
 
 		err = networkUpdateStaticContainer(m["parent"], c.Project(), c.Name(), netConfig, m["hwaddr"], IPv4Str, IPv6Str)
 		if err != nil {
 			return IPv4, IPv6, err
 		}
 
-		err = networkKillDnsmasq(m["parent"], true)
+		err = dnsmasq.Kill(m["parent"], true)
 		if err != nil {
 			return IPv4, IPv6, err
 		}
@@ -8968,7 +8969,7 @@ func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
 	}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	IPv4, IPv6, err := networkDHCPStaticContainerIPs(m["parent"], c.Name())
+	IPv4, IPv6, err := dnsmasq.DHCPStaticIPs(m["parent"], c.Name())
 	if err != nil {
 		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 	}

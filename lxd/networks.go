@@ -20,6 +20,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -1289,7 +1290,7 @@ func (n *network) Start() error {
 		"--no-ping", // --no-ping is very important to prevent delays to lease file updates.
 		fmt.Sprintf("--interface=%s", n.name)}
 
-	dnsmasqVersion, err := networkGetDnsmasqVersion()
+	dnsmasqVersion, err := dnsmasq.GetVersion()
 
 	// --dhcp-rapid-commit option is only supported on >2.79
 	minVer, _ := version.NewDottedVersion("2.79")
@@ -1814,7 +1815,7 @@ func (n *network) Start() error {
 	}
 
 	// Kill any existing dnsmasq and forkdns daemon for this network
-	err = networkKillDnsmasq(n.name, false)
+	err = dnsmasq.Kill(n.name, false)
 	if err != nil {
 		return err
 	}
@@ -1958,7 +1959,7 @@ func (n *network) Stop() error {
 	}
 
 	// Kill any existing dnsmasq and forkdns daemon for this network
-	err = networkKillDnsmasq(n.name, false)
+	err = dnsmasq.Kill(n.name, false)
 	if err != nil {
 		return err
 	}
