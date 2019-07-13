@@ -403,7 +403,7 @@ test_clustering_storage() {
       driver_config="size=20GB"
   fi
   if [ "${driver}" = "ceph" ]; then
-      driver_config="source=pool1-$(basename "${TEST_DIR}")"
+      driver_config="source=lxdtest-$(basename "${TEST_DIR}")"
   fi
   driver_config_node1="${driver_config}"
   driver_config_node2="${driver_config}"
@@ -451,7 +451,7 @@ test_clustering_storage() {
   source2="$(basename "${LXD_TWO_DIR}")"
   if [ "${driver}" = "ceph" ]; then
     # For ceph volume the source field is the name of the underlying ceph pool
-    source1="pool1-$(basename "${TEST_DIR}")"
+    source1="lxdtest-$(basename "${TEST_DIR}")"
     source2="${source1}"
   fi
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "${source1}"
