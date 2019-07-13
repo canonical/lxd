@@ -27,16 +27,20 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
 )
 
-var networkStaticLock sync.Mutex
 var forkdnsServersLock sync.Mutex
+
+func init() {
+	// Link the networkUpdateStatic in here to the dnsmasq package so that other packages can use it.
+	dnsmasq.RebuildConfig = networkUpdateStatic
+}
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	_, dbInfo, err := cluster.NetworkGetInterface(devName)
@@ -786,247 +790,6 @@ func networkKillForkDNS(name string) error {
 	return nil
 }
 
-func networkKillDnsmasq(name string, reload bool) error {
-	// Check if we have a running dnsmasq at all
-	pidPath := shared.VarPath("networks", name, "dnsmasq.pid")
-	if !shared.PathExists(pidPath) {
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		return nil
-	}
-
-	// Grab the PID
-	content, err := ioutil.ReadFile(pidPath)
-	if err != nil {
-		return err
-	}
-	pid := strings.TrimSpace(string(content))
-
-	// Check for empty string
-	if pid == "" {
-		os.Remove(pidPath)
-
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		return nil
-	}
-
-	// Check if the process still exists
-	if !shared.PathExists(fmt.Sprintf("/proc/%s", pid)) {
-		os.Remove(pidPath)
-
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		return nil
-	}
-
-	// Check if it's dnsmasq
-	cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pid))
-	if err != nil {
-		cmdPath = ""
-	}
-
-	// Deal with deleted paths
-	cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
-	if cmdName != "dnsmasq" {
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		os.Remove(pidPath)
-		return nil
-	}
-
-	// Parse the pid
-	pidInt, err := strconv.Atoi(pid)
-	if err != nil {
-		return err
-	}
-
-	// Actually kill the process
-	if reload {
-		err = unix.Kill(pidInt, unix.SIGHUP)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	err = unix.Kill(pidInt, unix.SIGKILL)
-	if err != nil {
-		return err
-	}
-
-	// Cleanup
-	os.Remove(pidPath)
-	return nil
-}
-
-func networkGetDnsmasqVersion() (*version.DottedVersion, error) {
-	// Discard stderr on purpose (occasional linker errors)
-	output, err := exec.Command("dnsmasq", "--version").Output()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to check dnsmasq version: %v", err)
-	}
-
-	lines := strings.Split(string(output), " ")
-	return version.NewDottedVersion(lines[2])
-}
-
-// dhcpAllocation represents an IP allocation from dnsmasq.
-type dhcpAllocation struct {
-	IP     net.IP
-	Name   string
-	MAC    net.HardwareAddr
-	Static bool
-}
-
-// networkDHCPStaticContainerIPs retrieves the dnsmasq statically allocated IPs for a container.
-// Returns IPv4 and IPv6 dhcpAllocation structs respectively.
-func networkDHCPStaticContainerIPs(network string, containerName string) (dhcpAllocation, dhcpAllocation, error) {
-	var IPv4, IPv6 dhcpAllocation
-
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts") + "/" + containerName)
-	if err != nil {
-		return IPv4, IPv6, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fields := strings.SplitN(scanner.Text(), ",", -1)
-		for _, field := range fields {
-			// Check if field is IPv4 or IPv6 address.
-			if strings.Count(field, ".") == 3 {
-				IP := net.ParseIP(field)
-				if IP.To4() == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
-				}
-				IPv4 = dhcpAllocation{Name: containerName, Static: true, IP: IP.To4()}
-
-			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
-				IP := net.ParseIP(field[1 : len(field)-1])
-				if IP == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
-				}
-				IPv6 = dhcpAllocation{Name: containerName, Static: true, IP: IP}
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return IPv4, IPv6, err
-	}
-
-	return IPv4, IPv6, nil
-}
-
-// networkDHCPAllocatedIPs returns a map of IPs currently allocated (statically and dynamically)
-// in dnsmasq for a specific network. The returned map is keyed by a 16 byte array representing
-// the net.IP format. The value of each map item is a dhcpAllocation struct containing at least
-// whether the allocation was static or dynamic and optionally container name or MAC address.
-// MAC addresses are only included for dynamic IPv4 allocations (where name is not reliable).
-// Static allocations are not overridden by dynamic allocations, allowing for container name to be
-// included for static IPv6 allocations. IPv6 addresses that are dynamically assigned cannot be
-// reliably linked to containers using either name or MAC because dnsmasq does not record the MAC
-// address for these records, and the recorded host name can be set by the container if the dns.mode
-// for the network is set to "dynamic" and so cannot be trusted, so in this case we do not return
-// any identifying info.
-func networkDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAllocation, map[[16]byte]dhcpAllocation, error) {
-	IPv4s := make(map[[4]byte]dhcpAllocation)
-	IPv6s := make(map[[16]byte]dhcpAllocation)
-
-	// First read all statically allocated IPs.
-	files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
-	if err != nil {
-		return IPv4s, IPv6s, err
-	}
-
-	for _, entry := range files {
-		IPv4, IPv6, err := networkDHCPStaticContainerIPs(network, entry.Name())
-		if err != nil {
-			return IPv4s, IPv6s, err
-		}
-
-		if IPv4.IP != nil {
-			var IPKey [4]byte
-			copy(IPKey[:], IPv4.IP.To4())
-			IPv4s[IPKey] = IPv4
-		}
-
-		if IPv6.IP != nil {
-			var IPKey [16]byte
-			copy(IPKey[:], IPv6.IP.To16())
-			IPv6s[IPKey] = IPv6
-		}
-	}
-
-	// Next read all dynamic allocated IPs.
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.leases"))
-	if err != nil {
-		return IPv4s, IPv6s, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) == 5 {
-			IP := net.ParseIP(fields[2])
-			if IP == nil {
-				return IPv4s, IPv6s, fmt.Errorf("Error parsing IP address: %v", fields[2])
-			}
-
-			// Handle IPv6 addresses.
-			if IP.To4() == nil {
-				var IPKey [16]byte
-				copy(IPKey[:], IP.To16())
-
-				// Don't replace IPs from static config as more reliable.
-				if IPv6s[IPKey].Name != "" {
-					continue
-				}
-
-				IPv6s[IPKey] = dhcpAllocation{
-					Static: false,
-					IP:     IP.To16(),
-				}
-			} else {
-				// MAC only available in IPv4 leases.
-				MAC, err := net.ParseMAC(fields[1])
-				if err != nil {
-					return IPv4s, IPv6s, err
-				}
-
-				var IPKey [4]byte
-				copy(IPKey[:], IP.To4())
-
-				// Don't replace IPs from static config as more reliable.
-				if IPv4s[IPKey].Name != "" {
-					continue
-				}
-
-				IPv4s[IPKey] = dhcpAllocation{
-					MAC:    MAC,
-					Static: false,
-					IP:     IP.To4(),
-				}
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return IPv4s, IPv6s, err
-	}
-
-	return IPv4s, IPv6s, nil
-}
-
 // dhcpRange represents a range of IPs from start to end.
 type dhcpRange struct {
 	Start net.IP
@@ -1100,7 +863,7 @@ func networkDHCPValidIP(subnet *net.IPNet, ranges []dhcpRange, IP net.IP) bool {
 // DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
-func networkDHCPFindFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+func networkDHCPFindFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
 	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 	if err != nil {
 		return nil, err
@@ -1185,7 +948,7 @@ func networkDHCPFindFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netConfig map[
 // networkDHCPFindFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the container.
 // If no previous allocation, then a free IP is picked from the ranges configured.
-func networkDHCPFindFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+func networkDHCPFindFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
 	MAC, err := net.ParseMAC(deviceMAC)
 	if err != nil {
 		return nil, err
@@ -1278,8 +1041,8 @@ func networkUpdateStaticContainer(network string, projectName string, cName stri
 
 func networkUpdateStatic(s *state.State, networkName string) error {
 	// We don't want to race with ourselves here
-	networkStaticLock.Lock()
-	defer networkStaticLock.Unlock()
+	dnsmasq.ConfigMutex.Lock()
+	defer dnsmasq.ConfigMutex.Unlock()
 
 	// Get all the networks
 	var networks []string
@@ -1322,7 +1085,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				curIPv4, curIPv6, err := networkDHCPStaticContainerIPs(d["parent"], c.Name())
+				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], c.Name())
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -1411,14 +1174,14 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			}
 
 			// Generate the dhcp-host line
-			err := networkUpdateStaticContainer(network, projectName, cName, config, hwaddr, ipv4Address, ipv6Address)
+			err := dnsmasq.UpdateStaticEntry(network, projectName, cName, config, hwaddr, ipv4Address, ipv6Address)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Signal dnsmasq
-		err = networkKillDnsmasq(network, true)
+		err = dnsmasq.Kill(network, true)
 		if err != nil {
 			return err
 		}
