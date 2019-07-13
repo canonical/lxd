@@ -100,7 +100,7 @@ static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
 
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
-void forkmknod()
+static void forkmknod()
 {
 	__do_close_prot_errno int target_fd = -EBADF, host_target_fd;
 	int ret;
@@ -116,20 +116,7 @@ void forkmknod()
 	cap_t caps;
 	int chk_perm_only;
 
-	// Get the subcommand
-	cur = advance_arg(false);
-	if (!cur ||
-	    (strcmp(cur, "--help") == 0 ||
-	     strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
-		return;
-
-	// Check that we're root
-	if (geteuid() != 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	pid = atoi(cur);
+	pid = atoi(advance_arg(true));
 	target = advance_arg(true);
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
@@ -222,6 +209,28 @@ void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
+}
+
+void forksyscall()
+{
+	char *syscall = NULL;
+
+	// Check that we're root
+	if (geteuid() != 0)
+		_exit(EXIT_FAILURE);
+
+	// Get the subcommand
+	syscall = advance_arg(false);
+	if (syscall == NULL ||
+	    (strcmp(syscall, "--help") == 0 ||
+	     strcmp(syscall, "--version") == 0 || strcmp(syscall, "-h") == 0))
+		_exit(EXIT_SUCCESS);
+
+	if (strcmp(syscall, "mknod") == 0)
+		forkmknod();
+	else
+		_exit(EXIT_FAILURE);
+
 	_exit(EXIT_SUCCESS);
 }
 */
@@ -229,7 +238,7 @@ void forkmknod()
 // #cgo LDFLAGS: -lcap
 import "C"
 
-type cmdForkmknod struct {
+type cmdForksyscall struct {
 	global *cmdGlobal
 }
 
@@ -241,15 +250,15 @@ func GetNSGid(gid uint, pid int) int {
 	return int(C.get_ns_gid(C.gid_t(gid), C.pid_t(pid)))
 }
 
-func (c *cmdForkmknod) Command() *cobra.Command {
+func (c *cmdForksyscall) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkmknod <PID> <path> <mode> <dev>"
-	cmd.Short = "Perform mknod operations"
+	cmd.Use = "forksyscall <syscall> <PID> <path> <mode> <dev>"
+	cmd.Short = "Perform syscall operations"
 	cmd.Long = `Description:
-  Perform mknod operations
+  Perform syscall operations
 
-  This set of internal commands are used for all seccom-based container mknod
+  This set of internal commands are used for all seccom-based container syscall
   operations.
 `
 	cmd.RunE = c.Run
@@ -258,6 +267,6 @@ func (c *cmdForkmknod) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdForkmknod) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdForksyscall) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("This command should have been intercepted in cgo")
 }
