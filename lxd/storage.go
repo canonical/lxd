@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -617,13 +618,13 @@ func getStoragePoolMountPoint(poolName string) string {
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/containers/[<project_name>_]<container_name>
-func getContainerMountPoint(project string, poolName string, containerName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers", projectPrefix(project, containerName))
+func getContainerMountPoint(projectName string, poolName string, containerName string) string {
+	return shared.VarPath("storage-pools", poolName, "containers", project.Prefix(projectName, containerName))
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/containers-snapshots/<snapshot_name>
-func getSnapshotMountPoint(project, poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers-snapshots", projectPrefix(project, snapshotName))
+func getSnapshotMountPoint(projectName, poolName string, snapshotName string) string {
+	return shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Prefix(projectName, snapshotName))
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>

@@ -27,6 +27,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1247,7 +1248,7 @@ func networkDHCPFindFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConfig map[s
 }
 
 // networkUpdateStaticContainer writes a single dhcp-host line for a container/network combination.
-func networkUpdateStaticContainer(network string, project string, cName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
+func networkUpdateStaticContainer(network string, projectName string, cName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
 	line := hwaddr
 
 	// Generate the dhcp-host line
@@ -1267,7 +1268,7 @@ func networkUpdateStaticContainer(network string, project string, cName string, 
 		return nil
 	}
 
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", projectPrefix(project, cName)), []byte(line+"\n"), 0644)
+	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, cName)), []byte(line+"\n"), 0644)
 	if err != nil {
 		return err
 	}
@@ -1370,7 +1371,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 		// Apply the changes
 		for entryIdx, entry := range entries {
 			hwaddr := entry[0]
-			project := entry[1]
+			projectName := entry[1]
 			cName := entry[2]
 			ipv4Address := entry[3]
 			ipv6Address := entry[4]
@@ -1379,14 +1380,14 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			// Look for duplicates
 			duplicate := false
 			for iIdx, i := range entries {
-				if projectPrefix(entry[1], entry[2]) == projectPrefix(i[1], i[2]) {
+				if project.Prefix(entry[1], entry[2]) == project.Prefix(i[1], i[2]) {
 					// Skip ourselves
 					continue
 				}
 
 				if entry[0] == i[0] {
 					// Find broken configurations
-					logger.Errorf("Duplicate MAC detected: %s and %s", projectPrefix(entry[1], entry[2]), projectPrefix(i[1], i[2]))
+					logger.Errorf("Duplicate MAC detected: %s and %s", project.Prefix(entry[1], entry[2]), project.Prefix(i[1], i[2]))
 				}
 
 				if i[3] == "" && i[4] == "" {
@@ -1400,7 +1401,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 						duplicate = true
 					} else {
 						line = fmt.Sprintf("%s,%s", line, i[0])
-						logger.Debugf("Found containers with duplicate IPv4/IPv6: %s and %s", projectPrefix(entry[1], entry[2]), projectPrefix(i[1], i[2]))
+						logger.Debugf("Found containers with duplicate IPv4/IPv6: %s and %s", project.Prefix(entry[1], entry[2]), project.Prefix(i[1], i[2]))
 					}
 				}
 			}
@@ -1410,7 +1411,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			}
 
 			// Generate the dhcp-host line
-			err := networkUpdateStaticContainer(network, project, cName, config, hwaddr, ipv4Address, ipv6Address)
+			err := networkUpdateStaticContainer(network, projectName, cName, config, hwaddr, ipv4Address, ipv6Address)
 			if err != nil {
 				return err
 			}
