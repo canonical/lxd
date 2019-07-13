@@ -31,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/template"
@@ -8121,11 +8122,11 @@ func (c *containerLXC) doNat(proxy string, device types.Device) error {
 	defer func() {
 		if revert {
 			if IPv4Addr != "" {
-				containerIptablesClear("ipv4", iptablesComment, "nat")
+				iptables.ContainerClear("ipv4", iptablesComment, "nat")
 			}
 
 			if IPv6Addr != "" {
-				containerIptablesClear("ipv6", iptablesComment, "nat")
+				iptables.ContainerClear("ipv6", iptablesComment, "nat")
 			}
 		}
 	}()
@@ -8144,7 +8145,7 @@ func (c *containerLXC) doNat(proxy string, device types.Device) error {
 
 		if IPv4Addr != "" {
 			// outbound <-> container
-			err := containerIptablesPrepend("ipv4", iptablesComment, "nat",
+			err := iptables.ContainerPrepend("ipv4", iptablesComment, "nat",
 				"PREROUTING", "-p", listenAddr.connType, "--destination",
 				address, "--dport", port, "-j", "DNAT",
 				"--to-destination", fmt.Sprintf("%s:%s", IPv4Addr, cPort))
@@ -8153,7 +8154,7 @@ func (c *containerLXC) doNat(proxy string, device types.Device) error {
 			}
 
 			// host <-> container
-			err = containerIptablesPrepend("ipv4", iptablesComment, "nat",
+			err = iptables.ContainerPrepend("ipv4", iptablesComment, "nat",
 				"OUTPUT", "-p", listenAddr.connType, "--destination",
 				address, "--dport", port, "-j", "DNAT",
 				"--to-destination", fmt.Sprintf("%s:%s", IPv4Addr, cPort))
@@ -8164,7 +8165,7 @@ func (c *containerLXC) doNat(proxy string, device types.Device) error {
 
 		if IPv6Addr != "" {
 			// outbound <-> container
-			err := containerIptablesPrepend("ipv6", iptablesComment, "nat",
+			err := iptables.ContainerPrepend("ipv6", iptablesComment, "nat",
 				"PREROUTING", "-p", listenAddr.connType, "--destination",
 				address, "--dport", port, "-j", "DNAT",
 				"--to-destination", fmt.Sprintf("[%s]:%s", IPv6Addr, cPort))
@@ -8173,7 +8174,7 @@ func (c *containerLXC) doNat(proxy string, device types.Device) error {
 			}
 
 			// host <-> container
-			err = containerIptablesPrepend("ipv6", iptablesComment, "nat",
+			err = iptables.ContainerPrepend("ipv6", iptablesComment, "nat",
 				"OUTPUT", "-p", listenAddr.connType, "--destination",
 				address, "--dport", port, "-j", "DNAT",
 				"--to-destination", fmt.Sprintf("[%s]:%s", IPv6Addr, cPort))
@@ -8194,8 +8195,8 @@ func (c *containerLXC) removeProxyDevice(devName string) error {
 	}
 
 	// Remove possible iptables entries
-	containerIptablesClear("ipv4", fmt.Sprintf("%s (%s)", c.Name(), devName), "nat")
-	containerIptablesClear("ipv6", fmt.Sprintf("%s (%s)", c.Name(), devName), "nat")
+	iptables.ContainerClear("ipv4", fmt.Sprintf("%s (%s)", c.Name(), devName), "nat")
+	iptables.ContainerClear("ipv6", fmt.Sprintf("%s (%s)", c.Name(), devName), "nat")
 
 	devFileName := fmt.Sprintf("proxy.%s", devName)
 	devPath := filepath.Join(c.DevicesPath(), devFileName)
@@ -8215,8 +8216,8 @@ func (c *containerLXC) removeProxyDevice(devName string) error {
 
 func (c *containerLXC) removeProxyDevices() error {
 	// Remove possible iptables entries
-	containerIptablesClear("ipv4", fmt.Sprintf("%s", c.Name()), "nat")
-	containerIptablesClear("ipv6", fmt.Sprintf("%s", c.Name()), "nat")
+	iptables.ContainerClear("ipv4", fmt.Sprintf("%s", c.Name()), "nat")
+	iptables.ContainerClear("ipv6", fmt.Sprintf("%s", c.Name()), "nat")
 
 	// Check that we actually have devices to remove
 	if !shared.PathExists(c.DevicesPath()) {
@@ -8815,7 +8816,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 	}
 
 	for _, rule := range rules {
-		err = containerIptablesPrepend(rule[0], fmt.Sprintf("%s - %s_filtering", c.Name(), rule[0]), "filter", rule[1], rule[2:]...)
+		err = iptables.ContainerPrepend(rule[0], fmt.Sprintf("%s - %s_filtering", c.Name(), rule[0]), "filter", rule[1], rule[2:]...)
 		if err != nil {
 			return err
 		}
@@ -8960,7 +8961,7 @@ func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
 	}
 
 	// Remove any IPv6 filters used for this container.
-	err := containerIptablesClear("ipv6", fmt.Sprintf("%s - ipv6_filtering", c.Name()), "filter")
+	err := iptables.ContainerClear("ipv6", fmt.Sprintf("%s - ipv6_filtering", c.Name()), "filter")
 	if err != nil {
 		logger.Error("Failed to clear ip6tables ipv6_filter rules", log.Ctx{"container": c.Name(), "device": deviceName, "err": err})
 	}
