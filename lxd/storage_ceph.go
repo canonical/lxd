@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -794,7 +795,7 @@ func (s *storageCeph) ContainerStorageReady(container container) bool {
 	name := container.Name()
 	logger.Debugf(`Checking if RBD storage volume for container "%s" on storage pool "%s" is ready`, name, s.pool.Name)
 
-	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, projectPrefix(container.Project(), name),
+	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, project.Prefix(container.Project(), name),
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if !ok {
 		logger.Debugf(`RBD storage volume for container "%s" on storage pool "%s" does not exist`, name, s.pool.Name)
@@ -880,7 +881,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}
 
-	volumeName := projectPrefix(container.Project(), containerName)
+	volumeName := project.Prefix(container.Project(), containerName)
 	err := cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, fingerprint,
 		storagePoolVolumeTypeNameImage, "readonly", s.OSDPoolName,
 		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
@@ -995,7 +996,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		}
 	}
 
-	volumeName := projectPrefix(container.Project(), containerName)
+	volumeName := project.Prefix(container.Project(), containerName)
 	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
 		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
 
@@ -1199,7 +1200,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 
 		// create empty dummy volume
 		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
-			projectPrefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer,
+			project.Prefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer,
 			"0", s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, targetContainerName, s.pool.Name, err)
@@ -1214,7 +1215,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			}
 
 			err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
-				projectPrefix(target.Project(), targetContainerName),
+				project.Prefix(target.Project(), targetContainerName),
 				storagePoolVolumeTypeNameContainer, s.UserName)
 			if err != nil {
 				logger.Warnf(`Failed to delete RBD storage volume "%s" on storage pool "%s": %s`, targetContainerName, s.pool.Name, err)
@@ -1225,7 +1226,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		targetVolumeName := fmt.Sprintf(
 			"%s/container_%s",
 			s.OSDPoolName,
-			projectPrefix(target.Project(), targetContainerName))
+			project.Prefix(target.Project(), targetContainerName))
 
 		lastSnap := ""
 		for i, snap := range snapshots {
@@ -1240,7 +1241,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			sourceVolumeName := fmt.Sprintf(
 				"%s/container_%s@snapshot_%s",
 				s.OSDPoolName,
-				projectPrefix(source.Project(), sourceContainerName),
+				project.Prefix(source.Project(), sourceContainerName),
 				snapOnlyName)
 
 			err = s.copyWithSnapshots(
@@ -1261,7 +1262,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 				}
 
 				err := cephRBDSnapshotDelete(s.ClusterName,
-					s.OSDPoolName, projectPrefix(target.Project(), targetContainerName),
+					s.OSDPoolName, project.Prefix(target.Project(), targetContainerName),
 					storagePoolVolumeTypeNameContainer,
 					snapOnlyName, s.UserName)
 				if err != nil {
@@ -1280,11 +1281,11 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 				"storage-pools",
 				s.pool.Name,
 				"containers-snapshots",
-				projectPrefix(target.Project(), targetContainerName))
+				project.Prefix(target.Project(), targetContainerName))
 
 			snapshotMntPointSymlink := shared.VarPath(
 				"snapshots",
-				projectPrefix(target.Project(), targetContainerName))
+				project.Prefix(target.Project(), targetContainerName))
 
 			err := createSnapshotMountpoint(
 				containersPath,
@@ -1315,7 +1316,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		sourceVolumeName := fmt.Sprintf(
 			"%s/container_%s",
 			s.OSDPoolName,
-			projectPrefix(source.Project(), sourceContainerName))
+			project.Prefix(source.Project(), sourceContainerName))
 		err = s.copyWithSnapshots(
 			sourceVolumeName,
 			targetVolumeName,
@@ -1327,7 +1328,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		logger.Debugf(`Copied RBD container storage %s to %s`, sourceVolumeName, targetVolumeName)
 
 		// Re-generate the UUID
-		err := s.cephRBDGenerateUUID(projectPrefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer)
+		err := s.cephRBDGenerateUUID(project.Prefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer)
 		if err != nil {
 			return err
 		}
@@ -1385,7 +1386,7 @@ func (s *storageCeph) ContainerUmount(c container, path string) (bool, error) {
 		containerMntPoint = getSnapshotMountPoint(c.Project(), s.pool.Name, name)
 	}
 
-	containerUmountLockID := getContainerUmountLockID(s.pool.Name, projectPrefix(c.Project(), name))
+	containerUmountLockID := getContainerUmountLockID(s.pool.Name, project.Prefix(c.Project(), name))
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
@@ -1506,7 +1507,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	oldContainerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, oldName)
 	oldContainerMntPointSymlink := containerPath
 	newContainerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, newName)
-	newContainerMntPointSymlink := shared.VarPath("containers", projectPrefix(c.Project(), newName))
+	newContainerMntPointSymlink := shared.VarPath("containers", project.Prefix(c.Project(), newName))
 	err = renameContainerMountpoint(
 		oldContainerMntPoint,
 		oldContainerMntPointSymlink,
@@ -1545,7 +1546,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	}()
 
 	// Remove old symlink.
-	oldSnapshotPath := shared.VarPath("snapshots", projectPrefix(c.Project(), oldName))
+	oldSnapshotPath := shared.VarPath("snapshots", project.Prefix(c.Project(), oldName))
 	if shared.PathExists(oldSnapshotPath) {
 		err := os.Remove(oldSnapshotPath)
 		if err != nil {
@@ -1562,7 +1563,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	}()
 
 	// Create new symlink.
-	newSnapshotPath := shared.VarPath("snapshots", projectPrefix(c.Project(), newName))
+	newSnapshotPath := shared.VarPath("snapshots", project.Prefix(c.Project(), newName))
 	if shared.PathExists(newSnapshotPath) {
 		err := os.Symlink(newSnapshotMntPoint, newSnapshotPath)
 		if err != nil {
@@ -1610,7 +1611,7 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 	}
 
 	// Re-generate the UUID
-	err = s.cephRBDGenerateUUID(projectPrefix(target.Project(), target.Name()), storagePoolVolumeTypeNameContainer)
+	err = s.cephRBDGenerateUUID(project.Prefix(target.Project(), target.Name()), storagePoolVolumeTypeNameContainer)
 	if err != nil {
 		return err
 	}
@@ -1651,12 +1652,12 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error
 	snapshotName := fmt.Sprintf("snapshot_%s", sourceContainerSnapOnlyName)
 
 	rbdVolumeExists := cephRBDSnapshotExists(s.ClusterName, s.OSDPoolName,
-		projectPrefix(snapshotContainer.Project(), sourceContainerName), storagePoolVolumeTypeNameContainer,
+		project.Prefix(snapshotContainer.Project(), sourceContainerName), storagePoolVolumeTypeNameContainer,
 		snapshotName, s.UserName)
 
 	if rbdVolumeExists {
 		ret := cephContainerSnapshotDelete(s.ClusterName, s.OSDPoolName,
-			projectPrefix(snapshotContainer.Project(), sourceContainerName),
+			project.Prefix(snapshotContainer.Project(), sourceContainerName),
 			storagePoolVolumeTypeNameContainer, snapshotName, s.UserName)
 		if ret < 0 {
 			msg := fmt.Sprintf(`Failed to delete RBD storage volume for `+
@@ -1693,7 +1694,7 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error
 
 		// remove the snapshot symlink if possible
 		snapshotSymlink := shared.VarPath("snapshots",
-			projectPrefix(snapshotContainer.Project(), sourceContainerName))
+			project.Prefix(snapshotContainer.Project(), sourceContainerName))
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {
@@ -1715,7 +1716,7 @@ func (s *storageCeph) ContainerSnapshotRename(c container, newName string) error
 	revert := true
 
 	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(oldName)
-	containerOnlyName = projectPrefix(c.Project(), containerOnlyName)
+	containerOnlyName = project.Prefix(c.Project(), containerOnlyName)
 	oldSnapOnlyName := fmt.Sprintf("snapshot_%s", snapOnlyName)
 	_, newSnapOnlyName, _ := containerGetParentAndSnapshotName(newName)
 	newSnapOnlyName = fmt.Sprintf("snapshot_%s", newSnapOnlyName)
@@ -1763,7 +1764,7 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	revert := true
 
 	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
-	containerOnlyName = projectPrefix(c.Project(), containerOnlyName)
+	containerOnlyName = project.Prefix(c.Project(), containerOnlyName)
 
 	// protect
 	prefixedSnapOnlyName := fmt.Sprintf("snapshot_%s", snapOnlyName)
@@ -1893,7 +1894,7 @@ func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
 	logger.Debugf("Unmounted %s", containerMntPoint)
 
 	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
-	containerOnlyName = projectPrefix(c.Project(), containerOnlyName)
+	containerOnlyName = project.Prefix(c.Project(), containerOnlyName)
 	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
 
 	// Unmap the RBD volume

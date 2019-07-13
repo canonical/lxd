@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/types"
@@ -974,7 +975,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Load the go-lxc struct
-	cname := projectPrefix(c.Project(), c.Name())
+	cname := project.Prefix(c.Project(), c.Name())
 	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
@@ -3171,7 +3172,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 	}
 
-	name := projectPrefix(c.Project(), c.name)
+	name := project.Prefix(c.Project(), c.name)
 
 	// Start the LXC container
 	_, err = shared.RunCommand(
@@ -6895,7 +6896,7 @@ func (c *containerLXC) Console(terminal *os.File) *exec.Cmd {
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkconsole",
-		projectPrefix(c.Project(), c.Name()),
+		project.Prefix(c.Project(), c.Name()),
 		c.state.OS.LxcPath,
 		filepath.Join(c.LogPath(), "lxc.conf"),
 		"tty=0",
@@ -6935,7 +6936,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	}
 
 	// Prepare the subcommand
-	cname := projectPrefix(c.Project(), c.Name())
+	cname := project.Prefix(c.Project(), c.Name())
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkexec",
@@ -7339,7 +7340,7 @@ func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, 
 }
 
 func (c *containerLXC) insertMountLXC(source, target, fstype string, flags int) error {
-	cname := projectPrefix(c.Project(), c.Name())
+	cname := project.Prefix(c.Project(), c.Name())
 	configPath := filepath.Join(c.LogPath(), "lxc.conf")
 	if fstype == "" {
 		fstype = "none"
@@ -7375,7 +7376,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	if c.state.OS.LXCFeatures["mount_injection_file"] {
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
-		cname := projectPrefix(c.Project(), c.Name())
+		cname := project.Prefix(c.Project(), c.Name())
 
 		if !strings.HasPrefix(mount, "/") {
 			mount = "/" + mount
@@ -8556,7 +8557,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cname := projectPrefix(c.Project(), c.Name())
+		cname := project.Prefix(c.Project(), c.Name())
 		cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err == nil {
 			defer cc.Release()
@@ -9150,7 +9151,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cname := projectPrefix(c.Project(), c.Name())
+	cname := project.Prefix(c.Project(), c.Name())
 	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
@@ -9976,22 +9977,22 @@ func (c *containerLXC) State() string {
 
 // Various container paths
 func (c *containerLXC) Path() string {
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return containerPath(name, c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return shared.VarPath("devices", name)
 }
 
 func (c *containerLXC) ShmountsPath() string {
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return shared.VarPath("shmounts", name)
 }
 
 func (c *containerLXC) LogPath() string {
-	name := projectPrefix(c.Project(), c.Name())
+	name := project.Prefix(c.Project(), c.Name())
 	return shared.LogPath(name)
 }
 
