@@ -163,3 +163,58 @@ func NetworkCreateVlanDeviceIfNeeded(parent string, hostName string, vlan string
 
 	return false, nil
 }
+
+// networkSnapshotPhysicalNic records properties of the NIC to volatile so they can be restored later.
+func networkSnapshotPhysicalNic(hostName string, volatile map[string]string) error {
+	// Store current MTU for restoration on detach.
+	mtu, err := NetworkGetDevMTU(hostName)
+	if err != nil {
+		return err
+	}
+	volatile["last_state.mtu"] = fmt.Sprintf("%d", mtu)
+
+	// Store current MAC for restoration on detach
+	mac, err := NetworkGetDevMAC(hostName)
+	if err != nil {
+		return err
+	}
+	volatile["last_state.hwaddr"] = mac
+	return nil
+}
+
+// networkRestorePhysicalNic restores NIC properties from volatile to what they were before it was attached.
+func networkRestorePhysicalNic(hostName string, volatile map[string]string) error {
+	// If we created the "physical" device and then it should be removed.
+	if shared.IsTrue(volatile["last_state.created"]) {
+		return NetworkRemoveInterface(hostName)
+	}
+
+	// Bring the interface down, as this is sometimes needed to change settings on the nic.
+	_, err := shared.RunCommand("ip", "link", "set", "dev", hostName, "down")
+	if err != nil {
+		return fmt.Errorf("Failed to bring down \"%s\": %v", hostName, err)
+	}
+
+	// If MTU value is specified then there is an original MTU that needs restoring.
+	if volatile["last_state.mtu"] != "" {
+		mtuInt, err := strconv.ParseUint(volatile["last_state.mtu"], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %v", hostName, volatile["last_state.mtu"], err)
+		}
+
+		err = NetworkSetDevMTU(hostName, mtuInt)
+		if err != nil {
+			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %v", hostName, mtuInt, err)
+		}
+	}
+
+	// If MAC value is specified then there is an original MAC that needs restoring.
+	if volatile["last_state.hwaddr"] != "" {
+		err := NetworkSetDevMAC(hostName, volatile["last_state.hwaddr"])
+		if err != nil {
+			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %v", hostName, volatile["last_state.hwaddr"], err)
+		}
+	}
+
+	return nil
+}
