@@ -65,3 +65,31 @@ func NetworkSetDevMTU(devName string, mtu uint64) error {
 
 	return nil
 }
+
+// NetworkGetDevMAC retrieves the current MAC setting for a named network device.
+func NetworkGetDevMAC(devName string) (string, error) {
+	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
+}
+
+// NetworkSetDevMAC sets the MAC setting for a named network device if different from current.
+func NetworkSetDevMAC(devName string, mac string) error {
+	curMac, err := NetworkGetDevMAC(devName)
+	if err != nil {
+		return err
+	}
+
+	// Only try and change the MAC if the requested mac is different to current one.
+	if curMac != mac {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "address", mac)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

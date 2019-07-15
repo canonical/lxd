@@ -2658,7 +2658,7 @@ func (c *containerLXC) snapshotPhysicalNic(deviceName string, hostName string, v
 	volatile[mtuKey] = fmt.Sprintf("%d", mtu)
 
 	// Store current MAC for restoration on detach
-	mac, err := networkGetDevMAC(hostName)
+	mac, err := device.NetworkGetDevMAC(hostName)
 	if err != nil {
 		return err
 	}
@@ -2787,7 +2787,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 
 	// If MAC value is specified then there is an original MAC that needs restoring.
 	if c.localConfig[macKey] != "" {
-		err := networkSetDevMAC(hostName, c.localConfig[macKey])
+		err := device.NetworkSetDevMAC(hostName, c.localConfig[macKey])
 		if err != nil {
 			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %v", hostName, c.localConfig[macKey], err)
 		}

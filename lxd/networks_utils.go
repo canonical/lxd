@@ -1482,34 +1482,6 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 	return network
 }
 
-// networkGetDevMAC retrieves the current MAC setting for a named network device.
-func networkGetDevMAC(devName string) (string, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
-}
-
-// networkSetDevMAC sets the MAC setting for a named network device if different from current.
-func networkSetDevMAC(devName string, mac string) error {
-	curMac, err := networkGetDevMAC(devName)
-	if err != nil {
-		return err
-	}
-
-	// Only try and change the MAC if the requested mac is different to current one.
-	if curMac != mac {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "address", mac)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // networkListBootRoutesV4 returns a list of IPv4 boot routes on a named network device.
 func networkListBootRoutesV4(devName string) ([]string, error) {
 	routes := []string{}
