@@ -2,6 +2,8 @@ package device
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -217,4 +219,19 @@ func networkRestorePhysicalNic(hostName string, volatile map[string]string) erro
 	}
 
 	return nil
+}
+
+// NetworkRandomDevName returns a random device name with prefix.
+// If the random string combined with the prefix exceeds 13 characters then empty string is returned.
+// This is to ensure we support buggy dhclient applications: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=858580
+func NetworkRandomDevName(prefix string) string {
+	// Return a new random veth device name
+	randBytes := make([]byte, 4)
+	rand.Read(randBytes)
+	iface := prefix + hex.EncodeToString(randBytes)
+	if len(iface) > 13 {
+		return ""
+	}
+
+	return iface
 }
