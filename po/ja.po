@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-07-09 17:29-0400\n"
+"POT-Creation-Date: 2019-07-15 17:37-0400\n"
 "PO-Revision-Date: 2019-05-18 08:49+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -212,6 +212,11 @@ msgstr ""
 msgid "--container-only can't be passed when the source is a snapshot"
 msgstr "--container-only はコピー元がスナップショットの場合は指定できません"
 
+#: lxc/init.go:93
+#, fuzzy
+msgid "--empty cannot be combined with an image name"
+msgstr "--refresh はコンテナの場合のみ使えます"
+
 #: lxc/copy.go:164
 msgid "--refresh can only be used with containers"
 msgstr "--refresh はコンテナの場合のみ使えます"
@@ -376,7 +381,7 @@ msgstr "バックアップのエクスポートが成功しました!"
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:123 lxc/init.go:124 lxc/project.go:121 lxc/publish.go:176
+#: lxc/copy.go:123 lxc/init.go:149 lxc/project.go:121 lxc/publish.go:176
 #: lxc/storage.go:123 lxc/storage_volume.go:505
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -533,7 +538,7 @@ msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
 #: lxc/config.go:96 lxc/config.go:376 lxc/config.go:466 lxc/config.go:570
-#: lxc/config.go:688 lxc/copy.go:52 lxc/info.go:44 lxc/init.go:48
+#: lxc/config.go:688 lxc/copy.go:52 lxc/info.go:44 lxc/init.go:47
 #: lxc/move.go:58 lxc/network.go:259 lxc/network.go:674 lxc/network.go:732
 #: lxc/network.go:1057 lxc/network.go:1126 lxc/network.go:1188
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:591
@@ -570,7 +575,7 @@ msgstr ""
 "LXD の機能のすべてが、以下の色々なコマンドから操作できます。\n"
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
-#: lxc/copy.go:44 lxc/init.go:42
+#: lxc/copy.go:44 lxc/init.go:41
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
@@ -597,7 +602,7 @@ msgstr "コンソールログ:"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:415 lxc/init.go:239
+#: lxc/copy.go:415 lxc/init.go:278
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -692,6 +697,11 @@ msgstr "サーバ証明書格納用のディレクトリを作成できません
 msgid "Create aliases for existing images"
 msgstr "既存のイメージに対するエイリアスを作成します"
 
+#: lxc/init.go:49
+#, fuzzy
+msgid "Create an empty container"
+msgstr "コンテナを作成中"
+
 #: lxc/launch.go:22 lxc/launch.go:23
 msgid "Create and start containers from images"
 msgstr "イメージからコンテナを作成し、起動します"
@@ -716,7 +726,7 @@ msgstr ""
 "--stateful を指定すると、LXD はコンテナの実行状態（プロセスのメモリ状態、TCP"
 "コネクション、など…を含む）を保存しようとします。"
 
-#: lxc/init.go:34 lxc/init.go:35
+#: lxc/init.go:35 lxc/init.go:36
 msgid "Create containers from images"
 msgstr "イメージからコンテナを作成します"
 
@@ -744,7 +754,7 @@ msgstr "プロジェクトを作成します"
 msgid "Create storage pools"
 msgstr "ストレージプールを作成します"
 
-#: lxc/copy.go:54 lxc/init.go:49
+#: lxc/copy.go:54 lxc/init.go:48
 msgid "Create the container with no profiles applied"
 msgstr "プロファイルを適用しないコンテナを作成します"
 
@@ -753,12 +763,12 @@ msgstr "プロファイルを適用しないコンテナを作成します"
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/init.go:103
+#: lxc/init.go:128
 #, c-format
 msgid "Creating %s"
 msgstr "%s を作成中"
 
-#: lxc/init.go:101
+#: lxc/init.go:126
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
@@ -852,7 +862,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image.go:315 lxc/image.go:438 lxc/image.go:578 lxc/image.go:792
 #: lxc/image.go:906 lxc/image.go:1236 lxc/image.go:1313 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
-#: lxc/image_alias.go:250 lxc/import.go:28 lxc/info.go:32 lxc/init.go:35
+#: lxc/image_alias.go:250 lxc/import.go:28 lxc/info.go:32 lxc/init.go:36
 #: lxc/launch.go:23 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
 #: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
@@ -924,6 +934,13 @@ msgstr "デバイスは既に存在します: %s"
 #, fuzzy, c-format
 msgid "Device: %s"
 msgstr "リモート名: %s"
+
+#: lxc/init.go:272
+#, fuzzy
+msgid "Didn't get any affected image, container or snapshot from server"
+msgstr ""
+"サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんで\n"
+"した"
 
 #: lxc/image.go:593
 msgid "Directory import is not available on this platform"
@@ -1057,7 +1074,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
-#: lxc/copy.go:47 lxc/init.go:44
+#: lxc/copy.go:47 lxc/init.go:43
 msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
@@ -1425,7 +1442,7 @@ msgstr "コンテナのインポート中: %s"
 msgid "Input data"
 msgstr "入力するデータ"
 
-#: lxc/init.go:47
+#: lxc/init.go:46
 msgid "Instance type"
 msgstr "インスタンスタイプ"
 
@@ -2169,7 +2186,7 @@ msgstr "ネットワーク %s はメンバ %s 上でペンディング状態で�
 msgid "Network %s renamed to %s"
 msgstr "ネットワーク名 %s を %s に変更しました"
 
-#: lxc/init.go:45
+#: lxc/init.go:44
 msgid "Network name"
 msgstr "ネットワーク名:"
 
@@ -2388,7 +2405,7 @@ msgstr "プロファイル %s が %s から削除されました"
 msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
 
-#: lxc/copy.go:46 lxc/init.go:43
+#: lxc/copy.go:46 lxc/init.go:42
 msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
@@ -2644,7 +2661,7 @@ msgstr "スナップショットからストレージボリュームをリスト
 msgid "Retrieve the container's console log"
 msgstr "コンテナのコンソールログを取得します"
 
-#: lxc/init.go:208
+#: lxc/init.go:235
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -2941,7 +2958,7 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool %s pending on member %s"
 msgstr "ストレージプール %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:46 lxc/move.go:57
+#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:45 lxc/move.go:57
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
@@ -3026,7 +3043,7 @@ msgstr ""
 "コンテナは現在実行中です。停止して、再起動するために --force を使用してくださ"
 "い"
 
-#: lxc/init.go:290
+#: lxc/init.go:329
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたコンテナに接続されているネットワークがありません。"
 
@@ -3039,14 +3056,14 @@ msgstr "デバイスはすでに存在します"
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/init.go:274
+#: lxc/init.go:313
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' を試してみてくださ"
 "い。"
 
-#: lxc/init.go:270
+#: lxc/init.go:309
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -3087,12 +3104,12 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:292
+#: lxc/init.go:331
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 "コンテナにネットワークを接続するには、lxc network attach を使用してください"
 
-#: lxc/init.go:291
+#: lxc/init.go:330
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
@@ -3506,12 +3523,6 @@ msgstr ""
 msgid "device"
 msgstr ""
 
-#: lxc/init.go:233
-msgid "didn't get any affected image, container or snapshot from server"
-msgstr ""
-"サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんで\n"
-"した"
-
 #: lxc/image.go:835
 msgid "disabled"
 msgstr "無効"
@@ -3665,9 +3676,10 @@ msgstr ""
 msgid "info [<remote>:][<container>]"
 msgstr ""
 
-#: lxc/init.go:33
-msgid "init [<remote>:]<image> [<remote>:][<name>]"
-msgstr ""
+#: lxc/init.go:34
+#, fuzzy
+msgid "init [[<remote>:]<image>] [<remote>:][<name>]"
+msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
 
 #: lxc/launch.go:21
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
