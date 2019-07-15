@@ -1715,7 +1715,7 @@ func (c *containerLXC) initLXC(config bool) error {
 					return err
 				}
 			} else if shared.StringInSlice(m["nictype"], []string{"macvlan", "ipvlan", "physical"}) {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), networkGetHostDevice(m["parent"], m["vlan"]))
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), device.NetworkGetHostDevice(m["parent"], m["vlan"]))
 				if err != nil {
 					return err
 				}
@@ -2697,7 +2697,7 @@ func (c *containerLXC) setupPhysicalParent(deviceName string, m types.Device) (s
 		return "", errors.New("No parent property on device")
 	}
 
-	hostName := networkGetHostDevice(m["parent"], m["vlan"])
+	hostName := device.NetworkGetHostDevice(m["parent"], m["vlan"])
 	createdDev, err := c.createVlanDeviceIfNeeded(m, hostName)
 	if err != nil {
 		return hostName, err
@@ -2813,7 +2813,7 @@ func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device) 
 	}()
 
 	// Nothing to do if we don't know the original device name.
-	hostName := networkGetHostDevice(m["parent"], m["vlan"])
+	hostName := device.NetworkGetHostDevice(m["parent"], m["vlan"])
 	if hostName == "" {
 		return
 	}
@@ -9144,7 +9144,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Get a temporary device name
 	var hostName string
 	if m["nictype"] == "physical" {
-		hostName = networkGetHostDevice(m["parent"], m["vlan"])
+		hostName = device.NetworkGetHostDevice(m["parent"], m["vlan"])
 	} else if m["nictype"] == "sriov" {
 		// hostName for sriov devices can change on each boot, so get out of volatile.
 		hostName = c.getVolatileHostName(name)
