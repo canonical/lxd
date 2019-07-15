@@ -31,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/maas"
@@ -1932,7 +1933,7 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 	if m["ipv4.address"] != "" {
 		//Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
 		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", m["parent"])
-		sysctlVal, err := networkSysctlGet(ipv4FwdPath)
+		sysctlVal, err := device.NetworkSysctlGet(ipv4FwdPath)
 		if err != nil {
 			return errors.Wrapf(err, "Error reading net sysctl %s", ipv4FwdPath)
 		}
@@ -1957,7 +1958,7 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 	if m["ipv6.address"] != "" {
 		//Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
 		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", m["parent"])
-		sysctlVal, err := networkSysctlGet(ipv6FwdPath)
+		sysctlVal, err := device.NetworkSysctlGet(ipv6FwdPath)
 		if err != nil {
 			return errors.Wrapf(err, "Error reading net sysctl %s", ipv6FwdPath)
 		}
@@ -1966,7 +1967,7 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("ipv6/conf/%s/proxy_ndp", m["parent"])
-		sysctlVal, err = networkSysctlGet(ipv6ProxyNdpPath)
+		sysctlVal, err = device.NetworkSysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
 			return errors.Wrapf(err, "Error reading net sysctl %s", ipv6ProxyNdpPath)
 		}
@@ -2144,7 +2145,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 			if shared.IsTrue(m["security.ipv6_filtering"]) {
 				// Check br_netfilter is loaded and enabled for IPv6.
-				sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+				sysctlVal, err := device.NetworkSysctlGet("bridge/bridge-nf-call-ip6tables")
 				if err != nil || sysctlVal != "1\n" {
 					return "", errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
 				}
@@ -8788,7 +8789,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 
 	if shared.IsTrue(m["security.ipv6_filtering"]) {
 		// Check br_netfilter is loaded and enabled for IPv6.
-		sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+		sysctlVal, err := device.NetworkSysctlGet("bridge/bridge-nf-call-ip6tables")
 		if err != nil || sysctlVal != "1\n" {
 			return errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
 		}
