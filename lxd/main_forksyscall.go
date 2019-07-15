@@ -12,6 +12,7 @@ import (
 #endif
 #include <fcntl.h>
 #include <libgen.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,7 +118,7 @@ static bool chdirchroot(pid_t pid)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF;
+	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF, mnt_fd = -EBADF;
 	int ret;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
 	char path[PATH_MAX];
@@ -161,12 +162,18 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	if (dosetns(pid, "mnt")) {
+	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
+	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (mnt_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
 	if (chdirchroot(pid)) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+	if (setns(mnt_fd, CLONE_NEWNS)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
