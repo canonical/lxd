@@ -137,3 +137,9 @@ func NetworkGetHostDevice(parent string, vlan string) string {
 	// Return the default pattern
 	return defaultVlan
 }
+
+// NetworkRemoveInterface removes a network interface by name.
+func NetworkRemoveInterface(nic string) error {
+	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
+	return err
+}

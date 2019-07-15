@@ -2763,7 +2763,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 
 	// If we created the "physical" device and then it should be removed.
 	if shared.IsTrue(c.localConfig[createdKey]) {
-		return deviceRemoveInterface(hostName)
+		return device.NetworkRemoveInterface(hostName)
 	}
 
 	// Bring the interface down, as this is sometimes needed to change settings on the nic.
@@ -8313,7 +8313,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		if m["nictype"] == "bridged" {
 			err = networkAttachInterface(m["parent"], n1)
 			if err != nil {
-				deviceRemoveInterface(n2)
+				device.NetworkRemoveInterface(n2)
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
 			}
 
@@ -8356,7 +8356,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if m["hwaddr"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "address", m["hwaddr"])
 		if err != nil {
-			deviceRemoveInterface(dev)
+			device.NetworkRemoveInterface(dev)
 			return "", fmt.Errorf("Failed to set the MAC address: %s", err)
 		}
 	}
@@ -8365,7 +8365,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if m["mtu"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "mtu", m["mtu"])
 		if err != nil {
-			deviceRemoveInterface(dev)
+			device.NetworkRemoveInterface(dev)
 			return "", fmt.Errorf("Failed to set the MTU: %s", err)
 		}
 	}
@@ -8373,7 +8373,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	// Bring the interface up
 	_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "up")
 	if err != nil {
-		deviceRemoveInterface(dev)
+		device.NetworkRemoveInterface(dev)
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
 	}
 
@@ -9177,7 +9177,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Remove host side veth settings and remove veth interface
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		c.cleanupHostVethDevice(name, m)
-		deviceRemoveInterface(hostName)
+		device.NetworkRemoveInterface(hostName)
 	}
 
 	// If physical dev, restore MTU using value recorded on parent after removal from container.

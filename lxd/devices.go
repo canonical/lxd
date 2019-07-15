@@ -1181,11 +1181,6 @@ func deviceNextVeth() string {
 	return "veth" + hex.EncodeToString(randBytes)
 }
 
-func deviceRemoveInterface(nic string) error {
-	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
-	return err
-}
-
 func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool, propagation string) error {
 	var err error
 
