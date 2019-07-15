@@ -27,6 +27,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -49,26 +50,7 @@ func networkAutoAttach(cluster *db.Cluster, devName string) error {
 		return nil
 	}
 
-	return networkAttachInterface(dbInfo.Name, devName)
-}
-
-func networkAttachInterface(netName string, devName string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", netName)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
-		if err != nil {
-			_, err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return device.NetworkAttachInterface(dbInfo.Name, devName)
 }
 
 func networkDetachInterface(netName string, devName string) error {
@@ -130,52 +112,12 @@ func networkIsInUse(c container, name string) bool {
 			continue
 		}
 
-		if networkGetHostDevice(d["parent"], d["vlan"]) == name {
+		if device.NetworkGetHostDevice(d["parent"], d["vlan"]) == name {
 			return true
 		}
 	}
 
 	return false
-}
-
-func networkGetHostDevice(parent string, vlan string) string {
-	// If no VLAN, just use the raw device
-	if vlan == "" {
-		return parent
-	}
-
-	// If no VLANs are configured, use the default pattern
-	defaultVlan := fmt.Sprintf("%s.%s", parent, vlan)
-	if !shared.PathExists("/proc/net/vlan/config") {
-		return defaultVlan
-	}
-
-	// Look for an existing VLAN
-	f, err := os.Open("/proc/net/vlan/config")
-	if err != nil {
-		return defaultVlan
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		// Only grab the lines we're interested in
-		s := strings.Split(scanner.Text(), "|")
-		if len(s) != 3 {
-			continue
-		}
-
-		vlanIface := strings.TrimSpace(s[0])
-		vlanId := strings.TrimSpace(s[1])
-		vlanParent := strings.TrimSpace(s[2])
-
-		if vlanParent == parent && vlanId == vlan {
-			return vlanIface
-		}
-	}
-
-	// Return the default pattern
-	return defaultVlan
 }
 
 func networkGetIP(subnet *net.IPNet, host int64) net.IP {
@@ -1273,27 +1215,6 @@ func networksGetForkdnsServersList(networkName string) ([]string, error) {
 	return servers, nil
 }
 
-func networkSysctlGet(path string) (string, error) {
-	// Read the current content
-	content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/%s", path))
-	if err != nil {
-		return "", err
-	}
-
-	return string(content), nil
-}
-
-func networkSysctlSet(path string, value string) error {
-	// Get current value
-	current, err := networkSysctlGet(path)
-	if err == nil && current == value {
-		// Nothing to update
-		return nil
-	}
-
-	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
-}
-
 func networkGetMacSlice(hwaddr string) []string {
 	var buf []string
 
@@ -1501,68 +1422,6 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 	// Get counters
 	network.Counters = shared.NetworkGetCounters(netIf.Name)
 	return network
-}
-
-// networkGetDevMTU retrieves the current MTU setting for a named network device.
-func networkGetDevMTU(devName string) (uint64, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
-	if err != nil {
-		return 0, err
-	}
-
-	// Parse value
-	mtu, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
-	if err != nil {
-		return 0, err
-	}
-
-	return mtu, nil
-}
-
-// networkSetDevMTU sets the MTU setting for a named network device if different from current.
-func networkSetDevMTU(devName string, mtu uint64) error {
-	curMTU, err := networkGetDevMTU(devName)
-	if err != nil {
-		return err
-	}
-
-	// Only try and change the MTU if the requested mac is different to current one.
-	if curMTU != mtu {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "mtu", fmt.Sprintf("%d", mtu))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// networkGetDevMAC retrieves the current MAC setting for a named network device.
-func networkGetDevMAC(devName string) (string, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/address", devName))
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
-}
-
-// networkSetDevMAC sets the MAC setting for a named network device if different from current.
-func networkSetDevMAC(devName string, mac string) error {
-	curMac, err := networkGetDevMAC(devName)
-	if err != nil {
-		return err
-	}
-
-	// Only try and change the MAC if the requested mac is different to current one.
-	if curMac != mac {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "address", mac)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // networkListBootRoutesV4 returns a list of IPv4 boot routes on a named network device.
