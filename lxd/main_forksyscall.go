@@ -102,7 +102,7 @@ static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int target_fd = -EBADF, host_target_fd;
+	__do_close_prot_errno int target_fd = -EBADF, host_target_fd = -EBADF;
 	int ret;
 	char *cur = NULL, *target = NULL, *target_host = NULL;
 	char cwd[256];
