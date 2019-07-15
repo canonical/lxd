@@ -26,16 +26,15 @@ type cmdInit struct {
 	flagTarget     string
 	flagType       string
 	flagNoProfiles bool
+	flagEmpty      bool
 }
 
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("init [<remote>:]<image> [<remote>:][<name>]")
+	cmd.Use = i18n.G("init [[<remote>:]<image>] [<remote>:][<name>]")
 	cmd.Short = i18n.G("Create containers from images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create containers from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc init ubuntu:16.04 u1`))
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create containers from images`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:16.04 u1`))
 	cmd.Hidden = true
 
 	cmd.RunE = c.Run
@@ -47,13 +46,14 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", i18n.G("Instance type")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
+	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty container"))
 
 	return cmd
 }
 
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	exit, err := c.global.CheckArgs(cmd, args, 0, 2)
 	if exit {
 		return err
 	}
@@ -63,22 +63,47 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServer, string, error) {
-	iremote, image, err := conf.ParseRemote(args[0])
-	if err != nil {
-		return nil, "", err
-	}
-
 	var name string
+	var image string
 	var remote string
-	if len(args) == 2 {
-		remote, name, err = conf.ParseRemote(args[1])
+	var iremote string
+	var err error
+
+	if len(args) > 0 {
+		iremote, image, err = conf.ParseRemote(args[0])
 		if err != nil {
 			return nil, "", err
 		}
-	} else {
-		remote, name, err = conf.ParseRemote("")
-		if err != nil {
-			return nil, "", err
+
+		if len(args) == 1 {
+			remote, name, err = conf.ParseRemote("")
+			if err != nil {
+				return nil, "", err
+			}
+		} else if len(args) == 2 {
+			remote, name, err = conf.ParseRemote(args[1])
+			if err != nil {
+				return nil, "", err
+			}
+		}
+	}
+
+	if c.flagEmpty {
+		if len(args) > 1 {
+			return nil, "", fmt.Errorf(i18n.G("--empty cannot be combined with an image name"))
+		}
+
+		if len(args) == 0 {
+			remote, name, err = conf.ParseRemote("")
+			if err != nil {
+				return nil, "", err
+			}
+		} else if len(args) == 1 {
+			// Switch image / container names
+			name = image
+			remote = iremote
+			image = ""
+			iremote = ""
 		}
 	}
 
@@ -142,26 +167,6 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 		}
 	}
 
-	// Get the image server and image info
-	iremote, image = c.guessImage(conf, d, remote, iremote, image)
-	var imgRemote lxd.ImageServer
-	var imgInfo *api.Image
-
-	// Connect to the image server
-	if iremote == remote {
-		imgRemote = d
-	} else {
-		imgRemote, err = conf.GetImageServer(iremote)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	// Deal with the default image
-	if image == "" {
-		image = "default"
-	}
-
 	// Setup container creation request
 	req := api.ContainersPost{
 		Name:         name,
@@ -176,61 +181,95 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 	}
 	req.Ephemeral = c.flagEphemeral
 
-	// Optimisation for simplestreams
-	if conf.Remotes[iremote].Protocol == "simplestreams" {
-		imgInfo = &api.Image{}
-		imgInfo.Fingerprint = image
-		imgInfo.Public = true
-		req.Source.Alias = image
-	} else {
-		// Attempt to resolve an image alias
-		alias, _, err := imgRemote.GetImageAlias(image)
-		if err == nil {
-			req.Source.Alias = image
-			image = alias.Target
+	var opInfo api.Operation
+	if !c.flagEmpty {
+		// Get the image server and image info
+		iremote, image = c.guessImage(conf, d, remote, iremote, image)
+		var imgRemote lxd.ImageServer
+		var imgInfo *api.Image
+
+		// Connect to the image server
+		if iremote == remote {
+			imgRemote = d
+		} else {
+			imgRemote, err = conf.GetImageServer(iremote)
+			if err != nil {
+				return nil, "", err
+			}
 		}
 
-		// Get the image info
-		imgInfo, _, err = imgRemote.GetImage(image)
+		// Deal with the default image
+		if image == "" {
+			image = "default"
+		}
+
+		// Optimisation for simplestreams
+		if conf.Remotes[iremote].Protocol == "simplestreams" {
+			imgInfo = &api.Image{}
+			imgInfo.Fingerprint = image
+			imgInfo.Public = true
+			req.Source.Alias = image
+		} else {
+			// Attempt to resolve an image alias
+			alias, _, err := imgRemote.GetImageAlias(image)
+			if err == nil {
+				req.Source.Alias = image
+				image = alias.Target
+			}
+
+			// Get the image info
+			imgInfo, _, err = imgRemote.GetImage(image)
+			if err != nil {
+				return nil, "", err
+			}
+		}
+
+		// Create the container
+		op, err := d.CreateContainerFromImage(imgRemote, *imgInfo, req)
 		if err != nil {
 			return nil, "", err
 		}
-	}
 
-	// Create the container
-	op, err := d.CreateContainerFromImage(imgRemote, *imgInfo, req)
-	if err != nil {
-		return nil, "", err
-	}
+		// Watch the background operation
+		progress := utils.ProgressRenderer{
+			Format: i18n.G("Retrieving image: %s"),
+			Quiet:  c.global.flagQuiet,
+		}
 
-	// Watch the background operation
-	progress := utils.ProgressRenderer{
-		Format: i18n.G("Retrieving image: %s"),
-		Quiet:  c.global.flagQuiet,
-	}
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return nil, "", err
+		}
 
-	_, err = op.AddHandler(progress.UpdateOp)
-	if err != nil {
+		err = utils.CancelableWait(op, &progress)
+		if err != nil {
+			progress.Done("")
+			return nil, "", err
+		}
 		progress.Done("")
-		return nil, "", err
-	}
 
-	err = utils.CancelableWait(op, &progress)
-	if err != nil {
-		progress.Done("")
-		return nil, "", err
-	}
-	progress.Done("")
+		// Extract the container name
+		info, err := op.GetTarget()
+		if err != nil {
+			return nil, "", err
+		}
 
-	// Extract the container name
-	opInfo, err := op.GetTarget()
-	if err != nil {
-		return nil, "", err
+		opInfo = *info
+	} else {
+		req.Source.Type = "none"
+
+		op, err := d.CreateContainer(req)
+		if err != nil {
+			return nil, "", err
+		}
+
+		opInfo = op.Get()
 	}
 
 	containers, ok := opInfo.Resources["containers"]
 	if !ok || len(containers) == 0 {
-		return nil, "", fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+		return nil, "", fmt.Errorf(i18n.G("Didn't get any affected image, container or snapshot from server"))
 	}
 
 	if len(containers) == 1 && name == "" {
