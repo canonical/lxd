@@ -98,14 +98,29 @@ static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
 	return 0;
 }
 
+static bool chdirchroot(pid_t pid)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
+	if (chdir(path))
+		return false;
+
+	snprintf(path, sizeof(path), "/proc/%d/root", pid);
+	if (chroot(path))
+		return false;
+
+	return true;
+}
+
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int target_fd = -EBADF, host_target_fd;
+	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF;
 	int ret;
-	char *cur = NULL, *target = NULL, *target_host = NULL;
-	char cwd[256];
+	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
+	char path[PATH_MAX];
 	mode_t mode = 0;
 	dev_t dev = 0;
 	pid_t pid = 0;
@@ -125,9 +140,17 @@ static void forkmknod()
 	gid = atoi(advance_arg(true));
 	chk_perm_only = atoi(advance_arg(true));
 
-	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
-	target_fd = open(cwd, O_PATH | O_RDONLY | O_CLOEXEC);
-	if (target_fd < 0) {
+	if (*target == '/') {
+		// user has specified an absolute path
+		snprintf(path, sizeof(path), "%s", target);
+		target_dir = dirname(path);
+	} else {
+		// user has specified a relative path
+		snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
+		target_dir = path;
+	}
+	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (cwd_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -138,7 +161,15 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	(void)dosetns(pid, "mnt");
+	if (dosetns(pid, "mnt")) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (chdirchroot(pid)) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
 
 	caps = cap_get_pid(pid);
 	if (!caps) {
@@ -174,7 +205,7 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	ret = fstat_fstatfs(target_fd, &s2, &sfs2);
+	ret = fstat_fstatfs(cwd_fd, &s2, &sfs2);
 	if (ret) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
@@ -203,12 +234,11 @@ static void forkmknod()
 
 	// basename() can modify its argument so accessing target_host is
 	// invalid from now on.
-	ret = mknodat(target_fd, target, mode, dev);
+	ret = mknodat(cwd_fd, target, mode, dev);
 	if (ret) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
 	}
-
 }
 
 void forksyscall()
