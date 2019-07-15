@@ -102,10 +102,10 @@ static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int target_fd = -EBADF, host_target_fd = -EBADF;
+	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF;
 	int ret;
 	char *cur = NULL, *target = NULL, *target_host = NULL;
-	char cwd[256];
+	char path[PATH_MAX];
 	mode_t mode = 0;
 	dev_t dev = 0;
 	pid_t pid = 0;
@@ -125,9 +125,9 @@ static void forkmknod()
 	gid = atoi(advance_arg(true));
 	chk_perm_only = atoi(advance_arg(true));
 
-	snprintf(cwd, sizeof(cwd), "/proc/%d/cwd", pid);
-	target_fd = open(cwd, O_PATH | O_RDONLY | O_CLOEXEC);
-	if (target_fd < 0) {
+	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
+	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (cwd_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -174,7 +174,7 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	ret = fstat_fstatfs(target_fd, &s2, &sfs2);
+	ret = fstat_fstatfs(cwd_fd, &s2, &sfs2);
 	if (ret) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
@@ -203,7 +203,7 @@ static void forkmknod()
 
 	// basename() can modify its argument so accessing target_host is
 	// invalid from now on.
-	ret = mknodat(target_fd, target, mode, dev);
+	ret = mknodat(cwd_fd, target, mode, dev);
 	if (ret) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
