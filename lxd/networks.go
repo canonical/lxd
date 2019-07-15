@@ -1611,7 +1611,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the MTU based on overlay device (if available)
-		fanMtuInt, err := networkGetDevMTU(devName)
+		fanMtuInt, err := device.NetworkGetDevMTU(devName)
 		if err == nil {
 			// Apply overhead
 			if n.config["fan.type"] == "ipip" {

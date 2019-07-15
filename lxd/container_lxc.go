@@ -2651,7 +2651,7 @@ func (c *containerLXC) snapshotPhysicalNic(deviceName string, hostName string, v
 	macKey := "volatile." + deviceName + ".last_state.hwaddr"
 
 	// Store current MTU for restoration on detach
-	mtu, err := networkGetDevMTU(hostName)
+	mtu, err := device.NetworkGetDevMTU(hostName)
 	if err != nil {
 		return err
 	}
@@ -2779,7 +2779,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %v", hostName, c.localConfig[mtuKey], err)
 		}
 
-		err = networkSetDevMTU(hostName, mtuInt)
+		err = device.NetworkSetDevMTU(hostName, mtuInt)
 		if err != nil {
 			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %v", hostName, mtuInt, err)
 		}
