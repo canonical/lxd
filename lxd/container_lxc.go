@@ -8936,7 +8936,7 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 		dnsmasq.ConfigMutex.Lock()
 		defer dnsmasq.ConfigMutex.Unlock()
 
-		err = networkUpdateStaticContainer(m["parent"], c.Project(), c.Name(), netConfig, m["hwaddr"], IPv4Str, IPv6Str)
+		err = dnsmasq.UpdateStaticEntry(m["parent"], c.Project(), c.Name(), netConfig, m["hwaddr"], IPv4Str, IPv6Str)
 		if err != nil {
 			return IPv4, IPv6, err
 		}
