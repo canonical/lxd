@@ -31,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/maas"
@@ -1714,7 +1715,7 @@ func (c *containerLXC) initLXC(config bool) error {
 					return err
 				}
 			} else if shared.StringInSlice(m["nictype"], []string{"macvlan", "ipvlan", "physical"}) {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), networkGetHostDevice(m["parent"], m["vlan"]))
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), device.NetworkGetHostDevice(m["parent"], m["vlan"]))
 				if err != nil {
 					return err
 				}
@@ -1932,7 +1933,7 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 	if m["ipv4.address"] != "" {
 		//Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
 		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", m["parent"])
-		sysctlVal, err := networkSysctlGet(ipv4FwdPath)
+		sysctlVal, err := device.NetworkSysctlGet(ipv4FwdPath)
 		if err != nil {
 			return errors.Wrapf(err, "Error reading net sysctl %s", ipv4FwdPath)
 		}
@@ -1957,7 +1958,7 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 	if m["ipv6.address"] != "" {
 		//Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
 		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", m["parent"])
-		sysctlVal, err := networkSysctlGet(ipv6FwdPath)
+		sysctlVal, err := device.NetworkSysctlGet(ipv6FwdPath)
 		if err != nil {
 			return errors.Wrapf(err, "Error reading net sysctl %s", ipv6FwdPath)
 		}
@@ -1966,7 +1967,7 @@ func (c *containerLXC) initLXCIPVLAN(cc *lxc.Container, networkKeyPrefix string,
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("ipv6/conf/%s/proxy_ndp", m["parent"])
-		sysctlVal, err = networkSysctlGet(ipv6ProxyNdpPath)
+		sysctlVal, err = device.NetworkSysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
 			return errors.Wrapf(err, "Error reading net sysctl %s", ipv6ProxyNdpPath)
 		}
@@ -2144,7 +2145,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 			if shared.IsTrue(m["security.ipv6_filtering"]) {
 				// Check br_netfilter is loaded and enabled for IPv6.
-				sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+				sysctlVal, err := device.NetworkSysctlGet("bridge/bridge-nf-call-ip6tables")
 				if err != nil || sysctlVal != "1\n" {
 					return "", errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
 				}
@@ -2650,42 +2651,20 @@ func (c *containerLXC) snapshotPhysicalNic(deviceName string, hostName string, v
 	macKey := "volatile." + deviceName + ".last_state.hwaddr"
 
 	// Store current MTU for restoration on detach
-	mtu, err := networkGetDevMTU(hostName)
+	mtu, err := device.NetworkGetDevMTU(hostName)
 	if err != nil {
 		return err
 	}
 	volatile[mtuKey] = fmt.Sprintf("%d", mtu)
 
 	// Store current MAC for restoration on detach
-	mac, err := networkGetDevMAC(hostName)
+	mac, err := device.NetworkGetDevMAC(hostName)
 	if err != nil {
 		return err
 	}
 	volatile[macKey] = mac
 
 	return nil
-}
-
-// createVlanDeviceIfNeeded detects the device type and whether it has a vlan parent configured.
-// It then attempts to detect if the parent vlan interface exists, and if not creates one.
-// Returns boolean as to whether we created it and any errors.
-func (c *containerLXC) createVlanDeviceIfNeeded(m types.Device, hostName string) (bool, error) {
-	if m["vlan"] != "" {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
-			_, err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", hostName, "up", "type", "vlan", "id", m["vlan"])
-			if err != nil {
-				return false, err
-			}
-
-			// Attempt to disable IPv6 router advertisement acceptance
-			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", hostName), "0")
-
-			// We created a new vlan interface, return true
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 // setupPhysicalParent creates a VLAN device on parent if needed and tracks original properties of
@@ -2696,8 +2675,8 @@ func (c *containerLXC) setupPhysicalParent(deviceName string, m types.Device) (s
 		return "", errors.New("No parent property on device")
 	}
 
-	hostName := networkGetHostDevice(m["parent"], m["vlan"])
-	createdDev, err := c.createVlanDeviceIfNeeded(m, hostName)
+	hostName := device.NetworkGetHostDevice(m["parent"], m["vlan"])
+	createdDev, err := device.NetworkCreateVlanDeviceIfNeeded(m["parent"], hostName, m["vlan"])
 	if err != nil {
 		return hostName, err
 	}
@@ -2762,7 +2741,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 
 	// If we created the "physical" device and then it should be removed.
 	if shared.IsTrue(c.localConfig[createdKey]) {
-		return deviceRemoveInterface(hostName)
+		return device.NetworkRemoveInterface(hostName)
 	}
 
 	// Bring the interface down, as this is sometimes needed to change settings on the nic.
@@ -2778,7 +2757,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %v", hostName, c.localConfig[mtuKey], err)
 		}
 
-		err = networkSetDevMTU(hostName, mtuInt)
+		err = device.NetworkSetDevMTU(hostName, mtuInt)
 		if err != nil {
 			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %v", hostName, mtuInt, err)
 		}
@@ -2786,7 +2765,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 
 	// If MAC value is specified then there is an original MAC that needs restoring.
 	if c.localConfig[macKey] != "" {
-		err := networkSetDevMAC(hostName, c.localConfig[macKey])
+		err := device.NetworkSetDevMAC(hostName, c.localConfig[macKey])
 		if err != nil {
 			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %v", hostName, c.localConfig[macKey], err)
 		}
@@ -2812,7 +2791,7 @@ func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device) 
 	}()
 
 	// Nothing to do if we don't know the original device name.
-	hostName := networkGetHostDevice(m["parent"], m["vlan"])
+	hostName := device.NetworkGetHostDevice(m["parent"], m["vlan"])
 	if hostName == "" {
 		return
 	}
@@ -8287,7 +8266,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		if m["host_name"] != "" {
 			n1 = m["host_name"]
 		} else {
-			n1 = deviceNextVeth()
+			n1 = device.NetworkRandomDevName("veth")
 		}
 	}
 
@@ -8297,7 +8276,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 	// Handle bridged and p2p
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		n2 := deviceNextVeth()
+		n2 := device.NetworkRandomDevName("veth")
 
 		_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "type", "veth", "peer", "name", n2)
 		if err != nil {
@@ -8310,14 +8289,14 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		}
 
 		if m["nictype"] == "bridged" {
-			err = networkAttachInterface(m["parent"], n1)
+			err = device.NetworkAttachInterface(m["parent"], n1)
 			if err != nil {
-				deviceRemoveInterface(n2)
+				device.NetworkRemoveInterface(n2)
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
 			}
 
 			// Attempt to disable router advertisement acceptance
-			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
+			device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
 		}
 
 		// Record the new device's host name for use in setupHostVethDevice()
@@ -8355,7 +8334,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if m["hwaddr"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "address", m["hwaddr"])
 		if err != nil {
-			deviceRemoveInterface(dev)
+			device.NetworkRemoveInterface(dev)
 			return "", fmt.Errorf("Failed to set the MAC address: %s", err)
 		}
 	}
@@ -8364,7 +8343,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if m["mtu"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "mtu", m["mtu"])
 		if err != nil {
-			deviceRemoveInterface(dev)
+			device.NetworkRemoveInterface(dev)
 			return "", fmt.Errorf("Failed to set the MTU: %s", err)
 		}
 	}
@@ -8372,7 +8351,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	// Bring the interface up
 	_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "up")
 	if err != nil {
-		deviceRemoveInterface(dev)
+		device.NetworkRemoveInterface(dev)
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
 	}
 
@@ -8788,7 +8767,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 
 	if shared.IsTrue(m["security.ipv6_filtering"]) {
 		// Check br_netfilter is loaded and enabled for IPv6.
-		sysctlVal, err := networkSysctlGet("bridge/bridge-nf-call-ip6tables")
+		sysctlVal, err := device.NetworkSysctlGet("bridge/bridge-nf-call-ip6tables")
 		if err != nil || sysctlVal != "1\n" {
 			return errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
 		}
@@ -9143,12 +9122,12 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Get a temporary device name
 	var hostName string
 	if m["nictype"] == "physical" {
-		hostName = networkGetHostDevice(m["parent"], m["vlan"])
+		hostName = device.NetworkGetHostDevice(m["parent"], m["vlan"])
 	} else if m["nictype"] == "sriov" {
 		// hostName for sriov devices can change on each boot, so get out of volatile.
 		hostName = c.getVolatileHostName(name)
 	} else {
-		hostName = deviceNextVeth()
+		hostName = device.NetworkRandomDevName("veth")
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
@@ -9176,7 +9155,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Remove host side veth settings and remove veth interface
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		c.cleanupHostVethDevice(name, m)
-		deviceRemoveInterface(hostName)
+		device.NetworkRemoveInterface(hostName)
 	}
 
 	// If physical dev, restore MTU using value recorded on parent after removal from container.

@@ -20,6 +20,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
@@ -1083,12 +1084,12 @@ func (n *network) Start() error {
 
 	// IPv6 bridge configuration
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
-		err := networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
+		err := device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
 		if err != nil {
 			return err
 		}
 
-		err = networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_dad", n.name), "0")
+		err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_dad", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -1130,7 +1131,7 @@ func (n *network) Start() error {
 		if err == nil {
 			_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "up")
 			if err == nil {
-				networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+				device.NetworkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 			}
 		}
 	}
@@ -1184,7 +1185,7 @@ func (n *network) Start() error {
 				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
 			}
 
-			err = networkAttachInterface(n.name, entry)
+			err = device.NetworkAttachInterface(n.name, entry)
 			if err != nil {
 				return err
 			}
@@ -1252,7 +1253,7 @@ func (n *network) Start() error {
 
 		// Allow forwarding
 		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
-			err = networkSysctlSet("ipv4/ip_forward", "1")
+			err = device.NetworkSysctlSet("ipv4/ip_forward", "1")
 			if err != nil {
 				return err
 			}
@@ -1418,7 +1419,7 @@ func (n *network) Start() error {
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		// Enable IPv6 for the subnet
-		err := networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
+		err := device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -1490,7 +1491,7 @@ func (n *network) Start() error {
 					continue
 				}
 
-				err = networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
+				err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -1498,7 +1499,7 @@ func (n *network) Start() error {
 
 			// Then set forwarding for all of them
 			for _, entry := range entries {
-				err = networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
+				err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -1610,7 +1611,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the MTU based on overlay device (if available)
-		fanMtuInt, err := networkGetDevMTU(devName)
+		fanMtuInt, err := device.NetworkGetDevMTU(devName)
 		if err == nil {
 			// Apply overhead
 			if n.config["fan.type"] == "ipip" {
@@ -1684,7 +1685,7 @@ func (n *network) Start() error {
 				return err
 			}
 
-			err = networkAttachInterface(n.name, tunName)
+			err = device.NetworkAttachInterface(n.name, tunName)
 			if err != nil {
 				return err
 			}
@@ -1798,7 +1799,7 @@ func (n *network) Start() error {
 		}
 
 		// Bridge it and bring up
-		err = networkAttachInterface(n.name, tunName)
+		err = device.NetworkAttachInterface(n.name, tunName)
 		if err != nil {
 			return err
 		}
