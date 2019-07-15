@@ -143,3 +143,23 @@ func NetworkRemoveInterface(nic string) error {
 	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
 	return err
 }
+
+// NetworkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
+func NetworkCreateVlanDeviceIfNeeded(parent string, hostName string, vlan string) (bool, error) {
+	if vlan != "" {
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
+			_, err := shared.RunCommand("ip", "link", "add", "link", parent, "name", hostName, "up", "type", "vlan", "id", vlan)
+			if err != nil {
+				return false, err
+			}
+
+			// Attempt to disable IPv6 router advertisement acceptance
+			NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", hostName), "0")
+
+			// We created a new vlan interface, return true
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
