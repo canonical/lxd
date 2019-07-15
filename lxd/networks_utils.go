@@ -1010,35 +1010,6 @@ func networkDHCPFindFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, netConf
 	return nil, fmt.Errorf("No available IP could not be found")
 }
 
-// networkUpdateStaticContainer writes a single dhcp-host line for a container/network combination.
-func networkUpdateStaticContainer(network string, projectName string, cName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
-	line := hwaddr
-
-	// Generate the dhcp-host line
-	if ipv4Address != "" {
-		line += fmt.Sprintf(",%s", ipv4Address)
-	}
-
-	if ipv6Address != "" {
-		line += fmt.Sprintf(",[%s]", ipv6Address)
-	}
-
-	if netConfig["dns.mode"] == "" || netConfig["dns.mode"] == "managed" {
-		line += fmt.Sprintf(",%s", cName)
-	}
-
-	if line == hwaddr {
-		return nil
-	}
-
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, cName)), []byte(line+"\n"), 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func networkUpdateStatic(s *state.State, networkName string) error {
 	// We don't want to race with ourselves here
 	dnsmasq.ConfigMutex.Lock()
