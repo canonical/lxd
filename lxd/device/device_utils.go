@@ -15,3 +15,15 @@ func NetworkSysctlGet(path string) (string, error) {
 
 	return string(content), nil
 }
+
+// NetworkSysctlSet writes a value to a sysctl file in /proc/sys/net.
+func NetworkSysctlSet(path string, value string) error {
+	// Get current value
+	current, err := NetworkSysctlGet(path)
+	if err == nil && current == value {
+		// Nothing to update
+		return nil
+	}
+
+	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
+}

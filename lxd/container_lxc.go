@@ -2679,7 +2679,7 @@ func (c *containerLXC) createVlanDeviceIfNeeded(m types.Device, hostName string)
 			}
 
 			// Attempt to disable IPv6 router advertisement acceptance
-			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", hostName), "0")
+			device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", hostName), "0")
 
 			// We created a new vlan interface, return true
 			return true, nil
@@ -8318,7 +8318,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 			}
 
 			// Attempt to disable router advertisement acceptance
-			networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
+			device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", n1), "0")
 		}
 
 		// Record the new device's host name for use in setupHostVethDevice()
