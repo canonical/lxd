@@ -8266,7 +8266,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		if m["host_name"] != "" {
 			n1 = m["host_name"]
 		} else {
-			n1 = deviceNextVeth()
+			n1 = device.NetworkRandomDevName("veth")
 		}
 	}
 
@@ -8276,7 +8276,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 	// Handle bridged and p2p
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		n2 := deviceNextVeth()
+		n2 := device.NetworkRandomDevName("veth")
 
 		_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "type", "veth", "peer", "name", n2)
 		if err != nil {
@@ -9127,7 +9127,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 		// hostName for sriov devices can change on each boot, so get out of volatile.
 		hostName = c.getVolatileHostName(name)
 	} else {
-		hostName = deviceNextVeth()
+		hostName = device.NetworkRandomDevName("veth")
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct

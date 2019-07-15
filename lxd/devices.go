@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/csv"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1172,13 +1171,6 @@ func deviceNextInterfaceHWAddr() (string, error) {
 	}
 
 	return ret.String(), nil
-}
-
-func deviceNextVeth() string {
-	// Return a new random veth device name
-	randBytes := make([]byte, 4)
-	rand.Read(randBytes)
-	return "veth" + hex.EncodeToString(randBytes)
 }
 
 func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool, propagation string) error {
