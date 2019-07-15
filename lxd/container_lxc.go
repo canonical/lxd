@@ -2667,28 +2667,6 @@ func (c *containerLXC) snapshotPhysicalNic(deviceName string, hostName string, v
 	return nil
 }
 
-// createVlanDeviceIfNeeded detects the device type and whether it has a vlan parent configured.
-// It then attempts to detect if the parent vlan interface exists, and if not creates one.
-// Returns boolean as to whether we created it and any errors.
-func (c *containerLXC) createVlanDeviceIfNeeded(m types.Device, hostName string) (bool, error) {
-	if m["vlan"] != "" {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
-			_, err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", hostName, "up", "type", "vlan", "id", m["vlan"])
-			if err != nil {
-				return false, err
-			}
-
-			// Attempt to disable IPv6 router advertisement acceptance
-			device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", hostName), "0")
-
-			// We created a new vlan interface, return true
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
 // setupPhysicalParent creates a VLAN device on parent if needed and tracks original properties of
 // the physical device if not just created so they can be restored when the device is detached.
 // Returns the parent device name detected.
@@ -2698,7 +2676,7 @@ func (c *containerLXC) setupPhysicalParent(deviceName string, m types.Device) (s
 	}
 
 	hostName := device.NetworkGetHostDevice(m["parent"], m["vlan"])
-	createdDev, err := c.createVlanDeviceIfNeeded(m, hostName)
+	createdDev, err := device.NetworkCreateVlanDeviceIfNeeded(m["parent"], hostName, m["vlan"])
 	if err != nil {
 		return hostName, err
 	}
