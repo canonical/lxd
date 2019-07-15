@@ -27,7 +27,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -1272,17 +1271,6 @@ func networksGetForkdnsServersList(networkName string) ([]string, error) {
 	}
 
 	return servers, nil
-}
-
-func networkSysctlSet(path string, value string) error {
-	// Get current value
-	current, err := device.NetworkSysctlGet(path)
-	if err == nil && current == value {
-		// Nothing to update
-		return nil
-	}
-
-	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
 }
 
 func networkGetMacSlice(hwaddr string) []string {
