@@ -1131,7 +1131,7 @@ func (n *network) Start() error {
 		if err == nil {
 			_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "up")
 			if err == nil {
-				networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+				device.NetworkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 			}
 		}
 	}
@@ -1185,7 +1185,7 @@ func (n *network) Start() error {
 				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
 			}
 
-			err = networkAttachInterface(n.name, entry)
+			err = device.NetworkAttachInterface(n.name, entry)
 			if err != nil {
 				return err
 			}
@@ -1685,7 +1685,7 @@ func (n *network) Start() error {
 				return err
 			}
 
-			err = networkAttachInterface(n.name, tunName)
+			err = device.NetworkAttachInterface(n.name, tunName)
 			if err != nil {
 				return err
 			}
@@ -1799,7 +1799,7 @@ func (n *network) Start() error {
 		}
 
 		// Bridge it and bring up
-		err = networkAttachInterface(n.name, tunName)
+		err = device.NetworkAttachInterface(n.name, tunName)
 		if err != nil {
 			return err
 		}

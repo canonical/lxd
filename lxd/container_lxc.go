@@ -8289,7 +8289,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		}
 
 		if m["nictype"] == "bridged" {
-			err = networkAttachInterface(m["parent"], n1)
+			err = device.NetworkAttachInterface(m["parent"], n1)
 			if err != nil {
 				device.NetworkRemoveInterface(n2)
 				return "", fmt.Errorf("Failed to add interface to bridge: %s", err)

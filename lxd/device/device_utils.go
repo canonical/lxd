@@ -235,3 +235,23 @@ func NetworkRandomDevName(prefix string) string {
 
 	return iface
 }
+
+// NetworkAttachInterface attaches an interface to a bridge.
+func NetworkAttachInterface(netName string, devName string) error {
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", netName)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
+		if err != nil {
+			_, err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
