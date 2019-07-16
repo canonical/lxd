@@ -556,7 +556,7 @@ func SeccompCreateProfile(c container) error {
 
 	profile, err := getSeccompProfileContent(c)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if err := os.MkdirAll(seccompPath, 0700); err != nil {
