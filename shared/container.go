@@ -265,10 +265,12 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"security.idmap.isolated": IsBool,
 	"security.idmap.size":     IsUint32,
 
-	"security.syscalls.blacklist_default": IsBool,
-	"security.syscalls.blacklist_compat":  IsBool,
-	"security.syscalls.blacklist":         IsAny,
-	"security.syscalls.whitelist":         IsAny,
+	"security.syscalls.blacklist_default":  IsBool,
+	"security.syscalls.blacklist_compat":   IsBool,
+	"security.syscalls.blacklist":          IsAny,
+	"security.syscalls.intercept.mknod":    IsBool,
+	"security.syscalls.intercept.setxattr": IsBool,
+	"security.syscalls.whitelist":          IsAny,
 
 	"snapshots.schedule": func(value string) error {
 		if value == "" {

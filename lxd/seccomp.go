@@ -349,11 +349,13 @@ init_module errno 38
 finit_module errno 38
 delete_module errno 38
 `
-const SECCOMP_NOTIFY_POLICY = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
+
+const SECCOMP_NOTIFY_MKNOD = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
 mknod notify [1,24576,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]
-setxattr notify [3,1,SCMP_CMP_EQ]
+`
+const SECCOMP_NOTIFY_SETXATTR = `setxattr notify [3,1,SCMP_CMP_EQ]
 `
 
 const COMPAT_BLOCKING_POLICY = `[%s]
@@ -399,9 +401,10 @@ func SeccompProfilePath(c container) string {
 	return path.Join(seccompPath, c.Name())
 }
 
-func ContainerNeedsSeccomp(c container) bool {
+func seccompContainerNeedsPolicy(c container) bool {
 	config := c.ExpandedConfig()
 
+	// Check for text keys
 	keys := []string{
 		"raw.seccomp",
 		"security.syscalls.whitelist",
@@ -415,50 +418,114 @@ func ContainerNeedsSeccomp(c container) bool {
 		}
 	}
 
-	compat := config["security.syscalls.blacklist_compat"]
-	if shared.IsTrue(compat) {
-		return true
+	// Check for boolean keys that default to false
+	keys = []string{
+		"security.syscalls.blacklist_compat",
+		"security.syscalls.intercept.mknod",
+		"security.syscalls.intercept.setxattr",
 	}
 
-	/* this are enabled by default, so if the keys aren't present, that
-	 * means "true"
-	 */
-	default_, ok := config["security.syscalls.blacklist_default"]
-	if !ok || shared.IsTrue(default_) {
-		return true
+	for _, k := range keys {
+		if shared.IsTrue(config[k]) {
+			return true
+		}
+	}
+
+	// Check for boolean keys that default to true
+	keys = []string{
+		"security.syscalls.blacklist_default",
+	}
+
+	for _, k := range keys {
+		value, ok := config[k]
+		if !ok || shared.IsTrue(value) {
+			return true
+		}
 	}
 
 	return false
 }
 
+func seccompContainerNeedsIntercept(c container) (bool, error) {
+	// No need if privileged
+	if c.IsPrivileged() {
+		return false, nil
+	}
+
+	// If nested, assume the host handles it
+	if c.DaemonState().OS.RunningInUserNS {
+		return false, nil
+	}
+
+	config := c.ExpandedConfig()
+
+	keys := []string{
+		"security.syscalls.intercept.mknod",
+		"security.syscalls.intercept.setxattr",
+	}
+
+	needed := false
+	for _, k := range keys {
+		if shared.IsTrue(config[k]) {
+			needed = true
+			break
+		}
+	}
+
+	if needed {
+		if !lxcSupportSeccompNotify(c.DaemonState()) {
+			return needed, fmt.Errorf("System doesn't support syscall interception")
+		}
+	}
+
+	return needed, nil
+}
+
 func getSeccompProfileContent(c container) (string, error) {
 	config := c.ExpandedConfig()
 
+	// Full policy override
 	raw := config["raw.seccomp"]
 	if raw != "" {
 		return raw, nil
 	}
 
+	// Policy header
 	policy := SECCOMP_HEADER
-
 	whitelist := config["security.syscalls.whitelist"]
 	if whitelist != "" {
 		policy += "whitelist\n[all]\n"
 		policy += whitelist
+	} else {
+		policy += "blacklist\n"
+
+		default_, ok := config["security.syscalls.blacklist_default"]
+		if !ok || shared.IsTrue(default_) {
+			policy += DEFAULT_SECCOMP_POLICY
+		}
+	}
+
+	// Syscall interception
+	ok, err := seccompContainerNeedsIntercept(c)
+	if err != nil {
+		return "", err
+	}
+
+	if ok {
+		if shared.IsTrue(config["security.syscalls.intercept.mknod"]) {
+			policy += SECCOMP_NOTIFY_MKNOD
+		}
+
+		if shared.IsTrue(config["security.syscalls.intercept.setxattr"]) {
+			policy += SECCOMP_NOTIFY_SETXATTR
+		}
+	}
+
+	if whitelist != "" {
 		return policy, nil
 	}
 
-	policy += "blacklist\n"
-
-	default_, ok := config["security.syscalls.blacklist_default"]
-	if !ok || shared.IsTrue(default_) {
-		policy += DEFAULT_SECCOMP_POLICY
-	}
-
-	if !c.IsPrivileged() && !c.DaemonState().OS.RunningInUserNS && lxcSupportSeccompNotify(c.DaemonState()) {
-		policy += SECCOMP_NOTIFY_POLICY
-	}
-
+	// Additional blacklist entries
 	compat := config["security.syscalls.blacklist_compat"]
 	if shared.IsTrue(compat) {
 		arch, err := osarch.ArchitectureName(c.Architecture())
@@ -483,7 +550,7 @@ func SeccompCreateProfile(c container) error {
 	 * the mtime on the file for any compiler purpose, so let's just write
 	 * out the profile.
 	 */
-	if !ContainerNeedsSeccomp(c) {
+	if !seccompContainerNeedsPolicy(c) {
 		return nil
 	}
 
