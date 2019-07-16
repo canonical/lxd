@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
@@ -144,129 +145,132 @@ struct lxd_seccomp_data_arch {
 	int arch;
 	int nr_mknod;
 	int nr_mknodat;
+	int nr_setxattr;
 };
 
 #define LXD_SECCOMP_NOTIFY_MKNOD    0
 #define LXD_SECCOMP_NOTIFY_MKNODAT  1
+#define LXD_SECCOMP_NOTIFY_SETXATTR 2
 
 // ordered by likelihood of usage...
 static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
+	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR },
 #ifdef AUDIT_ARCH_X86_64
-	{ AUDIT_ARCH_X86_64,      133, 259 },
+	{ AUDIT_ARCH_X86_64,      133, 259, 188 },
 #endif
 #ifdef AUDIT_ARCH_I386
-	{ AUDIT_ARCH_I386,         14, 297 },
+	{ AUDIT_ARCH_I386,         14, 297, 226 },
 #endif
 #ifdef AUDIT_ARCH_AARCH64
-	{ AUDIT_ARCH_AARCH64,      -1,  33 },
+	{ AUDIT_ARCH_AARCH64,      -1,  33,   5 },
 #endif
 #ifdef AUDIT_ARCH_ARM
-	{ AUDIT_ARCH_ARM,          14, 324 },
+	{ AUDIT_ARCH_ARM,          14, 324, 226 },
 #endif
 #ifdef AUDIT_ARCH_ARMEB
-	{ AUDIT_ARCH_ARMEB,        14, 324 },
+	{ AUDIT_ARCH_ARMEB,        14, 324, 226 },
 #endif
 #ifdef AUDIT_ARCH_S390
-	{ AUDIT_ARCH_S390,         14, 290 },
+	{ AUDIT_ARCH_S390,         14, 290, 224 },
 #endif
 #ifdef AUDIT_ARCH_S390X
-	{ AUDIT_ARCH_S390X,        14, 290 },
+	{ AUDIT_ARCH_S390X,        14, 290, 224 },
 #endif
 #ifdef AUDIT_ARCH_RISCV32
-	{ AUDIT_ARCH_RISCV32,      -1,  33 },
+	{ AUDIT_ARCH_RISCV32,      -1,  33,   5 },
 #endif
 #ifdef AUDIT_ARCH_RISCV64
-	{ AUDIT_ARCH_RISCV64,      -1,  33 },
+	{ AUDIT_ARCH_RISCV64,      -1,  33,   5 },
 #endif
 #ifdef AUDIT_ARCH_PPC
-	{ AUDIT_ARCH_PPC,          14, 288 },
+	{ AUDIT_ARCH_PPC,          14, 288, 209 },
 #endif
 #ifdef AUDIT_ARCH_PPC64
-	{ AUDIT_ARCH_PPC64,        14, 288 },
+	{ AUDIT_ARCH_PPC64,        14, 288, 209 },
 #endif
 #ifdef AUDIT_ARCH_PPC64LE
-	{ AUDIT_ARCH_PPC64LE,      14, 288 },
+	{ AUDIT_ARCH_PPC64LE,      14, 288, 209 },
 #endif
 #ifdef AUDIT_ARCH_IA64
-	{ AUDIT_ARCH_IA64,         13, 259 },
+	{ AUDIT_ARCH_IA64,         13, 259, 193 },
 #endif
 #ifdef AUDIT_ARCH_SPARC
-	{ AUDIT_ARCH_SPARC,        14, 286 },
+	{ AUDIT_ARCH_SPARC,        14, 286, 169 },
 #endif
 #ifdef AUDIT_ARCH_SPARC64
-	{ AUDIT_ARCH_SPARC64,      14, 286 },
+	{ AUDIT_ARCH_SPARC64,      14, 286, 169 },
 #endif
 #ifdef AUDIT_ARCH_ALPHA
-	{ AUDIT_ARCH_ALPHA,        14, 452 },
+	{ AUDIT_ARCH_ALPHA,        14, 452, 382 },
 #endif
 #ifdef AUDIT_ARCH_OPENRISC
-	{ AUDIT_ARCH_OPENRISC,     -1,  33 },
+	{ AUDIT_ARCH_OPENRISC,     -1,  33,   5 },
 #endif
 #ifdef AUDIT_ARCH_PARISC
-	{ AUDIT_ARCH_PARISC,       14, 277 },
+	{ AUDIT_ARCH_PARISC,       14, 277, 238 },
 #endif
 #ifdef AUDIT_ARCH_PARISC64
-	{ AUDIT_ARCH_PARISC64,     14, 277 },
+	{ AUDIT_ARCH_PARISC64,     14, 277, 238 },
 #endif
 #ifdef AUDIT_ARCH_CRIS
-	{ AUDIT_ARCH_CRIS,         -1,  -1 },
+	{ AUDIT_ARCH_CRIS,         -1,  -1,  -1 },
 #endif
 #ifdef AUDIT_ARCH_CSKY
-	{ AUDIT_ARCH_CSKY,         -1,  33 },
+	{ AUDIT_ARCH_CSKY,         -1,  33,   5 },
 #endif
 #ifdef AUDIT_ARCH_FRV
-	{ AUDIT_ARCH_FRV,          -1,  -1 },
+	{ AUDIT_ARCH_FRV,          -1,  -1,  -1 },
 #endif
 #ifdef AUDIT_ARCH_M32R
-	{ AUDIT_ARCH_M32R,         -1,  -1 },
+	{ AUDIT_ARCH_M32R,         -1,  -1,  -1 },
 #endif
 #ifdef AUDIT_ARCH_M68K
-	{ AUDIT_ARCH_M68K,         14, 290 },
+	{ AUDIT_ARCH_M68K,         14, 290, 223 },
 #endif
 #ifdef AUDIT_ARCH_MICROBLAZE
-	{ AUDIT_ARCH_MICROBLAZE,   14, 297 },
+	{ AUDIT_ARCH_MICROBLAZE,   14, 297, 226 },
 #endif
 #ifdef AUDIT_ARCH_MIPS
-	{ AUDIT_ARCH_MIPS,         14, 290 },
+	{ AUDIT_ARCH_MIPS,         14, 290, 224 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL
-	{ AUDIT_ARCH_MIPSEL,       14, 290 },
+	{ AUDIT_ARCH_MIPSEL,       14, 290, 224 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64
-	{ AUDIT_ARCH_MIPS64,      131, 249 },
+	{ AUDIT_ARCH_MIPS64,      131, 249, 180 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64N32
-	{ AUDIT_ARCH_MIPS64N32,   131, 253 },
+	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64
-	{ AUDIT_ARCH_MIPSEL64,    131, 249 },
+	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64N32
-	{ AUDIT_ARCH_MIPSEL64N32, 131, 253 },
+	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180 },
 #endif
 #ifdef AUDIT_ARCH_SH
-	{ AUDIT_ARCH_SH,           14, 297 },
+	{ AUDIT_ARCH_SH,           14, 297, 226 },
 #endif
 #ifdef AUDIT_ARCH_SHEL
-	{ AUDIT_ARCH_SHEL,         14, 297 },
+	{ AUDIT_ARCH_SHEL,         14, 297, 226 },
 #endif
 #ifdef AUDIT_ARCH_SH64
-	{ AUDIT_ARCH_SH64,         14, 297 },
+	{ AUDIT_ARCH_SH64,         14, 325, 254 },
 #endif
 #ifdef AUDIT_ARCH_SHEL64
-	{ AUDIT_ARCH_SHEL64,       14, 297 },
+	{ AUDIT_ARCH_SHEL64,       14, 325, 254 },
 #endif
 #ifdef AUDIT_ARCH_TILEGX
-	{ AUDIT_ARCH_TILEGX,       -1,  -1 },
+	{ AUDIT_ARCH_TILEGX,       -1,  -1,  -1 },
 #endif
 #ifdef AUDIT_ARCH_TILEGX32
-	{ AUDIT_ARCH_TILEGX32,     -1,  -1 },
+	{ AUDIT_ARCH_TILEGX32,     -1,  -1,  -1 },
 #endif
 #ifdef AUDIT_ARCH_TILEPRO
-	{ AUDIT_ARCH_TILEPRO,      -1,  -1 },
+	{ AUDIT_ARCH_TILEPRO,      -1,  -1,  -1 },
 #endif
 #ifdef AUDIT_ARCH_XTENSA
-	{ AUDIT_ARCH_XTENSA,       36, 290 },
+	{ AUDIT_ARCH_XTENSA,       36, 290,  68 },
 #endif
 };
 
@@ -291,6 +295,9 @@ static int seccomp_notify_get_syscall(struct seccomp_notif *req,
 
 		if (entry->nr_mknodat == req->data.nr)
 			return LXD_SECCOMP_NOTIFY_MKNODAT;
+
+		if (entry->nr_setxattr == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_SETXATTR;
 
 		break;
 	}
@@ -329,6 +336,7 @@ import "C"
 
 const LxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
 const LxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT
+const LxdSeccompNotifySetxattr = C.LXD_SECCOMP_NOTIFY_SETXATTR
 
 const SECCOMP_HEADER = `2
 `
@@ -344,7 +352,9 @@ delete_module errno 38
 const SECCOMP_NOTIFY_POLICY = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
 mknod notify [1,24576,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
-mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]`
+mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]
+setxattr notify [3,1,SCMP_CMP_EQ]
+`
 
 const COMPAT_BLOCKING_POLICY = `[%s]
 compat_sys_rt_sigaction errno 38
@@ -762,7 +772,7 @@ func taskUidGid(pid int) (error, int32, int32) {
 	return nil, uid, gid
 }
 
-func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnly bool) int {
+func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnly int) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
@@ -772,14 +782,6 @@ func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnl
 	err, uid, gid := taskUidGid(requestPID)
 	if err != nil {
 		return int(-C.EPERM)
-	}
-
-	deBool := func() int {
-		if permissionsOnly {
-			return 1
-		}
-
-		return 0
 	}
 
 	if !path.IsAbs(dev["path"]) {
@@ -799,7 +801,7 @@ func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnl
 		"forksyscall", "mknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", deBool()))
+		fmt.Sprintf("%d", permissionsOnly))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
 		if err != nil || errno == C.ENOANO {
@@ -844,7 +846,7 @@ func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *Secc
 	dev["dev_t"] = fmt.Sprintf("%d", args.cDev)
 
 	if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-		errno := CallForkmknod(c, dev, int(args.cPid), true)
+		errno := CallForkmknod(c, dev, int(args.cPid), 1)
 		if errno != int(-C.ENOMEDIUM) {
 			return errno
 		}
@@ -857,7 +859,7 @@ func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *Secc
 		return 0
 	}
 
-	errno := CallForkmknod(c, dev, int(args.cPid), false)
+	errno := CallForkmknod(c, dev, int(args.cPid), 0)
 	if errno != int(-C.ENOMEDIUM) {
 		return errno
 	}
@@ -871,9 +873,18 @@ func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *Secc
 }
 
 func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int {
+	logger.Debug("Handling mknod syscall",
+		log.Ctx{"container": c.Name(),
+			"project":              c.Project(),
+			"syscall_number":       siov.req.data.nr,
+			"audit_architecture":   siov.req.data.arch,
+			"seccomp_notify_id":    siov.req.id,
+			"seccomp_notify_flags": siov.req.flags,
+		})
+
 	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1]))
 	if siov.resp.error != 0 {
-		logger.Errorf("Device not allowed")
+		logger.Debugf("Device not allowed")
 		return int(siov.resp.error)
 	}
 
@@ -895,14 +906,23 @@ func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int 
 }
 
 func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) int {
+	logger.Debug("Handling mknodat syscall",
+		log.Ctx{"container": c.Name(),
+			"project":              c.Project(),
+			"syscall_number":       siov.req.data.nr,
+			"audit_architecture":   siov.req.data.arch,
+			"seccomp_notify_id":    siov.req.id,
+			"seccomp_notify_flags": siov.req.flags,
+		})
+
 	if int(siov.req.data.args[0]) != int(C.AT_FDCWD) {
-		logger.Errorf("Non AT_FDCWD mknodat calls are not allowed")
+		logger.Debugf("Non AT_FDCWD mknodat calls are not allowed")
 		return int(-C.EINVAL)
 	}
 
 	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[3]), C.mode_t(siov.req.data.args[2]))
 	if siov.resp.error != 0 {
-		logger.Errorf("Device not allowed")
+		logger.Debugf("Device not allowed")
 		return int(siov.resp.error)
 	}
 
@@ -923,20 +943,111 @@ func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) in
 	return s.doDeviceSyscall(c, &args, siov)
 }
 
+type SetxattrArgs struct {
+	nsuid int
+	nsgid int
+	size  int
+	pid   int
+	path  string
+	name  string
+	value []byte
+	flags C.int
+}
+
+func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) int {
+	logger.Debug("Handling setxattr syscall",
+		log.Ctx{"container": c.Name(),
+			"project":              c.Project(),
+			"syscall_number":       siov.req.data.nr,
+			"audit_architecture":   siov.req.data.arch,
+			"seccomp_notify_id":    siov.req.id,
+			"seccomp_notify_flags": siov.req.flags,
+		})
+
+	args := SetxattrArgs{}
+
+	args.pid = int(siov.req.pid)
+	err, uid, gid := taskUidGid(args.pid)
+	if err != nil {
+		return int(-C.EPERM)
+	}
+	args.nsuid = GetNSUid(uint(uid), args.pid)
+	args.nsgid = GetNSGid(uint(gid), args.pid)
+
+	// const char *path
+	cBuf := [unix.PathMax]C.char{}
+	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
+	if err != nil {
+		logger.Errorf("Failed to read memory for setxattr syscall: %s", err)
+		return int(-C.EPERM)
+	}
+	args.path = C.GoString(&cBuf[0])
+
+	// const char *name
+	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
+	if err != nil {
+		logger.Errorf("Failed to read memory for setxattr syscall: %s", err)
+		return int(-C.EPERM)
+	}
+	args.name = C.GoString(&cBuf[0])
+
+	// size_t size
+	args.size = int(siov.req.data.args[3])
+
+	// int flags
+	args.flags = C.int(siov.req.data.args[4])
+
+	buf := make([]byte, args.size)
+	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
+	if err != nil {
+		logger.Errorf("Failed to read memory for setxattr syscall: %s", err)
+		return int(-C.EPERM)
+	}
+	args.value = buf
+
+	whiteout := 0
+	if args.size == 1 && string(args.value) == "y" {
+		whiteout = 1
+	}
+
+	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
+		"forksyscall",
+		"setxattr",
+		fmt.Sprintf("%d", args.pid),
+		fmt.Sprintf("%d", args.nsuid),
+		fmt.Sprintf("%d", args.nsgid),
+		args.name,
+		args.path,
+		fmt.Sprintf("%d", args.flags),
+		fmt.Sprintf("%d", whiteout),
+		fmt.Sprintf("%d", args.size),
+		fmt.Sprintf("%s", args.value))
+	if err != nil {
+		errno, err := strconv.Atoi(stderr)
+		if err != nil || errno == C.ENOANO {
+			return int(-C.EPERM)
+		}
+
+		return -errno
+	}
+
+	return 0
+}
+
 func (s *SeccompServer) HandleSyscall(c container, siov *SeccompIovec) int {
 	switch int(C.seccomp_notify_get_syscall(siov.req, siov.resp)) {
 	case LxdSeccompNotifyMknod:
 		return s.HandleMknodSyscall(c, siov)
 	case LxdSeccompNotifyMknodat:
 		return s.HandleMknodatSyscall(c, siov)
+	case LxdSeccompNotifySetxattr:
+		return s.HandleSetxattrSyscall(c, siov)
 	}
 
 	return int(-C.EINVAL)
 }
 
 func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
-	logger.Debugf("Handling seccomp notification from: %v", siov.ucred.pid)
-
 	defer siov.PutSeccompIovec()
 
 	c, err := findContainerForPid(int32(siov.msg.monitor_pid), s.d)
@@ -950,11 +1061,9 @@ func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
 
 	err = siov.SendSeccompIovec(fd, errno)
 	if err != nil {
-		logger.Errorf("Failed to handle seccomp notification from: %v", siov.ucred.pid)
 		return err
 	}
 
-	logger.Debugf("Handled seccomp notification from: %v", siov.ucred.pid)
 	return nil
 }
 
