@@ -90,6 +90,7 @@ _have lxc && {
       security.nesting security.privileged security.protection.delete \
       security.protection.shift security.syscalls.blacklist \
       security.syscalls.blacklist_compat security.syscalls.blacklist_default \
+      security.syscalls.intercept.mknod security.syscalls.intercept.setxattr \
       snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
       volatile.apply_quota volatile.apply_template volatile.base_image \
       volatile.idmap.base volatile.idmap.current volatile.idmap.next \
