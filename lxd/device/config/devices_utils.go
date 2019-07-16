@@ -1,4 +1,4 @@
-package types
+package config
 
 func deviceEquals(old Device, d Device) bool {
 	// Check for any difference and addition/removal of properties

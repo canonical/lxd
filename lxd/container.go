@@ -18,10 +18,10 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -342,7 +342,7 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	return nil
 }
 
-func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -714,9 +714,9 @@ type container interface {
 	CreationDate() time.Time
 	LastUsedDate() time.Time
 	ExpandedConfig() map[string]string
-	ExpandedDevices() types.Devices
+	ExpandedDevices() config.Devices
 	LocalConfig() map[string]string
-	LocalDevices() types.Devices
+	LocalDevices() config.Devices
 	Profiles() []string
 	InitPID() int
 	State() string
@@ -744,7 +744,7 @@ type container interface {
 	Storage() storage
 	TemplateApply(trigger string) error
 	DaemonState() *state.State
-	InsertSeccompUnixDevice(prefix string, m types.Device, pid int) error
+	InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error
 
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
@@ -1206,7 +1206,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	if args.Devices == nil {
-		args.Devices = types.Devices{}
+		args.Devices = config.Devices{}
 	}
 
 	if args.Architecture == 0 {
