@@ -169,10 +169,11 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	if (chdirchroot(pid)) {
+	if (!chdirchroot(pid)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
+
 	if (setns(mnt_fd, CLONE_NEWNS)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
