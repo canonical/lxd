@@ -481,7 +481,7 @@ func seccompContainerNeedsIntercept(c container) (bool, error) {
 	return needed, nil
 }
 
-func getSeccompProfileContent(c container) (string, error) {
+func seccompGetPolicyContent(c container) (string, error) {
 	config := c.ExpandedConfig()
 
 	// Full policy override
@@ -554,7 +554,7 @@ func SeccompCreateProfile(c container) error {
 		return nil
 	}
 
-	profile, err := getSeccompProfileContent(c)
+	profile, err := seccompGetPolicyContent(c)
 	if err != nil {
 		return err
 	}
