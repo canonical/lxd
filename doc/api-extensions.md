@@ -798,3 +798,8 @@ Rework the resources API at /1.0/resources, especially:
 
 ## container\_exec\_user\_group\_cwd
 Adds support for specifying User, Group and Cwd during `POST /1.0/containers/NAME/exec`.
+
+## container\_syscall\_intercept
+Adds the `security.syscalls.intercept.\*` configuration keys to control
+what system calls will be interecepted by LXD and processed with
+elevated permissions.
