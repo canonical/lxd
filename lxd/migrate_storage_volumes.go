@@ -152,7 +152,7 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 
 	abort := func(err error) error {
 		driver.Cleanup()
-		s.sendControl(err)
+		go s.sendControl(err)
 		return err
 	}
 
