@@ -35,10 +35,13 @@ and `newgidmap` (path lookup) can be found on the system, LXD will fail
 the startup of any container until this is corrected as this shows a
 broken shadow setup.
 
-If none of those 4 files can be found, then LXD will assume it's running
-on a host using an old version of shadow. In this mode, LXD will assume
-it can use any uids and gids above 65535 and will take the first 65536
-as its default map.
+
+If none of those files can be found, then LXD will assume a 1000000000
+uid/gid range starting at a base uid/gid of 1000000.
+
+This is the most common case and is usually the recommended setup when
+not running on a system which also hosts fully unprivileged containers
+(where the container runtime itself runs as a user).
 
 ## Varying ranges between hosts
 The source map is sent when moving containers between hosts so that they

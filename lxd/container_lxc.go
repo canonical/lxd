@@ -1294,10 +1294,20 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup Seccomp if necessary
-	if ContainerNeedsSeccomp(c) {
+	if seccompContainerNeedsPolicy(c) {
 		err = lxcSetConfigItem(cc, "lxc.seccomp.profile", SeccompProfilePath(c))
 		if err != nil {
 			return err
+		}
+
+		// Setup notification socket
+		// System requirement errors are handled during policy generation instead of here
+		ok, err := seccompContainerNeedsIntercept(c)
+		if err == nil && ok {
+			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1863,16 +1873,6 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 	if err != nil {
 		return err
-	}
-
-	// NOTE: Don't fail in cases where liblxc is recent enough but libseccomp isn't
-	//       when we add mount() support with user-configurable
-	//       options, we will want a hard fail if the user configured it
-	if !c.IsPrivileged() && !c.state.OS.RunningInUserNS && lxcSupportSeccompNotify(c.state) {
-		err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
-		if err != nil {
-			return err
-		}
 	}
 
 	// Apply raw.lxc
