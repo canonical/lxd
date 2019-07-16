@@ -85,7 +85,6 @@ test_static_analysis() {
       golint -set_exit_status lxd/sys
       golint -set_exit_status lxd/task
       golint -set_exit_status lxd/template
-      golint -set_exit_status lxd/types
       golint -set_exit_status lxd/util
       golint -set_exit_status lxd/device/...
       golint -set_exit_status lxd/dnsmasq/...
@@ -111,7 +110,7 @@ test_static_analysis() {
 
     ## deadcode
     if which deadcode >/dev/null 2>&1; then
-      OUT=$(deadcode ./fuidshift ./lxc ./lxd ./lxd/types ./shared ./shared/api ./shared/i18n ./shared/ioprogress ./shared/logging ./shared/osarch ./shared/simplestreams ./shared/termios ./shared/version ./lxd-benchmark 2>&1 | grep -v lxd/migrate.pb.go: | grep -v /C: | grep -vi _cgo | grep -vi _cfunc || true)
+      OUT=$(deadcode ./fuidshift ./lxc ./lxd ./shared ./shared/api ./shared/i18n ./shared/ioprogress ./shared/logging ./shared/osarch ./shared/simplestreams ./shared/termios ./shared/version ./lxd-benchmark 2>&1 | grep -v lxd/migrate.pb.go: | grep -v /C: | grep -vi _cgo | grep -vi _cfunc || true)
       if [ -n "${OUT}" ]; then
         echo "${OUT}" >&2
         false

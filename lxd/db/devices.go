@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/device/config"
 )
 
 func dbDeviceTypeToString(t int) (string, error) {
@@ -58,7 +58,7 @@ func dbDeviceTypeToInt(t string) (int, error) {
 }
 
 // DevicesAdd adds a new device.
-func DevicesAdd(tx *sql.Tx, w string, cID int64, devices types.Devices) error {
+func DevicesAdd(tx *sql.Tx, w string, cID int64, devices config.Devices) error {
 	// Prepare the devices entry SQL
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
 	stmt1, err := tx.Prepare(str1)
@@ -109,10 +109,10 @@ func DevicesAdd(tx *sql.Tx, w string, cID int64, devices types.Devices) error {
 	return nil
 }
 
-func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
+func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (config.Device, error) {
 	var query string
 	var key, value string
-	newdev := types.Device{} // That's a map[string]string
+	newdev := config.Device{} // That's a map[string]string
 	inargs := []interface{}{id}
 	outfmt := []interface{}{key, value}
 
@@ -138,7 +138,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 }
 
 // Devices returns the devices matching the given filters.
-func (c *Cluster) Devices(project, qName string, isprofile bool) (types.Devices, error) {
+func (c *Cluster) Devices(project, qName string, isprofile bool) (config.Devices, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
@@ -176,7 +176,7 @@ func (c *Cluster) Devices(project, qName string, isprofile bool) (types.Devices,
 		return nil, err
 	}
 
-	devices := types.Devices{}
+	devices := config.Devices{}
 	for _, r := range results {
 		id = r[0].(int)
 		name = r[1].(string)

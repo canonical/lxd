@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
@@ -378,11 +378,11 @@ func ProfilesExpandConfig(config map[string]string, profiles []api.Profile) map[
 
 // ProfilesExpandDevices expands the given container devices with the devices
 // defined in the given profiles.
-func ProfilesExpandDevices(devices types.Devices, profiles []api.Profile) types.Devices {
-	expandedDevices := types.Devices{}
+func ProfilesExpandDevices(devices config.Devices, profiles []api.Profile) config.Devices {
+	expandedDevices := config.Devices{}
 
 	// Apply all the profiles
-	profileDevices := make([]types.Devices, len(profiles))
+	profileDevices := make([]config.Devices, len(profiles))
 	for i, profile := range profiles {
 		profileDevices[i] = profile.Devices
 	}
