@@ -159,6 +159,7 @@ var APIExtensions = []string{
 	"container_nic_ipfilter",
 	"resources_v2",
 	"container_exec_user_group_cwd",
+	"container_syscall_intercept",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
