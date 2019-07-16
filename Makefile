@@ -34,22 +34,26 @@ lxd-p2c:
 deps:
 	# sqlite
 	@if [ -d "$(GOPATH)/deps/sqlite" ]; then \
-		cd "$(GOPATH)/deps/sqlite"; \
-		git pull; \
+		if [ -d "$(GOPATH)/deps/sqlite/.git" ]; then \
+			cd "$(GOPATH)/deps/sqlite"; \
+			git pull; \
+		fi; \
 	else \
 		git clone --depth=1 "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
+		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest; \
+		git log -1 --format="format:%H" > manifest.uuid; \
 	fi
 
 	cd "$(GOPATH)/deps/sqlite" && \
 		./configure --enable-replication --disable-amalgamation --disable-tcl && \
-		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest && \
-		git log -1 --format="format:%H" > manifest.uuid && \
 		make
 
 	# libco
 	@if [ -d "$(GOPATH)/deps/libco" ]; then \
-		cd "$(GOPATH)/deps/libco"; \
-		git pull; \
+		if [ -d "$(GOPATH)/deps/libco/.git" ]; then \
+			cd "$(GOPATH)/deps/libco"; \
+			git pull; \
+		fi; \
 	else \
 		git clone --depth=1 "https://github.com/freeekanayaka/libco" "$(GOPATH)/deps/libco"; \
 	fi
@@ -59,8 +63,10 @@ deps:
 
 	# raft
 	@if [ -d "$(GOPATH)/deps/raft" ]; then \
-		cd "$(GOPATH)/deps/raft"; \
-		git pull; \
+		if [ -d "$(GOPATH)/deps/raft/.git" ]; then \
+			cd "$(GOPATH)/deps/raft"; \
+			git pull; \
+		fi; \
 	else \
 		git clone --depth=1 "https://github.com/CanonicalLtd/raft" "$(GOPATH)/deps/raft"; \
 	fi
@@ -72,8 +78,10 @@ deps:
 
 	# dqlite
 	@if [ -d "$(GOPATH)/deps/dqlite" ]; then \
-		cd "$(GOPATH)/deps/dqlite"; \
-		git pull; \
+		if [ -d "$(GOPATH)/deps/dqlite/.git" ]; then \
+			cd "$(GOPATH)/deps/dqlite"; \
+			git pull; \
+		fi; \
 	else \
 		git clone --depth=1 "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
 	fi
@@ -133,27 +141,28 @@ dist:
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
 	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
-	mkdir -p $(TMP)/dist/src/github.com/lxc
-	ln -s ../../../../lxd-$(VERSION) $(TMP)/dist/src/github.com/lxc/lxd
+	mkdir -p $(TMP)/_dist/src/github.com/lxc
+	ln -s ../../../../lxd-$(VERSION) $(TMP)/_dist/src/github.com/lxc/lxd
 
 	# Download dependencies
-	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
+	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/_dist go get -t -v -d ./...
 
 	# Download the cluster-enabled sqlite/dqlite
-	git clone --depth=1 https://github.com/CanonicalLtd/dqlite $(TMP)/dist/dqlite
-	git clone --depth=1 https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
-	git clone --depth=1 https://github.com/freeekanayaka/libco $(TMP)/dist/libco
-	git clone --depth=1 https://github.com/CanonicalLtd/raft $(TMP)/dist/raft
-	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
-	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
+	mkdir $(TMP)/_dist/deps/
+	git clone --depth=1 https://github.com/CanonicalLtd/dqlite $(TMP)/_dist/deps/dqlite
+	git clone --depth=1 https://github.com/CanonicalLtd/sqlite $(TMP)/_dist/deps/sqlite
+	git clone --depth=1 https://github.com/freeekanayaka/libco $(TMP)/_dist/deps/libco
+	git clone --depth=1 https://github.com/CanonicalLtd/raft $(TMP)/_dist/deps/raft
+	cd $(TMP)/_dist/deps/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
+	cd $(TMP)/_dist/deps/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
 	# Write a manifest
-	cd $(TMP)/dist && find . -type d -name .git | while read line; do GITDIR=$$(dirname $$line); echo "$${GITDIR}: $$(cd $${GITDIR} && git show-ref HEAD $${GITDIR} | cut -d' ' -f1)"; done | sort > $(TMP)/dist/MANIFEST
+	cd $(TMP)/_dist && find . -type d -name .git | while read line; do GITDIR=$$(dirname $$line); echo "$${GITDIR}: $$(cd $${GITDIR} && git show-ref HEAD $${GITDIR} | cut -d' ' -f1)"; done | sort > $(TMP)/_dist/MANIFEST
 
 	# Assemble tarball
-	rm $(TMP)/dist/src/github.com/lxc/lxd
-	ln -s ../../../../ $(TMP)/dist/src/github.com/lxc/lxd
-	mv $(TMP)/dist $(TMP)/lxd-$(VERSION)/
+	rm $(TMP)/_dist/src/github.com/lxc/lxd
+	ln -s ../../../../ $(TMP)/_dist/src/github.com/lxc/lxd
+	mv $(TMP)/_dist $(TMP)/lxd-$(VERSION)/
 	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
 
 	# Cleanup
