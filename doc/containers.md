@@ -77,6 +77,8 @@ security.protection.shift               | boolean   | false             | yes   
 security.syscalls.blacklist             | string    | -                 | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to blacklist
 security.syscalls.blacklist\_compat     | boolean   | false             | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist\_default    | boolean   | true              | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
+security.syscalls.intercept.mknod       | boolean   | false             | no            | container\_syscall\_intercept        | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
+security.syscalls.intercept.setxattr    | boolean   | false             | no            | container\_syscall\_intercept        | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
 security.syscalls.whitelist             | string    | -                 | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
 snapshots.schedule                      | string    | -                 | no            | snapshot\_scheduling                 | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
 snapshots.schedule.stopped              | bool      | false             | no            | snapshot\_scheduling                 | Controls whether or not stopped containers are to be snapshoted automatically
