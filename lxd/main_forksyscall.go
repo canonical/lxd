@@ -267,10 +267,19 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
 		return false;
 	close(fd);
 
+#ifndef CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP	0x02000000
+#endif
+
 	fd = openat(ns_fd, "cgroup", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWCGROUP))
-		return false;
-	close(fd);
+	if (fd < 0) {
+		if (errno != ENOENT)
+			return false;
+	} else {
+		if (setns(fd, CLONE_NEWCGROUP) && errno != EINVAL)
+			return false;
+		close(fd);
+	}
 
 	fd = openat(ns_fd, "ipc", O_RDONLY | O_CLOEXEC);
 	if (setns(fd, CLONE_NEWIPC))
