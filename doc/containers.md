@@ -281,8 +281,8 @@ ipv6.address             | string    | -                 | no        | network  
 ipv4.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv4 static routes to add on host to nic
 ipv6.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv6 static routes to add on host to nic
 security.mac\_filtering  | boolean   | false             | no        | network                                | Prevent the container from spoofing another's MAC address
-security.ipv4\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv4 address (enables mac_filtering)
-security.ipv6\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv6 address (enables mac_filtering)
+security.ipv4\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv4 address (enables mac\_filtering)
+security.ipv6\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv6 address (enables mac\_filtering)
 maas.subnet.ipv4         | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
 maas.subnet.ipv6         | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
 
