@@ -863,12 +863,6 @@ func taskIds(pid int) (error, int32, int32, int32, int32) {
 	return nil, uid, gid, fsuid, fsgid
 }
 
-func taskUidGid(pid int) (error, int32, int32) {
-	err, uid, gid, _, _ := taskIds(pid)
-
-	return err, uid, gid
-}
-
 func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnly int) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
@@ -1042,14 +1036,16 @@ func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) in
 }
 
 type SetxattrArgs struct {
-	nsuid int
-	nsgid int
-	size  int
-	pid   int
-	path  string
-	name  string
-	value []byte
-	flags C.int
+	nsuid   int
+	nsgid   int
+	nsfsuid int
+	nsfsgid int
+	size    int
+	pid     int
+	path    string
+	name    string
+	value   []byte
+	flags   C.int
 }
 
 func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) int {
@@ -1065,12 +1061,15 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 	args := SetxattrArgs{}
 
 	args.pid = int(siov.req.pid)
-	err, uid, gid := taskUidGid(args.pid)
+	err, uid, gid, fsuid, fsgid := taskIds(args.pid)
 	if err != nil {
 		return int(-C.EPERM)
 	}
+
 	args.nsuid = GetNSUid(uint(uid), args.pid)
 	args.nsgid = GetNSGid(uint(gid), args.pid)
+	args.nsfsuid = GetNSUid(uint(fsuid), args.pid)
+	args.nsfsgid = GetNSGid(uint(fsgid), args.pid)
 
 	// const char *path
 	cBuf := [unix.PathMax]C.char{}
@@ -1114,6 +1113,8 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 		fmt.Sprintf("%d", args.pid),
 		fmt.Sprintf("%d", args.nsuid),
 		fmt.Sprintf("%d", args.nsgid),
+		fmt.Sprintf("%d", args.nsfsuid),
+		fmt.Sprintf("%d", args.nsfsgid),
 		args.name,
 		args.path,
 		fmt.Sprintf("%d", args.flags),
