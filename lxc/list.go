@@ -673,7 +673,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.ContainerFull) string {
 		return fmt.Sprintf("%d", len(cInfo.Snapshots))
 	}
 
-	return ""
+	return "0"
 }
 
 func (c *cmdList) PIDColumnData(cInfo api.ContainerFull) string {
