@@ -7603,7 +7603,7 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 		return err
 	}
 
-	err, uid, gid := taskUidGid(pid)
+	err, uid, gid, _, _ := taskIds(pid)
 	if err != nil {
 		return err
 	}

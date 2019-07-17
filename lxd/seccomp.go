@@ -788,16 +788,18 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	return &s, nil
 }
 
-func taskUidGid(pid int) (error, int32, int32) {
+func taskIds(pid int) (error, int32, int32, int32, int32) {
 	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
-		return err, -1, -1
+		return err, -1, -1, -1, -1
 	}
 
-	reUid := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)")
-	reGid := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)")
-	var gid int32
-	var uid int32
+	reUid := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
+	reGid := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
+	var gid int32 = -1
+	var uid int32 = -1
+	var fsgid int32 = -1
+	var fsuid int32 = -1
 	uidFound := false
 	gidFound := false
 	for _, line := range strings.Split(string(status), "\n") {
@@ -811,13 +813,24 @@ func taskUidGid(pid int) (error, int32, int32) {
 				// effective uid
 				result, err := strconv.Atoi(m[2])
 				if err != nil {
-					return err, -1, -1
+					return err, -1, -1, -1, -1
 				}
 
 				uid = int32(result)
 				uidFound = true
-				continue
 			}
+
+			if m != nil && len(m) > 4 {
+				// fsuid
+				result, err := strconv.Atoi(m[4])
+				if err != nil {
+					return err, -1, -1, -1, -1
+				}
+
+				fsuid = int32(result)
+			}
+
+			continue
 		}
 
 		if !gidFound {
@@ -826,17 +839,34 @@ func taskUidGid(pid int) (error, int32, int32) {
 				// effective gid
 				result, err := strconv.Atoi(m[2])
 				if err != nil {
-					return err, -1, -1
+					return err, -1, -1, -1, -1
 				}
 
 				gid = int32(result)
 				gidFound = true
-				continue
 			}
+
+			if m != nil && len(m) > 4 {
+				// fsgid
+				result, err := strconv.Atoi(m[4])
+				if err != nil {
+					return err, -1, -1, -1, -1
+				}
+
+				fsgid = int32(result)
+			}
+
+			continue
 		}
 	}
 
-	return nil, uid, gid
+	return nil, uid, gid, fsuid, fsgid
+}
+
+func taskUidGid(pid int) (error, int32, int32) {
+	err, uid, gid, _, _ := taskIds(pid)
+
+	return err, uid, gid
 }
 
 func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnly int) int {
@@ -846,7 +876,7 @@ func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnl
 		return int(-C.EPERM)
 	}
 
-	err, uid, gid := taskUidGid(requestPID)
+	err, uid, gid, fsuid, fsgid := taskIds(requestPID)
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -868,6 +898,7 @@ func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnl
 		"forksyscall", "mknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
+		fmt.Sprintf("%d", fsuid), fmt.Sprintf("%d", fsgid),
 		fmt.Sprintf("%d", permissionsOnly))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
