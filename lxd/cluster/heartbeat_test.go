@@ -43,8 +43,8 @@ func TestHeartbeat(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform the heartbeat requests.
-	timeNow := time.Now()
-	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster, nil, &timeNow)
+	leader.Cluster = leaderState.Cluster
+	heartbeat, _ := cluster.HeartbeatTask(leader)
 	ctx := context.Background()
 	heartbeat(ctx)
 
@@ -93,8 +93,8 @@ func DISABLE_TestHeartbeat_MarkAsDown(t *testing.T) {
 
 	// Shutdown the follower node and perform the heartbeat requests.
 	f.Server(follower).Close()
-	timeNow := time.Now()
-	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster, nil, &timeNow)
+	leader.Cluster = leaderState.Cluster
+	heartbeat, _ := cluster.HeartbeatTask(leader)
 	ctx := context.Background()
 	heartbeat(ctx)
 
