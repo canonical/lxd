@@ -76,9 +76,6 @@ type Daemon struct {
 
 	externalAuth *externalAuth
 
-	// Stores the last time this node initiated a leader heartbeat run.
-	lastLeaderHeartbeat time.Time
-
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
 }
@@ -623,6 +620,7 @@ func (d *Daemon) init() error {
 	if err != nil {
 		return err
 	}
+	d.gateway.HeartbeatNodeHook = d.NodeRefreshTask
 
 	/* Setup some mounts (nice to have) */
 	if !d.os.MockMode {
@@ -710,7 +708,7 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
-			stop, _ := task.Start(cluster.Heartbeat(d.gateway, d.cluster, d.NodeRefreshTask, &d.lastLeaderHeartbeat))
+			stop, _ := task.Start(cluster.HeartbeatTask(d.gateway))
 			d.gateway.WaitUpgradeNotification()
 			stop(time.Second)
 
@@ -720,6 +718,7 @@ func (d *Daemon) init() error {
 		}
 		return errors.Wrap(err, "failed to open cluster database")
 	}
+
 	err = cluster.NotifyUpgradeCompleted(d.State(), certInfo)
 	if err != nil {
 		// Ignore the error, since it's not fatal for this particular
@@ -727,6 +726,7 @@ func (d *Daemon) init() error {
 		// offline.
 		logger.Debugf("Could not notify all nodes of database upgrade: %v", err)
 	}
+	d.gateway.Cluster = d.cluster
 
 	/* Migrate the node local data to the cluster database, if needed */
 	if dump != nil {
@@ -915,7 +915,7 @@ func (d *Daemon) init() error {
 
 func (d *Daemon) startClusterTasks() {
 	// Heartbeats
-	d.clusterTasks.Add(cluster.Heartbeat(d.gateway, d.cluster, d.NodeRefreshTask, &d.lastLeaderHeartbeat))
+	d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Events
 	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
