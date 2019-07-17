@@ -250,6 +250,23 @@ static void forkmknod()
 	}
 }
 
+#ifndef CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP	0x02000000
+#endif
+
+const char *ns_names[] = { "user", "mnt", "pid", "uts", "ipc", "net", "cgroup", NULL };
+
+static bool setnsat(int ns_fd, const char *ns)
+{
+	__do_close_prot_errno int fd = -EBADF;
+
+	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return false;
+
+	return setns(fd, CLONE_NEWUSER) == 0;
+}
+
 static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
 {
 	__do_close_prot_errno int fd = -EBADF;
@@ -257,49 +274,10 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
 	if (prctl(PR_SET_KEEPCAPS, 1))
 		return false;
 
-	fd = openat(ns_fd, "user", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWUSER))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "mnt", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWNS))
-		return false;
-	close(fd);
-
-#ifndef CLONE_NEWCGROUP
-#define CLONE_NEWCGROUP	0x02000000
-#endif
-
-	fd = openat(ns_fd, "cgroup", O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		if (errno != ENOENT)
+	for (const char **ns = ns_names; ns && *ns; ns++) {
+		if (!setnsat(ns_fd, *ns))
 			return false;
-	} else {
-		if (setns(fd, CLONE_NEWCGROUP) && errno != EINVAL)
-			return false;
-		close(fd);
 	}
-
-	fd = openat(ns_fd, "ipc", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWIPC))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "net", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWNET))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "pid", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWPID))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "uts", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWUTS))
-		return false;
-	// compiler taking care of fd again now
 
 	if (setegid(nsgid))
 		return false;
