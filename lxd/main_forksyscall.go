@@ -269,7 +269,7 @@ static bool setnsat(int ns_fd, const char *ns)
 	return setns(fd, CLONE_NEWUSER) == 0;
 }
 
-static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
+static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
 {
 	__do_close_prot_errno int fd = -EBADF;
 
@@ -284,12 +284,12 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
 	if (setegid(nsgid))
 		return false;
 
-	setfsgid(nsgid);
+	setfsgid(nsfsgid);
 
 	if (seteuid(nsuid))
 		return false;
 
-	setfsuid(nsuid);
+	setfsuid(nsfsuid);
 
 	if (cap_set_proc(caps))
 		return false;
@@ -303,8 +303,8 @@ static void forksetxattr()
 	int flags = 0;
 	char *name, *path;
 	char ns_path[PATH_MAX];
-	uid_t nsuid;
-	gid_t nsgid;
+	uid_t nsfsuid, nsuid;
+	gid_t nsfsgid, nsgid;
 	pid_t pid = 0;
 	cap_t caps;
 	cap_flag_value_t flag;
@@ -315,6 +315,8 @@ static void forksetxattr()
 	pid = atoi(advance_arg(true));
 	nsuid = atoi(advance_arg(true));
 	nsgid = atoi(advance_arg(true));
+	nsfsuid = atoi(advance_arg(true));
+	nsfsgid = atoi(advance_arg(true));
 	name = advance_arg(true);
 	path = advance_arg(true);
 	flags = atoi(advance_arg(true));
@@ -364,7 +366,7 @@ static void forksetxattr()
 			_exit(EXIT_FAILURE);
 		}
 	} else {
-		if (!change_creds(ns_fd, caps, nsuid, nsgid)) {
+		if (!change_creds(ns_fd, caps, nsuid, nsgid, nsfsuid, nsfsgid)) {
 			fprintf(stderr, "%d", EFAULT);
 			_exit(EXIT_FAILURE);
 		}
