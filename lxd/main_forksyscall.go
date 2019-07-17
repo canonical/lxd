@@ -126,8 +126,8 @@ static void forkmknod()
 	mode_t mode = 0;
 	dev_t dev = 0;
 	pid_t pid = 0;
-	uid_t uid = -1;
-	gid_t gid = -1;
+	uid_t fsuid = -1, uid = -1;
+	gid_t fsgid = -1, gid = -1;
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
 	cap_t caps;
@@ -140,6 +140,8 @@ static void forkmknod()
 	target_host = advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
+	fsuid = atoi(advance_arg(true));
+	fsgid = atoi(advance_arg(true));
 	chk_perm_only = atoi(advance_arg(true));
 
 	if (*target == '/') {
@@ -198,7 +200,7 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	setfsgid(gid);
+	setfsgid(fsgid);
 
 	ret = seteuid(uid);
 	if (ret) {
@@ -206,7 +208,7 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	setfsuid(uid);
+	setfsuid(fsuid);
 
 	ret = cap_set_proc(caps);
 	if (ret) {
