@@ -126,8 +126,8 @@ static void forkmknod()
 	mode_t mode = 0;
 	dev_t dev = 0;
 	pid_t pid = 0;
-	uid_t uid = -1;
-	gid_t gid = -1;
+	uid_t fsuid = -1, uid = -1;
+	gid_t fsgid = -1, gid = -1;
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
 	cap_t caps;
@@ -140,6 +140,8 @@ static void forkmknod()
 	target_host = advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
+	fsuid = atoi(advance_arg(true));
+	fsgid = atoi(advance_arg(true));
 	chk_perm_only = atoi(advance_arg(true));
 
 	if (*target == '/') {
@@ -198,7 +200,7 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	setfsgid(gid);
+	setfsgid(fsgid);
 
 	ret = seteuid(uid);
 	if (ret) {
@@ -206,7 +208,7 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	setfsuid(uid);
+	setfsuid(fsuid);
 
 	ret = cap_set_proc(caps);
 	if (ret) {
@@ -250,66 +252,44 @@ static void forkmknod()
 	}
 }
 
-static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid)
+#ifndef CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP	0x02000000
+#endif
+
+const char *ns_names[] = { "user", "mnt", "pid", "uts", "ipc", "net", "cgroup", NULL };
+
+static bool setnsat(int ns_fd, const char *ns)
+{
+	__do_close_prot_errno int fd = -EBADF;
+
+	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return false;
+
+	return setns(fd, CLONE_NEWUSER) == 0;
+}
+
+static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
 {
 	__do_close_prot_errno int fd = -EBADF;
 
 	if (prctl(PR_SET_KEEPCAPS, 1))
 		return false;
 
-	fd = openat(ns_fd, "user", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWUSER))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "mnt", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWNS))
-		return false;
-	close(fd);
-
-#ifndef CLONE_NEWCGROUP
-#define CLONE_NEWCGROUP	0x02000000
-#endif
-
-	fd = openat(ns_fd, "cgroup", O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		if (errno != ENOENT)
+	for (const char **ns = ns_names; ns && *ns; ns++) {
+		if (!setnsat(ns_fd, *ns))
 			return false;
-	} else {
-		if (setns(fd, CLONE_NEWCGROUP) && errno != EINVAL)
-			return false;
-		close(fd);
 	}
-
-	fd = openat(ns_fd, "ipc", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWIPC))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "net", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWNET))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "pid", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWPID))
-		return false;
-	close(fd);
-
-	fd = openat(ns_fd, "uts", O_RDONLY | O_CLOEXEC);
-	if (setns(fd, CLONE_NEWUTS))
-		return false;
-	// compiler taking care of fd again now
 
 	if (setegid(nsgid))
 		return false;
 
-	setfsgid(nsgid);
+	setfsgid(nsfsgid);
 
 	if (seteuid(nsuid))
 		return false;
 
-	setfsuid(nsuid);
+	setfsuid(nsfsuid);
 
 	if (cap_set_proc(caps))
 		return false;
@@ -323,8 +303,8 @@ static void forksetxattr()
 	int flags = 0;
 	char *name, *path;
 	char ns_path[PATH_MAX];
-	uid_t nsuid;
-	gid_t nsgid;
+	uid_t nsfsuid, nsuid;
+	gid_t nsfsgid, nsgid;
 	pid_t pid = 0;
 	cap_t caps;
 	cap_flag_value_t flag;
@@ -335,6 +315,8 @@ static void forksetxattr()
 	pid = atoi(advance_arg(true));
 	nsuid = atoi(advance_arg(true));
 	nsgid = atoi(advance_arg(true));
+	nsfsuid = atoi(advance_arg(true));
+	nsfsgid = atoi(advance_arg(true));
 	name = advance_arg(true);
 	path = advance_arg(true);
 	flags = atoi(advance_arg(true));
@@ -384,7 +366,7 @@ static void forksetxattr()
 			_exit(EXIT_FAILURE);
 		}
 	} else {
-		if (!change_creds(ns_fd, caps, nsuid, nsgid)) {
+		if (!change_creds(ns_fd, caps, nsuid, nsgid, nsfsuid, nsfsgid)) {
 			fprintf(stderr, "%d", EFAULT);
 			_exit(EXIT_FAILURE);
 		}
