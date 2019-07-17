@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/eagain"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -101,6 +102,10 @@ type Gateway struct {
 	// Used to track whether we already triggered an upgrade because we
 	// detected a peer with an higher version.
 	upgradeTriggered bool
+
+	// Used for the heartbeat handler
+	Cluster           *db.Cluster
+	HeartbeatNodeHook func(*APIHeartbeat)
 
 	// ServerStore wrapper.
 	store *dqliteServerStore
@@ -541,6 +546,7 @@ func (g *Gateway) init() error {
 		}
 		options := []dqlite.ServerOption{
 			dqlite.WithServerLogFunc(DqliteLog),
+			dqlite.WithServerWatchFunc(g.watchFunc),
 		}
 
 		if raft.info.Address == "1" {
@@ -802,6 +808,15 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 	}()
 
 	return cUnix, nil
+}
+
+func (g *Gateway) watchFunc(oldState int, newState int) {
+	if newState == dqlite.Leader && g.raft != nil {
+		logger.Info("Node was elected as dqlite leader", log.Ctx{"id": g.raft.info.ID, "address": g.raft.info.Address})
+
+		// Trigger an immediate full hearbeat run
+		go g.heartbeat(g.ctx, true)
+	}
 }
 
 // Create a dial function that connects to the given listener.

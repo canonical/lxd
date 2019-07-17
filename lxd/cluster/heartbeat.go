@@ -108,7 +108,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	return
 }
 
-// sends heartbeat requests to the nodes supplied and updates heartbeat state.
+// Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
 func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
 	heartbeatsWg := sync.WaitGroup{}
 	sendHeartbeat := func(nodeID int64, address string, delay bool, heartbeatData *APIHeartbeat) {
@@ -161,166 +161,18 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 	heartbeatsWg.Wait()
 }
 
-// Heartbeat returns a task function that performs leader-initiated heartbeat
+// HeartbeatTask returns a task function that performs leader-initiated heartbeat
 // checks against all LXD nodes in the cluster.
 //
 // It will update the heartbeat timestamp column of the nodes table
 // accordingly, and also notify them of the current list of database nodes.
-func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIHeartbeat), lastLeaderHeartbeat *time.Time) (task.Func, task.Schedule) {
-	heartbeat := func(ctx context.Context) {
-		if gateway.server == nil || gateway.memoryDial != nil {
-			// We're not a raft node or we're not clustered
-			return
-		}
-
-		raftNodes, err := gateway.currentRaftNodes()
-		if err == errNotLeader {
-			return
-		}
-
-		logger.Debugf("Starting heartbeat round")
-		if err != nil {
-			logger.Warnf("Failed to get current raft nodes: %v", err)
-			return
-		}
-
-		// Replace the local raft_nodes table immediately because it
-		// might miss a row containing ourselves, since we might have
-		// been elected leader before the former leader had chance to
-		// send us a fresh update through the heartbeat pool.
-		logger.Debugf("Heartbeat updating local raft nodes to %+v", raftNodes)
-		err = gateway.db.Transaction(func(tx *db.NodeTx) error {
-			return tx.RaftNodesReplace(raftNodes)
-		})
-		if err != nil {
-			logger.Warnf("Failed to replace local raft nodes: %v", err)
-			return
-		}
-
-		var allNodes []db.NodeInfo
-		var localAddress string // Address of this node
-		var offlineThreshold time.Duration
-		err = cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-			allNodes, err = tx.Nodes()
-			if err != nil {
-				return err
-			}
-
-			localAddress, err = tx.NodeAddress()
-			if err != nil {
-				return err
-			}
-
-			offlineThreshold, err = tx.NodeOfflineThreshold()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			logger.Warnf("Failed to get current cluster nodes: %v", err)
-			return
-		}
-
-		// Cumulative set of node states (will be written back to database once done).
-		hbState := &APIHeartbeat{}
-
-		// If this leader node hasn't sent a heartbeat recently, then its node state records
-		// are likely out of date, this can happen when a node becomes a leader.
-		// Send stale set to all nodes in database to get a fresh set of active nodes.
-		if lastLeaderHeartbeat.IsZero() || time.Since(*lastLeaderHeartbeat) >= offlineThreshold {
-			logger.Warnf("Leader has not initiated heartbeat since '%v', doing initial heartbeat rounds", *lastLeaderHeartbeat)
-			hbState.Update(false, raftNodes, allNodes, offlineThreshold)
-			hbState.Send(ctx, gateway.cert, localAddress, allNodes, false)
-			logger.Debugf("Completed initial heartbeat round phase 1")
-			// We have the latest set of node states now, lets send that state set to all nodes.
-			hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-			hbState.Send(ctx, gateway.cert, localAddress, allNodes, false)
-			logger.Debugf("Completed initial heartbeat round phase 2")
-		} else {
-			hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-			hbState.Send(ctx, gateway.cert, localAddress, allNodes, true)
-		}
-
-		// Look for any new node which appeared since sending last heartbeat.
-		var currentNodes []db.NodeInfo
-		err = cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-			currentNodes, err = tx.Nodes()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			logger.Warnf("Failed to get current cluster nodes: %v", err)
-			return
-		}
-
-		newNodes := []db.NodeInfo{}
-		for _, currentNode := range currentNodes {
-			existing := false
-			for _, node := range allNodes {
-				if node.Address == currentNode.Address && node.ID == currentNode.ID {
-					existing = true
-					break
-				}
-			}
-
-			if !existing {
-				// We found a new node
-				allNodes = append(allNodes, currentNode)
-				newNodes = append(newNodes, currentNode)
-			}
-		}
-
-		// If any new nodes found, send heartbeat to just them (with full node state).
-		if len(newNodes) > 0 {
-			hbState.Update(true, raftNodes, allNodes, offlineThreshold)
-			hbState.Send(ctx, gateway.cert, localAddress, newNodes, false)
-		}
-
-		// If the context has been cancelled, return immediately.
-		if ctx.Err() != nil {
-			logger.Debugf("Aborting heartbeat round")
-			return
-		}
-
-		err = cluster.Transaction(func(tx *db.ClusterTx) error {
-			for _, node := range hbState.Members {
-				if !node.updated {
-					continue
-				}
-
-				err := tx.NodeHeartbeat(node.Address, time.Now())
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			logger.Warnf("Failed to update heartbeat: %v", err)
-		}
-		// If full node state was sent and node refresh task is specified, run it async.
-		if nodeRefreshTask != nil {
-			go nodeRefreshTask(hbState)
-		}
-
-		// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-		*lastLeaderHeartbeat = time.Now()
-		logger.Debugf("Completed heartbeat round")
-	}
-
+func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	// Since the database APIs are blocking we need to wrap the core logic
 	// and run it in a goroutine, so we can abort as soon as the context expires.
 	heartbeatWrapper := func(ctx context.Context) {
 		ch := make(chan struct{})
 		go func() {
-			heartbeat(ctx)
+			gateway.heartbeat(ctx, false)
 			ch <- struct{}{}
 		}()
 		select {
@@ -332,6 +184,152 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster, nodeRefreshTask func(*APIH
 	schedule := task.Every(time.Duration(heartbeatInterval) * time.Second)
 
 	return heartbeatWrapper, schedule
+}
+
+func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
+	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
+		// We're not a raft node or we're not clustered
+		return
+	}
+
+	raftNodes, err := g.currentRaftNodes()
+	if err == errNotLeader {
+		return
+	}
+
+	logger.Debugf("Starting heartbeat round")
+	if err != nil {
+		logger.Warnf("Failed to get current raft nodes: %v", err)
+		return
+	}
+
+	// Replace the local raft_nodes table immediately because it
+	// might miss a row containing ourselves, since we might have
+	// been elected leader before the former leader had chance to
+	// send us a fresh update through the heartbeat pool.
+	logger.Debugf("Heartbeat updating local raft nodes to %+v", raftNodes)
+	err = g.db.Transaction(func(tx *db.NodeTx) error {
+		return tx.RaftNodesReplace(raftNodes)
+	})
+	if err != nil {
+		logger.Warnf("Failed to replace local raft nodes: %v", err)
+		return
+	}
+
+	var allNodes []db.NodeInfo
+	var localAddress string // Address of this node
+	var offlineThreshold time.Duration
+	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		allNodes, err = tx.Nodes()
+		if err != nil {
+			return err
+		}
+
+		localAddress, err = tx.NodeAddress()
+		if err != nil {
+			return err
+		}
+
+		offlineThreshold, err = tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		return
+	}
+
+	// Cumulative set of node states (will be written back to database once done).
+	hbState := &APIHeartbeat{}
+
+	// If this leader node hasn't sent a heartbeat recently, then its node state records
+	// are likely out of date, this can happen when a node becomes a leader.
+	// Send stale set to all nodes in database to get a fresh set of active nodes.
+	if initialHeartbeat {
+		hbState.Update(false, raftNodes, allNodes, offlineThreshold)
+		hbState.Send(ctx, g.cert, localAddress, allNodes, false)
+
+		// We have the latest set of node states now, lets send that state set to all nodes.
+		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+		hbState.Send(ctx, g.cert, localAddress, allNodes, false)
+	} else {
+		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+		hbState.Send(ctx, g.cert, localAddress, allNodes, true)
+	}
+
+	// Look for any new node which appeared since sending last heartbeat.
+	var currentNodes []db.NodeInfo
+	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		currentNodes, err = tx.Nodes()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		return
+	}
+
+	newNodes := []db.NodeInfo{}
+	for _, currentNode := range currentNodes {
+		existing := false
+		for _, node := range allNodes {
+			if node.Address == currentNode.Address && node.ID == currentNode.ID {
+				existing = true
+				break
+			}
+		}
+
+		if !existing {
+			// We found a new node
+			allNodes = append(allNodes, currentNode)
+			newNodes = append(newNodes, currentNode)
+		}
+	}
+
+	// If any new nodes found, send heartbeat to just them (with full node state).
+	if len(newNodes) > 0 {
+		hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+		hbState.Send(ctx, g.cert, localAddress, newNodes, false)
+	}
+
+	// If the context has been cancelled, return immediately.
+	if ctx.Err() != nil {
+		logger.Debugf("Aborting heartbeat round")
+		return
+	}
+
+	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		for _, node := range hbState.Members {
+			if !node.updated {
+				continue
+			}
+
+			err := tx.NodeHeartbeat(node.Address, time.Now())
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Warnf("Failed to update heartbeat: %v", err)
+	}
+
+	// If full node state was sent and node refresh task is specified, run it async.
+	if g.HeartbeatNodeHook != nil {
+		go g.HeartbeatNodeHook(hbState)
+	}
+
+	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
+	logger.Debugf("Completed heartbeat round")
 }
 
 // heartbeatInterval Number of seconds to wait between to heartbeat rounds.
