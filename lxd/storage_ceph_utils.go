@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
@@ -169,6 +170,8 @@ func cephRBDVolumeUnmap(clusterName string, poolName string, volumeName string,
 	volumeType string, userName string, unmapUntilEINVAL bool) error {
 	unmapImageName := fmt.Sprintf("%s_%s", volumeType, volumeName)
 
+	busyCount := 0
+
 again:
 	_, err := shared.RunCommand(
 		"rbd",
@@ -187,8 +190,21 @@ again:
 					// EINVAL (already unmapped)
 					return nil
 				}
+
+				if waitStatus.ExitStatus() == 16 {
+					// EBUSY (currently in use)
+					busyCount++
+					if busyCount == 10 {
+						return err
+					}
+
+					// Wait a second an try again
+					time.Sleep(time.Second)
+					goto again
+				}
 			}
 		}
+
 		return err
 	}
 
