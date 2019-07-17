@@ -48,15 +48,9 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	return
 }
 
-// FileCopy copies a file, overwriting the target if it exists.
+// GetPathMode returns a os.FileMode for the provided path
 func GetPathMode(path string) (os.FileMode, error) {
-	s, err := os.Open(path)
-	if err != nil {
-		return os.FileMode(0000), err
-	}
-	defer s.Close()
-
-	fi, err := s.Stat()
+	fi, err := os.Stat(path)
 	if err != nil {
 		return os.FileMode(0000), err
 	}
