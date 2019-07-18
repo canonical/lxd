@@ -136,11 +136,8 @@ func (s *storageCeph) StoragePoolCreate() error {
 	if !cephOSDPoolExists(s.ClusterName, s.OSDPoolName, s.UserName) {
 		logger.Debugf(`CEPH OSD storage pool "%s" does not exist`, s.OSDPoolName)
 
-		// create new osd pool
-		msg, err := shared.TryRunCommand("ceph", "--name",
-			fmt.Sprintf("client.%s", s.UserName), "--cluster",
-			s.ClusterName, "osd", "pool", "create", s.OSDPoolName,
-			s.PGNum)
+		// Create new osd pool
+		msg, err := shared.TryRunCommand("ceph", "--name", fmt.Sprintf("client.%s", s.UserName), "--cluster", s.ClusterName, "osd", "pool", "create", s.OSDPoolName, s.PGNum)
 		if err != nil {
 			logger.Errorf(`Failed to create CEPH osd storage pool "%s" in cluster "%s": %s`, s.OSDPoolName, s.ClusterName, msg)
 			return err
@@ -152,27 +149,39 @@ func (s *storageCeph) StoragePoolCreate() error {
 				return
 			}
 
-			err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName,
-				s.UserName)
+			err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName, s.UserName)
 			if err != nil {
 				logger.Warnf(`Failed to delete ceph storage pool "%s" in cluster "%s": %s`, s.OSDPoolName, s.ClusterName, err)
 			}
 		}()
 
+		// Create dummy storage volume. Other LXD instances will use this to detect whether this osd pool is already in use by another LXD instance.
+		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, s.OSDPoolName, "lxd", "0", s.UserName)
+		if err != nil {
+			logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, s.pool.Name, s.pool.Name, err)
+			return err
+		}
+		s.pool.Config["volatile.pool.pristine"] = "true"
+		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`, s.pool.Name, s.pool.Name)
 	} else {
 		logger.Debugf(`CEPH OSD storage pool "%s" does exist`, s.OSDPoolName)
 
-		// use existing osd pool
-		msg, err := shared.RunCommand("ceph", "--name",
-			fmt.Sprintf("client.%s", s.UserName),
-			"--cluster", s.ClusterName, "osd", "pool", "get",
-			s.OSDPoolName, "pg_num")
+		ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, s.OSDPoolName, "lxd", s.UserName)
+		s.pool.Config["volatile.pool.pristine"] = "false"
+		if ok {
+			if s.pool.Config["ceph.osd.force_reuse"] == "" || !shared.IsTrue(s.pool.Config["ceph.osd.force_reuse"]) {
+				return fmt.Errorf("CEPH OSD storage pool \"%s\" in cluster \"%s\" seems to be in use by another LXD instance. Use \"ceph.osd.force_reuse=true\" to force.", s.pool.Name, s.ClusterName)
+			}
+		}
+
+		// Use existing osd pool
+		msg, err := shared.RunCommand("ceph", "--name", fmt.Sprintf("client.%s", s.UserName), "--cluster", s.ClusterName, "osd", "pool", "get", s.OSDPoolName, "pg_num")
 		if err != nil {
 			logger.Errorf(`Failed to retrieve number of placement groups for CEPH osd storage pool "%s" in cluster "%s": %s`, s.OSDPoolName, s.ClusterName, msg)
 			return err
 		}
-		logger.Debugf(`Retrieved number of placement groups or CEPH osd storage pool "%s" in cluster "%s"`, s.OSDPoolName, s.ClusterName)
 
+		logger.Debugf(`Retrieved number of placement groups or CEPH osd storage pool "%s" in cluster "%s"`, s.OSDPoolName, s.ClusterName)
 		idx := strings.Index(msg, "pg_num:")
 		if idx == -1 {
 			logger.Errorf(`Failed to parse number of placement groups for CEPH osd storage pool "%s" in cluster "%s": %s`, s.OSDPoolName, s.ClusterName, msg)
@@ -180,6 +189,7 @@ func (s *storageCeph) StoragePoolCreate() error {
 
 		msg = msg[(idx + len("pg_num:")):]
 		msg = strings.TrimSpace(msg)
+
 		// It is ok to update the pool configuration since storage pool
 		// creation via API is implemented such that the storage pool is
 		// checked for a changed config after this function returns and
@@ -224,35 +234,6 @@ func (s *storageCeph) StoragePoolCreate() error {
 			logger.Errorf(`Failed to delete mountpoint "%s" for ceph storage pool "%s" in cluster "%s": %s`, poolMntPoint, s.OSDPoolName, s.ClusterName, err)
 		}
 	}()
-
-	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, s.OSDPoolName,
-		"lxd", s.UserName)
-	s.pool.Config["volatile.pool.pristine"] = "false"
-	if !ok {
-		s.pool.Config["volatile.pool.pristine"] = "true"
-		// Create dummy storage volume. Other LXD instances will use
-		// this to detect whether this osd pool is already in use by
-		// another LXD instance.
-		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
-			s.OSDPoolName, "lxd", "0", s.UserName)
-		if err != nil {
-			logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, s.pool.Name, s.pool.Name, err)
-			return err
-		}
-		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`, s.pool.Name, s.pool.Name)
-	} else {
-		msg := fmt.Sprintf(`CEPH OSD storage pool "%s" in cluster `+
-			`"%s" seems to be in use by another LXD instace`,
-			s.pool.Name, s.ClusterName)
-		if s.pool.Config["ceph.osd.force_reuse"] == "" ||
-			!shared.IsTrue(s.pool.Config["ceph.osd.force_reuse"]) {
-			msg += `. Set "ceph.osd.force_reuse=true" to force ` +
-				`LXD to reuse the pool`
-			logger.Errorf(msg)
-			return fmt.Errorf(msg)
-		}
-		logger.Warnf(msg)
-	}
 
 	logger.Infof(`Created CEPH OSD storage pool "%s" in cluster "%s"`,
 		s.pool.Name, s.ClusterName)
