@@ -46,15 +46,29 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 	}
 
 	gateway := &Gateway{
-		db:        db,
-		cert:      cert,
-		options:   o,
-		ctx:       ctx,
-		cancel:    cancel,
-		upgradeCh: make(chan struct{}, 16),
-		acceptCh:  make(chan net.Conn),
-		store:     &dqliteServerStore{},
+		db:          db,
+		cert:        cert,
+		options:     o,
+		ctx:         ctx,
+		cancel:      cancel,
+		upgradeCh:   make(chan struct{}, 16),
+		acceptCh:    make(chan net.Conn),
+		heartbeatCh: make(chan struct{}, 16),
+		store:       &dqliteServerStore{},
 	}
+
+	// Handler for dqlite triggered hearbeats
+	go func() {
+		for {
+			select {
+			case <-gateway.ctx.Done():
+				return
+			case <-gateway.heartbeatCh:
+				gateway.heartbeat(gateway.ctx, true)
+				continue
+			}
+		}
+	}()
 
 	err := gateway.init()
 	if err != nil {
@@ -104,6 +118,7 @@ type Gateway struct {
 	upgradeTriggered bool
 
 	// Used for the heartbeat handler
+	heartbeatCh       chan struct{}
 	Cluster           *db.Cluster
 	HeartbeatNodeHook func(*APIHeartbeat)
 
@@ -820,7 +835,7 @@ func (g *Gateway) watchFunc(oldState int, newState int) {
 		logger.Info("Node was elected as dqlite leader", log.Ctx{"id": g.raft.info.ID, "address": g.raft.info.Address})
 
 		// Trigger an immediate full hearbeat run
-		go g.heartbeat(g.ctx, true)
+		g.heartbeatCh <- struct{}{}
 	}
 }
 
