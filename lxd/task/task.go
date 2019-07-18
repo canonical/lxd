@@ -61,7 +61,6 @@ func (t *Task) loop(ctx context.Context) {
 				return
 			}
 			timer = time.After(schedule)
-
 		}
 
 		select {
@@ -70,8 +69,14 @@ func (t *Task) loop(ctx context.Context) {
 				// Execute the task function synchronously. Consumers
 				// are responsible for implementing proper cancellation
 				// of the task function itself using the tomb's context.
+				start := time.Now()
 				t.f(ctx)
-				delay = schedule
+				duration := time.Since(start)
+
+				delay = schedule - duration
+				if delay < 0 {
+					delay = immediately
+				}
 			} else {
 				// Don't execute the task function, and set the
 				// delay to run it immediately whenever the
