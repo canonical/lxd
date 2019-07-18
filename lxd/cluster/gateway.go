@@ -177,25 +177,30 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 				return
 			}
 
-			nodes := make([]db.RaftNode, 0)
+			raftNodes := make([]db.RaftNode, 0)
 			for _, node := range heartbeatData.Members {
-				if node.Raft {
-					nodes = append(nodes, db.RaftNode{
-						ID:      node.ID,
+				if node.RaftID > 0 {
+					raftNodes = append(raftNodes, db.RaftNode{
+						ID:      node.RaftID,
 						Address: node.Address,
 					})
 				}
 			}
 
-			// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
-			logger.Debugf("Replace current raft nodes with %+v", nodes)
-			err = g.db.Transaction(func(tx *db.NodeTx) error {
-				return tx.RaftNodesReplace(nodes)
-			})
-			if err != nil {
-				logger.Errorf("Error updating raft nodes: %v", err)
-				http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
-				return
+			// Check we have been sent at least 1 raft node before wiping our set.
+			if len(raftNodes) > 0 {
+				// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
+				logger.Debugf("Replace current raft nodes with %+v", raftNodes)
+				err = g.db.Transaction(func(tx *db.NodeTx) error {
+					return tx.RaftNodesReplace(raftNodes)
+				})
+				if err != nil {
+					logger.Errorf("Error updating raft nodes: %v", err)
+					http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
+					return
+				}
+			} else {
+				logger.Errorf("Empty raft node set received")
 			}
 
 			// Only perform node refresh task if we have received a full state list from leader.
