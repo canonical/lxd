@@ -128,7 +128,7 @@ void create(char *src, char *dest)
 }
 
 void do_lxd_forkmount(pid_t pid) {
-	char *src, *dest, *opts;
+	char *src, *dest, *opts, *shiftfs;
 
 	attach_userns(pid);
 
@@ -139,6 +139,7 @@ void do_lxd_forkmount(pid_t pid) {
 
 	src = advance_arg(true);
 	dest = advance_arg(true);
+	shiftfs = advance_arg(true);
 
 	create(src, dest);
 
@@ -152,12 +153,33 @@ void do_lxd_forkmount(pid_t pid) {
 		_exit(1);
 	}
 
+	if (strcmp(shiftfs, "true") == 0) {
+		// Setup shiftfs inside the container
+		if (mount(src, src, "shiftfs", 0, "passthrough=3") < 0) {
+			fprintf(stderr, "Failed shiftfs setup for %s: %s\n", src, strerror(errno));
+			_exit(1);
+		}
+	}
+
 	// Here, we always move recursively, because we sometimes allow
 	// recursive mounts. If the mount has no kids then it doesn't matter,
 	// but if it does, we want to move those too.
 	if (mount(src, dest, "none", MS_MOVE | MS_REC, NULL) < 0) {
+		// If using shiftfs, undo the shiftfs mount
+		if (strcmp(shiftfs, "true") == 0) {
+			umount2(src, MNT_DETACH);
+		}
+
 		fprintf(stderr, "Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
 		_exit(1);
+	}
+
+	if (strcmp(shiftfs, "true") == 0) {
+		// Clear source mount as target is now in place
+		if (umount2(src, MNT_DETACH) < 0) {
+			fprintf(stderr, "Failed shiftfs source unmount for %s: %s\n", src, strerror(errno));
+			_exit(1);
+		}
 	}
 
 	_exit(0);
