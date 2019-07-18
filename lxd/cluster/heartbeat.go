@@ -22,6 +22,7 @@ type APIHeartbeatMember struct {
 	ID            int64
 	Address       string
 	Raft          bool
+	RaftID        int64
 	LastHeartbeat time.Time
 	Online        bool // Calculated from offline threshold and LastHeatbeat time.
 	updated       bool // Has node been updated during this heartbeat run. Not sent to nodes.
@@ -46,6 +47,16 @@ type APIHeartbeat struct {
 	FullStateList bool
 }
 
+func (hbState *APIHeartbeat) memberByAddress(address string) (APIHeartbeatMember, bool) {
+	for _, member := range hbState.Members {
+		if member.Address == address {
+			return member, true
+		}
+	}
+
+	return APIHeartbeatMember{}, false
+}
+
 // Update updates an existing APIHeartbeat struct with the raft and all node states supplied.
 // If allNodes provided is an empty set then this is considered a non-full state list.
 func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode, allNodes []db.NodeInfo, offlineThreshold time.Duration) {
@@ -61,16 +72,16 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 
 	// Add raft nodes first with the raft flag set to true, but missing LastHeartbeat time.
 	for _, node := range raftNodes {
-		member, exists := hbState.Members[node.ID]
+		member, exists := hbState.memberByAddress(node.Address)
 		if !exists {
 			member = APIHeartbeatMember{
-				ID:      node.ID,
 				Address: node.Address,
 			}
 		}
 
+		member.RaftID = node.ID
 		member.Raft = true
-		hbState.Members[node.ID] = member
+		hbState.Members[member.ID] = member
 	}
 
 	// Add remaining nodes, and when if existing node is found, update status.
@@ -121,7 +132,6 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 		logger.Debugf("Sending heartbeat to %s", address)
 
 		err := HeartbeatNode(ctx, address, cert, heartbeatData)
-
 		if err == nil {
 			hbState.Lock()
 			// Ensure only update nodes that exist in Members already.
@@ -281,7 +291,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	for _, currentNode := range currentNodes {
 		existing := false
 		for _, node := range allNodes {
-			if node.Address == currentNode.Address && node.ID == currentNode.ID {
+			if node.Address == currentNode.Address {
 				existing = true
 				break
 			}

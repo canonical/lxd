@@ -180,8 +180,13 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 			nodes := make([]db.RaftNode, 0)
 			for _, node := range heartbeatData.Members {
 				if node.Raft {
+					// Needed to handle LXD 3.15
+					if node.RaftID == 0 {
+						node.RaftID = node.ID
+					}
+
 					nodes = append(nodes, db.RaftNode{
-						ID:      node.ID,
+						ID:      node.RaftID,
 						Address: node.Address,
 					})
 				}
