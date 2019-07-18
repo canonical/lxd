@@ -1843,6 +1843,10 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 
 				if m["propagation"] != "" {
+					if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+						return fmt.Errorf("liblxc 3.0 is required for mount propagation configuration")
+					}
+
 					options = append(options, m["propagation"])
 				}
 

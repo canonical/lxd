@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -515,10 +514,6 @@ func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile 
 			}
 
 			if m["propagation"] != "" {
-				if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-					return fmt.Errorf("liblxc 3.0 is required for mount propagation configuration")
-				}
-
 				if !shared.StringInSlice(m["propagation"], []string{"private", "shared", "slave", "unbindable", "rprivate", "rshared", "rslave", "runbindable"}) {
 					return fmt.Errorf("Invalid propagation mode '%s'", m["propagation"])
 				}
