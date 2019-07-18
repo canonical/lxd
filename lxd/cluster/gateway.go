@@ -174,9 +174,9 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 
 			nodes := make([]db.RaftNode, 0)
 			for _, node := range heartbeatData.Members {
-				if node.Raft {
+				if node.RaftNodeID > 0 {
 					nodes = append(nodes, db.RaftNode{
-						ID:      node.ID,
+						ID:      node.RaftNodeID,
 						Address: node.Address,
 					})
 				}
