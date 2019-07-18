@@ -803,3 +803,6 @@ Adds support for specifying User, Group and Cwd during `POST /1.0/containers/NAM
 Adds the `security.syscalls.intercept.\*` configuration keys to control
 what system calls will be interecepted by LXD and processed with
 elevated permissions.
+
+## container\_disk\_shift
+Adds the `shift` property on `disk` devices which controls the use of the shiftfs overlay.

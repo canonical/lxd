@@ -160,6 +160,7 @@ var APIExtensions = []string{
 	"resources_v2",
 	"container_exec_user_group_cwd",
 	"container_syscall_intercept",
+	"container_disk_shift",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
