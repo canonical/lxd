@@ -185,6 +185,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "propagation":
 			return true
+		case "shift":
+			return true
 		default:
 			return false
 		}
@@ -516,6 +518,12 @@ func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile 
 			if m["propagation"] != "" {
 				if !shared.StringInSlice(m["propagation"], []string{"private", "shared", "slave", "unbindable", "rprivate", "rshared", "rslave", "runbindable"}) {
 					return fmt.Errorf("Invalid propagation mode '%s'", m["propagation"])
+				}
+			}
+
+			if m["shift"] != "" {
+				if m["pool"] != "" {
+					return fmt.Errorf("The \"shift\" property cannot be used with custom storage volumes")
 				}
 			}
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
