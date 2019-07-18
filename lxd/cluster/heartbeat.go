@@ -19,12 +19,12 @@ import (
 
 // APIHeartbeatMember contains specific cluster node info.
 type APIHeartbeatMember struct {
-	ID            int64
-	Address       string
-	Raft          bool
-	LastHeartbeat time.Time
-	Online        bool // Calculated from offline threshold and LastHeatbeat time.
-	updated       bool // Has node been updated during this heartbeat run. Not sent to nodes.
+	LXDNodeID     int64     // The ID field value in the nodes table.
+	RaftNodeID    int64     // The ID field value in the raft_nodes table (zero if non-raft node).
+	Address       string    // The IP address and port of the node.
+	LastHeartbeat time.Time // The last time a positive heartbeat response was received.
+	Online        bool      // Calculated from offline threshold and LastHeatbeat time.
+	updated       bool      // Has node been updated during this heartbeat run. Not sent to nodes.
 }
 
 // APIHeartbeatVersion contains max versions for all nodes in cluster.
@@ -36,7 +36,7 @@ type APIHeartbeatVersion struct {
 // APIHeartbeat contains data sent to nodes in heartbeat.
 type APIHeartbeat struct {
 	sync.Mutex // Used to control access to Members maps.
-	Members    map[int64]APIHeartbeatMember
+	Members    map[string]APIHeartbeatMember
 	Version    APIHeartbeatVersion
 	Time       time.Time
 
@@ -53,7 +53,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	hbState.Time = time.Now()
 
 	if hbState.Members == nil {
-		hbState.Members = make(map[int64]APIHeartbeatMember)
+		hbState.Members = make(map[string]APIHeartbeatMember)
 	}
 
 	// If we've been supplied a fresh set of node states, this is a full state list.
@@ -61,24 +61,22 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 
 	// Add raft nodes first with the raft flag set to true, but missing LastHeartbeat time.
 	for _, node := range raftNodes {
-		member, exists := hbState.Members[node.ID]
+		member, exists := hbState.Members[node.Address]
 		if !exists {
 			member = APIHeartbeatMember{
-				ID:      node.ID,
 				Address: node.Address,
 			}
 		}
 
-		member.Raft = true
-		hbState.Members[node.ID] = member
+		member.RaftNodeID = node.ID
+		hbState.Members[node.Address] = member
 	}
 
 	// Add remaining nodes, and when if existing node is found, update status.
 	for _, node := range allNodes {
-		member, exists := hbState.Members[node.ID]
+		member, exists := hbState.Members[node.Address]
 		if !exists {
 			member = APIHeartbeatMember{
-				ID:      node.ID,
 				Address: node.Address,
 			}
 		}
@@ -87,8 +85,9 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 			member.LastHeartbeat = node.Heartbeat
 		}
 
+		member.LXDNodeID = node.ID
 		member.Online = !member.LastHeartbeat.Before(time.Now().Add(-offlineThreshold))
-		hbState.Members[node.ID] = member
+		hbState.Members[node.Address] = member
 
 		// Keep a record of highest APIExtensions and Schema version seen in all nodes.
 		if node.APIExtensions > maxAPIExtensionsVersion {
@@ -111,7 +110,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 // Send sends heartbeat requests to the nodes supplied and updates heartbeat state.
 func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, localAddress string, nodes []db.NodeInfo, delay bool) {
 	heartbeatsWg := sync.WaitGroup{}
-	sendHeartbeat := func(nodeID int64, address string, delay bool, heartbeatData *APIHeartbeat) {
+	sendHeartbeat := func(address string, delay bool, heartbeatData *APIHeartbeat) {
 		defer heartbeatsWg.Done()
 
 		if delay {
@@ -125,7 +124,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 		if err == nil {
 			hbState.Lock()
 			// Ensure only update nodes that exist in Members already.
-			hbNode, existing := hbState.Members[nodeID]
+			hbNode, existing := hbState.Members[address]
 			if !existing {
 				return
 			}
@@ -133,7 +132,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 			hbNode.LastHeartbeat = time.Now()
 			hbNode.Online = true
 			hbNode.updated = true
-			hbState.Members[nodeID] = hbNode
+			hbState.Members[address] = hbNode
 			hbState.Unlock()
 			logger.Debugf("Successful heartbeat for %s", address)
 		} else {
@@ -145,18 +144,18 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, cert *shared.CertInfo, lo
 		// Special case for the local node - just record the time now.
 		if node.Address == localAddress {
 			hbState.Lock()
-			hbNode := hbState.Members[node.ID]
+			hbNode := hbState.Members[node.Address]
 			hbNode.LastHeartbeat = time.Now()
 			hbNode.Online = true
 			hbNode.updated = true
-			hbState.Members[node.ID] = hbNode
+			hbState.Members[node.Address] = hbNode
 			hbState.Unlock()
 			continue
 		}
 
 		// Parallelize the rest.
 		heartbeatsWg.Add(1)
-		go sendHeartbeat(node.ID, node.Address, delay, hbState)
+		go sendHeartbeat(node.Address, delay, hbState)
 	}
 	heartbeatsWg.Wait()
 }
