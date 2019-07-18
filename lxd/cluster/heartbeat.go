@@ -19,12 +19,13 @@ import (
 
 // APIHeartbeatMember contains specific cluster node info.
 type APIHeartbeatMember struct {
-	ID            int64
-	Address       string
-	Raft          bool
-	LastHeartbeat time.Time
-	Online        bool // Calculated from offline threshold and LastHeatbeat time.
-	updated       bool // Has node been updated during this heartbeat run. Not sent to nodes.
+	ID            int64     // ID field value in nodes table.
+	Address       string    // Host and Port of node.
+	RaftID        int64     // ID field value in raft_nodes table, zero if non-raft node.
+	Raft          bool      // Deprecated, use non-zero RaftID instead to indicate raft node.
+	LastHeartbeat time.Time // Last time we received a successful response from node.
+	Online        bool      // Calculated from offline threshold and LastHeatbeat time.
+	updated       bool      // Has node been updated during this heartbeat run. Not sent to nodes.
 }
 
 // APIHeartbeatVersion contains max versions for all nodes in cluster.
@@ -59,35 +60,29 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	// If we've been supplied a fresh set of node states, this is a full state list.
 	hbState.FullStateList = fullStateList
 
-	// Add raft nodes first with the raft flag set to true, but missing LastHeartbeat time.
-	for _, node := range raftNodes {
-		member, exists := hbState.Members[node.ID]
-		if !exists {
-			member = APIHeartbeatMember{
-				ID:      node.ID,
-				Address: node.Address,
-			}
-		}
+	raftNodeMap := make(map[string]db.RaftNode)
 
-		member.Raft = true
-		hbState.Members[node.ID] = member
+	// Convert raftNodes to a map keyed on address for lookups later.
+	for _, raftNode := range raftNodes {
+		raftNodeMap[raftNode.Address] = raftNode
 	}
 
-	// Add remaining nodes, and when if existing node is found, update status.
+	// Add nodes (overwrites any nodes with same ID in map with fresh data).
 	for _, node := range allNodes {
-		member, exists := hbState.Members[node.ID]
-		if !exists {
-			member = APIHeartbeatMember{
-				ID:      node.ID,
-				Address: node.Address,
-			}
+		member := APIHeartbeatMember{
+			ID:            node.ID,
+			Address:       node.Address,
+			LastHeartbeat: node.Heartbeat,
+			Online:        !node.Heartbeat.Before(time.Now().Add(-offlineThreshold)),
 		}
 
-		if node.Heartbeat.After(member.LastHeartbeat) {
-			member.LastHeartbeat = node.Heartbeat
+		if raftNode, exists := raftNodeMap[member.Address]; exists {
+			member.Raft = true // Deprecated
+			member.RaftID = raftNode.ID
+			delete(raftNodeMap, member.Address) // Used to check any remaining later.
 		}
 
-		member.Online = !member.LastHeartbeat.Before(time.Now().Add(-offlineThreshold))
+		// Add to the members map using the node ID (not the Raft Node ID).
 		hbState.Members[node.ID] = member
 
 		// Keep a record of highest APIExtensions and Schema version seen in all nodes.
@@ -103,6 +98,10 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	hbState.Version = APIHeartbeatVersion{
 		Schema:        maxSchemaVersion,
 		APIExtensions: maxAPIExtensionsVersion,
+	}
+
+	if len(raftNodeMap) > 0 {
+		logger.Errorf("Unaccounted raft node(s) not found in 'nodes' table for heartbeat: %+v", raftNodeMap)
 	}
 
 	return
