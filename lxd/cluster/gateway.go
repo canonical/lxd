@@ -816,6 +816,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 }
 
 func (g *Gateway) watchFunc(oldState int, newState int) {
+	time.Sleep(300 * time.Millisecond)
 	if newState == dqlite.Leader && g.raft != nil {
 		logger.Info("Node was elected as dqlite leader", log.Ctx{"id": g.raft.info.ID, "address": g.raft.info.Address})
 
