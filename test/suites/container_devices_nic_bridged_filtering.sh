@@ -151,7 +151,7 @@ test_container_devices_nic_bridged_filtering() {
     false
   fi
 
-  lxc stop "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}A"
   lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering false
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
 
@@ -169,7 +169,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Simulate changing DHCPv4 ranges.
-  lxc stop "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}A"
   lxc network set "${brName}" ipv4.dhcp.ranges "192.0.2.100-192.0.2.110"
   lxc start "${ctPrefix}A"
 
@@ -272,7 +272,7 @@ test_container_devices_nic_bridged_filtering() {
     false
   fi
 
-  lxc stop "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}A"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering false
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
 
