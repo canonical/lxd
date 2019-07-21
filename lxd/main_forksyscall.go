@@ -31,58 +31,6 @@ import (
 extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
-static uid_t get_ns_uid(uid_t uid, pid_t pid)
-{
-        __do_free char *line = NULL;
-        __do_fclose FILE *f = NULL;
-        size_t sz = 0;
-	char path[256];
-        uid_t nsid, hostid, range;
-
-	snprintf(path, sizeof(path), "/proc/%d/uid_map", pid);
-	f = fopen(path, "re");
-	if (!f)
-		return -1;
-
-        while (getline(&line, &sz, f) != -1) {
-                if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
-                        continue;
-
-                if (nsid <= uid && nsid + range > uid) {
-                        nsid += uid - hostid;
-			return nsid;
-                }
-        }
-
-        return -1;
-}
-
-static gid_t get_ns_gid(uid_t gid, pid_t pid)
-{
-        __do_free char *line = NULL;
-        __do_fclose FILE *f = NULL;
-        size_t sz = 0;
-	char path[256];
-        uid_t nsid, hostid, range;
-
-	snprintf(path, sizeof(path), "/proc/%d/gid_map", pid);
-	f = fopen(path, "re");
-	if (!f)
-		return -1;
-
-        while (getline(&line, &sz, f) != -1) {
-                if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
-                        continue;
-
-                if (nsid <= gid && nsid + range > gid) {
-                        nsid += gid - hostid;
-			return nsid;
-                }
-        }
-
-        return -1;
-}
-
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 			       struct statfs *sfs1, struct statfs *sfs2)
 {
@@ -409,14 +357,6 @@ import "C"
 
 type cmdForksyscall struct {
 	global *cmdGlobal
-}
-
-func GetNSUid(uid uint, pid int) int {
-	return int(C.get_ns_uid(C.uid_t(uid), C.pid_t(pid)))
-}
-
-func GetNSGid(gid uint, pid int) int {
-	return int(C.get_ns_gid(C.gid_t(gid), C.pid_t(pid)))
 }
 
 func (c *cmdForksyscall) Command() *cobra.Command {
