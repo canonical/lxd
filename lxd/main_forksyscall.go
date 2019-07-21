@@ -214,7 +214,7 @@ static bool setnsat(int ns_fd, const char *ns)
 	if (fd < 0)
 		return false;
 
-	return setns(fd, CLONE_NEWUSER) == 0;
+	return setns(fd, 0) == 0;
 }
 
 static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
