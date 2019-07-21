@@ -7608,8 +7608,14 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 		return err
 	}
 
-	m["uid"] = fmt.Sprintf("%d", GetNSUid(uint(uid), pid))
-	m["gid"] = fmt.Sprintf("%d", GetNSGid(uint(gid), pid))
+	idmapset, err := c.CurrentIdmap()
+	if err != nil {
+		return err
+	}
+
+	nsuid, nsgid := idmapset.ShiftFromNs(uid, gid)
+	m["uid"] = fmt.Sprintf("%d", nsuid)
+	m["gid"] = fmt.Sprintf("%d", nsgid)
 
 	if !path.IsAbs(m["path"]) {
 		cwdLink := fmt.Sprintf("/proc/%d/cwd", pid)
