@@ -309,7 +309,7 @@ static void forksetxattr()
 	}
 
 	if (whiteout == 1) {
-		if (setxattr(path, "trusted.overlay.opaque", "y", 1, flags)) {
+		if (fsetxattr(target_fd, "trusted.overlay.opaque", "y", 1, flags)) {
 			fprintf(stderr, "%d", errno);
 			_exit(EXIT_FAILURE);
 		}
