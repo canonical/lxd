@@ -284,7 +284,7 @@ static void forksetxattr()
 		_exit(EXIT_FAILURE);
 	}
 
-	target_fd = open(path, O_RDWR | O_CLOEXEC);
+	target_fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (target_fd < 0) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
