@@ -1066,10 +1066,13 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 		return int(-C.EPERM)
 	}
 
-	args.nsuid = GetNSUid(uint(uid), args.pid)
-	args.nsgid = GetNSGid(uint(gid), args.pid)
-	args.nsfsuid = GetNSUid(uint(fsuid), args.pid)
-	args.nsfsgid = GetNSGid(uint(fsgid), args.pid)
+	idmapset, err := c.CurrentIdmap()
+	if err != nil {
+		return int(-C.EINVAL)
+	}
+
+	args.nsuid, args.nsgid = idmapset.ShiftFromNs(uid, gid)
+	args.nsfsuid, args.nsfsgid = idmapset.ShiftFromNs(fsuid, fsgid)
 
 	// const char *path
 	cBuf := [unix.PathMax]C.char{}
