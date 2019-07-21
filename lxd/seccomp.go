@@ -788,7 +788,7 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	return &s, nil
 }
 
-func taskIds(pid int) (error, int32, int32, int32, int32) {
+func taskIds(pid int) (error, int64, int64, int64, int64) {
 	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
 		return err, -1, -1, -1, -1
@@ -796,10 +796,10 @@ func taskIds(pid int) (error, int32, int32, int32, int32) {
 
 	reUid := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
 	reGid := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
-	var gid int32 = -1
-	var uid int32 = -1
-	var fsgid int32 = -1
-	var fsuid int32 = -1
+	var gid int64 = -1
+	var uid int64 = -1
+	var fsgid int64 = -1
+	var fsuid int64 = -1
 	uidFound := false
 	gidFound := false
 	for _, line := range strings.Split(string(status), "\n") {
@@ -811,23 +811,23 @@ func taskIds(pid int) (error, int32, int32, int32, int32) {
 			m := reUid.FindStringSubmatch(line)
 			if m != nil && len(m) > 2 {
 				// effective uid
-				result, err := strconv.Atoi(m[2])
+				result, err := strconv.ParseInt(m[2], 10, 64)
 				if err != nil {
 					return err, -1, -1, -1, -1
 				}
 
-				uid = int32(result)
+				uid = result
 				uidFound = true
 			}
 
 			if m != nil && len(m) > 4 {
 				// fsuid
-				result, err := strconv.Atoi(m[4])
+				result, err := strconv.ParseInt(m[4], 10, 64)
 				if err != nil {
 					return err, -1, -1, -1, -1
 				}
 
-				fsuid = int32(result)
+				fsuid = result
 			}
 
 			continue
@@ -837,23 +837,23 @@ func taskIds(pid int) (error, int32, int32, int32, int32) {
 			m := reGid.FindStringSubmatch(line)
 			if m != nil && len(m) > 2 {
 				// effective gid
-				result, err := strconv.Atoi(m[2])
+				result, err := strconv.ParseInt(m[2], 10, 64)
 				if err != nil {
 					return err, -1, -1, -1, -1
 				}
 
-				gid = int32(result)
+				gid = result
 				gidFound = true
 			}
 
 			if m != nil && len(m) > 4 {
 				// fsgid
-				result, err := strconv.Atoi(m[4])
+				result, err := strconv.ParseInt(m[4], 10, 64)
 				if err != nil {
 					return err, -1, -1, -1, -1
 				}
 
-				fsgid = int32(result)
+				fsgid = result
 			}
 
 			continue
@@ -1036,10 +1036,10 @@ func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) in
 }
 
 type SetxattrArgs struct {
-	nsuid   int
-	nsgid   int
-	nsfsuid int
-	nsfsgid int
+	nsuid   int64
+	nsgid   int64
+	nsfsuid int64
+	nsfsgid int64
 	size    int
 	pid     int
 	path    string
