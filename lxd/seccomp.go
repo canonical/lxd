@@ -1106,7 +1106,7 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 	args.value = buf
 
 	whiteout := 0
-	if args.size == 1 && string(args.value) == "y" {
+	if string(args.name) == "trusted.overlay.opaque" && string(args.value) == "y" {
 		whiteout = 1
 	}
 
