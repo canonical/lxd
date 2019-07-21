@@ -31,58 +31,6 @@ import (
 extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
-static uid_t get_ns_uid(uid_t uid, pid_t pid)
-{
-        __do_free char *line = NULL;
-        __do_fclose FILE *f = NULL;
-        size_t sz = 0;
-	char path[256];
-        uid_t nsid, hostid, range;
-
-	snprintf(path, sizeof(path), "/proc/%d/uid_map", pid);
-	f = fopen(path, "re");
-	if (!f)
-		return -1;
-
-        while (getline(&line, &sz, f) != -1) {
-                if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
-                        continue;
-
-                if (nsid <= uid && nsid + range > uid) {
-                        nsid += uid - hostid;
-			return nsid;
-                }
-        }
-
-        return -1;
-}
-
-static gid_t get_ns_gid(uid_t gid, pid_t pid)
-{
-        __do_free char *line = NULL;
-        __do_fclose FILE *f = NULL;
-        size_t sz = 0;
-	char path[256];
-        uid_t nsid, hostid, range;
-
-	snprintf(path, sizeof(path), "/proc/%d/gid_map", pid);
-	f = fopen(path, "re");
-	if (!f)
-		return -1;
-
-        while (getline(&line, &sz, f) != -1) {
-                if (sscanf(line, "%u %u %u", &nsid, &hostid, &range) != 3)
-                        continue;
-
-                if (nsid <= gid && nsid + range > gid) {
-                        nsid += gid - hostid;
-			return nsid;
-                }
-        }
-
-        return -1;
-}
-
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 			       struct statfs *sfs1, struct statfs *sfs2)
 {
@@ -266,7 +214,7 @@ static bool setnsat(int ns_fd, const char *ns)
 	if (fd < 0)
 		return false;
 
-	return setns(fd, CLONE_NEWUSER) == 0;
+	return setns(fd, 0) == 0;
 }
 
 static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
@@ -336,7 +284,7 @@ static void forksetxattr()
 		_exit(EXIT_FAILURE);
 	}
 
-	target_fd = open(path, O_RDWR | O_CLOEXEC);
+	target_fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (target_fd < 0) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
@@ -361,7 +309,7 @@ static void forksetxattr()
 	}
 
 	if (whiteout == 1) {
-		if (setxattr(path, "trusted.overlay.opaque", "y", 1, flags)) {
+		if (fsetxattr(target_fd, "trusted.overlay.opaque", "y", 1, flags)) {
 			fprintf(stderr, "%d", errno);
 			_exit(EXIT_FAILURE);
 		}
@@ -409,14 +357,6 @@ import "C"
 
 type cmdForksyscall struct {
 	global *cmdGlobal
-}
-
-func GetNSUid(uid uint, pid int) int {
-	return int(C.get_ns_uid(C.uid_t(uid), C.pid_t(pid)))
-}
-
-func GetNSGid(gid uint, pid int) int {
-	return int(C.get_ns_gid(C.gid_t(gid), C.pid_t(pid)))
 }
 
 func (c *cmdForksyscall) Command() *cobra.Command {
