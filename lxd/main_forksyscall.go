@@ -34,7 +34,7 @@ extern int dosetns(int pid, char *nstype);
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 			       struct statfs *sfs1, struct statfs *sfs2)
 {
-	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev) && (s1->st_ino == s2->st_ino));
+	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev));
 }
 
 static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
