@@ -10,7 +10,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // NetworkSysctlGet retrieves the value of a sysctl file in /proc/sys/net.
@@ -257,6 +260,239 @@ func NetworkAttachInterface(netName string, devName string) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+// networkCreateVethPair creates and configures a veth pair. It accepts the name of the host side
+// interface as a parameter and returns the peer interface name.
+func networkCreateVethPair(hostName string, m config.Device) (string, error) {
+	peerName := NetworkRandomDevName("veth")
+
+	_, err := shared.RunCommand("ip", "link", "add", "dev", hostName, "type", "veth", "peer", "name", peerName)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create the veth interfaces %s and %s: %s", hostName, peerName, err)
+	}
+
+	_, err = shared.RunCommand("ip", "link", "set", "dev", hostName, "up")
+	if err != nil {
+		NetworkRemoveInterface(hostName)
+		return "", fmt.Errorf("Failed to bring up the veth interface %s: %s", hostName, err)
+	}
+
+	// Set the MAC address on peer.
+	if m["hwaddr"] != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", peerName, "address", m["hwaddr"])
+		if err != nil {
+			NetworkRemoveInterface(peerName)
+			return "", fmt.Errorf("Failed to set the MAC address: %s", err)
+		}
+	}
+
+	// Set the MTU on peer.
+	if m["mtu"] != "" {
+		_, err := shared.RunCommand("ip", "link", "set", "dev", peerName, "mtu", m["mtu"])
+		if err != nil {
+			NetworkRemoveInterface(peerName)
+			return "", fmt.Errorf("Failed to set the MTU: %s", err)
+		}
+	}
+
+	return peerName, nil
+}
+
+// networkSetupHostVethDevice configures a nic device's host side veth settings.
+func networkSetupHostVethDevice(device config.Device, oldDevice config.Device, v map[string]string) error {
+	// If not configured, check if volatile data contains the most recently added host_name.
+	if device["host_name"] == "" {
+		device["host_name"] = v["host_name"]
+	}
+
+	// If not configured, check if volatile data contains the most recently added hwaddr.
+	if device["hwaddr"] == "" {
+		device["hwaddr"] = v["hwaddr"]
+	}
+
+	// Check whether host device resolution succeeded.
+	if device["host_name"] == "" {
+		return fmt.Errorf("Failed to find host side veth name for device \"%s\"", device["name"])
+	}
+
+	// Refresh tc limits.
+	err := networkSetVethLimits(device)
+	if err != nil {
+		return err
+	}
+
+	// If oldDevice provided, remove old routes if any remain.
+	if oldDevice != nil {
+		// If not configured, copy the volatile host_name into old device to support live updates.
+		if oldDevice["host_name"] == "" {
+			oldDevice["host_name"] = v["host_name"]
+		}
+
+		// If not configured, copy the volatile host_name into old device to support live updates.
+		if oldDevice["hwaddr"] == "" {
+			oldDevice["hwaddr"] = v["hwaddr"]
+		}
+
+		networkRemoveVethRoutes(oldDevice)
+	}
+
+	// Setup static routes to container.
+	err = networkSetVethRoutes(device)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// networkSetVethRoutes applies any static routes configured from the host to the container nic.
+func networkSetVethRoutes(m config.Device) error {
+	// Decide whether the route should point to the veth parent or the bridge parent.
+	routeDev := m["host_name"]
+	if m["nictype"] == "bridged" {
+		routeDev = m["parent"]
+	}
+
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", routeDev)) {
+		return fmt.Errorf("Unknown or missing host side route interface: %s", routeDev)
+	}
+
+	// Add additional IPv4 routes (using boot proto to avoid conflicts with network static routes)
+	if m["ipv4.routes"] != "" {
+		for _, route := range strings.Split(m["ipv4.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-4", "route", "add", route, "dev", routeDev, "proto", "boot")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Add additional IPv6 routes (using boot proto to avoid conflicts with network static routes)
+	if m["ipv6.routes"] != "" {
+		for _, route := range strings.Split(m["ipv6.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-6", "route", "add", route, "dev", routeDev, "proto", "boot")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// networkRemoveVethRoutes removes any routes created for this device on the host that were first added
+// with networkSetVethRoutes(). Expects to be passed the device config from the oldExpandedDevices.
+func networkRemoveVethRoutes(m config.Device) {
+	// Decide whether the route should point to the veth parent or the bridge parent
+	routeDev := m["host_name"]
+	if m["nictype"] == "bridged" {
+		routeDev = m["parent"]
+	}
+
+	if m["ipv4.routes"] != "" || m["ipv6.routes"] != "" {
+		if routeDev == "" {
+			logger.Errorf("Failed to remove static routes as route dev isn't set")
+			return
+		}
+
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", routeDev)) {
+			return //Routes will already be gone if device doesn't exist.
+		}
+	}
+
+	// Remove IPv4 routes
+	if m["ipv4.routes"] != "" {
+		for _, route := range strings.Split(m["ipv4.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-4", "route", "flush", route, "dev", routeDev, "proto", "boot")
+			if err != nil {
+				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
+			}
+		}
+	}
+
+	// Remove IPv6 routes
+	if m["ipv6.routes"] != "" {
+		for _, route := range strings.Split(m["ipv6.routes"], ",") {
+			route = strings.TrimSpace(route)
+			_, err := shared.RunCommand("ip", "-6", "route", "flush", route, "dev", routeDev, "proto", "boot")
+			if err != nil {
+				logger.Errorf("Failed to remove static route: %s to %s: %s", route, routeDev, err)
+			}
+		}
+	}
+}
+
+// networkSetVethLimits applies any network rate limits to the veth device specified in the config.
+func networkSetVethLimits(m config.Device) error {
+	var err error
+
+	veth := m["host_name"]
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", veth)) {
+		return fmt.Errorf("Unknown or missing host side veth: %s", veth)
+	}
+
+	// Apply max limit
+	if m["limits.max"] != "" {
+		m["limits.ingress"] = m["limits.max"]
+		m["limits.egress"] = m["limits.max"]
+	}
+
+	// Parse the values
+	var ingressInt int64
+	if m["limits.ingress"] != "" {
+		ingressInt, err = units.ParseBitSizeString(m["limits.ingress"])
+		if err != nil {
+			return err
+		}
+	}
+
+	var egressInt int64
+	if m["limits.egress"] != "" {
+		egressInt, err = units.ParseBitSizeString(m["limits.egress"])
+		if err != nil {
+			return err
+		}
+	}
+
+	// Clean any existing entry
+	shared.RunCommand("tc", "qdisc", "del", "dev", veth, "root")
+	shared.RunCommand("tc", "qdisc", "del", "dev", veth, "ingress")
+
+	// Apply new limits
+	if m["limits.ingress"] != "" {
+		out, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10")
+		if err != nil {
+			return fmt.Errorf("Failed to create root tc qdisc: %s", out)
+		}
+
+		out, err = shared.RunCommand("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt))
+		if err != nil {
+			return fmt.Errorf("Failed to create limit tc class: %s", out)
+		}
+
+		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1")
+		if err != nil {
+			return fmt.Errorf("Failed to create tc filter: %s", out)
+		}
+	}
+
+	if m["limits.egress"] != "" {
+		out, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress")
+		if err != nil {
+			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
+		}
+
+		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop")
+		if err != nil {
+			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}
 	}
 
