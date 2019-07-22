@@ -705,7 +705,6 @@ type container interface {
 	OnStart() error
 	OnStopNS(target string, netns string) error
 	OnStop(target string) error
-	OnNetworkUp(deviceName string, hostVeth string) error
 
 	// Properties
 	Id() int
