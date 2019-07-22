@@ -73,7 +73,7 @@ static void forkmknod()
 {
 	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF, target_dir_fd = -EBADF;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
-	int chk_perm_only, ret;
+	int ret;
 	char path[PATH_MAX];
 	mode_t mode;
 	dev_t dev;
@@ -93,7 +93,6 @@ static void forkmknod()
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
-	chk_perm_only = atoi(advance_arg(true));
 
 	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC);
 	if (host_target_fd < 0) {
@@ -196,16 +195,15 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	if (chk_perm_only) {
-		fprintf(stderr, "%d", ENOMEDIUM);
-		_exit(EXIT_FAILURE);
-	}
-
 	// basename() can modify its argument so accessing target_host is
 	// invalid from now on.
 	ret = mknodat(target_dir_fd, target, mode, dev);
 	if (ret) {
-		fprintf(stderr, "%d", errno);
+		if (errno == EPERM)
+			fprintf(stderr, "%d", ENOMEDIUM);
+		else
+			fprintf(stderr, "%d", errno);
+
 		_exit(EXIT_FAILURE);
 	}
 }
