@@ -147,16 +147,23 @@ func NetworkRemoveInterface(nic string) error {
 }
 
 // NetworkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
-func NetworkCreateVlanDeviceIfNeeded(parent string, hostName string, vlan string) (bool, error) {
-	if vlan != "" {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName)) {
-			_, err := shared.RunCommand("ip", "link", "add", "link", parent, "name", hostName, "up", "type", "vlan", "id", vlan)
+func NetworkCreateVlanDeviceIfNeeded(parent string, vlanDevice string, vlanID string) (bool, error) {
+	if vlanID != "" {
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vlanDevice)) {
+			// Bring the parent interface up so we can add a vlan to it.
+			_, err := shared.RunCommand("ip", "link", "set", "dev", parent, "up")
+			if err != nil {
+				return false, fmt.Errorf("Failed to bring up parent %s: %v", parent, err)
+			}
+
+			// Add VLAN interface on top of parent.
+			_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
 			if err != nil {
 				return false, err
 			}
 
 			// Attempt to disable IPv6 router advertisement acceptance
-			NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", hostName), "0")
+			NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", vlanDevice), "0")
 
 			// We created a new vlan interface, return true
 			return true, nil
