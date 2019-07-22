@@ -711,6 +711,7 @@ type container interface {
 	Location() string
 	Project() string
 	Name() string
+	Type() string
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
