@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -331,14 +331,14 @@ func (s *dbTestSuite) Test_ContainerProfiles() {
 
 func (s *dbTestSuite) Test_dbDevices_profiles() {
 	var err error
-	var result types.Devices
-	var subresult types.Device
-	var expected types.Device
+	var result config.Devices
+	var subresult config.Device
+	var expected config.Device
 
 	result, err = s.db.Devices("default", "theprofile", true)
 	s.Nil(err)
 
-	expected = types.Device{"type": "nic", "devicekey": "devicevalue"}
+	expected = config.Device{"type": "nic", "devicekey": "devicevalue"}
 	subresult = result["devicename"]
 
 	for key, value := range expected {
@@ -349,14 +349,14 @@ func (s *dbTestSuite) Test_dbDevices_profiles() {
 
 func (s *dbTestSuite) Test_dbDevices_containers() {
 	var err error
-	var result types.Devices
-	var subresult types.Device
-	var expected types.Device
+	var result config.Devices
+	var subresult config.Device
+	var expected config.Device
 
 	result, err = s.db.Devices("default", "thename", false)
 	s.Nil(err)
 
-	expected = types.Device{"type": "nic", "configkey": "configvalue"}
+	expected = config.Device{"type": "nic", "configkey": "configvalue"}
 	subresult = result["somename"]
 
 	for key, value := range expected {
