@@ -68,18 +68,17 @@ static bool chdirchroot(pid_t pid)
 static void forkmknod()
 {
 	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF, mnt_fd = -EBADF;
-	int ret;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
+	int chk_perm_only, ret;
 	char path[PATH_MAX];
-	mode_t mode = 0;
-	dev_t dev = 0;
-	pid_t pid = 0;
-	uid_t fsuid = -1, uid = -1;
-	gid_t fsgid = -1, gid = -1;
+	mode_t mode;
+	dev_t dev;
+	pid_t pid;
+	uid_t fsuid, uid;
+	gid_t fsgid, gid;
 	struct stat s1, s2;
 	struct statfs sfs1, sfs2;
 	cap_t caps;
-	int chk_perm_only;
 
 	pid = atoi(advance_arg(true));
 	target = advance_arg(true);
