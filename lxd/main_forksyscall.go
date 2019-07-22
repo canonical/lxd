@@ -94,7 +94,7 @@ static void forkmknod()
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
 
-	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC);
+	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
 	if (host_target_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
@@ -115,7 +115,7 @@ static void forkmknod()
 	}
 
 	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-	cwd_fd = open(path, O_RDONLY | O_CLOEXEC);
+	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
 	if (cwd_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
@@ -133,7 +133,7 @@ static void forkmknod()
 
 	snprintf(path, sizeof(path), "%s", target);
 	target_dir = dirname(path);
-	target_dir_fd = open(target_dir, O_PATH | O_RDONLY | O_CLOEXEC);
+	target_dir_fd = open(target_dir, O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
 	if (target_dir_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
@@ -281,14 +281,14 @@ static void forksetxattr()
 	data = advance_arg(true);
 
 	snprintf(path, sizeof(path), "/proc/%d/ns", pid);
-	ns_fd = open(path, O_RDONLY | O_CLOEXEC);
+	ns_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
 	if (ns_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
 	snprintf(path, sizeof(path), "/proc/%d/root", pid);
-	root_fd = open(path, O_PATH| O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	root_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (root_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
