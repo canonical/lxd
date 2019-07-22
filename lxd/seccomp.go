@@ -863,7 +863,7 @@ func taskIds(pid int) (error, int64, int64, int64, int64) {
 	return nil, uid, gid, fsuid, fsgid
 }
 
-func CallForkmknod(c container, dev config.Device, requestPID int, permissionsOnly int) int {
+func CallForkmknod(c container, dev config.Device, requestPID int) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
@@ -892,8 +892,7 @@ func CallForkmknod(c container, dev config.Device, requestPID int, permissionsOn
 		"forksyscall", "mknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
-		fmt.Sprintf("%d", fsuid), fmt.Sprintf("%d", fsgid),
-		fmt.Sprintf("%d", permissionsOnly))
+		fmt.Sprintf("%d", fsuid), fmt.Sprintf("%d", fsgid))
 	if err != nil {
 		errno, err := strconv.Atoi(stderr)
 		if err != nil || errno == C.ENOANO {
@@ -922,11 +921,6 @@ type MknodArgs struct {
 }
 
 func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *SeccompIovec) int {
-	diskIdmap, err := c.DiskIdmap()
-	if err != nil {
-		return int(-C.EPERM)
-	}
-
 	dev := config.Device{}
 	dev["type"] = "unix-char"
 	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
@@ -937,26 +931,12 @@ func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *Secc
 	dev["mode_t"] = fmt.Sprintf("%d", args.cMode)
 	dev["dev_t"] = fmt.Sprintf("%d", args.cDev)
 
-	if s.d.os.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-		errno := CallForkmknod(c, dev, int(args.cPid), 1)
-		if errno != int(-C.ENOMEDIUM) {
-			return errno
-		}
-
-		err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
-		if err != nil {
-			return int(-C.EPERM)
-		}
-
-		return 0
-	}
-
-	errno := CallForkmknod(c, dev, int(args.cPid), 0)
+	errno := CallForkmknod(c, dev, int(args.cPid))
 	if errno != int(-C.ENOMEDIUM) {
 		return errno
 	}
 
-	err = c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
+	err := c.InsertSeccompUnixDevice(fmt.Sprintf("forkmknod.unix.%d", int(args.cPid)), dev, int(args.cPid))
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -1007,7 +987,9 @@ func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) in
 			"seccomp_notify_flags": siov.req.flags,
 		})
 
-	if int(siov.req.data.args[0]) != int(C.AT_FDCWD) {
+	// Make sure to handle 64bit kernel, 32bit container/userspace, LXD
+	// built on 64bit userspace correctly.
+	if int32(siov.req.data.args[0]) != int32(C.AT_FDCWD) {
 		logger.Debugf("Non AT_FDCWD mknodat calls are not allowed")
 		return int(-C.EINVAL)
 	}

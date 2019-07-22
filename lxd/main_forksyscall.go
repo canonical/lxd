@@ -34,7 +34,7 @@ extern int dosetns(int pid, char *nstype);
 static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 			       struct statfs *sfs1, struct statfs *sfs2)
 {
-	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev) && (s1->st_ino == s2->st_ino));
+	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev));
 }
 
 static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
@@ -48,16 +48,20 @@ static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
 	return 0;
 }
 
-static bool chdirchroot(pid_t pid)
+static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
-	char path[PATH_MAX];
+	ssize_t len;
+	char buf[PATH_MAX];
 
-	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-	if (chdir(path))
+	if (fchdir(cwd_fd))
 		return false;
 
-	snprintf(path, sizeof(path), "/proc/%d/root", pid);
-	if (chroot(path))
+	len = readlinkat(root_fd, "", buf, sizeof(buf));
+	if (len < 0 || len >= sizeof(buf))
+		return false;
+	buf[len] = '\0';
+
+	if (chroot(buf))
 		return false;
 
 	return true;
@@ -67,19 +71,17 @@ static bool chdirchroot(pid_t pid)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF, mnt_fd = -EBADF;
-	int ret;
+	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF, target_dir_fd = -EBADF;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
+	int ret;
 	char path[PATH_MAX];
-	mode_t mode = 0;
-	dev_t dev = 0;
-	pid_t pid = 0;
-	uid_t fsuid = -1, uid = -1;
-	gid_t fsgid = -1, gid = -1;
-	struct stat s1, s2;
-	struct statfs sfs1, sfs2;
+	mode_t mode;
+	dev_t dev;
+	pid_t pid;
+	uid_t fsuid, uid;
+	gid_t fsgid, gid;
+	struct statfs sfs;
 	cap_t caps;
-	int chk_perm_only;
 
 	pid = atoi(advance_arg(true));
 	target = advance_arg(true);
@@ -90,28 +92,6 @@ static void forkmknod()
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
-	chk_perm_only = atoi(advance_arg(true));
-
-	if (*target == '/') {
-		// user has specified an absolute path
-		snprintf(path, sizeof(path), "%s", target);
-		target_dir = dirname(path);
-	} else {
-		// user has specified a relative path
-		snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-		target_dir = path;
-	}
-	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
-	if (cwd_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC);
-	if (host_target_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
 
 	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
 	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
@@ -120,12 +100,34 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	if (!chdirchroot(pid)) {
+	snprintf(path, sizeof(path), "/proc/%d/root", pid);
+	root_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (root_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
+	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (cwd_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
 	if (setns(mnt_fd, CLONE_NEWNS)) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (!chdirchroot_in_mntns(cwd_fd, root_fd)) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	snprintf(path, sizeof(path), "%s", target);
+	target_dir = dirname(path);
+	target_dir_fd = open(target_dir, O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
+	if (target_dir_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -164,38 +166,26 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	ret = fstat_fstatfs(cwd_fd, &s2, &sfs2);
+	ret = fstatfs(target_dir_fd, &sfs);
 	if (ret) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
-	if (sfs2.f_flags & MS_NODEV) {
+	if (sfs.f_flags & MS_NODEV) {
 		fprintf(stderr, "%d", EPERM);
-		_exit(EXIT_FAILURE);
-	}
-
-	ret = fstat_fstatfs(host_target_fd, &s1, &sfs1);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2)) {
-		fprintf(stderr, "%d", ENOMEDIUM);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (chk_perm_only) {
-		fprintf(stderr, "%d", ENOMEDIUM);
 		_exit(EXIT_FAILURE);
 	}
 
 	// basename() can modify its argument so accessing target_host is
 	// invalid from now on.
-	ret = mknodat(cwd_fd, target, mode, dev);
+	ret = mknodat(target_dir_fd, target, mode, dev);
 	if (ret) {
-		fprintf(stderr, "%d", errno);
+		if (errno == EPERM)
+			fprintf(stderr, "%d", ENOMEDIUM);
+		else
+			fprintf(stderr, "%d", errno);
+
 		_exit(EXIT_FAILURE);
 	}
 }
@@ -204,7 +194,7 @@ static void forkmknod()
 #define CLONE_NEWCGROUP	0x02000000
 #endif
 
-const char *ns_names[] = { "user", "mnt", "pid", "uts", "ipc", "net", "cgroup", NULL };
+const char *ns_names[] = { "user", "pid", "uts", "ipc", "net", "cgroup", NULL };
 
 static bool setnsat(int ns_fd, const char *ns)
 {
@@ -247,10 +237,10 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t 
 
 static void forksetxattr()
 {
-	__do_close_prot_errno int ns_fd = -EBADF, target_fd = -EBADF;
+	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, ns_fd = -EBADF, root_fd = -EBADF, target_fd = -EBADF;
 	int flags = 0;
-	char *name, *path;
-	char ns_path[PATH_MAX];
+	char *name, *target;
+	char path[PATH_MAX];
 	uid_t nsfsuid, nsuid;
 	gid_t nsfsgid, nsgid;
 	pid_t pid = 0;
@@ -266,25 +256,44 @@ static void forksetxattr()
 	nsfsuid = atoi(advance_arg(true));
 	nsfsgid = atoi(advance_arg(true));
 	name = advance_arg(true);
-	path = advance_arg(true);
+	target = advance_arg(true);
 	flags = atoi(advance_arg(true));
 	whiteout = atoi(advance_arg(true));
 	size = atoi(advance_arg(true));
 	data = advance_arg(true);
 
-	snprintf(ns_path, sizeof(ns_path), "/proc/%d/ns", pid);
-	ns_fd = open(ns_path, O_RDONLY | O_CLOEXEC);
+	snprintf(path, sizeof(path), "/proc/%d/ns", pid);
+	ns_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
 	if (ns_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
-	if (!chdirchroot(pid)) {
-		fprintf(stderr, "%d", errno);
+	snprintf(path, sizeof(path), "/proc/%d/root", pid);
+	root_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (root_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
-	target_fd = open(path, O_RDONLY | O_CLOEXEC);
+	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
+	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (mnt_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (setns(mnt_fd, CLONE_NEWNS)) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if (!chdirchroot_in_mntns(cwd_fd, root_fd)) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
+	target_fd = open(target, O_RDONLY | O_CLOEXEC);
 	if (target_fd < 0) {
 		fprintf(stderr, "%d", errno);
 		_exit(EXIT_FAILURE);
