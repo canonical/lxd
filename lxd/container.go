@@ -18,6 +18,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -31,6 +32,24 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
 )
+
+func init() {
+	// Expose containerLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
+	// This is because container types are defined in the main package and are not importable.
+	device.InstanceLoadNodeAll = func(s *state.State) ([]device.InstanceIdentifier, error) {
+		containers, err := containerLoadNodeAll(s)
+		if err != nil {
+			return nil, err
+		}
+
+		identifiers := []device.InstanceIdentifier{}
+		for _, v := range containers {
+			identifiers = append(identifiers, device.InstanceIdentifier(v))
+		}
+
+		return identifiers, nil
+	}
+}
 
 // Helper functions
 
