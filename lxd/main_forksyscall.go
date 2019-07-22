@@ -67,7 +67,7 @@ static bool chdirchroot(pid_t pid)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF, mnt_fd = -EBADF;
+	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
 	int chk_perm_only, ret;
 	char path[PATH_MAX];
@@ -91,30 +91,8 @@ static void forkmknod()
 	fsgid = atoi(advance_arg(true));
 	chk_perm_only = atoi(advance_arg(true));
 
-	if (*target == '/') {
-		// user has specified an absolute path
-		snprintf(path, sizeof(path), "%s", target);
-		target_dir = dirname(path);
-	} else {
-		// user has specified a relative path
-		snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-		target_dir = path;
-	}
-	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
-	if (cwd_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
 	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC);
 	if (host_target_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
-	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (mnt_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -124,7 +102,10 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	if (setns(mnt_fd, CLONE_NEWNS)) {
+	snprintf(path, sizeof(path), "%s", target);
+	target_dir = dirname(path);
+	cwd_fd = open(target_dir, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (cwd_fd < 0) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
