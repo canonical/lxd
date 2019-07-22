@@ -9,10 +9,14 @@ test_container_devices_nic_macvlan() {
   ip link add "${ct_name}" type dummy
   ip link set "${ct_name}" up
 
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
+
   # Test pre-launch profile config is applied at launch.
   lxc profile copy default "${ct_name}"
-  lxc profile device set "${ct_name}" eth0 parent "${ct_name}"
-  lxc profile device set "${ct_name}" eth0 nictype "macvlan"
+
+  # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
+  lxc profile show "${ct_name}" | sed  "s/nictype: p2p/nictype: macvlan\n    parent: ${ct_name}/" | lxc profile edit "${ct_name}"
   lxc profile device set "${ct_name}" eth0 mtu "1400"
 
   lxc launch testimage "${ct_name}" -p "${ct_name}"
@@ -54,7 +58,6 @@ test_container_devices_nic_macvlan() {
   lxc config device remove "${ct_name}" eth0
 
   # Test hot plugging macvlan device based on vlan parent.
-  ip link set "${ct_name}" up
   lxc config device add "${ct_name}" eth0 nic \
     nictype=macvlan \
     parent="${ct_name}" \
@@ -68,8 +71,29 @@ test_container_devices_nic_macvlan() {
     false
   fi
 
-  # Cleanup.
+  # Check VLAN interface created
+  if ! grep "1" "/sys/class/net/${ct_name}.10/carrier" ; then
+    echo "vlan interface not created"
+    false
+  fi
+
+  # Remove device from container, this should also remove created VLAN parent device.
   lxc config device remove "${ct_name}" eth0
+
+  # Check parent device is still up.
+  if ! grep "1" "/sys/class/net/${ct_name}/carrier" ; then
+    echo "parent is down"
+    false
+  fi
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
+    false
+  fi
+
+  # Cleanup.
   lxc delete "${ct_name}" -f
   lxc delete "${ct_name}2" -f
   ip link delete "${ct_name}" type dummy
