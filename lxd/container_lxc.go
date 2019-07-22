@@ -32,13 +32,13 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/template"
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -602,10 +602,10 @@ type containerLXC struct {
 
 	// Config
 	expandedConfig  map[string]string
-	expandedDevices types.Devices
+	expandedDevices config.Devices
 	fromHook        bool
 	localConfig     map[string]string
-	localDevices    types.Devices
+	localDevices    config.Devices
 	profiles        []string
 
 	// Cache
@@ -2039,7 +2039,7 @@ func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
-func (c *containerLXC) setupUnixDevice(prefix string, dev types.Device, major int, minor int, path string, createMustSucceed bool, defaultMode bool) error {
+func (c *containerLXC) setupUnixDevice(prefix string, dev config.Device, major int, minor int, path string, createMustSucceed bool, defaultMode bool) error {
 	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
@@ -2047,7 +2047,7 @@ func (c *containerLXC) setupUnixDevice(prefix string, dev types.Device, major in
 		}
 	}
 
-	temp := types.Device{}
+	temp := config.Device{}
 	err := shared.DeepCopy(&dev, &temp)
 	if err != nil {
 		return err
@@ -2309,7 +2309,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 	var usbs []usbDevice
 	var sriov []string
-	diskDevices := map[string]types.Device{}
+	diskDevices := map[string]config.Device{}
 
 	// Create the devices
 	for _, k := range c.expandedDevices.DeviceNames() {
@@ -2552,7 +2552,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
-	err = c.addDiskDevices(diskDevices, func(name string, d types.Device) error {
+	err = c.addDiskDevices(diskDevices, func(name string, d config.Device) error {
 		_, err := c.createDiskDevice(name, d)
 		return err
 	})
@@ -2670,7 +2670,7 @@ func (c *containerLXC) snapshotPhysicalNic(deviceName string, hostName string, v
 // setupPhysicalParent creates a VLAN device on parent if needed and tracks original properties of
 // the physical device if not just created so they can be restored when the device is detached.
 // Returns the parent device name detected.
-func (c *containerLXC) setupPhysicalParent(deviceName string, m types.Device) (string, error) {
+func (c *containerLXC) setupPhysicalParent(deviceName string, m config.Device) (string, error) {
 	if m["parent"] == "" {
 		return "", errors.New("No parent property on device")
 	}
@@ -2776,7 +2776,7 @@ func (c *containerLXC) restorePhysicalNic(deviceName string, hostName string) er
 
 // restorePhysicalParent restores parent device settings when removed from a container using the
 // volatile data that was stored when the device was first added with setupPhysicalParent().
-func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device) {
+func (c *containerLXC) restorePhysicalParent(deviceName string, m config.Device) {
 	// Clear volatile data when function finishes.
 	defer func() {
 		// Volatile keys used for parent restore.
@@ -2804,7 +2804,7 @@ func (c *containerLXC) restorePhysicalParent(deviceName string, m types.Device) 
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and tracks original
 // properties of the physical device for restoration on detach.
-func (c *containerLXC) setupSriovParent(deviceName string, m types.Device) error {
+func (c *containerLXC) setupSriovParent(deviceName string, m config.Device) error {
 	// Check for required fields in device config.
 	if m["parent"] == "" {
 		return fmt.Errorf("Missing parent for 'sriov' nic '%s'", deviceName)
@@ -2940,7 +2940,7 @@ func (c *containerLXC) setupSriovParent(deviceName string, m types.Device) error
 
 // restoreSriovParent restores SR-IOV parent device settings when removed from a container using the
 // volatile data that was stored when the device was first added with setupSriovParent().
-func (c *containerLXC) restoreSriovParent(deviceName string, m types.Device) {
+func (c *containerLXC) restoreSriovParent(deviceName string, m config.Device) {
 	// Volatile keys used for parent restore.
 	hostNameKey := "volatile." + deviceName + ".host_name"
 	vfIDKey := "volatile." + deviceName + ".last_state.vf.id"
@@ -3628,7 +3628,7 @@ func (c *containerLXC) cleanupHostVethDevices() {
 	}
 }
 
-func (c *containerLXC) cleanupHostVethDevice(deviceName string, m types.Device) {
+func (c *containerLXC) cleanupHostVethDevice(deviceName string, m config.Device) {
 	// If not configured, check if volatile data contains the most recently added host_name.
 	if m["host_name"] == "" {
 		m["host_name"] = c.getVolatileHostName(deviceName)
@@ -3712,13 +3712,13 @@ func (c *containerLXC) OnNetworkUp(deviceName string, hostName string) error {
 		}
 	}
 
-	_, err := c.setupHostVethDevice(deviceName, device, types.Device{})
+	_, err := c.setupHostVethDevice(deviceName, device, config.Device{})
 
 	return err
 }
 
 // setupHostVethDevice configures a nic device's host side veth settings.
-func (c *containerLXC) setupHostVethDevice(deviceName string, device types.Device, oldDevice types.Device) ([]string, error) {
+func (c *containerLXC) setupHostVethDevice(deviceName string, device config.Device, oldDevice config.Device) ([]string, error) {
 	bounceInterfaces := []string{} // A place to store interfaces we would like to be bounced.
 
 	// If not configured, check if volatile data contains the most recently added host_name.
@@ -4783,7 +4783,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	if args.Devices == nil {
-		args.Devices = types.Devices{}
+		args.Devices = config.Devices{}
 	}
 
 	if args.Profiles == nil {
@@ -4866,7 +4866,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return err
 	}
 
-	oldExpandedDevices := types.Devices{}
+	oldExpandedDevices := config.Devices{}
 	err = shared.DeepCopy(&c.expandedDevices, &oldExpandedDevices)
 	if err != nil {
 		return err
@@ -4878,7 +4878,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return err
 	}
 
-	oldLocalDevices := types.Devices{}
+	oldLocalDevices := config.Devices{}
 	err = shared.DeepCopy(&c.localDevices, &oldLocalDevices)
 	if err != nil {
 		return err
@@ -5514,7 +5514,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			}
 		}
 
-		diskDevices := map[string]types.Device{}
+		diskDevices := map[string]config.Device{}
 		for k, m := range addDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 				err = c.insertUnixDevice(fmt.Sprintf("unix.%s", k), m, true)
@@ -5804,7 +5804,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 	// Update network leases if a bridged device has changed.
 	needsUpdate := false
-	deviceLists := []map[string]types.Device{removeDevices, addDevices, updateDevices}
+	deviceLists := []map[string]config.Device{removeDevices, addDevices, updateDevices}
 	for _, deviceList := range deviceLists {
 		for _, m := range deviceList {
 			if m["type"] == "nic" && m["nictype"] == "bridged" {
@@ -7388,7 +7388,7 @@ func (c *containerLXC) deviceExistsInDevicesFolder(prefix string, path string) b
 }
 
 // Unix devices handling
-func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMode bool) ([]string, error) {
+func (c *containerLXC) createUnixDevice(prefix string, m config.Device, defaultMode bool) ([]string, error) {
 	var err error
 	var major, minor int
 
@@ -7530,7 +7530,7 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMo
 	return []string{devPath, relativeDestPath}, nil
 }
 
-func (c *containerLXC) insertUnixDevice(prefix string, m types.Device, defaultMode bool) error {
+func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultMode bool) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
@@ -7592,7 +7592,7 @@ func (c *containerLXC) insertUnixDevice(prefix string, m types.Device, defaultMo
 	return nil
 }
 
-func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pid int) error {
+func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error {
 	if pid < 0 {
 		return fmt.Errorf("Invalid request PID specified")
 	}
@@ -7641,8 +7641,8 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m types.Device, pi
 	return c.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid)
 }
 
-func (c *containerLXC) insertUnixDeviceNum(name string, m types.Device, major int, minor int, path string, defaultMode bool) error {
-	temp := types.Device{}
+func (c *containerLXC) insertUnixDeviceNum(name string, m config.Device, major int, minor int, path string, defaultMode bool) error {
+	temp := config.Device{}
 	if err := shared.DeepCopy(&m, &temp); err != nil {
 		return err
 	}
@@ -7654,7 +7654,7 @@ func (c *containerLXC) insertUnixDeviceNum(name string, m types.Device, major in
 	return c.insertUnixDevice(name, temp, defaultMode)
 }
 
-func (c *containerLXC) removeUnixDevice(prefix string, m types.Device, eject bool) error {
+func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bool) error {
 	// Check that the container is running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -7736,13 +7736,13 @@ func (c *containerLXC) removeUnixDevice(prefix string, m types.Device, eject boo
 	return nil
 }
 
-func (c *containerLXC) removeUnixDeviceNum(prefix string, m types.Device, major int, minor int, path string) error {
+func (c *containerLXC) removeUnixDeviceNum(prefix string, m config.Device, major int, minor int, path string) error {
 	pid := c.InitPID()
 	if pid == -1 {
 		return fmt.Errorf("Can't remove device from stopped container")
 	}
 
-	temp := types.Device{}
+	temp := config.Device{}
 	if err := shared.DeepCopy(&m, &temp); err != nil {
 		return err
 	}
@@ -7768,7 +7768,7 @@ func (c *containerLXC) addInfinibandDevicesPerPort(deviceName string, ifDev *IBF
 		devPrefix := fmt.Sprintf("infiniband.unix.%s", deviceName)
 
 		// Unix device
-		dummyDevice := types.Device{
+		dummyDevice := config.Device{
 			"source": destPath,
 		}
 
@@ -7850,7 +7850,7 @@ func (c *containerLXC) addInfinibandDevicesPerFun(deviceName string, ifDev *IBF,
 		uniqueDevName := fmt.Sprintf("%s.%s", uniqueDevPrefix, strings.Replace(relativeDestPath, "/", "-", -1))
 		hostDevPath := filepath.Join(c.DevicesPath(), uniqueDevName)
 
-		dummyDevice := types.Device{
+		dummyDevice := config.Device{
 			"source": destPath,
 		}
 
@@ -7907,7 +7907,7 @@ func (c *containerLXC) addInfinibandDevices(deviceName string, ifDev *IBF, injec
 	return c.addInfinibandDevicesPerFun(deviceName, ifDev, inject)
 }
 
-func (c *containerLXC) removeInfinibandDevices(deviceName string, device types.Device) error {
+func (c *containerLXC) removeInfinibandDevices(deviceName string, device config.Device) error {
 	// load all devices
 	dents, err := ioutil.ReadDir(c.DevicesPath())
 	if err != nil {
@@ -7959,7 +7959,7 @@ func (c *containerLXC) removeInfinibandDevices(deviceName string, device types.D
 		rPath = strings.Replace(rPath, "-", "/", -1)
 		absPath := fmt.Sprintf("/%s", rPath)
 
-		dummyDevice := types.Device{
+		dummyDevice := config.Device{
 			"path": absPath,
 		}
 
@@ -8018,7 +8018,7 @@ func (c *containerLXC) removeUnixDevices() error {
 	return nil
 }
 
-func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
+func (c *containerLXC) insertProxyDevice(devName string, m config.Device) error {
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't add proxy device to stopped container")
 	}
@@ -8060,7 +8060,7 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 	return nil
 }
 
-func (c *containerLXC) doNat(proxy string, device types.Device) error {
+func (c *containerLXC) doNat(proxy string, device config.Device) error {
 	listenAddr, err := proxyParseAddr(device["listen"])
 	if err != nil {
 		return err
@@ -8234,7 +8234,7 @@ func (c *containerLXC) removeProxyDevices() error {
 	return nil
 }
 
-func (c *containerLXC) updateProxyDevice(devName string, m types.Device) error {
+func (c *containerLXC) updateProxyDevice(devName string, m config.Device) error {
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't update proxy device in stopped container")
 	}
@@ -8264,7 +8264,7 @@ func (c *containerLXC) restartProxyDevices() error {
 }
 
 // Network device handling
-func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string, error) {
+func (c *containerLXC) createNetworkDevice(name string, m config.Device) (string, error) {
 	var dev, n1 string
 
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "macvlan"}) {
@@ -8364,7 +8364,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	return dev, nil
 }
 
-func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reserved []string) (types.Device, error) {
+func (c *containerLXC) fillSriovNetworkDevice(name string, m config.Device, reserved []string) (config.Device, error) {
 	if m["nictype"] != "sriov" {
 		return m, nil
 	}
@@ -8373,7 +8373,7 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 		return nil, fmt.Errorf("Missing parent for 'sriov' nic '%s'", name)
 	}
 
-	newDevice := types.Device{}
+	newDevice := config.Device{}
 	err := shared.DeepCopy(&m, &newDevice)
 	if err != nil {
 		return nil, err
@@ -8505,8 +8505,8 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 	return newDevice, nil
 }
 
-func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Device, error) {
-	newDevice := types.Device{}
+func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.Device, error) {
+	newDevice := config.Device{}
 	err := shared.DeepCopy(&m, &newDevice)
 	if err != nil {
 		return nil, err
@@ -8685,7 +8685,7 @@ func (c *containerLXC) getVolatileHwaddr(deviceName string) string {
 }
 
 // generateNetworkFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
-func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device, IPv4 net.IP, IPv6 net.IP) [][]string {
+func (c *containerLXC) generateNetworkFilterEbtablesRules(m config.Device, IPv4 net.IP, IPv6 net.IP) [][]string {
 	// MAC source filtering rules. Blocks any packet coming from container with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
@@ -8724,7 +8724,7 @@ func (c *containerLXC) generateNetworkFilterEbtablesRules(m types.Device, IPv4 n
 }
 
 // generateNetworkFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device, IPv6 net.IP) (rules [][]string, err error) {
+func (c *containerLXC) generateNetworkFilterIptablesRules(m config.Device, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(m["hwaddr"])
 	if err != nil {
 		return
@@ -8758,7 +8758,7 @@ func (c *containerLXC) generateNetworkFilterIptablesRules(m types.Device, IPv6 n
 
 // setNetworkFilters sets up any network level filters defined for the container.
 // These are controlled by the security.mac_filtering, security.ipv4_Filtering and security.ipv6_filtering config keys.
-func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err error) {
+func (c *containerLXC) setNetworkFilters(deviceName string, m config.Device) (err error) {
 	if m["hwaddr"] == "" {
 		return fmt.Errorf("Failed to set network filters: require hwaddr defined")
 	}
@@ -8813,7 +8813,7 @@ func (c *containerLXC) setNetworkFilters(deviceName string, m types.Device) (err
 }
 
 // allocateNetworkFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
-func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Device) (net.IP, net.IP, error) {
+func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m config.Device) (net.IP, net.IP, error) {
 	var IPv4, IPv6 net.IP
 
 	// Check if there is a valid static IPv4 address defined.
@@ -8936,7 +8936,7 @@ func (c *containerLXC) allocateNetworkFilterIPs(deviceName string, m types.Devic
 }
 
 // removeNetworkFilters removes any network level filters defined for the container.
-func (c *containerLXC) removeNetworkFilters(deviceName string, m types.Device) {
+func (c *containerLXC) removeNetworkFilters(deviceName string, m config.Device) {
 	if m["hwaddr"] == "" {
 		logger.Error("Failed to remove network filters", log.Ctx{"container": c.Name(), "device": deviceName, "err": "hwaddr not defined"})
 		return
@@ -9022,7 +9022,7 @@ func (c *containerLXC) matchEbtablesRule(activeRule []string, matchRule []string
 	return true
 }
 
-func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.Device, error) {
+func (c *containerLXC) insertNetworkDevice(name string, m config.Device) (config.Device, error) {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
@@ -9075,7 +9075,7 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.D
 	}
 
 	if m["type"] == "nic" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		_, err = c.setupHostVethDevice(name, m, types.Device{})
+		_, err = c.setupHostVethDevice(name, m, config.Device{})
 		if err != nil {
 			return nil, err
 		}
@@ -9094,7 +9094,7 @@ func (c *containerLXC) checkIPVLANSupport() error {
 	return errors.New("LXC is missing one or more API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
 }
 
-func (c *containerLXC) updateNetworkDevice(name string, m types.Device, oldDevice types.Device) ([]string, error) {
+func (c *containerLXC) updateNetworkDevice(name string, m config.Device, oldDevice config.Device) ([]string, error) {
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		// Populate network device with container nic names.
 		m, err := c.fillNetworkDevice(name, m)
@@ -9113,7 +9113,7 @@ func (c *containerLXC) updateNetworkDevice(name string, m types.Device, oldDevic
 	return []string{}, nil
 }
 
-func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
+func (c *containerLXC) removeNetworkDevice(name string, m config.Device) error {
 	// Fill in some fields from volatile
 	m, err := c.fillNetworkDevice(name, m)
 	if err != nil {
@@ -9178,7 +9178,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 }
 
 // Disk device handling
-func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, error) {
+func (c *containerLXC) createDiskDevice(name string, m config.Device) (string, error) {
 	// source paths
 	relativeDestPath := strings.TrimPrefix(m["path"], "/")
 	devName := fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
@@ -9305,7 +9305,7 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 	return devPath, nil
 }
 
-func (c *containerLXC) insertDiskDevice(name string, m types.Device) error {
+func (c *containerLXC) insertDiskDevice(name string, m config.Device) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
@@ -9338,7 +9338,7 @@ func (c *containerLXC) insertDiskDevice(name string, m types.Device) error {
 	return nil
 }
 
-type byPath []types.Device
+type byPath []config.Device
 
 func (a byPath) Len() int {
 	return len(a)
@@ -9352,7 +9352,7 @@ func (a byPath) Less(i, j int) bool {
 	return a[i]["path"] < a[j]["path"]
 }
 
-func (c *containerLXC) addDiskDevices(devices map[string]types.Device, handler func(string, types.Device) error) error {
+func (c *containerLXC) addDiskDevices(devices map[string]config.Device, handler func(string, config.Device) error) error {
 	ordered := byPath{}
 
 	for _, d := range devices {
@@ -9379,7 +9379,7 @@ func (c *containerLXC) addDiskDevices(devices map[string]types.Device, handler f
 	return nil
 }
 
-func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
+func (c *containerLXC) removeDiskDevice(name string, m config.Device) error {
 	// Check that the container is running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -9661,7 +9661,7 @@ func (c *containerLXC) setNetworkPriority() error {
 }
 
 // setNetworkRoutes applies any static routes configured from the host to the container nic.
-func (c *containerLXC) setNetworkRoutes(m types.Device) error {
+func (c *containerLXC) setNetworkRoutes(m config.Device) error {
 	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
 		return fmt.Errorf("Unknown or missing host side veth: %s", m["host_name"])
 	}
@@ -9699,7 +9699,7 @@ func (c *containerLXC) setNetworkRoutes(m types.Device) error {
 
 // removeNetworkRoutes removes any routes created for this device on the host that were first added
 // with setNetworkRoutes(). Expects to be passed the device config from the oldExpandedDevices.
-func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
+func (c *containerLXC) removeNetworkRoutes(deviceName string, m config.Device) {
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
 	if m["nictype"] == "bridged" {
@@ -9740,7 +9740,7 @@ func (c *containerLXC) removeNetworkRoutes(deviceName string, m types.Device) {
 	}
 }
 
-func (c *containerLXC) setNetworkLimits(m types.Device) error {
+func (c *containerLXC) setNetworkLimits(m config.Device) error {
 	var err error
 	// We can only do limits on some network type
 	if m["nictype"] != "bridged" && m["nictype"] != "p2p" {
@@ -9870,7 +9870,7 @@ func (c *containerLXC) ExpandedConfig() map[string]string {
 	return c.expandedConfig
 }
 
-func (c *containerLXC) ExpandedDevices() types.Devices {
+func (c *containerLXC) ExpandedDevices() config.Devices {
 	return c.expandedDevices
 }
 
@@ -9892,7 +9892,7 @@ func (c *containerLXC) LocalConfig() map[string]string {
 	return c.localConfig
 }
 
-func (c *containerLXC) LocalDevices() types.Devices {
+func (c *containerLXC) LocalDevices() config.Devices {
 	return c.localDevices
 }
 

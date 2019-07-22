@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -863,7 +863,7 @@ func taskIds(pid int) (error, int64, int64, int64, int64) {
 	return nil, uid, gid, fsuid, fsgid
 }
 
-func CallForkmknod(c container, dev types.Device, requestPID int, permissionsOnly int) int {
+func CallForkmknod(c container, dev config.Device, requestPID int, permissionsOnly int) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
@@ -927,7 +927,7 @@ func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *Secc
 		return int(-C.EPERM)
 	}
 
-	dev := types.Device{}
+	dev := config.Device{}
 	dev["type"] = "unix-char"
 	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
 	dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(args.cDev)))

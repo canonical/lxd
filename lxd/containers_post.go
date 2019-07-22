@@ -19,8 +19,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -760,7 +760,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Devices == nil {
-		req.Devices = types.Devices{}
+		req.Devices = config.Devices{}
 	}
 
 	if req.Config == nil {

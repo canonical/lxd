@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -324,8 +324,8 @@ func TestContainerPool(t *testing.T) {
 			Project: "default",
 			Name:    "c1",
 			Node:    "none",
-			Devices: types.Devices{
-				"root": types.Device{
+			Devices: config.Devices{
+				"root": config.Device{
 					"path": "/",
 					"pool": "default",
 					"type": "disk",

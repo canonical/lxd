@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -46,7 +46,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 			Name:        "unprivileged",
 			Description: "unprivileged",
 			Config:      map[string]string{"security.privileged": "true"},
-			Devices:     types.Devices{},
+			Devices:     config.Devices{},
 			Project:     "default",
 		}
 		_, err := tx.ProfileCreate(profile)
@@ -87,8 +87,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
-		Devices: types.Devices{
-			"eth0": types.Device{
+		Devices: config.Devices{
+			"eth0": config.Device{
 				"type":    "nic",
 				"nictype": "bridged",
 				"parent":  "unknownbr0"}},
@@ -117,8 +117,8 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
-		Devices: types.Devices{
-			"eth0": types.Device{
+		Devices: config.Devices{
+			"eth0": config.Device{
 				"type":    "nic",
 				"nictype": "bridged",
 				"parent":  "unknownbr0"}},
