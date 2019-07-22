@@ -71,7 +71,7 @@ static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, host_target_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF, target_dir_fd = -EBADF;
+	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF, target_dir_fd = -EBADF;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
 	int ret;
 	char path[PATH_MAX];
@@ -80,8 +80,7 @@ static void forkmknod()
 	pid_t pid;
 	uid_t fsuid, uid;
 	gid_t fsgid, gid;
-	struct stat s1, s2;
-	struct statfs sfs1, sfs2;
+	struct statfs sfs;
 	cap_t caps;
 
 	pid = atoi(advance_arg(true));
@@ -93,12 +92,6 @@ static void forkmknod()
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
-
-	host_target_fd = open(dirname(target_host), O_PATH | O_RDONLY | O_CLOEXEC | O_DIRECTORY);
-	if (host_target_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
 
 	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
 	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
@@ -173,25 +166,14 @@ static void forkmknod()
 		_exit(EXIT_FAILURE);
 	}
 
-	ret = fstat_fstatfs(target_dir_fd, &s2, &sfs2);
+	ret = fstatfs(target_dir_fd, &sfs);
 	if (ret) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
 
-	if (sfs2.f_flags & MS_NODEV) {
+	if (sfs.f_flags & MS_NODEV) {
 		fprintf(stderr, "%d", EPERM);
-		_exit(EXIT_FAILURE);
-	}
-
-	ret = fstat_fstatfs(host_target_fd, &s1, &sfs1);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (!same_fsinfo(&s1, &s2, &sfs1, &sfs2)) {
-		fprintf(stderr, "%d", ENOMEDIUM);
 		_exit(EXIT_FAILURE);
 	}
 
