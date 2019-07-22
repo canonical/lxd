@@ -20,10 +20,13 @@ test_container_devices_nic_sriov() {
   ctName="nt$$"
   macRand=$(shuf -i 0-9 -n 1)
   ctMAC1="da:da:9d:42:e5:f${macRand}"
-  ctMAC2="da:da:9d:42:e5:f${macRand}"
+  ctMAC2="da:da:9d:42:e5:e${macRand}"
 
   # Set a known start point config
   ip link set "${parent}" up
+
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
 
   # Test basic container with SR-IOV NIC
   lxc init testimage "${ctName}"
@@ -122,4 +125,11 @@ test_container_devices_nic_sriov() {
   fi
 
   lxc delete -f "${ctName}"
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
+    false
+  fi
 }
