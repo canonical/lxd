@@ -283,6 +283,13 @@ static void forksetxattr()
 		_exit(EXIT_FAILURE);
 	}
 
+	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
+	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (cwd_fd < 0) {
+		fprintf(stderr, "%d", ENOANO);
+		_exit(EXIT_FAILURE);
+	}
+
 	if (setns(mnt_fd, CLONE_NEWNS)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
