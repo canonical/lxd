@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -32,13 +33,13 @@ var networkConfigKeys = map[string]func(value string) error{
 		return shared.IsOneOf(value, []string{"standard", "fan"})
 	},
 
-	"fan.overlay_subnet": networkValidNetworkV4,
+	"fan.overlay_subnet": device.NetworkValidNetworkV4,
 	"fan.underlay_subnet": func(value string) error {
 		if value == "auto" {
 			return nil
 		}
 
-		return networkValidNetworkV4(value)
+		return device.NetworkValidNetworkV4(value)
 	},
 	"fan.type": func(value string) error {
 		return shared.IsOneOf(value, []string{"vxlan", "ipip"})
@@ -67,9 +68,9 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv4.nat.order": func(value string) error {
 		return shared.IsOneOf(value, []string{"before", "after"})
 	},
-	"ipv4.nat.address":  networkValidAddressV4,
+	"ipv4.nat.address":  device.NetworkValidAddressV4,
 	"ipv4.dhcp":         shared.IsBool,
-	"ipv4.dhcp.gateway": networkValidAddressV4,
+	"ipv4.dhcp.gateway": device.NetworkValidAddressV4,
 	"ipv4.dhcp.expiry":  shared.IsAny,
 	"ipv4.dhcp.ranges":  shared.IsAny,
 	"ipv4.routes":       shared.IsAny,
@@ -87,7 +88,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"ipv6.nat.order": func(value string) error {
 		return shared.IsOneOf(value, []string{"before", "after"})
 	},
-	"ipv6.nat.address":   networkValidAddressV6,
+	"ipv6.nat.address":   device.NetworkValidAddressV6,
 	"ipv6.dhcp":          shared.IsBool,
 	"ipv6.dhcp.expiry":   shared.IsAny,
 	"ipv6.dhcp.stateful": shared.IsBool,
