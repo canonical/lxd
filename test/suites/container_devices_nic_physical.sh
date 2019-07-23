@@ -9,6 +9,9 @@ test_container_devices_nic_physical() {
   # Create dummy interface for use as parent.
   ip link add "${ctName}" address "${dummyMAC}" type dummy
 
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
+
   # Create test container from default profile.
   lxc init testimage "${ctName}"
 
@@ -181,6 +184,13 @@ test_container_devices_nic_physical() {
   fi
 
   lxc delete "${ctName}"
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
+    false
+  fi
 
   # Remove dummy interface (should still exist).
   ip link delete "${ctName}"
