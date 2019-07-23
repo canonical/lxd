@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -494,6 +495,102 @@ func networkSetVethLimits(m config.Device) error {
 		if err != nil {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}
+	}
+
+	return nil
+}
+
+// NetworkValidAddressV4 validates an IPv4 addresss string.
+func NetworkValidAddressV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() == nil {
+		return fmt.Errorf("Not an IPv4 address: %s", value)
+	}
+
+	return nil
+}
+
+// NetworkValidAddressV6 validates an IPv6 addresss string.
+func NetworkValidAddressV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 address: %s", value)
+	}
+
+	return nil
+}
+
+// NetworkValidAddressV4List validates a comma delimited list of IPv4 addresses.
+func NetworkValidAddressV4List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := NetworkValidAddressV4(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//NetworkValidAddressV6List validates a comma delimited list of IPv6 addresses.
+func NetworkValidAddressV6List(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		v = strings.TrimSpace(v)
+		err := NetworkValidAddressV6(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// NetworkValidNetworkV4 validates an IPv4 CIDR string.
+func NetworkValidNetworkV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip.To4() == nil {
+		return fmt.Errorf("Not an IPv4 network: %s", value)
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IPv4 network address: %s", value)
+	}
+
+	return nil
+}
+
+// NetworkValidNetworkV6 validates an IPv6 CIDR string.
+func NetworkValidNetworkV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip, subnet, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
+
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 network: %s", value)
+	}
+
+	if ip.String() != subnet.IP.String() {
+		return fmt.Errorf("Not an IPv6 network address: %s", value)
 	}
 
 	return nil
