@@ -67,11 +67,37 @@ static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 	return true;
 }
 
+static bool acquire_basic_creds(pid_t pid)
+{
+	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF;
+	char buf[256];
+
+	snprintf(buf, sizeof(buf), "/proc/%d/ns/mnt", pid);
+	mnt_fd = open(buf, O_RDONLY | O_CLOEXEC);
+	if (mnt_fd < 0)
+		return false;
+
+	snprintf(buf, sizeof(buf), "/proc/%d/root", pid);
+	root_fd = open(buf, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (root_fd < 0)
+		return false;
+
+	snprintf(buf, sizeof(buf), "/proc/%d/cwd", pid);
+	cwd_fd = open(buf, O_PATH | O_RDONLY | O_CLOEXEC);
+	if (cwd_fd < 0)
+		return false;
+
+	if (setns(mnt_fd, CLONE_NEWNS))
+		return false;
+
+	return chdirchroot_in_mntns(cwd_fd, root_fd);
+}
+
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod()
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF, target_dir_fd = -EBADF;
+	__do_close_prot_errno int target_dir_fd = -EBADF;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
 	int ret;
 	char path[PATH_MAX];
@@ -93,33 +119,7 @@ static void forkmknod()
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
 
-	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
-	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (mnt_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	snprintf(path, sizeof(path), "/proc/%d/root", pid);
-	root_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-	if (root_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
-	if (cwd_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (setns(mnt_fd, CLONE_NEWNS)) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (!chdirchroot_in_mntns(cwd_fd, root_fd)) {
+	if (!acquire_basic_creds(pid)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
@@ -237,7 +237,7 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t 
 
 static void forksetxattr()
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, ns_fd = -EBADF, root_fd = -EBADF, target_fd = -EBADF;
+	__do_close_prot_errno int ns_fd = -EBADF, target_fd = -EBADF;
 	int flags = 0;
 	char *name, *target;
 	char path[PATH_MAX];
@@ -269,33 +269,7 @@ static void forksetxattr()
 		_exit(EXIT_FAILURE);
 	}
 
-	snprintf(path, sizeof(path), "/proc/%d/root", pid);
-	root_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-	if (root_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
-	mnt_fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (mnt_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	snprintf(path, sizeof(path), "/proc/%d/cwd", pid);
-	cwd_fd = open(path, O_PATH | O_RDONLY | O_CLOEXEC);
-	if (cwd_fd < 0) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (setns(mnt_fd, CLONE_NEWNS)) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	if (!chdirchroot_in_mntns(cwd_fd, root_fd)) {
+	if (!acquire_basic_creds(pid)) {
 		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
 	}
