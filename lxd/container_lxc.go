@@ -376,7 +376,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	err = containerValidDevices(s.Cluster, c.expandedDevices, false, true)
+	err = containerValidDevices(s, s.Cluster, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -4278,7 +4278,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(c.state.Cluster, args.Devices, false, false)
+	err = containerValidDevices(c.state, c.state.Cluster, args.Devices, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid devices")
 	}
@@ -4474,7 +4474,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.state.Cluster, c.expandedDevices, false, true)
+	err = containerValidDevices(c.state, c.state.Cluster, c.expandedDevices, false, true)
 	if err != nil {
 		return errors.Wrap(err, "Invalid expanded devices")
 	}

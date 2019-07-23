@@ -105,7 +105,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d.cluster, req.Devices, true, false)
+	err = containerValidDevices(d.State(), d.cluster, req.Devices, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}

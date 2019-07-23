@@ -319,7 +319,7 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	return nil
 }
 
-func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile bool, expanded bool) error {
+func containerValidDevices(state *state.State, cluster *db.Cluster, devices config.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -344,7 +344,7 @@ func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile 
 
 		if m["type"] == "nic" {
 			// Validate config using device interface.
-			_, err := device.New(&containerLXC{}, nil, config.Device(m), nil, nil)
+			_, err := device.New(&containerLXC{}, state, config.Device(m), nil, nil)
 			if err != nil {
 				return err
 			}
@@ -1130,7 +1130,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate container devices
-	err = containerValidDevices(s.Cluster, args.Devices, false, false)
+	err = containerValidDevices(s, s.Cluster, args.Devices, false, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
