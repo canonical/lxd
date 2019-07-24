@@ -31,6 +31,7 @@ import (
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
+#include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/seccomp.h>
@@ -176,12 +177,6 @@ static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #ifdef AUDIT_ARCH_S390X
 	{ AUDIT_ARCH_S390X,        14, 290, 224 },
 #endif
-#ifdef AUDIT_ARCH_RISCV32
-	{ AUDIT_ARCH_RISCV32,      -1,  33,   5 },
-#endif
-#ifdef AUDIT_ARCH_RISCV64
-	{ AUDIT_ARCH_RISCV64,      -1,  33,   5 },
-#endif
 #ifdef AUDIT_ARCH_PPC
 	{ AUDIT_ARCH_PPC,          14, 288, 209 },
 #endif
@@ -191,44 +186,11 @@ static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #ifdef AUDIT_ARCH_PPC64LE
 	{ AUDIT_ARCH_PPC64LE,      14, 288, 209 },
 #endif
-#ifdef AUDIT_ARCH_IA64
-	{ AUDIT_ARCH_IA64,         13, 259, 193 },
-#endif
 #ifdef AUDIT_ARCH_SPARC
 	{ AUDIT_ARCH_SPARC,        14, 286, 169 },
 #endif
 #ifdef AUDIT_ARCH_SPARC64
 	{ AUDIT_ARCH_SPARC64,      14, 286, 169 },
-#endif
-#ifdef AUDIT_ARCH_ALPHA
-	{ AUDIT_ARCH_ALPHA,        14, 452, 382 },
-#endif
-#ifdef AUDIT_ARCH_OPENRISC
-	{ AUDIT_ARCH_OPENRISC,     -1,  33,   5 },
-#endif
-#ifdef AUDIT_ARCH_PARISC
-	{ AUDIT_ARCH_PARISC,       14, 277, 238 },
-#endif
-#ifdef AUDIT_ARCH_PARISC64
-	{ AUDIT_ARCH_PARISC64,     14, 277, 238 },
-#endif
-#ifdef AUDIT_ARCH_CRIS
-	{ AUDIT_ARCH_CRIS,         -1,  -1,  -1 },
-#endif
-#ifdef AUDIT_ARCH_CSKY
-	{ AUDIT_ARCH_CSKY,         -1,  33,   5 },
-#endif
-#ifdef AUDIT_ARCH_FRV
-	{ AUDIT_ARCH_FRV,          -1,  -1,  -1 },
-#endif
-#ifdef AUDIT_ARCH_M32R
-	{ AUDIT_ARCH_M32R,         -1,  -1,  -1 },
-#endif
-#ifdef AUDIT_ARCH_M68K
-	{ AUDIT_ARCH_M68K,         14, 290, 223 },
-#endif
-#ifdef AUDIT_ARCH_MICROBLAZE
-	{ AUDIT_ARCH_MICROBLAZE,   14, 297, 226 },
 #endif
 #ifdef AUDIT_ARCH_MIPS
 	{ AUDIT_ARCH_MIPS,         14, 290, 224 },
@@ -247,30 +209,6 @@ static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64N32
 	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180 },
-#endif
-#ifdef AUDIT_ARCH_SH
-	{ AUDIT_ARCH_SH,           14, 297, 226 },
-#endif
-#ifdef AUDIT_ARCH_SHEL
-	{ AUDIT_ARCH_SHEL,         14, 297, 226 },
-#endif
-#ifdef AUDIT_ARCH_SH64
-	{ AUDIT_ARCH_SH64,         14, 325, 254 },
-#endif
-#ifdef AUDIT_ARCH_SHEL64
-	{ AUDIT_ARCH_SHEL64,       14, 325, 254 },
-#endif
-#ifdef AUDIT_ARCH_TILEGX
-	{ AUDIT_ARCH_TILEGX,       -1,  -1,  -1 },
-#endif
-#ifdef AUDIT_ARCH_TILEGX32
-	{ AUDIT_ARCH_TILEGX32,     -1,  -1,  -1 },
-#endif
-#ifdef AUDIT_ARCH_TILEPRO
-	{ AUDIT_ARCH_TILEPRO,      -1,  -1,  -1 },
-#endif
-#ifdef AUDIT_ARCH_XTENSA
-	{ AUDIT_ARCH_XTENSA,       36, 290,  68 },
 #endif
 };
 
