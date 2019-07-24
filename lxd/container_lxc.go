@@ -1828,6 +1828,23 @@ func (c *containerLXC) initLXC(config bool) error {
 					}
 				}
 			} else {
+				if shared.IsTrue(m["shift"]) {
+					err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", sourceDevPath, sourceDevPath))
+					if err != nil {
+						return err
+					}
+
+					err = lxcSetConfigItem(cc, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", sourceDevPath, sourceDevPath))
+					if err != nil {
+						return err
+					}
+
+					err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", sourceDevPath))
+					if err != nil {
+						return err
+					}
+				}
+
 				rbind := ""
 				options := []string{}
 				if isReadOnly {
@@ -1843,6 +1860,10 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 
 				if m["propagation"] != "" {
+					if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+						return fmt.Errorf("liblxc 3.0 is required for mount propagation configuration")
+					}
+
 					options = append(options, m["propagation"])
 				}
 
@@ -5126,7 +5147,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if key == "security.devlxd" {
 				if value == "" || shared.IsTrue(value) {
-					err = c.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND)
+					err = c.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", unix.MS_BIND, false)
 					if err != nil {
 						return err
 					}
@@ -7270,7 +7291,7 @@ func (c *containerLXC) StorageStop() (bool, error) {
 }
 
 // Mount handling
-func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, mntnsPID int) error {
+func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, mntnsPID int, shiftfs bool) error {
 	pid := mntnsPID
 	if pid <= 0 {
 		// Get the init PID
@@ -7307,11 +7328,20 @@ func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, 
 	}
 	defer unix.Unmount(tmpMount, unix.MNT_DETACH)
 
+	// Setup host side shiftfs as needed
+	if shiftfs {
+		err = unix.Mount(tmpMount, tmpMount, "shiftfs", 0, "mark,passthrough=3")
+		if err != nil {
+			return fmt.Errorf("Failed to setup host side shiftfs mount: %s", err)
+		}
+		defer unix.Unmount(tmpMount, unix.MNT_DETACH)
+	}
+
 	// Move the mount inside the container
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	_, err = shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target)
+	_, err = shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target, fmt.Sprintf("%v", shiftfs))
 	if err != nil {
 		return err
 	}
@@ -7338,12 +7368,12 @@ func (c *containerLXC) insertMountLXC(source, target, fstype string, flags int) 
 	return nil
 }
 
-func (c *containerLXC) insertMount(source, target, fstype string, flags int) error {
-	if c.state.OS.LXCFeatures["mount_injection_file"] {
+func (c *containerLXC) insertMount(source, target, fstype string, flags int, shiftfs bool) error {
+	if c.state.OS.LXCFeatures["mount_injection_file"] && !shiftfs {
 		return c.insertMountLXC(source, target, fstype, flags)
 	}
 
-	return c.insertMountLXD(source, target, fstype, flags, -1)
+	return c.insertMountLXD(source, target, fstype, flags, -1, shiftfs)
 }
 
 func (c *containerLXC) removeMount(mount string) error {
@@ -7545,7 +7575,7 @@ func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultM
 	tgtPath := paths[1]
 
 	// Bind-mount it into the container
-	err = c.insertMount(devPath, tgtPath, "none", unix.MS_BIND)
+	err = c.insertMount(devPath, tgtPath, "none", unix.MS_BIND, false)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
@@ -7638,7 +7668,7 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, p
 
 	// Bind-mount it into the container
 	defer os.Remove(devPath)
-	return c.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid)
+	return c.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, false)
 }
 
 func (c *containerLXC) insertUnixDeviceNum(name string, m config.Device, major int, minor int, path string, defaultMode bool) error {
@@ -9330,7 +9360,7 @@ func (c *containerLXC) insertDiskDevice(name string, m config.Device) error {
 
 	// Bind-mount it into the container
 	destPath := strings.TrimSuffix(m["path"], "/")
-	err = c.insertMount(devPath, destPath, "none", flags)
+	err = c.insertMount(devPath, destPath, "none", flags, shared.IsTrue(m["shift"]))
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
