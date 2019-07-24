@@ -121,5 +121,5 @@ test_container_devices_nic_sriov() {
     false
   fi
 
-  lxc stop -f "${ctName}"
+  lxc delete -f "${ctName}"
 }
