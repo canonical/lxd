@@ -831,6 +831,9 @@ test_clustering_publish() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
+  # Give LXD a couple of seconds to get event API connected properly
+  sleep 2
+
   # Init a container on node2, using a client connected to node1
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
