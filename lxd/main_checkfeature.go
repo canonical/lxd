@@ -134,6 +134,10 @@ void is_uevent_aware()
 #define SECCOMP_RET_USER_NOTIF 0x7fc00000U
 #endif
 
+#ifdef SECCOMP_GET_ACTION_AVAIL
+#define SECCOMP_GET_ACTION_AVAIL 2
+#endif
+
 void is_seccomp_notify_aware(void)
 {
 	__u32 action[] = { SECCOMP_RET_USER_NOTIF };
