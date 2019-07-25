@@ -38,11 +38,6 @@ import (
 
 var forkdnsServersLock sync.Mutex
 
-func init() {
-	// Link the networkUpdateStatic in here to the dnsmasq package so that other packages can use it.
-	dnsmasq.RebuildConfig = networkUpdateStatic
-}
-
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
 	_, dbInfo, err := cluster.NetworkGetInterface(devName)
 	if err != nil {

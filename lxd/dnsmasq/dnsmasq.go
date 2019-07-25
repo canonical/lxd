@@ -13,15 +13,11 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 
 	"golang.org/x/sys/unix"
 )
-
-// RebuildConfig function to completely rebuild dnsmasq config for a network.
-var RebuildConfig func(s *state.State, networkName string) error
 
 // DHCPAllocation represents an IP allocation from dnsmasq.
 type DHCPAllocation struct {
