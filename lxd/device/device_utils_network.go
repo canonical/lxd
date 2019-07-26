@@ -597,6 +597,32 @@ func NetworkValidNetworkV6(value string) error {
 	return nil
 }
 
+// NetworkValidNetworkV4List validates a comma delimited list of IPv4 CIDR strings.
+func NetworkValidNetworkV4List(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		network = strings.TrimSpace(network)
+		err := NetworkValidNetworkV4(network)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// NetworkValidNetworkV6List validates a comma delimited list of IPv6 CIDR strings.
+func NetworkValidNetworkV6List(value string) error {
+	for _, network := range strings.Split(value, ",") {
+		network = strings.TrimSpace(network)
+		err := NetworkValidNetworkV6(network)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // NetworkSRIOVGetFreeVFInterface checks the contents of the VF directory to find a free VF
 // interface name that belongs to the same device and port as the parent.
 // Returns VF interface name or empty string if no free interface found.
