@@ -28,10 +28,10 @@ var architectureNames = map[int]string{
 }
 
 var architectureAliases = map[int][]string{
-	ARCH_32BIT_INTEL_X86:             {"i386", "i586", "386", "x86"},
-	ARCH_64BIT_INTEL_X86:             {"amd64"},
-	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   {"armel", "armhf", "arm", "armhfp", "armv7a_hardfp", "armv7"},
-	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   {"arm64"},
+	ARCH_32BIT_INTEL_X86:             {"i386", "i586", "386", "x86", "generic_32"},
+	ARCH_64BIT_INTEL_X86:             {"amd64", "generic_64"},
+	ARCH_32BIT_ARMV7_LITTLE_ENDIAN:   {"armel", "armhf", "arm", "armhfp", "armv7a_hardfp", "armv7", "armv7a_vfpv3_hardfp"},
+	ARCH_64BIT_ARMV8_LITTLE_ENDIAN:   {"arm64", "arm64_generic"},
 	ARCH_32BIT_POWERPC_BIG_ENDIAN:    {"powerpc"},
 	ARCH_64BIT_POWERPC_BIG_ENDIAN:    {"powerpc64", "ppc64"},
 	ARCH_64BIT_POWERPC_LITTLE_ENDIAN: {"ppc64el"},
