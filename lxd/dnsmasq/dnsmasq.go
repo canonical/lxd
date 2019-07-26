@@ -13,15 +13,11 @@ import (
 	"sync"
 
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 
 	"golang.org/x/sys/unix"
 )
-
-// RebuildConfig function to completely rebuild dnsmasq config for a network.
-var RebuildConfig func(s *state.State, networkName string) error
 
 // DHCPAllocation represents an IP allocation from dnsmasq.
 type DHCPAllocation struct {
@@ -34,8 +30,8 @@ type DHCPAllocation struct {
 // ConfigMutex used to coordinate access to the dnsmasq config files.
 var ConfigMutex sync.Mutex
 
-// UpdateStaticEntry writes a single dhcp-host line for a container/network combination.
-func UpdateStaticEntry(network string, projectName string, cName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
+// UpdateStaticEntry writes a single dhcp-host line for a network/instance combination.
+func UpdateStaticEntry(network string, projectName string, instanceName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
 	line := hwaddr
 
 	// Generate the dhcp-host line
@@ -48,14 +44,24 @@ func UpdateStaticEntry(network string, projectName string, cName string, netConf
 	}
 
 	if netConfig["dns.mode"] == "" || netConfig["dns.mode"] == "managed" {
-		line += fmt.Sprintf(",%s", cName)
+		line += fmt.Sprintf(",%s", instanceName)
 	}
 
 	if line == hwaddr {
 		return nil
 	}
 
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, cName)), []byte(line+"\n"), 0644)
+	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)), []byte(line+"\n"), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RemoveStaticEntry removes a single dhcp-host line for a network/instance combination.
+func RemoveStaticEntry(network string, projectName string, instanceName string) error {
+	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)))
 	if err != nil {
 		return err
 	}

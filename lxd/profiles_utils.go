@@ -18,7 +18,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 		return err
 	}
 
-	err = containerValidDevices(d.cluster, req.Devices, true, false)
+	err = containerValidDevices(d.State(), d.cluster, req.Devices, true, false)
 	if err != nil {
 		return err
 	}

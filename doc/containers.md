@@ -98,7 +98,7 @@ volatile.idmap.current                      | string    | -             | The id
 volatile.idmap.next                         | string    | -             | The idmap to use next time the container starts
 volatile.last\_state.idmap                  | string    | -             | Serialized container uid/gid map
 volatile.last\_state.power                  | string    | -             | Container state as of last host shutdown
-volatile.\<name\>.host\_name                | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p, or nictype=sriov)
+volatile.\<name\>.host\_name                | string    | -             | Network device name on the host
 volatile.\<name\>.hwaddr                    | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
 volatile.\<name\>.last\_state.created       | string    | -             | Whether or not the network device physical device was created ("true" or "false")
 volatile.\<name\>.last\_state.mtu           | string    | -             | Network device original MTU used when moving a physical device into a container
@@ -300,7 +300,6 @@ parent                  | string    | -                 | yes       | -         
 name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-host\_name              | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
 vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
 maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
 maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
@@ -338,7 +337,6 @@ parent                  | string    | -                 | yes       | -         
 name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-host\_name              | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
 ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to container
 ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to container
 vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to

@@ -23,8 +23,15 @@ test_container_devices_nic_bridged() {
   lxc network set "${brName}" ipv6.routes 2001:db8::3:0/64
   [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
 
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
+
   # Test pre-launch profile config is applied at launch
   lxc profile copy default "${ctName}"
+
+  # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
+  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: bridged\n    parent: ${brName}/" | lxc profile edit "${ctName}"
+
   lxc profile device set "${ctName}" eth0 ipv4.routes "192.0.2.1${ipRand}/32"
   lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"
   lxc profile device set "${ctName}" eth0 limits.ingress 1Mbit
@@ -32,8 +39,6 @@ test_container_devices_nic_bridged() {
   lxc profile device set "${ctName}" eth0 host_name "${vethHostName}"
   lxc profile device set "${ctName}" eth0 mtu "1400"
   lxc profile device set "${ctName}" eth0 hwaddr "${ctMAC}"
-  lxc profile device set "${ctName}" eth0 parent "${brName}"
-  lxc profile device set "${ctName}" eth0 nictype "bridged"
   lxc launch testimage "${ctName}" -p "${ctName}"
 
   # Check profile routes are applied on boot.
@@ -179,6 +184,30 @@ test_container_devices_nic_bridged() {
     ipv4.routes="192.0.2.1${ipRand}/32" \
     ipv6.routes="2001:db8::1${ipRand}/128"
 
+  # Check removing a required option fails.
+  if lxc config device unset "${ctName}" eth0 parent ; then
+    echo "shouldnt be able to unset invalrequiredid option"
+    false
+  fi
+
+  # Check updating an invalid option fails.
+  if lxc config device set "${ctName}" eth0 invalid.option "invalid value" ; then
+    echo "shouldnt be able to set invalid option"
+    false
+  fi
+
+  # Check setting invalid IPv4 route.
+  if lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.1/33" ; then
+      echo "shouldnt be able to set invalid ipv4.routes value"
+    false
+  fi
+
+  # Check setting invalid IPv6 route.
+  if lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::1/129" ; then
+      echo "shouldnt be able to set invalid ipv6.routes value"
+    false
+  fi
+
   lxc config device set "${ctName}" eth0 ipv4.routes "192.0.2.2${ipRand}/32"
   lxc config device set "${ctName}" eth0 ipv6.routes "2001:db8::2${ipRand}/128"
   lxc config device set "${ctName}" eth0 limits.ingress 3Mbit
@@ -259,7 +288,7 @@ test_container_devices_nic_bridged() {
   lxc launch testimage "${ctName}" -p "${ctName}"
 
   # Request DHCPv4 lease with custom name (to check managed name is allocated instead).
-  lxc exec "${ctName}" -- /sbin/udhcpc -i eth0 -F "${ctName}custom"
+  lxc exec "${ctName}" -- udhcpc -i eth0 -F "${ctName}custom"
 
   # Check DHCPv4 lease is allocated.
   if ! grep -i "${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
@@ -273,12 +302,27 @@ test_container_devices_nic_bridged() {
     false
   fi
 
+  # Request DHCPv6 lease (if udhcpc6 is in busybox image).
+  busyboxUdhcpc6=$(lxc exec "${ctName}" -- busybox --list | grep udhcpc6)
+  if [ "${busyboxUdhcpc6}" = "udhcpc6" ]; then
+        lxc exec "${ctName}" -- udhcpc6 -i eth0
+  fi
+
   # Delete container, check LXD releases lease.
   lxc delete "${ctName}" -f
 
-  # Check DHCPv4 lease is released.
-  if grep -i "${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+  # Check DHCPv4 lease is released (space before the MAC important to avoid mismatching IPv6 lease).
+  if grep -i " ${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
     echo "DHCPv4 lease not released"
+    false
+  fi
+
+  # Wait for DHCPv6 release to be processed.
+  sleep 1
+
+  # Check DHCPv6 lease is released.
+  if grep -i " ${ctName}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
+    echo "DHCPv6 lease not released"
     false
   fi
 
@@ -313,6 +357,29 @@ test_container_devices_nic_bridged() {
 
   if grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
     echo "dnsmasq host config still has old IPv6 address"
+    false
+  fi
+
+  lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
+  if [ ! -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+    echo "dnsmasq host config file not created"
+    false
+  fi
+
+  # Check connecting device to non-managed bridged.
+  ip link add "${ctName}" type dummy
+  lxc config device set "${ctName}" eth0 parent "${ctName}"
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+    echo "dnsmasq host config file not removed from old network"
+    false
+  fi
+
+  ip link delete "${ctName}"
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
     false
   fi
 
