@@ -18,6 +18,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -31,6 +32,24 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
 )
+
+func init() {
+	// Expose containerLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
+	// This is because container types are defined in the main package and are not importable.
+	device.InstanceLoadNodeAll = func(s *state.State) ([]device.InstanceIdentifier, error) {
+		containers, err := containerLoadNodeAll(s)
+		if err != nil {
+			return nil, err
+		}
+
+		identifiers := []device.InstanceIdentifier{}
+		for _, v := range containers {
+			identifiers = append(identifiers, device.InstanceIdentifier(v))
+		}
+
+		return identifiers, nil
+	}
+}
 
 // Helper functions
 
@@ -114,49 +133,6 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		case "required":
 			return true
 		case "uid":
-			return true
-		default:
-			return false
-		}
-	case "nic":
-		switch k {
-		case "limits.max":
-			return true
-		case "limits.ingress":
-			return true
-		case "limits.egress":
-			return true
-		case "host_name":
-			return true
-		case "hwaddr":
-			return true
-		case "mtu":
-			return true
-		case "name":
-			return true
-		case "nictype":
-			return true
-		case "parent":
-			return true
-		case "vlan":
-			return true
-		case "ipv4.address":
-			return true
-		case "ipv6.address":
-			return true
-		case "ipv4.routes":
-			return true
-		case "ipv6.routes":
-			return true
-		case "security.mac_filtering":
-			return true
-		case "security.ipv4_filtering":
-			return true
-		case "security.ipv6_filtering":
-			return true
-		case "maas.subnet.ipv4":
-			return true
-		case "maas.subnet.ipv6":
 			return true
 		default:
 			return false
@@ -343,7 +319,7 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	return nil
 }
 
-func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile bool, expanded bool) error {
+func containerValidDevices(state *state.State, cluster *db.Cluster, devices config.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -361,96 +337,16 @@ func containerValidDevices(cluster *db.Cluster, devices config.Devices, profile 
 		}
 
 		for k := range m {
-			if !containerValidDeviceConfigKey(m["type"], k) {
+			if m["type"] != "nic" && !containerValidDeviceConfigKey(m["type"], k) {
 				return fmt.Errorf("Invalid device configuration key for %s: %s", m["type"], k)
 			}
 		}
 
 		if m["type"] == "nic" {
-			if m["nictype"] == "" {
-				return fmt.Errorf("Missing nic type")
-			}
-
-			if !shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "ipvlan", "p2p", "physical", "sriov"}) {
-				return fmt.Errorf("Bad nic type: %s", m["nictype"])
-			}
-
-			if shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) && m["parent"] == "" {
-				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
-			}
-
-			if m["ipv4.address"] != "" {
-				if m["nictype"] == "ipvlan" {
-					err := networkValidAddressV4List(m["ipv4.address"])
-					if err != nil {
-						return err
-					}
-				} else {
-					err := networkValidAddressV4(m["ipv4.address"])
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			if m["ipv6.address"] != "" {
-				if m["nictype"] == "ipvlan" {
-					err := networkValidAddressV6List(m["ipv6.address"])
-					if err != nil {
-						return err
-					}
-				} else {
-					err := networkValidAddressV6(m["ipv6.address"])
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			if m["ipv4.routes"] != "" {
-				if !shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-					return fmt.Errorf("Bad nic type for ipv4.routes: %s", m["nictype"])
-				}
-
-				for _, route := range strings.Split(m["ipv4.routes"], ",") {
-					route = strings.TrimSpace(route)
-					err := networkValidNetworkV4(route)
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			if m["ipv6.routes"] != "" {
-				if !shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-					return fmt.Errorf("Bad nic type for ipv6.routes: %s", m["nictype"])
-				}
-
-				for _, route := range strings.Split(m["ipv6.routes"], ",") {
-					route = strings.TrimSpace(route)
-					err := networkValidNetworkV6(route)
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			if shared.IsTrue(m["security.mac_filtering"]) {
-				if !shared.StringInSlice(m["nictype"], []string{"bridged", "sriov"}) {
-					return fmt.Errorf("Bad nic type for security.mac_filtering: %s", m["nictype"])
-				}
-			}
-
-			if shared.IsTrue(m["security.ipv4_filtering"]) {
-				if m["nictype"] != "bridged" {
-					return fmt.Errorf("Bad nic type for security.ipv4_filtering: %s", m["nictype"])
-				}
-			}
-
-			if shared.IsTrue(m["security.ipv6_filtering"]) {
-				if m["nictype"] != "bridged" {
-					return fmt.Errorf("Bad nic type for security.ipv6_filtering: %s", m["nictype"])
-				}
+			// Validate config using device interface.
+			_, err := device.New(&containerLXC{}, state, config.Device(m), nil, nil)
+			if err != nil {
+				return err
 			}
 		} else if m["type"] == "infiniband" {
 			if m["nictype"] == "" {
@@ -705,13 +601,13 @@ type container interface {
 	OnStart() error
 	OnStopNS(target string, netns string) error
 	OnStop(target string) error
-	OnNetworkUp(deviceName string, hostVeth string) error
 
 	// Properties
 	Id() int
 	Location() string
 	Project() string
 	Name() string
+	Type() string
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
@@ -1234,7 +1130,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate container devices
-	err = containerValidDevices(s.Cluster, args.Devices, false, false)
+	err = containerValidDevices(s, s.Cluster, args.Devices, false, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}

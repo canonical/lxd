@@ -26,7 +26,7 @@ func (list Devices) Contains(k string, d Device) bool {
 }
 
 // Update returns the difference between two sets
-func (list Devices) Update(newlist Devices) (map[string]Device, map[string]Device, map[string]Device, []string) {
+func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []string) (map[string]Device, map[string]Device, map[string]Device, []string) {
 	rmlist := map[string]Device{}
 	addlist := map[string]Device{}
 	updatelist := map[string]Device{}
@@ -60,8 +60,7 @@ func (list Devices) Update(newlist Devices) (map[string]Device, map[string]Devic
 		}
 
 		updateDiff = deviceEqualsDiffKeys(oldDevice, newDevice)
-
-		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress", "ipv4.address", "ipv6.address", "ipv4.routes", "ipv6.routes"} {
+		for _, k := range updateFields(oldDevice, newDevice) {
 			delete(oldDevice, k)
 			delete(newDevice, k)
 		}

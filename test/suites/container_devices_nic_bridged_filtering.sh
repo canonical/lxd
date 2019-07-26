@@ -22,10 +22,14 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
   [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
 
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
+
   # Create profile for new containers.
   lxc profile copy default "${ctPrefix}"
-  lxc profile device set "${ctPrefix}" eth0 parent "${brName}"
-  lxc profile device set "${ctPrefix}" eth0 nictype "bridged"
+
+  # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
+  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
 
   # Launch first container.
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
@@ -56,7 +60,6 @@ test_container_devices_nic_bridged_filtering() {
 
   # Setup fake MAC inside container.
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address 00:11:22:33:44:56 up
-  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
 
   # Check that ping is no longer working (i.e its filtered after fake MAC setup).
   if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1; then
@@ -111,7 +114,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check DHCPv4 allocation still works.
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
-  lxc exec "${ctPrefix}A" -- /sbin/udhcpc -i eth0 -n
+  lxc exec "${ctPrefix}A" -- udhcpc -i eth0 -n
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
 
@@ -137,12 +140,12 @@ test_container_devices_nic_bridged_filtering() {
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
-  if ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
-      echo "IPv4 filter still applied as part of ipv4_filtering in ebtables"
+  if ebtables -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+      echo "IP filter still applied as part of ipv4_filtering in ebtables"
       false
   fi
 
-  # Remove static IP and check IP filter works with previous DHCP release.
+  # Remove static IP and check IP filter works with previous DHCP lease.
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
   lxc config device unset "${ctPrefix}A" eth0 ipv4.address
   lxc start "${ctPrefix}A"
@@ -228,8 +231,15 @@ test_container_devices_nic_bridged_filtering() {
       false
   fi
 
-  # TODO: Cannot test DHCPv6 as busybox doesn't contain a DHCPv6 client yet.
+  # Check DHCPv6 allocation still works (if udhcpc6 is in busybox image).
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
+
+  busyboxUdhcpc6=$(lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6)
+  if [ "${busyboxUdhcpc6}" = "udhcpc6" ]; then
+      lxc exec "${ctPrefix}A" -- udhcpc6 -i eth0 -n
+  fi
+
+  lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::2/64 dev eth0
   sleep 2 # Wait for DAD.
 
@@ -255,8 +265,8 @@ test_container_devices_nic_bridged_filtering() {
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
-  if ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
-      echo "IPv6 filter still applied as part of ipv6_filtering in ebtables"
+  if ebtables -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+      echo "IP filter still applied as part of ipv6_filtering in ebtables"
       false
   fi
 
@@ -285,6 +295,16 @@ test_container_devices_nic_bridged_filtering() {
   lxc start "${ctPrefix}A"
   if ! grep "\\[2001:db8::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
+    false
+  fi
+
+  lxc stop -f "${ctPrefix}A"
+  lxc stop -f "${ctPrefix}B"
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
     false
   fi
 

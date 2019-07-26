@@ -7,6 +7,9 @@ test_container_devices_nic_p2p() {
   ctMAC="0A:92:a7:0d:b7:D9"
   ipRand=$(shuf -i 0-9 -n 1)
 
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
+
   # Test pre-launch profile config is applied at launch.
   lxc profile copy default ${ctName}
   lxc profile device set ${ctName} eth0 ipv4.routes "192.0.2.1${ipRand}/32"
@@ -330,6 +333,15 @@ test_container_devices_nic_p2p() {
 
   # Test hotplugging nic with new name (rather than updating existing nic).
   lxc config device add "${ctName}" eth1 nic nictype=p2p
+
+  lxc stop -f "${ctName}"
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
+    false
+  fi
 
   lxc delete "${ctName}" -f
 }
