@@ -107,6 +107,14 @@ func IsAny(value string) error {
 	return nil
 }
 
+func IsNotEmpty(value string) error {
+	if value == "" {
+		return fmt.Errorf("Required value")
+	}
+
+	return nil
+}
+
 // IsRootDiskDevice returns true if the given device representation is
 // configured as root disk for a container. It typically get passed a specific
 // entry of api.Container.Devices.
