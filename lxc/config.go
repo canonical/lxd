@@ -449,18 +449,21 @@ type cmdConfigSet struct {
 
 func (c *cmdConfigSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:][<container>] <key> <value>")
+	cmd.Use = i18n.G("set [<remote>:][<container>] <key>=<value>...")
 	cmd.Short = i18n.G("Set container or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set container or server configuration keys`))
+		`Set container or server configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc config set [<remote>:][<container>] <key> <value>`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config set [<remote>:]<container> limits.cpu 2
+		`lxc config set [<remote>:]<container> limits.cpu=2
     Will set a CPU limit of "2" for the container.
 
-lxc config set core.https_address [::]:8443
+lxc config set core.https_address=[::]:8443
     Will have LXD listen on IPv4 and IPv6 port 8443.
 
-lxc config set core.trust_password blah
+lxc config set core.trust_password=blah
     Will set the server's trust password to blah.`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -471,14 +474,14 @@ lxc config set core.trust_password blah
 
 func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
 	}
 
 	// Parse remote
 	remote := ""
-	if len(args) > 2 {
+	if len(args) != 2 && !strings.Contains(args[0], "=") {
 		remote = args[0]
 	}
 
@@ -489,22 +492,16 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	// Set the config key
+	// Set the config keys
 	if resource.name != "" {
 		// Sanity checks
 		if c.config.flagTarget != "" {
 			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
 		}
 
-		key := args[len(args)-2]
-		value := args[len(args)-1]
-
-		if !termios.IsTerminal(getStdinFd()) && value == "-" {
-			buf, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
-			}
-			value = string(buf[:])
+		keys, err := getConfig(args[1:]...)
+		if err != nil {
+			return err
 		}
 
 		container, etag, err := resource.server.GetContainer(resource.name)
@@ -512,15 +509,17 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if cmd.Name() == "unset" {
-			_, ok := container.Config[key]
-			if !ok {
-				return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), key)
-			}
+		for k, v := range keys {
+			if cmd.Name() == "unset" {
+				_, ok := container.Config[k]
+				if !ok {
+					return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
+				}
 
-			delete(container.Config, key)
-		} else {
-			container.Config[key] = value
+				delete(container.Config, k)
+			} else {
+				container.Config[k] = v
+			}
 		}
 
 		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
@@ -546,7 +545,22 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	server.Config[args[len(args)-2]] = args[len(args)-1]
+	var keys map[string]string
+	if remote == "" {
+		keys, err = getConfig(args[0:]...)
+		if err != nil {
+			return err
+		}
+	} else {
+		keys, err = getConfig(args[1:]...)
+		if err != nil {
+			return err
+		}
+	}
+
+	for k, v := range keys {
+		server.Config[k] = v
+	}
 
 	return resource.server.UpdateServer(server.Writable(), etag)
 }
