@@ -514,6 +514,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 
 			err = c.deviceAdd(k, m)
 			if err != nil {
+				c.Delete()
 				return nil, err
 			}
 		}
