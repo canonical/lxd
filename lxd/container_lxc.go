@@ -499,7 +499,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 
 	if !c.IsSnapshot() {
 		// Update MAAS
-		err = c.maasUpdate(false)
+		err = c.maasUpdate(nil)
 		if err != nil {
 			c.Delete()
 			logger.Error("Failed creating container", ctxMap)
@@ -4535,7 +4535,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	if !c.IsSnapshot() && updateMAAS {
-		err = c.maasUpdate(true)
+		err = c.maasUpdate(oldExpandedDevices)
 		if err != nil {
 			return err
 		}
@@ -8351,9 +8351,9 @@ func (c *containerLXC) updateProgress(progress string) {
 }
 
 // Internal MAAS handling
-func (c *containerLXC) maasInterfaces() ([]maas.ContainerInterface, error) {
+func (c *containerLXC) maasInterfaces(devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
 	interfaces := []maas.ContainerInterface{}
-	for k, m := range c.expandedDevices {
+	for k, m := range devices {
 		if m["type"] != "nic" {
 			continue
 		}
@@ -8401,21 +8401,8 @@ func (c *containerLXC) maasInterfaces() ([]maas.ContainerInterface, error) {
 	return interfaces, nil
 }
 
-func (c *containerLXC) maasConnected() bool {
-	for _, m := range c.expandedDevices {
-		if m["type"] != "nic" {
-			continue
-		}
-
-		if m["maas.subnet.ipv4"] != "" || m["maas.subnet.ipv6"] != "" {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (c *containerLXC) maasUpdate(force bool) error {
+func (c *containerLXC) maasUpdate(oldDevices map[string]map[string]string) error {
+	// Check if MAAS is configured
 	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
 	if err != nil {
 		return err
@@ -8425,39 +8412,43 @@ func (c *containerLXC) maasUpdate(force bool) error {
 		return nil
 	}
 
-	if c.state.MAAS == nil {
-		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
-	}
-
-	if !c.maasConnected() {
-		if force {
-			exists, err := c.state.MAAS.DefinedContainer(c.name)
-			if err != nil {
-				return err
-			}
-
-			if exists {
-				return c.state.MAAS.DeleteContainer(c.name)
-			}
-		}
-		return nil
-	}
-
-	interfaces, err := c.maasInterfaces()
+	// Check if there's something that uses MAAS
+	interfaces, err := c.maasInterfaces(c.expandedDevices)
 	if err != nil {
 		return err
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(c.name)
+	var oldInterfaces []maas.ContainerInterface
+	if oldDevices != nil {
+		oldInterfaces, err = c.maasInterfaces(oldDevices)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(interfaces) == 0 && len(oldInterfaces) == 0 {
+		return nil
+	}
+
+	// See if we're connected to MAAS
+	if c.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+	}
+
+	exists, err := c.state.MAAS.DefinedContainer(project.Prefix(c.project, c.name))
 	if err != nil {
 		return err
 	}
 
 	if exists {
-		return c.state.MAAS.UpdateContainer(c.name, interfaces)
+		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
+			return c.state.MAAS.DeleteContainer(project.Prefix(c.project, c.name))
+		}
+
+		return c.state.MAAS.UpdateContainer(project.Prefix(c.project, c.name), interfaces)
 	}
 
-	return c.state.MAAS.CreateContainer(c.name, interfaces)
+	return c.state.MAAS.CreateContainer(project.Prefix(c.project, c.name), interfaces)
 }
 
 func (c *containerLXC) maasRename(newName string) error {
@@ -8470,24 +8461,29 @@ func (c *containerLXC) maasRename(newName string) error {
 		return nil
 	}
 
+	interfaces, err := c.maasInterfaces(c.expandedDevices)
+	if err != nil {
+		return err
+	}
+
+	if len(interfaces) == 0 {
+		return nil
+	}
+
 	if c.state.MAAS == nil {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	if !c.maasConnected() {
-		return nil
-	}
-
-	exists, err := c.state.MAAS.DefinedContainer(c.name)
+	exists, err := c.state.MAAS.DefinedContainer(project.Prefix(c.project, c.name))
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		return c.maasUpdate(false)
+		return c.maasUpdate(nil)
 	}
 
-	return c.state.MAAS.RenameContainer(c.name, newName)
+	return c.state.MAAS.RenameContainer(project.Prefix(c.project, c.name), project.Prefix(c.project, newName))
 }
 
 func (c *containerLXC) maasDelete() error {
@@ -8500,15 +8496,20 @@ func (c *containerLXC) maasDelete() error {
 		return nil
 	}
 
+	interfaces, err := c.maasInterfaces(c.expandedDevices)
+	if err != nil {
+		return err
+	}
+
+	if len(interfaces) == 0 {
+		return nil
+	}
+
 	if c.state.MAAS == nil {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	if !c.maasConnected() {
-		return nil
-	}
-
-	exists, err := c.state.MAAS.DefinedContainer(c.name)
+	exists, err := c.state.MAAS.DefinedContainer(project.Prefix(c.project, c.name))
 	if err != nil {
 		return err
 	}
@@ -8517,5 +8518,5 @@ func (c *containerLXC) maasDelete() error {
 		return nil
 	}
 
-	return c.state.MAAS.DeleteContainer(c.name)
+	return c.state.MAAS.DeleteContainer(project.Prefix(c.project, c.name))
 }
