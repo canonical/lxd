@@ -36,6 +36,15 @@ import (
 
 #include "../../lxd/include/memory_utils.h"
 
+#ifndef __O_PATH
+#define __O_PATH 010000000
+#endif
+
+#ifndef O_PATH
+#define O_PATH __O_PATH
+#endif
+#define AT_EMPTY_PATH 0x1000
+
 #ifndef VFS_CAP_REVISION_1
 #define VFS_CAP_REVISION_1 0x01000000
 #endif
