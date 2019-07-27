@@ -21,6 +21,7 @@ import (
 
 #include "../shared/netutils/netns_getifaddrs.c"
 #include "include/memory_utils.h"
+#include "include/namespaces.h"
 
 bool netnsid_aware = false;
 char errbuf[4096];

@@ -34,6 +34,7 @@ package main
 #include <unistd.h>
 
 #include "include/memory_utils.h"
+#include "include/namespaces.h"
 
 // External functions
 extern void checkfeature();
