@@ -147,6 +147,22 @@ func (c *Controller) CreateContainer(name string, interfaces []ContainerInterfac
 		return err
 	}
 
+	// Validation
+	if len(interfaces) < 1 {
+		return fmt.Errorf("Empty list of MAAS interface provided")
+	}
+
+	for _, iface := range interfaces {
+		if len(iface.Subnets) != 1 {
+			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
+		}
+
+		_, ok := subnets[iface.Subnets[0].Name]
+		if !ok {
+			return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+		}
+	}
+
 	// Create the device and first interface
 	device, err := c.machine.CreateDevice(gomaasapi.CreateMachineDeviceArgs{
 		Hostname:      name,
@@ -242,6 +258,22 @@ func (c *Controller) UpdateContainer(name string, interfaces []ContainerInterfac
 	device, err := c.getDevice(name)
 	if err != nil {
 		return err
+	}
+
+	// Validation
+	if len(interfaces) < 1 {
+		return fmt.Errorf("Empty list of MAAS interface provided")
+	}
+
+	for _, iface := range interfaces {
+		if len(iface.Subnets) != 1 {
+			return fmt.Errorf("Bad subnet provided for interface '%s'", iface.Name)
+		}
+
+		_, ok := subnets[iface.Subnets[0].Name]
+		if !ok {
+			return fmt.Errorf("Subnet '%s' doesn't exist in MAAS", interfaces[0].Subnets[0].Name)
+		}
 	}
 
 	// Iterate over existing interfaces, drop all removed ones and update existing ones
