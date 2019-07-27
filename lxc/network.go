@@ -1049,10 +1049,13 @@ type cmdNetworkSet struct {
 
 func (c *cmdNetworkSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<network> <key> <value>")
+	cmd.Use = i18n.G("set [<remote>:]<network> <key>=<value>...")
 	cmd.Short = i18n.G("Set network configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set network configuration keys`))
+		`Set network configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc network set [<remote>:]<network> <key> <value>`))
 
 	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -1062,7 +1065,7 @@ func (c *cmdNetworkSet) Command() *cobra.Command {
 
 func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
 	}
@@ -1080,11 +1083,12 @@ func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	// Set the config key
+	// Handle targeting
 	if c.network.flagTarget != "" {
 		client = client.UseTarget(c.network.flagTarget)
 	}
 
+	// Get the network
 	network, etag, err := client.GetNetwork(resource.name)
 	if err != nil {
 		return err
@@ -1094,18 +1098,15 @@ func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Only managed networks can be modified"))
 	}
 
-	key := args[1]
-	value := args[2]
-
-	if !termios.IsTerminal(getStdinFd()) && value == "-" {
-		buf, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
-		}
-		value = string(buf[:])
+	// Set the keys
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
 	}
 
-	network.Config[key] = value
+	for k, v := range keys {
+		network.Config[k] = v
+	}
 
 	return client.UpdateNetwork(resource.name, network.Writable(), etag)
 }
