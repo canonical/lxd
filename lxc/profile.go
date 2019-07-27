@@ -798,10 +798,13 @@ type cmdProfileSet struct {
 
 func (c *cmdProfileSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<profile> <key> <value>")
+	cmd.Use = i18n.G("set [<remote>:]<profile> <key><value>...")
 	cmd.Short = i18n.G("Set profile configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set profile configuration keys`))
+		`Set profile configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc profile set [<remote>:]<profile> <key> <value>`))
 
 	cmd.RunE = c.Run
 
@@ -810,7 +813,7 @@ func (c *cmdProfileSet) Command() *cobra.Command {
 
 func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
 	}
@@ -827,24 +830,21 @@ func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing profile name"))
 	}
 
-	// Set the configuration key
-	key := args[1]
-	value := args[2]
-
-	if !termios.IsTerminal(getStdinFd()) && value == "-" {
-		buf, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
-		}
-		value = string(buf[:])
-	}
-
+	// Get the profile
 	profile, etag, err := resource.server.GetProfile(resource.name)
 	if err != nil {
 		return err
 	}
 
-	profile.Config[key] = value
+	// Set the configuration key
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range keys {
+		profile.Config[k] = v
+	}
 
 	return resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
 }
