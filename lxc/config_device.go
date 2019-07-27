@@ -495,10 +495,13 @@ type cmdConfigDeviceSet struct {
 
 func (c *cmdConfigDeviceSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<container|profile> <device> <key> <value>")
+	cmd.Use = i18n.G("set [<remote>:]<container|profile> <device> <key>=<value>...")
 	cmd.Short = i18n.G("Set container device configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set container device configuration keys`))
+		`Set container device configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc config device set [<remote>:]<container|profile> <device> <key> <value>`))
 
 	cmd.RunE = c.Run
 
@@ -507,7 +510,7 @@ func (c *cmdConfigDeviceSet) Command() *cobra.Command {
 
 func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
+	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
 		return err
 	}
@@ -526,8 +529,11 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 
 	// Set the device config key
 	devname := args[1]
-	key := args[2]
-	value := args[3]
+
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
 
 	if c.profile != nil {
 		profile, etag, err := resource.server.GetProfile(resource.name)
@@ -540,7 +546,9 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("The device doesn't exist"))
 		}
 
-		dev[key] = value
+		for k, v := range keys {
+			dev[k] = v
+		}
 		profile.Devices[devname] = dev
 
 		err = resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
@@ -557,7 +565,9 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("The device doesn't exist"))
 		}
 
-		dev[key] = value
+		for k, v := range keys {
+			dev[k] = v
+		}
 		container.Devices[devname] = dev
 
 		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)

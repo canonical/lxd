@@ -521,10 +521,13 @@ type cmdProjectSet struct {
 
 func (c *cmdProjectSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<project> <key> <value>")
+	cmd.Use = i18n.G("set [<remote>:]<project> <key>=<value>...")
 	cmd.Short = i18n.G("Set project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set project configuration keys`))
+		`Set project configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc project set [<remote>:]<project> <key> <value>`))
 
 	cmd.RunE = c.Run
 
@@ -533,7 +536,7 @@ func (c *cmdProjectSet) Command() *cobra.Command {
 
 func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
 	}
@@ -550,24 +553,21 @@ func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing project name"))
 	}
 
-	// Set the configuration key
-	key := args[1]
-	value := args[2]
-
-	if !termios.IsTerminal(getStdinFd()) && value == "-" {
-		buf, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
-		}
-		value = string(buf[:])
-	}
-
+	// Get the project
 	project, etag, err := resource.server.GetProject(resource.name)
 	if err != nil {
 		return err
 	}
 
-	project.Config[key] = value
+	// Set the configuration key
+	keys, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range keys {
+		project.Config[k] = v
+	}
 
 	return resource.server.UpdateProject(resource.name, project.Writable(), etag)
 }

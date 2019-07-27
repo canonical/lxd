@@ -1276,10 +1276,13 @@ type cmdStorageVolumeSet struct {
 
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<pool> <volume> <key> <value>")
+	cmd.Use = i18n.G("set [<remote>:]<pool> <volume> <key>=<value>...")
 	cmd.Short = i18n.G("Set storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set storage volume configuration keys`))
+		`Set storage volume configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>`))
 
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -1289,7 +1292,7 @@ func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 
 func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
+	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
 	if exit {
 		return err
 	}
@@ -1301,7 +1304,6 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
-
 	if resource.name == "" {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
@@ -1322,20 +1324,17 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Get the value
-	key := args[2]
-	value := args[3]
-
-	if !termios.IsTerminal(getStdinFd()) && value == "-" {
-		buf, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
-		}
-		value = string(buf[:])
+	// Get the values
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
 	}
 
 	// Update the volume
-	vol.Config[key] = value
+	for k, v := range keys {
+		vol.Config[k] = v
+	}
+
 	err = client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, vol.Writable(), etag)
 	if err != nil {
 		return err
