@@ -109,14 +109,15 @@ _have lxc && {
 
     storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
       ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name \
-      ceph.rbd.clone_copy ceph.user.name lvm.thinpool_name lvm.use_thinpool \
+      ceph.rbd.clone_copy ceph.user.name cephfs.cluster_name cephfs.path \
+      cephfs.vg_name lvm.thinpool_name lvm.use_thinpool \
       lvm.vg_name rsync.bwlimit volatile.initial_source \
       volatile.pool.pristine volume.block.filesystem \
       volume.block.mount_options volume.size volume.zfs.remove_snapshots \
       volume.zfs.use_refquota zfs.clone_copy zfs.pool_name"
 
     storage_volume_keys="size block.filesystem block.mount_options \
-      zfs.remove_snapshots zfs.use_refquota"
+      security.unmapped zfs.remove_snapshots zfs.use_refquota"
 
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
