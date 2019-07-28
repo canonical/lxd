@@ -447,22 +447,24 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		}
 	}
 
-	// Get the container's idmap
 	var nextIdmap *idmap.IdmapSet
-	if c.IsRunning() {
-		nextIdmap, err = c.CurrentIdmap()
-	} else {
-		nextIdmap, err = c.NextIdmap()
-	}
-	if err != nil {
-		return nil, err
-	}
-
 	nextJsonMap := "[]"
-	if nextIdmap != nil {
-		nextJsonMap, err = idmapsetToJSON(nextIdmap)
+	if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
+		// Get the container's idmap
+		if c.IsRunning() {
+			nextIdmap, err = c.CurrentIdmap()
+		} else {
+			nextIdmap, err = c.NextIdmap()
+		}
 		if err != nil {
 			return nil, err
+		}
+
+		if nextIdmap != nil {
+			nextJsonMap, err = idmapsetToJSON(nextIdmap)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	poolVolumePut.Config["volatile.idmap.next"] = nextJsonMap
@@ -478,39 +480,42 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 	if !nextIdmap.Equals(lastIdmap) {
 		logger.Debugf("Shifting storage volume")
-		volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s,
-			"default", volumeName, volumeTypeName)
-		if err != nil {
-			return nil, err
-		}
 
-		if len(volumeUsedBy) > 1 {
-			for _, ctName := range volumeUsedBy {
-				ct, err := containerLoadByProjectAndName(s, c.Project(), ctName)
-				if err != nil {
-					continue
-				}
-
-				var ctNextIdmap *idmap.IdmapSet
-				if ct.IsRunning() {
-					ctNextIdmap, err = ct.CurrentIdmap()
-				} else {
-					ctNextIdmap, err = ct.NextIdmap()
-				}
-				if err != nil {
-					return nil, fmt.Errorf("Failed to retrieve idmap of container")
-				}
-
-				if !nextIdmap.Equals(ctNextIdmap) {
-					return nil, fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctName, volumeName)
-				}
+		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
+			volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s,
+				"default", volumeName, volumeTypeName)
+			if err != nil {
+				return nil, err
 			}
-		} else if len(volumeUsedBy) == 1 {
-			// If we're the only one who's attached that container
-			// we can shift the storage volume.
-			// I'm not sure if we want some locking here.
-			if volumeUsedBy[0] != c.Name() {
-				return nil, fmt.Errorf("idmaps of container and storage volume are not identical")
+
+			if len(volumeUsedBy) > 1 {
+				for _, ctName := range volumeUsedBy {
+					ct, err := containerLoadByProjectAndName(s, c.Project(), ctName)
+					if err != nil {
+						continue
+					}
+
+					var ctNextIdmap *idmap.IdmapSet
+					if ct.IsRunning() {
+						ctNextIdmap, err = ct.CurrentIdmap()
+					} else {
+						ctNextIdmap, err = ct.NextIdmap()
+					}
+					if err != nil {
+						return nil, fmt.Errorf("Failed to retrieve idmap of container")
+					}
+
+					if !nextIdmap.Equals(ctNextIdmap) {
+						return nil, fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctName, volumeName)
+					}
+				}
+			} else if len(volumeUsedBy) == 1 {
+				// If we're the only one who's attached that container
+				// we can shift the storage volume.
+				// I'm not sure if we want some locking here.
+				if volumeUsedBy[0] != c.Name() {
+					return nil, fmt.Errorf("idmaps of container and storage volume are not identical")
+				}
 			}
 		}
 
