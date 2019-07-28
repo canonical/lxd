@@ -32,7 +32,7 @@ _have lxc && {
     {
       COMPREPLY=( $( compgen -W "$( lxc profile list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
     }
-    
+
     _lxd_networks()
     {
       COMPREPLY=( $( compgen -W \
@@ -102,10 +102,10 @@ _have lxc && {
     networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode fan.overlay_subnet fan.type \
       fan.underlay_subnet ipv4.address ipv4.dhcp ipv4.dhcp.expiry ipv4.dhcp.gateway \
-      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.routes ipv4.routing \
-      ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
-      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.routes ipv6.routing \
-      raw.dnsmasq"
+      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.nat.order \
+      ipv4.routes ipv4.routing ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
+      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.nat.order \
+      ipv6.routes ipv6.routing raw.dnsmasq"
 
     storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
       ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name \
