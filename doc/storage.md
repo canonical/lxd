@@ -47,7 +47,7 @@ block.filesystem        | string    | block based driver (lvm)  | same as volume
 block.mount\_options    | string    | block based driver (lvm)  | same as volume.block.mount\_options   | storage           | Mount options for block devices
 security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped | Disable id mapping for the volume
 zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage           | Remove snapshots as needed
-zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage           | Use refquota instead of quota for space.
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage           | Use refquota instead of quota for space
 
 Storage volume configuration keys can be set using the lxc tool with:
 
