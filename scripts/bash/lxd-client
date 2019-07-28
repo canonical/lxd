@@ -97,7 +97,13 @@ _have lxc && {
       volatile.last_state.idmap volatile.last_state.power user.meta-data \
       user.network-config user.network_mode user.user-data user.vendor-data"
 
-    device_keys="limits.ingress limits.egress ipv4.routes ipv6.routes"
+    device_keys="limits.ingress limits.egress ipv4.routes ipv6.routes parent \
+      name mtu hwaddr vlan maas.subnet.ipv4 maas.subnet.ipv6 nictype \
+      host_name limits.max ipv4.address ipv6.address security.mac_filtering \
+      security.ipv4_filtering security.ipv6_filtering vlan limits.read \
+      limits.write path source optional readonly size recursive pool \
+      propagation shift major minor uid gid mode required vendorid productid \
+      pci id listen connect bind nat proxy_protocol security.uid security.gid"
 
     networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode fan.overlay_subnet fan.type \
