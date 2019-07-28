@@ -80,6 +80,7 @@ _have lxc && {
       boot.host_shutdown_timeout environment. \
       limits.cpu limits.cpu.allowance limits.cpu.priority \
       limits.disk.priority limits.memory limits.memory.enforce \
+      limits.kernel \
       limits.memory.swap limits.memory.swap.priority limits.network.priority \
       limits.processes linux.kernel_modules migration.incremental.memory \
       migration.incremental.memory.goal nvidia.runtime \
@@ -92,6 +93,7 @@ _have lxc && {
       security.syscalls.blacklist_compat security.syscalls.blacklist_default \
       security.syscalls.intercept.mknod security.syscalls.intercept.setxattr \
       snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
+      snapshots.expiry \
       volatile.apply_quota volatile.apply_template volatile.base_image \
       volatile.idmap.base volatile.idmap.current volatile.idmap.next \
       volatile.last_state.idmap volatile.last_state.power user.meta-data \
