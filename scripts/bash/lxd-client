@@ -127,7 +127,7 @@ _have lxc && {
       volume.zfs.use_refquota zfs.clone_copy zfs.pool_name"
 
     storage_volume_keys="size block.filesystem block.mount_options \
-      security.unmapped zfs.remove_snapshots zfs.use_refquota"
+      security.unmapped security.shifted zfs.remove_snapshots zfs.use_refquota"
 
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
