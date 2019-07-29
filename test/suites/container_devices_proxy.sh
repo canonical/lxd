@@ -163,7 +163,7 @@ container_devices_proxy_unix() {
   lxc launch testimage proxyTester
 
   # Initial test
-  lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
+  lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" uid=1234 gid=1234 security.uid=1234 security.gid=1234 connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
   (
     PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
