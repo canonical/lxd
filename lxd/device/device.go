@@ -9,7 +9,8 @@ import (
 
 // devTypes defines supported top-level device type creation functions.
 var devTypes = map[string]func(config.Device) device{
-	"nic": nicLoadByType,
+	"nic":   nicLoadByType,
+	"proxy": func(c config.Device) device { return &proxy{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
