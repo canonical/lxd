@@ -496,19 +496,6 @@ func networkValidAddressCIDRV4(value string) error {
 	return nil
 }
 
-func networkValidAddress(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	ip := net.ParseIP(value)
-	if ip == nil {
-		return fmt.Errorf("Not an IP address: %s", value)
-	}
-
-	return nil
-}
-
 func networkAddressForSubnet(subnet *net.IPNet) (net.IP, string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
