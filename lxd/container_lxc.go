@@ -4393,8 +4393,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return updateFields
 		}
 
-		// No fields can be live updated for this device.
-		return []string{}
+		// Legacy non-nic updatable fields.
+		return []string{"limits.max", "limits.read", "limits.write"}
 	})
 
 	// Do some validation of the config diff
