@@ -1845,7 +1845,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string
 		}
 	}
 
-	d, err := device.New(c, c.state, configCopy, c.deviceVolatileGetFunc(deviceName), c.deviceVolatileSetFunc(deviceName))
+	d, err := device.New(c, c.state, deviceName, configCopy, c.deviceVolatileGetFunc(deviceName), c.deviceVolatileSetFunc(deviceName))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -4383,7 +4383,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
-		d, err := device.New(c, c.state, config.Device(newDevice), nil, nil)
+		d, err := device.New(c, c.state, "", config.Device(newDevice), nil, nil)
 		if err != device.ErrUnsupportedDevType {
 			if err != nil {
 				return []string{} // Couldn't create Device, so this cannot be an update.
