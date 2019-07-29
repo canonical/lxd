@@ -49,6 +49,17 @@ func init() {
 
 		return identifiers, nil
 	}
+
+	// Expose containerLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
+	// This is because container types are defined in the main package and are not importable.
+	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.InstanceIdentifier, error) {
+		container, err := containerLoadByProjectAndName(s, project, name)
+		if err != nil {
+			return nil, err
+		}
+
+		return device.InstanceIdentifier(container), nil
+	}
 }
 
 // Helper functions
