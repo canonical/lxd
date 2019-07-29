@@ -234,8 +234,12 @@ test_container_devices_nic_bridged_filtering() {
   # Check DHCPv6 allocation still works (if udhcpc6 is in busybox image).
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
 
-  busyboxUdhcpc6=$(lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6)
-  if [ "${busyboxUdhcpc6}" = "udhcpc6" ]; then
+  busyboxUdhcpc6=1
+  if ! lxc exec "${ctPrefix}A" -- busybox --list | grep udhcpc6 ; then
+    busyboxUdhcpc6=0
+  fi
+
+  if [ "$busyboxUdhcpc6" = "1" ]; then
       lxc exec "${ctPrefix}A" -- udhcpc6 -i eth0 -n
   fi
 
