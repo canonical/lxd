@@ -355,7 +355,7 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 
 		if m["type"] == "nic" {
 			// Validate config using device interface.
-			_, err := device.New(&containerLXC{}, state, config.Device(m), nil, nil)
+			_, err := device.New(&containerLXC{}, state, name, config.Device(m), nil, nil)
 			if err != nil {
 				return err
 			}
