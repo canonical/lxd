@@ -483,17 +483,17 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property")
 			}
 
-			listenAddr, err := proxyParseAddr(m["listen"])
+			listenAddr, err := device.ProxyParseAddr(m["listen"])
 			if err != nil {
 				return err
 			}
 
-			connectAddr, err := proxyParseAddr(m["connect"])
+			connectAddr, err := device.ProxyParseAddr(m["connect"])
 			if err != nil {
 				return err
 			}
 
-			if len(connectAddr.addr) > len(listenAddr.addr) {
+			if len(connectAddr.Addr) > len(listenAddr.Addr) {
 				// Cannot support single port -> multiple port
 				return fmt.Errorf("Cannot map a single port to multiple ports")
 			}
@@ -513,10 +513,10 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 				}
 
 				// Support TCP <-> TCP and UDP <-> UDP
-				if listenAddr.connType == "unix" || connectAddr.connType == "unix" ||
-					listenAddr.connType != connectAddr.connType {
+				if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" ||
+					listenAddr.ConnType != connectAddr.ConnType {
 					return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT",
-						listenAddr.connType, connectAddr.connType)
+						listenAddr.ConnType, connectAddr.ConnType)
 				}
 			}
 
