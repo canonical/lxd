@@ -629,6 +629,7 @@ type container interface {
 	LogFilePath() string
 	ConsoleBufferLogPath() string
 	LogPath() string
+	DevicesPath() string
 
 	// Storage
 	StoragePool() (string, error)
