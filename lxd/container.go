@@ -228,31 +228,6 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
-	case "proxy":
-		switch k {
-		case "bind":
-			return true
-		case "connect":
-			return true
-		case "gid":
-			return true
-		case "listen":
-			return true
-		case "mode":
-			return true
-		case "proxy_protocol":
-			return true
-		case "nat":
-			return true
-		case "security.gid":
-			return true
-		case "security.uid":
-			return true
-		case "uid":
-			return true
-		default:
-			return false
-		}
 	case "none":
 		return false
 	default:
@@ -347,19 +322,22 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
+		// Validate config using device interface.
+		_, err := device.New(&containerLXC{}, state, name, config.Device(m), nil, nil)
+		if err != device.ErrUnsupportedDevType {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		for k := range m {
-			if m["type"] != "nic" && !containerValidDeviceConfigKey(m["type"], k) {
+			if !containerValidDeviceConfigKey(m["type"], k) {
 				return fmt.Errorf("Invalid device configuration key for %s: %s", m["type"], k)
 			}
 		}
 
-		if m["type"] == "nic" {
-			// Validate config using device interface.
-			_, err := device.New(&containerLXC{}, state, name, config.Device(m), nil, nil)
-			if err != nil {
-				return err
-			}
-		} else if m["type"] == "infiniband" {
+		if m["type"] == "infiniband" {
 			if m["nictype"] == "" {
 				return fmt.Errorf("Missing nic type")
 			}
@@ -474,52 +452,6 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 			if m["id"] != "" && (m["pci"] != "" || m["productid"] != "" || m["vendorid"] != "") {
 				return fmt.Errorf("Cannot use pci, productid or vendorid when id is set")
 			}
-		} else if m["type"] == "proxy" {
-			if m["listen"] == "" {
-				return fmt.Errorf("Proxy device entry is missing the required \"listen\" property")
-			}
-
-			if m["connect"] == "" {
-				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property")
-			}
-
-			listenAddr, err := device.ProxyParseAddr(m["listen"])
-			if err != nil {
-				return err
-			}
-
-			connectAddr, err := device.ProxyParseAddr(m["connect"])
-			if err != nil {
-				return err
-			}
-
-			if len(connectAddr.Addr) > len(listenAddr.Addr) {
-				// Cannot support single port -> multiple port
-				return fmt.Errorf("Cannot map a single port to multiple ports")
-			}
-
-			if shared.IsTrue(m["proxy_protocol"]) && !strings.HasPrefix(m["connect"], "tcp") {
-				return fmt.Errorf("The PROXY header can only be sent to tcp servers")
-			}
-
-			if (!strings.HasPrefix(m["listen"], "unix:") || strings.HasPrefix(m["listen"], "unix:@")) &&
-				(m["uid"] != "" || m["gid"] != "" || m["mode"] != "") {
-				return fmt.Errorf("Only proxy devices for non-abstract unix sockets can carry uid, gid, or mode properties")
-			}
-
-			if shared.IsTrue(m["nat"]) {
-				if m["bind"] != "" && m["bind"] != "host" {
-					return fmt.Errorf("Only host-bound proxies can use NAT")
-				}
-
-				// Support TCP <-> TCP and UDP <-> UDP
-				if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" ||
-					listenAddr.ConnType != connectAddr.ConnType {
-					return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT",
-						listenAddr.ConnType, connectAddr.ConnType)
-				}
-			}
-
 		} else if m["type"] == "none" {
 			continue
 		} else {
