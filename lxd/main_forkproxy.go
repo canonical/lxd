@@ -573,6 +573,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
+
+		if f == nil {
+			fmt.Printf("Failed to receive fd from listener process")
+			unix.Close(forkproxyUDSSockFDNum)
+			return err
+		}
+
 		files = append(files, f)
 	}
 	unix.Close(forkproxyUDSSockFDNum)
