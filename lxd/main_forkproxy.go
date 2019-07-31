@@ -358,14 +358,14 @@ func listenerInstance(epFd C.int, lAddr *device.ProxyAddress, cAddr *device.Prox
 
 			srcConn, err := net.FileConn((*lStruct).f)
 			if err != nil {
-				fmt.Printf("Failed to re-assemble listener: %s", err)
+				fmt.Printf("Warning: Failed to re-assemble listener: %s\n", err)
 				rearmUDPFd(epFd, connFd)
 				return
 			}
 
 			dstConn, err := net.Dial(cAddr.ConnType, connectAddr)
 			if err != nil {
-				fmt.Printf("Error: Failed to connect to target: %v\n", err)
+				fmt.Printf("Warning: Failed to connect to target: %v\n", err)
 				rearmUDPFd(epFd, connFd)
 				return
 			}
@@ -381,7 +381,7 @@ func listenerInstance(epFd C.int, lAddr *device.ProxyAddress, cAddr *device.Prox
 	listener := (*lStruct).lConn
 	srcConn, err := (*listener).Accept()
 	if err != nil {
-		fmt.Printf("Error: Failed to accept new connection: %v\n", err)
+		fmt.Printf("Warning: Failed to accept new connection: %v\n", err)
 		return err
 	}
 
@@ -394,7 +394,7 @@ func listenerInstance(epFd C.int, lAddr *device.ProxyAddress, cAddr *device.Prox
 	dstConn, err := net.Dial(cAddr.ConnType, connectAddr)
 	if err != nil {
 		srcConn.Close()
-		fmt.Printf("Error: Failed to connect to target: %v\n", err)
+		fmt.Printf("Warning: Failed to connect to target: %v\n", err)
 		return err
 	}
 
@@ -569,13 +569,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				goto rAgain
 			}
 
-			fmt.Printf("Failed to receive fd from listener process: %v\n", err)
+			fmt.Printf("Error: Failed to receive fd from listener process: %v\n", err)
 			unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
 
 		if f == nil {
-			fmt.Printf("Failed to receive fd from listener process")
+			fmt.Printf("Error: Failed to receive fd from listener process\n")
 			unix.Close(forkproxyUDSSockFDNum)
 			return err
 		}
@@ -599,7 +599,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		for i, f := range files {
 			listener, err := net.FileListener(f)
 			if err != nil {
-				fmt.Printf("Failed to re-assemble listener: %v", err)
+				fmt.Printf("Error: Failed to re-assemble listener: %v\n", err)
 				return err
 			}
 			listenerMap[int(f.Fd())] = &lStruct{
@@ -650,7 +650,6 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	self := unix.Getpid()
 	go func() {
 		<-sigs
-
 		for _, f := range files {
 			C.epoll_ctl(epFd, C.EPOLL_CTL_DEL, C.int(f.Fd()), nil)
 			f.Close()
@@ -678,16 +677,19 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		*(*C.int)(unsafe.Pointer(&ev.data)) = C.int(f.Fd())
 		ret := C.epoll_ctl(epFd, C.EPOLL_CTL_ADD, C.int(f.Fd()), &ev)
 		if ret < 0 {
-			return fmt.Errorf("Failed to add listener fd to epoll instance")
+			return fmt.Errorf("Error: Failed to add listener fd to epoll instance")
 		}
 	}
+
+	// This line is used by LXD to check forkproxy has started OK.
+	fmt.Println("Status: Started")
 
 	for {
 		var events [10]C.struct_epoll_event
 
 		nfds := C.lxc_epoll_wait_nointr(epFd, &events[0], 10, -1)
 		if nfds < 0 {
-			fmt.Printf("Failed to wait on epoll instance\n")
+			fmt.Printf("Error: Failed to wait on epoll instance\n")
 			break
 		}
 
@@ -700,12 +702,12 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
 			if err != nil {
-				fmt.Printf("Failed to prepare new listener instance: %s", err)
+				fmt.Printf("Warning: Failed to prepare new listener instance: %s\n", err)
 			}
 		}
 	}
 
-	fmt.Printf("Stopping proxy\n")
+	fmt.Printf("Status: Stopping proxy\n")
 	return nil
 }
 
@@ -849,12 +851,12 @@ func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
 	select {
 	case errSnd := <-chSend:
 		if errSnd != nil {
-			fmt.Printf("Error while sending data: %v\n", errSnd)
+			fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
 		}
 
 	case errRcv := <-chRecv:
 		if errRcv != nil {
-			fmt.Printf("Error while reading data: %v\n", errRcv)
+			fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
 		}
 	}
 
@@ -942,12 +944,12 @@ func unixRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 	select {
 	case errSnd := <-chSend:
 		if errSnd != nil {
-			fmt.Printf("Error while sending data: %v\n", errSnd)
+			fmt.Printf("Warning: Error while sending data: %v\n", errSnd)
 		}
 
 	case errRcv := <-chRecv:
 		if errRcv != nil {
-			fmt.Printf("Error while reading data: %v\n", errRcv)
+			fmt.Printf("Warning: Error while reading data: %v\n", errRcv)
 		}
 	}
 
