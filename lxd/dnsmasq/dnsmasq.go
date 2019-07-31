@@ -62,7 +62,7 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 // RemoveStaticEntry removes a single dhcp-host line for a network/instance combination.
 func RemoveStaticEntry(network string, projectName string, instanceName string) error {
 	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)))
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
