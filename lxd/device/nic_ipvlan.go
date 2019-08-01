@@ -107,7 +107,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the instance is starting up (IPVLAN doesn't support hot plugging).
 func (d *nicIPVLAN) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {

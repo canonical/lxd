@@ -107,7 +107,7 @@ func (d *nicBridged) Add() error {
 	return nil
 }
 
-// Start is run when the device is added to the instance and instance is starting or running.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicBridged) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -267,7 +267,7 @@ func (d *nicBridged) postStop() error {
 	return nil
 }
 
-// Remove is run when the instance is deleted.
+// Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicBridged) Remove() error {
 	err := d.networkClearLease(d.instance.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
 	if err != nil {
@@ -428,7 +428,7 @@ func (d *nicBridged) removeFilters(m config.Device) error {
 	return nil
 }
 
-// getDHCPStaticContainerIPs retrieves the dnsmasq statically allocated IPs for a instance.
+// getDHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a instance.
 // Returns IPv4 and IPv6 dhcpAllocation structs respectively.
 func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcpAllocation, dhcpAllocation, error) {
 	var IPv4, IPv6 dhcpAllocation

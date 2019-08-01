@@ -41,7 +41,7 @@ func (d *nicMACVLAN) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicMACVLAN) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
