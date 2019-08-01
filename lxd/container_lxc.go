@@ -1689,7 +1689,7 @@ func (c *containerLXC) initLXC(config bool) error {
 			// mounting a directory.
 			isFile := false
 			if m["pool"] == "" {
-				isFile = !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
+				isFile = !shared.IsDir(srcPath) && !device.IsBlockdev(srcPath)
 			}
 
 			// Deal with a rootfs
@@ -1889,23 +1889,113 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		return nil, err
 	}
 
-	// If container is running and runConfig returned, then live attach device.
-	if isRunning && runConfig != nil {
-		// If network interface settings returned, then attach NIC to container.
-		if len(runConfig.NetworkInterface) > 0 {
-			err = c.deviceAttachNIC(configCopy, runConfig.NetworkInterface)
+	// If runConfig supplied, perform any container specific setup of device.
+	if runConfig != nil {
+		// Shift device file ownership if needed before mounting into container.
+		// This needs to be done whether or not container is running.
+		if len(runConfig.Mounts) > 0 {
+			err := c.deviceShiftMounts(runConfig.Mounts)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		err = c.runHooks(runConfig.PostHooks)
-		if err != nil {
-			return nil, err
+		// If container is running and then live attach device.
+		if isRunning {
+			// Attach mounts if requested.
+			if len(runConfig.Mounts) > 0 {
+				err = c.deviceAttachMounts(configCopy, runConfig.Mounts)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// Add cgroup rules if requested.
+			if len(runConfig.CGroups) > 0 {
+				err = c.deviceAddCgroupRules(configCopy, runConfig.CGroups)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// Attach network interface if requested.
+			if len(runConfig.NetworkInterface) > 0 {
+				err = c.deviceAttachNIC(configCopy, runConfig.NetworkInterface)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			err = c.runHooks(runConfig.PostHooks)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	return runConfig, nil
+}
+
+// deviceShiftMounts shift device mount files to active idmap if needed.
+func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
+	idmapSet, err := c.CurrentIdmap()
+	if err != nil {
+		return fmt.Errorf("Failed to get idmap for device: %s", err)
+	}
+
+	// If there is an idmap being applied and LXD not running in a user namespace then shift the
+	// device files before they are mounted.
+	if idmapSet != nil && !c.state.OS.RunningInUserNS {
+		for _, mount := range mounts {
+			err := idmapSet.ShiftFile(mount.DevPath)
+			if err != nil {
+				// uidshift failing is weird, but not a big problem. Log and proceed.
+				logger.Debugf("Failed to uidshift device %s: %s\n", mount.DevPath, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// deviceAttachMounts live attaches mounts to a container.
+func (c *containerLXC) deviceAttachMounts(configCopy map[string]string, mounts []device.MountEntryItem) error {
+	for _, mount := range mounts {
+		flags := 0
+
+		// Convert options into flags.
+		for _, opt := range mount.Opts {
+			if opt == "bind" {
+				flags |= unix.MS_BIND
+			}
+		}
+
+		// Mount it into the container.
+		err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, mount.Shift)
+		if err != nil {
+			return fmt.Errorf("Failed to add mount for device: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// deviceAddCgroupRules live adds cgroup rules to a container.
+func (c *containerLXC) deviceAddCgroupRules(configCopy map[string]string, cgroups []device.RunConfigItem) error {
+	for _, rule := range cgroups {
+		// Only apply devices cgroup rules if container is running privileged and host has devices cgroup controller.
+		if strings.HasPrefix(rule.Key, "devices.") && (!c.isCurrentlyPrivileged() || c.state.OS.RunningInUserNS || !c.state.OS.CGroupDevicesController) {
+			continue
+		}
+
+		// Add the new device cgroup rule.
+		err := c.CGroupSet(rule.Key, rule.Value)
+		if err != nil {
+			return fmt.Errorf("Failed to add cgroup rule for device")
+		}
+	}
+
+	return nil
 }
 
 // deviceAttachNIC live attaches a NIC device to a container.
@@ -1959,8 +2049,10 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 		return err
 	}
 
+	canHotPlug, _ := d.CanHotPlug()
+
 	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
-	if canHotPlug, _ := d.CanHotPlug(); stopHookNetnsPath == "" && !canHotPlug {
+	if stopHookNetnsPath == "" && !canHotPlug {
 		return fmt.Errorf("Device cannot be stopped when container is running")
 	}
 
@@ -1973,6 +2065,22 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 		// If network interface settings returned, then detach NIC from container.
 		if len(runConfig.NetworkInterface) > 0 {
 			err = c.deviceDetachNIC(configCopy, runConfig.NetworkInterface, stopHookNetnsPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Add cgroup rules if requested and container is running.
+		if len(runConfig.CGroups) > 0 && stopHookNetnsPath == "" {
+			err = c.deviceAddCgroupRules(configCopy, runConfig.CGroups)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Detach mounts if requested and container is running.
+		if len(runConfig.Mounts) > 0 && stopHookNetnsPath == "" {
+			err = c.deviceDetachMounts(configCopy, runConfig.Mounts)
 			if err != nil {
 				return err
 			}
@@ -2040,6 +2148,26 @@ func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []dev
 			err := c.detachInterfaceRename(stopHookNetnsPath, configCopy["name"], devName)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], devName)
+			}
+		}
+	}
+
+	return nil
+}
+
+// deviceDetachMounts removes a mount from a container.
+func (c *containerLXC) deviceDetachMounts(configCopy map[string]string, mounts []device.MountEntryItem) error {
+	for _, mount := range mounts {
+		relativeDestPath := strings.TrimPrefix(mount.TargetPath, "/")
+		if c.FileExists(relativeDestPath) == nil {
+			err := c.removeMount(mount.TargetPath)
+			if err != nil {
+				return fmt.Errorf("Error unmounting the device: %s", err)
+			}
+
+			err = c.FileRemove(relativeDestPath)
+			if err != nil {
+				return fmt.Errorf("Error removing the device: %s", err)
 			}
 		}
 	}
@@ -2150,7 +2278,12 @@ func (c *containerLXC) setupUnixDevice(prefix string, dev config.Device, major i
 	temp["minor"] = fmt.Sprintf("%d", minor)
 	temp["path"] = path
 
-	paths, err := c.createUnixDevice(prefix, temp, defaultMode)
+	idmapSet, err := c.CurrentIdmap()
+	if err != nil {
+		return err
+	}
+
+	paths, err := device.UnixCreateDevice(c.state, idmapSet, c.DevicesPath(), prefix, temp, defaultMode)
 	if err != nil {
 		logger.Debug("Failed to create device", log.Ctx{"err": err, "device": prefix})
 		if createMustSucceed {
@@ -2396,8 +2529,13 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
+			idmapSet, err := c.CurrentIdmap()
+			if err != nil {
+				return "", postStartHooks, err
+			}
+
 			// Unix device
-			paths, err := c.createUnixDevice(fmt.Sprintf("unix.%s", k), m, true)
+			paths, err := device.UnixCreateDevice(c.state, idmapSet, c.DevicesPath(), fmt.Sprintf("unix.%s", k), m, true)
 			if err != nil {
 				// Deal with device hotplug
 				if m["required"] == "" || shared.IsTrue(m["required"]) {
@@ -2420,7 +2558,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 			devPath := paths[0]
 			if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 				// Add the new device cgroup rule
-				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
+				dType, dMajor, dMinor, err := device.UnixGetDeviceAttributes(devPath)
 				if err != nil {
 					if m["required"] == "" || shared.IsTrue(m["required"]) {
 						return "", postStartHooks, err
@@ -2515,20 +2653,33 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 			if m["path"] != "/" {
 				diskDevices[k] = m
 			}
-		} else if m["type"] == "infiniband" {
-			// Start infiniband device.
-			// Increment nicID so that LXC network index is unique per device.
-			nicID++
-			err := c.startInfiniband(nicID, k, m)
-			if err != nil {
-				return "", postStartHooks, err
-			}
 		} else {
 			// Use new Device interface if supported.
 			runConfig, err := c.deviceStart(k, m, false)
 			if err != device.ErrUnsupportedDevType {
 				if err != nil {
 					return "", postStartHooks, err
+				}
+
+				// Pass any cgroups rules into LXC.
+				if len(runConfig.CGroups) > 0 {
+					for _, rule := range runConfig.CGroups {
+						err = lxcSetConfigItem(c.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+						if err != nil {
+							return "", postStartHooks, err
+						}
+					}
+				}
+
+				// Pass any mounts into LXC.
+				if len(runConfig.Mounts) > 0 {
+					for _, mount := range runConfig.Mounts {
+						mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
+						err = lxcSetConfigItem(c.c, "lxc.mount.entry", mntVal)
+						if err != nil {
+							return "", postStartHooks, err
+						}
+					}
 				}
 
 				// Pass any network setup config into LXC.
@@ -3211,14 +3362,6 @@ func (c *containerLXC) OnStop(target string) error {
 func (c *containerLXC) cleanupDevices(netns string) {
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
-
-		// Clean up infiniband volatile data.
-		if m["type"] == "infiniband" {
-			err := c.clearInfinibandVolatile(k)
-			if err != nil {
-				logger.Errorf("Failed to stop infiniband device: %v", err)
-			}
-		}
 
 		// Use the device interface if device supports it.
 		err := c.deviceStop(k, m, netns)
@@ -4859,11 +5002,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
-			} else if m["type"] == "infiniband" {
-				err = c.removeInfinibandDevice(k, m)
-				if err != nil {
-					return err
-				}
 			} else if m["type"] == "usb" {
 				if usbs == nil {
 					usbs, err = deviceLoadUsb()
@@ -4964,11 +5102,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				diskDevices[k] = m
-			} else if m["type"] == "infiniband" {
-				err := c.addInfinibandDevice(k, m)
-				if err != nil {
-					return err
-				}
 			} else if m["type"] == "usb" {
 				if usbs == nil {
 					usbs, err = deviceLoadUsb()
@@ -6807,157 +6940,19 @@ func (c *containerLXC) deviceExistsInDevicesFolder(prefix string, path string) b
 	return shared.PathExists(devPath)
 }
 
-// Unix devices handling
-func (c *containerLXC) createUnixDevice(prefix string, m config.Device, defaultMode bool) ([]string, error) {
-	var err error
-	var major, minor int
-
-	// Extra checks for nesting
-	if c.state.OS.RunningInUserNS {
-		for key, value := range m {
-			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
-				return nil, fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
-			}
-		}
-	}
-
-	srcPath := m["source"]
-	if srcPath == "" {
-		srcPath = m["path"]
-	}
-	srcPath = shared.HostPath(srcPath)
-
-	// Get the major/minor of the device we want to create
-	if m["major"] == "" && m["minor"] == "" {
-		// If no major and minor are set, use those from the device on the host
-		_, major, minor, err = deviceGetAttributes(srcPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
-		}
-	} else if m["major"] == "" || m["minor"] == "" {
-		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
-	} else {
-		major, err = strconv.Atoi(m["major"])
-		if err != nil {
-			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
-		}
-
-		minor, err = strconv.Atoi(m["minor"])
-		if err != nil {
-			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
-		}
-	}
-
-	// Get the device mode
-	mode := os.FileMode(0660)
-	if m["mode"] != "" {
-		tmp, err := deviceModeOct(m["mode"])
-		if err != nil {
-			return nil, fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
-		}
-		mode = os.FileMode(tmp)
-	} else if !defaultMode {
-		mode, err = shared.GetPathMode(srcPath)
-		if err != nil {
-			errno, isErrno := shared.GetErrno(err)
-			if !isErrno || errno != unix.ENOENT {
-				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", m["path"], err)
-			}
-			mode = os.FileMode(0660)
-		}
-	}
-
-	if m["type"] == "unix-block" {
-		mode |= unix.S_IFBLK
-	} else {
-		mode |= unix.S_IFCHR
-	}
-
-	// Get the device owner
-	uid := 0
-	gid := 0
-
-	if m["uid"] != "" {
-		uid, err = strconv.Atoi(m["uid"])
-		if err != nil {
-			return nil, fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
-		}
-	}
-
-	if m["gid"] != "" {
-		gid, err = strconv.Atoi(m["gid"])
-		if err != nil {
-			return nil, fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
-		}
-	}
-
-	// Create the devices directory if missing
-	if !shared.PathExists(c.DevicesPath()) {
-		os.Mkdir(c.DevicesPath(), 0711)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to create devices path: %s", err)
-		}
-	}
-
-	destPath := m["path"]
-	if destPath == "" {
-		destPath = m["source"]
-	}
-	relativeDestPath := strings.TrimPrefix(destPath, "/")
-	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
-
-	// Create the new entry
-	if !c.state.OS.RunningInUserNS {
-		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
-		if err := unix.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
-			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
-		}
-
-		if err := os.Chown(devPath, uid, gid); err != nil {
-			return nil, fmt.Errorf("Failed to chown device %s: %s", devPath, err)
-		}
-
-		// Needed as mknod respects the umask
-		if err := os.Chmod(devPath, mode); err != nil {
-			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
-		}
-
-		idmapset, err := c.CurrentIdmap()
-		if err != nil {
-			return nil, err
-		}
-
-		if idmapset != nil {
-			if err := idmapset.ShiftFile(devPath); err != nil {
-				// uidshift failing is weird, but not a big problem.  Log and proceed
-				logger.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
-			}
-		}
-	} else {
-		f, err := os.Create(devPath)
-		if err != nil {
-			return nil, err
-		}
-		f.Close()
-
-		err = deviceMountDisk(srcPath, devPath, false, false, "")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return []string{devPath, relativeDestPath}, nil
-}
-
 func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultMode bool) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
 	}
 
+	idmapSet, err := c.CurrentIdmap()
+	if err != nil {
+		return err
+	}
+
 	// Create the device on the host
-	paths, err := c.createUnixDevice(prefix, m, defaultMode)
+	paths, err := device.UnixCreateDevice(c.state, idmapSet, c.DevicesPath(), prefix, m, defaultMode)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
@@ -6996,13 +6991,13 @@ func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultM
 	}
 
 	if dType == "" || dMajor < 0 || dMinor < 0 {
-		dType, dMajor, dMinor, err = deviceGetAttributes(devPath)
+		dType, dMajor, dMinor, err = device.UnixGetDeviceAttributes(devPath)
 		if err != nil {
 			return err
 		}
 	}
 
-	if !c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
@@ -7049,7 +7044,13 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, p
 	} else {
 		m["path"] = filepath.Join(rootPath, m["path"])
 	}
-	paths, err := c.createUnixDevice(prefix, m, true)
+
+	idmapSet, err := c.CurrentIdmap()
+	if err != nil {
+		return err
+	}
+
+	paths, err := device.UnixCreateDevice(c.state, idmapSet, c.DevicesPath(), prefix, m, true)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
@@ -7074,6 +7075,10 @@ func (c *containerLXC) insertUnixDeviceNum(name string, m config.Device, major i
 	return c.insertUnixDevice(name, temp, defaultMode)
 }
 
+// removeUnixDevice does the following: retrieves the device type, major and minor numbers,
+// adds a cgroup deny rule for the device if container is privileged.
+// Then it removes the mount and file inside container.
+// Finally it removes the host-side mount if running in UserNS and removes host-side dev file.
 func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bool) error {
 	// Check that the container is running
 	pid := c.InitPID()
@@ -7117,7 +7122,7 @@ func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bo
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	if dType == "" || dMajor < 0 || dMinor < 0 {
-		dType, dMajor, dMinor, err = deviceGetAttributes(devPath)
+		dType, dMajor, dMinor, err = device.UnixGetDeviceAttributes(devPath)
 		if err != nil {
 			return err
 		}
@@ -7391,7 +7396,7 @@ func (c *containerLXC) createDiskDevice(name string, m config.Device) (string, e
 
 	isFile := false
 	if m["pool"] == "" {
-		isFile = !shared.IsDir(srcPath) && !deviceIsBlockdev(srcPath)
+		isFile = !shared.IsDir(srcPath) && !device.IsBlockdev(srcPath)
 	} else {
 		// Deal with mounting storage volumes created via the storage
 		// api. Extract the name of the storage volume that we are
@@ -7496,7 +7501,7 @@ func (c *containerLXC) createDiskDevice(name string, m config.Device) (string, e
 	}
 
 	// Mount the fs
-	err := deviceMountDisk(srcPath, devPath, isReadOnly, isRecursive, m["propagation"])
+	err := device.DiskMount(srcPath, devPath, isReadOnly, isRecursive, m["propagation"])
 	if err != nil {
 		return "", err
 	}
