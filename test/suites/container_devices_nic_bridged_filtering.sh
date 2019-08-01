@@ -221,13 +221,13 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check IPv6 filter is present in ebtables.
   if ! ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
-       echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
+       echo "IPv6 ebtables filter not applied as part of ipv6_filtering in ebtables"
       false
   fi
 
   # Check IPv6 filter is present in ip6tables.
   if ! ip6tables -S -w -t filter | grep -e "20010db8000000000000000000000002" ; then
-      echo "IPv6 filter not applied as part of ipv6_filtering in ip6tables"
+      echo "IPv6 ip6tables filter not applied as part of ipv6_filtering in ip6tables"
       false
   fi
 
@@ -314,6 +314,59 @@ test_container_devices_nic_bridged_filtering() {
 
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
+
+  # Check filtering works with non-DHCP statically defined IPs.
+  lxc network set "${brName}" ipv4.dhcp false
+  lxc network set "${brName}" ipv6.dhcp false
+  lxc network set "${brName}" ipv6.dhcp.stateful false
+  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc config device add "${ctPrefix}A" eth0 nic nictype=nic name=eth0 nictype=bridged parent="${brName}" ipv4.address=192.0.2.2 ipv6.address=2001:db8::2 security.ipv4_filtering=true security.ipv6_filtering=true
+  lxc start "${ctPrefix}A"
+
+  # Check MAC filter is present in ebtables.
+  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+  ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
+  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+      echo "MAC ebtables filter not applied as part of ipv6_filtering in ebtables"
+      false
+  fi
+
+  # Check MAC filter is present in ip6tables.
+  macHex=$(echo "${ctAMAC}" |sed "s/://g")
+  if ! ip6tables -S -w -t filter | grep -e "${macHex}" ; then
+      echo "MAC ip6tables filter not applied as part of ipv6_filtering in ip6tables"
+      false
+  fi
+
+  # Check IPv4 filter is present in ebtables.
+  if ! ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+      echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
+      false
+  fi
+
+  # Check IPv6 filter is present in ebtables.
+  if ! ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+       echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
+      false
+  fi
+
+  # Check IPv6 filter is present in ip6tables.
+  if ! ip6tables -S -w -t filter | grep -e "20010db8000000000000000000000002" ; then
+      echo "IPv6 filter not applied as part of ipv6_filtering in ip6tables"
+      false
+  fi
+
+  # Check that you cannot remove static IPs with filtering enabled and DHCP disabled.
+  if lxc config device unset "${ctPrefix}A" eth0 ipv4.address ; then
+    echo "Shouldn't be able to unset IPv4 address with ipv4_filtering enabled and DHCPv4 disabled"
+  fi
+
+  if lxc config device unset "${ctPrefix}A" eth0 ipv6.address ; then
+    echo "Shouldn't be able to unset IPv6 address with ipv4_filtering enabled and DHCPv6 disabled"
+  fi
+
+  # Cleanup.
+  lxc delete -f "${ctPrefix}A"
   lxc network delete "${brName}"
   lxc profile delete "${ctPrefix}"
 }
