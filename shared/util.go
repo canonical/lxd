@@ -587,15 +587,6 @@ func IsBlockdevPath(pathName string) bool {
 	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
 }
 
-func BlockFsDetect(dev string) (string, error) {
-	out, err := RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(out), nil
-}
-
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
 func DeepCopy(src, dest interface{}) error {
 	buff := new(bytes.Buffer)
