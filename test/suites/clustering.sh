@@ -888,6 +888,8 @@ test_clustering_profiles() {
 
   # Launch two containers on the two nodes, using the above profile.
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+  # TODO: Fix known race in importing small images that complete before event listener is setup.
+  sleep 2
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 -p default -p web testimage c1
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -p default -p web testimage c2
 
