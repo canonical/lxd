@@ -559,6 +559,9 @@ func (d *nicBridged) setFilters() (err error) {
 
 	// Retrieve existing IPs, or allocate new ones if needed.
 	IPv4, IPv6, err := d.allocateFilterIPs()
+	if err != nil {
+		return err
+	}
 
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
 	defer func() {
@@ -598,7 +601,7 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 	if d.config["ipv4.address"] != "" {
 		IPv4 = net.ParseIP(d.config["ipv4.address"])
 		if IPv4 == nil {
-			return IPv4, IPv6, fmt.Errorf("Invalid static IPv4 address %s", d.config["ipv4.address"])
+			return nil, nil, fmt.Errorf("Invalid static IPv4 address %s", d.config["ipv4.address"])
 		}
 	}
 
@@ -606,8 +609,25 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 	if d.config["ipv6.address"] != "" {
 		IPv6 = net.ParseIP(d.config["ipv6.address"])
 		if IPv6 == nil {
-			return IPv4, IPv6, fmt.Errorf("Invalid static IPv6 address %s", d.config["ipv6.address"])
+			return nil, nil, fmt.Errorf("Invalid static IPv6 address %s", d.config["ipv6.address"])
 		}
+	}
+
+	_, dbInfo, err := d.state.Cluster.NetworkGet(d.config["parent"])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	netConfig := dbInfo.Config
+
+	// Check DHCPv4 is enabled on parent if dynamic IPv4 allocation is needed.
+	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && netConfig["ipv4.dhcp"] != "" && !shared.IsTrue(netConfig["ipv4.dhcp"]) {
+		return nil, nil, fmt.Errorf("Cannot use security.ipv4_filtering as DHCPv4 is disabled on parent %s and no static IPv4 address set", d.config["parent"])
+	}
+
+	// Check DHCPv6 is enabled on parent if dynamic IPv6 allocation is needed.
+	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && netConfig["ipv6.dhcp"] != "" && !shared.IsTrue(netConfig["ipv6.dhcp"]) {
+		return nil, nil, fmt.Errorf("Cannot use security.ipv6_filtering as DHCPv6 is disabled on parent %s and no static IPv6 address set", d.config["parent"])
 	}
 
 	dnsmasq.ConfigMutex.Lock()
@@ -616,21 +636,14 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
 	curIPv4, curIPv6, err := d.getDHCPStaticIPs(d.config["parent"], d.instance.Name())
 	if err != nil && !os.IsNotExist(err) {
-		return IPv4, IPv6, err
+		return nil, nil, err
 	}
-
-	_, dbInfo, err := d.state.Cluster.NetworkGet(d.config["parent"])
-	if err != nil {
-		return IPv4, IPv6, err
-	}
-
-	netConfig := dbInfo.Config
 
 	// If no static IPv4, then check if there is a valid static DHCP IPv4 address defined.
 	if IPv4 == nil && curIPv4.IP != nil {
 		_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
 		if err != nil {
-			return IPv4, IPv6, err
+			return nil, nil, err
 		}
 
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
@@ -661,14 +674,14 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 		// Get existing allocations in network.
 		IPv4Allocs, IPv6Allocs, err := d.getDHCPAllocatedIPs(d.config["parent"])
 		if err != nil {
-			return IPv4, IPv6, err
+			return nil, nil, err
 		}
 
 		// Allocate a new IPv4 address is IPv4 filtering enabled.
 		if IPv4 == nil && shared.IsTrue(d.config["security.ipv4_filtering"]) {
 			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, netConfig, d.instance.Name(), d.config["hwaddr"])
 			if err != nil {
-				return IPv4, IPv6, err
+				return nil, nil, err
 			}
 		}
 
@@ -676,7 +689,7 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 		if IPv6 == nil && shared.IsTrue(d.config["security.ipv6_filtering"]) {
 			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, netConfig, d.instance.Name(), d.config["hwaddr"])
 			if err != nil {
-				return IPv4, IPv6, err
+				return nil, nil, err
 			}
 		}
 	}
@@ -695,12 +708,12 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 
 		err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.instance.Project(), d.instance.Name(), netConfig, d.config["hwaddr"], IPv4Str, IPv6Str)
 		if err != nil {
-			return IPv4, IPv6, err
+			return nil, nil, err
 		}
 
 		err = dnsmasq.Kill(d.config["parent"], true)
 		if err != nil {
-			return IPv4, IPv6, err
+			return nil, nil, err
 		}
 	}
 
