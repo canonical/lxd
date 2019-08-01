@@ -58,7 +58,7 @@ func (d *nicSRIOV) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicSRIOV) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -310,7 +310,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	volatile["last_state.vf.vlan"] = fmt.Sprintf("%d", vfInfo.vlan)
 	volatile["last_state.vf.spoofcheck"] = fmt.Sprintf("%t", vfInfo.spoofcheck)
 
-	// Record the host interface we represents the VF device which we will move into container.
+	// Record the host interface we represents the VF device which we will move into instance.
 	volatile["host_name"] = vfDevice
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
 
@@ -379,7 +379,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 			return err
 		}
 
-		// Ensure spoof checking is disabled if not enabled in container.
+		// Ensure spoof checking is disabled if not enabled in instance.
 		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
 		if err != nil {
 			return err
@@ -512,7 +512,7 @@ func (d *nicSRIOV) networkDeviceBindWait(devName string) error {
 	return fmt.Errorf("Bind of interface \"%s\" took too long", devName)
 }
 
-// restoreSriovParent restores SR-IOV parent device settings when removed from a container using the
+// restoreSriovParent restores SR-IOV parent device settings when removed from an instance using the
 // volatile data that was stored when the device was first added with setupSriovParent().
 func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	// Nothing to do if we don't know the original device name or the VF ID.
@@ -579,7 +579,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 		return err
 	}
 
-	// Wait for VF driver to be reloaded, this will remove the VF interface from the container
+	// Wait for VF driver to be reloaded, this will remove the VF interface from the instance
 	// and it will re-appear on the host. Unfortunately the time between sending the bind event
 	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
 	// otherwise next step of restoring MAC and MTU settings in restorePhysicalNic will fail.
