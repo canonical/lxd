@@ -134,6 +134,11 @@ func (c *containerLXC) getInfinibandReserved(m config.Device) (map[string]struct
 }
 
 func (c *containerLXC) startInfiniband(networkidx int, deviceName string, m config.Device) error {
+	m, err := c.fillNetworkDevice(deviceName, m)
+	if err != nil {
+		return err
+	}
+
 	infiniband, err := deviceLoadInfiniband()
 	if err != nil {
 		return err
