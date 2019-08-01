@@ -74,15 +74,6 @@ func (d *nicBridged) validateConfig() error {
 		return err
 	}
 
-	// If parent isn't a managed network, check that no managed-only features are enabled.
-	if !shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
-		for _, k := range []string{"ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"} {
-			if d.config[k] != "" || shared.IsTrue(d.config[k]) {
-				return fmt.Errorf("%s can only be used with managed networks", k)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -620,14 +611,18 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 
 	netConfig := dbInfo.Config
 
+	// Check the conditions required to dynamically allocated IPs.
+	canIPv4Allocate := netConfig["ipv4.address"] != "" && netConfig["ipv4.address"] != "none" && (netConfig["ipv4.dhcp"] == "" || shared.IsTrue(netConfig["ipv4.dhcp"]))
+	canIPv6Allocate := netConfig["ipv6.address"] != "" && netConfig["ipv6.address"] != "none" && (netConfig["ipv6.dhcp"] == "" || shared.IsTrue(netConfig["ipv6.dhcp"]))
+
 	// Check DHCPv4 is enabled on parent if dynamic IPv4 allocation is needed.
-	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && netConfig["ipv4.dhcp"] != "" && !shared.IsTrue(netConfig["ipv4.dhcp"]) {
-		return nil, nil, fmt.Errorf("Cannot use security.ipv4_filtering as DHCPv4 is disabled on parent %s and no static IPv4 address set", d.config["parent"])
+	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && !canIPv4Allocate {
+		return nil, nil, fmt.Errorf("Cannot use security.ipv4_filtering as DHCPv4 is disabled or no IPv4 on parent %s and no static IPv4 address set", d.config["parent"])
 	}
 
 	// Check DHCPv6 is enabled on parent if dynamic IPv6 allocation is needed.
-	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && netConfig["ipv6.dhcp"] != "" && !shared.IsTrue(netConfig["ipv6.dhcp"]) {
-		return nil, nil, fmt.Errorf("Cannot use security.ipv6_filtering as DHCPv6 is disabled on parent %s and no static IPv6 address set", d.config["parent"])
+	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && !canIPv6Allocate {
+		return nil, nil, fmt.Errorf("Cannot use security.ipv6_filtering as DHCPv6 is disabled or no IPv6 on parent %s and no static IPv6 address set", d.config["parent"])
 	}
 
 	dnsmasq.ConfigMutex.Lock()
@@ -640,7 +635,7 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 	}
 
 	// If no static IPv4, then check if there is a valid static DHCP IPv4 address defined.
-	if IPv4 == nil && curIPv4.IP != nil {
+	if IPv4 == nil && curIPv4.IP != nil && canIPv4Allocate {
 		_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
 		if err != nil {
 			return nil, nil, err
@@ -655,7 +650,7 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 	}
 
 	// If no static IPv6, then check if there is a valid static DHCP IPv6 address defined.
-	if IPv6 == nil && curIPv6.IP != nil {
+	if IPv6 == nil && curIPv6.IP != nil && canIPv6Allocate {
 		_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 		if err != nil {
 			return IPv4, IPv6, err
@@ -670,23 +665,23 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 	}
 
 	// If we need to generate either a new IPv4 or IPv6, load existing IPs used in network.
-	if IPv4 == nil || IPv6 == nil {
+	if (IPv4 == nil && canIPv4Allocate) || (IPv6 == nil && canIPv6Allocate) {
 		// Get existing allocations in network.
 		IPv4Allocs, IPv6Allocs, err := d.getDHCPAllocatedIPs(d.config["parent"])
 		if err != nil {
 			return nil, nil, err
 		}
 
-		// Allocate a new IPv4 address is IPv4 filtering enabled.
-		if IPv4 == nil && shared.IsTrue(d.config["security.ipv4_filtering"]) {
+		// Allocate a new IPv4 address if IPv4 filtering enabled.
+		if IPv4 == nil && canIPv4Allocate && shared.IsTrue(d.config["security.ipv4_filtering"]) {
 			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, netConfig, d.instance.Name(), d.config["hwaddr"])
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		// Allocate a new IPv6 address is IPv6 filtering enabled.
-		if IPv6 == nil && shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		// Allocate a new IPv6 address if IPv6 filtering enabled.
+		if IPv6 == nil && canIPv6Allocate && shared.IsTrue(d.config["security.ipv6_filtering"]) {
 			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, netConfig, d.instance.Name(), d.config["hwaddr"])
 			if err != nil {
 				return nil, nil, err
@@ -694,8 +689,9 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 		}
 	}
 
-	// If either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
-	if (IPv4 != nil && bytes.Compare(curIPv4.IP, IPv4.To4()) != 0) || (IPv6 != nil && bytes.Compare(curIPv6.IP, IPv6.To16()) != 0) {
+	// If parent is a DHCP enabled managed network and either IPv4 or IPv6 assigned is different than what is in dnsmasq config, rebuild config.
+	if shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) &&
+		((IPv4 != nil && bytes.Compare(curIPv4.IP, IPv4.To4()) != 0) || (IPv6 != nil && bytes.Compare(curIPv6.IP, IPv6.To16()) != 0)) {
 		var IPv4Str, IPv6Str string
 
 		if IPv4 != nil {
