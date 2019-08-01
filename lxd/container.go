@@ -425,7 +425,7 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified")
 				}
 
-				dType, _, _, err := deviceGetAttributes(srcPath)
+				dType, _, _, err := device.UnixGetDeviceAttributes(srcPath)
 				if err != nil {
 					return err
 				}
