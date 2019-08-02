@@ -67,30 +67,9 @@ func (d *nicSRIOV) Start() (*RunConfig, error) {
 
 	saveData := make(map[string]string)
 
-	instances, err := InstanceLoadNodeAll(d.state)
+	reservedDevices, err := instanceGetReservedDevices(d.state, d.config)
 	if err != nil {
 		return nil, err
-	}
-
-	// Build a unique set of reserved network devices we cannot use.
-	reservedDevices := map[string]struct{}{}
-	for _, instance := range instances {
-		devices := instance.ExpandedDevices()
-		config := instance.ExpandedConfig()
-		for devName, devConfig := range devices {
-			// Record all parent devices, as these are not eligible for use as VFs.
-			parent := devConfig["parent"]
-			reservedDevices[parent] = struct{}{}
-
-			// If the device has the same parent as us, and a non-empty host_name, then
-			// mark that host_name as reserved, as that device is using it.
-			if devConfig["type"] == "nic" && parent == d.config["parent"] {
-				hostName := config[fmt.Sprintf("volatile.%s.host_name", devName)]
-				if hostName != "" {
-					reservedDevices[hostName] = struct{}{}
-				}
-			}
-		}
 	}
 
 	vfDev, vfID, err := d.findFreeVirtualFunction(reservedDevices)
@@ -180,10 +159,6 @@ func (d *nicSRIOV) postStop() error {
 // findFreeVirtualFunction looks on the specified parent device for an unused virtual function.
 // Returns the name of the interface and virtual function index ID if found, error if not.
 func (d *nicSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) (string, int, error) {
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return "", 0, fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
-	}
-
 	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", d.config["parent"])
 	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", d.config["parent"])
 
