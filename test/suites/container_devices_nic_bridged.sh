@@ -315,14 +315,14 @@ test_container_devices_nic_bridged() {
   # Delete container, check LXD releases lease.
   lxc delete "${ctName}" -f
 
+  # Wait for DHCP release to be processed.
+  sleep 2
+
   # Check DHCPv4 lease is released (space before the MAC important to avoid mismatching IPv6 lease).
   if grep -i " ${ctMAC}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then
     echo "DHCPv4 lease not released"
     false
   fi
-
-  # Wait for DHCPv6 release to be processed.
-  sleep 1
 
   # Check DHCPv6 lease is released.
   if grep -i " ${ctName}" "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ; then

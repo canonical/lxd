@@ -5,59 +5,61 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/device"
 )
 
 func TestParseAddr(t *testing.T) {
 	tests := []struct {
 		name       string
 		address    string
-		expected   *proxyAddress
+		expected   *device.ProxyAddress
 		shouldFail bool
 	}{
 		// Port testing
 		{
 			"Single port",
 			"tcp:127.0.0.1:2000",
-			&proxyAddress{
-				"tcp",
-				[]string{"127.0.0.1:2000"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr:     []string{"127.0.0.1:2000"},
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Multiple ports",
 			"tcp:127.0.0.1:2000,2002",
-			&proxyAddress{
-				"tcp",
-				[]string{
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr: []string{
 					"127.0.0.1:2000",
 					"127.0.0.1:2002",
 				},
-				false,
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Port range",
 			"tcp:127.0.0.1:2000-2002",
-			&proxyAddress{
-				"tcp",
-				[]string{
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr: []string{
 					"127.0.0.1:2000",
 					"127.0.0.1:2001",
 					"127.0.0.1:2002",
 				},
-				false,
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Mixed ports and port ranges",
 			"tcp:127.0.0.1:2000,2002,3000-3003,4000-4003",
-			&proxyAddress{
-				"tcp",
-				[]string{
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr: []string{
 					"127.0.0.1:2000",
 					"127.0.0.1:2002",
 					"127.0.0.1:3000",
@@ -69,7 +71,7 @@ func TestParseAddr(t *testing.T) {
 					"127.0.0.1:4002",
 					"127.0.0.1:4003",
 				},
-				false,
+				Abstract: false,
 			},
 			false,
 		},
@@ -77,30 +79,30 @@ func TestParseAddr(t *testing.T) {
 		{
 			"UDP",
 			"udp:127.0.0.1:2000",
-			&proxyAddress{
-				"udp",
-				[]string{"127.0.0.1:2000"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "udp",
+				Addr:     []string{"127.0.0.1:2000"},
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Unix socket",
 			"unix:/foobar",
-			&proxyAddress{
-				"unix",
-				[]string{"/foobar"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "unix",
+				Addr:     []string{"/foobar"},
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Abstract unix socket",
 			"unix:@/foobar",
-			&proxyAddress{
-				"unix",
-				[]string{"@/foobar"},
-				true,
+			&device.ProxyAddress{
+				ConnType: "unix",
+				Addr:     []string{"@/foobar"},
+				Abstract: true,
 			},
 			false,
 		},
@@ -114,40 +116,40 @@ func TestParseAddr(t *testing.T) {
 		{
 			"Valid IPv6 address (1)",
 			"tcp:[fd39:2561:7238:91b5:0:0:0:0]:2000",
-			&proxyAddress{
-				"tcp",
-				[]string{"[fd39:2561:7238:91b5:0:0:0:0]:2000"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr:     []string{"[fd39:2561:7238:91b5:0:0:0:0]:2000"},
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Valid IPv6 address (2)",
 			"tcp:[fd39:2561:7238:91b5::0]:2000",
-			&proxyAddress{
-				"tcp",
-				[]string{"[fd39:2561:7238:91b5::0]:2000"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr:     []string{"[fd39:2561:7238:91b5::0]:2000"},
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Valid IPv6 address (3)",
 			"tcp:[::1]:2000",
-			&proxyAddress{
-				"tcp",
-				[]string{"[::1]:2000"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr:     []string{"[::1]:2000"},
+				Abstract: false,
 			},
 			false,
 		},
 		{
 			"Valid IPv6 address (4)",
 			"tcp:[::]:2000",
-			&proxyAddress{
-				"tcp",
-				[]string{"[::]:2000"},
-				false,
+			&device.ProxyAddress{
+				ConnType: "tcp",
+				Addr:     []string{"[::]:2000"},
+				Abstract: false,
 			},
 			false,
 		},
@@ -167,7 +169,7 @@ func TestParseAddr(t *testing.T) {
 
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
-		addr, err := proxyParseAddr(tt.address)
+		addr, err := device.ProxyParseAddr(tt.address)
 		if tt.shouldFail {
 			require.Error(t, err)
 			require.Nil(t, addr)

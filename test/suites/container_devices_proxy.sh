@@ -1,14 +1,14 @@
-test_proxy_device() {
-  test_proxy_device_tcp
-  test_proxy_device_tcp_unix
-  test_proxy_device_tcp_udp
-  test_proxy_device_udp
-  test_proxy_device_unix
-  test_proxy_device_unix_udp
-  test_proxy_device_unix_tcp
+test_container_devices_proxy() {
+  container_devices_proxy_tcp
+  container_devices_proxy_tcp_unix
+  container_devices_proxy_tcp_udp
+  container_devices_proxy_udp
+  container_devices_proxy_unix
+  container_devices_proxy_unix_udp
+  container_devices_proxy_unix_tcp
 }
 
-test_proxy_device_tcp() {
+container_devices_proxy_tcp() {
   echo "====> Testing tcp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -152,7 +152,7 @@ test_proxy_device_tcp() {
   lxc network delete lxdt$$
 }
 
-test_proxy_device_unix() {
+container_devices_proxy_unix() {
   echo "====> Testing unix proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -163,7 +163,7 @@ test_proxy_device_unix() {
   lxc launch testimage proxyTester
 
   # Initial test
-  lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
+  lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" uid=1234 gid=1234 security.uid=1234 security.gid=1234 connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
   (
     PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
     cd "/proc/${PID}/root/tmp/" || exit
@@ -235,7 +235,7 @@ test_proxy_device_unix() {
   lxc delete -f proxyTester
 }
 
-test_proxy_device_tcp_unix() {
+container_devices_proxy_tcp_unix() {
   echo "====> Testing tcp to unix proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -312,7 +312,7 @@ test_proxy_device_tcp_unix() {
   lxc delete -f proxyTester
 }
 
-test_proxy_device_unix_tcp() {
+container_devices_proxy_unix_tcp() {
   echo "====> Testing unix to tcp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -380,7 +380,7 @@ test_proxy_device_unix_tcp() {
   lxc delete -f proxyTester
 }
 
-test_proxy_device_udp() {
+container_devices_proxy_udp() {
   echo "====> Testing udp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -442,7 +442,7 @@ test_proxy_device_udp() {
   lxc delete -f proxyTester
 }
 
-test_proxy_device_unix_udp() {
+container_devices_proxy_unix_udp() {
   echo "====> Testing unix to udp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
@@ -510,7 +510,7 @@ test_proxy_device_unix_udp() {
   lxc delete -f proxyTester
 }
 
-test_proxy_device_tcp_udp() {
+container_devices_proxy_tcp_udp() {
   echo "====> Testing tcp to udp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
