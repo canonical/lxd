@@ -501,7 +501,21 @@ func networkSetVethLimits(m config.Device) error {
 	return nil
 }
 
-// NetworkValidAddressV4 validates an IPv4 addresss string.
+// NetworkValidAddress validates an IP address string. If string is empty, returns valid.
+func NetworkValidAddress(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return fmt.Errorf("Not an IP address: %s", value)
+	}
+
+	return nil
+}
+
+// NetworkValidAddressV4 validates an IPv4 addresss string. If string is empty, returns valid.
 func NetworkValidAddressV4(value string) error {
 	if value == "" {
 		return nil
@@ -515,7 +529,7 @@ func NetworkValidAddressV4(value string) error {
 	return nil
 }
 
-// NetworkValidAddressV6 validates an IPv6 addresss string.
+// NetworkValidAddressV6 validates an IPv6 addresss string. If string is empty, returns valid.
 func NetworkValidAddressV6(value string) error {
 	if value == "" {
 		return nil
@@ -553,7 +567,7 @@ func NetworkValidAddressV6List(value string) error {
 	return nil
 }
 
-// NetworkValidNetworkV4 validates an IPv4 CIDR string.
+// NetworkValidNetworkV4 validates an IPv4 CIDR string. If string is empty, returns valid.
 func NetworkValidNetworkV4(value string) error {
 	if value == "" {
 		return nil
@@ -575,7 +589,7 @@ func NetworkValidNetworkV4(value string) error {
 	return nil
 }
 
-// NetworkValidNetworkV6 validates an IPv6 CIDR string.
+// NetworkValidNetworkV6 validates an IPv6 CIDR string. If string is empty, returns valid.
 func NetworkValidNetworkV6(value string) error {
 	if value == "" {
 		return nil
@@ -659,4 +673,30 @@ func NetworkSRIOVGetFreeVFInterface(reservedDevices map[string]struct{}, vfListP
 	}
 
 	return "", nil
+}
+
+// networkParsePortRange validates a port range in the form n-n.
+func networkParsePortRange(r string) (int64, int64, error) {
+	entries := strings.Split(r, "-")
+	if len(entries) > 2 {
+		return -1, -1, fmt.Errorf("Invalid port range %s", r)
+	}
+
+	base, err := strconv.ParseInt(entries[0], 10, 64)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	size := int64(1)
+	if len(entries) > 1 {
+		size, err = strconv.ParseInt(entries[1], 10, 64)
+		if err != nil {
+			return -1, -1, err
+		}
+
+		size -= base
+		size++
+	}
+
+	return base, size, nil
 }

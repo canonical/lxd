@@ -115,6 +115,32 @@ func IsNotEmpty(value string) error {
 	return nil
 }
 
+func IsUnixUserID(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for a UNIX ID")
+	}
+
+	return nil
+}
+
+func IsOctalFileMode(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 8, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an octal file mode")
+	}
+
+	return nil
+}
+
 // IsRootDiskDevice returns true if the given device representation is
 // configured as root disk for a container. It typically get passed a specific
 // entry of api.Container.Devices.

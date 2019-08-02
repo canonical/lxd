@@ -173,7 +173,7 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 		nic = append(nic, RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
 	}
 
-	runConf.NetworkInterfaces = append(runConf.NetworkInterfaces, nic)
+	runConf.NetworkInterface = nic
 	return &runConf, nil
 }
 

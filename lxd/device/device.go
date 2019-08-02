@@ -9,7 +9,8 @@ import (
 
 // devTypes defines supported top-level device type creation functions.
 var devTypes = map[string]func(config.Device) device{
-	"nic": nicLoadByType,
+	"nic":   nicLoadByType,
+	"proxy": func(c config.Device) device { return &proxy{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
@@ -60,7 +61,7 @@ type device interface {
 	Device
 
 	// init stores the InstanceIdentifier, daemon State and Config into device and performs any setup.
-	init(InstanceIdentifier, *state.State, config.Device, VolatileGetter, VolatileSetter)
+	init(InstanceIdentifier, *state.State, string, config.Device, VolatileGetter, VolatileSetter)
 
 	// validateConfig checks Config stored by init() is valid for the instance type.
 	validateConfig() error
@@ -69,18 +70,20 @@ type device interface {
 // deviceCommon represents the common struct for all devices.
 type deviceCommon struct {
 	instance    InstanceIdentifier
+	name        string
 	config      map[string]string
 	state       *state.State
 	volatileGet func() map[string]string
 	volatileSet func(map[string]string) error
 }
 
-// init stores the InstanceIdentifier, daemon state and Config into device. It can also be provided
-// with volatile get and set functions for the device to allow persistent data to be accessed.
-// This is implemented as part of deviceCommon so that the majority of devices don't need to
-// implement it and can just embed deviceCommon.
-func (d *deviceCommon) init(instance InstanceIdentifier, state *state.State, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
+// init stores the InstanceIdentifier, daemon state, device name and config into device.
+// It also needs to be provided with volatile get and set functions for the device to allow
+// persistent data to be accessed. This is implemented as part of deviceCommon so that the majority
+// of devices don't need to implement it and can just embed deviceCommon.
+func (d *deviceCommon) init(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
 	d.instance = instance
+	d.name = name
 	d.config = conf
 	d.state = state
 	d.volatileGet = volatileGet
@@ -109,7 +112,7 @@ func (d *deviceCommon) Remove() error {
 }
 
 // New instantiates a new device struct, validates the supplied config and sets it into the device.
-func New(instance InstanceIdentifier, state *state.State, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+func New(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
 	devFunc := devTypes[conf["type"]]
 
 	// Check if top-level type is recognised, if it is known type it will return a function.
@@ -124,7 +127,7 @@ func New(instance InstanceIdentifier, state *state.State, conf config.Device, vo
 	}
 
 	// Init the device and run validation of supplied config.
-	dev.init(instance, state, conf, volatileGet, volatileSet)
+	dev.init(instance, state, name, conf, volatileGet, volatileSet)
 	err := dev.validateConfig()
 	if err != nil {
 		return nil, err

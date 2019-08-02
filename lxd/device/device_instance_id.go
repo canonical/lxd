@@ -11,6 +11,8 @@ type InstanceIdentifier interface {
 	Name() string
 	Type() string
 	Project() string
+	DevicesPath() string
+	LogPath() string
 	ExpandedConfig() map[string]string
 	ExpandedDevices() config.Devices
 }

@@ -160,12 +160,12 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 	}
 
 	runConf := RunConfig{}
-	runConf.NetworkInterfaces = [][]RunConfigItem{{
+	runConf.NetworkInterface = []RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
 		{Key: "link", Value: peerName},
-	}}
+	}
 
 	return &runConf, nil
 }
