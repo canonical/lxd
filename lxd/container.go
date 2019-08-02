@@ -213,21 +213,6 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
-	case "infiniband":
-		switch k {
-		case "hwaddr":
-			return true
-		case "mtu":
-			return true
-		case "name":
-			return true
-		case "nictype":
-			return true
-		case "parent":
-			return true
-		default:
-			return false
-		}
 	case "none":
 		return false
 	default:
