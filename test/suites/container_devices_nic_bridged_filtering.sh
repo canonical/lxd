@@ -315,12 +315,24 @@ test_container_devices_nic_bridged_filtering() {
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
 
-  # Check filtering works with non-DHCP statically defined IPs.
+  # Check filtering works with non-DHCP statically defined IPs and a bridge with no IP address and DHCP disabled.
   lxc network set "${brName}" ipv4.dhcp false
+  lxc network set "${brName}" ipv4.address none
+
   lxc network set "${brName}" ipv6.dhcp false
+  lxc network set "${brName}" ipv6.address none
+
   lxc network set "${brName}" ipv6.dhcp.stateful false
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
-  lxc config device add "${ctPrefix}A" eth0 nic nictype=nic name=eth0 nictype=bridged parent="${brName}" ipv4.address=192.0.2.2 ipv6.address=2001:db8::2 security.ipv4_filtering=true security.ipv6_filtering=true
+  lxc config device add "${ctPrefix}A" eth0 nic \
+    nictype=nic \
+    name=eth0 \
+    nictype=bridged \
+    parent="${brName}" \
+    ipv4.address=192.0.2.2 \
+    ipv6.address=2001:db8::2 \
+    security.ipv4_filtering=true \
+    security.ipv6_filtering=true
   lxc start "${ctPrefix}A"
 
   # Check MAC filter is present in ebtables.
