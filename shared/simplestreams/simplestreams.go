@@ -124,7 +124,7 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 
 				// Skip the files we don't care about
-				if !shared.StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "squashfs"}) {
+				if !shared.StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "lxd_combined.tar.gz", "squashfs"}) {
 					continue
 				}
 
@@ -133,6 +133,9 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				} else if item.FileType == "squashfs" {
 					rootSquash = item
 				} else if item.FileType == "root.tar.xz" {
+					rootTar = item
+				} else if item.FileType == "lxd_combined.tar.gz" {
+					meta = item
 					rootTar = item
 				}
 			}
@@ -164,12 +167,17 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				rootfsHash = rootSquash.HashSha256
 				rootfsSize = rootSquash.Size
 			} else {
-				if meta.LXDHashSha256RootXz != "" {
-					fingerprint = meta.LXDHashSha256RootXz
+				if meta == rootTar {
+					fingerprint = meta.HashSha256
+					size = meta.Size
 				} else {
-					fingerprint = meta.LXDHashSha256
+					if meta.LXDHashSha256RootXz != "" {
+						fingerprint = meta.LXDHashSha256RootXz
+					} else {
+						fingerprint = meta.LXDHashSha256
+					}
+					size += rootTar.Size
 				}
-				size += rootTar.Size
 				rootfsPath = rootTar.Path
 				rootfsHash = rootTar.HashSha256
 				rootfsSize = rootTar.Size
@@ -229,9 +237,14 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 			}
 
-			imgDownloads := [][]string{
-				{metaPath, metaHash, "meta", fmt.Sprintf("%d", metaSize)},
-				{rootfsPath, rootfsHash, "root", fmt.Sprintf("%d", rootfsSize)}}
+			var imgDownloads [][]string
+			if meta == rootTar {
+				imgDownloads = [][]string{{metaPath, metaHash, "meta", fmt.Sprintf("%d", metaSize)}}
+			} else {
+				imgDownloads = [][]string{
+					{metaPath, metaHash, "meta", fmt.Sprintf("%d", metaSize)},
+					{rootfsPath, rootfsHash, "root", fmt.Sprintf("%d", rootfsSize)}}
+			}
 
 			// Add the deltas
 			for _, delta := range deltas {
