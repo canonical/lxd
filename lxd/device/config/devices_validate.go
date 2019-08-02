@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // ValidateDevice accepts a map of field/validation functions to run against supplied config.
@@ -27,7 +29,7 @@ func ValidateDevice(rules map[string]func(value string) error, config map[string
 			continue
 		}
 
-		if k == "nictype" && config["type"] == "nic" {
+		if k == "nictype" && shared.StringInSlice(config["type"], []string{"nic", "infiniband"}) {
 			continue
 		}
 
