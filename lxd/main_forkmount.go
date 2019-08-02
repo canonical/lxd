@@ -387,18 +387,30 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	cmd.Hidden = true
 
 	// mount
-	cmdMount := &cobra.Command{}
-	cmdMount.Use = "mount <PID> <source> <destination>"
-	cmdMount.Args = cobra.ExactArgs(3)
-	cmdMount.RunE = c.Run
-	cmd.AddCommand(cmdMount)
+	cmdLXCMount := &cobra.Command{}
+	cmdLXCMount.Use = "lxc-mount <name> <lxcpath> <configpath> <source> <destination> <fstype> <flags>"
+	cmdLXCMount.Args = cobra.ExactArgs(7)
+	cmdLXCMount.RunE = c.Run
+	cmd.AddCommand(cmdLXCMount)
+
+	cmdLXDMount := &cobra.Command{}
+	cmdLXDMount.Use = "lxd-mount <PID> <source> <destination> <shiftfs>"
+	cmdLXDMount.Args = cobra.ExactArgs(4)
+	cmdLXDMount.RunE = c.Run
+	cmd.AddCommand(cmdLXDMount)
 
 	// umount
-	cmdUmount := &cobra.Command{}
-	cmdUmount.Use = "umount <PID> <path>"
-	cmdUmount.Args = cobra.ExactArgs(2)
-	cmdUmount.RunE = c.Run
-	cmd.AddCommand(cmdUmount)
+	cmdLXCUmount := &cobra.Command{}
+	cmdLXCUmount.Use = "lxc-umount <name> <lxcpath> <configpath> <path>"
+	cmdLXCUmount.Args = cobra.ExactArgs(4)
+	cmdLXCUmount.RunE = c.Run
+	cmd.AddCommand(cmdLXCUmount)
+
+	cmdLXDUmount := &cobra.Command{}
+	cmdLXDUmount.Use = "lxd-umount <PID> <path>"
+	cmdLXDUmount.Args = cobra.ExactArgs(2)
+	cmdLXDUmount.RunE = c.Run
+	cmd.AddCommand(cmdLXDUmount)
 
 	return cmd
 }
