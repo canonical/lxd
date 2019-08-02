@@ -277,6 +277,9 @@ void do_lxc_forkmount()
 		_exit(1);
 
 	_exit(0);
+#else
+	fprintf(stderr, "error: Called lxc_forkmount when missing LXC support\n");
+	_exit(1);
 #endif
 }
 
@@ -308,6 +311,9 @@ void do_lxc_forkumount()
 	lxc_container_put(c);
 	if (ret < 0)
 		_exit(1);
+#else
+	fprintf(stderr, "error: Called lxc_forkumount when missing LXC support\n");
+	_exit(1);
 #endif
 }
 
