@@ -1,0 +1,110 @@
+site_title: LXD
+site_logo_url: https://linuxcontainers.org/static/img/containers.png
+navigation:
+    - title: Getting started
+      location: index.md
+      children:
+        - title: Requirements
+          location: requirements.md
+
+        - title: Frequently asked
+          location: faq.md
+
+        - title: Security
+          location: security.md
+
+        - title: Contributing
+          location: contributing.md
+
+    - title: Configuration
+      location: configuration.md
+      children:
+        - title: Containers
+          location: containers.md
+
+        - title: Networks
+          location: networks.md
+
+        - title: Preseed files
+          location: preseed.md
+
+        - title: Profiles
+          location: profiles.md
+
+        - title: Projects
+          location: projects.md
+
+        - title: Server settings
+          location: server.md
+
+        - title: Storage pools
+          location: storage.md
+
+    - title: Images
+      children:
+        - title: Architectures
+          location: architectures.md
+
+        - title: Cloud-init
+          location: cloud-init.md
+
+        - title: Handling
+          location: image-handling.md
+
+    - title: Operation
+      children:
+        - title: Backups
+          location: backup.md
+
+        - title: Clustering
+          location: clustering.md
+
+        - title: Production setup
+          location: production-setup.md
+
+    - title: REST API
+      children:
+        - title: Main API documentation
+          location: rest-api.md
+
+        - title: Main API extensions
+          location: api-extensions.md
+
+        - title: Container API documentation
+          location: dev-lxd.md
+
+    - title: Internals & debugging
+      children:
+        - title: Container environment
+          location: container-environment.md
+
+        - title: Container migration
+          location: migration.md
+
+        - title: Daemon behavior
+          location: daemon-behavior.md
+
+        - title: Database
+          location: database.md
+
+        - title: Debugging
+          location: debugging.md
+
+        - title: Environment variables
+          location: environment.md
+
+        - title: System call interception
+          location: syscall-interception.md
+
+        - title: User namespace setup
+          location: userns-idmap.md
+
+    - title: External resources
+      children:
+        - title: Project repository
+          location: https://github.com/lxc/lxd
+          external: true
+
+        - title: Image server
+          location: https://images.linuxcontainers.org
+          external: true
