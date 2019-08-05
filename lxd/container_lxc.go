@@ -1821,8 +1821,8 @@ func (c *containerLXC) initLXC(config bool) error {
 	return nil
 }
 
-// runPostStartHooks executes the callback functions after container has started.
-func (c *containerLXC) runPostStartHooks(hooks []func() error) error {
+// runHooks executes the callback functions returned from a function.
+func (c *containerLXC) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
 	if len(hooks) > 0 {
 		for _, hook := range hooks {
@@ -1893,13 +1893,13 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 	if isRunning && runConfig != nil {
 		// If network interface settings returned, then attach NIC to container.
 		if len(runConfig.NetworkInterface) > 0 {
-			err = c.deviceAttachNIC(configCopy, runConfig)
+			err = c.deviceAttachNIC(configCopy, runConfig.NetworkInterface)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		err = c.runPostStartHooks(runConfig.PostStartHooks)
+		err = c.runHooks(runConfig.PostHooks)
 		if err != nil {
 			return nil, err
 		}
@@ -1909,9 +1909,9 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 }
 
 // deviceAttachNIC live attaches a NIC device to a container.
-func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, runConfig *device.RunConfig) error {
+func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []device.RunConfigItem) error {
 	devName := ""
-	for _, dev := range runConfig.NetworkInterface {
+	for _, dev := range netIF {
 		if dev.Key == "link" {
 			devName = dev.Value
 			break
@@ -1959,76 +1959,89 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 		return err
 	}
 
+	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
 	if canHotPlug, _ := d.CanHotPlug(); stopHookNetnsPath == "" && !canHotPlug {
 		return fmt.Errorf("Device cannot be stopped when container is running")
 	}
 
-	// Ensure nic and infiniband devices are detached.
-	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
-		hostName := c.localConfig[fmt.Sprintf("volatile.%s.host_name", deviceName)]
-		hostNameExists := hostName != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", hostName))
+	runConfig, err := d.Stop()
+	if err != nil {
+		return err
+	}
 
-		// If container is running, perform live detach of interface back to host.
-		if stopHookNetnsPath == "" {
-			// For some reason, having network config confuses detach, so get our own go-lxc struct.
-			cname := project.Prefix(c.Project(), c.Name())
-			cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
+	if runConfig != nil {
+		// If network interface settings returned, then detach NIC from container.
+		if len(runConfig.NetworkInterface) > 0 {
+			err = c.deviceDetachNIC(configCopy, runConfig.NetworkInterface, stopHookNetnsPath)
 			if err != nil {
 				return err
 			}
-			defer cc.Release()
+		}
 
-			// Get interfaces inside container.
-			ifaces, err := cc.Interfaces()
-			if err != nil {
-				return fmt.Errorf("Failed to list network interfaces: %v", err)
-			}
-
-			// Remove the interface from the container if it exists inside container.
-			if shared.StringInSlice(configCopy["name"], ifaces) {
-				detachHostName := hostName
-
-				// If the host_name is empty or already exists, we need to detach to a
-				// random device name, so generate one here.
-				if hostName == "" || hostNameExists {
-					detachHostName = device.NetworkRandomDevName("lxd")
-				}
-
-				err = cc.DetachInterfaceRename(configCopy["name"], detachHostName)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], detachHostName)
-				}
-
-				// If we have detached the device to a random host_name it is our
-				// responsibility to delete the device as there is no other record of this.
-				if hostName == "" || hostNameExists {
-					// Attempt to remove device, but don't return on failure as Stop()
-					// still needs to be called.
-					err := device.NetworkRemoveInterface(detachHostName)
-					if err != nil {
-						logger.Errorf("Error removing interface: %s: %v", detachHostName, err)
-					}
-				}
-			}
-		} else {
-			// Currently liblxc does not move devices back to the host on stop that were added
-			// after the the container was started. For this reason we utilise the lxc.hook.stop
-			// hook so that we can capture the netns path, enter the namespace and move the nics
-			// back to the host and rename them if liblxc hasn't already done it.
-			// We can only move back devices that have an expected host_name record and where
-			// that device doesn't already exist on the host.
-			if hostName != "" && !hostNameExists {
-				err := c.detachInterfaceRename(stopHookNetnsPath, configCopy["name"], hostName)
-				if err != nil {
-					return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], hostName)
-				}
-			}
+		err = c.runHooks(runConfig.PostHooks)
+		if err != nil {
+			return err
 		}
 	}
 
-	err = d.Stop()
-	if err != nil {
-		return err
+	return nil
+}
+
+// deviceDetachNIC detaches a NIC device from a container.
+func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []device.RunConfigItem, stopHookNetnsPath string) error {
+	// Get requested device name to detach interface back to on the host.
+	devName := ""
+	for _, dev := range netIF {
+		if dev.Key == "link" {
+			devName = dev.Value
+			break
+		}
+	}
+
+	if devName == "" {
+		return fmt.Errorf("Device didn't provide a link property to use")
+	}
+
+	// If container is running, perform live detach of interface back to host.
+	if stopHookNetnsPath == "" {
+		// For some reason, having network config confuses detach, so get our own go-lxc struct.
+		cname := project.Prefix(c.Project(), c.Name())
+		cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
+		if err != nil {
+			return err
+		}
+		defer cc.Release()
+
+		// Get interfaces inside container.
+		ifaces, err := cc.Interfaces()
+		if err != nil {
+			return fmt.Errorf("Failed to list network interfaces: %v", err)
+		}
+
+		// If interface doesn't exist inside container, cannot proceed.
+		if !shared.StringInSlice(configCopy["name"], ifaces) {
+			return nil
+		}
+
+		err = cc.DetachInterfaceRename(configCopy["name"], devName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], devName)
+		}
+	} else {
+		// Currently liblxc does not move devices back to the host on stop that were added
+		// after the the container was started. For this reason we utilise the lxc.hook.stop
+		// hook so that we can capture the netns path, enter the namespace and move the nics
+		// back to the host and rename them if liblxc hasn't already done it.
+		// We can only move back devices that have an expected host_name record and where
+		// that device doesn't already exist on the host as if a device exists on the host
+		// we can't know whether that is because liblxc has moved it back already or whether
+		// it is a conflicting device.
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", devName)) {
+			err := c.detachInterfaceRename(stopHookNetnsPath, configCopy["name"], devName)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to detach interface: %s to %s", configCopy["name"], devName)
+			}
+		}
 	}
 
 	return nil
@@ -2537,8 +2550,8 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Add any post start hooks.
-				if len(runConfig.PostStartHooks) > 0 {
-					postStartHooks = append(postStartHooks, runConfig.PostStartHooks...)
+				if len(runConfig.PostHooks) > 0 {
+					postStartHooks = append(postStartHooks, runConfig.PostHooks...)
 				}
 
 				continue
@@ -2732,7 +2745,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 
 		// Run any post start hooks.
-		err = c.runPostStartHooks(postStartHooks)
+		err = c.runHooks(postStartHooks)
 		if err != nil {
 			// Attempt to stop container.
 			op.Done(err)
@@ -2800,7 +2813,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	// Run any post start hooks.
-	err = c.runPostStartHooks(postStartHooks)
+	err = c.runHooks(postStartHooks)
 	if err != nil {
 		// Attempt to stop container.
 		op.Done(err)
@@ -5711,7 +5724,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 		if migrateErr == nil {
 			// Run any post start hooks.
-			err := c.runPostStartHooks(postStartHooks)
+			err := c.runHooks(postStartHooks)
 			if err != nil {
 				// Attempt to stop container.
 				c.Stop(false)
