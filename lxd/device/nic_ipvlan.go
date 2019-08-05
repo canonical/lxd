@@ -208,8 +208,17 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 	return nil
 }
 
-// Stop is run when the device is removed from the container.
-func (d *nicIPVLAN) Stop() error {
+// Stop is run when the device is removed from the instance.
+func (d *nicIPVLAN) Stop() (*RunConfig, error) {
+	runConfig := RunConfig{
+		PostHooks: []func() error{d.postStop},
+	}
+
+	return &runConfig, nil
+}
+
+// postStop is run after the device is removed from the instance.
+func (d *nicIPVLAN) postStop() error {
 	defer d.volatileSet(map[string]string{
 		"last_state.created": "",
 	})
