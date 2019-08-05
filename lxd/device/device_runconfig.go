@@ -6,8 +6,8 @@ type RunConfigItem struct {
 	Value string
 }
 
-// RunConfig represents LXD defined run-time config used for device setup.
+// RunConfig represents LXD defined run-time config used for device setup/cleanup.
 type RunConfig struct {
-	NetworkInterface []RunConfigItem
-	PostStartHooks   []func() error
+	NetworkInterface []RunConfigItem // Network interface configuration settings.
+	PostHooks        []func() error  // Functions to be run after device attach/detach.
 }
