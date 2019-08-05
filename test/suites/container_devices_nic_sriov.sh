@@ -72,7 +72,12 @@ test_container_devices_nic_sriov() {
     fi
   fi
 
+  # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr | grep -v volatile.eth0.name ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
 
   # Set custom MAC
   lxc config device set "${ctName}" eth0 hwaddr "${ctMAC1}"

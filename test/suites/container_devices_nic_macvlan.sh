@@ -55,6 +55,14 @@ test_container_devices_nic_macvlan() {
     false
   fi
 
+  # Check volatile cleanup on stop.
+  lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
+
+  lxc start "${ctName}"
   lxc config device remove "${ctName}" eth0
 
   # Test hot plugging macvlan device based on vlan parent.

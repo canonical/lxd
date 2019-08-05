@@ -64,7 +64,12 @@ test_container_devices_nic_ipvlan() {
     false
   fi
 
-  lxc stop -f "${ct_name}"
+  # Check volatile cleanup on stop.
+  lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr | grep -v volatile.eth0.name ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
 
   # Check parent device is still up.
   if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
