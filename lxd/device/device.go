@@ -46,7 +46,8 @@ type Device interface {
 
 	// Stop performs any host-side cleanup required when a device is removed from an instance,
 	// either due to unplugging it from a running instance or instance is being shutdown.
-	Stop() error
+	// Returns run-time configuration needed for detaching the device from the instance.
+	Stop() (*RunConfig, error)
 
 	// Remove performs any host-side cleanup when an instance is removed from an instance.
 	Remove() error
