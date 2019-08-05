@@ -40,8 +40,12 @@ test_container_devices_nic_physical() {
     false
   fi
 
-  # Stop container and check MTU is restored.
+  # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
 
   # Check original MTU is restored on physical device.
   if lxc info | grep 'network_phys_macvlan_mtu: "true"' ; then
