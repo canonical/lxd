@@ -283,6 +283,13 @@ test_container_devices_nic_bridged() {
     false
   fi
 
+  # Check volatile cleanup on stop.
+  lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
+
   # Test DHCP lease clearance.
   lxc delete "${ctName}" -f
   lxc launch testimage "${ctName}" -p "${ctName}"

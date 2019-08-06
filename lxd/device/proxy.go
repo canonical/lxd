@@ -140,7 +140,7 @@ func (d *proxy) Start() (*RunConfig, error) {
 
 	// Proxy devices have to be setup once the container is running.
 	runConf := RunConfig{}
-	runConf.PostStartHooks = []func() error{
+	runConf.PostHooks = []func() error{
 		func() error {
 			if shared.IsTrue(d.config["nat"]) {
 				return d.setupNAT()
@@ -226,8 +226,8 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 	return false, nil
 }
 
-// Stop is run when the device is removed from the container.
-func (d *proxy) Stop() error {
+// Stop is run when the device is removed from the instance.
+func (d *proxy) Stop() (*RunConfig, error) {
 	// Remove possible iptables entries
 	iptables.ContainerClear("ipv4", fmt.Sprintf("%s (%s)", d.instance.Name(), d.name), "nat")
 	iptables.ContainerClear("ipv6", fmt.Sprintf("%s (%s)", d.instance.Name(), d.name), "nat")
@@ -237,15 +237,15 @@ func (d *proxy) Stop() error {
 
 	if !shared.PathExists(devPath) {
 		// There's no proxy process if NAT is enabled
-		return nil
+		return nil, nil
 	}
 
 	err := d.killProxyProc(devPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (d *proxy) setupNAT() error {

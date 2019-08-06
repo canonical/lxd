@@ -116,8 +116,17 @@ func (d *nicP2P) Update(oldConfig config.Device, isRunning bool) error {
 	return nil
 }
 
-// Stop is run when the device is removed from the container.
-func (d *nicP2P) Stop() error {
+// Stop is run when the device is removed from the instance.
+func (d *nicP2P) Stop() (*RunConfig, error) {
+	runConfig := RunConfig{
+		PostHooks: []func() error{d.postStop},
+	}
+
+	return &runConfig, nil
+}
+
+// postStop is run after the device is removed from the instance.
+func (d *nicP2P) postStop() error {
 	defer d.volatileSet(map[string]string{
 		"host_name": "",
 	})
