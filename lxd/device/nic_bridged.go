@@ -230,11 +230,11 @@ func (d *nicBridged) Update(oldConfig config.Device, isRunning bool) error {
 
 // Stop is run when the device is removed from the instance.
 func (d *nicBridged) Stop() (*RunConfig, error) {
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.

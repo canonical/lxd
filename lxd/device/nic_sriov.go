@@ -123,14 +123,14 @@ func (d *nicSRIOV) Start() (*RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *nicSRIOV) Stop() (*RunConfig, error) {
 	v := d.volatileGet()
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 		NetworkInterface: []RunConfigItem{
 			{Key: "link", Value: v["host_name"]},
 		},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
