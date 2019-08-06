@@ -196,6 +196,8 @@ run_test test_container_devices_nic_physical "container devices - nic - physical
 run_test test_container_devices_nic_macvlan "container devices - nic - macvlan"
 run_test test_container_devices_nic_ipvlan "container devices - nic - ipvlan"
 run_test test_container_devices_nic_sriov "container devices - nic - sriov"
+run_test test_container_devices_ib_physical "container devices - infiniband - physical"
+run_test test_container_devices_ib_sriov "container devices - infiniband - sriov"
 run_test test_security "security features"
 run_test test_security_protection "container protection"
 run_test test_image_expiry "image expiry"
