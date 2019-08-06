@@ -229,7 +229,16 @@ func (d *nicBridged) Update(oldConfig config.Device, isRunning bool) error {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *nicBridged) Stop() error {
+func (d *nicBridged) Stop() (*RunConfig, error) {
+	runConfig := RunConfig{
+		PostHooks: []func() error{d.postStop},
+	}
+
+	return &runConfig, nil
+}
+
+// postStop is run after the device is removed from the instance.
+func (d *nicBridged) postStop() error {
 	defer d.volatileSet(map[string]string{
 		"host_name": "",
 	})

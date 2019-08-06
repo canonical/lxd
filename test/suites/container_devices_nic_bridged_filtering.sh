@@ -274,6 +274,12 @@ test_container_devices_nic_bridged_filtering() {
       false
   fi
 
+  # Check volatile cleanup on stop.
+  if lxc config show "${ctPrefix}A" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
+
   # Set static MAC so that SLAAC address is derived predictably and check it is applied to static config.
   lxc config device unset "${ctPrefix}A" eth0 ipv6.address
   lxc config device set "${ctPrefix}A" eth0 hwaddr 00:16:3e:92:f3:c1

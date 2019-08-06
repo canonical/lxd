@@ -244,8 +244,14 @@ test_container_devices_nic_p2p() {
     false
   fi
 
-  # Now add a nic to a stopped container with routes.
+  # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
+
+  # Now add a nic to a stopped container with routes.
   lxc config device add "${ctName}" eth0 nic \
     nictype=p2p \
     ipv4.routes="192.0.2.2${ipRand}/32" \

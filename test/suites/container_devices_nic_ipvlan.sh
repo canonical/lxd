@@ -7,67 +7,72 @@ test_container_devices_nic_ipvlan() {
     return
   fi
 
-  ct_name="nt$$"
+  ctName="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
 
   # Test ipvlan support to offline container (hot plugging not supported).
-  ip link add "${ct_name}" type dummy
+  ip link add "${ctName}" type dummy
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
 
   # Check that starting IPVLAN container.
-  sysctl net.ipv6.conf."${ct_name}".proxy_ndp=1
-  sysctl net.ipv6.conf."${ct_name}".forwarding=1
-  sysctl net.ipv4.conf."${ct_name}".forwarding=1
-  lxc init testimage "${ct_name}"
-  lxc config device add "${ct_name}" eth0 nic \
+  sysctl net.ipv6.conf."${ctName}".proxy_ndp=1
+  sysctl net.ipv6.conf."${ctName}".forwarding=1
+  sysctl net.ipv4.conf."${ctName}".forwarding=1
+  lxc init testimage "${ctName}"
+  lxc config device add "${ctName}" eth0 nic \
     nictype=ipvlan \
-    parent=${ct_name} \
+    parent=${ctName} \
     ipv4.address="192.0.2.1${ipRand}" \
     ipv6.address="2001:db8::1${ipRand}" \
     mtu=1400
-  lxc start "${ct_name}"
+  lxc start "${ctName}"
 
   # Check custom MTU is applied.
-  if ! lxc exec "${ct_name}" -- ip link show eth0 | grep "mtu 1400" ; then
+  if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1400" ; then
     echo "mtu invalid"
     false
   fi
 
   #Spin up another container with multiple IPs.
-  lxc init testimage "${ct_name}2"
-  lxc config device add "${ct_name}2" eth0 nic \
+  lxc init testimage "${ctName}2"
+  lxc config device add "${ctName}2" eth0 nic \
     nictype=ipvlan \
-    parent=${ct_name} \
+    parent=${ctName} \
     ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}" \
     ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
-  lxc start "${ct_name}2"
+  lxc start "${ctName}2"
 
   # Check comms between containers.
-  lxc exec "${ct_name}" -- ping -c2 -W1 "192.0.2.2${ipRand}"
-  lxc exec "${ct_name}" -- ping -c2 -W1 "192.0.2.3${ipRand}"
-  lxc exec "${ct_name}" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
-  lxc exec "${ct_name}" -- ping6 -c2 -W1 "2001:db8::3${ipRand}"
-  lxc exec "${ct_name}2" -- ping -c2 -W1 "192.0.2.1${ipRand}"
-  lxc exec "${ct_name}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
-  lxc stop -f "${ct_name}2"
+  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.3${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::3${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
+  lxc stop -f "${ctName}2"
 
   # Check IPVLAN ontop of VLAN parent.
-  lxc stop -f "${ct_name}"
-  lxc config device set "${ct_name}" eth0 vlan 1234
-  lxc start "${ct_name}"
+  lxc stop -f "${ctName}"
+  lxc config device set "${ctName}" eth0 vlan 1234
+  lxc start "${ctName}"
 
   # Check VLAN interface created
-  if ! grep "1" "/sys/class/net/${ct_name}.1234/carrier" ; then
+  if ! grep "1" "/sys/class/net/${ctName}.1234/carrier" ; then
     echo "vlan interface not created"
     false
   fi
 
-  lxc stop -f "${ct_name}"
+  # Check volatile cleanup on stop.
+  lxc stop -f "${ctName}"
+  if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr | grep -v volatile.eth0.name ; then
+    echo "unexpected volatile key remains"
+    false
+  fi
 
   # Check parent device is still up.
-  if ! grep "1" "/sys/class/net/${ct_name}/carrier" ; then
+  if ! grep "1" "/sys/class/net/${ctName}/carrier" ; then
     echo "parent is down"
     false
   fi
@@ -80,7 +85,7 @@ test_container_devices_nic_ipvlan() {
   fi
 
   # Cleanup ipvlan checks
-  lxc delete "${ct_name}" -f
-  lxc delete "${ct_name}2" -f
-  ip link delete "${ct_name}" type dummy
+  lxc delete "${ctName}" -f
+  lxc delete "${ctName}2" -f
+  ip link delete "${ctName}" type dummy
 }
