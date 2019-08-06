@@ -210,11 +210,11 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 
 // Stop is run when the device is removed from the instance.
 func (d *nicIPVLAN) Stop() (*RunConfig, error) {
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
