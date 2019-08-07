@@ -58,7 +58,7 @@ func (d *nicSRIOV) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicSRIOV) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -67,30 +67,9 @@ func (d *nicSRIOV) Start() (*RunConfig, error) {
 
 	saveData := make(map[string]string)
 
-	instances, err := InstanceLoadNodeAll(d.state)
+	reservedDevices, err := instanceGetReservedDevices(d.state, d.config)
 	if err != nil {
 		return nil, err
-	}
-
-	// Build a unique set of reserved network devices we cannot use.
-	reservedDevices := map[string]struct{}{}
-	for _, instance := range instances {
-		devices := instance.ExpandedDevices()
-		config := instance.ExpandedConfig()
-		for devName, devConfig := range devices {
-			// Record all parent devices, as these are not eligible for use as VFs.
-			parent := devConfig["parent"]
-			reservedDevices[parent] = struct{}{}
-
-			// If the device has the same parent as us, and a non-empty host_name, then
-			// mark that host_name as reserved, as that device is using it.
-			if devConfig["type"] == "nic" && parent == d.config["parent"] {
-				hostName := config[fmt.Sprintf("volatile.%s.host_name", devName)]
-				if hostName != "" {
-					reservedDevices[hostName] = struct{}{}
-				}
-			}
-		}
 	}
 
 	vfDev, vfID, err := d.findFreeVirtualFunction(reservedDevices)
@@ -144,14 +123,14 @@ func (d *nicSRIOV) Start() (*RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *nicSRIOV) Stop() (*RunConfig, error) {
 	v := d.volatileGet()
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 		NetworkInterface: []RunConfigItem{
 			{Key: "link", Value: v["host_name"]},
 		},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
@@ -180,10 +159,6 @@ func (d *nicSRIOV) postStop() error {
 // findFreeVirtualFunction looks on the specified parent device for an unused virtual function.
 // Returns the name of the interface and virtual function index ID if found, error if not.
 func (d *nicSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) (string, int, error) {
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
-		return "", 0, fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
-	}
-
 	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", d.config["parent"])
 	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", d.config["parent"])
 
@@ -310,7 +285,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	volatile["last_state.vf.vlan"] = fmt.Sprintf("%d", vfInfo.vlan)
 	volatile["last_state.vf.spoofcheck"] = fmt.Sprintf("%t", vfInfo.spoofcheck)
 
-	// Record the host interface we represents the VF device which we will move into container.
+	// Record the host interface we represents the VF device which we will move into instance.
 	volatile["host_name"] = vfDevice
 	volatile["last_state.created"] = "false" // Indicates don't delete device at stop time.
 
@@ -379,7 +354,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 			return err
 		}
 
-		// Ensure spoof checking is disabled if not enabled in container.
+		// Ensure spoof checking is disabled if not enabled in instance.
 		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
 		if err != nil {
 			return err
@@ -418,7 +393,9 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFunc
 	if err != nil {
 		return
 	}
-	if err = cmd.Start(); err != nil {
+
+	err = cmd.Start()
+	if err != nil {
 		return
 	}
 	defer stdout.Close()
@@ -454,7 +431,9 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFunc
 			return vf, err
 		}
 	}
-	if err = scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return
 	}
 
@@ -477,7 +456,9 @@ func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (string, error) {
 			return fields[1], nil
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return "", err
 	}
 
@@ -512,7 +493,7 @@ func (d *nicSRIOV) networkDeviceBindWait(devName string) error {
 	return fmt.Errorf("Bind of interface \"%s\" took too long", devName)
 }
 
-// restoreSriovParent restores SR-IOV parent device settings when removed from a container using the
+// restoreSriovParent restores SR-IOV parent device settings when removed from an instance using the
 // volatile data that was stored when the device was first added with setupSriovParent().
 func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	// Nothing to do if we don't know the original device name or the VF ID.
@@ -579,7 +560,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 		return err
 	}
 
-	// Wait for VF driver to be reloaded, this will remove the VF interface from the container
+	// Wait for VF driver to be reloaded, this will remove the VF interface from the instance
 	// and it will re-appear on the host. Unfortunately the time between sending the bind event
 	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
 	// otherwise next step of restoring MAC and MTU settings in restorePhysicalNic will fail.

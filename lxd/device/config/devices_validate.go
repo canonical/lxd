@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // ValidateDevice accepts a map of field/validation functions to run against supplied config.
@@ -18,7 +20,8 @@ func ValidateDevice(rules map[string]func(value string) error, config map[string
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
 	for k := range config {
-		if _, checked := checkedFields[k]; checked {
+		_, checked := checkedFields[k]
+		if checked {
 			continue
 		}
 
@@ -27,7 +30,7 @@ func ValidateDevice(rules map[string]func(value string) error, config map[string
 			continue
 		}
 
-		if k == "nictype" && config["type"] == "nic" {
+		if k == "nictype" && shared.StringInSlice(config["type"], []string{"nic", "infiniband"}) {
 			continue
 		}
 

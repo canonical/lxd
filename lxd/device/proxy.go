@@ -219,7 +219,9 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 			return false, fmt.Errorf("%s", line)
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return false, err
 	}
 

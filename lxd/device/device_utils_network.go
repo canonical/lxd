@@ -648,7 +648,8 @@ func NetworkSRIOVGetFreeVFInterface(reservedDevices map[string]struct{}, vfListP
 
 	for _, ent := range ents {
 		// We can't use this VF interface as it is reserved by another device.
-		if _, exists := reservedDevices[ent.Name()]; exists {
+		_, exists := reservedDevices[ent.Name()]
+		if exists {
 			continue
 		}
 

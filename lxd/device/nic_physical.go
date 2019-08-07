@@ -48,7 +48,7 @@ func (d *nicPhysical) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicPhysical) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -75,7 +75,7 @@ func (d *nicPhysical) Start() (*RunConfig, error) {
 	}()
 
 	// If we didn't create the device we should track various properties so we can
-	// restore them when the container is stopped or the device is detached.
+	// restore them when the instance is stopped or the device is detached.
 	if createdDev == false {
 		err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
 		if err != nil {
@@ -118,14 +118,14 @@ func (d *nicPhysical) Start() (*RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *nicPhysical) Stop() (*RunConfig, error) {
 	v := d.volatileGet()
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 		NetworkInterface: []RunConfigItem{
 			{Key: "link", Value: v["host_name"]},
 		},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
