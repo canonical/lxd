@@ -20,7 +20,8 @@ func ValidateDevice(rules map[string]func(value string) error, config map[string
 
 	// Look for any unchecked fields, as these are unknown fields and validation should fail.
 	for k := range config {
-		if _, checked := checkedFields[k]; checked {
+		_, checked := checkedFields[k]
+		if checked {
 			continue
 		}
 

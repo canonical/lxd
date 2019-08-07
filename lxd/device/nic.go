@@ -17,7 +17,8 @@ var nicTypes = map[string]func() device{
 
 // nicLoadByType returns a NIC device instantiated with supplied config.
 func nicLoadByType(c config.Device) device {
-	if f := nicTypes[c["nictype"]]; f != nil {
+	f := nicTypes[c["nictype"]]
+	if f != nil {
 		return f()
 	}
 	return nil
