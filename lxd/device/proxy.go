@@ -39,10 +39,6 @@ type proxyProcInfo struct {
 	proxyProtocol  string
 }
 
-func (d *proxy) CanHotPlug() (bool, []string) {
-	return true, []string{}
-}
-
 // validateConfig checks the supplied config for correctness.
 func (d *proxy) validateConfig() error {
 	if d.instance.Type() != instance.TypeContainer {
