@@ -393,7 +393,9 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFunc
 	if err != nil {
 		return
 	}
-	if err = cmd.Start(); err != nil {
+
+	err = cmd.Start()
+	if err != nil {
 		return
 	}
 	defer stdout.Close()
@@ -429,7 +431,9 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFunc
 			return vf, err
 		}
 	}
-	if err = scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return
 	}
 
@@ -452,7 +456,9 @@ func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (string, error) {
 			return fields[1], nil
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return "", err
 	}
 

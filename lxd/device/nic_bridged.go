@@ -460,7 +460,9 @@ func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcp
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return IPv4, IPv6, err
 	}
 
@@ -911,7 +913,9 @@ func (d *nicBridged) getDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAlloca
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return IPv4s, IPv6s, err
 	}
 
@@ -971,7 +975,9 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConf
 			// Check IP is not already allocated.
 			var IPKey [4]byte
 			copy(IPKey[:], IP.To4())
-			if _, inUse := usedIPs[IPKey]; inUse {
+
+			_, inUse := usedIPs[IPKey]
+			if inUse {
 				startBig.Add(startBig, inc)
 				continue
 			}
@@ -1059,7 +1065,9 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netCon
 			// Check IP is not already allocated.
 			var IPKey [16]byte
 			copy(IPKey[:], IP.To16())
-			if _, inUse := usedIPs[IPKey]; inUse {
+
+			_, inUse := usedIPs[IPKey]
+			if inUse {
 				startBig.Add(startBig, inc)
 				continue
 			}
@@ -1217,7 +1225,8 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 		return fmt.Errorf("%v", errs)
 	}
 
-	if err := scanner.Err(); err != nil {
+	err = scanner.Err()
+	if err != nil {
 		return err
 	}
 
