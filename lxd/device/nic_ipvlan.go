@@ -107,7 +107,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the instance is starting up (IPVLAN doesn't support hot plugging).
 func (d *nicIPVLAN) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -210,11 +210,11 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 
 // Stop is run when the device is removed from the instance.
 func (d *nicIPVLAN) Stop() (*RunConfig, error) {
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.

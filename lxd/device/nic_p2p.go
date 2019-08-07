@@ -52,7 +52,7 @@ func (d *nicP2P) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes"}
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicP2P) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -118,11 +118,11 @@ func (d *nicP2P) Update(oldConfig config.Device, isRunning bool) error {
 
 // Stop is run when the device is removed from the instance.
 func (d *nicP2P) Stop() (*RunConfig, error) {
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.

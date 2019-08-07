@@ -107,7 +107,7 @@ func (d *nicBridged) Add() error {
 	return nil
 }
 
-// Start is run when the device is added to the instance and instance is starting or running.
+// Start is run when the device is added to a running instance or instance is starting up.
 func (d *nicBridged) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
@@ -230,11 +230,11 @@ func (d *nicBridged) Update(oldConfig config.Device, isRunning bool) error {
 
 // Stop is run when the device is removed from the instance.
 func (d *nicBridged) Stop() (*RunConfig, error) {
-	runConfig := RunConfig{
+	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	return &runConfig, nil
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
@@ -267,7 +267,7 @@ func (d *nicBridged) postStop() error {
 	return nil
 }
 
-// Remove is run when the instance is deleted.
+// Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicBridged) Remove() error {
 	err := d.networkClearLease(d.instance.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
 	if err != nil {
@@ -428,7 +428,7 @@ func (d *nicBridged) removeFilters(m config.Device) error {
 	return nil
 }
 
-// getDHCPStaticContainerIPs retrieves the dnsmasq statically allocated IPs for a instance.
+// getDHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a instance.
 // Returns IPv4 and IPv6 dhcpAllocation structs respectively.
 func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcpAllocation, dhcpAllocation, error) {
 	var IPv4, IPv6 dhcpAllocation
@@ -460,7 +460,9 @@ func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcp
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return IPv4, IPv6, err
 	}
 
@@ -911,7 +913,9 @@ func (d *nicBridged) getDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAlloca
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+
+	err = scanner.Err()
+	if err != nil {
 		return IPv4s, IPv6s, err
 	}
 
@@ -971,7 +975,9 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConf
 			// Check IP is not already allocated.
 			var IPKey [4]byte
 			copy(IPKey[:], IP.To4())
-			if _, inUse := usedIPs[IPKey]; inUse {
+
+			_, inUse := usedIPs[IPKey]
+			if inUse {
 				startBig.Add(startBig, inc)
 				continue
 			}
@@ -1059,7 +1065,9 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netCon
 			// Check IP is not already allocated.
 			var IPKey [16]byte
 			copy(IPKey[:], IP.To16())
-			if _, inUse := usedIPs[IPKey]; inUse {
+
+			_, inUse := usedIPs[IPKey]
+			if inUse {
 				startBig.Add(startBig, inc)
 				continue
 			}
@@ -1217,7 +1225,8 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 		return fmt.Errorf("%v", errs)
 	}
 
-	if err := scanner.Err(); err != nil {
+	err = scanner.Err()
+	if err != nil {
 		return err
 	}
 

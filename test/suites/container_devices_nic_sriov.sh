@@ -28,9 +28,12 @@ test_container_devices_nic_sriov() {
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
 
-  # Test basic container with SR-IOV NIC
+  # Test basic container with SR-IOV NIC. Add 2 devices to check reservation system works.
   lxc init testimage "${ctName}"
   lxc config device add "${ctName}" eth0 nic \
+    nictype=sriov \
+    parent="${parent}"
+  lxc config device add "${ctName}" eth1 nic \
     nictype=sriov \
     parent="${parent}"
   lxc start "${ctName}"
@@ -78,6 +81,9 @@ test_container_devices_nic_sriov() {
     echo "unexpected volatile key remains"
     false
   fi
+
+  # Remove 2nd device whilst stopped.
+  lxc config device remove "${ctName}" eth1
 
   # Set custom MAC
   lxc config device set "${ctName}" eth0 hwaddr "${ctMAC1}"

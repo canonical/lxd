@@ -22,6 +22,7 @@ import (
 	"github.com/jaypipes/pcidb"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
@@ -1099,62 +1100,6 @@ func deviceTaskSchedulerTrigger(srcType string, srcName string, srcStatus string
 	}
 }
 
-func deviceIsBlockdev(path string) bool {
-	// Get a stat struct from the provided path
-	stat := unix.Stat_t{}
-	err := unix.Stat(path, &stat)
-	if err != nil {
-		return false
-	}
-
-	// Check if it's a block device
-	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
-		return true
-	}
-
-	// Not a device
-	return false
-}
-
-func deviceModeOct(strmode string) (int, error) {
-	// Default mode
-	if strmode == "" {
-		return 0600, nil
-	}
-
-	// Converted mode
-	i, err := strconv.ParseInt(strmode, 8, 32)
-	if err != nil {
-		return 0, fmt.Errorf("Bad device mode: %s", strmode)
-	}
-
-	return int(i), nil
-}
-
-func deviceGetAttributes(path string) (string, int, int, error) {
-	// Get a stat struct from the provided path
-	stat := unix.Stat_t{}
-	err := unix.Stat(path, &stat)
-	if err != nil {
-		return "", 0, 0, err
-	}
-
-	// Check what kind of file it is
-	dType := ""
-	if stat.Mode&unix.S_IFMT == unix.S_IFBLK {
-		dType = "b"
-	} else if stat.Mode&unix.S_IFMT == unix.S_IFCHR {
-		dType = "c"
-	} else {
-		return "", 0, 0, fmt.Errorf("Not a device")
-	}
-
-	// Return the device information
-	major := shared.Major(stat.Rdev)
-	minor := shared.Minor(stat.Rdev)
-	return dType, major, minor, nil
-}
-
 func deviceNextInterfaceHWAddr() (string, error) {
 	// Generate a new random MAC address using the usual prefix
 	ret := bytes.Buffer{}
@@ -1171,73 +1116,6 @@ func deviceNextInterfaceHWAddr() (string, error) {
 	}
 
 	return ret.String(), nil
-}
-
-func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool, propagation string) error {
-	var err error
-
-	// Prepare the mount flags
-	flags := 0
-	if readonly {
-		flags |= unix.MS_RDONLY
-	}
-
-	// Detect the filesystem
-	fstype := "none"
-	if deviceIsBlockdev(srcPath) {
-		fstype, err = shared.BlockFsDetect(srcPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		flags |= unix.MS_BIND
-		if propagation != "" {
-			switch propagation {
-			case "private":
-				flags |= unix.MS_PRIVATE
-			case "shared":
-				flags |= unix.MS_SHARED
-			case "slave":
-				flags |= unix.MS_SLAVE
-			case "unbindable":
-				flags |= unix.MS_UNBINDABLE
-			case "rprivate":
-				flags |= unix.MS_PRIVATE | unix.MS_REC
-			case "rshared":
-				flags |= unix.MS_SHARED | unix.MS_REC
-			case "rslave":
-				flags |= unix.MS_SLAVE | unix.MS_REC
-			case "runbindable":
-				flags |= unix.MS_UNBINDABLE | unix.MS_REC
-			default:
-				return fmt.Errorf("Invalid propagation mode '%s'", propagation)
-			}
-		}
-
-		if recursive {
-			flags |= unix.MS_REC
-		}
-	}
-
-	// Mount the filesystem
-	if err = unix.Mount(srcPath, dstPath, fstype, uintptr(flags), ""); err != nil {
-		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
-	}
-
-	// Remount bind mounts in readonly mode if requested
-	if readonly == true && flags&unix.MS_BIND == unix.MS_BIND {
-		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
-		if err = unix.Mount("", dstPath, fstype, uintptr(flags), ""); err != nil {
-			return fmt.Errorf("Unable to mount %s in readonly mode: %s", dstPath, err)
-		}
-	}
-
-	flags = unix.MS_REC | unix.MS_SLAVE
-	if err = unix.Mount("", dstPath, "", uintptr(flags), ""); err != nil {
-		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
-	}
-
-	return nil
 }
 
 func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, string, error) {
@@ -1304,7 +1182,7 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 
 func deviceGetParentBlocks(path string) ([]string, error) {
 	var devices []string
-	var device []string
+	var dev []string
 
 	// Expand the mount path
 	absPath, err := filepath.Abs(path)
@@ -1341,16 +1219,16 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		match = rows[4]
 
 		// Go backward to avoid problems with optional fields
-		device = []string{rows[2], rows[len(rows)-2]}
+		dev = []string{rows[2], rows[len(rows)-2]}
 	}
 
-	if device == nil {
+	if dev == nil {
 		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
 	}
 
 	// Handle the most simple case
-	if !strings.HasPrefix(device[0], "0:") {
-		return []string{device[0]}, nil
+	if !strings.HasPrefix(dev[0], "0:") {
+		return []string{dev[0]}, nil
 	}
 
 	// Deal with per-filesystem oddities. We don't care about failures here
@@ -1359,11 +1237,11 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 
 	if fs == "zfs" && shared.PathExists("/dev/zfs") {
 		// Accessible zfs filesystems
-		poolName := strings.Split(device[1], "/")[0]
+		poolName := strings.Split(dev[1], "/")[0]
 
 		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", device[1], output)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", dev[1], output)
 		}
 
 		header := true
@@ -1401,7 +1279,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 			}
 
 			if path != "" {
-				_, major, minor, err := deviceGetAttributes(path)
+				_, major, minor, err := device.UnixGetDeviceAttributes(path)
 				if err != nil {
 					continue
 				}
@@ -1413,11 +1291,11 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 		if len(devices) == 0 {
 			return nil, fmt.Errorf("Unable to find backing block for zfs pool: %s", poolName)
 		}
-	} else if fs == "btrfs" && shared.PathExists(device[1]) {
+	} else if fs == "btrfs" && shared.PathExists(dev[1]) {
 		// Accessible btrfs filesystems
-		output, err := shared.RunCommand("btrfs", "filesystem", "show", device[1])
+		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", device[1], output)
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", dev[1], output)
 		}
 
 		for _, line := range strings.Split(output, "\n") {
@@ -1426,23 +1304,23 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 				continue
 			}
 
-			_, major, minor, err := deviceGetAttributes(fields[len(fields)-1])
+			_, major, minor, err := device.UnixGetDeviceAttributes(fields[len(fields)-1])
 			if err != nil {
 				return nil, err
 			}
 
 			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 		}
-	} else if shared.PathExists(device[1]) {
+	} else if shared.PathExists(dev[1]) {
 		// Anything else with a valid path
-		_, major, minor, err := deviceGetAttributes(device[1])
+		_, major, minor, err := device.UnixGetDeviceAttributes(dev[1])
 		if err != nil {
 			return nil, err
 		}
 
 		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 	} else {
-		return nil, fmt.Errorf("Invalid block device: %s", device[1])
+		return nil, fmt.Errorf("Invalid block device: %s", dev[1])
 	}
 
 	return devices, nil
@@ -1561,240 +1439,6 @@ func deviceLoadUsb() ([]usbDevice, error) {
 	}
 
 	return result, nil
-}
-
-const SCIB string = "/sys/class/infiniband"
-const SCNET string = "/sys/class/net"
-
-type IBF struct {
-	// port the function belongs to
-	Port int64
-
-	// name of the {physical,virtual} function
-	Fun string
-
-	// whether this is a physical (true) or virtual (false) function
-	PF bool
-
-	// device of the function
-	Device string
-
-	// uverb device of the function
-	PerPortDevices []string
-	PerFunDevices  []string
-}
-
-func deviceLoadInfiniband() (map[string]IBF, error) {
-	// check if there are any infiniband devices
-	fscib, err := os.Open(SCIB)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, os.ErrNotExist
-		}
-		return nil, err
-	}
-	defer fscib.Close()
-
-	// eg.g. mlx_i for i = 0, 1, ..., n
-	IBDevNames, err := fscib.Readdirnames(-1)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(IBDevNames) == 0 {
-		return nil, os.ErrNotExist
-	}
-
-	// retrieve all network device names
-	fscnet, err := os.Open(SCNET)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, os.ErrNotExist
-		}
-		return nil, err
-	}
-	defer fscnet.Close()
-
-	// retrieve all network devices
-	NetDevNames, err := fscnet.Readdirnames(-1)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(NetDevNames) == 0 {
-		return nil, os.ErrNotExist
-	}
-
-	UseableDevices := make(map[string]IBF)
-	for _, IBDevName := range IBDevNames {
-		IBDevResourceFile := fmt.Sprintf("/sys/class/infiniband/%s/device/resource", IBDevName)
-		IBDevResourceBuf, err := ioutil.ReadFile(IBDevResourceFile)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, NetDevName := range NetDevNames {
-			NetDevResourceFile := fmt.Sprintf("/sys/class/net/%s/device/resource", NetDevName)
-			NetDevResourceBuf, err := ioutil.ReadFile(NetDevResourceFile)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return nil, err
-			}
-
-			// If the device and the VF have the same address space
-			// they belong together.
-			if bytes.Compare(IBDevResourceBuf, NetDevResourceBuf) != 0 {
-				continue
-			}
-
-			// Now let's find the ports.
-			IBDevID := fmt.Sprintf("/sys/class/net/%s/dev_id", NetDevName)
-			IBDevPort := fmt.Sprintf("/sys/class/net/%s/dev_port", NetDevName)
-			DevIDBuf, err := ioutil.ReadFile(IBDevID)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return nil, err
-			}
-
-			DevIDString := strings.TrimSpace(string(DevIDBuf))
-			DevIDPort, err := strconv.ParseInt(DevIDString, 0, 64)
-			if err != nil {
-				return nil, err
-			}
-
-			DevPort := int64(0)
-			DevPortBuf, err := ioutil.ReadFile(IBDevPort)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					return nil, err
-				}
-			} else {
-				DevPortString := strings.TrimSpace(string(DevPortBuf))
-				DevPort, err = strconv.ParseInt(DevPortString, 0, 64)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			Port := DevIDPort
-			if DevPort > DevIDPort {
-				Port = DevPort
-			}
-			Port++
-
-			NewIBF := IBF{
-				Port:   Port,
-				Fun:    IBDevName,
-				Device: NetDevName,
-			}
-
-			// identify the /dev/infiniband/uverb<idx> device
-			tmp := []string{}
-			IBUverb := fmt.Sprintf("/sys/class/net/%s/device/infiniband_verbs", NetDevName)
-			fuverb, err := os.Open(IBUverb)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					return nil, err
-				}
-			} else {
-				defer fuverb.Close()
-
-				// optional: retrieve all network devices
-				tmp, err = fuverb.Readdirnames(-1)
-				if err != nil {
-					return nil, err
-				}
-
-				if len(tmp) == 0 {
-					return nil, os.ErrNotExist
-				}
-			}
-			for _, v := range tmp {
-				if strings.Index(v, "-") != -1 {
-					return nil, fmt.Errorf("Infiniband character device \"%s\" contains \"-\". Cannot guarantee unique encoding", v)
-				}
-				NewIBF.PerPortDevices = append(NewIBF.PerPortDevices, v)
-			}
-
-			// identify the /dev/infiniband/ucm<idx> device
-			tmp = []string{}
-			IBcm := fmt.Sprintf("/sys/class/net/%s/device/infiniband_ucm", NetDevName)
-			fcm, err := os.Open(IBcm)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					return nil, err
-				}
-			} else {
-				defer fcm.Close()
-
-				// optional: retrieve all network devices
-				tmp, err = fcm.Readdirnames(-1)
-				if err != nil {
-					return nil, err
-				}
-
-				if len(tmp) == 0 {
-					return nil, os.ErrNotExist
-				}
-			}
-			for _, v := range tmp {
-				if strings.Index(v, "-") != -1 {
-					return nil, fmt.Errorf("Infiniband character device \"%s\" contains \"-\". Cannot guarantee unique encoding", v)
-				}
-				devPath := fmt.Sprintf("/dev/infiniband/%s", v)
-				NewIBF.PerPortDevices = append(NewIBF.PerPortDevices, devPath)
-			}
-
-			// identify the /dev/infiniband/{issm,umad}<idx> devices
-			IBmad := fmt.Sprintf("/sys/class/net/%s/device/infiniband_mad", NetDevName)
-			ents, err := ioutil.ReadDir(IBmad)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					return nil, err
-				}
-			} else {
-				for _, ent := range ents {
-					IBmadPort := fmt.Sprintf("%s/%s/port", IBmad, ent.Name())
-					portBuf, err := ioutil.ReadFile(IBmadPort)
-					if err != nil {
-						if !os.IsNotExist(err) {
-							return nil, err
-						}
-						continue
-					}
-
-					portStr := strings.TrimSpace(string(portBuf))
-					PortMad, err := strconv.ParseInt(portStr, 0, 64)
-					if err != nil {
-						return nil, err
-					}
-
-					if PortMad != NewIBF.Port {
-						continue
-					}
-
-					if strings.Index(ent.Name(), "-") != -1 {
-						return nil, fmt.Errorf("Infiniband character device \"%s\" contains \"-\". Cannot guarantee unique encoding", ent.Name())
-					}
-
-					NewIBF.PerFunDevices = append(NewIBF.PerFunDevices, ent.Name())
-				}
-			}
-
-			// figure out whether this is a physical function
-			IBPF := fmt.Sprintf("/sys/class/net/%s/device/physfn", NetDevName)
-			NewIBF.PF = !shared.PathExists(IBPF)
-
-			UseableDevices[NetDevName] = NewIBF
-		}
-	}
-
-	// check whether the device is an infiniband device
-	return UseableDevices, nil
 }
 
 func deviceInotifyInit(s *state.State) (int, error) {
