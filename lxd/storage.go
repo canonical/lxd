@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -16,12 +17,14 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
@@ -149,6 +152,2256 @@ func storageStringToType(sName string) (storageType, error) {
 	return -1, fmt.Errorf("invalid storage type name")
 }
 
+type Storage struct {
+	sType     storageType
+	sTypeName string
+
+	s *state.State
+
+	poolID int64
+	pool   *api.StoragePool
+
+	volumeID int64
+	volume   *api.StorageVolume
+
+	driver driver.Driver
+}
+
+func (s *Storage) GetStorageType() storageType {
+	return s.sType
+}
+
+func (s *Storage) GetStorageTypeName() string {
+	return s.sTypeName
+}
+
+func (s *Storage) GetStorageTypeVersion() string {
+	return s.driver.GetVersion()
+}
+
+func (s *Storage) GetState() *state.State {
+	return s.s
+}
+
+func (s *Storage) GetStoragePoolWritable() api.StoragePoolPut {
+	return s.pool.Writable()
+}
+
+func (s *Storage) SetStoragePoolWritable(writable *api.StoragePoolPut) {
+	s.pool.StoragePoolPut = *writable
+}
+
+func (s *Storage) GetStoragePool() *api.StoragePool {
+	return s.pool
+}
+
+func (s *Storage) GetStoragePoolVolumeWritable() api.StorageVolumePut {
+	return s.volume.Writable()
+}
+
+func (s *Storage) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
+	s.volume.StorageVolumePut = *writable
+}
+
+func (s *Storage) GetStoragePoolVolume() *api.StorageVolume {
+	return s.volume
+}
+
+func (s *Storage) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.pool.Name
+}
+
+func (s *Storage) StorageCoreInit() error {
+	var err error
+
+	s.driver, err = driver.Init(s.sTypeName, s.s, s.pool, s.poolID, s.volume)
+
+	return err
+}
+
+func (s *Storage) StoragePoolInit() error {
+	return s.StorageCoreInit()
+}
+
+func (s *Storage) StoragePoolCheck() error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Checking storage pool",
+		"Checked storage pool",
+		"Failed to check storage pool",
+		&ctx, &success, &err)()
+
+	err = s.driver.StoragePoolCheck()
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolCreate() error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Creating storage pool",
+		"Created storage pool",
+		"Failed to create storage pool",
+		&ctx, &success, &err)()
+
+	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
+
+	err = s.driver.StoragePoolCreate()
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolDelete() error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Deleting storage pool",
+		"Deleted storage pool",
+		"Failed to delete storage pool",
+		&ctx, &success, &err)()
+
+	err = s.driver.StoragePoolDelete()
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolMount() (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Mounting storage pool",
+		"Mounted storage pool",
+		"Failed to mount storage pool",
+		&ctx, &success, &err)()
+
+	ok, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) StoragePoolUmount() (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Unmounting storage pool",
+		"Unmounted storage pool",
+		"Failed to unmount storage pool",
+		&ctx, &success, &err)()
+
+	ok, err := s.driver.StoragePoolUmount()
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	return s.driver.StoragePoolResources()
+}
+
+func (s *Storage) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Updating storage pool",
+		"Updated storage pool",
+		"Failed to update storage pool",
+		&ctx, &success, &err)()
+
+	changeable := changeableStoragePoolProperties[s.sTypeName]
+	unchangeable := []string{}
+
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		err = updateStoragePoolError(unchangeable, s.sTypeName)
+		return err
+	}
+
+	err = s.driver.StoragePoolUpdate(writable, changedConfig)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeCreate() error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"volume": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Creating storage pool volume",
+		"Created storage pool volume",
+		"Failed to create storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	isSnapshot := shared.IsSnapshot(s.volume.Name)
+
+	// Create subvolume path on the storage pool.
+	var volumePath string
+
+	if isSnapshot {
+		volumePath = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, "")
+	} else {
+		volumePath = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, "")
+	}
+
+	if !shared.PathExists(volumePath) {
+		err = os.MkdirAll(volumePath, driver.CustomDirMode)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = s.driver.VolumeCreate("default", s.volume.Name, driver.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	if !shared.PathExists(volumeMntPoint) {
+		err = os.MkdirAll(volumeMntPoint, 0711)
+		if err != nil {
+			return err
+		}
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeDelete() error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"volume": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Deleting storage pool volume",
+		"Deleted storage pool volume",
+		"Failed to delete storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	err = s.driver.VolumeDelete("default", s.volume.Name, true, driver.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	err = os.RemoveAll(volumeMntPoint)
+	if err != nil {
+		return err
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeMount() (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"volume": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Mounting storage pool volume",
+		"Mounted storage pool volume",
+		"Failed to mount storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return ourMount, err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	ok, err := s.driver.VolumeMount("default", s.volume.Name, driver.VolumeTypeCustom)
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) StoragePoolVolumeUmount() (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"volume": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Unmounting storage pool volume",
+		"Unmounting storage pool volume",
+		"Failed to unmount storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return ourMount, err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	ok, err := s.driver.VolumeUmount("default", s.volume.Name, driver.VolumeTypeCustom)
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"volume": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Updating storage pool volume",
+		"Updated storage pool volume",
+		"Failed to update storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	if writable.Restore != "" {
+		err = s.driver.VolumeRestore("default", fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore), s.volume.Name, driver.VolumeTypeCustomSnapshot)
+		if err != nil {
+			return err
+		}
+
+		success = true
+
+		return nil
+	}
+
+	changeable := changeableStoragePoolVolumeProperties[s.sTypeName]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		err = updateStoragePoolVolumeError(unchangeable, s.sTypeName)
+		return err
+	}
+
+	err = s.driver.VolumeUpdate(writable, changedConfig)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeRename(newName string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":   s.sTypeName,
+		"pool":     s.pool.Name,
+		"old_name": s.volume.Name,
+		"new_name": newName,
+	}
+	success := false
+
+	defer logAction(
+		"Renaming storage pool volume",
+		"Renamed storage pool volume",
+		"Failed to rename storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.volume.Name,
+		storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		return err
+	}
+
+	if len(usedBy) > 0 {
+		err = fmt.Errorf(`storage volume "%s" on storage pool "%s" is attached to containers`,
+			s.volume.Name, s.pool.Name)
+		return err
+	}
+
+	err = s.driver.VolumeRename("default", s.volume.Name, newName, nil, driver.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeRename("default", s.volume.Name, newName,
+		storagePoolVolumeTypeCustom, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeCopy(source *api.StorageVolumeSource) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": source.Name,
+		"target": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Copying storage pool volume",
+		"Copied storage pool volume",
+		"Failed to copy storage pool volume",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	if s.pool.Name != source.Pool {
+		err = s.doCrossPoolVolumeCopy(source)
+		if err != nil {
+			return err
+		}
+
+		success = true
+
+		return nil
+	}
+
+	isSnapshot := shared.IsSnapshot(source.Name)
+	volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, "")
+
+	err = os.MkdirAll(volumeMntPoint, driver.CustomDirMode)
+	if err != nil {
+		return err
+	}
+
+	if isSnapshot {
+		return s.driver.VolumeSnapshotCopy("default", source.Name, s.volume.Name, driver.VolumeTypeCustomSnapshot)
+	}
+
+	snapshots, err := s.s.Cluster.StoragePoolVolumeSnapshotsGetType(source.Name, storagePoolVolumeTypeCustom, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	var snapOnlyNames []string
+
+	for _, snap := range snapshots {
+		snapOnlyNames = append(snapOnlyNames, shared.ExtractSnapshotName(snap))
+	}
+
+	err = s.driver.VolumeCopy("default", source.Name, s.volume.Name, snapOnlyNames, driver.VolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) error {
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name,
+		storagePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	err = s.StoragePoolVolumeCreate()
+	if err != nil {
+		return err
+	}
+
+	ourMount, err = s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.StoragePoolVolumeUmount()
+	}
+
+	dstMountPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+
+	if !source.VolumeOnly {
+		snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snapshots {
+			srcMountPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
+
+			_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+			if err != nil {
+				logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+				return err
+			}
+
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(source.Name)
+
+			s.StoragePoolVolumeSnapshotCreate(&api.StorageVolumeSnapshotsPost{Name: fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName)})
+		}
+	}
+
+	var srcMountPoint string
+
+	if shared.IsSnapshot(source.Name) {
+		srcMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, source.Name)
+	} else {
+		srcMountPoint = driver.GetStoragePoolVolumeMountPoint(source.Pool, source.Name)
+	}
+
+	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+	if err != nil {
+		os.RemoveAll(dstMountPoint)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": s.volume.Name,
+		"target": target.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Creating storage pool volume snapshot",
+		"Created storage pool volume snapshot",
+		"Failed to create storage pool volume snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	_, _, ok := shared.ContainerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		err = fmt.Errorf("Not a snapshot name")
+		return err
+	}
+
+	targetPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+
+	err = os.MkdirAll(targetPath, driver.SnapshotsDirMode)
+	if err != nil {
+		return err
+	}
+
+	err = s.driver.VolumeSnapshotCreate("default", s.volume.Name, target.Name,
+		driver.VolumeTypeCustomSnapshot)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeSnapshotDelete() error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"volume": s.volume.Name,
+	}
+	success := false
+
+	defer logAction(
+		"Deleting storage pool volume snapshot",
+		"Deleted storage pool volume snapshot",
+		"Failed to delete storage pool volume snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	err = s.driver.VolumeSnapshotDelete("default", s.volume.Name, true, driver.VolumeTypeCustomSnapshot)
+	if err != nil {
+		return err
+	}
+
+	snapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+
+	err = os.RemoveAll(snapshotMntPoint)
+	if err != nil {
+		return err
+	}
+
+	sourceVolumeName, _, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	snapshotVolumePath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceVolumeName)
+
+	empty, _ := shared.PathIsEmpty(snapshotVolumePath)
+	if empty {
+		err = os.Remove(snapshotVolumePath)
+		if err != nil {
+			return err
+		}
+
+		snapshotSymlink := shared.VarPath("custom-snapshots", sourceVolumeName)
+		if shared.PathExists(snapshotSymlink) {
+			err = os.Remove(snapshotSymlink)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StoragePoolVolumeSnapshotRename(newName string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":   s.sTypeName,
+		"pool":     s.pool.Name,
+		"old_name": s.volume.Name,
+		"new_name": newName,
+	}
+	success := false
+
+	defer logAction(
+		"Renaming storage pool volume snapshot",
+		"Renamed storage pool volume snapshot",
+		"Failed to rename storage pool volume snapshot",
+		&ctx, &success, &err)()
+
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+
+	oldPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	newPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
+
+	err = os.MkdirAll(newPath, driver.CustomDirMode)
+	if err != nil {
+		return err
+	}
+
+	err = s.driver.VolumeSnapshotRename("default", s.volume.Name, fullSnapshotName, driver.VolumeTypeCustomSnapshot)
+	if err != nil {
+		return err
+	}
+
+	// It might be, that the driver already renamed the path.
+	if shared.PathExists(oldPath) {
+		err = os.Rename(oldPath, newPath)
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeRename("default", s.volume.Name, fullSnapshotName, storagePoolVolumeTypeCustom, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerCreate(container container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"name":   container.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Creating container",
+		"Created container",
+		"Failed to create container",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		err = errors.Wrapf(err, "Mount storage pool '%s'", s.pool.Name)
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	containerPath := driver.GetContainerMountPoint("default", s.pool.Name, "")
+
+	err = os.MkdirAll(containerPath, driver.ContainersDirMode)
+	if err != nil {
+		err = errors.Wrapf(err, "Create containers mountpoint '%s'", containerPath)
+		return err
+	}
+
+	// Create container volume
+	err = s.driver.VolumeCreate(container.Project(), container.Name(),
+		driver.VolumeTypeContainer)
+	if err != nil {
+		err = errors.Wrapf(err, "Create container '%s'", container.Name())
+		return err
+	}
+
+	// Create directories
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+
+	err = driver.CreateContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
+	if err != nil {
+		err = errors.Wrapf(err, "Create container mountpoint '%s'", containerMntPoint)
+		return err
+	}
+
+	revert := false
+
+	defer func() {
+		if revert {
+			deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
+		}
+	}()
+
+	success = true
+
+	return container.TemplateApply("create")
+}
+
+func (s *Storage) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":      s.sTypeName,
+		"pool":        s.pool.Name,
+		"name":        container.Name(),
+		"fingerprint": fingerprint,
+	}
+	success := false
+
+	defer logAction(
+		"Creating container from image",
+		"Created container from image",
+		"Failed to create container from image",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		err = errors.Wrapf(err, "Mount storage pool '%s'", s.pool.Name)
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	containerPath := driver.GetContainerMountPoint("default", s.pool.Name, "")
+
+	err = os.MkdirAll(containerPath, driver.ContainersDirMode)
+	if err != nil {
+		err = errors.Wrapf(err, "Create containers mountpoint '%s'", containerPath)
+		return err
+	}
+
+	// Create directories
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+
+	imageMntPoint := shared.VarPath("images", fingerprint)
+	revert := true
+
+	// Create container volume
+	err = s.driver.VolumeCreate(container.Project(), container.Name(), driver.VolumeTypeContainer)
+	if err != nil {
+		err = errors.Wrap(err, "Create container")
+		return err
+	}
+
+	err = driver.CreateContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
+	if err != nil {
+		err = errors.Wrapf(err, "Create container mountpoint '%s'", containerMntPoint)
+		return err
+	}
+
+	defer func() {
+		if revert {
+			deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
+		}
+	}()
+
+	ourMount, err = s.driver.VolumeMount(container.Project(), container.Name(), driver.VolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.VolumeUmount(container.Project(), container.Name(), driver.VolumeTypeContainer)
+	}
+
+	err = unpackImage(imageMntPoint, containerMntPoint, s.sType, s.s.OS.RunningInUserNS,
+		tracker)
+	if err != nil {
+		err = errors.Wrap(err, "Unpack image")
+		return err
+	}
+
+	revert = false
+	success = true
+
+	return container.TemplateApply("create")
+}
+
+func (s *Storage) ContainerDelete(c container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":    s.sTypeName,
+		"pool":      s.pool.Name,
+		"container": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Deleting container",
+		"Deleted container",
+		"Failed to delete container",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	containerMntPoint := driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
+
+	err = s.driver.VolumeDelete(c.Project(), c.Name(), true, driver.VolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	err = deleteContainerMountpoint(containerMntPoint, c.Path(), s.GetStorageTypeName())
+	if err != nil {
+		return err
+	}
+
+	// Delete potential leftover snapshot mountpoints.
+	snapshotMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, c.Name())
+	if shared.PathExists(snapshotMntPoint) {
+		err := os.RemoveAll(snapshotMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete potential leftover snapshot symlinks:
+	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(c.Project(), c.Name()))
+	if shared.PathExists(snapshotSymlink) {
+		err := os.Remove(snapshotSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerRename(c container, newName string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":   s.sTypeName,
+		"pool":     s.pool.Name,
+		"old_name": c.Name(),
+		"new_name": newName,
+	}
+	success := false
+
+	logAction(
+		"Renaming container",
+		"Renamed container",
+		"Failed to rename container",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	oldContainerMntPoint := driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+	oldContainerSymlink := driver.ContainerPath(project.Prefix(c.Project(), c.Name()), false)
+	newContainerMntPoint := driver.GetContainerMountPoint(c.Project(), s.pool.Name, newName)
+	newContainerSymlink := driver.ContainerPath(project.Prefix(c.Project(), newName), false)
+
+	var snapshotNames []string
+
+	snapshots, err := c.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	for _, snap := range snapshots {
+		snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
+	}
+
+	// Snapshots are renamed here as well as they're tied to a volume/containers.
+	// There's no need to call VolumeSnapshotRename for each snapshot.
+	err = s.driver.VolumeRename(c.Project(), c.Name(), newName, snapshotNames,
+		driver.VolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	err = renameContainerMountpoint(oldContainerMntPoint, oldContainerSymlink,
+		newContainerMntPoint, newContainerSymlink)
+	if err != nil {
+		return err
+	}
+
+	if c.IsSnapshot() {
+		success = true
+		return nil
+	}
+
+	oldSnapshotsMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, c.Name())
+	newSnapshotsMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, newName)
+	oldSnapshotSymlink := driver.ContainerPath(project.Prefix(c.Project(), c.Name()), true)
+	newSnapshotSymlink := driver.ContainerPath(project.Prefix(c.Project(), newName), true)
+
+	err = renameContainerMountpoint(oldSnapshotsMntPoint, oldSnapshotSymlink, newSnapshotsMntPoint, newSnapshotSymlink)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerMount(c container) (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver":    s.sTypeName,
+		"pool":      s.pool.Name,
+		"container": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Mounting container",
+		"Mounted container",
+		"Failed to mount container",
+		&ctx, &success, &err)()
+
+	_, err = s.driver.StoragePoolMount()
+	if err != nil {
+		return false, err
+	}
+
+	ok, err := s.driver.VolumeMount(c.Project(), c.Name(), driver.VolumeTypeContainer)
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) ContainerUmount(c container, path string) (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver":    s.sTypeName,
+		"pool":      s.pool.Name,
+		"container": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Unmounting container",
+		"Unmounted container",
+		"Failed to unmount container",
+		&ctx, &success, &err)()
+
+	ok, err := s.driver.VolumeUmount(c.Project(), c.Name(), driver.VolumeTypeContainer)
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) ContainerCopy(target container, source container, containerOnly bool) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": source.Name(),
+		"target": target.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Copying container",
+		"Copied container",
+		"Failed to copy container",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	var snapshots []container
+
+	if !containerOnly {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
+	}
+
+	if sourcePool != targetPool {
+		err = s.doCrossPoolContainerCopy(target, source, containerOnly, false, snapshots)
+		if err != nil {
+			return err
+		}
+
+		success = true
+		return nil
+	}
+
+	containerMntPoint := driver.GetContainerMountPoint("default", s.pool.Name, "")
+
+	err = os.MkdirAll(containerMntPoint, driver.ContainersDirMode)
+	if err != nil {
+		return err
+	}
+
+	targetMntPoint := driver.GetContainerMountPoint(target.Project(), s.pool.Name, target.Name())
+
+	var snapshotNames []string
+
+	if !containerOnly {
+		for _, c := range snapshots {
+			snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(c.Name()))
+		}
+
+		targetParentName, _, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
+		snapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, target.Name())
+		snapshotMntPointSymlinkTarget := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
+		snapshotMntPointSymlink := driver.ContainerPath(project.Prefix(target.Project(), targetParentName), true)
+
+		err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
+			snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	if shared.IsSnapshot(source.Name()) {
+		err = s.driver.VolumeSnapshotCopy(source.Project(), source.Name(), target.Name(), driver.VolumeTypeContainerSnapshot)
+	} else {
+		err = s.driver.VolumeCopy(source.Project(), source.Name(), target.Name(), snapshotNames, driver.VolumeTypeContainer)
+	}
+	if err != nil {
+		return err
+	}
+
+	err = driver.CreateContainerMountpoint(targetMntPoint, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	err = target.TemplateApply("copy")
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerGetUsage(container container) (int64, error) {
+	return s.driver.VolumeGetUsage(container.Project(), container.Name(), container.Path())
+}
+
+func (s *Storage) ContainerRefresh(target container, source container, snapshots []container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": source.Name(),
+		"target": target.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Refreshing container",
+		"Refreshed container",
+		"Failed to refresh container",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	err = s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) doCrossPoolContainerCopy(target container, source container, containerOnly bool,
+	refresh bool, refreshSnapshots []container) error {
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", sourcePool, source.Name(),
+		storagePoolVolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	var snapshots []container
+
+	if refresh {
+		snapshots = refreshSnapshots
+	} else {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		// create the main container
+		err = s.ContainerCreate(target)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = s.ContainerMount(target)
+	if err != nil {
+		return err
+	}
+	defer s.ContainerUmount(target, shared.VarPath("containers", project.Prefix(target.Project(), target.Name())))
+
+	destContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+
+	if !containerOnly {
+		snapshotSubvolumePath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, target.Name())
+		if !shared.PathExists(snapshotSubvolumePath) {
+			err := os.MkdirAll(snapshotSubvolumePath, driver.ContainersDirMode)
+			if err != nil {
+				return err
+			}
+		}
+
+		snapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, s.volume.Name)
+		snapshotMntPointSymlink := driver.ContainerPath(project.Prefix(target.Project(), target.Name()), true)
+
+		err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPoint, snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snapshots {
+			srcSnapshotMntPoint := driver.GetSnapshotMountPoint(source.Project(), sourcePool, snap.Name())
+			targetParentName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+			destSnapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), targetPool,
+				fmt.Sprintf("%s%s%s", target.Name(), shared.SnapshotDelimiter, snapOnlyName))
+
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destSnapshotMntPoint, bwlimit, true)
+			if err != nil {
+				return err
+			}
+
+			err := driver.CreateSnapshotMountpoint(destSnapshotMntPoint, destSnapshotMntPoint,
+				shared.VarPath("snapshots",
+					project.Prefix(target.Project(), targetParentName)))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	srcContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
+
+	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) ContainerRestore(targetContainer container, sourceContainer container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": sourceContainer.Name(),
+		"target": targetContainer.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Restoring container",
+		"Restored container",
+		"Failed to restore container",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	snapshots, err := targetContainer.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	var snapshotNames []string
+
+	for _, snap := range snapshots {
+		snapshotNames = append(snapshotNames, snap.Name())
+	}
+
+	deleteSnapshots := func() error {
+		for i := len(snapshots) - 1; i != 0; i-- {
+			if snapshots[i].Name() == sourceContainer.Name() {
+				break
+			}
+
+			err := snapshots[i].Delete()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err = s.driver.VolumePrepareRestore(sourceContainer.Name(), targetContainer.Name(), snapshotNames, deleteSnapshots)
+	if err != nil {
+		return err
+	}
+
+	err = s.driver.VolumeRestore(sourceContainer.Project(), sourceContainer.Name(),
+		targetContainer.Name(), driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerStorageReady(c container) bool {
+	return s.driver.VolumeReady(c.Project(), c.Name())
+}
+
+func (s *Storage) ContainerSnapshotCreate(target container, source container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": source.Name(),
+		"target": target.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Creating container snapshot",
+		"Created container snapshot",
+		"Failed to create container snapshot",
+		&ctx, &success, &err)()
+
+	_, err = s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	// We can only create the btrfs subvolume under the mounted storage
+	// pool. The on-disk layout for snapshots on a btrfs storage pool will
+	// thus be
+	// ${LXD_DIR}/storage-pools/<pool>/snapshots/. The btrfs tool will
+	// complain if the intermediate path does not exist, so create it if it
+	// doesn't already.
+	snapshotSubvolumePath := driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, source.Name())
+	err = os.MkdirAll(snapshotSubvolumePath, driver.ContainersDirMode)
+	if err != nil {
+		return err
+	}
+
+	snapshotMntPoint := driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, target.Name())
+	//snapshotParentName, _, _ := shared.ContainerGetParentAndSnapshotName(source.Name())
+	snapshotMntPointSymlinkTarget := driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, source.Name())
+	snapshotMntPointSymlink := driver.ContainerPath(project.Prefix(source.Project(), source.Name()), target.IsSnapshot())
+
+	err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	err = s.driver.VolumeSnapshotCreate(source.Project(), source.Name(), target.Name(), driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return s.ContainerDelete(target)
+	}
+
+	// This is used only in Dir
+	if source.IsRunning() {
+		err = source.Freeze()
+		if err != nil {
+			// Don't just fail here
+			success = true
+			return nil
+		}
+
+		defer source.Unfreeze()
+
+		err = s.driver.VolumeSnapshotCreate(source.Project(), source.Name(), target.Name(), driver.VolumeTypeContainerSnapshot)
+		if err != nil {
+			return err
+		}
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerSnapshotCreateEmpty(c container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":   s.sTypeName,
+		"pool":     s.pool.Name,
+		"snapshot": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Creating empty container snapshot",
+		"Created empty container snapshot",
+		"Failed to create empty container snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(c.Name())
+	snapshotMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, parentName)
+
+	err = os.MkdirAll(snapshotMntPoint, driver.ContainersDirMode)
+	if err != nil {
+		return err
+	}
+
+	err = s.driver.VolumeSnapshotCreate(c.Project(), "", c.Name(), driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return err
+	}
+
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(c.Name())
+	snapshotMntPointSymlinkTarget := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, sourceName)
+	snapshotMntPointSymlink := driver.ContainerPath(project.Prefix(c.Project(), sourceName), true)
+
+	err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerSnapshotDelete(c container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":    s.sTypeName,
+		"pool":      s.pool.Name,
+		"container": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Deleting container snapshot",
+		"Deleted container snapshot",
+		"Failed to delete container snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	sourceContainerName, _, _ := shared.ContainerGetParentAndSnapshotName(c.Name())
+	snapshotMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, c.Name())
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(c.Project(), sourceContainerName))
+
+	err = s.driver.VolumeSnapshotDelete(c.Project(), c.Name(), true, driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return err
+	}
+
+	deleteSnapshotMountpoint(snapshotMntPoint, snapshotMntPoint, snapshotSymlink)
+
+	if shared.PathExists(snapshotMntPoint) {
+		err := os.RemoveAll(snapshotMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	snapshotContainerPath := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, sourceContainerName)
+
+	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
+	if empty {
+		err = os.Remove(snapshotContainerPath)
+		if err != nil {
+			return err
+		}
+
+		snapshotSymlink := shared.VarPath("snapshots", project.Prefix(c.Project(), sourceContainerName))
+		if shared.PathExists(snapshotSymlink) {
+			err = os.Remove(snapshotSymlink)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerSnapshotRename(c container, newName string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":   s.sTypeName,
+		"pool":     s.pool.Name,
+		"old_name": c.Name(),
+		"new_name": newName,
+	}
+	success := false
+
+	defer logAction(
+		"Renaming container snapshot",
+		"Renamed container snapshot",
+		"Failed to rename container snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	oldSnapshotMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, c.Name())
+	newSnapshotMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, newName)
+
+	err = s.driver.VolumeSnapshotRename(c.Project(), c.Name(), newName,
+		driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return err
+	}
+
+	// It might be, that the driver already renamed the path.
+	if shared.PathExists(oldSnapshotMntPoint) {
+		err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerSnapshotStart(c container) (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver":    s.sTypeName,
+		"pool":      s.pool.Name,
+		"container": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Starting container snapshot",
+		"Started container snapshot",
+		"Failed to start container snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return false, errors.Wrap(err, "Mount storage pool")
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	ok, err := s.driver.VolumeMount(c.Project(), c.Name(), driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) ContainerSnapshotStop(c container) (bool, error) {
+	var err error
+	ctx := log.Ctx{
+		"driver":    s.sTypeName,
+		"pool":      s.pool.Name,
+		"container": c.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Stopping container snapshot",
+		"Stopped container snapshot",
+		"Failed to stop container snapshot",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return false, errors.Wrap(err, "Mount storage pool")
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	ok, err := s.driver.VolumeUmount(c.Project(), c.Name(), driver.VolumeTypeContainerSnapshot)
+	if err != nil {
+		return ok, err
+	}
+
+	success = true
+
+	return ok, nil
+}
+
+func (s *Storage) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":      s.sTypeName,
+		"pool":        s.pool.Name,
+		"fingerprint": fingerprint,
+	}
+	success := false
+
+	defer logAction(
+		"Creating image",
+		"Created image",
+		"Failed to create image",
+		&ctx, &success, &err)()
+
+	cleanupFunc := driver.LockImageCreate(s.pool.Name, fingerprint)
+	if cleanupFunc == nil {
+		success = true
+		return nil
+	}
+	defer cleanupFunc()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return errors.Wrap(err, "Mount storage pool")
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	// Don't create image if it already exists
+	if shared.PathExists(driver.GetImageMountPoint(s.pool.Name, fingerprint)) {
+		success = true
+		return nil
+	}
+
+	err = s.createImageDbPoolVolume(fingerprint)
+	if err != nil {
+		return errors.Wrap(err, "Create image db pool volume")
+	}
+
+	undo := true
+	defer func() {
+		if undo {
+			s.deleteImageDbPoolVolume(fingerprint)
+		}
+	}()
+
+	imageSourcePath := shared.VarPath("images", fingerprint)
+	imageVolumePath := driver.GetImageMountPoint(s.pool.Name, "")
+
+	if !shared.PathExists(imageVolumePath) {
+		err = os.MkdirAll(imageVolumePath, driver.ImagesDirMode)
+		if err != nil {
+			return errors.Wrap(err, "Create image mount point")
+		}
+	}
+
+	volumeName := fingerprint
+	imageTargetPath := driver.GetImageMountPoint(s.pool.Name, volumeName)
+
+	err = s.driver.VolumeCreate("default", volumeName, driver.VolumeTypeImage)
+	if err != nil {
+		return errors.Wrap(err, "Create volume")
+	}
+
+	ourMount, err = s.driver.VolumeMount("default", volumeName, driver.VolumeTypeImage)
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.VolumeUmount("default", volumeName, driver.VolumeTypeImage)
+	}
+
+	err = unpackImage(imageSourcePath, imageTargetPath, s.sType, s.s.OS.RunningInUserNS, tracker)
+	if err != nil {
+		return errors.Wrap(err, "Unpack image")
+	}
+
+	undo = false
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ImageDelete(fingerprint string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver":      s.sTypeName,
+		"pool":        s.pool.Name,
+		"fingerprint": fingerprint,
+	}
+	success := false
+
+	defer logAction(
+		"Deleting image",
+		"Deleted image",
+		"Failed to delete image",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	err = s.deleteImageDbPoolVolume(fingerprint)
+	if err != nil {
+		return err
+	}
+
+	imageMntPoint := driver.GetImageMountPoint(s.pool.Name, fingerprint)
+
+	err = s.driver.VolumeDelete("default", fingerprint, false, driver.VolumeTypeImage)
+	if err != nil {
+		return err
+	}
+
+	// Now delete the mountpoint for the image:
+	// ${LXD_DIR}/images/<fingerprint>.
+	if shared.PathExists(imageMntPoint) {
+		err := os.RemoveAll(imageMntPoint)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return fmt.Errorf("Invalid storage type")
+	}
+
+	var c container
+	var subvol string
+	var volType driver.VolumeType
+
+	project := "default"
+
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c = data.(container)
+		subvol = c.Name()
+		volType = driver.VolumeTypeContainer
+		project = c.Project()
+	case storagePoolVolumeTypeCustom:
+		subvol = s.volume.Name
+		volType = driver.VolumeTypeCustom
+	}
+
+	return s.driver.VolumeSetQuota(project, subvol, size, s.s.OS.RunningInUserNS, volType)
+}
+
+func (s *Storage) ContainerBackupCreate(backup backup, source container) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"source": source.Name(),
+	}
+	success := false
+
+	defer logAction(
+		"Creating container backup",
+		"Created container backup",
+		"Failed to create container backup",
+		&ctx, &success, &err)()
+
+	// Start storage
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	// Create a temporary path for the backup
+	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpPath)
+
+	var snapshots []string
+
+	if !backup.containerOnly {
+		var snaps []container
+
+		snaps, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snaps {
+			snapshots = append(snapshots, shared.ExtractSnapshotName(snap.Name()))
+		}
+	}
+
+	err = s.driver.VolumeBackupCreate(tmpPath, source.Project(), source.Name(), snapshots, backup.optimizedStorage)
+	if err != nil {
+		return err
+	}
+
+	// Pack the backup
+	err = backupCreateTarball(s.s, tmpPath, backup)
+	if err != nil {
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+	var err error
+	ctx := log.Ctx{
+		"driver": s.sTypeName,
+		"pool":   s.pool.Name,
+		"backup": info,
+	}
+	success := false
+
+	defer logAction(
+		"Loading container backup",
+		"Loaded container backup",
+		"Failed to load container backup",
+		&ctx, &success, &err)()
+
+	ourMount, err := s.driver.StoragePoolMount()
+	if ourMount {
+		defer s.driver.StoragePoolUmount()
+	}
+
+	if info.HasBinaryFormat {
+		containerName, _, _ := shared.ContainerGetParentAndSnapshotName(info.Name)
+		containerMntPoint := driver.GetContainerMountPoint("default", s.pool.Name, "")
+
+		/*
+			err := driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Project, info.Name, false), info.Privileged)
+			if err != nil {
+				return err
+			}
+		*/
+
+		var unpackDir string
+
+		unpackDir, err = ioutil.TempDir(containerMntPoint, containerName)
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(unpackDir)
+
+		err = os.Chmod(unpackDir, 0700)
+		if err != nil {
+			return err
+		}
+
+		// ${LXD_DIR}/storage-pools/<pool>/containers/<container_name>.XXX/.backup_unpack
+		unpackPath := fmt.Sprintf("%s/.backup_unpack", unpackDir)
+		err = os.MkdirAll(unpackPath, 0711)
+		if err != nil {
+			return err
+		}
+
+		// Prepare tar arguments
+		args := append(tarArgs, []string{
+			"-",
+			"--strip-components=1",
+			"-C", unpackPath, "backup",
+		}...)
+
+		// Extract container
+		data.Seek(0, 0)
+		err = shared.RunCommandWithFds(data, nil, "tar", args...)
+		if err != nil {
+			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", "backup", unpackPath, err)
+			return err
+		}
+
+		err = s.driver.VolumeBackupLoad(unpackDir, info.Project, info.Name,
+			info.Snapshots, info.Privileged, info.HasBinaryFormat)
+		if err != nil {
+			return err
+		}
+
+		_, err = s.driver.VolumeMount(info.Project, info.Name, driver.VolumeTypeContainer)
+		if err != nil {
+			return err
+		}
+
+		success = true
+
+		return nil
+	}
+
+	containersPath := driver.GetContainerMountPoint("default", s.pool.Name, "")
+
+	if !shared.PathExists(containersPath) {
+		err = os.MkdirAll(containersPath, driver.ContainersDirMode)
+		if err != nil {
+			return err
+		}
+	}
+
+	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, info.Name)
+
+	// Create the mountpoint for the container at:
+	// ${LXD_DIR}/containers/<name>
+	err = driver.CreateContainerMountpoint(containerMntPoint,
+		driver.ContainerPath(project.Prefix(info.Project, info.Name), false),
+		info.Privileged)
+	if err != nil {
+		return err
+	}
+
+	// create the main container
+	err = s.driver.VolumeCreate(info.Project, info.Name,
+		driver.VolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.driver.VolumeMount(info.Project, info.Name, driver.VolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	// Extract container
+	for _, snap := range info.Snapshots {
+		cur := fmt.Sprintf("backup/snapshots/%s", snap)
+
+		// Prepare tar arguments
+		args := append(tarArgs, []string{
+			"-",
+			"--recursive-unlink",
+			"--xattrs-include=*",
+			"--strip-components=3",
+			"-C", containerMntPoint, cur,
+		}...)
+
+		// Extract snapshots
+		data.Seek(0, 0)
+		err = shared.RunCommandWithFds(data, nil, "tar", args...)
+		if err != nil {
+			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
+			return err
+		}
+
+		// create snapshot
+		fullSnapshotName := fmt.Sprintf("%s/%s", info.Name, snap)
+
+		snapshotPath := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, info.Name)
+		if !shared.PathExists(snapshotPath) {
+			err = os.MkdirAll(snapshotPath, driver.ContainersDirMode)
+			if err != nil {
+				return err
+			}
+		}
+
+		snapshotMntPoint := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, info.Name)
+		snapshotMntPointSymlink := shared.VarPath("snapshots",
+			project.Prefix(info.Project, info.Name))
+
+		err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPoint, snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
+
+		err = s.driver.VolumeSnapshotCreate(info.Project, info.Name, fullSnapshotName,
+			driver.VolumeTypeContainerSnapshot)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", containerMntPoint, "backup/container",
+	}...)
+
+	// Extract container
+	data.Seek(0, 0)
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
+	if err != nil {
+		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)
+		return err
+	}
+
+	success = true
+
+	return nil
+}
+
+func (s *Storage) MigrationType() migration.MigrationFSType {
+	return migration.MigrationFSType_RSYNC
+}
+
+func (s *Storage) PreservesInodes() bool {
+	return false
+}
+
+func (s *Storage) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncMigrationSource(args)
+}
+
+func (s *Storage) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncMigrationSink(conn, op, args)
+}
+
+func (s *Storage) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncStorageMigrationSource(args)
+}
+
+func (s *Storage) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, args)
+}
+
+func (s *Storage) createImageDbPoolVolume(fingerprint string) error {
+	// Fill in any default volume config.
+	volumeConfig := map[string]string{}
+	err := storageVolumeFillDefault(fingerprint, volumeConfig, s.pool)
+	if err != nil {
+		return err
+	}
+
+	// Create a db entry for the storage volume of the image.
+	_, err = s.s.Cluster.StoragePoolVolumeCreate("default", fingerprint, "", storagePoolVolumeTypeImage, false, s.poolID, volumeConfig)
+	if err != nil {
+		// Try to delete the db entry on error.
+		s.deleteImageDbPoolVolume(fingerprint)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) deleteImageDbPoolVolume(fingerprint string) error {
+	err := s.s.Cluster.StoragePoolVolumeDelete("default", fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // The storage interface defines the functions needed to implement a storage
 // backend for a given storage driver.
 type storage interface {
@@ -270,12 +2523,7 @@ func storageCoreInit(driver string) (storage, error) {
 		}
 		return &btrfs, nil
 	case storageTypeDir:
-		dir := storageDir{}
-		err = dir.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &dir, nil
+		return storageCoreInit2(driver)
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		err = ceph.StorageCoreInit()
@@ -316,6 +2564,19 @@ func storageCoreInit(driver string) (storage, error) {
 	return nil, fmt.Errorf("invalid storage type")
 }
 
+func storageCoreInit2(storageDriver string) (storage, error) {
+	var err error
+
+	st := Storage{}
+
+	st.driver, err = driver.Init(storageDriver, nil, nil, -1, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &st, nil
+}
+
 func storageInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
 	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
@@ -332,9 +2593,8 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
-	volumeID := int64(-1)
 	if volumeName != "" {
-		volumeID, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -358,17 +2618,7 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 		}
 		return &btrfs, nil
 	case storageTypeDir:
-		dir := storageDir{}
-		dir.poolID = poolID
-		dir.pool = pool
-		dir.volume = volume
-		dir.volumeID = volumeID
-		dir.s = s
-		err = dir.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &dir, nil
+		return storageInit2(s, project, poolName, volumeName, volumeType)
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		ceph.poolID = poolID
@@ -427,6 +2677,51 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 	}
 
 	return nil, fmt.Errorf("invalid storage type")
+}
+
+func storageInit2(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
+	// Load the storage pool.
+	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load storage pool %q", poolName)
+	}
+
+	if pool.Driver == "" {
+		// This shouldn't actually be possible but better safe than
+		// sorry.
+		return nil, fmt.Errorf("no storage driver was provided")
+	}
+
+	// Load the storage volume.
+	volume := &api.StorageVolume{}
+	volumeID := int64(-1)
+	if volumeName != "" {
+		volumeID, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	sType, err := storageStringToType(pool.Driver)
+	if err != nil {
+		return nil, err
+	}
+
+	st := Storage{}
+	st.poolID = poolID
+	st.pool = pool
+	st.volumeID = volumeID
+	st.volume = volume
+	st.s = s
+	st.sType = sType
+	st.sTypeName = pool.Driver
+
+	st.driver, err = driver.Init(pool.Driver, s, pool, poolID, volume)
+	if err != nil {
+		return nil, err
+	}
+
+	return &st, nil
 }
 
 func storagePoolInit(s *state.State, poolName string) (storage, error) {

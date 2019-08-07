@@ -691,7 +691,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			err = btrfsSnapshotDeleteInternal(projectName, poolName, snapName)
 		case "dir":
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = dirSnapshotDeleteInternal(projectName, poolName, snapName)
+			err = driver.DirSnapshotDeleteInternal(projectName, poolName, snapName)
 		case "lvm":
 			onDiskPoolName := backup.Pool.Config["lvm.vg_name"]
 			if onDiskPoolName == "" {
