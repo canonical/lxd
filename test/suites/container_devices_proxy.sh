@@ -162,6 +162,9 @@ container_devices_proxy_unix() {
   HOST_SOCK="${TEST_DIR}/lxdtest-$(basename "${LXD_DIR}")-host.sock"
   lxc launch testimage proxyTester
 
+  # Some busybox images don't have /tmp globally accessible.
+  lxc exec proxyTester -- chmod 1777 /tmp
+
   # Initial test
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" uid=1234 gid=1234 security.uid=1234 security.gid=1234 connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
   (
