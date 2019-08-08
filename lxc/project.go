@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -372,6 +370,8 @@ func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
 type cmdProjectList struct {
 	global  *cmdGlobal
 	project *cmdProject
+
+	flagFormat string
 }
 
 func (c *cmdProjectList) Command() *cobra.Command {
@@ -381,6 +381,7 @@ func (c *cmdProjectList) Command() *cobra.Command {
 	cmd.Short = i18n.G("List projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List projects`))
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -441,20 +442,14 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{name, images, profiles, strUsedBy})
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{
+	header := []string{
 		i18n.G("NAME"),
 		i18n.G("IMAGES"),
 		i18n.G("PROFILES"),
-		i18n.G("USED BY")})
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
+		i18n.G("USED BY"),
+	}
 
-	return nil
+	return renderTable(c.flagFormat, header, data, projects)
 }
 
 // Rename
