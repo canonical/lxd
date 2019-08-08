@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	dqlite "github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 

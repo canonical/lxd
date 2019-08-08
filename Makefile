@@ -39,7 +39,7 @@ deps:
 			git pull; \
 		fi; \
 	else \
-		git clone --depth=1 "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
+		git clone --depth=1 "https://github.com/canonical/sqlite" "$(GOPATH)/deps/sqlite"; \
 		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest; \
 		git log -1 --format="format:%H" > manifest.uuid; \
 	fi
@@ -55,7 +55,7 @@ deps:
 			git pull; \
 		fi; \
 	else \
-		git clone --depth=1 "https://github.com/freeekanayaka/libco" "$(GOPATH)/deps/libco"; \
+		git clone --depth=1 "https://github.com/canonical/libco" "$(GOPATH)/deps/libco"; \
 	fi
 
 	cd "$(GOPATH)/deps/libco" && \
@@ -68,7 +68,7 @@ deps:
 			git pull; \
 		fi; \
 	else \
-		git clone --depth=1 "https://github.com/CanonicalLtd/raft" "$(GOPATH)/deps/raft"; \
+		git clone --depth=1 "https://github.com/canonical/raft" "$(GOPATH)/deps/raft"; \
 	fi
 
 	cd "$(GOPATH)/deps/raft" && \
@@ -83,7 +83,7 @@ deps:
 			git pull; \
 		fi; \
 	else \
-		git clone --depth=1 "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
+		git clone --depth=1 "https://github.com/canonical/dqlite" "$(GOPATH)/deps/dqlite"; \
 	fi
 
 	cd "$(GOPATH)/deps/dqlite" && \
@@ -149,10 +149,10 @@ dist:
 
 	# Download the cluster-enabled sqlite/dqlite
 	mkdir $(TMP)/_dist/deps/
-	git clone --depth=1 https://github.com/CanonicalLtd/dqlite $(TMP)/_dist/deps/dqlite
-	git clone --depth=1 https://github.com/CanonicalLtd/sqlite $(TMP)/_dist/deps/sqlite
-	git clone --depth=1 https://github.com/freeekanayaka/libco $(TMP)/_dist/deps/libco
-	git clone --depth=1 https://github.com/CanonicalLtd/raft $(TMP)/_dist/deps/raft
+	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/_dist/deps/dqlite
+	git clone --depth=1 https://github.com/canonical/sqlite $(TMP)/_dist/deps/sqlite
+	git clone --depth=1 https://github.com/canonical/libco $(TMP)/_dist/deps/libco
+	git clone --depth=1 https://github.com/canonical/raft $(TMP)/_dist/deps/raft
 	cd $(TMP)/_dist/deps/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
 	cd $(TMP)/_dist/deps/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
