@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
-	dqlite "github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"

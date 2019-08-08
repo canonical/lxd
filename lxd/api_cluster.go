@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CanonicalLtd/go-dqlite"
+	"github.com/canonical/go-dqlite"
 	"github.com/gorilla/mux"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
