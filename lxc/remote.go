@@ -2,21 +2,16 @@ package main
 
 import (
 	"crypto/x509"
-	"encoding/csv"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
-	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -511,47 +506,10 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("PROTOCOL"),
 		i18n.G("AUTH TYPE"),
 		i18n.G("PUBLIC"),
-		i18n.G("STATIC")}
-
-	switch c.flagFormat {
-	case listFormatTable:
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.SetHeader(header)
-		sort.Sort(byName(data))
-		table.AppendBulk(data)
-		table.Render()
-	case listFormatCSV:
-		sort.Sort(byName(data))
-		data = append(data, []string{})
-		copy(data[1:], data[0:])
-		data[0] = header
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(data)
-		if err := w.Error(); err != nil {
-			return err
-		}
-	case listFormatJSON:
-		data := conf.Remotes
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
-		if err != nil {
-			return err
-		}
-	case listFormatYAML:
-		data := conf.Remotes
-		out, err := yaml.Marshal(data)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s", out)
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
+		i18n.G("STATIC"),
 	}
 
-	return nil
+	return renderTable(c.flagFormat, header, data, conf.Remotes)
 }
 
 // Rename
