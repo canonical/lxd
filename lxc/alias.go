@@ -2,10 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"sort"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -89,6 +86,8 @@ func (c *cmdAliasAdd) Run(cmd *cobra.Command, args []string) error {
 type cmdAliasList struct {
 	global *cmdGlobal
 	alias  *cmdAlias
+
+	flagFormat string
 }
 
 func (c *cmdAliasList) Command() *cobra.Command {
@@ -98,6 +97,7 @@ func (c *cmdAliasList) Command() *cobra.Command {
 	cmd.Short = i18n.G("List aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List aliases`))
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -119,18 +119,12 @@ func (c *cmdAliasList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{k, v})
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{
+	header := []string{
 		i18n.G("ALIAS"),
-		i18n.G("TARGET")})
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
+		i18n.G("TARGET"),
+	}
 
-	return nil
+	return renderTable(c.flagFormat, header, data, conf.Aliases)
 }
 
 // Rename
