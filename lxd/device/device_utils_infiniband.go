@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
@@ -260,271 +257,27 @@ func infinibandLoadDevices() (map[string]IBF, error) {
 // infinibandAddDevices creates the UNIX devices for the provided IBF device and then configures the
 // supplied runConfig with the Cgroup rules and mount instructions to pass the device into instance.
 func infinibandAddDevices(s *state.State, devicesPath string, deviceName string, ifDev *IBF, runConf *RunConfig) error {
-	err := infinibandAddDevicesPerPort(s, devicesPath, deviceName, ifDev, runConf)
-	if err != nil {
-		return err
-	}
-
-	err = infinibandAddDevicesPerFun(s, devicesPath, deviceName, ifDev, runConf)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func infinibandAddDevicesPerPort(s *state.State, devicesPath string, deviceName string, ifDev *IBF, runConf *RunConfig) error {
 	for _, unixCharDev := range ifDev.PerPortDevices {
 		destPath := fmt.Sprintf("/dev/infiniband/%s", unixCharDev)
-		relDestPath := destPath[1:]
-		devPrefix := fmt.Sprintf("%s.%s", IBDevPrefix, deviceName)
-
-		// Unix device.
 		dummyDevice := config.Device{
 			"source": destPath,
 		}
 
-		deviceExists := false
-
-		// Only handle "infiniband.unix." devices.
-		prefix := fmt.Sprintf("%s.", IBDevPrefix)
-
-		// Load all devices.
-		dents, err := ioutil.ReadDir(devicesPath)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return err
-			}
-		}
-
-		for _, ent := range dents {
-			// Skip non "infiniband.unix." devices.
-			devName := ent.Name()
-			if !strings.HasPrefix(devName, prefix) {
-				continue
-			}
-
-			// Extract the path inside the container.
-			idx := strings.LastIndex(devName, ".")
-			if idx == -1 {
-				return fmt.Errorf("Invalid infiniband device name \"%s\"", devName)
-			}
-			rPath := devName[idx+1:]
-			rPath = strings.Replace(rPath, "-", "/", -1)
-			if rPath != relDestPath {
-				continue
-			}
-
-			deviceExists = true
-			break
-		}
-
-		paths, err := UnixCreateDevice(s, nil, devicesPath, devPrefix, dummyDevice, false)
+		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, dummyDevice, false, runConf)
 		if err != nil {
 			return err
 		}
-		devPath := paths[0]
-
-		// If an existing device with the same path in the instance exists, then do not
-		// request it be mounted again.
-		if deviceExists {
-			continue
-		}
-
-		// Instruct liblxc to perform the mount.
-		runConf.Mounts = append(runConf.Mounts, MountEntryItem{
-			DevPath:    devPath,
-			TargetPath: relDestPath,
-			FSType:     "none",
-			Opts:       []string{"bind", "create=file"},
-		})
-
-		// Add the new device cgroup rule.
-		dType, dMajor, dMinor, err := UnixGetDeviceAttributes(devPath)
-		if err != nil {
-			return err
-		}
-
-		// Instruct liblxc to setup the cgroup rule.
-		runConf.CGroups = append(runConf.CGroups, RunConfigItem{
-			Key:   "devices.allow",
-			Value: fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor),
-		})
 	}
 
-	return nil
-}
-
-func infinibandAddDevicesPerFun(s *state.State, devicesPath string, deviceName string, ifDev *IBF, runConf *RunConfig) error {
 	for _, unixCharDev := range ifDev.PerFunDevices {
 		destPath := fmt.Sprintf("/dev/infiniband/%s", unixCharDev)
-		uniqueDevPrefix := fmt.Sprintf("%s.%s", IBDevPrefix, deviceName)
-		relativeDestPath := fmt.Sprintf("dev/infiniband/%s", unixCharDev)
-		uniqueDevName := fmt.Sprintf("%s.%s", uniqueDevPrefix, strings.Replace(relativeDestPath, "/", "-", -1))
-		hostDevPath := filepath.Join(devicesPath, uniqueDevName)
-
 		dummyDevice := config.Device{
 			"source": destPath,
 		}
 
-		// Instruct liblxc to perform the mount.
-		runConf.Mounts = append(runConf.Mounts, MountEntryItem{
-			DevPath:    hostDevPath,
-			TargetPath: relativeDestPath,
-			FSType:     "none",
-			Opts:       []string{"bind", "create=file"},
-		})
-
-		paths, err := UnixCreateDevice(s, nil, devicesPath, uniqueDevPrefix, dummyDevice, false)
+		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, dummyDevice, false, runConf)
 		if err != nil {
 			return err
-		}
-		devPath := paths[0]
-
-		// Add the new device cgroup rule.
-		dType, dMajor, dMinor, err := UnixGetDeviceAttributes(devPath)
-		if err != nil {
-			return err
-		}
-
-		// Instruct liblxc to setup the cgroup rule.
-		runConf.CGroups = append(runConf.CGroups, RunConfigItem{
-			Key:   "devices.allow",
-			Value: fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor),
-		})
-	}
-
-	return nil
-}
-
-// infinibandRemoveDevices identifies all UNIX devices related to the supplied deviceName and then
-// populates the supplied runConf with the instructions to remove cgroup rules and unmount devices.
-func infinibandRemoveDevices(devicesPath string, deviceName string, runConf *RunConfig) error {
-	// Load all devices.
-	dents, err := ioutil.ReadDir(devicesPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	}
-
-	prefix := fmt.Sprintf("%s.", IBDevPrefix)
-	ourPrefix := fmt.Sprintf("%s.%s", IBDevPrefix, deviceName)
-	ourIFBDevs := []string{}
-	otherIFBDevs := []string{}
-
-	for _, ent := range dents {
-		// Skip non "infiniband.unix." devices.
-		devName := ent.Name()
-		if !strings.HasPrefix(devName, prefix) {
-			continue
-		}
-
-		// This is our infiniband device.
-		if strings.HasPrefix(devName, ourPrefix) {
-			ourIFBDevs = append(ourIFBDevs, devName)
-			continue
-		}
-
-		// This someone else's infiniband device.
-		otherIFBDevs = append(otherIFBDevs, devName)
-	}
-
-	// With infiniband it is possible for multiple LXD configured devices to share the same
-	// UNIX character device for memory access, as char devices might be per port not per device.
-	// Because of this, before we setup instructions to umount the device from the instance we
-	// need to check whether any other LXD devices also use the same char device inside the
-	// instance. To do this, scan all devices for this instance and use the dev path encoded
-	// in the host-side filename to check if any match.
-	residualInfinibandDevs := []string{}
-	for _, otherIFBDev := range otherIFBDevs {
-		idx := strings.LastIndex(otherIFBDev, ".")
-		if idx == -1 {
-			return fmt.Errorf("Invalid infiniband device name \"%s\"", otherIFBDev)
-		}
-		// Remove the LXD device name prefix, so we're left with dev path inside the instance.
-		relPeerPath := otherIFBDev[idx+1:]
-		relPeerPath = strings.Replace(relPeerPath, "-", "/", -1)
-		absPeerPath := fmt.Sprintf("/%s", relPeerPath)
-		residualInfinibandDevs = append(residualInfinibandDevs, absPeerPath)
-	}
-
-	// Check that none of our infiniband devices are in use by another LXD device.
-	for _, ourDev := range ourIFBDevs {
-		idx := strings.LastIndex(ourDev, ".")
-		if idx == -1 {
-			return fmt.Errorf("Invalid infiniband device name \"%s\"", ourDev)
-		}
-		rPath := ourDev[idx+1:]
-		rPath = strings.Replace(rPath, "-", "/", -1)
-		absPath := fmt.Sprintf("/%s", rPath)
-		dupe := false
-
-		// Look for infiniband devices for other LXD devices that match the same path.
-		for _, peerDevPath := range residualInfinibandDevs {
-			if peerDevPath == absPath {
-				dupe = true
-				break
-			}
-		}
-
-		// If a device has been found that points to the same device inside the instance
-		// then we cannot request it be umounted inside the instance as it's still in use.
-		if dupe {
-			continue
-		}
-
-		// Append this device to the mount rules (these will be unmounted).
-		runConf.Mounts = append(runConf.Mounts, MountEntryItem{
-			TargetPath: rPath,
-		})
-
-		dummyDevice := config.Device{
-			"source": absPath,
-		}
-
-		dType, dMajor, dMinor, err := instanceUnixGetDeviceAttributes(devicesPath, ourPrefix, dummyDevice)
-		if err != nil {
-			return err
-		}
-
-		// Append a deny cgroup fule for this device.
-		runConf.CGroups = append(runConf.CGroups, RunConfigItem{
-			Key:   "devices.deny",
-			Value: fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor),
-		})
-	}
-
-	return nil
-}
-
-func infinibandDeleteHostFiles(s *state.State, devicesPath string, deviceName string) error {
-	// Load all devices.
-	dents, err := ioutil.ReadDir(devicesPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	}
-
-	// Remove our host side device files.
-	ourPrefix := fmt.Sprintf("%s.%s", IBDevPrefix, deviceName)
-	for _, ent := range dents {
-		devName := ent.Name()
-		devPath := filepath.Join(devicesPath, devName)
-
-		// Check this is our infiniband device.
-		if strings.HasPrefix(devName, ourPrefix) {
-			// Remove the host side mount.
-			if s.OS.RunningInUserNS {
-				unix.Unmount(devPath, unix.MNT_DETACH)
-			}
-
-			// Remove the host side device file.
-			err = os.Remove(devPath)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
