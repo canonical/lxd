@@ -1,19 +1,14 @@
 package main
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -316,62 +311,25 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 
 func (c *cmdList) showContainers(cts []api.ContainerFull, filters []string, columns []column) error {
 	// Generate the table data
-	tableData := func() [][]string {
-		data := [][]string{}
-		for _, ct := range cts {
-			if !c.shouldShow(filters, &ct.Container) {
-				continue
-			}
-
-			col := []string{}
-			for _, column := range columns {
-				col = append(col, column.Data(ct))
-			}
-			data = append(data, col)
+	data := [][]string{}
+	for _, ct := range cts {
+		if !c.shouldShow(filters, &ct.Container) {
+			continue
 		}
 
-		sort.Sort(byName(data))
-		return data
-	}
-
-	// Deal with various output formats
-	switch c.flagFormat {
-	case listFormatCSV:
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(tableData())
-		if err := w.Error(); err != nil {
-			return err
-		}
-	case listFormatTable:
-		headers := []string{}
+		col := []string{}
 		for _, column := range columns {
-			headers = append(headers, column.Name)
+			col = append(col, column.Data(ct))
 		}
-
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.SetHeader(headers)
-		table.AppendBulk(tableData())
-		table.Render()
-	case listFormatJSON:
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(cts)
-		if err != nil {
-			return err
-		}
-	case listFormatYAML:
-		out, err := yaml.Marshal(cts)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s", out)
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
+		data = append(data, col)
 	}
 
-	return nil
+	headers := []string{}
+	for _, column := range columns {
+		headers = append(headers, column.Name)
+	}
+
+	return renderTable(c.flagFormat, headers, data, cts)
 }
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
