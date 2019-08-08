@@ -406,6 +406,11 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 		return nil, fmt.Errorf("Invalid binding side given. Must be \"host\" or \"guest\"")
 	}
 
+	listenAddrMode := "0644"
+	if d.config["mode"] != "" {
+		listenAddrMode = d.config["mode"]
+	}
+
 	p := &proxyProcInfo{
 		listenPid:      listenPid,
 		connectPid:     connectPid,
@@ -413,7 +418,7 @@ func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 		listenAddr:     listenAddr,
 		listenAddrGID:  d.config["gid"],
 		listenAddrUID:  d.config["uid"],
-		listenAddrMode: d.config["mode"],
+		listenAddrMode: listenAddrMode,
 		securityGID:    d.config["security.gid"],
 		securityUID:    d.config["security.uid"],
 		proxyProtocol:  d.config["proxy_protocol"],
