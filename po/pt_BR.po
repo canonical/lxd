@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-08-08 13:58-0400\n"
-"PO-Revision-Date: 2019-06-22 17:19+0000\n"
-"Last-Translator: Renato dos Santos <shazaum@gmail.com>\n"
+"POT-Creation-Date: 2019-07-27 17:08-0400\n"
+"PO-Revision-Date: 2019-08-08 18:08+0000\n"
+"Last-Translator: Tiago A. Reul <tiago@reul.space>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "linux-containers/lxd/pt_BR/>\n"
 "Language: pt_BR\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 3.7\n"
+"X-Generator: Weblate 3.8-dev\n"
 
 #: lxc/storage.go:224
 msgid ""
@@ -755,7 +755,7 @@ msgstr ""
 
 #: lxc/profile.go:241 lxc/profile.go:242
 msgid "Copy profiles"
-msgstr ""
+msgstr "Copiar perfis"
 
 #: lxc/storage_volume.go:300 lxc/storage_volume.go:301
 msgid "Copy storage volumes"
@@ -776,7 +776,7 @@ msgstr ""
 #: lxc/image.go:214
 #, c-format
 msgid "Copying the image: %s"
-msgstr ""
+msgstr "Copiar a imagem: %s"
 
 #: lxc/storage_volume.go:361
 #, c-format
@@ -842,15 +842,15 @@ msgstr ""
 
 #: lxc/network.go:252 lxc/network.go:253
 msgid "Create new networks"
-msgstr ""
+msgstr "Criar novas redes"
 
 #: lxc/profile.go:297 lxc/profile.go:298
 msgid "Create profiles"
-msgstr ""
+msgstr "Criar perfis"
 
 #: lxc/project.go:83 lxc/project.go:84
 msgid "Create projects"
-msgstr ""
+msgstr "Criar projetos"
 
 #: lxc/storage.go:87 lxc/storage.go:88
 msgid "Create storage pools"
@@ -863,12 +863,12 @@ msgstr ""
 #: lxc/image.go:845 lxc/info.go:432
 #, c-format
 msgid "Created: %s"
-msgstr ""
+msgstr "Criado: %s"
 
 #: lxc/init.go:128
 #, c-format
 msgid "Creating %s"
-msgstr ""
+msgstr "Criando %s"
 
 #: lxc/init.go:126
 msgid "Creating the container"
@@ -890,7 +890,7 @@ msgstr ""
 
 #: lxc/storage.go:558
 msgid "DRIVER"
-msgstr ""
+msgstr "DRIVER"
 
 #: lxc/info.go:106
 msgid "DRM:"
@@ -898,7 +898,7 @@ msgstr ""
 
 #: lxc/publish.go:42
 msgid "Define a compression algorithm: for image or none"
-msgstr ""
+msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 
 #: lxc/operation.go:50 lxc/operation.go:51
 msgid "Delete a background operation (will attempt to cancel)"
@@ -934,7 +934,7 @@ msgstr ""
 
 #: lxc/project.go:148 lxc/project.go:149
 msgid "Delete projects"
-msgstr ""
+msgstr "Apagar projetos"
 
 #: lxc/storage.go:161 lxc/storage.go:162
 msgid "Delete storage pools"
@@ -994,7 +994,7 @@ msgstr ""
 #: lxc/storage_volume.go:1450 lxc/storage_volume.go:1481
 #: lxc/storage_volume.go:1552 lxc/version.go:22
 msgid "Description"
-msgstr ""
+msgstr "Descrição"
 
 #: lxc/network.go:374 lxc/network.go:375
 msgid "Detach network interfaces from containers"
@@ -1173,7 +1173,7 @@ msgstr ""
 
 #: lxc/monitor.go:47
 msgid "Event type to listen for"
-msgstr ""
+msgstr "Tipo de evento a escutar"
 
 #: lxc/exec.go:40
 msgid "Execute commands in containers"
@@ -1279,7 +1279,7 @@ msgstr ""
 
 #: lxc/exec.go:56
 msgid "Force pseudo-terminal allocation"
-msgstr ""
+msgstr "Forçar alocação de pseudo-terminal"
 
 #: lxc/cluster.go:247
 msgid "Force removing a member, even if degraded"
@@ -1403,7 +1403,7 @@ msgstr ""
 
 #: lxc/network.go:935
 msgid "HOSTNAME"
-msgstr ""
+msgstr "HOSTNAME"
 
 #: lxc/info.go:324 lxc/info.go:335
 msgid "Hugepages:\n"
@@ -1411,7 +1411,7 @@ msgstr ""
 
 #: lxc/operation.go:155
 msgid "ID"
-msgstr ""
+msgstr "ID"
 
 #: lxc/info.go:107
 #, c-format
@@ -1433,11 +1433,11 @@ msgstr ""
 
 #: lxc/list.go:416
 msgid "IPV4"
-msgstr ""
+msgstr "IPV4"
 
 #: lxc/list.go:417
 msgid "IPV6"
-msgstr ""
+msgstr "IPV6"
 
 #: lxc/config_trust.go:172
 msgid "ISSUE DATE"
@@ -1455,7 +1455,7 @@ msgstr ""
 
 #: lxc/action.go:116
 msgid "Ignore the container state"
-msgstr ""
+msgstr "Ignorar o estado do container"
 
 #: lxc/image.go:1250
 msgid "Image already up to date."
