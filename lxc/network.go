@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -875,45 +873,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("STATE"))
 	}
 
-	switch c.flagFormat {
-	case listFormatTable:
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.SetHeader(header)
-		sort.Sort(byName(data))
-		table.AppendBulk(data)
-		table.Render()
-	case listFormatCSV:
-		sort.Sort(byName(data))
-		data = append(data, []string{})
-		copy(data[1:], data[0:])
-		data[0] = header
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(data)
-		if err := w.Error(); err != nil {
-			return err
-		}
-	case listFormatJSON:
-		data := networks
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
-		if err != nil {
-			return err
-		}
-	case listFormatYAML:
-		data := networks
-		out, err := yaml.Marshal(data)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s", out)
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
-	}
-
-	return nil
+	return renderTable(c.flagFormat, header, data, networks)
 }
 
 // List leases
