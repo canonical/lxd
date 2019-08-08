@@ -1,15 +1,11 @@
 package main
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -621,47 +617,7 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("NAME"),
 		i18n.G("USED BY")}
 
-	switch c.flagFormat {
-	case listFormatTable:
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.SetHeader(header)
-		sort.Sort(byName(data))
-		table.AppendBulk(data)
-		table.Render()
-
-	case listFormatCSV:
-		sort.Sort(byName(data))
-		data = append(data, []string{})
-		copy(data[1:], data[0:])
-		data[0] = header
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(data)
-		if err := w.Error(); err != nil {
-			return err
-		}
-
-	case listFormatJSON:
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(profiles)
-		if err != nil {
-			return err
-		}
-
-	case listFormatYAML:
-		out, err := yaml.Marshal(profiles)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s", out)
-
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
-	}
-
-	return nil
+	return renderTable(c.flagFormat, header, data, profiles)
 }
 
 // Remove
