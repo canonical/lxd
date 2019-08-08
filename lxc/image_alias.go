@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"sort"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/shared/api"
@@ -139,6 +136,8 @@ type cmdImageAliasList struct {
 	global     *cmdGlobal
 	image      *cmdImage
 	imageAlias *cmdImageAlias
+
+	flagFormat string
 }
 
 func (c *cmdImageAliasList) Command() *cobra.Command {
@@ -151,6 +150,7 @@ func (c *cmdImageAliasList) Command() *cobra.Command {
 
 Filters may be part of the image hash or part of the image alias name.
 `))
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -220,19 +220,13 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{
+	header := []string{
 		i18n.G("ALIAS"),
 		i18n.G("FINGERPRINT"),
-		i18n.G("DESCRIPTION")})
-	sort.Sort(stringList(data))
-	table.AppendBulk(data)
-	table.Render()
+		i18n.G("DESCRIPTION"),
+	}
 
-	return nil
+	return renderTable(c.flagFormat, header, data, aliases)
 }
 
 // Rename

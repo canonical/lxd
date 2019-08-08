@@ -1,15 +1,12 @@
 package main
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -875,51 +872,15 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("STATE"))
 	}
 
-	switch c.flagFormat {
-	case listFormatTable:
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.SetHeader(header)
-		sort.Sort(byName(data))
-		table.AppendBulk(data)
-		table.Render()
-	case listFormatCSV:
-		sort.Sort(byName(data))
-		data = append(data, []string{})
-		copy(data[1:], data[0:])
-		data[0] = header
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(data)
-		if err := w.Error(); err != nil {
-			return err
-		}
-	case listFormatJSON:
-		data := networks
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
-		if err != nil {
-			return err
-		}
-	case listFormatYAML:
-		data := networks
-		out, err := yaml.Marshal(data)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s", out)
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
-	}
-
-	return nil
+	return renderTable(c.flagFormat, header, data, networks)
 }
 
 // List leases
 type cmdNetworkListLeases struct {
 	global  *cmdGlobal
 	network *cmdNetwork
+
+	flagFormat string
 }
 
 func (c *cmdNetworkListLeases) Command() *cobra.Command {
@@ -928,6 +889,7 @@ func (c *cmdNetworkListLeases) Command() *cobra.Command {
 	cmd.Short = i18n.G("List DHCP leases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List DHCP leases`))
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -969,11 +931,6 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, entry)
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	sort.Sort(byName(data))
 	header := []string{
 		i18n.G("HOSTNAME"),
 		i18n.G("MAC ADDRESS"),
@@ -983,11 +940,8 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 	if resource.server.IsClustered() {
 		header = append(header, i18n.G("LOCATION"))
 	}
-	table.SetHeader(header)
-	table.AppendBulk(data)
-	table.Render()
 
-	return nil
+	return renderTable(c.flagFormat, header, data, leases)
 }
 
 // Rename

@@ -1,13 +1,17 @@
 package main
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -259,4 +263,48 @@ func getConfig(args ...string) (map[string]string, error) {
 	}
 
 	return values, nil
+}
+
+func renderTable(format string, header []string, data [][]string, raw interface{}) error {
+	switch format {
+	case listFormatTable:
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetRowLine(true)
+		table.SetHeader(header)
+		sort.Sort(byName(data))
+		table.AppendBulk(data)
+		table.Render()
+	case listFormatCSV:
+		sort.Sort(byName(data))
+		data = append(data, []string{})
+		copy(data[1:], data[0:])
+		data[0] = header
+		w := csv.NewWriter(os.Stdout)
+		w.WriteAll(data)
+
+		err := w.Error()
+		if err != nil {
+			return err
+		}
+	case listFormatJSON:
+		enc := json.NewEncoder(os.Stdout)
+
+		err := enc.Encode(raw)
+		if err != nil {
+			return err
+		}
+	case listFormatYAML:
+		out, err := yaml.Marshal(raw)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s", out)
+	default:
+		return fmt.Errorf(i18n.G("Invalid format %q"), format)
+	}
+
+	return nil
 }

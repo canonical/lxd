@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sort"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/shared"
@@ -226,6 +224,8 @@ type cmdConfigTemplateList struct {
 	global         *cmdGlobal
 	config         *cmdConfig
 	configTemplate *cmdConfigTemplate
+
+	flagFormat string
 }
 
 func (c *cmdConfigTemplateList) Command() *cobra.Command {
@@ -234,6 +234,7 @@ func (c *cmdConfigTemplateList) Command() *cobra.Command {
 	cmd.Short = i18n.G("List container file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`List container file templates`))
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
 
@@ -271,16 +272,11 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, []string{template})
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{i18n.G("FILENAME")})
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
+	header := []string{
+		i18n.G("FILENAME"),
+	}
 
-	return nil
+	return renderTable(c.flagFormat, header, data, templates)
 }
 
 // Show

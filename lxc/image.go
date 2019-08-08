@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -1154,73 +1151,30 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render the table
-	tableData := func() [][]string {
-		data := [][]string{}
-		for _, image := range images {
-			if !c.imageShouldShow(filters, &image) {
-				continue
-			}
-
-			row := []string{}
-			for _, column := range columns {
-				row = append(row, column.Data(image))
-			}
-			data = append(data, row)
+	data := [][]string{}
+	for _, image := range images {
+		if !c.imageShouldShow(filters, &image) {
+			continue
 		}
 
-		sort.Sort(stringList(data))
-		return data
-	}
-
-	switch c.flagFormat {
-	case listFormatCSV:
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(tableData())
-		if err := w.Error(); err != nil {
-			return err
-		}
-
-	case listFormatTable:
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		headers := []string{}
+		row := []string{}
 		for _, column := range columns {
-			headers = append(headers, column.Name)
+			row = append(row, column.Data(image))
 		}
-		table.SetHeader(headers)
-		table.AppendBulk(tableData())
-		table.Render()
-
-	case listFormatJSON:
-		data := make([]*api.Image, len(images))
-		for i := range images {
-			data[i] = &images[i]
-		}
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
-		if err != nil {
-			return err
-		}
-
-	case listFormatYAML:
-		data := make([]*api.Image, len(images))
-		for i := range images {
-			data[i] = &images[i]
-		}
-
-		out, err := yaml.Marshal(data)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("%s", out)
-
-	default:
-		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
+		data = append(data, row)
 	}
 
-	return nil
+	rawData := make([]*api.Image, len(images))
+	for i := range images {
+		rawData[i] = &images[i]
+	}
+
+	headers := []string{}
+	for _, column := range columns {
+		headers = append(headers, column.Name)
+	}
+
+	return renderTable(c.flagFormat, headers, data, rawData)
 }
 
 // Refresh
