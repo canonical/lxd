@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	dqlite "github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"

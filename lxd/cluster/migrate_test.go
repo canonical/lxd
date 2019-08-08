@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	dqlite "github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"

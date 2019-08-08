@@ -23,7 +23,7 @@ with a pretty simple query.
 ## Database engine
 Since LXD supports clustering, and all members of the cluster must share the
 same database state, the database engine is based on a [distributed
-version](https://github.com/CanonicalLtd/dqlite) of SQLite, which provides
+version](https://github.com/canonical/dqlite) of SQLite, which provides
 replication, fault-tolerance and automatic failover without the need of external
 database processes. We refer to this database as the "global" LXD database.
 

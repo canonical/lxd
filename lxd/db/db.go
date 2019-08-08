@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	dqlite "github.com/CanonicalLtd/go-dqlite"
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
