@@ -175,6 +175,22 @@ type ResourcesNetworkCardPort struct {
 	LinkDetected    bool   `json:"link_detected" yaml:"link_detected"`
 	LinkSpeed       uint64 `json:"link_speed,omitempty" yaml:"link_speed,omitempty"`
 	LinkDuplex      string `json:"link_duplex,omitempty" yaml:"link_duplex,omitempty"`
+
+	// API extension: resources_infiniband
+	Infiniband *ResourcesNetworkCardPortInfiniband `json:"infiniband,omitempty" yaml:"infiniband,omitempty"`
+}
+
+// ResourcesNetworkCardPortInfiniband represents the Linux Infiniband configuration for the port
+// API extension: resources_infiniband
+type ResourcesNetworkCardPortInfiniband struct {
+	IsSMName   string `json:"issm_name,omitempty" yaml:"issm_name,omitempty"`
+	IsSMDevice string `json:"issm_device,omitempty" yaml:"issm_device,omitempty"`
+
+	MADName   string `json:"mad_name,omitempty" yaml:"mad_name,omitempty"`
+	MADDevice string `json:"mad_device,omitempty" yaml:"mad_device,omitempty"`
+
+	VerbName   string `json:"verb_name,omitempty" yaml:"verb_name,omitempty"`
+	VerbDevice string `json:"verb_device,omitempty" yaml:"verb_device,omitempty"`
 }
 
 // ResourcesNetworkCardSRIOV represents the SRIOV configuration of the network card
