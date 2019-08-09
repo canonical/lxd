@@ -162,6 +162,7 @@ var APIExtensions = []string{
 	"container_syscall_intercept",
 	"container_disk_shift",
 	"storage_shifted",
+	"resources_infiniband",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
