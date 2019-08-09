@@ -1725,7 +1725,31 @@ func (c *containerLXC) initLXC(config bool) error {
 					}
 				}
 			} else {
-				if shared.IsTrue(m["shift"]) {
+				shift := false
+				if !c.IsPrivileged() {
+					shift = shared.IsTrue(m["shift"])
+					if !shift && m["pool"] != "" {
+						poolID, _, err := c.state.Cluster.StoragePoolGet(m["pool"])
+						if err != nil {
+							return err
+						}
+
+						_, volume, err := c.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.project, m["source"], storagePoolVolumeTypeCustom, poolID)
+						if err != nil {
+							return err
+						}
+
+						if shared.IsTrue(volume.Config["security.shifted"]) {
+							shift = true
+						}
+					}
+				}
+
+				if shift {
+					if !c.state.OS.Shiftfs {
+						return fmt.Errorf("shiftfs is required by disk entry '%s' but isn't supported on system", k)
+					}
+
 					err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", sourceDevPath, sourceDevPath))
 					if err != nil {
 						return err
@@ -7532,9 +7556,34 @@ func (c *containerLXC) insertDiskDevice(name string, m config.Device) error {
 		flags |= unix.MS_REC
 	}
 
+	// Detect shifting
+	shift := false
+	if !c.isCurrentlyPrivileged() {
+		shift = shared.IsTrue(m["shift"])
+		if !shift && m["pool"] != "" {
+			poolID, _, err := c.state.Cluster.StoragePoolGet(m["pool"])
+			if err != nil {
+				return err
+			}
+
+			_, volume, err := c.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.project, m["source"], storagePoolVolumeTypeCustom, poolID)
+			if err != nil {
+				return err
+			}
+
+			if shared.IsTrue(volume.Config["security.shifted"]) {
+				shift = true
+			}
+		}
+	}
+
+	if shift && !c.state.OS.Shiftfs {
+		return fmt.Errorf("shiftfs is required by disk entry '%s' but isn't supported on system", name)
+	}
+
 	// Bind-mount it into the container
 	destPath := strings.TrimSuffix(m["path"], "/")
-	err = c.insertMount(devPath, destPath, "none", flags, shared.IsTrue(m["shift"]))
+	err = c.insertMount(devPath, destPath, "none", flags, shift)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
