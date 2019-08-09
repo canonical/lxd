@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -441,6 +442,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		strUsedBy := fmt.Sprintf("%d", len(project.UsedBy))
 		data = append(data, []string{name, images, profiles, strUsedBy})
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("NAME"),

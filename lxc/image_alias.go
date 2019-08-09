@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -219,6 +220,7 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
 	}
+	sort.Sort(stringList(data))
 
 	header := []string{
 		i18n.G("ALIAS"),

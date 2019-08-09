@@ -860,6 +860,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		}
 		data = append(data, details)
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("NAME"),
@@ -930,6 +931,7 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, entry)
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("HOSTNAME"),
