@@ -29,7 +29,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc profile copy default "${ctPrefix}"
 
   # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
+  lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
 
   # Launch first container.
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
