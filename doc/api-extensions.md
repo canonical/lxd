@@ -815,3 +815,6 @@ same storage volume while keeping the filesystem writable from all of
 them.
 
 This makes use of shiftfs as an overlay filesystem.
+
+## resources\_infiniband
+Export infiniband character device information (issm, umad, uverb) as part of the resources API.
