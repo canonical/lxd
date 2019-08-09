@@ -333,7 +333,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		// If no MAC specified in config, use current VF interface MAC.
 		mac := d.config["hwaddr"]
 		if mac == "" {
-			mac = volatile["last_state.vf.hwaddr"]
+			mac = volatile["last_state.hwaddr"]
 		}
 
 		// Set MAC on VF (this combined with spoof checking prevents any other MAC being used).
