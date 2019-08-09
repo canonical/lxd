@@ -195,6 +195,22 @@ func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial
 			if port.LinkSpeed > 0 {
 				fmt.Printf(prefix+"    "+i18n.G("Link speed: %dMbit/s (%s duplex)")+"\n", port.LinkSpeed, port.LinkDuplex)
 			}
+
+			if port.Infiniband != nil {
+				fmt.Printf(prefix + "    " + i18n.G("Infiniband:") + "\n")
+
+				if port.Infiniband.IsSMName != "" {
+					fmt.Printf(prefix+"      "+i18n.G("IsSM: %s (%s)")+"\n", port.Infiniband.IsSMName, port.Infiniband.IsSMDevice)
+				}
+
+				if port.Infiniband.MADName != "" {
+					fmt.Printf(prefix+"      "+i18n.G("MAD: %s (%s)")+"\n", port.Infiniband.MADName, port.Infiniband.MADDevice)
+				}
+
+				if port.Infiniband.VerbName != "" {
+					fmt.Printf(prefix+"      "+i18n.G("Verb: %s (%s)")+"\n", port.Infiniband.VerbName, port.Infiniband.VerbDevice)
+				}
+			}
 		}
 	}
 
