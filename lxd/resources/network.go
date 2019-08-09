@@ -163,13 +163,85 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 				info.Port = port
 			}
 
+			// Add infiniband specific information
+			if info.Protocol == "infiniband" && sysfsExists(filepath.Join(devicePath, "infiniband")) {
+				infiniband := &api.ResourcesNetworkCardPortInfiniband{}
+
+				madPath := filepath.Join(devicePath, "infiniband_mad")
+				if sysfsExists(madPath) {
+					ibPort := info.Port + 1
+
+					entries, err := ioutil.ReadDir(madPath)
+					if err != nil {
+						return errors.Wrapf(err, "Failed to list \"%s\"", madPath)
+					}
+
+					for _, entry := range entries {
+						entryName := entry.Name()
+						currentPort, err := readUint(filepath.Join(madPath, entryName, "port"))
+						if err != nil {
+							return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(madPath, entryName, "port"))
+						}
+
+						if currentPort != ibPort {
+							continue
+						}
+
+						if !sysfsExists(filepath.Join(madPath, entryName, "dev")) {
+							continue
+						}
+
+						dev, err := ioutil.ReadFile(filepath.Join(madPath, entryName, "dev"))
+						if err != nil {
+							return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(madPath, entryName, "dev"))
+						}
+
+						if strings.HasPrefix(entryName, "issm") {
+							infiniband.IsSMName = entryName
+							infiniband.IsSMDevice = strings.TrimSpace(string(dev))
+						}
+
+						if strings.HasPrefix(entryName, "umad") {
+							infiniband.MADName = entryName
+							infiniband.MADDevice = strings.TrimSpace(string(dev))
+						}
+					}
+				}
+
+				verbsPath := filepath.Join(devicePath, "infiniband_verbs")
+				if sysfsExists(verbsPath) {
+					entries, err := ioutil.ReadDir(verbsPath)
+					if err != nil {
+						return errors.Wrapf(err, "Failed to list \"%s\"", verbsPath)
+					}
+
+					if len(entries) == 1 {
+						verbName := entries[0].Name()
+						infiniband.VerbName = verbName
+
+						if !sysfsExists(filepath.Join(verbsPath, verbName, "dev")) {
+							continue
+						}
+
+						dev, err := ioutil.ReadFile(filepath.Join(verbsPath, verbName, "dev"))
+						if err != nil {
+							return errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(verbsPath, verbName, "dev"))
+						}
+
+						infiniband.VerbDevice = strings.TrimSpace(string(dev))
+					}
+				}
+
+				info.Infiniband = infiniband
+			}
+
+			// Attempt to add ethtool details (ignore failures)
 			if sysfsExists(filepath.Join(devicePath, "physfn")) {
 				// Getting physical port info for VFs makes no sense
 				card.Ports = append(card.Ports, *info)
 				continue
 			}
 
-			// Attempt to add ethtool details (ignore failures)
 			ethtoolAddInfo(info)
 
 			card.Ports = append(card.Ports, *info)
