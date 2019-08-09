@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -612,6 +613,7 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 		strUsedBy := fmt.Sprintf("%d", len(profile.UsedBy))
 		data = append(data, []string{profile.Name, strUsedBy})
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("NAME"),

@@ -1111,6 +1111,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		}
 		data = append(data, entry)
 	}
+	sort.Sort(byNameAndType(data))
 
 	header := []string{
 		i18n.G("TYPE"),

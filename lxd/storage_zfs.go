@@ -2723,9 +2723,10 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 
 func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	poolName := s.getOnDiskPoolName()
+	zfsName := fmt.Sprintf("containers/%s", project.Prefix(args.Container.Project(), args.Container.Name()))
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", poolName, zfsName)
-		args := []string{"receive", "-F", "-u", zfsFsName}
+		args := []string{"receive", "-F", "-o", "canmount=noauto", "-o", "mountpoint=none", "-u", zfsFsName}
 		cmd := exec.Command("zfs", args...)
 
 		stdin, err := cmd.StdinPipe()
@@ -2761,19 +2762,10 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operation, args Mig
 		return err
 	}
 
-	/* In some versions of zfs we can write `zfs recv -F` to mounted
-	 * filesystems, and in some versions we can't. So, let's always unmount
-	 * this fs (it's empty anyway) before we zfs recv. N.B. that `zfs recv`
-	 * of a snapshot also needs tha actual fs that it has snapshotted
-	 * unmounted, so we do this before receiving anything.
-	 */
-	zfsName := fmt.Sprintf("containers/%s", project.Prefix(args.Container.Project(), args.Container.Name()))
-	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, args.Container.Name())
-	if shared.IsMountPoint(containerMntPoint) {
-		err := zfsUmount(poolName, zfsName, containerMntPoint)
-		if err != nil {
-			return err
-		}
+	// Destroy the pre-existing (empty) dataset, this avoids issues with encryption
+	err := zfsPoolVolumeDestroy(poolName, zfsName)
+	if err != nil {
+		return err
 	}
 
 	if len(args.Snapshots) > 0 {

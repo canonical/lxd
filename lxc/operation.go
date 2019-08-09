@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -150,6 +151,7 @@ func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, entry)
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("ID"),
