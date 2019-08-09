@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -118,6 +119,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		line := []string{member.ServerName, member.URL, database, strings.ToUpper(member.Status), member.Message}
 		data = append(data, line)
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("NAME"),

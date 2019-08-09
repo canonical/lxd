@@ -30,7 +30,7 @@ test_container_devices_nic_bridged() {
   lxc profile copy default "${ctName}"
 
   # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
-  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: bridged\n    parent: ${brName}/" | lxc profile edit "${ctName}"
+  lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctName}"
 
   lxc profile device set "${ctName}" eth0 ipv4.routes "192.0.2.1${ipRand}/32"
   lxc profile device set "${ctName}" eth0 ipv6.routes "2001:db8::1${ipRand}/128"

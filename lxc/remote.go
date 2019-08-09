@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -499,6 +500,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		}
 		data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic})
 	}
+	sort.Sort(byName(data))
 
 	header := []string{
 		i18n.G("NAME"),

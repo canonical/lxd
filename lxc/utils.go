@@ -273,11 +273,9 @@ func renderTable(format string, header []string, data [][]string, raw interface{
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetRowLine(true)
 		table.SetHeader(header)
-		sort.Sort(byName(data))
 		table.AppendBulk(data)
 		table.Render()
 	case listFormatCSV:
-		sort.Sort(byName(data))
 		data = append(data, []string{})
 		copy(data[1:], data[0:])
 		data[0] = header

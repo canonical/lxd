@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"sort"
 
 	"github.com/spf13/cobra"
 
@@ -165,6 +166,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 		expiry := cert.NotAfter.Format(layout)
 		data = append(data, []string{fp, cert.Subject.CommonName, issue, expiry})
 	}
+	sort.Sort(stringList(data))
 
 	header := []string{
 		i18n.G("FINGERPRINT"),

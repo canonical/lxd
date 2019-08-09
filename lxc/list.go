@@ -323,6 +323,7 @@ func (c *cmdList) showContainers(cts []api.ContainerFull, filters []string, colu
 		}
 		data = append(data, col)
 	}
+	sort.Sort(byName(data))
 
 	headers := []string{}
 	for _, column := range columns {
