@@ -806,3 +806,12 @@ elevated permissions.
 
 ## container\_disk\_shift
 Adds the `shift` property on `disk` devices which controls the use of the shiftfs overlay.
+
+## storage\_shifted
+Introduces a new `security.shifted` boolean on storage volumes.
+
+Setting it to true will allow multiple isolated containers to attach the
+same storage volume while keeping the filesystem writable from all of
+them.
+
+This makes use of shiftfs as an overlay filesystem.

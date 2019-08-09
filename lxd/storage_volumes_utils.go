@@ -176,6 +176,23 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
 
+	// Check that security.unmapped and security.shifted aren't set together
+	if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
+		return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
+	}
+
+	// Confirm that no containers are running when changing shifted state
+	if newConfig["security.shifted"] != oldConfig["security.shifted"] {
+		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(state, poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
+		if err != nil {
+			return err
+		}
+
+		if len(ctsUsingVolume) != 0 {
+			return fmt.Errorf("Cannot modify shifting with running containers using the volume")
+		}
+	}
+
 	// Unset idmap keys if volume is unmapped
 	if shared.IsTrue(newConfig["security.unmapped"]) {
 		delete(newConfig, "volatile.idmap.last")
