@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/project"
@@ -685,7 +686,7 @@ func (s *storageZfs) doContainerMount(projectName, name string, privileged bool)
 		if mounterr != nil {
 			if mounterr != unix.EBUSY {
 				logger.Errorf("Failed to mount ZFS dataset \"%s\" onto \"%s\": %v", source, containerPoolVolumeMntPoint, mounterr)
-				return false, mounterr
+				return false, errors.Wrapf(mounterr, "Failed to mount ZFS dataset \"%s\" onto \"%s\"", source, containerPoolVolumeMntPoint)
 			}
 			// EBUSY error in zfs are related to a bug we're
 			// tracking. So ignore them for now, report back that
