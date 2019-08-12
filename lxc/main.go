@@ -53,6 +53,7 @@ func main() {
 All of LXD's features can be driven through the various commands below.
 For help with any of those, simply call them with --help.`))
 	app.SilenceUsage = true
+	app.SilenceErrors = true
 
 	// Global flags
 	globalCmd := cmdGlobal{cmd: app}
@@ -236,6 +237,18 @@ For help with any of those, simply call them with --help.`))
 	// Run the main command and handle errors
 	err = app.Execute()
 	if err != nil {
+		// Handle non-Linux systems
+		if err == config.ErrNotLinux {
+			fmt.Fprintf(os.Stderr, i18n.G(`This client hasn't been configured to use a remote LXD server yet.
+As your platform can't run native Linux containers, you must connect to a remote LXD server.
+
+If you already added a remote server, make it the default with "lxc remote switch NAME".
+To easily setup a local LXD server in a virtual machine, consider using: https://multipass.run`)+"\n")
+			os.Exit(1)
+		}
+
+		// Default error handling
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
