@@ -54,6 +54,16 @@ func (c *Config) MAASMachine() string {
 	return c.m.GetString("maas.machine")
 }
 
+// StorageBackupsVolume returns the name of the pool/volume to use for storing backup tarballs
+func (c *Config) StorageBackupsVolume() string {
+	return c.m.GetString("storage.backups_volume")
+}
+
+// StorageImagesVolume returns the name of the pool/volume to use for storing image tarballs
+func (c *Config) StorageImagesVolume() string {
+	return c.m.GetString("storage.images_volume")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -150,4 +160,8 @@ var ConfigSchema = config.Schema{
 
 	// MAAS machine this LXD instance is associated with
 	"maas.machine": {},
+
+	// Storage volumes to store backups/images on
+	"storage.backups_volume": {},
+	"storage.images_volume":  {},
 }
