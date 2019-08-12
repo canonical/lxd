@@ -75,7 +75,8 @@ _have lxc && {
       images.compression_algorithm images.remote_cache_expiry \
       maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
       rbac.agent.url rbac.agent.username rbac.agent.public_key \
-      rbac.agent.private_key rbac.api.expiry rbac.api.key rbac.api.url"
+      rbac.agent.private_key rbac.api.expiry rbac.api.key rbac.api.url \
+      storage.backups_volume storage.images_volume"
 
     container_keys="boot.autostart boot.autostart.delay \
       boot.autostart.priority boot.stop.priority \
