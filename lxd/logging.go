@@ -115,7 +115,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 				if logfile.IsDir() {
 					newest := newestFile(path, logfile)
 					if time.Since(newest).Hours() >= 48 {
-						os.RemoveAll(path)
+						err := os.RemoveAll(path)
 						if err != nil {
 							return err
 						}
