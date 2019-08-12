@@ -537,14 +537,6 @@ func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut,
 	return nil
 }
 
-func (s *storageBtrfs) GetStoragePoolWritable() api.StoragePoolPut {
-	return s.pool.Writable()
-}
-
-func (s *storageBtrfs) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	s.pool.StoragePoolPut = *writable
-}
-
 func (s *storageBtrfs) GetContainerPoolInfo() (int64, string, string) {
 	return s.poolID, s.pool.Name, s.pool.Name
 }
@@ -806,14 +798,6 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 	return nil
 }
 
-func (s *storageBtrfs) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return s.volume.Writable()
-}
-
-func (s *storageBtrfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	s.volume.StorageVolumePut = *writable
-}
-
 // Functions dealing with container storage.
 func (s *storageBtrfs) ContainerStorageReady(container container) bool {
 	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
@@ -950,10 +934,6 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	if err != nil {
 		return errors.Wrap(err, "Failed to apply container template")
 	}
-	return nil
-}
-
-func (s *storageBtrfs) ContainerCanRestore(container container, sourceContainer container) error {
 	return nil
 }
 
@@ -2458,10 +2438,6 @@ type btrfsMigrationSourceDriver struct {
 	stoppedSnapName    string
 }
 
-func (s *btrfsMigrationSourceDriver) Snapshots() []container {
-	return s.snapshots
-}
-
 func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string, btrfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	args := []string{"send"}
 	if btrfsParent != "" {
@@ -3156,18 +3132,6 @@ func (s *storageBtrfs) StorageMigrationSource(args MigrationSourceArgs) (Migrati
 
 func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
-}
-
-func (s *storageBtrfs) GetStoragePool() *api.StoragePool {
-	return s.pool
-}
-
-func (s *storageBtrfs) GetStoragePoolVolume() *api.StorageVolume {
-	return s.volume
-}
-
-func (s *storageBtrfs) GetState() *state.State {
-	return s.s
 }
 
 func (s *storageBtrfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {

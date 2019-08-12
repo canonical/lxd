@@ -16,7 +16,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -622,22 +621,6 @@ func (s *storageZfs) StoragePoolVolumeUmount() (bool, error) {
 	return ourUmount, nil
 }
 
-func (s *storageZfs) GetStoragePoolWritable() api.StoragePoolPut {
-	return s.pool.Writable()
-}
-
-func (s *storageZfs) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return s.volume.Writable()
-}
-
-func (s *storageZfs) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	s.pool.StoragePoolPut = *writable
-}
-
-func (s *storageZfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	s.volume.StorageVolumePut = *writable
-}
-
 func (s *storageZfs) GetContainerPoolInfo() (int64, string, string) {
 	return s.poolID, s.pool.Name, s.getOnDiskPoolName()
 }
@@ -929,29 +912,6 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	revert = false
 
 	logger.Debugf("Created ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
-	return nil
-}
-
-func (s *storageZfs) ContainerCanRestore(container container, sourceContainer container) error {
-	snaps, err := container.Snapshots()
-	if err != nil {
-		return err
-	}
-
-	if snaps[len(snaps)-1].Name() != sourceContainer.Name() {
-		if s.pool.Config["volume.zfs.remove_snapshots"] != "" {
-			zfsRemoveSnapshots = s.pool.Config["volume.zfs.remove_snapshots"]
-		}
-		if s.volume.Config["zfs.remove_snapshots"] != "" {
-			zfsRemoveSnapshots = s.volume.Config["zfs.remove_snapshots"]
-		}
-		if !shared.IsTrue(zfsRemoveSnapshots) {
-			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead")
-		}
-
-		return nil
-	}
-
 	return nil
 }
 
@@ -1520,6 +1480,25 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 func (s *storageZfs) ContainerRestore(target container, source container) error {
 	logger.Debugf("Restoring ZFS storage volume for container \"%s\" from %s to %s", s.volume.Name, source.Name(), target.Name())
 
+	snaps, err := target.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if snaps[len(snaps)-1].Name() != source.Name() {
+		if s.pool.Config["volume.zfs.remove_snapshots"] != "" {
+			zfsRemoveSnapshots = s.pool.Config["volume.zfs.remove_snapshots"]
+		}
+
+		if s.volume.Config["zfs.remove_snapshots"] != "" {
+			zfsRemoveSnapshots = s.volume.Config["zfs.remove_snapshots"]
+		}
+
+		if !shared.IsTrue(zfsRemoveSnapshots) {
+			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead")
+		}
+	}
+
 	// Start storage for source container
 	ourSourceStart, err := source.StorageStart()
 	if err != nil {
@@ -1536,12 +1515,6 @@ func (s *storageZfs) ContainerRestore(target container, source container) error 
 	}
 	if ourTargetStart {
 		defer target.StorageStop()
-	}
-
-	// Remove any needed snapshot
-	snaps, err := target.Snapshots()
-	if err != nil {
-		return err
 	}
 
 	for i := len(snaps) - 1; i != 0; i-- {
@@ -2542,10 +2515,6 @@ type zfsMigrationSourceDriver struct {
 	zfsFeatures      []string
 }
 
-func (s *zfsMigrationSourceDriver) Snapshots() []container {
-	return s.snapshots
-}
-
 func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
 	sourceParentName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	poolName := s.zfs.getOnDiskPoolName()
@@ -3367,18 +3336,6 @@ func (s *storageZfs) StorageMigrationSource(args MigrationSourceArgs) (Migration
 
 func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
-}
-
-func (s *storageZfs) GetStoragePool() *api.StoragePool {
-	return s.pool
-}
-
-func (s *storageZfs) GetStoragePoolVolume() *api.StorageVolume {
-	return s.volume
-}
-
-func (s *storageZfs) GetState() *state.State {
-	return s.s
 }
 
 func (s *storageZfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {

@@ -15,7 +15,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -681,22 +680,6 @@ func (s *storageLvm) StoragePoolVolumeUmount() (bool, error) {
 	return ourUmount, nil
 }
 
-func (s *storageLvm) GetStoragePoolWritable() api.StoragePoolPut {
-	return s.pool.Writable()
-}
-
-func (s *storageLvm) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return s.volume.Writable()
-}
-
-func (s *storageLvm) SetStoragePoolWritable(writable *api.StoragePoolPut) {
-	s.pool.StoragePoolPut = *writable
-}
-
-func (s *storageLvm) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut) {
-	s.volume.StorageVolumePut = *writable
-}
-
 func (s *storageLvm) GetContainerPoolInfo() (int64, string, string) {
 	return s.poolID, s.pool.Name, s.getOnDiskPoolName()
 }
@@ -1076,10 +1059,6 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	tryUndo = false
 
 	logger.Debugf("Created LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
-	return nil
-}
-
-func (s *storageLvm) ContainerCanRestore(container container, sourceContainer container) error {
 	return nil
 }
 
@@ -2287,18 +2266,6 @@ func (s *storageLvm) StorageMigrationSource(args MigrationSourceArgs) (Migration
 
 func (s *storageLvm) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
-}
-
-func (s *storageLvm) GetStoragePool() *api.StoragePool {
-	return s.pool
-}
-
-func (s *storageLvm) GetStoragePoolVolume() *api.StorageVolume {
-	return s.volume
-}
-
-func (s *storageLvm) GetState() *state.State {
-	return s.s
 }
 
 func (s *storageLvm) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
