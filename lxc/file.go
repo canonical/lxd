@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -33,6 +34,37 @@ type cmdFile struct {
 
 	flagMkdir     bool
 	flagRecursive bool
+}
+
+func fileGetWrapper(server lxd.ContainerServer, container string, path string) (buf io.ReadCloser, resp *lxd.ContainerFileResponse, err error) {
+	// Signal handling
+	chSignal := make(chan os.Signal)
+	signal.Notify(chSignal, os.Interrupt)
+
+	// Operation handling
+	chDone := make(chan bool)
+	go func() {
+		buf, resp, err = server.GetContainerFile(container, path)
+		close(chDone)
+	}()
+
+	count := 0
+	for {
+		var err error
+
+		select {
+		case <-chDone:
+			return buf, resp, err
+		case <-chSignal:
+			count++
+
+			if count == 3 {
+				return nil, nil, fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
+			}
+
+			fmt.Println(i18n.G("Early server side processing of file tranfer requests cannot be canceled (interrupt two more times to force)"))
+		}
+	}
 }
 
 func (c *cmdFile) Command() *cobra.Command {
@@ -245,7 +277,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Invalid source %s"), resource.name)
 		}
 
-		buf, resp, err := resource.server.GetContainerFile(pathSpec[0], pathSpec[1])
+		buf, resp, err := fileGetWrapper(resource.server, pathSpec[0], pathSpec[1])
 		if err != nil {
 			return err
 		}
