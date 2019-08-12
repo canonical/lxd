@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-08-11 21:42-0400\n"
+"POT-Creation-Date: 2019-08-12 16:53-0400\n"
 "PO-Revision-Date: 2019-05-18 08:49+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -977,7 +977,7 @@ msgstr "ディスク使用量:"
 msgid "Don't require user confirmation for using --force"
 msgstr "ユーザの確認を要求する"
 
-#: lxc/main.go:65
+#: lxc/main.go:66
 msgid "Don't show progress information"
 msgstr "進捗情報を表示しません"
 
@@ -1224,7 +1224,7 @@ msgstr "コンテナを強制シャットダウンします"
 msgid "Force the removal of running containers"
 msgstr "稼働中のコンテナを強制的に削除します"
 
-#: lxc/main.go:61
+#: lxc/main.go:62
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
@@ -1373,7 +1373,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:322
+#: lxc/main.go:335
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1502,7 +1502,7 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
-#: lxc/main.go:401
+#: lxc/main.go:414
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -2278,7 +2278,7 @@ msgstr "管理対象のネットワークのみ変更できます"
 msgid "Operation %s deleted"
 msgstr "バックグラウンド操作 %s を削除しました"
 
-#: lxc/main.go:62
+#: lxc/main.go:63
 msgid "Override the source project"
 msgstr "プロジェクトを指定します"
 
@@ -2328,7 +2328,7 @@ msgstr "送信パケット"
 msgid "Partitions:"
 msgstr "オプション:"
 
-#: lxc/main.go:291
+#: lxc/main.go:304
 #, c-format
 msgid "Password for %s: "
 msgstr "%s のパスワード: "
@@ -2369,7 +2369,7 @@ msgstr "再度エディタを起動するには Enter キーを押します"
 msgid "Pretty rendering"
 msgstr "見やすい形 (pretty) で表示します"
 
-#: lxc/main.go:60
+#: lxc/main.go:61
 msgid "Print help"
 msgstr "ヘルプを表示します"
 
@@ -2377,7 +2377,7 @@ msgstr "ヘルプを表示します"
 msgid "Print the raw response"
 msgstr "レスポンスをそのまま表示します"
 
-#: lxc/main.go:59
+#: lxc/main.go:60
 msgid "Print version number"
 msgstr "バージョン番号を表示します"
 
@@ -2856,11 +2856,11 @@ msgstr "プッシュ時にファイルのパーミションを設定します"
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
-#: lxc/main.go:63
+#: lxc/main.go:64
 msgid "Show all debug messages"
 msgstr "デバッグメッセージをすべて表示します"
 
-#: lxc/main.go:64
+#: lxc/main.go:65
 msgid "Show all information messages"
 msgstr "詳細な情報を出力します"
 
@@ -2896,7 +2896,7 @@ msgstr "コンテナもしくはプロファイルのデバイス設定をすべ
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
-#: lxc/main.go:222 lxc/main.go:223
+#: lxc/main.go:223 lxc/main.go:224
 msgid "Show less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)"
 
@@ -3177,6 +3177,18 @@ msgstr ""
 "publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
 "さい。"
 
+#: lxc/main.go:242
+msgid ""
+"This client hasn't been configured to use a remote LXD server yet.\n"
+"As your platform can't run native Linux containers, you must connect to a "
+"remote LXD server.\n"
+"\n"
+"If you already added a remote server, make it the default with \"lxc remote "
+"switch NAME\".\n"
+"To easily setup a local LXD server in a virtual machine, consider using: "
+"https://multipass.run"
+msgstr ""
+
 #: lxc/info.go:290
 msgid "Threads:"
 msgstr ""
@@ -3203,7 +3215,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:325
+#: lxc/main.go:338
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:18.04\" と実行してみてくだ"
