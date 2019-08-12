@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2019-08-11 21:42-0400\n"
+        "POT-Creation-Date: 2019-08-12 16:53-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -868,7 +868,7 @@ msgstr  ""
 msgid   "Don't require user confirmation for using --force"
 msgstr  ""
 
-#: lxc/main.go:65
+#: lxc/main.go:66
 msgid   "Don't show progress information"
 msgstr  ""
 
@@ -1080,7 +1080,7 @@ msgstr  ""
 msgid   "Force the removal of running containers"
 msgstr  ""
 
-#: lxc/main.go:61
+#: lxc/main.go:62
 msgid   "Force using the local unix socket"
 msgstr  ""
 
@@ -1220,7 +1220,7 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:322
+#: lxc/main.go:335
 msgid   "If this is your first time running LXD on this machine, you should also run: lxd init"
 msgstr  ""
 
@@ -1336,7 +1336,7 @@ msgstr  ""
 msgid   "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr  ""
 
-#: lxc/main.go:401
+#: lxc/main.go:414
 msgid   "Invalid number of arguments"
 msgstr  ""
 
@@ -1971,7 +1971,7 @@ msgstr  ""
 msgid   "Operation %s deleted"
 msgstr  ""
 
-#: lxc/main.go:62
+#: lxc/main.go:63
 msgid   "Override the source project"
 msgstr  ""
 
@@ -2020,7 +2020,7 @@ msgstr  ""
 msgid   "Partitions:"
 msgstr  ""
 
-#: lxc/main.go:291
+#: lxc/main.go:304
 #, c-format
 msgid   "Password for %s: "
 msgstr  ""
@@ -2059,7 +2059,7 @@ msgstr  ""
 msgid   "Pretty rendering"
 msgstr  ""
 
-#: lxc/main.go:60
+#: lxc/main.go:61
 msgid   "Print help"
 msgstr  ""
 
@@ -2067,7 +2067,7 @@ msgstr  ""
 msgid   "Print the raw response"
 msgstr  ""
 
-#: lxc/main.go:59
+#: lxc/main.go:60
 msgid   "Print version number"
 msgstr  ""
 
@@ -2520,11 +2520,11 @@ msgstr  ""
 msgid   "Set the file's uid on push"
 msgstr  ""
 
-#: lxc/main.go:63
+#: lxc/main.go:64
 msgid   "Show all debug messages"
 msgstr  ""
 
-#: lxc/main.go:64
+#: lxc/main.go:65
 msgid   "Show all information messages"
 msgstr  ""
 
@@ -2560,7 +2560,7 @@ msgstr  ""
 msgid   "Show image properties"
 msgstr  ""
 
-#: lxc/main.go:222 lxc/main.go:223
+#: lxc/main.go:223 lxc/main.go:224
 msgid   "Show less common commands"
 msgstr  ""
 
@@ -2829,6 +2829,14 @@ msgstr  ""
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
+#: lxc/main.go:242
+msgid   "This client hasn't been configured to use a remote LXD server yet.\n"
+        "As your platform can't run native Linux containers, you must connect to a remote LXD server.\n"
+        "\n"
+        "If you already added a remote server, make it the default with \"lxc remote switch NAME\".\n"
+        "To easily setup a local LXD server in a virtual machine, consider using: https://multipass.run"
+msgstr  ""
+
 #: lxc/info.go:290
 msgid   "Threads:"
 msgstr  ""
@@ -2853,7 +2861,7 @@ msgstr  ""
 msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
-#: lxc/main.go:325
+#: lxc/main.go:338
 msgid   "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr  ""
 
