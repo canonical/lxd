@@ -63,34 +63,6 @@ import (
 //go:generate mapper method -p db -e instance Rename
 //go:generate mapper method -p db -e instance Delete
 
-// Container is a value object holding db-related details about a container.
-type Container struct {
-	ID           int
-	Project      string `db:"primary=yes&join=projects.name"`
-	Name         string `db:"primary=yes"`
-	Node         string `db:"join=nodes.name"`
-	Type         int
-	Architecture int
-	Ephemeral    bool
-	CreationDate time.Time
-	Stateful     bool
-	LastUseDate  time.Time
-	Description  string `db:"coalesce=''"`
-	Config       map[string]string
-	Devices      map[string]map[string]string
-	Profiles     []string
-	ExpiryDate   time.Time
-}
-
-// ContainerFilter can be used to filter results yielded by ContainerList.
-type ContainerFilter struct {
-	Project string
-	Name    string
-	Node    string
-	Parent  string
-	Type    int
-}
-
 // Instance is a value object holding db-related details about a container.
 type Instance struct {
 	ID           int
@@ -121,7 +93,7 @@ type InstanceFilter struct {
 
 // ContainerToArgs is a convenience to convert the new Container db struct into
 // the legacy ContainerArgs.
-func ContainerToArgs(container *Container) ContainerArgs {
+func ContainerToArgs(container *Instance) ContainerArgs {
 	args := ContainerArgs{
 		ID:           container.ID,
 		Project:      container.Project,
