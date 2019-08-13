@@ -596,7 +596,7 @@ func lvmLvIsWritable(lvName string) (bool, error) {
 func storageVGActivate(lvmVolumePath string) error {
 	output, err := shared.TryRunCommand("vgchange", "-ay", lvmVolumePath)
 	if err != nil {
-		return fmt.Errorf("could not activate volume group \"%s\": %s", lvmVolumePath, output)
+		return fmt.Errorf("could not activate volume group \"%s\": %s: %s", lvmVolumePath, output, err)
 	}
 
 	return nil
@@ -605,7 +605,7 @@ func storageVGActivate(lvmVolumePath string) error {
 func storageLVActivate(lvmVolumePath string) error {
 	output, err := shared.TryRunCommand("lvchange", "-ay", lvmVolumePath)
 	if err != nil {
-		return fmt.Errorf("could not activate logival volume \"%s\": %s", lvmVolumePath, output)
+		return fmt.Errorf("could not activate logival volume \"%s\": %s: %s", lvmVolumePath, output, err)
 	}
 
 	return nil
