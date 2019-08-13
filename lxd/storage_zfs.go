@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -2131,7 +2132,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
 	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, containerName)
-	err := createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
+	err := createContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
 	}
