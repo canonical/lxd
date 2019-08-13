@@ -35,6 +35,7 @@ import (
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -7858,7 +7859,7 @@ func (c *containerLXC) State() string {
 // Various container paths
 func (c *containerLXC) Path() string {
 	name := project.Prefix(c.Project(), c.Name())
-	return containerPath(name, c.IsSnapshot())
+	return driver.ContainerPath(name, c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {

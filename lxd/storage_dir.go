@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1221,7 +1222,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 
 	// Create mountpoints
 	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
-	err = createContainerMountpoint(containerMntPoint, containerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
+	err = createContainerMountpoint(containerMntPoint, driver.ContainerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
 	}

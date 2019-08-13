@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	runtimeDebug "runtime/debug"
 	"strconv"
 	"strings"
 
@@ -21,13 +22,12 @@ import (
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
-
-	log "github.com/lxc/lxd/shared/log15"
-	runtimeDebug "runtime/debug"
 )
 
 var apiInternal = []APIEndpoint{
@@ -680,7 +680,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				onDiskPoolName = poolName
 			}
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			snapPath := containerPath(snapName, true)
+			snapPath := driver.ContainerPath(snapName, true)
 			err = lvmContainerDeleteInternal(projectName, poolName, req.Name,
 				true, onDiskPoolName, snapPath)
 		case "ceph":
@@ -1022,7 +1022,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	containerPath := containerPath(project.Prefix(projectName, req.Name), false)
+	containerPath := driver.ContainerPath(project.Prefix(projectName, req.Name), false)
 	isPrivileged := false
 	if backup.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
