@@ -325,10 +325,10 @@ func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
 // containers or images associated with it. Otherwise, it returns a message
 // say what's left.
 func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
-	// Check if the node has any containers.
-	containers, err := query.SelectStrings(c.tx, "SELECT name FROM containers WHERE node_id=?", id)
+	// Check if the node has any instances.
+	containers, err := query.SelectStrings(c.tx, "SELECT name FROM instances WHERE node_id=?", id)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get containers for node %d", id)
+		return "", errors.Wrapf(err, "Failed to get instances for node %d", id)
 	}
 	if len(containers) > 0 {
 		message := fmt.Sprintf(
@@ -398,7 +398,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 
 // NodeClear removes any container or image associated with this node.
 func (c *ClusterTx) NodeClear(id int64) error {
-	_, err := c.tx.Exec("DELETE FROM containers WHERE node_id=?", id)
+	_, err := c.tx.Exec("DELETE FROM instances WHERE node_id=?", id)
 	if err != nil {
 		return err
 	}
@@ -474,9 +474,9 @@ func (c *ClusterTx) NodeWithLeastContainers() (string, error) {
 		}
 
 		// Fetch the number of containers already created on this node.
-		created, err := query.Count(c.tx, "containers", "node_id=?", node.ID)
+		created, err := query.Count(c.tx, "instances", "node_id=?", node.ID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get containers count")
+			return "", errors.Wrap(err, "Failed to get instances count")
 		}
 
 		// Fetch the number of containers currently being created on this node.
