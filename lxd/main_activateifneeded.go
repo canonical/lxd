@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mattn/go-sqlite3"
+	sqlite3 "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
@@ -109,11 +109,11 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var containers []db.Container
+	var containers []db.Instance
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.ContainerFilter{Type: int(db.CTypeRegular)}
+		filter := db.InstanceFilter{Type: int(db.CTypeRegular)}
 		var err error
-		containers, err = tx.ContainerList(filter)
+		containers, err = tx.InstanceList(filter)
 		return err
 	})
 	if err != nil {

@@ -32,8 +32,8 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := db.ContainerFilter{Type: int(db.CTypeRegular)}
-	containers, err := tx.ContainerList(filter)
+	filter := db.InstanceFilter{Type: int(db.CTypeRegular)}
+	containers, err := tx.InstanceList(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
@@ -71,13 +71,13 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	addContainer(t, tx, nodeID1, "c2")
 	addContainer(t, tx, nodeID2, "c3")
 
-	filter := db.ContainerFilter{
+	filter := db.InstanceFilter{
 		Project: "default",
 		Node:    "node2",
 		Type:    int(db.CTypeRegular),
 	}
 
-	containers, err := tx.ContainerList(filter)
+	containers, err := tx.InstanceList(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 2)
 
@@ -89,7 +89,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	assert.Equal(t, "node2", containers[1].Node)
 }
 
-func TestContainerList_FilterByParent(t *testing.T) {
+func TestInstanceList_FilterByParent(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -101,13 +101,13 @@ func TestContainerList_FilterByParent(t *testing.T) {
 	addSnapshot(t, tx, nodeID1, "c1", 2)
 	addSnapshot(t, tx, nodeID1, "c2", 1)
 
-	filter := db.ContainerFilter{
+	filter := db.InstanceFilter{
 		Project: "default",
 		Parent:  "c1",
 		Type:    int(db.CTypeSnapshot),
 	}
 
-	containers, err := tx.ContainerList(filter)
+	containers, err := tx.InstanceList(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 2)
 
@@ -115,7 +115,7 @@ func TestContainerList_FilterByParent(t *testing.T) {
 	assert.Equal(t, "c1/2", containers[1].Name)
 }
 
-func TestContainerList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
+func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -141,7 +141,7 @@ func TestContainerList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 
 	// Create a container in project1 using the default profile from the
 	// default project.
-	c1p1 := db.Container{
+	c1p1 := db.Instance{
 		Project:      "blah",
 		Name:         "c1",
 		Node:         "none",
@@ -151,12 +151,12 @@ func TestContainerList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Stateful:     true,
 		Profiles:     []string{"default"},
 	}
-	_, err = tx.ContainerCreate(c1p1)
+	_, err = tx.InstanceCreate(c1p1)
 	require.NoError(t, err)
 
 	// Create a container in project2 using the custom profile from the
 	// project.
-	c1p2 := db.Container{
+	c1p2 := db.Instance{
 		Project:      "test",
 		Name:         "c1",
 		Node:         "none",
@@ -166,10 +166,10 @@ func TestContainerList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Stateful:     true,
 		Profiles:     []string{"intranet"},
 	}
-	_, err = tx.ContainerCreate(c1p2)
+	_, err = tx.InstanceCreate(c1p2)
 	require.NoError(t, err)
 
-	containers, err := tx.ContainerList(db.ContainerFilter{})
+	containers, err := tx.InstanceList(db.InstanceFilter{})
 	require.NoError(t, err)
 
 	assert.Len(t, containers, 2)
@@ -181,7 +181,7 @@ func TestContainerList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, []string{"intranet"}, containers[1].Profiles)
 }
 
-func TestContainerListExpanded(t *testing.T) {
+func TestInstanceListExpanded(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -195,7 +195,7 @@ func TestContainerListExpanded(t *testing.T) {
 	_, err := tx.ProfileCreate(profile)
 	require.NoError(t, err)
 
-	container := db.Container{
+	container := db.Instance{
 		Project:      "default",
 		Name:         "c1",
 		Node:         "none",
@@ -208,7 +208,7 @@ func TestContainerListExpanded(t *testing.T) {
 		Profiles:     []string{"default", "profile1"},
 	}
 
-	_, err = tx.ContainerCreate(container)
+	_, err = tx.InstanceCreate(container)
 	require.NoError(t, err)
 
 	containers, err := tx.ContainerListExpanded()
@@ -223,11 +223,11 @@ func TestContainerListExpanded(t *testing.T) {
 	})
 }
 
-func TestContainerCreate(t *testing.T) {
+func TestInstanceCreate(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	object := db.Container{
+	object := db.Instance{
 		Project:      "default",
 		Name:         "c1",
 		Type:         0,
@@ -242,12 +242,12 @@ func TestContainerCreate(t *testing.T) {
 		Profiles:     []string{"default"},
 	}
 
-	id, err := tx.ContainerCreate(object)
+	id, err := tx.InstanceCreate(object)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), id)
 
-	c1, err := tx.ContainerGet("default", "c1")
+	c1, err := tx.InstanceGet("default", "c1")
 	require.NoError(t, err)
 
 	assert.Equal(t, "c1", c1.Name)
@@ -255,6 +255,69 @@ func TestContainerCreate(t *testing.T) {
 	assert.Len(t, c1.Devices, 1)
 	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, c1.Devices["root"])
 	assert.Equal(t, []string{"default"}, c1.Profiles)
+}
+
+func TestInstanceCreate_Snapshot(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	instance := db.Instance{
+		Project:      "default",
+		Name:         "foo",
+		Type:         0,
+		Node:         "none",
+		Architecture: 2,
+		Ephemeral:    false,
+		Stateful:     false,
+		LastUseDate:  time.Now(),
+		Description:  "container 1",
+		Config: map[string]string{
+			"image.architecture":  "x86_64",
+			"image.description":   "Busybox x86_64",
+			"image.name":          "busybox-x86_64",
+			"image.os":            "Busybox",
+			"volatile.base_image": "1f7f054e6ccb",
+		},
+		Devices:  map[string]map[string]string{},
+		Profiles: []string{"default"},
+	}
+
+	id, err := tx.InstanceCreate(instance)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(1), id)
+
+	snapshot := db.Instance{
+		Project:      "default",
+		Name:         "foo/snap0",
+		Type:         1,
+		Node:         "none",
+		Architecture: 2,
+		Ephemeral:    false,
+		Stateful:     false,
+		LastUseDate:  time.Now(),
+		Description:  "container 1",
+		Config: map[string]string{
+			"image.architecture":      "x86_64",
+			"image.description":       "Busybox x86_64",
+			"image.name":              "busybox-x86_64",
+			"image.os":                "Busybox",
+			"volatile.apply_template": "create",
+			"volatile.base_image":     "1f7f054e6ccb",
+			"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",
+			"volatile.idmap.base":     "0",
+		},
+		Devices:  map[string]map[string]string{},
+		Profiles: []string{"default"},
+	}
+
+	id, err = tx.InstanceCreate(snapshot)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(2), id)
+
+	_, err = tx.InstanceGet("default", "foo/snap0")
+	require.NoError(t, err)
 }
 
 // Containers are grouped by node address.
@@ -320,7 +383,7 @@ func TestContainerPool(t *testing.T) {
 	require.NoError(t, err)
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		container := db.Container{
+		container := db.Instance{
 			Project: "default",
 			Name:    "c1",
 			Node:    "none",
@@ -332,7 +395,7 @@ func TestContainerPool(t *testing.T) {
 				},
 			},
 		}
-		_, err := tx.ContainerCreate(container)
+		_, err := tx.InstanceCreate(container)
 		return err
 	})
 	require.NoError(t, err)
@@ -411,7 +474,7 @@ func TestContainerNodeList(t *testing.T) {
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
-INSERT INTO containers(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
+INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
 	_, err := tx.Tx().Exec(stmt, nodeID, name, db.CTypeRegular)
 	require.NoError(t, err)
@@ -419,7 +482,7 @@ INSERT INTO containers(node_id, name, architecture, type, project_id) VALUES (?,
 
 func addSnapshot(t *testing.T, tx *db.ClusterTx, nodeID int64, name string, n int) {
 	stmt := `
-INSERT INTO containers(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
+INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
 	_, err := tx.Tx().Exec(stmt, nodeID, fmt.Sprintf("%s/%d", name, n), db.CTypeSnapshot)
 	require.NoError(t, err)
@@ -429,7 +492,7 @@ func addContainerConfig(t *testing.T, tx *db.ClusterTx, container, key, value st
 	id := getContainerID(t, tx, container)
 
 	stmt := `
-INSERT INTO containers_config(container_id, key, value) VALUES (?, ?, ?)
+INSERT INTO instances_config(instance_id, key, value) VALUES (?, ?, ?)
 `
 	_, err := tx.Tx().Exec(stmt, id, key, value)
 	require.NoError(t, err)
@@ -442,7 +505,7 @@ func addContainerDevice(t *testing.T, tx *db.ClusterTx, container, name, typ str
 	require.NoError(t, err)
 
 	stmt := `
-INSERT INTO containers_devices(container_id, name, type) VALUES (?, ?, ?)
+INSERT INTO instances_devices(instance_id, name, type) VALUES (?, ?, ?)
 `
 	_, err = tx.Tx().Exec(stmt, id, name, code)
 	require.NoError(t, err)
@@ -451,7 +514,7 @@ INSERT INTO containers_devices(container_id, name, type) VALUES (?, ?, ?)
 
 	for key, value := range config {
 		stmt := `
-INSERT INTO containers_devices_config(container_device_id, key, value) VALUES (?, ?, ?)
+INSERT INTO instances_devices_config(instance_device_id, key, value) VALUES (?, ?, ?)
 `
 		_, err = tx.Tx().Exec(stmt, deviceID, key, value)
 		require.NoError(t, err)
@@ -462,7 +525,7 @@ INSERT INTO containers_devices_config(container_device_id, key, value) VALUES (?
 func getContainerID(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	var id int64
 
-	stmt := "SELECT id FROM containers WHERE name=?"
+	stmt := "SELECT id FROM instances WHERE name=?"
 	row := tx.Tx().QueryRow(stmt, name)
 	err := row.Scan(&id)
 	require.NoError(t, err)
@@ -474,7 +537,7 @@ func getContainerID(t *testing.T, tx *db.ClusterTx, name string) int64 {
 func getDeviceID(t *testing.T, tx *db.ClusterTx, containerID int64, name string) int64 {
 	var id int64
 
-	stmt := "SELECT id FROM containers_devices WHERE container_id=? AND name=?"
+	stmt := "SELECT id FROM instances_devices WHERE instance_id=? AND name=?"
 	row := tx.Tx().QueryRow(stmt, containerID, name)
 	err := row.Scan(&id)
 	require.NoError(t, err)

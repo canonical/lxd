@@ -234,7 +234,7 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		for ctProject, ctNames := range names {
 			for _, ctName := range ctNames {
-				container, err := tx.ContainerGet(ctProject, ctName)
+				container, err := tx.InstanceGet(ctProject, ctName)
 				if err != nil {
 					return err
 				}

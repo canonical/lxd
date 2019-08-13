@@ -15,12 +15,12 @@ import (
 )
 
 const fixtures string = `
-    INSERT INTO containers (node_id, name, architecture, type, project_id) VALUES (1, 'thename', 1, 1, 1);
+    INSERT INTO instances (node_id, name, architecture, type, project_id) VALUES (1, 'thename', 1, 1, 1);
     INSERT INTO profiles (name, project_id) VALUES ('theprofile', 1);
-    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
-    INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
-    INSERT INTO containers_devices (container_id, name, type) VALUES (1, 'somename', 1);
-    INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
+    INSERT INTO instances_profiles (instance_id, profile_id) VALUES (1, 2);
+    INSERT INTO instances_config (instance_id, key, value) VALUES (1, 'thekey', 'thevalue');
+    INSERT INTO instances_devices (instance_id, name, type) VALUES (1, 'somename', 1);
+    INSERT INTO instances_devices_config (key, value, instance_device_id) VALUES ('configkey', 'configvalue', 1);
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date, auto_update, project_id) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176, 1, 1);
     INSERT INTO images_aliases (name, image_id, description, project_id) VALUES ('somealias', 1, 'some description', 1);
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
@@ -85,7 +85,7 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	var statements string
 
 	// Drop the container we just created.
-	statements = `DELETE FROM containers WHERE name = 'thename';`
+	statements = `DELETE FROM instances WHERE name = 'thename';`
 
 	tx, commit := s.CreateTestTx()
 	defer commit()
@@ -94,25 +94,25 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	s.Nil(err, "Error deleting container!")
 
 	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM containers_profiles;`
+	statements = `SELECT count(*) FROM instances_profiles;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 
 	// Make sure there are 0 containers_config entries left.
-	statements = `SELECT count(*) FROM containers_config;`
+	statements = `SELECT count(*) FROM instances_config;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_config!")
 
 	// Make sure there are 0 containers_devices entries left.
-	statements = `SELECT count(*) FROM containers_devices;`
+	statements = `SELECT count(*) FROM instances_devices;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices!")
 
 	// Make sure there are 0 containers_devices_config entries left.
-	statements = `SELECT count(*) FROM containers_devices_config;`
+	statements = `SELECT count(*) FROM instances_devices_config;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices_config!")
@@ -133,7 +133,7 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 2;`
+	statements = `SELECT count(*) FROM instances_profiles WHERE profile_id = 2;`
 	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
@@ -275,7 +275,7 @@ func (s *dbTestSuite) Test_ContainerConfig() {
 
 	tx, commit := s.CreateTestTx()
 
-	_, err = tx.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
+	_, err = tx.Exec("INSERT INTO instances_config (instance_id, key, value) VALUES (1, 'something', 'something else');")
 	s.Nil(err)
 
 	commit()

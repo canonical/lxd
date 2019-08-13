@@ -306,14 +306,14 @@ func (c *Cluster) ProfileContainersGet(project, profile string) (map[string][]st
 		return nil, err
 	}
 
-	q := `SELECT containers.name, projects.name FROM containers
-		JOIN containers_profiles ON containers.id == containers_profiles.container_id
-		JOIN projects ON projects.id == containers.project_id
-		WHERE containers_profiles.profile_id ==
+	q := `SELECT instances.name, projects.name FROM instances
+		JOIN instances_profiles ON instances.id == instances_profiles.instance_id
+		JOIN projects ON projects.id == instances.project_id
+		WHERE instances_profiles.profile_id ==
 		  (SELECT profiles.id FROM profiles
 		   JOIN projects ON projects.id == profiles.project_id
 		   WHERE profiles.name=? AND projects.name=?)
-		AND containers.type == 0`
+		AND instances.type == 0`
 
 	results := map[string][]string{}
 	inargs := []interface{}{profile, project}

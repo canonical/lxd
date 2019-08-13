@@ -119,7 +119,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (config.Device, error) {
 	if isprofile {
 		query = `SELECT key, value FROM profiles_devices_config WHERE profile_device_id=?`
 	} else {
-		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
+		query = `SELECT key, value FROM instances_devices_config WHERE instance_device_id=?`
 	}
 
 	results, err := queryScan(db, query, inargs, outfmt)
@@ -161,11 +161,11 @@ func (c *Cluster) Devices(project, qName string, isprofile bool) (config.Devices
                         JOIN projects ON projects.id=profiles.project_id
    		WHERE projects.name=? AND profiles.name=?`
 	} else {
-		q = `SELECT containers_devices.id, containers_devices.name, containers_devices.type
-			FROM containers_devices
-                        JOIN containers	ON containers_devices.container_id = containers.id
-                        JOIN projects ON projects.id=containers.project_id
-			WHERE projects.name=? AND containers.name=?`
+		q = `SELECT instances_devices.id, instances_devices.name, instances_devices.type
+			FROM instances_devices
+                        JOIN instances	ON instances_devices.instance_id = instances.id
+                        JOIN projects ON projects.id=instances.project_id
+			WHERE projects.name=? AND instances.name=?`
 	}
 	var id, dtype int
 	var name, stype string
