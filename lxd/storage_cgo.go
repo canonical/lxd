@@ -260,10 +260,6 @@ import (
 // close.
 const LoFlagsAutoclear int = C.LO_FLAGS_AUTOCLEAR
 
-// MS_LAZYTIME retains inode timestamps in memory and updated them on-disk only
-// under certain conditions.
-const MS_LAZYTIME uintptr = C.MS_LAZYTIME
-
 // prepareLoopDev() detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
 // device. It's the callers responsibility to close the open file descriptor.
