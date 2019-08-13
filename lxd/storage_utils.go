@@ -35,7 +35,7 @@ var MountOptions = map[string]mountOptions{
 	"diratime":      {false, unix.MS_NODIRATIME},
 	"dirsync":       {true, unix.MS_DIRSYNC},
 	"exec":          {false, unix.MS_NOEXEC},
-	"lazytime":      {true, MS_LAZYTIME},
+	"lazytime":      {true, unix.MS_LAZYTIME},
 	"mand":          {true, unix.MS_MANDLOCK},
 	"noatime":       {true, unix.MS_NOATIME},
 	"nodev":         {true, unix.MS_NODEV},
