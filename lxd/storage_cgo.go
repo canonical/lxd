@@ -22,10 +22,6 @@ package main
 #include "include/macro.h"
 #include "include/memory_utils.h"
 
-#ifndef MS_LAZYTIME
-#define MS_LAZYTIME (1<<25)
-#endif
-
 #define LXD_MAXPATH 4096
 #define LXD_NUMSTRLEN64 21
 #define LXD_MAX_LOOP_PATHLEN (2 * sizeof("loop/")) + LXD_NUMSTRLEN64 + sizeof("backing_file") + 1
