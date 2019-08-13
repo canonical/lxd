@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/lxc/go-lxc.v2"
-	"gopkg.in/robfig/cron.v2"
+	lxc "gopkg.in/lxc/go-lxc.v2"
+	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -1101,7 +1101,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		args.LastUsedDate = time.Unix(0, 0).UTC()
 	}
 
-	var container db.Container
+	var container db.Instance
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		node, err := tx.NodeName()
 		if err != nil {
@@ -1119,7 +1119,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		}
 
 		// Create the container entry
-		container = db.Container{
+		container = db.Instance{
 			Project:      args.Project,
 			Name:         args.Name,
 			Node:         node,
@@ -1136,13 +1136,13 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			ExpiryDate:   args.ExpiryDate,
 		}
 
-		_, err = tx.ContainerCreate(container)
+		_, err = tx.InstanceCreate(container)
 		if err != nil {
 			return errors.Wrap(err, "Add container info to the database")
 		}
 
 		// Read back the container, to get ID and creation time.
-		c, err := tx.ContainerGet(args.Project, args.Name)
+		c, err := tx.InstanceGet(args.Project, args.Name)
 		if err != nil {
 			return errors.Wrap(err, "Fetch created container from the database")
 		}
@@ -1239,11 +1239,11 @@ func containerLoadById(s *state.State, id int) (container, error) {
 
 func containerLoadByProjectAndName(s *state.State, project, name string) (container, error) {
 	// Get the DB record
-	var container *db.Container
+	var container *db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		container, err = tx.ContainerGet(project, name)
+		container, err = tx.InstanceGet(project, name)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
 		}
@@ -1266,14 +1266,14 @@ func containerLoadByProjectAndName(s *state.State, project, name string) (contai
 
 func containerLoadByProject(s *state.State, project string) ([]container, error) {
 	// Get all the containers
-	var cts []db.Container
+	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.ContainerFilter{
+		filter := db.InstanceFilter{
 			Project: project,
 			Type:    int(db.CTypeRegular),
 		}
 		var err error
-		cts, err = tx.ContainerList(filter)
+		cts, err = tx.InstanceList(filter)
 		if err != nil {
 			return err
 		}
@@ -1320,7 +1320,7 @@ func containerLoadAll(s *state.State) ([]container, error) {
 // Load all containers of this nodes.
 func containerLoadNodeAll(s *state.State) ([]container, error) {
 	// Get all the container arguments
-	var cts []db.Container
+	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		cts, err = tx.ContainerNodeList()
@@ -1340,7 +1340,7 @@ func containerLoadNodeAll(s *state.State) ([]container, error) {
 // Load all containers of this nodes under the given project.
 func containerLoadNodeProjectAll(s *state.State, project string) ([]container, error) {
 	// Get all the container arguments
-	var cts []db.Container
+	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		cts, err = tx.ContainerNodeProjectList(project)
@@ -1357,7 +1357,7 @@ func containerLoadNodeProjectAll(s *state.State, project string) ([]container, e
 	return containerLoadAllInternal(cts, s)
 }
 
-func containerLoadAllInternal(cts []db.Container, s *state.State) ([]container, error) {
+func containerLoadAllInternal(cts []db.Instance, s *state.State) ([]container, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]map[string]api.Profile{}
 	for _, cArgs := range cts {
