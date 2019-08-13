@@ -257,6 +257,69 @@ func TestInstanceCreate(t *testing.T) {
 	assert.Equal(t, []string{"default"}, c1.Profiles)
 }
 
+func TestInstanceCreate_Snapshot(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	instance := db.Instance{
+		Project:      "default",
+		Name:         "foo",
+		Type:         0,
+		Node:         "none",
+		Architecture: 2,
+		Ephemeral:    false,
+		Stateful:     false,
+		LastUseDate:  time.Now(),
+		Description:  "container 1",
+		Config: map[string]string{
+			"image.architecture":  "x86_64",
+			"image.description":   "Busybox x86_64",
+			"image.name":          "busybox-x86_64",
+			"image.os":            "Busybox",
+			"volatile.base_image": "1f7f054e6ccb",
+		},
+		Devices:  map[string]map[string]string{},
+		Profiles: []string{"default"},
+	}
+
+	id, err := tx.InstanceCreate(instance)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(1), id)
+
+	snapshot := db.Instance{
+		Project:      "default",
+		Name:         "foo/snap0",
+		Type:         1,
+		Node:         "none",
+		Architecture: 2,
+		Ephemeral:    false,
+		Stateful:     false,
+		LastUseDate:  time.Now(),
+		Description:  "container 1",
+		Config: map[string]string{
+			"image.architecture":      "x86_64",
+			"image.description":       "Busybox x86_64",
+			"image.name":              "busybox-x86_64",
+			"image.os":                "Busybox",
+			"volatile.apply_template": "create",
+			"volatile.base_image":     "1f7f054e6ccb",
+			"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",
+			"volatile.idmap.base":     "0",
+		},
+		Devices:  map[string]map[string]string{},
+		Profiles: []string{"default"},
+	}
+
+	id, err = tx.InstanceCreate(snapshot)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(2), id)
+
+	_, err = tx.InstanceGet("default", "foo/snap0")
+	require.NoError(t, err)
+}
+
 // Containers are grouped by node address.
 func TestContainersListByNodeAddress(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
