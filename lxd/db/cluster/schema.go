@@ -20,125 +20,6 @@ CREATE TABLE config (
     value TEXT,
     UNIQUE (key)
 );
-CREATE TABLE "containers" (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    node_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    architecture INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    ephemeral INTEGER NOT NULL DEFAULT 0,
-    creation_date DATETIME NOT NULL DEFAULT 0,
-    stateful INTEGER NOT NULL DEFAULT 0,
-    last_use_date DATETIME,
-    description TEXT,
-    project_id INTEGER NOT NULL,
-    expiry_date DATETIME,
-    UNIQUE (project_id, name),
-    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
-    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
-);
-CREATE TABLE containers_backups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    creation_date DATETIME,
-    expiry_date DATETIME,
-    container_only INTEGER NOT NULL default 0,
-    optimized_storage INTEGER NOT NULL default 0,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, name)
-);
-CREATE TABLE containers_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    key TEXT NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, key)
-);
-CREATE VIEW containers_config_ref (project,
-    node,
-    name,
-    key,
-    value) AS
-   SELECT projects.name,
-    nodes.name,
-    containers.name,
-    containers_config.key,
-    containers_config.value
-     FROM containers_config
-       JOIN containers ON containers.id=containers_config.container_id
-       JOIN projects ON projects.id=containers.project_id
-       JOIN nodes ON nodes.id=containers.node_id;
-CREATE TABLE containers_devices (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    type INTEGER NOT NULL default 0,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, name)
-);
-CREATE TABLE containers_devices_config (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_device_id INTEGER NOT NULL,
-    key TEXT NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id) ON DELETE CASCADE,
-    UNIQUE (container_device_id, key)
-);
-CREATE VIEW containers_devices_ref (project,
-    node,
-    name,
-    device,
-    type,
-    key,
-    value) AS
-   SELECT projects.name,
-    nodes.name,
-    containers.name,
-          containers_devices.name,
-    containers_devices.type,
-          coalesce(containers_devices_config.key,
-    ''),
-    coalesce(containers_devices_config.value,
-    '')
-   FROM containers_devices
-     LEFT OUTER JOIN containers_devices_config ON containers_devices_config.container_device_id=containers_devices.id
-     JOIN containers ON containers.id=containers_devices.container_id
-     JOIN projects ON projects.id=containers.project_id
-     JOIN nodes ON nodes.id=containers.node_id;
-CREATE INDEX containers_node_id_idx ON containers (node_id);
-CREATE TABLE containers_profiles (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    profile_id INTEGER NOT NULL,
-    apply_order INTEGER NOT NULL default 0,
-    UNIQUE (container_id, profile_id),
-    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
-    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-CREATE VIEW containers_profiles_ref (project,
-    node,
-    name,
-    value) AS
-   SELECT projects.name,
-    nodes.name,
-    containers.name,
-    profiles.name
-     FROM containers_profiles
-       JOIN containers ON containers.id=containers_profiles.container_id
-       JOIN profiles ON profiles.id=containers_profiles.profile_id
-       JOIN projects ON projects.id=containers.project_id
-       JOIN nodes ON nodes.id=containers.node_id
-     ORDER BY containers_profiles.apply_order;
-CREATE INDEX containers_project_id_and_name_idx ON containers (project_id,
-    name);
-CREATE INDEX containers_project_id_and_node_id_and_name_idx ON containers (project_id,
-    node_id,
-    name);
-CREATE INDEX containers_project_id_and_node_id_idx ON containers (project_id,
-    node_id);
-CREATE INDEX containers_project_id_idx ON containers (project_id);
 CREATE TABLE "images" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     fingerprint TEXT NOT NULL,
@@ -193,6 +74,125 @@ CREATE TABLE images_source (
     alias TEXT NOT NULL,
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
 );
+CREATE TABLE "instances" (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    expiry_date DATETIME,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+CREATE TABLE "instances_backups" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    container_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, name)
+);
+CREATE TABLE "instances_config" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, key)
+);
+CREATE VIEW instances_config_ref (project,
+    node,
+    name,
+    key,
+    value) AS
+   SELECT projects.name,
+    nodes.name,
+    instances.name,
+    instances_config.key,
+    instances_config.value
+     FROM instances_config
+       JOIN instances ON instances.id=instances_config.instance_id
+       JOIN projects ON projects.id=instances.project_id
+       JOIN nodes ON nodes.id=instances.node_id;
+CREATE TABLE "instances_devices" (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, name)
+);
+CREATE TABLE "instances_devices_config" (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_device_id) REFERENCES "instances_devices" (id) ON DELETE CASCADE,
+    UNIQUE (instance_device_id, key)
+);
+CREATE VIEW instances_devices_ref (project,
+    node,
+    name,
+    device,
+    type,
+    key,
+    value) AS
+   SELECT projects.name,
+    nodes.name,
+    instances.name,
+          instances_devices.name,
+    instances_devices.type,
+          coalesce(instances_devices_config.key,
+    ''),
+    coalesce(instances_devices_config.value,
+    '')
+   FROM instances_devices
+     LEFT OUTER JOIN instances_devices_config ON instances_devices_config.instance_device_id=instances_devices.id
+     JOIN instances ON instances.id=instances_devices.instance_id
+     JOIN projects ON projects.id=instances.project_id
+     JOIN nodes ON nodes.id=instances.node_id;
+CREATE INDEX instances_node_id_idx ON instances (node_id);
+CREATE TABLE "instances_profiles" (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (instance_id, profile_id),
+    FOREIGN KEY (instance_id) REFERENCES "instances"(id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+CREATE VIEW instances_profiles_ref (project,
+    node,
+    name,
+    value) AS
+   SELECT projects.name,
+    nodes.name,
+    instances.name,
+    profiles.name
+     FROM instances_profiles
+       JOIN instances ON instances.id=instances_profiles.instance_id
+       JOIN profiles ON profiles.id=instances_profiles.profile_id
+       JOIN projects ON projects.id=instances.project_id
+       JOIN nodes ON nodes.id=instances.node_id
+     ORDER BY instances_profiles.apply_order;
+CREATE INDEX instances_project_id_and_name_idx ON instances (project_id,
+    name);
+CREATE INDEX instances_project_id_and_node_id_and_name_idx ON instances (project_id,
+    node_id,
+    name);
+CREATE INDEX instances_project_id_and_node_id_idx ON instances (project_id,
+    node_id);
+CREATE INDEX instances_project_id_idx ON instances (project_id);
 CREATE TABLE networks (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -308,16 +308,16 @@ CREATE VIEW profiles_used_by_ref (project,
   SELECT projects.name,
     profiles.name,
     printf('/1.0/containers/%s?project=%s',
-    containers.name,
-    containers_projects.name)
+    "instances".name,
+    instances_projects.name)
     FROM profiles
     JOIN projects ON projects.id=profiles.project_id
-    JOIN containers_profiles
-      ON containers_profiles.profile_id=profiles.id
-    JOIN containers
-      ON containers.id=containers_profiles.container_id
-    JOIN projects AS containers_projects
-      ON containers_projects.id=containers.project_id;
+    JOIN "instances_profiles"
+      ON "instances_profiles".profile_id=profiles.id
+    JOIN "instances"
+      ON "instances".id="instances_profiles".instance_id
+    JOIN projects AS instances_projects
+      ON instances_projects.id="instances".project_id;
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -344,9 +344,9 @@ CREATE VIEW projects_used_by_ref (name,
     value) AS
   SELECT projects.name,
     printf('/1.0/containers/%s?project=%s',
-    containers.name,
+    "instances".name,
     projects.name)
-    FROM containers JOIN projects ON project_id=projects.id UNION
+    FROM "instances" JOIN projects ON project_id=projects.id UNION
   SELECT projects.name,
     printf('/1.0/images/%s',
     images.fingerprint)
@@ -405,5 +405,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (14, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (15, strftime("%s"))
 `

@@ -47,6 +47,105 @@ var updates = map[int]schema.Update{
 	12: updateFromV11,
 	13: updateFromV12,
 	14: updateFromV13,
+	15: updateFromV14,
+}
+
+// Rename all containers* tables to instances*/
+func updateFromV14(tx *sql.Tx) error {
+	stmts := `
+ALTER TABLE containers RENAME TO instances;
+ALTER TABLE containers_backups RENAME COLUMN container_id TO instance_id;
+ALTER TABLE containers_backups RENAME TO instances_backups;
+ALTER TABLE containers_config RENAME COLUMN container_id TO instance_id;
+ALTER TABLE containers_config RENAME TO instances_config;
+DROP VIEW containers_config_ref;
+CREATE VIEW instances_config_ref (project,
+    node,
+    name,
+    key,
+    value) AS
+   SELECT projects.name,
+    nodes.name,
+    instances.name,
+    instances_config.key,
+    instances_config.value
+     FROM instances_config
+       JOIN instances ON instances.id=instances_config.instance_id
+       JOIN projects ON projects.id=instances.project_id
+       JOIN nodes ON nodes.id=instances.node_id;
+ALTER TABLE containers_devices RENAME COLUMN container_id TO instance_id;
+ALTER TABLE containers_devices RENAME TO instances_devices;
+ALTER TABLE containers_devices_config RENAME COLUMN container_device_id TO instance_device_id;
+ALTER TABLE containers_devices_config RENAME TO instances_devices_config;
+DROP VIEW containers_devices_ref;
+CREATE VIEW instances_devices_ref (project,
+    node,
+    name,
+    device,
+    type,
+    key,
+    value) AS
+   SELECT projects.name,
+    nodes.name,
+    instances.name,
+          instances_devices.name,
+    instances_devices.type,
+          coalesce(instances_devices_config.key,
+    ''),
+    coalesce(instances_devices_config.value,
+    '')
+   FROM instances_devices
+     LEFT OUTER JOIN instances_devices_config ON instances_devices_config.instance_device_id=instances_devices.id
+     JOIN instances ON instances.id=instances_devices.instance_id
+     JOIN projects ON projects.id=instances.project_id
+     JOIN nodes ON nodes.id=instances.node_id;
+DROP INDEX containers_node_id_idx;
+CREATE INDEX instances_node_id_idx ON instances (node_id);
+ALTER TABLE containers_profiles RENAME COLUMN container_id TO instance_id;
+ALTER TABLE containers_profiles RENAME TO instances_profiles;
+DROP VIEW containers_profiles_ref;
+CREATE VIEW instances_profiles_ref (project,
+    node,
+    name,
+    value) AS
+   SELECT projects.name,
+    nodes.name,
+    instances.name,
+    profiles.name
+     FROM instances_profiles
+       JOIN instances ON instances.id=instances_profiles.instance_id
+       JOIN profiles ON profiles.id=instances_profiles.profile_id
+       JOIN projects ON projects.id=instances.project_id
+       JOIN nodes ON nodes.id=instances.node_id
+     ORDER BY instances_profiles.apply_order;
+DROP INDEX containers_project_id_and_name_idx;
+DROP INDEX containers_project_id_and_node_id_and_name_idx;
+DROP INDEX containers_project_id_and_node_id_idx;
+DROP INDEX containers_project_id_idx;
+CREATE INDEX instances_project_id_and_name_idx ON instances (project_id, name);
+CREATE INDEX instances_project_id_and_node_id_and_name_idx ON instances (project_id, node_id, name);
+CREATE INDEX instances_project_id_and_node_id_idx ON instances (project_id, node_id);
+CREATE INDEX instances_project_id_idx ON instances (project_id);
+DROP VIEW profiles_used_by_ref;
+CREATE VIEW profiles_used_by_ref (project,
+    name,
+    value) AS
+  SELECT projects.name,
+    profiles.name,
+    printf('/1.0/containers/%s?project=%s',
+    "instances".name,
+    instances_projects.name)
+    FROM profiles
+    JOIN projects ON projects.id=profiles.project_id
+    JOIN "instances_profiles"
+      ON "instances_profiles".profile_id=profiles.id
+    JOIN "instances"
+      ON "instances".id="instances_profiles".instance_id
+    JOIN projects AS instances_projects
+      ON instances_projects.id="instances".project_id;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 func updateFromV13(tx *sql.Tx) error {

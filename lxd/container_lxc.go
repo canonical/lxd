@@ -23,8 +23,8 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
-	"gopkg.in/yaml.v2"
+	lxc "gopkg.in/lxc/go-lxc.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -3661,7 +3661,7 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 }
 
 func (c *containerLXC) Snapshots() ([]container, error) {
-	var snaps []db.Container
+	var snaps []db.Instance
 
 	// Get all the snapshots
 	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -4115,7 +4115,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename the database entry
 	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.ContainerRename(c.project, oldName, newName)
+		return tx.InstanceRename(c.project, oldName, newName)
 	})
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
@@ -4143,7 +4143,7 @@ func (c *containerLXC) Rename(newName string) error {
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
 			err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.ContainerRename(c.project, sname, newSnapshotName)
+				return tx.InstanceRename(c.project, sname, newSnapshotName)
 			})
 			if err != nil {
 				logger.Error("Failed renaming container", ctxMap)
@@ -5317,7 +5317,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return errors.Wrap(err, "Profiles insert")
 		}
 
-		err = db.DevicesAdd(tx, "container", int64(c.id), c.localDevices)
+		err = db.DevicesAdd(tx, "instance", int64(c.id), c.localDevices)
 		if err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "Device add")

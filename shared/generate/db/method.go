@@ -274,7 +274,7 @@ func (m *Method) get(buf *file.Buffer) error {
 		buf.L("filter.%s = %s", field.Name, lex.Minuscule(field.Name))
 	}
 	// FIXME: snowflake
-	if m.entity == "container" {
+	if m.entity == "instance" {
 		buf.L("filter.Type = -1")
 	}
 	buf.N()
