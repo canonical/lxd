@@ -3,6 +3,9 @@ package cluster_test
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -15,9 +18,12 @@ import (
 
 // If the node is not clustered, the schema updates works normally.
 func TestEnsureSchema_NoClustered(t *testing.T) {
+	dir, cleanup := newDir(t)
+	defer cleanup()
+	assert.NoError(t, os.Mkdir(filepath.Join(dir, "global"), 0711))
 	db := newDB(t)
 	addNode(t, db, "0.0.0.0", 1, 1)
-	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666", "/unused/db/dir")
+	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666", dir)
 	assert.True(t, ready)
 	assert.NoError(t, err)
 }
@@ -178,4 +184,23 @@ func assertNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensi
 		return err
 	})
 	require.NoError(t, err)
+}
+
+// Return a new temporary directory.
+func newDir(t *testing.T) (string, func()) {
+	t.Helper()
+
+	dir, err := ioutil.TempDir("", "dqlite-replication-test-")
+	assert.NoError(t, err)
+
+	cleanup := func() {
+		_, err := os.Stat(dir)
+		if err != nil {
+			assert.True(t, os.IsNotExist(err))
+		} else {
+			assert.NoError(t, os.RemoveAll(dir))
+		}
+	}
+
+	return dir, cleanup
 }
