@@ -461,3 +461,32 @@ INSERT INTO containers VALUES (4, 1, 'xenial', 1, 1, 0, ?, 0, ?, 'Xenial Xerus',
 `, time.Now(), time.Now())
 	assert.EqualError(t, err, "UNIQUE constraint failed: containers.project_id, containers.name")
 }
+
+func TestUpdateFromV14(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(15, func(db *sql.DB) {
+		// Insert a node.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Insert a container.
+		_, err = db.Exec(`
+INSERT INTO containers VALUES (1, 1, 'eoan', 1, 1, 0, ?, 0, ?, 'Eoan Ermine', 1, NULL)
+`, time.Now(), time.Now())
+		require.NoError(t, err)
+	})
+
+	require.NoError(t, err)
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	defer tx.Rollback()
+
+	// Check that the new instances table can be queried.
+	count, err := query.Count(tx, "instances", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+}
