@@ -130,6 +130,7 @@ test_storage_driver_ceph() {
     lxc profile device remove default root
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool1"
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool2"
+    ceph --cluster "${LXD_CEPH_CLUSTER}" osd pool rm "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool" "lxdtest-$(basename "${LXD_DIR}")-existing-osd-pool"  --yes-i-really-really-mean-it
   )
 
   # shellcheck disable=SC2031
