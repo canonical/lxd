@@ -18,7 +18,7 @@ test_sql() {
   echo "SELECT * FROM config" | lxd sql global - | grep -q "core.trust_password"
 
   # Multiple queries
-  lxd sql global "SELECT * FROM config; SELECT * FROM containers" | grep -q "=> Query 0"
+  lxd sql global "SELECT * FROM config; SELECT * FROM instances" | grep -q "=> Query 0"
 
   # Local database dump
   SQLITE_DUMP="${TEST_DIR}/dump.db"
