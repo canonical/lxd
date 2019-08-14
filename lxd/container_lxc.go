@@ -6781,21 +6781,21 @@ func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultM
 	}
 
 	// Check if we've been passed major and minor numbers already.
-	var tmp int
-	dMajor := -1
+	var dMajor, dMinor uint32
 	if m["major"] != "" {
-		tmp, err = strconv.Atoi(m["major"])
-		if err == nil {
-			dMajor = tmp
+		tmp, err := strconv.ParseUint(m["major"], 10, 32)
+		if err != nil {
+			return err
 		}
+		dMajor = uint32(tmp)
 	}
 
-	dMinor := -1
 	if m["minor"] != "" {
-		tmp, err = strconv.Atoi(m["minor"])
-		if err == nil {
-			dMinor = tmp
+		tmp, err := strconv.ParseUint(m["minor"], 10, 32)
+		if err != nil {
+			return err
 		}
+		dMinor = uint32(tmp)
 	}
 
 	dType := ""
@@ -6805,7 +6805,7 @@ func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultM
 		dType = "b"
 	}
 
-	if dType == "" || dMajor < 0 || dMinor < 0 {
+	if dType == "" || m["major"] == "" || m["minor"] == "" {
 		dType, dMajor, dMinor, err = device.UnixDeviceAttributes(devPath)
 		if err != nil {
 			return err
@@ -6902,22 +6902,24 @@ func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bo
 	}
 
 	// Check if we've been passed major and minor numbers already.
-	var tmp int
 	var err error
-	dMajor := -1
+	var dMajor, dMinor uint32
 	if m["major"] != "" {
-		tmp, err = strconv.Atoi(m["major"])
-		if err == nil {
-			dMajor = tmp
+		tmp, err := strconv.ParseUint(m["major"], 10, 32)
+		if err != nil {
+			return err
 		}
+
+		dMajor = uint32(tmp)
 	}
 
-	dMinor := -1
 	if m["minor"] != "" {
-		tmp, err = strconv.Atoi(m["minor"])
-		if err == nil {
-			dMinor = tmp
+		tmp, err := strconv.ParseUint(m["minor"], 10, 32)
+		if err != nil {
+			return err
 		}
+
+		dMinor = uint32(tmp)
 	}
 
 	dType := ""
@@ -6936,7 +6938,7 @@ func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bo
 	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
-	if dType == "" || dMajor < 0 || dMinor < 0 {
+	if dType == "" || m["major"] == "" || m["minor"] == "" {
 		dType, dMajor, dMinor, err = device.UnixDeviceAttributes(devPath)
 		if err != nil {
 			return err
@@ -6945,14 +6947,14 @@ func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bo
 
 	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Remove the device cgroup rule
-		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
+		err := c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
 			return err
 		}
 	}
 
 	if eject && c.FileExists(relativeDestPath) == nil {
-		err = c.removeMount(destPath)
+		err := c.removeMount(destPath)
 		if err != nil {
 			return fmt.Errorf("Error unmounting the device: %s", err)
 		}
