@@ -469,18 +469,11 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 	// get mountpoint of storage volume
 	remapPath := getStoragePoolVolumeMountPoint(poolName, volumeName)
 
-	// Convert the volume type name to our internal integer representation.
-	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
-	if err != nil {
-		return nil, err
-	}
-
 	if !nextIdmap.Equals(lastIdmap) {
 		logger.Debugf("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
-			volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s,
-				"default", volumeName, volumeTypeName)
+			volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s, "default", poolName, volumeName)
 			if err != nil {
 				return nil, err
 			}
