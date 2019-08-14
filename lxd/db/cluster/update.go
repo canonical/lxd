@@ -90,19 +90,23 @@ CREATE TABLE instances_snapshots_devices_config (
     UNIQUE (instance_snapshot_device_id, key)
 );
 CREATE VIEW instances_snapshots_config_ref (
+  project,
   instance,
   name,
   key,
   value) AS
   SELECT
+    projects.name,
     instances.name,
     instances_snapshots.name,
     instances_snapshots_config.key,
     instances_snapshots_config.value
   FROM instances_snapshots_config
     JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
-    JOIN instances ON instances.id=instances_snapshots.instance_id;
+    JOIN instances ON instances.id=instances_snapshots.instance_id
+    JOIN projects ON projects.id=instances.project_id;
 CREATE VIEW instances_snapshots_devices_ref (
+  project,
   instance,
   name,
   device,
@@ -110,6 +114,7 @@ CREATE VIEW instances_snapshots_devices_ref (
   key,
   value) AS
   SELECT
+    projects.name,
     instances.name,
     instances_snapshots.name,
     instances_snapshots_devices.name,
@@ -120,6 +125,7 @@ CREATE VIEW instances_snapshots_devices_ref (
     LEFT OUTER JOIN instances_snapshots_devices_config
       ON instances_snapshots_devices_config.instance_snapshot_device_id=instances_snapshots_devices.id
      JOIN instances ON instances.id=instances_snapshots.instance_id
+     JOIN projects ON projects.id=instances.project_id
      JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_devices.instance_snapshot_id
 `
 	_, err := tx.Exec(stmts)
