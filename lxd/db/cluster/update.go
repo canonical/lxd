@@ -48,6 +48,26 @@ var updates = map[int]schema.Update{
 	13: updateFromV12,
 	14: updateFromV13,
 	15: updateFromV14,
+	16: updateFromV15,
+}
+
+// Create new snapshot tables and migrate data to them.
+func updateFromV15(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE instances_snapshots (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    description TEXT,
+    expiry_date DATETIME,
+    UNIQUE (instance_id, name),
+    FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
+);
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // Rename all containers* tables to instances*/
