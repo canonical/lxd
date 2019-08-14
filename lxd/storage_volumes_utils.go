@@ -64,10 +64,6 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 	return "", fmt.Errorf("invalid storage volume type name")
 }
 
-func storagePoolVolumeTypeToName(volumeType int) (string, error) {
-	return db.StoragePoolVolumeTypeToName(volumeType)
-}
-
 func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
@@ -241,26 +237,22 @@ func storagePoolVolumeSnapshotUpdate(state *state.State, poolName string, volume
 	return nil
 }
 
-func storagePoolVolumeUsedByContainersGet(s *state.State, project, volumeName string,
-	volumeTypeName string) ([]string, error) {
+func storagePoolVolumeUsedByContainersGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
 	cts, err := containerLoadByProject(s, project)
 	if err != nil {
 		return []string{}, err
 	}
 
 	ctsUsingVolume := []string{}
-	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
 	for _, c := range cts {
 		for _, dev := range c.LocalDevices() {
 			if dev["type"] != "disk" {
 				continue
 			}
 
-			// Make sure that we don't compare against stuff like
-			// "container////bla" but only against "container/bla".
-			cleanSource := filepath.Clean(dev["source"])
-			if cleanSource == volumeName || cleanSource == volumeNameWithType {
+			if dev["pool"] == poolName && dev["source"] == volumeName {
 				ctsUsingVolume = append(ctsUsingVolume, c.Name())
+				break
 			}
 		}
 	}
@@ -438,7 +430,7 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-func storagePoolVolumeUsedByGet(s *state.State, project, volumeName string, volumeTypeName string) ([]string, error) {
+func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volumeName string, volumeTypeName string) ([]string, error) {
 	// Handle container volumes
 	if volumeTypeName == "container" {
 		cName, sName, snap := containerGetParentAndSnapshotName(volumeName)
@@ -456,8 +448,7 @@ func storagePoolVolumeUsedByGet(s *state.State, project, volumeName string, volu
 	}
 
 	// Look for containers using this volume
-	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(s,
-		project, volumeName, volumeTypeName)
+	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(s, project, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
 	}
