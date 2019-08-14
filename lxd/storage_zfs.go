@@ -724,7 +724,7 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renaming ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.volume.Name, storagePoolVolumeTypeNameCustom)
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.pool.Name, s.volume.Name)
 	if err != nil {
 		return err
 	}
