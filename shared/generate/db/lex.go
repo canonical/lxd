@@ -9,12 +9,18 @@ import (
 
 // Return the table name for the given database entity.
 func entityTable(entity string) string {
-	return lex.Plural(lex.Minuscule(entity))
+	entity_parts := strings.Split(lex.Snake(entity), "_")
+	table_parts := make([]string, len(entity_parts))
+	for i, part := range entity_parts {
+		table_parts[i] = lex.Plural(part)
+	}
+
+	return strings.Join(table_parts, "_")
 }
 
 // Return Go type of the given database entity.
 func entityType(pkg string, entity string) string {
-	typ := lex.Capital(entity)
+	typ := lex.Camel(entity)
 	if pkg != "db" {
 		typ = pkg + "." + typ
 	}
@@ -23,7 +29,7 @@ func entityType(pkg string, entity string) string {
 
 // Return the name of the Filter struct for the given database entity.
 func entityFilter(entity string) string {
-	return fmt.Sprintf("%sFilter", lex.Capital(entity))
+	return fmt.Sprintf("%sFilter", lex.Camel(entity))
 }
 
 // Return the name of the Post struct for the given entity.

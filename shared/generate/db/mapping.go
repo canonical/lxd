@@ -158,6 +158,12 @@ func (f *Field) IsScalar() bool {
 	return f.Config.Get("join") != ""
 }
 
+// IsIndirect returns true if the field is a scalar column value from a joined
+// table that in turn requires another join.
+func (f *Field) IsIndirect() bool {
+	return f.IsScalar() && f.Config.Get("via") != ""
+}
+
 // IsPrimary returns true if the field part of the natural key.
 func (f *Field) IsPrimary() bool {
 	return f.Config.Get("primary") != "" || f.Name == "Name"
