@@ -81,7 +81,7 @@ func RefFilters(pkg *ast.Package, entity string, ref string) [][]string {
 }
 
 func Criteria(pkg *ast.Package, entity string) ([]string, error) {
-	name := fmt.Sprintf("%sFilter", lex.Capital(entity))
+	name := fmt.Sprintf("%sFilter", lex.Camel(entity))
 	str := findStruct(pkg.Scope, name)
 
 	if str == nil {
