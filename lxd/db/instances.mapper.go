@@ -5,7 +5,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -16,49 +15,49 @@ var _ = api.ServerEnvironment{}
 
 var instanceObjects = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE instances.type = ? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndTypeAndParent = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.type = ? AND SUBSTR(instances.name,1,?)=? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE node = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND node = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndName = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.name = ? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProjectAndNameAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.name = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
 
@@ -123,13 +122,13 @@ SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE 
 `)
 
 var instanceID = cluster.RegisterStmt(`
-SELECT instances.id FROM instances JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE projects.name = ? AND instances.name = ?
 `)
 
 var instanceCreate = cluster.RegisterStmt(`
 INSERT INTO instances (project_id, name, node_id, type, architecture, ephemeral, creation_date, stateful, last_use_date, description, expiry_date)
-  VALUES ((SELECT id FROM projects WHERE name = ?), ?, (SELECT id FROM nodes WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES ((SELECT projects.id FROM projects WHERE projects.name = ?), ?, (SELECT nodes.id FROM nodes WHERE nodes.name = ?), ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var instanceCreateConfigRef = cluster.RegisterStmt(`
@@ -188,6 +187,13 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 			filter.Name,
 			filter.Type,
 		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByProjectAndNodeAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+			filter.Type,
+		}
 	} else if criteria["Project"] != nil && criteria["Type"] != nil && criteria["Parent"] != nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndParent)
 		args = []interface{}{
@@ -196,23 +202,10 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 			len(filter.Parent) + 1,
 			filter.Parent + "/",
 		}
-	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndNodeAndType)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-			filter.Type,
-		}
 	} else if criteria["Project"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(instanceObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
-			filter.Type,
-		}
-	} else if criteria["Node"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByNodeAndType)
-		args = []interface{}{
-			filter.Node,
 			filter.Type,
 		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
@@ -220,6 +213,12 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByNodeAndType)
+		args = []interface{}{
+			filter.Node,
+			filter.Type,
 		}
 	} else if criteria["Type"] != nil {
 		stmt = c.stmt(instanceObjectsByType)
@@ -263,8 +262,8 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	}
 
 	for i := range objects {
-		_, ok := configObjects[objects[i].Project]
-		if !ok {
+		_, ok0 := configObjects[objects[i].Project]
+		if !ok0 {
 			subIndex := map[string]map[string]string{}
 			configObjects[objects[i].Project] = subIndex
 		}
@@ -283,8 +282,8 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	}
 
 	for i := range objects {
-		_, ok := devicesObjects[objects[i].Project]
-		if !ok {
+		_, ok0 := devicesObjects[objects[i].Project]
+		if !ok0 {
 			subIndex := map[string]map[string]map[string]string{}
 			devicesObjects[objects[i].Project] = subIndex
 		}
@@ -303,8 +302,8 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	}
 
 	for i := range objects {
-		_, ok := profilesObjects[objects[i].Project]
-		if !ok {
+		_, ok0 := profilesObjects[objects[i].Project]
+		if !ok0 {
 			subIndex := map[string][]string{}
 			profilesObjects[objects[i].Project] = subIndex
 		}
@@ -505,15 +504,15 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(instanceProfilesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceProfilesRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(instanceProfilesRefByNode)
+		args = []interface{}{
+			filter.Node,
 		}
 	} else {
 		stmt = c.stmt(instanceProfilesRef)
@@ -544,8 +543,8 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 	index := map[string]map[string][]string{}
 
 	for _, object := range objects {
-		_, ok := index[object.Project]
-		if !ok {
+		_, ok0 := index[object.Project]
+		if !ok0 {
 			subIndex := map[string][]string{}
 			index[object.Project] = subIndex
 		}
@@ -587,17 +586,17 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(instanceConfigRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(instanceConfigRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceConfigRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceConfigRefByProject)
@@ -640,8 +639,8 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 	index := map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		_, ok := index[object.Project]
-		if !ok {
+		_, ok0 := index[object.Project]
+		if !ok0 {
 			subIndex := map[string]map[string]string{}
 			index[object.Project] = subIndex
 		}
@@ -698,15 +697,15 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(instanceDevicesRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(instanceDevicesRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProject)
+		args = []interface{}{
+			filter.Project,
 		}
 	} else {
 		stmt = c.stmt(instanceDevicesRef)
@@ -743,8 +742,8 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 	index := map[string]map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		_, ok := index[object.Project]
-		if !ok {
+		_, ok0 := index[object.Project]
+		if !ok0 {
 			subIndex := map[string]map[string]map[string]string{}
 			index[object.Project] = subIndex
 		}
