@@ -194,25 +194,6 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
-	case "gpu":
-		switch k {
-		case "vendorid":
-			return true
-		case "productid":
-			return true
-		case "id":
-			return true
-		case "pci":
-			return true
-		case "mode":
-			return true
-		case "gid":
-			return true
-		case "uid":
-			return true
-		default:
-			return false
-		}
 	case "none":
 		return false
 	default:
@@ -410,7 +391,7 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified")
 				}
 
-				dType, _, _, err := device.UnixGetDeviceAttributes(srcPath)
+				dType, _, _, err := device.UnixDeviceAttributes(srcPath)
 				if err != nil {
 					return err
 				}
@@ -425,18 +406,6 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 			}
 		} else if m["type"] == "usb" {
 			// Nothing needed for usb.
-		} else if m["type"] == "gpu" {
-			if m["pci"] != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", m["pci"])) {
-				return fmt.Errorf("Invalid PCI address (no device found): %s", m["pci"])
-			}
-
-			if m["pci"] != "" && (m["id"] != "" || m["productid"] != "" || m["vendorid"] != "") {
-				return fmt.Errorf("Cannot use id, productid or vendorid when pci is set")
-			}
-
-			if m["id"] != "" && (m["pci"] != "" || m["productid"] != "" || m["vendorid"] != "") {
-				return fmt.Errorf("Cannot use pci, productid or vendorid when id is set")
-			}
 		} else if m["type"] == "none" {
 			continue
 		} else {

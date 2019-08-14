@@ -27,7 +27,8 @@ func NewContainerTarWriter(writer io.Writer, idmapSet *idmap.IdmapSet) *Containe
 
 func (ctw *ContainerTarWriter) WriteFile(offset int, path string, fi os.FileInfo) error {
 	var err error
-	var major, minor, nlink int
+	var major, minor uint32
+	var nlink int
 	var ino uint64
 
 	link := ""
@@ -72,10 +73,8 @@ func (ctw *ContainerTarWriter) WriteFile(offset int, path string, fi os.FileInfo
 		}
 	}
 
-	if major != -1 {
-		hdr.Devmajor = int64(major)
-		hdr.Devminor = int64(minor)
-	}
+	hdr.Devmajor = int64(major)
+	hdr.Devminor = int64(minor)
 
 	// If it's a hardlink we've already seen use the old name
 	if fi.Mode().IsRegular() && nlink > 1 {
