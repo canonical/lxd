@@ -89,6 +89,17 @@ CREATE TABLE instances_snapshots_devices_config (
     FOREIGN KEY (instance_snapshot_device_id) REFERENCES instances_snapshots_devices (id) ON DELETE CASCADE,
     UNIQUE (instance_snapshot_device_id, key)
 );
+CREATE VIEW instances_snapshots_config_ref (instance,
+    name,
+    key,
+    value) AS
+   SELECT instances.name,
+    instances_snapshots.name,
+    instances_snapshots_config.key,
+    instances_snapshots_config.value
+     FROM instances_snapshots_config
+       JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
+       JOIN instances ON instances.id=instances_snapshots.instance_id;
 `
 	_, err := tx.Exec(stmts)
 	return err
