@@ -348,33 +348,60 @@ func FileMove(oldPath string, newPath string) error {
 
 // FileCopy copies a file, overwriting the target if it exists.
 func FileCopy(source string, dest string) error {
-	s, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-
-	fi, err := s.Stat()
+	fi, err := os.Lstat(source)
 	if err != nil {
 		return err
 	}
 
-	d, err := os.Create(dest)
-	if err != nil {
-		if os.IsExist(err) {
-			d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
+	var d *os.File
+
+	if fi.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(source)
+		if err != nil {
+			return err
+		}
+
+		if PathExists(dest) {
+			err = os.Remove(dest)
 			if err != nil {
 				return err
 			}
-		} else {
+		}
+
+		err = os.Symlink(target, dest)
+		if err != nil {
 			return err
 		}
-	}
-	defer d.Close()
 
-	_, err = io.Copy(d, s)
-	if err != nil {
-		return err
+		d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
+		if err != nil {
+			return err
+		}
+		defer d.Close()
+	} else {
+		s, err := os.Open(source)
+		if err != nil {
+			return err
+		}
+		defer s.Close()
+
+		d, err = os.Create(dest)
+		if err != nil {
+			if os.IsExist(err) {
+				d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+		defer d.Close()
+
+		_, err = io.Copy(d, s)
+		if err != nil {
+			return err
+		}
 	}
 
 	/* chown not supported on windows */
