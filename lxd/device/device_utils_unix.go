@@ -20,24 +20,25 @@ import (
 // unixDeviceInstanceAttributes returns the UNIX device attributes for an instance device.
 // Uses supplied device config for device properties, and if they haven't been set, falls back to
 // using UnixGetDeviceAttributes() to directly query an existing device file.
-func unixDeviceInstanceAttributes(devicesPath string, prefix string, config config.Device) (string, int, int, error) {
+func unixDeviceInstanceAttributes(devicesPath string, prefix string, config config.Device) (string, uint32, uint32, error) {
 	// Check if we've been passed major and minor numbers already.
-	var tmp int
 	var err error
-	dMajor := -1
+	var dMajor, dMinor uint32
+
 	if config["major"] != "" {
-		tmp, err = strconv.Atoi(config["major"])
-		if err == nil {
-			dMajor = tmp
+		tmp, err := strconv.ParseUint(config["major"], 10, 32)
+		if err != nil {
+			return "", 0, 0, err
 		}
+		dMajor = uint32(tmp)
 	}
 
-	dMinor := -1
 	if config["minor"] != "" {
-		tmp, err = strconv.Atoi(config["minor"])
-		if err == nil {
-			dMinor = tmp
+		tmp, err := strconv.ParseUint(config["minor"], 10, 32)
+		if err != nil {
+			return "", 0, 0, err
 		}
+		dMinor = uint32(tmp)
 	}
 
 	dType := ""
@@ -56,7 +57,8 @@ func unixDeviceInstanceAttributes(devicesPath string, prefix string, config conf
 	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(devicesPath, devName)
 
-	if dType == "" || dMajor < 0 || dMinor < 0 {
+	// If any config options missing then retrieve all the needed set of attributes from device.
+	if dType == "" || config["major"] == "" || config["minor"] == "" {
 		dType, dMajor, dMinor, err = UnixDeviceAttributes(devPath)
 		if err != nil {
 			return dType, dMajor, dMinor, err
@@ -67,7 +69,7 @@ func unixDeviceInstanceAttributes(devicesPath string, prefix string, config conf
 }
 
 // UnixDeviceAttributes returns the decice type, major and minor numbers for a device.
-func UnixDeviceAttributes(path string) (string, int, int, error) {
+func UnixDeviceAttributes(path string) (string, uint32, uint32, error) {
 	// Get a stat struct from the provided path
 	stat := unix.Stat_t{}
 	err := unix.Stat(path, &stat)
@@ -86,8 +88,8 @@ func UnixDeviceAttributes(path string) (string, int, int, error) {
 	}
 
 	// Return the device information
-	major := shared.Major(stat.Rdev)
-	minor := shared.Minor(stat.Rdev)
+	major := unix.Major(stat.Rdev)
+	minor := unix.Minor(stat.Rdev)
 	return dType, major, minor, nil
 }
 
@@ -111,8 +113,8 @@ type UnixDevice struct {
 	HostPath     string      // Absolute path to the device on the host.
 	RelativePath string      // Relative path where the device will be mounted inside instance.
 	Type         string      // Type of device; c (for char) or b for (block).
-	Major        int         // Major number.
-	Minor        int         // Minor number.
+	Major        uint32      // Major number.
+	Minor        uint32      // Minor number.
 	Mode         os.FileMode // File mode.
 	UID          int         // Owner UID.
 	GID          int         // Owner GID.
@@ -167,15 +169,17 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	} else if m["major"] == "" || m["minor"] == "" {
 		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
 	} else {
-		d.Major, err = strconv.Atoi(m["major"])
+		tmp, err := strconv.ParseUint(m["major"], 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
 		}
+		d.Major = uint32(tmp)
 
-		d.Minor, err = strconv.Atoi(m["minor"])
+		tmp, err = strconv.ParseUint(m["minor"], 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
 		}
+		d.Minor = uint32(tmp)
 	}
 
 	// Get the device mode (defaults to 0660 if not supplied).
@@ -235,7 +239,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 
 	// Create the new entry.
 	if !s.OS.RunningInUserNS {
-		devNum := int(unix.Mkdev(uint32(d.Major), uint32(d.Minor)))
+		devNum := int(unix.Mkdev(d.Major, d.Minor))
 		err := unix.Mknod(devPath, uint32(d.Mode), devNum)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
@@ -354,7 +358,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 // already know the device's major and minor numbers to avoid unixDeviceSetup() having to stat the
 // device to ascertain these attributes. If defaultMode is true or mode is supplied in the device
 // config then the origin device does not need to be accessed for its file mode.
-func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m config.Device, major int, minor int, path string, defaultMode bool, runConf *RunConfig) error {
+func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m config.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *RunConfig) error {
 	configCopy := config.Device{}
 	for k, v := range m {
 		configCopy[k] = v
