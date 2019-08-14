@@ -428,7 +428,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 		// Re-link the database entries against the new node name.
 		var poolName string
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			err := tx.ContainerNodeMove(oldName, newName, newNode)
+			err := tx.ContainerNodeMove(project, oldName, newName, newNode)
 			if err != nil {
 				return err
 			}
