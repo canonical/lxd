@@ -19,16 +19,7 @@ import (
 
 // --- pure Go functions ---
 
-func Major(dev uint64) int {
-	return int(((dev >> 8) & 0xfff) | ((dev >> 32) & (0xfffff000)))
-}
-
-func Minor(dev uint64) int {
-	return int((dev & 0xff) | ((dev >> 12) & (0xffffff00)))
-}
-
-func GetFileStat(p string) (uid int, gid int, major int, minor int,
-	inode uint64, nlink int, err error) {
+func GetFileStat(p string) (uid int, gid int, major uint32, minor uint32, inode uint64, nlink int, err error) {
 	var stat unix.Stat_t
 	err = unix.Lstat(p, &stat)
 	if err != nil {
@@ -38,11 +29,9 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	gid = int(stat.Gid)
 	inode = uint64(stat.Ino)
 	nlink = int(stat.Nlink)
-	major = -1
-	minor = -1
 	if stat.Mode&unix.S_IFBLK != 0 || stat.Mode&unix.S_IFCHR != 0 {
-		major = Major(stat.Rdev)
-		minor = Minor(stat.Rdev)
+		major = unix.Major(stat.Rdev)
+		minor = unix.Minor(stat.Rdev)
 	}
 
 	return
