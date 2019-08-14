@@ -6,7 +6,7 @@ import "time"
 // API extension: container_backup
 type ContainerBackupsPost struct {
 	Name             string    `json:"name" yaml:"name"`
-	ExpiryDate       time.Time `json:"expiry" yaml:"expiry"`
+	ExpiresAt        time.Time `json:"expires_at" yaml:"expires_at"`
 	ContainerOnly    bool      `json:"container_only" yaml:"container_only"`
 	OptimizedStorage bool      `json:"optimized_storage" yaml:"optimized_storage"`
 }
@@ -15,8 +15,8 @@ type ContainerBackupsPost struct {
 // API extension: container_backup
 type ContainerBackup struct {
 	Name             string    `json:"name" yaml:"name"`
-	CreationDate     time.Time `json:"creation_date" yaml:"creation_date"`
-	ExpiryDate       time.Time `json:"expiry_date" yaml:"expiry_date"`
+	CreatedAt        time.Time `json:"created_at" yaml:"created_at"`
+	ExpiresAt        time.Time `json:"expires_at" yaml:"expires_at"`
 	ContainerOnly    bool      `json:"container_only" yaml:"container_only"`
 	OptimizedStorage bool      `json:"optimized_storage" yaml:"optimized_storage"`
 }
