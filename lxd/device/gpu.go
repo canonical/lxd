@@ -30,8 +30,8 @@ type gpuDevice struct {
 	// DRM node information
 	id    string
 	path  string
-	major int
-	minor int
+	major uint32
+	minor uint32
 
 	// Device information
 	vendorID    string
@@ -60,8 +60,8 @@ func (g *gpuDevice) isNvidiaGpu() bool {
 // /dev/nvidia[0-9]+
 type nvidiaGpuCard struct {
 	path  string
-	major int
-	minor int
+	major uint32
+	minor uint32
 	id    string
 
 	nvrmVersion  string
@@ -76,8 +76,8 @@ type nvidiaGpuCard struct {
 type nvidiaGpuDevice struct {
 	isCard bool
 	path   string
-	major  int
-	minor  int
+	major  uint32
+	minor  uint32
 }
 
 // Nvidia container info
@@ -450,18 +450,18 @@ func (d *gpu) deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 				continue
 			}
 
-			majorInt, err := strconv.Atoi(majMinSlice[0])
+			majorInt, err := strconv.ParseUint(majMinSlice[0], 10, 32)
 			if err != nil {
 				continue
 			}
 
-			minorInt, err := strconv.Atoi(majMinSlice[1])
+			minorInt, err := strconv.ParseUint(majMinSlice[1], 10, 32)
 			if err != nil {
 				continue
 			}
 
-			tmpGpu.major = majorInt
-			tmpGpu.minor = minorInt
+			tmpGpu.major = uint32(majorInt)
+			tmpGpu.minor = uint32(minorInt)
 
 			isCard, err := regexp.MatchString("^card[0-9]+", drmEnt.Name())
 			if err != nil {
@@ -490,9 +490,9 @@ func (d *gpu) deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 						}
 
 						tmpGpu.nvidia.path = nvidiaPath
-						tmpGpu.nvidia.major = shared.Major(stat.Rdev)
-						tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
-						tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
+						tmpGpu.nvidia.major = unix.Major(stat.Rdev)
+						tmpGpu.nvidia.minor = unix.Minor(stat.Rdev)
+						tmpGpu.nvidia.id = strconv.FormatInt(int64(tmpGpu.nvidia.minor), 10)
 
 						if nvidiaContainer != nil {
 							tmpGpu.nvidia.nvrmVersion = nvidiaContainer.NVRMVersion
@@ -514,7 +514,7 @@ func (d *gpu) deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 
 			if isCard {
 				// If it is a card it's minor number will be its id.
-				tmpGpu.id = strconv.Itoa(minorInt)
+				tmpGpu.id = strconv.FormatInt(int64(minorInt), 10)
 				tmp := cardIds{
 					id:  tmpGpu.id,
 					pci: tmpGpu.pci,
@@ -563,8 +563,8 @@ func (d *gpu) deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 			tmpNividiaGpu := nvidiaGpuDevice{
 				isCard: !validNvidia.MatchString(nvidiaEnt.Name()),
 				path:   nvidiaPath,
-				major:  shared.Major(stat.Rdev),
-				minor:  shared.Minor(stat.Rdev),
+				major:  unix.Major(stat.Rdev),
+				minor:  unix.Minor(stat.Rdev),
 			}
 
 			nvidiaDevices = append(nvidiaDevices, tmpNividiaGpu)
