@@ -89,17 +89,38 @@ CREATE TABLE instances_snapshots_devices_config (
     FOREIGN KEY (instance_snapshot_device_id) REFERENCES instances_snapshots_devices (id) ON DELETE CASCADE,
     UNIQUE (instance_snapshot_device_id, key)
 );
-CREATE VIEW instances_snapshots_config_ref (instance,
-    name,
-    key,
-    value) AS
-   SELECT instances.name,
+CREATE VIEW instances_snapshots_config_ref (
+  instance,
+  name,
+  key,
+  value) AS
+  SELECT
+    instances.name,
     instances_snapshots.name,
     instances_snapshots_config.key,
     instances_snapshots_config.value
-     FROM instances_snapshots_config
-       JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
-       JOIN instances ON instances.id=instances_snapshots.instance_id;
+  FROM instances_snapshots_config
+    JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
+    JOIN instances ON instances.id=instances_snapshots.instance_id;
+CREATE VIEW instances_snapshots_devices_ref (
+  instance,
+  name,
+  device,
+  type,
+  key,
+  value) AS
+  SELECT
+    instances.name,
+    instances_snapshots.name,
+    instances_snapshots_devices.name,
+    instances_snapshots_devices.type,
+    coalesce(instances_snapshots_devices_config.key, ''),
+    coalesce(instances_snapshots_devices_config.value, '')
+  FROM instances_snapshots_devices
+    LEFT OUTER JOIN instances_snapshots_devices_config
+      ON instances_snapshots_devices_config.instance_snapshot_device_id=instances_snapshots_devices.id
+     JOIN instances ON instances.id=instances_snapshots.instance_id
+     JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_devices.instance_snapshot_id
 `
 	_, err := tx.Exec(stmts)
 	return err
