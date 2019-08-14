@@ -321,6 +321,8 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 }
 
 func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
+	s := d.State()
+
 	// First deal with config specific to the local daemon
 	nodeValues := map[string]interface{}{}
 
@@ -348,6 +350,21 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 
 		if ok && curClusterAddress != "" && !util.IsAddressCovered(newClusterAddress.(string), curClusterAddress) {
 			return fmt.Errorf("Changing cluster.https_address is currently not supported")
+		}
+
+		// Validate the storage volumes
+		if nodeValues["storage.backups_volume"] != nil && nodeValues["storage.backups_volume"] != newNodeConfig.StorageBackupsVolume() {
+			err := daemonStorageValidate(s, nodeValues["storage.backups_volume"].(string))
+			if err != nil {
+				return err
+			}
+		}
+
+		if nodeValues["storage.images_volume"] != nil && nodeValues["storage.images_volume"] != newNodeConfig.StorageImagesVolume() {
+			err := daemonStorageValidate(s, nodeValues["storage.images_volume"].(string))
+			if err != nil {
+				return err
+			}
 		}
 
 		if patch {
@@ -411,7 +428,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	}
 
 	// Notify the other nodes about changes
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+	notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), cluster.NotifyAlive)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -442,6 +459,8 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 }
 
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *cluster.Config) error {
+	s := d.State()
+
 	maasChanged := false
 	candidChanged := false
 	rbacChanged := false
@@ -520,6 +539,22 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	value, ok = nodeChanged["core.debug_address"]
 	if ok {
 		err := d.endpoints.PprofUpdateAddress(value)
+		if err != nil {
+			return err
+		}
+	}
+
+	value, ok = nodeChanged["storage.backups_volume"]
+	if ok {
+		err := daemonStorageMove(s, "backups", value)
+		if err != nil {
+			return err
+		}
+	}
+
+	value, ok = nodeChanged["storage.images_volume"]
+	if ok {
+		err := daemonStorageMove(s, "images", value)
 		if err != nil {
 			return err
 		}

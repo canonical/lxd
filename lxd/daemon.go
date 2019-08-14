@@ -777,6 +777,12 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Mount any daemon storage
+	err = daemonStorageMount(d.State())
+	if err != nil {
+		return err
+	}
+
 	/* Apply all patches */
 	err = patchesApplyAll(d)
 	if err != nil {
