@@ -202,7 +202,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), "default", vol.Name, vol.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), "default", poolName, vol.Name, vol.Type)
 			if err != nil {
 				return SmartError(err)
 			}
