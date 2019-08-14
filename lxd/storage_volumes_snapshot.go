@@ -56,7 +56,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return BadRequest(fmt.Errorf("invalid storage volume type \"%d\"", volumeType))
+		return BadRequest(fmt.Errorf("Invalid storage volume type \"%d\"", volumeType))
 	}
 
 	// Get a snapshot name.
@@ -69,6 +69,16 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 	err = storageValidName(req.Name)
 	if err != nil {
 		return BadRequest(err)
+	}
+
+	// Check that this isn't a restricted volume
+	used, err := daemonStorageUsed(d.State(), poolName, volumeName)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if used {
+		return BadRequest(fmt.Errorf("Volumes used by LXD itself cannot have snapshots"))
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool
@@ -94,7 +104,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	// Ensure that it doens't already fucking exist
+	// Ensure that the snapshot doens't already exist
 	_, _, err = d.cluster.StoragePoolNodeVolumeGetType(fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
