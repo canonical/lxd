@@ -350,7 +350,7 @@ Device configuration properties:
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
 name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
+mtu                     | integer   | kernel assigned   | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
 host\_name              | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
 limits.ingress          | string    | -                 | no        | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
@@ -369,7 +369,7 @@ Key                     | Type      | Default           | Required  | API extens
 :--                     | :--       | :--               | :--       | :--                                    | :--
 parent                  | string    | -                 | yes       | -                                      | The name of the host device
 name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
+mtu                     | integer   | kernel assigned   | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
 security.mac\_filtering | boolean   | false             | no        | network\_vlan\_sriov                   | Prevent the container from spoofing another's MAC address
 vlan                    | integer   | -                 | no        | network\_vlan\_sriov                   | The VLAN ID to attach to
