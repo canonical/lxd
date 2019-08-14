@@ -46,6 +46,8 @@ rbac.agent.private\_key             | string    | global    | -         | rbac  
 rbac.api.expiry                     | integer   | global    | -         | rbac                              | RBAC macaroon expiry in seconds
 rbac.api.key                        | string    | global    | -         | rbac                              | Public key of the RBAC server (required for HTTP-only servers)
 rbac.api.url                        | string    | global    | -         | rbac                              | URL of the external RBAC server
+storage.backups\_volume             | string    | local     | -         | daemon\_storage                   | Volume to use to store the backup tarballs (syntax is POOL/VOLUME)
+storage.images\_volume              | string    | local     | -         | daemon\_storage                   | Volume to use to store the image tarballs (syntax is POOL/VOLUME)
 
 Those keys can be set using the lxc tool with:
 

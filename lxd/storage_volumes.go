@@ -452,7 +452,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		// Handle volume
 		volumeName = fields[0]
 	} else {
-		return BadRequest(fmt.Errorf("invalid storage volume %s", mux.Vars(r)["name"]))
+		return BadRequest(fmt.Errorf("Invalid storage volume %s", mux.Vars(r)["name"]))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be
@@ -560,8 +560,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check that the name isn't already in use.
-	_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(req.Name,
-		storagePoolVolumeTypeCustom, poolID)
+	_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(req.Name, storagePoolVolumeTypeCustom, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return InternalError(err)
@@ -571,6 +570,17 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	doWork := func() error {
+		// Check if the daemon itself is using it
+		used, err := daemonStorageUsed(d.State(), poolName, volumeName)
+		if err != nil {
+			return err
+		}
+
+		if used {
+			return fmt.Errorf("Volume is used by LXD itself and cannot be renamed")
+		}
+
+		// Check if a running container is using it
 		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
 		if err != nil {
 			return err
@@ -1007,8 +1017,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 				"/%s/images/%s",
 				version.APIVersion,
 				volumeName) {
-			return BadRequest(fmt.Errorf(`The storage volume is ` +
-				`still in use by containers or profiles`))
+			return BadRequest(fmt.Errorf("The storage volume is still in use"))
 		}
 	}
 

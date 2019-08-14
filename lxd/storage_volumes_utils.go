@@ -447,6 +447,16 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 		return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName)}, nil
 	}
 
+	// Check if the daemon itself is using it
+	used, err := daemonStorageUsed(s, poolName, volumeName)
+	if err != nil {
+		return []string{}, err
+	}
+
+	if used {
+		return []string{fmt.Sprintf("/%s", version.APIVersion)}, nil
+	}
+
 	// Look for containers using this volume
 	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(s, project, poolName, volumeName)
 	if err != nil {
