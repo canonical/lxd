@@ -149,7 +149,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 			Name:             fullName,
 			ContainerID:      c.Id(),
 			CreationDate:     time.Now(),
-			ExpiryDate:       req.ExpiryDate,
+			ExpiryDate:       req.ExpiresAt,
 			ContainerOnly:    req.ContainerOnly,
 			OptimizedStorage: req.OptimizedStorage,
 		}

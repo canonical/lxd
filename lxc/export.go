@@ -65,7 +65,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	req := api.ContainerBackupsPost{
 		Name:             "",
-		ExpiryDate:       time.Now().Add(24 * time.Hour),
+		ExpiresAt:        time.Now().Add(24 * time.Hour),
 		ContainerOnly:    c.flagContainerOnly,
 		OptimizedStorage: c.flagOptimizedStorage,
 	}

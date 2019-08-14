@@ -149,8 +149,8 @@ func (b *backup) Delete() error {
 func (b *backup) Render() *api.ContainerBackup {
 	return &api.ContainerBackup{
 		Name:             strings.SplitN(b.name, "/", 2)[1],
-		CreationDate:     b.creationDate,
-		ExpiryDate:       b.expiryDate,
+		CreatedAt:        b.creationDate,
+		ExpiresAt:        b.expiryDate,
 		ContainerOnly:    b.containerOnly,
 		OptimizedStorage: b.optimizedStorage,
 	}
