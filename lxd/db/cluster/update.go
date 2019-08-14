@@ -65,6 +65,14 @@ CREATE TABLE instances_snapshots (
     UNIQUE (instance_id, name),
     FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
 );
+CREATE TABLE instances_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, key)
+);
 `
 	_, err := tx.Exec(stmts)
 	return err
