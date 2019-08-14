@@ -352,7 +352,7 @@ SELECT instances.name, nodes.name
 
 // SnapshotIDsAndNames returns a map of snapshot IDs to snapshot names for the
 // container with the given name.
-func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
+func (c *ClusterTx) SnapshotIDsAndNames(project, name string) (map[int]string, error) {
 	prefix := name + shared.SnapshotDelimiter
 	length := len(prefix)
 	objects := make([]struct {
@@ -366,12 +366,17 @@ func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
 		}{})
 		return []interface{}{&objects[i].ID, &objects[i].Name}
 	}
-	stmt, err := c.tx.Prepare("SELECT id, name FROM instances WHERE SUBSTR(name,1,?)=? AND type=?")
+	stmt, err := c.tx.Prepare(`
+SELECT instances.id, instances.name
+FROM instances
+JOIN projects ON projects.id = instances.project_id
+WHERE SUBSTR(instances.name,1,?)=? AND instances.type=? AND projects.name=?
+`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	err = query.SelectObjects(stmt, dest, length, prefix, CTypeSnapshot)
+	err = query.SelectObjects(stmt, dest, length, prefix, CTypeSnapshot, project)
 	if err != nil {
 		return nil, err
 	}
@@ -386,10 +391,10 @@ func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
 //
 // It's meant to be used when moving a non-running container backed by ceph
 // from one cluster node to another.
-func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
+func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
-	poolName, err := c.ContainerPool("default", oldName)
+	poolName, err := c.ContainerPool(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's storage pool name")
 	}
@@ -407,11 +412,11 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
-	containerID, err := c.InstanceID("default", oldName)
+	containerID, err := c.InstanceID(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
-	snapshots, err := c.SnapshotIDsAndNames(oldName)
+	snapshots, err := c.SnapshotIDsAndNames(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's snapshots")
 	}
