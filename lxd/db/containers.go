@@ -82,7 +82,7 @@ type Instance struct {
 	ExpiryDate   time.Time
 }
 
-// InstanceFilter can be used to filter results yielded by ContainerList.
+// InstanceFilter can be used to filter results yielded by InstanceList.
 type InstanceFilter struct {
 	Project string
 	Name    string
