@@ -35,6 +35,17 @@ test_container_devices_nic_ipvlan() {
     false
   fi
 
+  lxc stop "${ctName}"
+
+  # Check that MTU is inherited from parent device when not specified on device.
+  ip link set "${ctName}" mtu 1405
+  lxc config device unset "${ctName}" eth0 mtu
+  lxc start "${ctName}"
+  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+    echo "mtu not inherited from parent"
+    false
+  fi
+
   #Spin up another container with multiple IPs.
   lxc init testimage "${ctName}2"
   lxc config device add "${ctName}2" eth0 nic \
