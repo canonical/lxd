@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -87,32 +86,6 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	assert.Equal(t, 3, containers[1].ID)
 	assert.Equal(t, "c3", containers[1].Name)
 	assert.Equal(t, "node2", containers[1].Node)
-}
-
-func TestInstanceList_FilterByParent(t *testing.T) {
-	tx, cleanup := db.NewTestClusterTx(t)
-	defer cleanup()
-
-	nodeID1 := int64(1) // This is the default local node
-
-	addContainer(t, tx, nodeID1, "c1")
-	addContainer(t, tx, nodeID1, "c2")
-	addSnapshot(t, tx, nodeID1, "c1", 1)
-	addSnapshot(t, tx, nodeID1, "c1", 2)
-	addSnapshot(t, tx, nodeID1, "c2", 1)
-
-	filter := db.InstanceFilter{
-		Project: "default",
-		Parent:  "c1",
-		Type:    int(db.CTypeSnapshot),
-	}
-
-	containers, err := tx.InstanceList(filter)
-	require.NoError(t, err)
-	assert.Len(t, containers, 2)
-
-	assert.Equal(t, "c1/1", containers[0].Name)
-	assert.Equal(t, "c1/2", containers[1].Name)
 }
 
 func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
@@ -477,14 +450,6 @@ func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
 	_, err := tx.Tx().Exec(stmt, nodeID, name, db.CTypeRegular)
-	require.NoError(t, err)
-}
-
-func addSnapshot(t *testing.T, tx *db.ClusterTx, nodeID int64, name string, n int) {
-	stmt := `
-INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
-`
-	_, err := tx.Tx().Exec(stmt, nodeID, fmt.Sprintf("%s/%d", name, n), db.CTypeSnapshot)
 	require.NoError(t, err)
 }
 

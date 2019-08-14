@@ -66,7 +66,7 @@ func TestInstanceSnapshotList_FilterByInstance(t *testing.T) {
 	addInstanceSnapshot(t, tx, 2, "snap1")
 	addInstanceSnapshot(t, tx, 2, "snap2")
 
-	filter := db.InstanceSnapshotFilter{Instance: "c2"}
+	filter := db.InstanceSnapshotFilter{Project: "default", Instance: "c2"}
 	snapshots, err := tx.InstanceSnapshotList(filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 2)
