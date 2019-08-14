@@ -164,8 +164,8 @@ func devForPath(path string) (string, error) {
 		return "", err
 	}
 
-	devMajor := shared.Major(stat.Dev)
-	devMinor := shared.Minor(stat.Dev)
+	devMajor := unix.Major(stat.Dev)
+	devMinor := unix.Minor(stat.Dev)
 
 	// Parse mountinfo for it
 	mountinfo, err := os.Open("/proc/self/mountinfo")
