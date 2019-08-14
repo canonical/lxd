@@ -502,9 +502,29 @@ func TestUpdateFromV15(t *testing.T) {
 
 		// Insert an instance.
 		_, err = db.Exec(`
-INSERT INTO instances VALUES (1, 1, 'eoan', 1, 1, 0, ?, 0, ?, 'Eoan Ermine', 1, NULL)
-`, time.Now(), time.Now())
+INSERT INTO instances VALUES (1, 1, 'eoan', 2, 0, 0, ?, 0, ?, 'Eoan Ermine', 1, ?)
+`, time.Now(), time.Now(), time.Now())
 		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO instances_config VALUES (1, 1, 'key', 'value2')")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO instances_devices VALUES (1, 1, 'dev', 0)")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO instances_devices_config VALUES (1, 1, 'k', 'v')")
+		require.NoError(t, err)
+
+		// Insert an instance snapshot.
+		expiry_date := time.Date(2019, 8, 14, 11, 9, 0, 0, time.UTC)
+		_, err = db.Exec(`
+INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine Snapshot', 1, ?)
+`, time.Now(), time.Now(), expiry_date)
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO instances_config VALUES (2, 2, 'key', 'value1')")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO instances_devices VALUES (2, 2, 'dev', 0)")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO instances_devices_config VALUES (2, 2, 'k', 'v')")
+		require.NoError(t, err)
+
 	})
 
 	require.NoError(t, err)
@@ -518,4 +538,48 @@ INSERT INTO instances VALUES (1, 1, 'eoan', 1, 1, 0, ?, 0, ?, 'Eoan Ermine', 1, 
 	count, err := query.Count(tx, "instances", "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_config", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_devices", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_devices_config", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_snapshots", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_snapshots_config", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_snapshots_devices", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	count, err = query.Count(tx, "instances_snapshots_devices_config", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	config, err := query.SelectConfig(tx, "instances_config", "id = 1")
+	require.NoError(t, err)
+	assert.Equal(t, config, map[string]string{"key": "value2"})
+
+	config, err = query.SelectConfig(tx, "instances_snapshots_config", "id = 1")
+	require.NoError(t, err)
+	assert.Equal(t, config, map[string]string{"key": "value1"})
+
+	config, err = query.SelectConfig(tx, "instances_devices_config", "id = 1")
+	require.NoError(t, err)
+	assert.Equal(t, config, map[string]string{"k": "v"})
+
+	config, err = query.SelectConfig(tx, "instances_snapshots_devices_config", "id = 1")
+	require.NoError(t, err)
+	assert.Equal(t, config, map[string]string{"k": "v"})
 }
