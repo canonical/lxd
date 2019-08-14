@@ -55,6 +55,14 @@ test_container_devices_nic_macvlan() {
     false
   fi
 
+  # Check that MTU is inherited from parent device when not specified on device.
+  ip link set "${ctName}" mtu 1405
+  lxc config device unset "${ctName}" eth0 mtu
+  if ! lxc exec "${ctName}" -- grep "1405" /sys/class/net/eth0/mtu ; then
+    echo "mtu not inherited from parent"
+    false
+  fi
+
   # Check volatile cleanup on stop.
   lxc stop -f "${ctName}"
   if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.hwaddr ; then

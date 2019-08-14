@@ -268,20 +268,22 @@ func NetworkAttachInterface(netName string, devName string) error {
 	return nil
 }
 
-// networkCreateVethPair creates and configures a veth pair. It accepts the name of the host side
-// interface as a parameter and returns the peer interface name.
+// networkCreateVethPair creates and configures a veth pair. It will set the hwaddr and mtu settings
+// in the supplied config to the newly created peer interface. If mtu is not specified, but parent
+// is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
+// Accepts the name of the host side interface as a parameter and returns the peer interface name.
 func networkCreateVethPair(hostName string, m config.Device) (string, error) {
 	peerName := NetworkRandomDevName("veth")
 
 	_, err := shared.RunCommand("ip", "link", "add", "dev", hostName, "type", "veth", "peer", "name", peerName)
 	if err != nil {
-		return "", fmt.Errorf("Failed to create the veth interfaces %s and %s: %s", hostName, peerName, err)
+		return "", fmt.Errorf("Failed to create the veth interfaces %s and %s: %v", hostName, peerName, err)
 	}
 
 	_, err = shared.RunCommand("ip", "link", "set", "dev", hostName, "up")
 	if err != nil {
 		NetworkRemoveInterface(hostName)
-		return "", fmt.Errorf("Failed to bring up the veth interface %s: %s", hostName, err)
+		return "", fmt.Errorf("Failed to bring up the veth interface %s: %v", hostName, err)
 	}
 
 	// Set the MAC address on peer.
@@ -289,16 +291,32 @@ func networkCreateVethPair(hostName string, m config.Device) (string, error) {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", peerName, "address", m["hwaddr"])
 		if err != nil {
 			NetworkRemoveInterface(peerName)
-			return "", fmt.Errorf("Failed to set the MAC address: %s", err)
+			return "", fmt.Errorf("Failed to set the MAC address: %v", err)
 		}
 	}
 
-	// Set the MTU on peer.
+	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
 	if m["mtu"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", peerName, "mtu", m["mtu"])
+		MTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+		if err != nil {
+			return "", fmt.Errorf("Invalid MTU specified: %v", err)
+
+		}
+
+		err = NetworkSetDevMTU(peerName, MTU)
 		if err != nil {
 			NetworkRemoveInterface(peerName)
-			return "", fmt.Errorf("Failed to set the MTU: %s", err)
+			return "", fmt.Errorf("Failed to set the MTU: %v", err)
+		}
+	} else if m["parent"] != "" {
+		parentMTU, err := NetworkGetDevMTU(m["parent"])
+		if err != nil {
+			return "", fmt.Errorf("Failed to get the parent MTU: %v", err)
+		}
+		err = NetworkSetDevMTU(peerName, parentMTU)
+		if err != nil {
+			NetworkRemoveInterface(peerName)
+			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 	}
 
