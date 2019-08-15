@@ -1,4 +1,5 @@
 test_container_devices_proxy() {
+  container_devices_proxy_validation
   container_devices_proxy_tcp
   container_devices_proxy_tcp_unix
   container_devices_proxy_tcp_udp
@@ -6,6 +7,29 @@ test_container_devices_proxy() {
   container_devices_proxy_unix
   container_devices_proxy_unix_udp
   container_devices_proxy_unix_tcp
+}
+
+container_devices_proxy_validation() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+  HOST_TCP_PORT=$(local_tcp_port)
+  lxc launch testimage proxyTester
+
+  # Check that connecting to a DNS name is not allowed (security risk).
+  if lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:localhost:4321 bind=host ; then
+    echo "Proxy device shouldn't allow connect hostnames, only IPs"
+    false
+  fi
+
+  # Check that old invalid config doesn't prevent device being stopped and removed cleanly.
+  lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:127.0.0.1:4321 bind=host
+  lxd sql global "UPDATE instances_devices_config SET value='tcp:localhost:4321' WHERE value='tcp:127.0.0.1:4321';"
+  lxc config device remove proxyTester proxyDev
+
+  # Add the device again with the same listen param so if the old process hasn't been stopped it will fail to start.
+  lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:127.0.0.1:4321 bind=host
+
+  lxc delete -f proxyTester
 }
 
 container_devices_proxy_tcp() {
