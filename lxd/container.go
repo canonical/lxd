@@ -75,14 +75,6 @@ func containerGetParentAndSnapshotName(name string) (string, string, bool) {
 	return fields[0], fields[1], true
 }
 
-func containerPath(name string, isSnapshot bool) string {
-	if isSnapshot {
-		return shared.VarPath("snapshots", name)
-	}
-
-	return shared.VarPath("containers", name)
-}
-
 func containerValidName(name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		return fmt.Errorf(

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device/config"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
-	"github.com/stretchr/testify/suite"
 )
 
 type containerTestSuite struct {
@@ -163,7 +165,7 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 
 	suite.Req.False(c.IsSnapshot(), "Shouldn't be a snapshot.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.Path())
-	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), containerPath("testFoo2", false))
+	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), driver.ContainerPath("testFoo2", false))
 }
 
 func (suite *containerTestSuite) TestContainer_Path_Snapshot() {
@@ -184,7 +186,7 @@ func (suite *containerTestSuite) TestContainer_Path_Snapshot() {
 		c.Path())
 	suite.Req.Equal(
 		shared.VarPath("snapshots", "test", "snap1"),
-		containerPath("test/snap1", true))
+		driver.ContainerPath("test/snap1", true))
 }
 
 func (suite *containerTestSuite) TestContainer_LogPath() {

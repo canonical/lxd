@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -705,7 +706,7 @@ func (s *storageCeph) getRBDFilesystem() string {
 // getRBDMountOptions returns the mount options the storage volume is supposed
 // to be mounted with
 // The option string that is returned needs to be passed to the approriate
-// helper (currently named "lxdResolveMountoptions") which will take on the job
+// helper (currently named "LXDResolveMountoptions") which will take on the job
 // of splitting it into appropriate flags and string options.
 func (s *storageCeph) getRBDMountOptions() string {
 	if s.volume.Config["block.mount_options"] != "" {
@@ -1556,7 +1557,7 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 	}
 
 	// Grow the filesystem
-	return growFileSystem(fsType, path, fsMntPoint)
+	return driver.GrowFileSystem(fsType, path, fsMntPoint)
 }
 
 // copyWithSnapshots creates a non-sparse copy of a container including its
@@ -1647,7 +1648,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 
 	// Generate a new UUID if needed
 	RBDFilesystem := s.getRBDFilesystem()
-	msg, err := fsGenerateNewUUID(RBDFilesystem, RBDDevPath)
+	msg, err := driver.FSGenerateNewUUID(RBDFilesystem, RBDDevPath)
 	if err != nil {
 		logger.Errorf("Failed to create new UUID for filesystem \"%s\": %s: %s", RBDFilesystem, msg, err)
 		return err
@@ -1666,14 +1667,14 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 	}
 
 	// Mount the volume
-	mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
-	err = tryMount(RBDDevPath, tmpContainerMntPoint, RBDFilesystem, mountFlags, mountOptions)
+	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+	err = driver.TryMount(RBDDevPath, tmpContainerMntPoint, RBDFilesystem, mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf("Failed to mount RBD device %s onto %s: %s", RBDDevPath, tmpContainerMntPoint, err)
 		return err
 	}
 	logger.Debugf("Mounted RBD device %s onto %s", RBDDevPath, tmpContainerMntPoint)
-	defer tryUnmount(tmpContainerMntPoint, unix.MNT_DETACH)
+	defer driver.TryUnmount(tmpContainerMntPoint, unix.MNT_DETACH)
 
 	// Figure out the target name
 	targetName := sourceContainerName
@@ -1753,7 +1754,7 @@ func (s *storageCeph) doContainerCreate(projectName, name string, privileged boo
 
 	// get filesystem
 	RBDFilesystem := s.getRBDFilesystem()
-	msg, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
+	msg, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume for container "%s" on storage pool "%s": %s`, RBDFilesystem, RBDDevPath, name, s.pool.Name, msg)
 		return err
@@ -1820,8 +1821,8 @@ func (s *storageCeph) doContainerMount(projectName string, name string) (bool, e
 			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
 			volumeName, true, s.UserName)
 		if ret >= 0 {
-			mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
-			mounterr = tryMount(RBDDevPath, containerMntPoint,
+			mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+			mounterr = driver.TryMount(RBDDevPath, containerMntPoint,
 				RBDFilesystem, mountFlags, mountOptions)
 			ourMount = true
 		}
@@ -2060,7 +2061,7 @@ func (s *storageCeph) cephRBDGenerateUUID(volumeName string, volumeType string) 
 	defer cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, volumeName, volumeType, s.UserName, true)
 
 	// Update the UUID
-	msg, err := fsGenerateNewUUID(s.getRBDFilesystem(), RBDDevPath)
+	msg, err := driver.FSGenerateNewUUID(s.getRBDFilesystem(), RBDDevPath)
 	if err != nil {
 		return fmt.Errorf("Failed to regenerate UUID for '%v': %v: %v", volumeName, err, msg)
 	}

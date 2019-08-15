@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -358,7 +359,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	RBDFilesystem := s.getRBDFilesystem()
 	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume "%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name, s.pool.Name)
 
-	msg, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
+	msg, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume "%s" on storage pool "%s": %s`, RBDFilesystem, RBDDevPath, s.volume.Name, s.pool.Name, msg)
 		return err
@@ -424,7 +425,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 
 	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if shared.IsMountPoint(volumeMntPoint) {
-		err := tryUnmount(volumeMntPoint, unix.MNT_DETACH)
+		err := driver.TryUnmount(volumeMntPoint, unix.MNT_DETACH)
 		if err != nil {
 			logger.Errorf(`Failed to unmount RBD storage volume "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
 		}
@@ -508,8 +509,8 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameCustom, s.volume.Name, true,
 			s.UserName)
-		mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
-		customerr = tryMount(
+		mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+		customerr = driver.TryMount(
 			RBDDevPath,
 			volumeMntPoint,
 			RBDFilesystem,
@@ -560,7 +561,7 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 	var customerr error
 	ourUmount := false
 	if shared.IsMountPoint(volumeMntPoint) {
-		customerr = tryUnmount(volumeMntPoint, unix.MNT_DETACH)
+		customerr = driver.TryUnmount(volumeMntPoint, unix.MNT_DETACH)
 		ourUmount = true
 	}
 
@@ -1366,7 +1367,7 @@ func (s *storageCeph) ContainerUmount(c container, path string) (bool, error) {
 	var mounterr error
 	ourUmount := false
 	if shared.IsMountPoint(containerMntPoint) {
-		mounterr = tryUnmount(containerMntPoint, 0)
+		mounterr = driver.TryUnmount(containerMntPoint, 0)
 		ourUmount = true
 	}
 
@@ -1804,7 +1805,7 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 
 	containerMntPoint := getSnapshotMountPoint(c.Project(), s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
-	mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
+	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
 	if RBDFilesystem == "xfs" {
 		idx := strings.Index(mountOptions, "nouuid")
 		if idx < 0 {
@@ -1812,7 +1813,7 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 		}
 	}
 
-	err = tryMount(
+	err = driver.TryMount(
 		RBDDevPath,
 		containerMntPoint,
 		RBDFilesystem,
@@ -1845,7 +1846,7 @@ func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
 	}
 
 	// Unmount
-	err := tryUnmount(containerMntPoint, unix.MNT_DETACH)
+	err := driver.TryUnmount(containerMntPoint, unix.MNT_DETACH)
 	if err != nil {
 		logger.Errorf("Failed to unmount %s: %s", containerMntPoint, err)
 		return false, err
@@ -2103,7 +2104,7 @@ func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.Progre
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
-		msg, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
+		msg, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 		if err != nil {
 			logger.Errorf(`Failed to create filesystem "%s" for RBD storage volume for image "%s" on storage pool "%s": %s`, RBDFilesystem, fingerprint,
 				s.pool.Name, msg)
@@ -2339,7 +2340,7 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 
 	RBDFilesystem := s.getRBDFilesystem()
 	RBDMountOptions := s.getRBDMountOptions()
-	mountFlags, mountOptions := lxdResolveMountoptions(RBDMountOptions)
+	mountFlags, mountOptions := driver.LXDResolveMountoptions(RBDMountOptions)
 	RBDDevPath, ret := getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 		storagePoolVolumeTypeNameImage, fingerprint, true, s.UserName)
 	errMsg := fmt.Sprintf("Failed to mount RBD device %s onto %s",
@@ -2349,7 +2350,7 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 		return false, fmt.Errorf(errMsg)
 	}
 
-	err := tryMount(RBDDevPath, imageMntPoint, RBDFilesystem, mountFlags, mountOptions)
+	err := driver.TryMount(RBDDevPath, imageMntPoint, RBDFilesystem, mountFlags, mountOptions)
 	if err != nil || ret < 0 {
 		return false, err
 	}
@@ -2366,7 +2367,7 @@ func (s *storageCeph) ImageUmount(fingerprint string) (bool, error) {
 		return false, nil
 	}
 
-	err := tryUnmount(imageMntPoint, 0)
+	err := driver.TryUnmount(imageMntPoint, 0)
 	if err != nil {
 		return false, err
 	}
@@ -2633,7 +2634,7 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 			// create snapshot mountpoint
 			newTargetName := fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName)
 			targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, newTargetName)
-			err = os.MkdirAll(targetPath, snapshotsDirMode)
+			err = os.MkdirAll(targetPath, driver.SnapshotsDirMode)
 			if err != nil {
 				logger.Errorf("Failed to create mountpoint \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s", targetPath, s.volume.Name, s.pool.Name, err)
 				return err
@@ -2718,7 +2719,7 @@ func (s *storageCeph) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeS
 	}
 
 	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
-	err = os.MkdirAll(targetPath, snapshotsDirMode)
+	err = os.MkdirAll(targetPath, driver.SnapshotsDirMode)
 	if err != nil {
 		logger.Errorf("Failed to create mountpoint \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s", targetPath, s.volume.Name, s.pool.Name, err)
 		return err

@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -156,7 +157,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 			return fmt.Errorf("Failed to create sparse file %s: %s", source, err)
 		}
 
-		output, err := makeFSType(source, "btrfs", &mkfsOptions{label: s.pool.Name})
+		output, err := driver.MakeFSType(source, "btrfs", &driver.MkfsOptions{Label: s.pool.Name})
 		if err != nil {
 			return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 		}
@@ -167,7 +168,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		if filepath.IsAbs(source) {
 			isBlockDev = shared.IsBlockdevPath(source)
 			if isBlockDev {
-				output, err := makeFSType(source, "btrfs", &mkfsOptions{label: s.pool.Name})
+				output, err := driver.MakeFSType(source, "btrfs", &driver.MkfsOptions{Label: s.pool.Name})
 				if err != nil {
 					return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 				}
@@ -207,7 +208,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 	if !shared.PathExists(poolMntPoint) {
-		err := os.MkdirAll(poolMntPoint, storagePoolsDirMode)
+		err := os.MkdirAll(poolMntPoint, driver.StoragePoolsDirMode)
 		if err != nil {
 			return err
 		}
@@ -215,7 +216,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 	var err1 error
 	var devUUID string
-	mountFlags, mountOptions := lxdResolveMountoptions(s.getBtrfsMountOptions())
+	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getBtrfsMountOptions())
 	mountFlags |= s.remount
 	if isBlockDev && filepath.IsAbs(source) {
 		devUUID, _ = shared.LookupUUIDByBlockDevPath(source)
@@ -398,7 +399,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 	// Check whether the mount poolMntPoint exits.
 	if !shared.PathExists(poolMntPoint) {
-		err := os.MkdirAll(poolMntPoint, storagePoolsDirMode)
+		err := os.MkdirAll(poolMntPoint, driver.StoragePoolsDirMode)
 		if err != nil {
 			return false, err
 		}
@@ -408,7 +409,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, nil
 	}
 
-	mountFlags, mountOptions := lxdResolveMountoptions(s.getBtrfsMountOptions())
+	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getBtrfsMountOptions())
 	mountSource := source
 	isBlockDev := shared.IsBlockdevPath(source)
 	if filepath.IsAbs(source) {
@@ -422,7 +423,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 			// Since we mount the loop device LO_FLAGS_AUTOCLEAR is
 			// fine since the loop device will be kept around for as
 			// long as the mount exists.
-			loopF, loopErr := prepareLoopDev(source, LoFlagsAutoclear)
+			loopF, loopErr := driver.PrepareLoopDev(source, driver.LoFlagsAutoclear)
 			if loopErr != nil {
 				return false, loopErr
 			}
@@ -820,7 +821,7 @@ func (s *storageBtrfs) doContainerCreate(projectName, name string, privileged bo
 	// doesn't already.
 	containerSubvolumePath := s.getContainerSubvolumePath(s.pool.Name)
 	if !shared.PathExists(containerSubvolumePath) {
-		err := os.MkdirAll(containerSubvolumePath, containersDirMode)
+		err := os.MkdirAll(containerSubvolumePath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
@@ -875,7 +876,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// doesn't already.
 	containerSubvolumePath := s.getContainerSubvolumePath(s.pool.Name)
 	if !shared.PathExists(containerSubvolumePath) {
-		err := os.MkdirAll(containerSubvolumePath, containersDirMode)
+		err := os.MkdirAll(containerSubvolumePath, driver.ContainersDirMode)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create volume directory")
 		}
@@ -994,7 +995,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
-		err := os.MkdirAll(containersPath, containersDirMode)
+		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1035,7 +1036,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
-		err := os.MkdirAll(containersPath, containersDirMode)
+		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1378,7 +1379,7 @@ func (s *storageBtrfs) doContainerSnapshotCreate(projectName string, targetName 
 	// doesn't already.
 	snapshotSubvolumePath := getSnapshotSubvolumePath(projectName, s.pool.Name, sourceName)
 	if !shared.PathExists(snapshotSubvolumePath) {
-		err := os.MkdirAll(snapshotSubvolumePath, containersDirMode)
+		err := os.MkdirAll(snapshotSubvolumePath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1388,7 +1389,7 @@ func (s *storageBtrfs) doContainerSnapshotCreate(projectName string, targetName 
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(projectName, sourceName))
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		if !shared.PathExists(snapshotMntPointSymlinkTarget) {
-			err = os.MkdirAll(snapshotMntPointSymlinkTarget, snapshotsDirMode)
+			err = os.MkdirAll(snapshotMntPointSymlinkTarget, driver.SnapshotsDirMode)
 			if err != nil {
 				return err
 			}
@@ -1566,7 +1567,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 	snapshotSubvolumePath := getSnapshotSubvolumePath(snapshotContainer.Project(), s.pool.Name, sourceName)
 	snapshotSubvolumeName := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
 	if !shared.PathExists(snapshotSubvolumePath) {
-		err := os.MkdirAll(snapshotSubvolumePath, containersDirMode)
+		err := os.MkdirAll(snapshotSubvolumePath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1999,7 +2000,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string, tracker *ioprogress.Progr
 	// doesn't already.
 	imageSubvolumePath := s.getImageSubvolumePath(s.pool.Name)
 	if !shared.PathExists(imageSubvolumePath) {
-		err := os.MkdirAll(imageSubvolumePath, imagesDirMode)
+		err := os.MkdirAll(imageSubvolumePath, driver.ImagesDirMode)
 		if err != nil {
 			return err
 		}
@@ -2722,7 +2723,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 	_, containerPool, _ := args.Container.Storage().GetContainerPoolInfo()
 	containersPath := getSnapshotMountPoint(args.Container.Project(), containerPool, containerName)
 	if !args.ContainerOnly && len(args.Snapshots) > 0 {
-		err := os.MkdirAll(containersPath, containersDirMode)
+		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
@@ -2960,7 +2961,7 @@ func (s *storageBtrfs) StoragePoolResources() (*api.ResourcesStoragePool, error)
 
 	// Inode allocation is dynamic so no use in reporting them.
 
-	return storageResource(poolMntPoint)
+	return driver.GetStorageResource(poolMntPoint)
 }
 
 func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) error {
@@ -3036,7 +3037,7 @@ func (s *storageBtrfs) copyVolume(sourcePool string, sourceName string, targetNa
 	}
 
 	if !shared.PathExists(customDir) {
-		err := os.MkdirAll(customDir, customDirMode)
+		err := os.MkdirAll(customDir, driver.CustomDirMode)
 		if err != nil {
 			logger.Errorf("Failed to create directory \"%s\" for storage volume \"%s\" on storage pool \"%s\": %s", customDir, s.volume.Name, s.pool.Name, err)
 			return err
@@ -3162,7 +3163,7 @@ func (s *storageBtrfs) doVolumeSnapshotCreate(sourcePool string, sourceName stri
 
 	customSnapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 
-	err = os.MkdirAll(customSnapshotSubvolumeName, snapshotsDirMode)
+	err = os.MkdirAll(customSnapshotSubvolumeName, driver.SnapshotsDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
