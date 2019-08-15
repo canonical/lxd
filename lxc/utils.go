@@ -276,9 +276,6 @@ func renderTable(format string, header []string, data [][]string, raw interface{
 		table.AppendBulk(data)
 		table.Render()
 	case listFormatCSV:
-		data = append(data, []string{})
-		copy(data[1:], data[0:])
-		data[0] = header
 		w := csv.NewWriter(os.Stdout)
 		w.WriteAll(data)
 
