@@ -1880,11 +1880,9 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string
 	}
 
 	d, err := device.New(c, c.state, deviceName, configCopy, c.deviceVolatileGetFunc(deviceName), c.deviceVolatileSetFunc(deviceName))
-	if err != nil {
-		return nil, nil, err
-	}
 
-	return d, configCopy, nil
+	// Return device and config copy even if error occurs as caller may still use device.
+	return d, configCopy, err
 }
 
 // deviceAdd loads a new device and calls its Setup() function.
@@ -2071,8 +2069,17 @@ func (c *containerLXC) deviceUpdate(deviceName string, rawConfig map[string]stri
 // deviceStop loads a new device and calls its Stop() function.
 func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string, stopHookNetnsPath string) error {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
-	if err != nil {
+
+	// If deviceLoad fails with unsupported device type then return.
+	if err == device.ErrUnsupportedDevType {
 		return err
+	}
+
+	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
+	// scenario that a new version of LXD has additional validation restrictions than older
+	// versions we still need to allow previously valid devices to be stopped.
+	if err != nil {
+		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
 	}
 
 	canHotPlug, _ := d.CanHotPlug()
@@ -2205,8 +2212,17 @@ func (c *containerLXC) deviceDetachMounts(configCopy map[string]string, mounts [
 // deviceRemove loads a new device and calls its Remove() function.
 func (c *containerLXC) deviceRemove(deviceName string, rawConfig map[string]string) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
-	if err != nil {
+
+	// If deviceLoad fails with unsupported device type then return.
+	if err == device.ErrUnsupportedDevType {
 		return err
+	}
+
+	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
+	// scenario that a new version of LXD has additional validation restrictions than older
+	// versions we still need to allow previously valid devices to be stopped.
+	if err != nil {
+		logger.Errorf("Device remove validation failed for '%s': %v", deviceName, err)
 	}
 
 	return d.Remove()
