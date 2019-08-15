@@ -1,7 +1,7 @@
 // +build linux
 // +build cgo
 
-package main
+package storage
 
 /*
 #define _GNU_SOURCE
@@ -19,8 +19,8 @@ package main
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "include/macro.h"
-#include "include/memory_utils.h"
+#include "../include/macro.h"
+#include "../include/memory_utils.h"
 
 #define LXD_MAXPATH 4096
 #define LXD_NUMSTRLEN64 21
@@ -256,10 +256,10 @@ import (
 // close.
 const LoFlagsAutoclear int = C.LO_FLAGS_AUTOCLEAR
 
-// prepareLoopDev() detects and sets up a loop device for source. It returns an
+// PrepareLoopDev detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
 // device. It's the callers responsibility to close the open file descriptor.
-func prepareLoopDev(source string, flags int) (*os.File, error) {
+func PrepareLoopDev(source string, flags int) (*os.File, error) {
 	cLoopDev := C.malloc(C.size_t(C.LO_NAME_SIZE))
 	if cLoopDev == nil {
 		return nil, fmt.Errorf("Failed to allocate memory in C")
@@ -285,7 +285,8 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 	return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
 }
 
-func setAutoclearOnLoopDev(loopFd int) error {
+// SetAutoclearOnLoopDev enables autodestruction of the provided loopback device.
+func SetAutoclearOnLoopDev(loopFd int) error {
 	ret, err := C.set_autoclear_loop_device(C.int(loopFd))
 	if ret < 0 {
 		if err != nil {
@@ -297,7 +298,8 @@ func setAutoclearOnLoopDev(loopFd int) error {
 	return nil
 }
 
-func unsetAutoclearOnLoopDev(loopFd int) error {
+// UnsetAutoclearOnLoopDev disables autodestruction of the provided loopback device.
+func UnsetAutoclearOnLoopDev(loopFd int) error {
 	ret, err := C.unset_autoclear_loop_device(C.int(loopFd))
 	if ret < 0 {
 		if err != nil {

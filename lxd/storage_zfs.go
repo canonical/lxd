@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -272,14 +273,14 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	fixperms := shared.VarPath("storage-pools", s.pool.Name, "containers")
-	err = os.MkdirAll(fixperms, containersDirMode)
+	err = os.MkdirAll(fixperms, driver.ContainersDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
-	err = os.Chmod(fixperms, containersDirMode)
+	err = os.Chmod(fixperms, driver.ContainersDirMode)
 	if err != nil {
-		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(containersDirMode), 8), err)
+		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(driver.ContainersDirMode), 8), err)
 	}
 
 	dataset = fmt.Sprintf("%s/images", poolName)
@@ -290,13 +291,13 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "images")
-	err = os.MkdirAll(fixperms, imagesDirMode)
+	err = os.MkdirAll(fixperms, driver.ImagesDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	err = os.Chmod(fixperms, imagesDirMode)
+	err = os.Chmod(fixperms, driver.ImagesDirMode)
 	if err != nil {
-		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(imagesDirMode), 8), err)
+		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(driver.ImagesDirMode), 8), err)
 	}
 
 	dataset = fmt.Sprintf("%s/custom", poolName)
@@ -307,13 +308,13 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "custom")
-	err = os.MkdirAll(fixperms, customDirMode)
+	err = os.MkdirAll(fixperms, driver.CustomDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	err = os.Chmod(fixperms, customDirMode)
+	err = os.Chmod(fixperms, driver.CustomDirMode)
 	if err != nil {
-		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(customDirMode), 8), err)
+		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(driver.CustomDirMode), 8), err)
 	}
 
 	dataset = fmt.Sprintf("%s/deleted", poolName)
@@ -331,13 +332,13 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots")
-	err = os.MkdirAll(fixperms, snapshotsDirMode)
+	err = os.MkdirAll(fixperms, driver.SnapshotsDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	err = os.Chmod(fixperms, snapshotsDirMode)
+	err = os.Chmod(fixperms, driver.SnapshotsDirMode)
 	if err != nil {
-		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
+		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(driver.SnapshotsDirMode), 8), err)
 	}
 
 	dataset = fmt.Sprintf("%s/custom-snapshots", poolName)
@@ -348,13 +349,13 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "custom-snapshots")
-	err = os.MkdirAll(fixperms, snapshotsDirMode)
+	err = os.MkdirAll(fixperms, driver.SnapshotsDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	err = os.Chmod(fixperms, snapshotsDirMode)
+	err = os.Chmod(fixperms, driver.SnapshotsDirMode)
 	if err != nil {
-		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
+		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(driver.SnapshotsDirMode), 8), err)
 	}
 
 	return nil
@@ -2131,7 +2132,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
 	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, containerName)
-	err := createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
+	err := createContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
 	}

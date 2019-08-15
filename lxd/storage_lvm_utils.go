@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -58,7 +59,7 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 			`volume type %d`, volumeType)
 	}
 
-	return growFileSystem(fsType, lvPath, fsMntPoint)
+	return driver.GrowFileSystem(fsType, lvPath, fsMntPoint)
 }
 
 func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
@@ -331,7 +332,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 		}
 	}
 
-	msg, err := fsGenerateNewUUID(LVFilesystem, containerLvDevPath)
+	msg, err := driver.FSGenerateNewUUID(LVFilesystem, containerLvDevPath)
 	if err != nil {
 		logger.Errorf("Failed to create new \"%s\" UUID for container \"%s\" on storage pool \"%s\": %s", LVFilesystem, containerName, s.pool.Name, msg)
 		return err
@@ -853,7 +854,7 @@ func lvmCreateLv(projectName, vgName string, thinPoolName string, lvName string,
 
 	fsPath := getLvmDevPath(projectName, vgName, volumeType, lvName)
 
-	output, err = makeFSType(fsPath, lvFsType, nil)
+	output, err = driver.MakeFSType(fsPath, lvFsType, nil)
 	if err != nil {
 		logger.Errorf("Filesystem creation failed: %s", output)
 		return fmt.Errorf("Error making filesystem on image LV: %v", err)
@@ -1078,7 +1079,7 @@ func (s *storageLvm) copyVolumeThinpool(source string, target string, readOnly b
 
 	lvDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName)
 
-	msg, err := fsGenerateNewUUID(lvFsType, lvDevPath)
+	msg, err := driver.FSGenerateNewUUID(lvFsType, lvDevPath)
 	if err != nil {
 		logger.Errorf("Failed to create new UUID for filesystem \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s: %s", lvFsType, s.volume.Name, s.pool.Name, msg, err)
 		return err
