@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -151,13 +152,13 @@ func (s *storageCephFs) StoragePoolCreate() error {
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/", monAddress)
-		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
+		err = driver.TryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
 		if err != nil {
 			continue
 		}
 
 		connected = true
-		defer tryUnmount(mountPoint, syscall.MNT_DETACH)
+		defer driver.TryUnmount(mountPoint, syscall.MNT_DETACH)
 		break
 	}
 
@@ -227,13 +228,13 @@ func (s *storageCephFs) StoragePoolDelete() error {
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/", monAddress)
-		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
+		err = driver.TryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, userSecret, fsName))
 		if err != nil {
 			continue
 		}
 
 		connected = true
-		defer tryUnmount(mountPoint, syscall.MNT_DETACH)
+		defer driver.TryUnmount(mountPoint, syscall.MNT_DETACH)
 		break
 	}
 
@@ -340,7 +341,7 @@ func (s *storageCephFs) StoragePoolMount() (bool, error) {
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
-		err = tryMount(uri, poolMntPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, secret, fsName))
+		err = driver.TryMount(uri, poolMntPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", s.UserName, secret, fsName))
 		if err != nil {
 			continue
 		}
@@ -395,7 +396,7 @@ func (s *storageCephFs) StoragePoolUmount() (bool, error) {
 	}
 
 	// Unmount
-	err := tryUnmount(poolMntPoint, syscall.MNT_DETACH)
+	err := driver.TryUnmount(poolMntPoint, syscall.MNT_DETACH)
 	if err != nil {
 		return false, err
 	}
@@ -756,7 +757,7 @@ func (s *storageCephFs) StoragePoolResources() (*api.ResourcesStoragePool, error
 	}
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-	return storageResource(poolMntPoint)
+	return driver.GetStorageResource(poolMntPoint)
 }
 
 func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) error {

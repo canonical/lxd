@@ -1386,7 +1386,7 @@ func (s *storageDir) StoragePoolResources() (*api.ResourcesStoragePool, error) {
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 
-	return storageResource(poolMntPoint)
+	return driver.GetStorageResource(poolMntPoint)
 }
 
 func (s *storageDir) StoragePoolVolumeCopy(source *api.StorageVolumeSource) error {
