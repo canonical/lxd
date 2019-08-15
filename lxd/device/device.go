@@ -115,6 +115,9 @@ func (d *deviceCommon) Remove() error {
 }
 
 // New instantiates a new device struct, validates the supplied config and sets it into the device.
+// If the device type is valid, but the other config validation fails then an instantiated device
+// is still returned with the validation error. If an unknown device is requested or the device is
+// not compatible with the instance type then an ErrUnsupportedDevType error is returned.
 func New(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
 	devFunc := devTypes[conf["type"]]
 
@@ -132,9 +135,9 @@ func New(instance InstanceIdentifier, state *state.State, name string, conf conf
 	// Init the device and run validation of supplied config.
 	dev.init(instance, state, name, conf, volatileGet, volatileSet)
 	err := dev.validateConfig()
-	if err != nil {
-		return nil, err
-	}
 
-	return dev, nil
+	// We still return the instantiated device here, as in some scenarios the caller
+	// may still want to use the device (such as when stopping or removing) even if
+	// the config validation has failed.
+	return dev, err
 }
