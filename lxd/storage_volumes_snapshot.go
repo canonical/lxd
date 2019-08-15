@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -66,7 +67,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the name
-	err = storageValidName(req.Name)
+	err = driver.ValidName(req.Name)
 	if err != nil {
 		return BadRequest(err)
 	}

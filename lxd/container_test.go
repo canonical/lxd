@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device/config"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
-	"github.com/stretchr/testify/suite"
 )
 
 type containerTestSuite struct {
