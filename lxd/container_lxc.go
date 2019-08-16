@@ -2267,6 +2267,63 @@ func (c *containerLXC) deviceVolatileSetFunc(devName string) func(save map[strin
 	}
 }
 
+// DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
+func (c *containerLXC) DeviceEventHandler(runConf *device.RunConfig) error {
+	// Device events can only be processed when the container is running.
+	if !c.IsRunning() {
+		return nil
+	}
+
+	// Shift device file ownership if needed before mounting devices into container.
+	if len(runConf.Mounts) > 0 {
+		err := c.deviceShiftMounts(runConf.Mounts)
+		if err != nil {
+			return err
+		}
+
+		err = c.deviceHandleMounts(runConf.Mounts)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Add cgroup rules if requested.
+	if len(runConf.CGroups) > 0 {
+		err := c.deviceAddCgroupRules(runConf.CGroups)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Run any post hooks requested.
+	err := c.runHooks(runConf.PostHooks)
+	if err != nil {
+		return err
+	}
+
+	// Generate uevent inside container if requested.
+	if len(runConf.Uevents) > 0 {
+		for _, eventParts := range runConf.Uevents {
+			ueventArray := make([]string, 4)
+			ueventArray[0] = "forkuevent"
+			ueventArray[1] = "inject"
+			ueventArray[2] = fmt.Sprintf("%d", c.InitPID())
+			length := 0
+			for _, part := range eventParts {
+				length = length + len(part) + 1
+			}
+			ueventArray[3] = fmt.Sprintf("%d", length)
+			ueventArray = append(ueventArray, eventParts...)
+			_, err := shared.RunCommand(c.state.OS.ExecPath, ueventArray...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // Initialize storage interface for this container
 func (c *containerLXC) initStorage() error {
 	if c.storage != nil {
