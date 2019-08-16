@@ -13,6 +13,7 @@ var devTypes = map[string]func(config.Device) device{
 	"infiniband": infinibandLoadByType,
 	"proxy":      func(c config.Device) device { return &proxy{} },
 	"gpu":        func(c config.Device) device { return &gpu{} },
+	"usb":        func(c config.Device) device { return &usb{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
@@ -39,6 +40,10 @@ type Device interface {
 	// This can be when a device is plugged into a running instance or the instance is starting.
 	// Returns run-time configuration needed for configuring the instance with the new device.
 	Start() (*RunConfig, error)
+
+	// Register provides the ability for a device to subcribe to events that LXD can generate.
+	// It is called after a device is started (after Start()) or when LXD starts.
+	Register() error
 
 	// Update performs host-side modifications for a device based on the difference between the
 	// current config and previous config supplied as an argument. This called if the only
@@ -95,6 +100,11 @@ func (d *deviceCommon) init(instance InstanceIdentifier, state *state.State, nam
 
 // Add returns nil error as majority of devices don't need to do any host-side setup.
 func (d *deviceCommon) Add() error {
+	return nil
+}
+
+// Register returns nil error as majority of devices don't need to do any event registration.
+func (d *deviceCommon) Register() error {
 	return nil
 }
 

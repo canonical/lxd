@@ -109,8 +109,8 @@ func (d *gpu) validateConfig() error {
 	}
 
 	rules := map[string]func(string) error{
-		"vendorid":  shared.IsAny,
-		"productid": shared.IsAny,
+		"vendorid":  shared.IsDeviceID,
+		"productid": shared.IsDeviceID,
 		"id":        shared.IsAny,
 		"pci":       shared.IsAny,
 		"uid":       shared.IsUnixUserID,
@@ -227,7 +227,7 @@ func (d *gpu) Stop() (*RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	err := unixDeviceRemove(d.instance.DevicesPath(), "unix", d.name, &runConf)
+	err := unixDeviceRemove(d.instance.DevicesPath(), "unix", d.name, "", &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (d *gpu) Stop() (*RunConfig, error) {
 // postStop is run after the device is removed from the instance.
 func (d *gpu) postStop() error {
 	// Remove host files for this device.
-	err := unixDeviceDeleteFiles(d.state, d.instance.DevicesPath(), "unix", d.name)
+	err := unixDeviceDeleteFiles(d.state, d.instance.DevicesPath(), "unix", d.name, "")
 	if err != nil {
 		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
 	}

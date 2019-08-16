@@ -1886,7 +1886,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string
 	return d, configCopy, err
 }
 
-// deviceAdd loads a new device and calls its Setup() function.
+// deviceAdd loads a new device and calls its Add() function.
 func (c *containerLXC) deviceAdd(deviceName string, rawConfig map[string]string) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
@@ -1896,7 +1896,9 @@ func (c *containerLXC) deviceAdd(deviceName string, rawConfig map[string]string)
 	return d.Add()
 }
 
-// deviceStart loads a new device and calls its Start() function.
+// deviceStart loads a new device and calls its Start() function. After processing the runtime
+// config returned from Start(), it also runs the device's Register() function irrespective of
+// whether the container is running or not.
 func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]string, isRunning bool) (*device.RunConfig, error) {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
@@ -1907,17 +1909,17 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		return nil, fmt.Errorf("Device cannot be started when container is running")
 	}
 
-	runConfig, err := d.Start()
+	runConf, err := d.Start()
 	if err != nil {
 		return nil, err
 	}
 
-	// If runConfig supplied, perform any container specific setup of device.
-	if runConfig != nil {
+	// If runConf supplied, perform any container specific setup of device.
+	if runConf != nil {
 		// Shift device file ownership if needed before mounting into container.
 		// This needs to be done whether or not container is running.
-		if len(runConfig.Mounts) > 0 {
-			err := c.deviceShiftMounts(runConfig.Mounts)
+		if len(runConf.Mounts) > 0 {
+			err := c.deviceShiftMounts(runConf.Mounts)
 			if err != nil {
 				return nil, err
 			}
@@ -1926,24 +1928,24 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		// If container is running and then live attach device.
 		if isRunning {
 			// Attach mounts if requested.
-			if len(runConfig.Mounts) > 0 {
-				err = c.deviceAttachMounts(configCopy, runConfig.Mounts)
+			if len(runConf.Mounts) > 0 {
+				err = c.deviceHandleMounts(runConf.Mounts)
 				if err != nil {
 					return nil, err
 				}
 			}
 
 			// Add cgroup rules if requested.
-			if len(runConfig.CGroups) > 0 {
-				err = c.deviceAddCgroupRules(configCopy, runConfig.CGroups)
+			if len(runConf.CGroups) > 0 {
+				err = c.deviceAddCgroupRules(runConf.CGroups)
 				if err != nil {
 					return nil, err
 				}
 			}
 
 			// Attach network interface if requested.
-			if len(runConfig.NetworkInterface) > 0 {
-				err = c.deviceAttachNIC(configCopy, runConfig.NetworkInterface)
+			if len(runConf.NetworkInterface) > 0 {
+				err = c.deviceAttachNIC(configCopy, runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -1951,14 +1953,20 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 
 			// If running, run post start hooks now (if not running LXD will run them
 			// once the instance is started).
-			err = c.runHooks(runConfig.PostHooks)
+			err = c.runHooks(runConf.PostHooks)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return runConfig, nil
+	// Check whether device wants to register for any events irrespective of instance run state.
+	err = d.Register()
+	if err != nil {
+		return nil, err
+	}
+
+	return runConf, nil
 }
 
 // deviceShiftMounts shift device mount files to active idmap if needed.
@@ -1972,6 +1980,12 @@ func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
 	// device files before they are mounted.
 	if idmapSet != nil && !c.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
+			if mount.DevPath == "" {
+				// This mount doesn't contain a host-side device we can shift.
+				// This is likely to be an unmount request that we dont process.
+				continue
+			}
+
 			err := idmapSet.ShiftFile(mount.DevPath)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
@@ -1983,30 +1997,8 @@ func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
 	return nil
 }
 
-// deviceAttachMounts live attaches mounts to a container.
-func (c *containerLXC) deviceAttachMounts(configCopy map[string]string, mounts []device.MountEntryItem) error {
-	for _, mount := range mounts {
-		flags := 0
-
-		// Convert options into flags.
-		for _, opt := range mount.Opts {
-			if opt == "bind" {
-				flags |= unix.MS_BIND
-			}
-		}
-
-		// Mount it into the container.
-		err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, mount.Shift)
-		if err != nil {
-			return fmt.Errorf("Failed to add mount for device: %s", err)
-		}
-	}
-
-	return nil
-}
-
 // deviceAddCgroupRules live adds cgroup rules to a container.
-func (c *containerLXC) deviceAddCgroupRules(configCopy map[string]string, cgroups []device.RunConfigItem) error {
+func (c *containerLXC) deviceAddCgroupRules(cgroups []device.RunConfigItem) error {
 	for _, rule := range cgroups {
 		// Only apply devices cgroup rules if container is running privileged and host has devices cgroup controller.
 		if strings.HasPrefix(rule.Key, "devices.") && (!c.isCurrentlyPrivileged() || c.state.OS.RunningInUserNS || !c.state.OS.CGroupDevicesController) {
@@ -2090,38 +2082,38 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 		return fmt.Errorf("Device cannot be stopped when container is running")
 	}
 
-	runConfig, err := d.Stop()
+	runConf, err := d.Stop()
 	if err != nil {
 		return err
 	}
 
-	if runConfig != nil {
+	if runConf != nil {
 		// If network interface settings returned, then detach NIC from container.
-		if len(runConfig.NetworkInterface) > 0 {
-			err = c.deviceDetachNIC(configCopy, runConfig.NetworkInterface, stopHookNetnsPath)
+		if len(runConf.NetworkInterface) > 0 {
+			err = c.deviceDetachNIC(configCopy, runConf.NetworkInterface, stopHookNetnsPath)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Add cgroup rules if requested and container is running.
-		if len(runConfig.CGroups) > 0 && stopHookNetnsPath == "" {
-			err = c.deviceAddCgroupRules(configCopy, runConfig.CGroups)
+		if len(runConf.CGroups) > 0 && stopHookNetnsPath == "" {
+			err = c.deviceAddCgroupRules(runConf.CGroups)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Detach mounts if requested and container is running.
-		if len(runConfig.Mounts) > 0 && stopHookNetnsPath == "" {
-			err = c.deviceDetachMounts(configCopy, runConfig.Mounts)
+		if len(runConf.Mounts) > 0 && stopHookNetnsPath == "" {
+			err = c.deviceHandleMounts(runConf.Mounts)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Run post stop hooks irrespective of run state of instance.
-		err = c.runHooks(runConfig.PostHooks)
+		err = c.runHooks(runConf.PostHooks)
 		if err != nil {
 			return err
 		}
@@ -2190,19 +2182,37 @@ func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []dev
 	return nil
 }
 
-// deviceDetachMounts removes a mount from a container.
-func (c *containerLXC) deviceDetachMounts(configCopy map[string]string, mounts []device.MountEntryItem) error {
+// deviceHandleMounts live attaches or detaches mounts on a container.
+// If the mount DevPath is empty the mount action is treated as unmount.
+func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error {
 	for _, mount := range mounts {
-		relativeDestPath := strings.TrimPrefix(mount.TargetPath, "/")
-		if c.FileExists(relativeDestPath) == nil {
-			err := c.removeMount(mount.TargetPath)
-			if err != nil {
-				return fmt.Errorf("Error unmounting the device: %s", err)
+		if mount.DevPath != "" {
+			flags := 0
+
+			// Convert options into flags.
+			for _, opt := range mount.Opts {
+				if opt == "bind" {
+					flags |= unix.MS_BIND
+				}
 			}
 
-			err = c.FileRemove(relativeDestPath)
+			// Mount it into the container.
+			err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, mount.Shift)
 			if err != nil {
-				return fmt.Errorf("Error removing the device: %s", err)
+				return fmt.Errorf("Failed to add mount for device: %s", err)
+			}
+		} else {
+			relativeTargetPath := strings.TrimPrefix(mount.TargetPath, "/")
+			if c.FileExists(relativeTargetPath) == nil {
+				err := c.removeMount(mount.TargetPath)
+				if err != nil {
+					return fmt.Errorf("Error unmounting the device: %s", err)
+				}
+
+				err = c.FileRemove(relativeTargetPath)
+				if err != nil {
+					return fmt.Errorf("Error removing the device: %s", err)
+				}
 			}
 		}
 	}
@@ -2255,6 +2265,63 @@ func (c *containerLXC) deviceVolatileSetFunc(devName string) func(save map[strin
 
 		return c.VolatileSet(volatileSave)
 	}
+}
+
+// DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
+func (c *containerLXC) DeviceEventHandler(runConf *device.RunConfig) error {
+	// Device events can only be processed when the container is running.
+	if !c.IsRunning() {
+		return nil
+	}
+
+	// Shift device file ownership if needed before mounting devices into container.
+	if len(runConf.Mounts) > 0 {
+		err := c.deviceShiftMounts(runConf.Mounts)
+		if err != nil {
+			return err
+		}
+
+		err = c.deviceHandleMounts(runConf.Mounts)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Add cgroup rules if requested.
+	if len(runConf.CGroups) > 0 {
+		err := c.deviceAddCgroupRules(runConf.CGroups)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Run any post hooks requested.
+	err := c.runHooks(runConf.PostHooks)
+	if err != nil {
+		return err
+	}
+
+	// Generate uevent inside container if requested.
+	if len(runConf.Uevents) > 0 {
+		for _, eventParts := range runConf.Uevents {
+			ueventArray := make([]string, 4)
+			ueventArray[0] = "forkuevent"
+			ueventArray[1] = "inject"
+			ueventArray[2] = fmt.Sprintf("%d", c.InitPID())
+			length := 0
+			for _, part := range eventParts {
+				length = length + len(part) + 1
+			}
+			ueventArray[3] = fmt.Sprintf("%d", length)
+			ueventArray = append(ueventArray, eventParts...)
+			_, err := shared.RunCommand(c.state.OS.ExecPath, ueventArray...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // Initialize storage interface for this container
@@ -2565,7 +2632,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	c.removeUnixDevices()
 	c.removeDiskDevices()
 
-	var usbs []usbDevice
 	diskDevices := map[string]config.Device{}
 
 	// Create the devices
@@ -2614,39 +2680,21 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 					}
 				}
 			}
-		} else if m["type"] == "usb" {
-			if usbs == nil {
-				usbs, err = deviceLoadUsb()
-				if err != nil {
-					return "", postStartHooks, err
-				}
-			}
-
-			for _, usb := range usbs {
-				if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
-					continue
-				}
-
-				err := c.setupUnixDevice(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path, shared.IsTrue(m["required"]), false)
-				if err != nil {
-					return "", postStartHooks, err
-				}
-			}
 		} else if m["type"] == "disk" {
 			if m["path"] != "/" {
 				diskDevices[k] = m
 			}
 		} else {
 			// Use new Device interface if supported.
-			runConfig, err := c.deviceStart(k, m, false)
+			runConf, err := c.deviceStart(k, m, false)
 			if err != device.ErrUnsupportedDevType {
 				if err != nil {
 					return "", postStartHooks, errors.Wrapf(err, "Failed to start device '%s'", k)
 				}
 
 				// Pass any cgroups rules into LXC.
-				if len(runConfig.CGroups) > 0 {
-					for _, rule := range runConfig.CGroups {
+				if len(runConf.CGroups) > 0 {
+					for _, rule := range runConf.CGroups {
 						err = lxcSetConfigItem(c.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
 						if err != nil {
 							return "", postStartHooks, err
@@ -2655,8 +2703,8 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Pass any mounts into LXC.
-				if len(runConfig.Mounts) > 0 {
-					for _, mount := range runConfig.Mounts {
+				if len(runConf.Mounts) > 0 {
+					for _, mount := range runConf.Mounts {
 						mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
 						err = lxcSetConfigItem(c.c, "lxc.mount.entry", mntVal)
 						if err != nil {
@@ -2666,7 +2714,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Pass any network setup config into LXC.
-				if len(runConfig.NetworkInterface) > 0 {
+				if len(runConf.NetworkInterface) > 0 {
 					// Increment nicID so that LXC network index is unique per device.
 					nicID++
 
@@ -2675,7 +2723,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 						networkKeyPrefix = "lxc.network"
 					}
 
-					for _, dev := range runConfig.NetworkInterface {
+					for _, dev := range runConf.NetworkInterface {
 						err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, dev.Key), dev.Value)
 						if err != nil {
 							return "", postStartHooks, err
@@ -2684,8 +2732,8 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Add any post start hooks.
-				if len(runConfig.PostHooks) > 0 {
-					postStartHooks = append(postStartHooks, runConfig.PostHooks...)
+				if len(runConf.PostHooks) > 0 {
+					postStartHooks = append(postStartHooks, runConf.PostHooks...)
 				}
 
 				continue
@@ -4955,8 +5003,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			}
 		}
 
-		var usbs []usbDevice
-
 		// Live update the devices
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -4979,25 +5025,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
-			} else if m["type"] == "usb" {
-				if usbs == nil {
-					usbs, err = deviceLoadUsb()
-					if err != nil {
-						return err
-					}
-				}
-
-				/* if the device isn't present, we don't need to remove it */
-				for _, usb := range usbs {
-					if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
-						continue
-					}
-
-					err := c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path)
-					if err != nil {
-						return err
-					}
-				}
 			}
 		}
 
@@ -5012,24 +5039,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				diskDevices[k] = m
-			} else if m["type"] == "usb" {
-				if usbs == nil {
-					usbs, err = deviceLoadUsb()
-					if err != nil {
-						return err
-					}
-				}
-
-				for _, usb := range usbs {
-					if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
-						continue
-					}
-
-					err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path, false)
-					if err != nil {
-						logger.Error("Failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
-					}
-				}
 			}
 		}
 
