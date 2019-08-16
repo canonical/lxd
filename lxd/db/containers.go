@@ -937,20 +937,28 @@ ORDER BY date(instances_snapshots.creation_date)
 
 // ContainerGetSnapshotsFull returns all container objects for snapshots of a given container
 func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]Instance, error) {
-	filter := InstanceFilter{
-		Parent:  name,
-		Project: project,
-		Type:    int(CTypeSnapshot),
+	instance, err := c.InstanceGet(project, name)
+	if err != nil {
+		return nil, err
+	}
+	filter := InstanceSnapshotFilter{
+		Project:  project,
+		Instance: name,
 	}
 
-	snapshots, err := c.InstanceList(filter)
+	snapshots, err := c.InstanceSnapshotList(filter)
 	if err != nil {
 		return nil, err
 	}
 
 	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
 
-	return snapshots, nil
+	instances := make([]Instance, len(snapshots))
+	for i, snapshot := range snapshots {
+		instances[i] = InstanceSnapshotToInstance(instance, &snapshot)
+	}
+
+	return instances, nil
 }
 
 // ContainerNextSnapshot returns the index the next snapshot of the container

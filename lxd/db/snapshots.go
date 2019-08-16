@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"github.com/lxc/lxd/shared"
+)
 
 // Code generation directives.
 //
@@ -48,4 +52,27 @@ type InstanceSnapshotFilter struct {
 	Project  string
 	Instance string
 	Name     string
+}
+
+// InstanceSnapshotToInstance is a temporary convenience function to merge
+// together an Instance struct and a SnapshotInstance struct into into a the
+// legacy Instance struct for a snapshot.
+func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) Instance {
+	return Instance{
+		ID:           snapshot.ID,
+		Project:      snapshot.Project,
+		Name:         instance.Name + shared.SnapshotDelimiter + snapshot.Name,
+		Node:         instance.Node,
+		Type:         int(CTypeSnapshot),
+		Architecture: instance.Architecture,
+		Ephemeral:    false,
+		CreationDate: snapshot.CreationDate,
+		Stateful:     snapshot.Stateful,
+		LastUseDate:  time.Time{},
+		Description:  snapshot.Description,
+		Config:       snapshot.Config,
+		Devices:      snapshot.Devices,
+		Profiles:     instance.Profiles,
+		ExpiryDate:   snapshot.ExpiryDate,
+	}
 }
