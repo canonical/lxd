@@ -331,6 +331,11 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			}
 		}
 
+		if entry.Config != nil {
+			// Strip the last_state.power key in all cases
+			delete(entry.Config, "volatile.last_state.power")
+		}
+
 		// Do the actual copy
 		if c.flagTarget != "" {
 			dest = dest.UseTarget(c.flagTarget)
