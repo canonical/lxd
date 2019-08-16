@@ -64,17 +64,6 @@ func init() {
 
 // Helper functions
 
-// Returns the parent container name, snapshot name, and whether it actually was
-// a snapshot name.
-func containerGetParentAndSnapshotName(name string) (string, string, bool) {
-	fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-	if len(fields) == 1 {
-		return name, "", false
-	}
-
-	return fields[0], fields[1], true
-}
-
 func containerValidName(name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		return fmt.Errorf(
@@ -1390,13 +1379,13 @@ func containerCompareSnapshots(source container, target container) ([]container,
 	toSync := []container{}
 
 	for _, snap := range sourceSnapshots {
-		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 		sourceSnapshotsTime[snapName] = snap.CreationDate()
 	}
 
 	for _, snap := range targetSnapshots {
-		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 		targetSnapshotsTime[snapName] = snap.CreationDate()
 		existDate, exists := sourceSnapshotsTime[snapName]
@@ -1408,7 +1397,7 @@ func containerCompareSnapshots(source container, target container) ([]container,
 	}
 
 	for _, snap := range sourceSnapshots {
-		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 		existDate, exists := targetSnapshotsTime[snapName]
 		if !exists || existDate != snap.CreationDate() {
@@ -1673,7 +1662,7 @@ func containerDetermineNextSnapshotName(d *Daemon, c container, defaultPattern s
 	}
 
 	for _, snap := range snapshots {
-		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 		if snapOnlyName == pattern {
 			snapshotExists = true
 			break

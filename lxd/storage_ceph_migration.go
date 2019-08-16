@@ -80,7 +80,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	if s.container.IsSnapshot() {
 		// ContainerSnapshotStart() will create the clone that is
 		// referenced by sendName here.
-		containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
+		containerOnlyName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(containerName)
 		sendName := fmt.Sprintf(
 			"%s/snapshots_%s_%s_start_clone",
 			s.ceph.OSDPoolName,
@@ -314,7 +314,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, project.Prefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, s.UserName)
 		if err == nil {
 			for _, snap := range snaps {
-				snapOnlyName, _, _ := containerGetParentAndSnapshotName(snap)
+				snapOnlyName, _, _ := shared.ContainerGetParentAndSnapshotName(snap)
 				if !strings.HasPrefix(snapOnlyName, "migration-send") {
 					continue
 				}

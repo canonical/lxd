@@ -647,7 +647,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	for _, od = range onDiskSnapshots {
 		inBackupFile := false
 		for _, ib := range backup.Snapshots {
-			_, snapOnlyName, _ := containerGetParentAndSnapshotName(ib.Name)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(ib.Name)
 			if od == snapOnlyName {
 				inBackupFile = true
 				break
@@ -759,7 +759,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			}
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			ctName, csName, _ := containerGetParentAndSnapshotName(snap.Name)
+			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 			ctName = project.Prefix(projectName, ctName)
 			csName = project.Prefix(projectName, csName)
 			snapshotName := fmt.Sprintf("snapshot_%s", csName)
@@ -775,7 +775,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				return BadRequest(needForce)
 			}
 		case "zfs":
-			ctName, csName, _ := containerGetParentAndSnapshotName(snap.Name)
+			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 			snapshotName := fmt.Sprintf("snapshot-%s", csName)
 
 			exists := zfsFilesystemEntityExists(poolName,
@@ -967,7 +967,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		// Recreate missing mountpoints and symlinks.
 		snapshotMountPoint := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name,
 			snap.Name)
-		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
+		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 		sourceName = project.Prefix(projectName, sourceName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)

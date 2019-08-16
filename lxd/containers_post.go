@@ -531,7 +531,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	}
 
 	if req.Stateful {
-		sourceName, _, _ := containerGetParentAndSnapshotName(source.Name())
+		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
 			return BadRequest(fmt.Errorf(`Copying stateful `+
 				`containers requires that source "%s" and `+
@@ -890,7 +890,7 @@ func clusterCopyContainerInternal(d *Daemon, source container, project string, r
 	// Setup websockets
 	var opAPI api.Operation
 	if shared.IsSnapshot(req.Source.Source) {
-		cName, sName, _ := containerGetParentAndSnapshotName(req.Source.Source)
+		cName, sName, _ := shared.ContainerGetParentAndSnapshotName(req.Source.Source)
 
 		pullReq := api.ContainerSnapshotPost{
 			Migration: true,

@@ -740,7 +740,7 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		targetContainerName)
 	if sourceIsSnapshot {
 		sourceContainerOnlyName, sourceSnapshotOnlyName, _ :=
-			containerGetParentAndSnapshotName(sourceContainerName)
+			shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 		oldVolumeName = fmt.Sprintf("%s/container_%s@snapshot_%s",
 			s.OSDPoolName, sourceContainerOnlyName,
 			sourceSnapshotOnlyName)
@@ -810,7 +810,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		uuid.NewRandom().String())
 	if sourceIsSnapshot {
 		sourceContainerOnlyName, sourceSnapshotOnlyName, _ =
-			containerGetParentAndSnapshotName(sourceContainerName)
+			shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 		snapshotName = fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
 	} else {
 		// create snapshot
@@ -1606,7 +1606,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 	// Create a temporary snapshot
 	snapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.NewRandom().String())
 	if sourceIsSnapshot {
-		sourceContainerOnlyName, sourceSnapshotOnlyName, _ = containerGetParentAndSnapshotName(sourceContainerName)
+		sourceContainerOnlyName, sourceSnapshotOnlyName, _ = shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 		sourceContainerOnlyName = project.Prefix(source.Project(), sourceContainerOnlyName)
 		snapshotName = fmt.Sprintf("snapshot_%s", project.Prefix(source.Project(), sourceSnapshotOnlyName))
 	} else {
@@ -1679,7 +1679,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 	// Figure out the target name
 	targetName := sourceContainerName
 	if sourceIsSnapshot {
-		_, targetName, _ = containerGetParentAndSnapshotName(sourceContainerName)
+		_, targetName, _ = shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 	}
 
 	// Create the path for the backup.
@@ -1848,7 +1848,7 @@ func (s *storageCeph) doContainerSnapshotCreate(projectName, targetName string, 
 
 	revert := true
 
-	_, targetSnapshotOnlyName, _ := containerGetParentAndSnapshotName(targetName)
+	_, targetSnapshotOnlyName, _ := shared.ContainerGetParentAndSnapshotName(targetName)
 	targetSnapshotName := fmt.Sprintf("snapshot_%s", targetSnapshotOnlyName)
 	err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName,
 		project.Prefix(projectName, sourceName), storagePoolVolumeTypeNameContainer,
@@ -1873,7 +1873,7 @@ func (s *storageCeph) doContainerSnapshotCreate(projectName, targetName string, 
 	}()
 
 	targetContainerMntPoint := driver.GetSnapshotMountPoint(projectName, s.pool.Name, targetName)
-	sourceOnlyName, _, _ := containerGetParentAndSnapshotName(sourceName)
+	sourceOnlyName, _, _ := shared.ContainerGetParentAndSnapshotName(sourceName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(projectName, sourceOnlyName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(projectName, sourceOnlyName))
 	err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1933,7 +1933,7 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 
 	if !source.VolumeOnly {
 		for _, snap := range snapshots {
-			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
 
 			_, err = rsyncLocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit, true)
@@ -1972,7 +1972,7 @@ func (s *storageCeph) copyVolumeWithoutSnapshotsFull(source *api.StorageVolumeSo
 	isSnapshot := shared.IsSnapshot(source.Name)
 
 	if isSnapshot {
-		_, srcSnapshotOnlyName, _ := containerGetParentAndSnapshotName(source.Name)
+		_, srcSnapshotOnlyName, _ := shared.ContainerGetParentAndSnapshotName(source.Name)
 		oldVolumeName = fmt.Sprintf("%s/snapshot_%s", s.OSDPoolName, srcSnapshotOnlyName)
 	} else {
 		oldVolumeName = fmt.Sprintf("%s/custom_%s", s.OSDPoolName, source.Name)
@@ -2004,7 +2004,7 @@ func (s *storageCeph) copyVolumeWithoutSnapshotsFull(source *api.StorageVolumeSo
 }
 
 func (s *storageCeph) copyVolumeWithoutSnapshotsSparse(source *api.StorageVolumeSource) error {
-	sourceOnlyName, snapshotOnlyName, isSnapshot := containerGetParentAndSnapshotName(source.Name)
+	sourceOnlyName, snapshotOnlyName, isSnapshot := shared.ContainerGetParentAndSnapshotName(source.Name)
 
 	if isSnapshot {
 		snapshotOnlyName = fmt.Sprintf("snapshot_%s", snapshotOnlyName)

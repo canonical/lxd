@@ -687,7 +687,7 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 	sourceContainerMntPoint := driver.GetSnapshotMountPoint(source.Project(), sourcePool, sourceName)
 	targetContainerMntPoint := driver.GetSnapshotMountPoint(target.Project(), targetPool, targetName)
 
-	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
+	targetParentName, _, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), targetPool, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
@@ -788,7 +788,7 @@ func (s *storageDir) doContainerCopy(target container, source container, contain
 			return err
 		}
 
-		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
 		targetSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), newSnapName)
 		if err != nil {
@@ -1023,7 +1023,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	// exists and if not create it.
 	targetContainerMntPoint = driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name,
 		targetContainerName)
-	sourceName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(targetContainerName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
 		s.pool.Name, "containers-snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
@@ -1048,7 +1048,7 @@ func dirSnapshotDeleteInternal(projectName, poolName string, snapshotName string
 		}
 	}
 
-	sourceContainerName, _, _ := containerGetParentAndSnapshotName(snapshotName)
+	sourceContainerName, _, _ := shared.ContainerGetParentAndSnapshotName(snapshotName)
 	snapshotContainerPath := driver.GetSnapshotMountPoint(projectName, poolName, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
@@ -1169,7 +1169,7 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source container) erro
 		}
 
 		for _, snap := range snapshots {
-			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 			snapshotMntPoint := driver.GetSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
 			target := fmt.Sprintf("%s/%s", snapshotsPath, snapName)
 
@@ -1427,7 +1427,7 @@ func (s *storageDir) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	}
 
 	for _, snap := range snapshots {
-		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 		err = s.copyVolumeSnapshot(source.Pool, snap, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 		if err != nil {
 			return err
@@ -1459,7 +1459,7 @@ func (s *storageDir) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSn
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	sourceName, _, ok := containerGetParentAndSnapshotName(target.Name)
+	sourceName, _, ok := shared.ContainerGetParentAndSnapshotName(target.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -1495,7 +1495,7 @@ func (s *storageDir) StoragePoolVolumeSnapshotDelete() error {
 		return err
 	}
 
-	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	storageVolumeSnapshotPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
 	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
 	if err == nil && empty {
@@ -1517,7 +1517,7 @@ func (s *storageDir) StoragePoolVolumeSnapshotDelete() error {
 }
 
 func (s *storageDir) StoragePoolVolumeSnapshotRename(newName string) error {
-	sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, _, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
 
 	logger.Infof("Renaming DIR storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, fullSnapshotName)

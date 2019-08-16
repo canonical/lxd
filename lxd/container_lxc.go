@@ -3878,7 +3878,7 @@ func (c *containerLXC) Delete() error {
 		_, poolName, _ := c.storage.GetContainerPoolInfo()
 
 		if c.IsSnapshot() {
-			cName, _, _ := containerGetParentAndSnapshotName(c.name)
+			cName, _, _ := shared.ContainerGetParentAndSnapshotName(c.name)
 			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", cName, ".importing")) {
 				isImport = true
 			}
@@ -5240,7 +5240,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	var endpoint string
 
 	if c.IsSnapshot() {
-		cName, sName, _ := containerGetParentAndSnapshotName(c.name)
+		cName, sName, _ := shared.ContainerGetParentAndSnapshotName(c.name)
 		endpoint = fmt.Sprintf("/1.0/containers/%s/snapshots/%s", cName, sName)
 	} else {
 		endpoint = fmt.Sprintf("/1.0/containers/%s", c.name)
@@ -5392,7 +5392,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		// Get the container's architecture
 		var arch string
 		if c.IsSnapshot() {
-			parentName, _, _ := containerGetParentAndSnapshotName(c.name)
+			parentName, _, _ := shared.ContainerGetParentAndSnapshotName(c.name)
 			parent, err := containerLoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
 				ctw.Close()

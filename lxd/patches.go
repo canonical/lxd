@@ -3376,7 +3376,7 @@ func patchUpdateFromV11(_ *sql.Tx) error {
 	cNames := containers["default"]
 
 	for _, cName := range cNames {
-		snapParentName, snapOnlyName, _ := containerGetParentAndSnapshotName(cName)
+		snapParentName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(cName)
 		oldPath := shared.VarPath("containers", snapParentName, "snapshots", snapOnlyName)
 		newPath := shared.VarPath("snapshots", snapParentName, snapOnlyName)
 		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
