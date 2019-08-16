@@ -22,5 +22,6 @@ type RunConfig struct {
 	NetworkInterface []RunConfigItem  // Network interface configuration settings.
 	CGroups          []RunConfigItem  // Cgroup rules to setup.
 	Mounts           []MountEntryItem // Mounts to setup/remove.
+	Uevents          [][]string       // Uevents to inject.
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
 }
