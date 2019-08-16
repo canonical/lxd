@@ -3622,6 +3622,10 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 func (c *containerLXC) Snapshots() ([]container, error) {
 	var snaps []db.Instance
 
+	if c.IsSnapshot() {
+		return []container{}, nil
+	}
+
 	// Get all the snapshots
 	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -4072,40 +4076,26 @@ func (c *containerLXC) Rename(newName string) error {
 		}
 	}
 
-	// Rename the database entry
-	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.InstanceRename(c.project, oldName, newName)
-	})
-	if err != nil {
-		logger.Error("Failed renaming container", ctxMap)
-		return err
-	}
-
-	// Rename storage volume for the container.
 	poolID, _, _ := c.storage.GetContainerPoolInfo()
-	err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
-	if err != nil {
-		logger.Error("Failed renaming storage volume", ctxMap)
-		return err
-	}
 
 	if !c.IsSnapshot() {
 		// Rename all the snapshots
 		results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
 		if err != nil {
-			logger.Error("Failed renaming container", ctxMap)
+			logger.Error("Failed to get container snapshots", ctxMap)
 			return err
 		}
 
 		for _, sname := range results {
 			// Rename the snapshot
+			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
 			err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.InstanceRename(c.project, sname, newSnapshotName)
+				return tx.InstanceSnapshotRename(c.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
-				logger.Error("Failed renaming container", ctxMap)
+				logger.Error("Failed renaming snapshot", ctxMap)
 				return err
 			}
 
@@ -4116,6 +4106,28 @@ func (c *containerLXC) Rename(newName string) error {
 				return err
 			}
 		}
+	}
+
+	// Rename the database entry
+	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		if c.IsSnapshot() {
+			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
+			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
+			return tx.InstanceSnapshotRename(c.project, oldParts[0], oldParts[1], newParts[1])
+		} else {
+			return tx.InstanceRename(c.project, oldName, newName)
+		}
+	})
+	if err != nil {
+		logger.Error("Failed renaming container", ctxMap)
+		return err
+	}
+
+	// Rename storage volume for the container.
+	err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	if err != nil {
+		logger.Error("Failed renaming storage volume", ctxMap)
+		return err
 	}
 
 	// Set the new name in the struct
@@ -4199,11 +4211,18 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 	}
 
 	// Update the database
-	err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.ContainerConfigUpdate(c.id, changes)
-	})
+	var err error
+	if c.IsSnapshot() {
+		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.InstanceSnapshotConfigUpdate(c.id, changes)
+		})
+	} else {
+		err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.ContainerConfigUpdate(c.id, changes)
+		})
+	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to update database")
+		return errors.Wrap(err, "Failed to volatile config")
 	}
 
 	// Apply the change locally
@@ -5122,35 +5141,44 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return err
 		}
 
-		err = db.ContainerConfigClear(tx, c.id)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
+		// Snapshots should update only their descriptions and expiry date.
+		if c.IsSnapshot() {
+			err = db.InstanceSnapshotUpdate(tx, c.id, c.description, c.expiryDate)
+			if err != nil {
+				tx.Rollback()
+				return errors.Wrap(err, "Snapshot update")
+			}
+		} else {
+			err = db.ContainerConfigClear(tx, c.id)
+			if err != nil {
+				tx.Rollback()
+				return err
 
-		err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
-		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(err, "Config insert")
-		}
+			}
+			err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
+			if err != nil {
+				tx.Rollback()
+				return errors.Wrap(err, "Config insert")
+			}
 
-		err = db.ContainerProfilesInsert(tx, c.id, c.project, c.profiles)
-		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(err, "Profiles insert")
-		}
+			err = db.ContainerProfilesInsert(tx, c.id, c.project, c.profiles)
+			if err != nil {
+				tx.Rollback()
+				return errors.Wrap(err, "Profiles insert")
+			}
 
-		err = db.DevicesAdd(tx, "instance", int64(c.id), c.localDevices)
-		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(err, "Device add")
-		}
+			err = db.DevicesAdd(tx, "instance", int64(c.id), c.localDevices)
+			if err != nil {
+				tx.Rollback()
+				return errors.Wrap(err, "Device add")
+			}
 
-		err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral,
-			c.expiryDate)
-		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(err, "Container update")
+			err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral, c.expiryDate)
+			if err != nil {
+				tx.Rollback()
+				return errors.Wrap(err, "Container update")
+			}
+
 		}
 
 		if err := db.TxCommit(tx); err != nil {

@@ -335,15 +335,15 @@ func containerDeleteSnapshots(s *state.State, project, cname string) error {
 		sc, err := containerLoadByProjectAndName(s, project, sname)
 		if err != nil {
 			logger.Error(
-				"containerDeleteSnapshots: Failed to load the snapshotcontainer",
-				log.Ctx{"container": cname, "snapshot": sname})
+				"containerDeleteSnapshots: Failed to load the snapshot container",
+				log.Ctx{"container": cname, "snapshot": sname, "err": err})
 
 			continue
 		}
 
 		if err := sc.Delete(); err != nil {
 			logger.Error(
-				"containerDeleteSnapshots: Failed to delete a snapshotcontainer",
+				"containerDeleteSnapshots: Failed to delete a snapshot container",
 				log.Ctx{"container": cname, "snapshot": sname, "err": err})
 		}
 	}

@@ -379,7 +379,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.cluster.ContainerID(fullName)
+	id, _ := d.cluster.InstanceSnapshotID(sc.Project(), containerName, newName)
 	if id > 0 {
 		return Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}

@@ -808,7 +808,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := d.cluster.ContainerID(req.Name)
+	_, containerErr := d.cluster.ContainerID(projectName, req.Name)
 	if containerErr != nil {
 		if containerErr != db.ErrNoSuchObject {
 			return SmartError(containerErr)
@@ -873,9 +873,67 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	fd.Close()
 	defer os.Remove(fd.Name())
 
+	baseImage := backup.Container.Config["volatile.base_image"]
+
+	// Add root device if missing
+	root, _, _ := shared.GetRootDiskDevice(backup.Container.Devices)
+	if root == "" {
+		if backup.Container.Devices == nil {
+			backup.Container.Devices = map[string]map[string]string{}
+		}
+
+		rootDevName := "root"
+		for i := 0; i < 100; i++ {
+			if backup.Container.Devices[rootDevName] == nil {
+				break
+			}
+			rootDevName = fmt.Sprintf("root%d", i)
+			continue
+		}
+
+		backup.Container.Devices[rootDevName] = rootDev
+	}
+
+	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
+	if err != nil {
+		return SmartError(err)
+	}
+	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
+		Project:      projectName,
+		Architecture: arch,
+		BaseImage:    baseImage,
+		Config:       backup.Container.Config,
+		CreationDate: backup.Container.CreatedAt,
+		Ctype:        db.CTypeRegular,
+		Description:  backup.Container.Description,
+		Devices:      backup.Container.Devices,
+		Ephemeral:    backup.Container.Ephemeral,
+		LastUsedDate: backup.Container.LastUsedAt,
+		Name:         backup.Container.Name,
+		Profiles:     backup.Container.Profiles,
+		Stateful:     backup.Container.Stateful,
+	})
+	if err != nil {
+		err = errors.Wrap(err, "Create container")
+		return SmartError(err)
+	}
+
+	containerPath := driver.ContainerPath(project.Prefix(projectName, req.Name), false)
+	isPrivileged := false
+	if backup.Container.Config["security.privileged"] == "" {
+		isPrivileged = true
+	}
+	err = createContainerMountpoint(containerMntPoint, containerPath,
+		isPrivileged)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	for _, snap := range existingSnapshots {
+		parts := strings.SplitN(snap.Name, shared.SnapshotDelimiter, 2)
+
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.cluster.ContainerID(snap.Name)
+		_, snapErr := d.cluster.InstanceSnapshotID(projectName, parts[0], parts[1])
 		if snapErr != nil {
 			if snapErr != db.ErrNoSuchObject {
 				return SmartError(snapErr)
@@ -890,8 +948,8 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetType(snap.Name,
-			storagePoolVolumeTypeContainer, poolID)
+		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(
+			projectName, snap.Name, storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
 				return SmartError(csVolErr)
@@ -913,7 +971,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete("default", snap.Name,
+			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)
@@ -975,62 +1033,6 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return InternalError(err)
 		}
-	}
-
-	baseImage := backup.Container.Config["volatile.base_image"]
-
-	// Add root device if missing
-	root, _, _ := shared.GetRootDiskDevice(backup.Container.Devices)
-	if root == "" {
-		if backup.Container.Devices == nil {
-			backup.Container.Devices = map[string]map[string]string{}
-		}
-
-		rootDevName := "root"
-		for i := 0; i < 100; i++ {
-			if backup.Container.Devices[rootDevName] == nil {
-				break
-			}
-			rootDevName = fmt.Sprintf("root%d", i)
-			continue
-		}
-
-		backup.Container.Devices[rootDevName] = rootDev
-	}
-
-	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
-	if err != nil {
-		return SmartError(err)
-	}
-	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
-		Project:      projectName,
-		Architecture: arch,
-		BaseImage:    baseImage,
-		Config:       backup.Container.Config,
-		CreationDate: backup.Container.CreatedAt,
-		Ctype:        db.CTypeRegular,
-		Description:  backup.Container.Description,
-		Devices:      backup.Container.Devices,
-		Ephemeral:    backup.Container.Ephemeral,
-		LastUsedDate: backup.Container.LastUsedAt,
-		Name:         backup.Container.Name,
-		Profiles:     backup.Container.Profiles,
-		Stateful:     backup.Container.Stateful,
-	})
-	if err != nil {
-		err = errors.Wrap(err, "Create container")
-		return SmartError(err)
-	}
-
-	containerPath := driver.ContainerPath(project.Prefix(projectName, req.Name), false)
-	isPrivileged := false
-	if backup.Container.Config["security.privileged"] == "" {
-		isPrivileged = true
-	}
-	err = createContainerMountpoint(containerMntPoint, containerPath,
-		isPrivileged)
-	if err != nil {
-		return InternalError(err)
 	}
 
 	return EmptySyncResponse

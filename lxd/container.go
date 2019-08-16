@@ -1228,9 +1228,28 @@ func containerLoadByProjectAndName(s *state.State, project, name string) (contai
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		container, err = tx.InstanceGet(project, name)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
+		if strings.Contains(name, shared.SnapshotDelimiter) {
+			parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+			instanceName := parts[0]
+			snapshotName := parts[1]
+
+			instance, err := tx.InstanceGet(project, instanceName)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
+			}
+
+			snapshot, err := tx.InstanceSnapshotGet(project, instanceName, snapshotName)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fetch snapshot %q of instance %q in project %q", snapshotName, instanceName, project)
+			}
+
+			c := db.InstanceSnapshotToInstance(instance, snapshot)
+			container = &c
+		} else {
+			container, err = tx.InstanceGet(project, name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
+			}
 		}
 
 		return nil
