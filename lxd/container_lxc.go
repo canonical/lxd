@@ -1997,28 +1997,6 @@ func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
 	return nil
 }
 
-// deviceAttachMounts live attaches mounts to a container.
-func (c *containerLXC) deviceAttachMounts(configCopy map[string]string, mounts []device.MountEntryItem) error {
-	for _, mount := range mounts {
-		flags := 0
-
-		// Convert options into flags.
-		for _, opt := range mount.Opts {
-			if opt == "bind" {
-				flags |= unix.MS_BIND
-			}
-		}
-
-		// Mount it into the container.
-		err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, mount.Shift)
-		if err != nil {
-			return fmt.Errorf("Failed to add mount for device: %s", err)
-		}
-	}
-
-	return nil
-}
-
 // deviceAddCgroupRules live adds cgroup rules to a container.
 func (c *containerLXC) deviceAddCgroupRules(configCopy map[string]string, cgroups []device.RunConfigItem) error {
 	for _, rule := range cgroups {
