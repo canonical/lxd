@@ -131,6 +131,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Name:     "s1",
 	}
 	_, err = tx.InstanceSnapshotCreate(s1p1)
+	require.NoError(t, err)
 
 	filter := db.InstanceSnapshotFilter{Project: "p1", Instance: "i1"}
 	snapshots, err := tx.InstanceSnapshotList(filter)
