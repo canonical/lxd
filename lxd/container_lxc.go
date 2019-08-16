@@ -1886,7 +1886,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string
 	return d, configCopy, err
 }
 
-// deviceAdd loads a new device and calls its Setup() function.
+// deviceAdd loads a new device and calls its Add() function.
 func (c *containerLXC) deviceAdd(deviceName string, rawConfig map[string]string) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
