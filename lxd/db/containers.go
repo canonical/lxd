@@ -512,6 +512,12 @@ func (c *ClusterTx) ContainerConfigInsert(id int, config map[string]string) erro
 
 // ContainerConfigUpdate inserts/updates/deletes the provided keys
 func (c *ClusterTx) ContainerConfigUpdate(id int, values map[string]string) error {
+	insertSQL := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES")
+	deleteSQL := "DELETE FROM instances_config WHERE key IN %s AND instance_id=?"
+	return c.configUpdate(id, values, insertSQL, deleteSQL)
+}
+
+func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, deleteSQL string) error {
 	changes := map[string]string{}
 	deletes := []string{}
 
@@ -526,7 +532,7 @@ func (c *ClusterTx) ContainerConfigUpdate(id int, values map[string]string) erro
 
 	// Insert/update keys
 	if len(changes) > 0 {
-		query := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES")
+		query := insertSQL
 		exprs := []string{}
 		params := []interface{}{}
 		for key, value := range changes {
@@ -543,7 +549,7 @@ func (c *ClusterTx) ContainerConfigUpdate(id int, values map[string]string) erro
 
 	// Delete keys
 	if len(deletes) > 0 {
-		query := fmt.Sprintf("DELETE FROM instances_config WHERE key IN %s AND instance_id=?", query.Params(len(deletes)))
+		query := fmt.Sprintf(deleteSQL, query.Params(len(deletes)))
 		params := []interface{}{}
 		for _, key := range deletes {
 			params = append(params, key)
