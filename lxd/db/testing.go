@@ -63,7 +63,7 @@ func NewTestCluster(t *testing.T) (*Cluster, func()) {
 	}
 
 	cluster, err := OpenCluster(
-		"test.db", store, "1", "/unused/db/dir", 5*time.Second,
+		"test.db", store, "1", "/unused/db/dir", 5*time.Second, nil,
 		dqlite.WithLogFunc(log), dqlite.WithDialFunc(dial))
 	require.NoError(t, err)
 
