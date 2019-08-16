@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
-	"github.com/canonical/go-dqlite"
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/util"
@@ -165,42 +165,37 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	// 1. This is needed for referential integrity with other tables. Also,
 	// create a default profile.
 	if initial == 0 {
-		tx, err := db.Begin()
-		if err != nil {
-			return false, err
-		}
-		stmt := `
+		err = query.Transaction(db, func(tx *sql.Tx) error {
+			stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', ?, ?)
 `
-		_, err = tx.Exec(stmt, SchemaVersion, apiExtensions)
-		if err != nil {
-			tx.Rollback()
-			return false, err
-		}
+			_, err = tx.Exec(stmt, SchemaVersion, apiExtensions)
+			if err != nil {
+				return err
+			}
 
-		// Default project
-		stmt = `
+			// Default project
+			stmt = `
 INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
 `
-		_, err = tx.Exec(stmt)
-		if err != nil {
-			tx.Rollback()
-			return false, err
-		}
+			_, err = tx.Exec(stmt)
+			if err != nil {
+				return err
+			}
 
-		// Default profile
-		stmt = `
+			// Default profile
+			stmt = `
 INSERT INTO profiles (name, description, project_id) VALUES ('default', 'Default LXD profile', 1)
 `
-		_, err = tx.Exec(stmt)
-		if err != nil {
-			tx.Rollback()
-			return false, err
-		}
+			_, err = tx.Exec(stmt)
+			if err != nil {
+				return err
+			}
 
-		err = tx.Commit()
+			return nil
+		})
 		if err != nil {
 			return false, err
 		}

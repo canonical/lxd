@@ -260,7 +260,7 @@ func TestJoin(t *testing.T) {
 	var err error
 	targetState.Cluster, err = db.OpenCluster(
 		"db.bin", targetStore, targetAddress, "/unused/db/dir",
-		10*time.Second,
+		10*time.Second, nil,
 		dqlite.WithDialFunc(targetDialFunc))
 	require.NoError(t, err)
 
@@ -297,7 +297,8 @@ func TestJoin(t *testing.T) {
 	dialFunc := gateway.DialFunc()
 
 	state.Cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir", 5*time.Second, dqlite.WithDialFunc(dialFunc))
+		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
+		dqlite.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}
@@ -380,7 +381,8 @@ func FLAKY_TestPromote(t *testing.T) {
 	store := targetGateway.ServerStore()
 	dialFunc := targetGateway.DialFunc()
 	targetState.Cluster, err = db.OpenCluster(
-		"db.bin", store, targetAddress, "/unused/db/dir", 5*time.Second, dqlite.WithDialFunc(dialFunc))
+		"db.bin", store, targetAddress, "/unused/db/dir", 5*time.Second, nil,
+		dqlite.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.ClusterAddress(targetAddress)
