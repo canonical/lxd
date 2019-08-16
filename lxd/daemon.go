@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	lxc "gopkg.in/lxc/go-lxc.v2"
 
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -688,7 +688,7 @@ func (d *Daemon) init() error {
 
 		d.cluster, err = db.OpenCluster(
 			"db.bin", store, clusterAddress, dir,
-			d.config.DqliteSetupTimeout,
+			d.config.DqliteSetupTimeout, dump,
 			dqlite.WithDialFunc(d.gateway.DialFunc()),
 			dqlite.WithContext(d.gateway.Context()),
 			dqlite.WithConnectionTimeout(10*time.Second),
@@ -727,29 +727,6 @@ func (d *Daemon) init() error {
 		logger.Debugf("Could not notify all nodes of database upgrade: %v", err)
 	}
 	d.gateway.Cluster = d.cluster
-
-	/* Migrate the node local data to the cluster database, if needed */
-	if dump != nil {
-		logger.Infof("Migrating data from local to global database")
-		err = d.cluster.ImportPreClusteringData(dump)
-		if err != nil {
-			// Restore the local sqlite3 backup and wipe the raft
-			// directory, so users can fix problems and retry.
-			path := d.os.LocalDatabasePath()
-			copyErr := shared.FileCopy(path+".bak", path)
-			if copyErr != nil {
-				// Ignore errors here, there's not much we can do
-				logger.Errorf("Failed to restore local database: %v", copyErr)
-			}
-			rmErr := os.RemoveAll(d.os.GlobalDatabaseDir())
-			if rmErr != nil {
-				// Ignore errors here, there's not much we can do
-				logger.Errorf("Failed to cleanup global database: %v", rmErr)
-			}
-
-			return fmt.Errorf("Failed to migrate data to global database: %v", err)
-		}
-	}
 
 	// This logic used to belong to patchUpdateFromV10, but has been moved
 	// here because it needs database access.
