@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func NewTestNodeTx(t *testing.T) (*NodeTx, func()) {
 // that can be used to clean it up when done.
 func NewTestCluster(t *testing.T) (*Cluster, func()) {
 	// Create an in-memory dqlite SQL server and associated store.
-	store, serverCleanup := newDqliteServer(t)
+	dir, store, serverCleanup := NewTestDqliteServer(t)
 
 	log := newLogFunc(t)
 
@@ -63,7 +64,7 @@ func NewTestCluster(t *testing.T) (*Cluster, func()) {
 	}
 
 	cluster, err := OpenCluster(
-		"test.db", store, "1", "/unused/db/dir", 5*time.Second, nil,
+		"test.db", store, "1", dir, 5*time.Second, nil,
 		dqlite.WithLogFunc(log), dqlite.WithDialFunc(dial))
 	require.NoError(t, err)
 
@@ -95,10 +96,11 @@ func NewTestClusterTx(t *testing.T) (*ClusterTx, func()) {
 	return clusterTx, cleanup
 }
 
-// Create a new in-memory dqlite server.
+// NewTestDqliteServer creates a new test dqlite server.
 //
-// Return the newly created server store can be used to connect to it.
-func newDqliteServer(t *testing.T) (*dqlite.DatabaseServerStore, func()) {
+// Return the directory backing the test server and a newly created server
+// store that can be used to connect to it.
+func NewTestDqliteServer(t *testing.T) (string, *dqlite.DatabaseServerStore, func()) {
 	t.Helper()
 
 	listener, err := net.Listen("unix", "")
@@ -107,9 +109,11 @@ func newDqliteServer(t *testing.T) (*dqlite.DatabaseServerStore, func()) {
 	address := listener.Addr().String()
 
 	dir, dirCleanup := newDir(t)
+	err = os.Mkdir(filepath.Join(dir, "global"), 0755)
+	require.NoError(t, err)
 
 	info := dqlite.ServerInfo{ID: uint64(1), Address: listener.Addr().String()}
-	server, err := dqlite.NewServer(info, dir)
+	server, err := dqlite.NewServer(info, filepath.Join(dir, "global"))
 	require.NoError(t, err)
 
 	err = server.Bootstrap([]dqlite.ServerInfo{info})
@@ -128,7 +132,7 @@ func newDqliteServer(t *testing.T) (*dqlite.DatabaseServerStore, func()) {
 	ctx := context.Background()
 	require.NoError(t, store.Set(ctx, []dqlite.ServerInfo{{Address: address}}))
 
-	return store, cleanup
+	return dir, store, cleanup
 }
 
 var dqliteSerial = 0

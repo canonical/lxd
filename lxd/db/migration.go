@@ -102,18 +102,31 @@ var preClusteringTablesRequiringProjectID = []string{
 }
 
 // ImportPreClusteringData imports the data loaded with LoadPreClusteringData.
-func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
-	tx, err := c.db.Begin()
+func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
+	// Create version 14 of the cluster database schema.
+	_, err := tx.Exec(clusterSchemaVersion14)
 	if err != nil {
-		return errors.Wrap(err, "failed to start cluster database transaction")
+		return errors.Wrap(err, "Create cluster database schema version 14")
 	}
 
-	// Delete the default profile in the cluster database, which always
-	// gets created no matter what.
-	_, err = tx.Exec("DELETE FROM profiles WHERE id=1")
+	// Insert an entry for node 1.
+	stmt := `
+INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', 14, 1)
+`
+	_, err = tx.Exec(stmt)
 	if err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "failed to delete default profile")
+		return err
+	}
+
+	// Default project
+	stmt = `
+INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
+`
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return err
 	}
 
 	for _, table := range preClusteringTables {
@@ -216,16 +229,13 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
-				tx.Rollback()
 				return errors.Wrapf(err, "failed to insert row %d into %s", i, table)
 			}
 			n, err := result.RowsAffected()
 			if err != nil {
-				tx.Rollback()
 				return errors.Wrapf(err, "no result count for row %d of %s", i, table)
 			}
 			if n != 1 {
-				tx.Rollback()
 				return fmt.Errorf("could not insert %d int %s", i, table)
 			}
 
@@ -237,7 +247,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // Insert a row in one of the nodes association tables (storage_pools_nodes,
@@ -699,6 +709,11 @@ CREATE TABLE storage_volumes_config (
     UNIQUE (storage_volume_id, key),
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
-
+CREATE TABLE schema (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    version    INTEGER NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (version)
+);
 INSERT INTO schema (version, updated_at) VALUES (14, strftime("%s"))
 `
