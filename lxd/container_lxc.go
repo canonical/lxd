@@ -2182,19 +2182,37 @@ func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []dev
 	return nil
 }
 
-// deviceDetachMounts removes a mount from a container.
-func (c *containerLXC) deviceDetachMounts(configCopy map[string]string, mounts []device.MountEntryItem) error {
+// deviceHandleMounts live attaches or detaches mounts on a container.
+// If the mount DevPath is empty the mount action is treated as unmount.
+func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error {
 	for _, mount := range mounts {
-		relativeDestPath := strings.TrimPrefix(mount.TargetPath, "/")
-		if c.FileExists(relativeDestPath) == nil {
-			err := c.removeMount(mount.TargetPath)
-			if err != nil {
-				return fmt.Errorf("Error unmounting the device: %s", err)
+		if mount.DevPath != "" {
+			flags := 0
+
+			// Convert options into flags.
+			for _, opt := range mount.Opts {
+				if opt == "bind" {
+					flags |= unix.MS_BIND
+				}
 			}
 
-			err = c.FileRemove(relativeDestPath)
+			// Mount it into the container.
+			err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, mount.Shift)
 			if err != nil {
-				return fmt.Errorf("Error removing the device: %s", err)
+				return fmt.Errorf("Failed to add mount for device: %s", err)
+			}
+		} else {
+			relativeTargetPath := strings.TrimPrefix(mount.TargetPath, "/")
+			if c.FileExists(relativeTargetPath) == nil {
+				err := c.removeMount(mount.TargetPath)
+				if err != nil {
+					return fmt.Errorf("Error unmounting the device: %s", err)
+				}
+
+				err = c.FileRemove(relativeTargetPath)
+				if err != nil {
+					return fmt.Errorf("Error removing the device: %s", err)
+				}
 			}
 		}
 	}
