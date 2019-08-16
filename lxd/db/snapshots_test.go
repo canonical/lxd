@@ -141,6 +141,13 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 	assert.Equal(t, "p1", snapshots[0].Project)
 	assert.Equal(t, "i1", snapshots[0].Instance)
 	assert.Equal(t, "s1", snapshots[0].Name)
+
+	snapshot, err := tx.InstanceSnapshotGet("default", "i1", "s1")
+	require.NoError(t, err)
+
+	assert.Equal(t, "default", snapshot.Project)
+	assert.Equal(t, "i1", snapshot.Instance)
+	assert.Equal(t, "s1", snapshot.Name)
 }
 
 func addInstanceSnapshot(t *testing.T, tx *db.ClusterTx, instanceID int64, name string) {
