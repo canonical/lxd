@@ -140,11 +140,11 @@ INSERT INTO instances_devices_config (instance_device_id, key, value)
 `)
 
 var instanceRename = cluster.RegisterStmt(`
-UPDATE instances SET name = ? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+UPDATE instances SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 var instanceDelete = cluster.RegisterStmt(`
-DELETE FROM instances WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 // InstanceList returns all available instances.
@@ -185,12 +185,6 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 			filter.Node,
 			filter.Type,
 		}
-	} else if criteria["Node"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByNodeAndType)
-		args = []interface{}{
-			filter.Node,
-			filter.Type,
-		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(instanceObjectsByProjectAndName)
 		args = []interface{}{
@@ -201,6 +195,12 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 		stmt = c.stmt(instanceObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
+			filter.Type,
+		}
+	} else if criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByNodeAndType)
+		args = []interface{}{
+			filter.Node,
 			filter.Type,
 		}
 	} else if criteria["Type"] != nil {
@@ -472,17 +472,17 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(instanceProfilesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(instanceProfilesRefByNode)
@@ -671,15 +671,15 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(instanceDevicesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceDevicesRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(instanceDevicesRefByNode)
+		args = []interface{}{
+			filter.Node,
 		}
 	} else {
 		stmt = c.stmt(instanceDevicesRef)

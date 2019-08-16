@@ -110,11 +110,11 @@ INSERT INTO profiles_devices_config (profile_device_id, key, value)
 `)
 
 var profileRename = cluster.RegisterStmt(`
-UPDATE profiles SET name = ? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+UPDATE profiles SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 var profileDelete = cluster.RegisterStmt(`
-DELETE FROM profiles WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 // ProfileURIs returns all available profile URIs.

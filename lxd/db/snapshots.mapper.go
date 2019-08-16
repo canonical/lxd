@@ -79,6 +79,14 @@ INSERT INTO instances_snapshots_devices_config (instance_snapshot_device_id, key
   VALUES (?, ?, ?)
 `)
 
+var instance_snapshotRename = cluster.RegisterStmt(`
+UPDATE instances_snapshots SET name = ? WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
+`)
+
+var instance_snapshotDelete = cluster.RegisterStmt(`
+DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
+`)
+
 // InstanceSnapshotList returns all available instance_snapshots.
 func (c *ClusterTx) InstanceSnapshotList(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
 	// Result slice.
@@ -547,4 +555,41 @@ func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (m
 	}
 
 	return index, nil
+}
+
+// InstanceSnapshotRename renames the instance_snapshot matching the given key parameters.
+func (c *ClusterTx) InstanceSnapshotRename(project string, instance string, name string, to string) error {
+	stmt := c.stmt(instance_snapshotRename)
+	result, err := stmt.Exec(to, project, instance, name)
+	if err != nil {
+		return errors.Wrap(err, "Rename instance_snapshot")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Fetch affected rows")
+	}
+	if n != 1 {
+		return fmt.Errorf("Query affected %d rows instead of 1", n)
+	}
+	return nil
+}
+
+// InstanceSnapshotDelete deletes the instance_snapshot matching the given key parameters.
+func (c *ClusterTx) InstanceSnapshotDelete(project string, instance string, name string) error {
+	stmt := c.stmt(instance_snapshotDelete)
+	result, err := stmt.Exec(project, instance, name)
+	if err != nil {
+		return errors.Wrap(err, "Delete instance_snapshot")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Fetch affected rows")
+	}
+	if n != 1 {
+		return fmt.Errorf("Query deleted %d rows instead of 1", n)
+	}
+
+	return nil
 }
