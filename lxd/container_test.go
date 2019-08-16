@@ -168,27 +168,6 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), driver.ContainerPath("testFoo2", false))
 }
 
-func (suite *containerTestSuite) TestContainer_Path_Snapshot() {
-	// Snapshot
-	args := db.ContainerArgs{
-		Ctype:     db.CTypeSnapshot,
-		Ephemeral: false,
-		Name:      "test/snap0",
-	}
-
-	c, err := containerCreateInternal(suite.d.State(), args)
-	suite.Req.Nil(err)
-	defer c.Delete()
-
-	suite.Req.True(c.IsSnapshot(), "Should be a snapshot.")
-	suite.Req.Equal(
-		shared.VarPath("snapshots", "test", "snap0"),
-		c.Path())
-	suite.Req.Equal(
-		shared.VarPath("snapshots", "test", "snap1"),
-		driver.ContainerPath("test/snap1", true))
-}
-
 func (suite *containerTestSuite) TestContainer_LogPath() {
 	args := db.ContainerArgs{
 		Ctype:     db.CTypeRegular,
