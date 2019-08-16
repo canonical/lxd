@@ -180,16 +180,34 @@ SELECT instances.name FROM instances
 //
 // It returns the empty string if the container is hosted on this node.
 func (c *ClusterTx) ContainerNodeAddress(project string, name string) (string, error) {
-	stmt := `
+	var stmt string
+	args := []interface{}{project}
+
+	if strings.Contains(name, shared.SnapshotDelimiter) {
+		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+		stmt = `
+SELECT nodes.id, nodes.address
+  FROM nodes
+  JOIN instances ON instances.node_id = nodes.id
+  JOIN projects ON projects.id = instances.project_id
+  JOIN instances_snapshots ON instances_snapshots.instance_id = instances.id
+ WHERE projects.name = ? AND instances.name = ? AND instances_snapshots.name = ?
+`
+		args = append(args, parts[0], parts[1])
+	} else {
+		stmt = `
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
  WHERE projects.name = ? AND instances.name = ?
 `
+		args = append(args, name)
+	}
+
 	var address string
 	var id int64
-	rows, err := c.tx.Query(stmt, project, name)
+	rows, err := c.tx.Query(stmt, args...)
 	if err != nil {
 		return "", err
 	}
@@ -567,6 +585,12 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 
 // ContainerRemove removes the container with the given name from the database.
 func (c *Cluster) ContainerRemove(project, name string) error {
+	if strings.Contains(name, shared.SnapshotDelimiter) {
+		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+		return c.Transaction(func(tx *ClusterTx) error {
+			return tx.InstanceSnapshotDelete(project, parts[0], parts[1])
+		})
+	}
 	return c.Transaction(func(tx *ClusterTx) error {
 		return tx.InstanceDelete(project, name)
 	})
@@ -594,17 +618,14 @@ WHERE instances.id=?
 }
 
 // ContainerID returns the ID of the container with the given name.
-func (c *Cluster) ContainerID(name string) (int, error) {
-	q := "SELECT id FROM instances WHERE name=?"
-	id := -1
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
-	if err == sql.ErrNoRows {
-		return -1, ErrNoSuchObject
-	}
-
-	return id, err
+func (c *Cluster) ContainerID(project, name string) (int, error) {
+	var id int64
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		id, err = tx.InstanceID(project, name)
+		return err
+	})
+	return int(id), err
 }
 
 // ContainerConfigClear removes any config associated with the container with
@@ -632,8 +653,7 @@ func ContainerConfigClear(tx *sql.Tx, id int) error {
 
 // ContainerConfigInsert inserts a new config for the container with the given ID.
 func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
-	str := "INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)"
-	stmt, err := tx.Prepare(str)
+	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
 	if err != nil {
 		return err
 	}
@@ -961,7 +981,7 @@ ORDER BY date(instances_snapshots.creation_date)
 	}
 
 	for _, r := range dbResults {
-		result = append(result, r[0].(string))
+		result = append(result, name+shared.SnapshotDelimiter+r[0].(string))
 	}
 
 	return result, nil
@@ -1043,6 +1063,10 @@ func (c *Cluster) ContainerPool(project, containerName string) (string, error) {
 
 // ContainerPool returns the storage pool of a given container.
 func (c *ClusterTx) ContainerPool(project, containerName string) (string, error) {
+	if strings.Contains(containerName, shared.SnapshotDelimiter) {
+		return c.containerPoolSnapshot(project, containerName)
+	}
+
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
@@ -1055,6 +1079,29 @@ SELECT storage_pools.name FROM storage_pools
  WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?
 `
 	inargs := []interface{}{project, c.nodeID, containerName, StoragePoolVolumeTypeContainer}
+	outargs := []interface{}{&poolName}
+
+	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrNoSuchObject
+		}
+
+		return "", err
+	}
+
+	return poolName, nil
+}
+
+func (c *ClusterTx) containerPoolSnapshot(project, fullName string) (string, error) {
+	poolName := ""
+	query := `
+SELECT storage_pools.name FROM storage_pools
+  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
+  JOIN projects ON projects.id=storage_volumes.project_id
+ WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?
+`
+	inargs := []interface{}{project, c.nodeID, fullName, StoragePoolVolumeTypeContainer}
 	outargs := []interface{}{&poolName}
 
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
