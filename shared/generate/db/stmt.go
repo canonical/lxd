@@ -466,28 +466,15 @@ func (s *Stmt) id(buf *file.Buffer) error {
 }
 
 func (s *Stmt) rename(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Capital(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
 	if err != nil {
 		return err
 	}
 
 	table := entityTable(s.entity)
+	where := naturalKeyWhere(mapping)
 
-	nk := mapping.NaturalKey()
-	where := make([]string, len(nk))
-
-	for i, field := range nk {
-		if field.IsScalar() {
-			ref := lex.Snake(field.Name)
-			where[i] = fmt.Sprintf("%s_id = (SELECT id FROM %s WHERE name = ?)", ref, lex.Plural(ref))
-		} else {
-
-			where[i] = fmt.Sprintf("%s = ?", field.Column())
-		}
-
-	}
-
-	sql := fmt.Sprintf(stmts[s.kind], table, strings.Join(where, " AND "))
+	sql := fmt.Sprintf(stmts[s.kind], table, where)
 	s.register(buf, sql)
 	return nil
 }
@@ -546,20 +533,56 @@ func (s *Stmt) update(buf *file.Buffer) error {
 }
 
 func (s *Stmt) delete(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Capital(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
 	if err != nil {
 		return err
 	}
 
 	table := entityTable(s.entity)
+	where := naturalKeyWhere(mapping)
 
+	sql := fmt.Sprintf(stmts[s.kind], table, where)
+	s.register(buf, sql)
+	return nil
+}
+
+// Return a where clause that filters an entity by natural key.
+func naturalKeyWhere(mapping *Mapping) string {
 	nk := mapping.NaturalKey()
-	where := make([]string, len(nk))
 
-	for i, field := range nk {
+	via := map[string][]*Field{} // Map scalar fields to their additional indirect fields
+
+	// Filter out indirect fields
+	fields := []*Field{}
+	for _, field := range nk {
+		if field.IsIndirect() {
+			entity := field.Config.Get("via")
+			via[entity] = append(via[entity], field)
+			continue
+		}
+		fields = append(fields, field)
+	}
+
+	where := make([]string, len(fields))
+
+	for i, field := range fields {
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
-			where[i] = fmt.Sprintf("%s_id = (SELECT id FROM %s WHERE name = ?)", ref, lex.Plural(ref))
+			ref_table := entityTable(ref)
+			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", ref_table, ref_table)
+			for _, other := range via[ref] {
+				other_ref := lex.Snake(other.Name)
+				other_table := entityTable(other_ref)
+				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", other_table, other_table, ref_table, other_ref)
+			}
+			subSelect += fmt.Sprintf(" WHERE")
+			for _, other := range via[ref] {
+				other_ref := lex.Snake(other.Name)
+				other_table := entityTable(other_ref)
+				subSelect += fmt.Sprintf(" %s.name = ? AND", other_table)
+			}
+			subSelect += fmt.Sprintf(" %s.name = ?", ref_table)
+			where[i] = fmt.Sprintf("%s_id = (%s)", ref, subSelect)
 		} else {
 
 			where[i] = fmt.Sprintf("%s = ?", field.Column())
@@ -567,9 +590,7 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 
 	}
 
-	sql := fmt.Sprintf(stmts[s.kind], table, strings.Join(where, " AND "))
-	s.register(buf, sql)
-	return nil
+	return strings.Join(where, " AND ")
 }
 
 // Output a line of code that registers the given statement and declares the
