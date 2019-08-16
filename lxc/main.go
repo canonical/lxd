@@ -247,6 +247,10 @@ To easily setup a local LXD server in a virtual machine, consider using: https:/
 			os.Exit(1)
 		}
 
+		if err == cobra.ErrSubCommandRequired {
+			os.Exit(0)
+		}
+
 		// Default error handling
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
