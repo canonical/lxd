@@ -471,6 +471,7 @@ type container interface {
 	OnStart() error
 	OnStopNS(target string, netns string) error
 	OnStop(target string) error
+	DeviceEventHandler(*device.RunConfig) error
 
 	// Properties
 	Id() int
