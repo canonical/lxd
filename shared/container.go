@@ -23,6 +23,8 @@ const (
 	Unfreeze ContainerAction = "unfreeze"
 )
 
+var regexHexLc = regexp.MustCompile("^[0-9a-f]+$")
+
 func IsInt64(value string) error {
 	if value == "" {
 		return nil
@@ -136,6 +138,19 @@ func IsOctalFileMode(value string) error {
 	_, err := strconv.ParseUint(value, 8, 32)
 	if err != nil {
 		return fmt.Errorf("Invalid value for an octal file mode")
+	}
+
+	return nil
+}
+
+// IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
+func IsDeviceID(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	if len(value) != 4 || !regexHexLc.MatchString(value) {
+		return fmt.Errorf("Invalid value, must be four lower case hex characters")
 	}
 
 	return nil
