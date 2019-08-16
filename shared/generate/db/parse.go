@@ -41,7 +41,7 @@ func Filters(pkg *ast.Package, entity string) [][]string {
 	objects := pkg.Scope.Objects
 	filters := [][]string{}
 
-	prefix := fmt.Sprintf("%sObjectsBy", entity)
+	prefix := fmt.Sprintf("%sObjectsBy", lex.Minuscule(lex.Camel(entity)))
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
@@ -63,7 +63,7 @@ func RefFilters(pkg *ast.Package, entity string, ref string) [][]string {
 	objects := pkg.Scope.Objects
 	filters := [][]string{}
 
-	prefix := fmt.Sprintf("%s%sRefBy", entity, lex.Capital(ref))
+	prefix := fmt.Sprintf("%s%sRefBy", lex.Minuscule(lex.Camel(entity)), lex.Capital(ref))
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
