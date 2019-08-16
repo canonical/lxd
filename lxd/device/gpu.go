@@ -109,8 +109,8 @@ func (d *gpu) validateConfig() error {
 	}
 
 	rules := map[string]func(string) error{
-		"vendorid":  shared.IsAny,
-		"productid": shared.IsAny,
+		"vendorid":  shared.IsDeviceID,
+		"productid": shared.IsDeviceID,
 		"id":        shared.IsAny,
 		"pci":       shared.IsAny,
 		"uid":       shared.IsUnixUserID,
