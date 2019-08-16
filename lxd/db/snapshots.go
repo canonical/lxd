@@ -24,6 +24,8 @@ import (
 //go:generate mapper stmt -p db -e instance_snapshot create struct=InstanceSnapshot
 //go:generate mapper stmt -p db -e instance_snapshot create-config-ref
 //go:generate mapper stmt -p db -e instance_snapshot create-devices-ref
+//go:generate mapper stmt -p db -e instance_snapshot rename
+//go:generate mapper stmt -p db -e instance_snapshot delete
 //
 //go:generate mapper method -p db -e instance_snapshot List
 //go:generate mapper method -p db -e instance_snapshot Get
@@ -32,6 +34,8 @@ import (
 //go:generate mapper method -p db -e instance_snapshot Create struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot ConfigRef
 //go:generate mapper method -p db -e instance_snapshot DevicesRef
+//go:generate mapper method -p db -e instance_snapshot Rename
+//go:generate mapper method -p db -e instance_snapshot Delete
 
 // InstanceSnapshot is a value object holding db-related details about a snapshot.
 type InstanceSnapshot struct {
