@@ -913,16 +913,15 @@ func (c *ClusterTx) ContainerLastUsedUpdate(id int, date time.Time) error {
 func (c *Cluster) ContainerGetSnapshots(project, name string) ([]string, error) {
 	result := []string{}
 
-	regexp := name + shared.SnapshotDelimiter
-	length := len(regexp)
 	q := `
-SELECT instances.name
-  FROM instances
+SELECT instances_snapshots.name
+  FROM instances_snapshots
+  JOIN instances ON instances.id = instances_snapshots.instance_id
   JOIN projects ON projects.id = instances.project_id
-WHERE projects.name=? AND instances.type=? AND SUBSTR(instances.name,1,?)=?
-ORDER BY date(instances.creation_date)
+WHERE projects.name=? AND instances.name=?
+ORDER BY date(instances_snapshots.creation_date)
 `
-	inargs := []interface{}{project, CTypeSnapshot, length, regexp}
+	inargs := []interface{}{project, name}
 	outfmt := []interface{}{name}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
