@@ -31,12 +31,6 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
   WHERE project = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
 
-var instanceObjectsByProjectAndTypeAndParent = cluster.RegisterStmt(`
-SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
-  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? AND instances.type = ? AND SUBSTR(instances.name,1,?)=? ORDER BY projects.id, instances.name
-`)
-
 var instanceObjectsByNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
@@ -169,9 +163,6 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
-	if filter.Parent != "" {
-		criteria["Parent"] = filter.Parent
-	}
 	if filter.Type != -1 {
 		criteria["Type"] = filter.Type
 	}
@@ -194,18 +185,10 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 			filter.Node,
 			filter.Type,
 		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil && criteria["Parent"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndTypeAndParent)
+	} else if criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByNodeAndType)
 		args = []interface{}{
-			filter.Project,
-			filter.Type,
-			len(filter.Parent) + 1,
-			filter.Parent + "/",
-		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndType)
-		args = []interface{}{
-			filter.Project,
+			filter.Node,
 			filter.Type,
 		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
@@ -214,10 +197,10 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Node"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByNodeAndType)
+	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByProjectAndType)
 		args = []interface{}{
-			filter.Node,
+			filter.Project,
 			filter.Type,
 		}
 	} else if criteria["Type"] != nil {
@@ -484,35 +467,32 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Parent != "" {
-		criteria["Parent"] = filter.Parent
-	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(instanceProfilesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(instanceProfilesRefByNode)
 		args = []interface{}{
-			filter.Project,
 			filter.Node,
 		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceProfilesRefByProject)
 		args = []interface{}{
 			filter.Project,
-		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(instanceProfilesRefByNode)
-		args = []interface{}{
-			filter.Node,
 		}
 	} else {
 		stmt = c.stmt(instanceProfilesRef)
@@ -578,9 +558,6 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Parent != "" {
-		criteria["Parent"] = filter.Parent
-	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
@@ -598,15 +575,15 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(instanceConfigRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(instanceConfigRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(instanceConfigRefByProject)
+		args = []interface{}{
+			filter.Project,
 		}
 	} else {
 		stmt = c.stmt(instanceConfigRef)
@@ -677,25 +654,22 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Parent != "" {
-		criteria["Parent"] = filter.Parent
-	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(instanceDevicesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(instanceDevicesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(instanceDevicesRefByNode)
