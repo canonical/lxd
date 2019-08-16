@@ -1980,6 +1980,12 @@ func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
 	// device files before they are mounted.
 	if idmapSet != nil && !c.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
+			if mount.DevPath == "" {
+				// This mount doesn't contain a host-side device we can shift.
+				// This is likely to be an unmount request that we dont process.
+				continue
+			}
+
 			err := idmapSet.ShiftFile(mount.DevPath)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
