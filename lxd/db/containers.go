@@ -25,7 +25,6 @@ import (
 //go:generate mapper stmt -p db -e instance objects
 //go:generate mapper stmt -p db -e instance objects-by-Type
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Parent
 //go:generate mapper stmt -p db -e instance objects-by-Node-and-Type
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Node-and-Type
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Name
@@ -87,7 +86,6 @@ type InstanceFilter struct {
 	Project string
 	Name    string
 	Node    string
-	Parent  string
 	Type    int
 }
 
