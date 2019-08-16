@@ -1907,17 +1907,17 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		return nil, fmt.Errorf("Device cannot be started when container is running")
 	}
 
-	runConfig, err := d.Start()
+	runConf, err := d.Start()
 	if err != nil {
 		return nil, err
 	}
 
-	// If runConfig supplied, perform any container specific setup of device.
-	if runConfig != nil {
+	// If runConf supplied, perform any container specific setup of device.
+	if runConf != nil {
 		// Shift device file ownership if needed before mounting into container.
 		// This needs to be done whether or not container is running.
-		if len(runConfig.Mounts) > 0 {
-			err := c.deviceShiftMounts(runConfig.Mounts)
+		if len(runConf.Mounts) > 0 {
+			err := c.deviceShiftMounts(runConf.Mounts)
 			if err != nil {
 				return nil, err
 			}
@@ -1926,24 +1926,24 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		// If container is running and then live attach device.
 		if isRunning {
 			// Attach mounts if requested.
-			if len(runConfig.Mounts) > 0 {
-				err = c.deviceAttachMounts(configCopy, runConfig.Mounts)
+			if len(runConf.Mounts) > 0 {
+				err = c.deviceAttachMounts(configCopy, runConf.Mounts)
 				if err != nil {
 					return nil, err
 				}
 			}
 
 			// Add cgroup rules if requested.
-			if len(runConfig.CGroups) > 0 {
-				err = c.deviceAddCgroupRules(configCopy, runConfig.CGroups)
+			if len(runConf.CGroups) > 0 {
+				err = c.deviceAddCgroupRules(configCopy, runConf.CGroups)
 				if err != nil {
 					return nil, err
 				}
 			}
 
 			// Attach network interface if requested.
-			if len(runConfig.NetworkInterface) > 0 {
-				err = c.deviceAttachNIC(configCopy, runConfig.NetworkInterface)
+			if len(runConf.NetworkInterface) > 0 {
+				err = c.deviceAttachNIC(configCopy, runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
@@ -1951,14 +1951,14 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 
 			// If running, run post start hooks now (if not running LXD will run them
 			// once the instance is started).
-			err = c.runHooks(runConfig.PostHooks)
+			err = c.runHooks(runConf.PostHooks)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return runConfig, nil
+	return runConf, nil
 }
 
 // deviceShiftMounts shift device mount files to active idmap if needed.
@@ -2090,38 +2090,38 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 		return fmt.Errorf("Device cannot be stopped when container is running")
 	}
 
-	runConfig, err := d.Stop()
+	runConf, err := d.Stop()
 	if err != nil {
 		return err
 	}
 
-	if runConfig != nil {
+	if runConf != nil {
 		// If network interface settings returned, then detach NIC from container.
-		if len(runConfig.NetworkInterface) > 0 {
-			err = c.deviceDetachNIC(configCopy, runConfig.NetworkInterface, stopHookNetnsPath)
+		if len(runConf.NetworkInterface) > 0 {
+			err = c.deviceDetachNIC(configCopy, runConf.NetworkInterface, stopHookNetnsPath)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Add cgroup rules if requested and container is running.
-		if len(runConfig.CGroups) > 0 && stopHookNetnsPath == "" {
-			err = c.deviceAddCgroupRules(configCopy, runConfig.CGroups)
+		if len(runConf.CGroups) > 0 && stopHookNetnsPath == "" {
+			err = c.deviceAddCgroupRules(configCopy, runConf.CGroups)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Detach mounts if requested and container is running.
-		if len(runConfig.Mounts) > 0 && stopHookNetnsPath == "" {
-			err = c.deviceDetachMounts(configCopy, runConfig.Mounts)
+		if len(runConf.Mounts) > 0 && stopHookNetnsPath == "" {
+			err = c.deviceDetachMounts(configCopy, runConf.Mounts)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Run post stop hooks irrespective of run state of instance.
-		err = c.runHooks(runConfig.PostHooks)
+		err = c.runHooks(runConf.PostHooks)
 		if err != nil {
 			return err
 		}
@@ -2638,15 +2638,15 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 			}
 		} else {
 			// Use new Device interface if supported.
-			runConfig, err := c.deviceStart(k, m, false)
+			runConf, err := c.deviceStart(k, m, false)
 			if err != device.ErrUnsupportedDevType {
 				if err != nil {
 					return "", postStartHooks, errors.Wrapf(err, "Failed to start device '%s'", k)
 				}
 
 				// Pass any cgroups rules into LXC.
-				if len(runConfig.CGroups) > 0 {
-					for _, rule := range runConfig.CGroups {
+				if len(runConf.CGroups) > 0 {
+					for _, rule := range runConf.CGroups {
 						err = lxcSetConfigItem(c.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
 						if err != nil {
 							return "", postStartHooks, err
@@ -2655,8 +2655,8 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Pass any mounts into LXC.
-				if len(runConfig.Mounts) > 0 {
-					for _, mount := range runConfig.Mounts {
+				if len(runConf.Mounts) > 0 {
+					for _, mount := range runConf.Mounts {
 						mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
 						err = lxcSetConfigItem(c.c, "lxc.mount.entry", mntVal)
 						if err != nil {
@@ -2666,7 +2666,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Pass any network setup config into LXC.
-				if len(runConfig.NetworkInterface) > 0 {
+				if len(runConf.NetworkInterface) > 0 {
 					// Increment nicID so that LXC network index is unique per device.
 					nicID++
 
@@ -2675,7 +2675,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 						networkKeyPrefix = "lxc.network"
 					}
 
-					for _, dev := range runConfig.NetworkInterface {
+					for _, dev := range runConf.NetworkInterface {
 						err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, dev.Key), dev.Value)
 						if err != nil {
 							return "", postStartHooks, err
@@ -2684,8 +2684,8 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 
 				// Add any post start hooks.
-				if len(runConfig.PostHooks) > 0 {
-					postStartHooks = append(postStartHooks, runConfig.PostHooks...)
+				if len(runConf.PostHooks) > 0 {
+					postStartHooks = append(postStartHooks, runConf.PostHooks...)
 				}
 
 				continue
