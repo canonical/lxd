@@ -866,6 +866,9 @@ func (d *Daemon) init() error {
 	}
 
 	if !d.os.MockMode {
+		// Register devices on running instances to receive events.
+		devicesRegister(d.State())
+
 		// Start the scheduler
 		go deviceEventListener(d.State())
 
