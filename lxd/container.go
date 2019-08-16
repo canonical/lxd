@@ -169,23 +169,6 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
-	case "usb":
-		switch k {
-		case "vendorid":
-			return true
-		case "productid":
-			return true
-		case "mode":
-			return true
-		case "gid":
-			return true
-		case "uid":
-			return true
-		case "required":
-			return true
-		default:
-			return false
-		}
 	case "none":
 		return false
 	default:
@@ -396,8 +379,6 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 					return fmt.Errorf("Path specified for unix-block device is a character device")
 				}
 			}
-		} else if m["type"] == "usb" {
-			// Nothing needed for usb.
 		} else if m["type"] == "none" {
 			continue
 		} else {
