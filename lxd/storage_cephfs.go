@@ -179,7 +179,7 @@ func (s *storageCephFs) StoragePoolCreate() error {
 	}
 
 	// Create the mountpoint for the storage pool.
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	err = os.MkdirAll(poolMntPoint, 0711)
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func (s *storageCephFs) StoragePoolDelete() error {
 	}
 
 	// Delete the mountpoint for the storage pool
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	if shared.PathExists(poolMntPoint) {
 		err := os.RemoveAll(poolMntPoint)
 		if err != nil {
@@ -318,7 +318,7 @@ func (s *storageCephFs) StoragePoolMount() (bool, error) {
 	defer removeLockFromMap()
 
 	// Check if already mounted
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	if shared.IsMountPoint(poolMntPoint) {
 		return false, nil
 	}
@@ -390,7 +390,7 @@ func (s *storageCephFs) StoragePoolUmount() (bool, error) {
 	defer removeLockFromMap()
 
 	// Check if already unmounted
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	if !shared.IsMountPoint(poolMntPoint) {
 		return false, nil
 	}
@@ -456,7 +456,7 @@ func (s *storageCephFs) StoragePoolVolumeCreate() error {
 	}
 
 	// Create the volume
-	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	storageVolumePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	err = os.MkdirAll(storageVolumePath, 0711)
 	if err != nil {
 		return err
@@ -476,7 +476,7 @@ func (s *storageCephFs) StoragePoolVolumeDelete() error {
 	}
 
 	// Check if not gone already
-	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	storageVolumePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if !shared.PathExists(storageVolumePath) {
 		return nil
 	}
@@ -488,7 +488,7 @@ func (s *storageCephFs) StoragePoolVolumeDelete() error {
 	}
 
 	// Delete the snapshot directory
-	err = os.Remove(getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name))
+	err = os.Remove(driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -528,7 +528,7 @@ func (s *storageCephFs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, 
 			return err
 		}
 
-		targetPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		targetPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 		sourcePath := filepath.Join(targetPath, ".snap", writable.Restore)
 
 		// Restore using rsync
@@ -601,8 +601,8 @@ func (s *storageCephFs) StoragePoolVolumeRename(newName string) error {
 	}
 
 	// Rename the directory
-	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, newName)
+	oldPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, newName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
 		return err
@@ -619,7 +619,7 @@ func (s *storageCephFs) StoragePoolVolumeRename(newName string) error {
 }
 
 func (s *storageCephFs) ContainerStorageReady(container container) bool {
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
 	return !ok
 }
@@ -740,7 +740,7 @@ func (s *storageCephFs) StorageEntitySetQuota(volumeType int, size int64, data i
 	}
 
 	// Apply the limit
-	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	storageVolumePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	_, err = shared.RunCommand("setfattr", "-n", "ceph.quota.max_bytes", "-v", fmt.Sprintf("%d", size), storageVolumePath)
 	if err != nil {
 		return err
@@ -756,7 +756,7 @@ func (s *storageCephFs) StoragePoolResources() (*api.ResourcesStoragePool, error
 		return nil, err
 	}
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	return driver.GetStorageResource(poolMntPoint)
 }
 
@@ -788,7 +788,7 @@ func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) e
 	}
 
 	// Create empty volume
-	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	storageVolumePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	err = os.MkdirAll(storageVolumePath, 0711)
 	if err != nil {
 		return err
@@ -802,7 +802,7 @@ func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) e
 		}
 
 		for _, snap := range snapshots {
-			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 			err = s.copyVolume(source.Pool, snap, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 			if err != nil {
 				return err
@@ -850,13 +850,13 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolum
 	}
 
 	// Parse the name
-	sourceName, snapName, ok := containerGetParentAndSnapshotName(target.Name)
+	sourceName, snapName, ok := shared.ContainerGetParentAndSnapshotName(target.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
 
 	// Create the snapshot
-	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
+	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	cephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 
 	err = os.Mkdir(cephSnapPath, 0711)
@@ -865,7 +865,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolum
 	}
 
 	// Make the snapshot path a symlink
-	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	targetPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
 	err = os.MkdirAll(filepath.Dir(targetPath), 0711)
 	if err != nil {
 		return err
@@ -890,13 +890,13 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	// Parse the name
-	sourceName, snapName, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, snapName, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
 
 	// Create the snapshot
-	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
+	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	cephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 
 	err = os.Remove(cephSnapPath)
@@ -905,7 +905,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	// Make the snapshot path a symlink
-	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	targetPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	err = os.Remove(targetPath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -932,8 +932,8 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotRename(newName string) error {
 	}
 
 	// Rename the snapshot entry
-	sourceName, oldSnapName, _ := containerGetParentAndSnapshotName(s.volume.Name)
-	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
+	sourceName, oldSnapName, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	oldCephSnapPath := filepath.Join(sourcePath, ".snap", oldSnapName)
 	newCephSnapPath := filepath.Join(sourcePath, ".snap", newName)
 
@@ -943,13 +943,13 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotRename(newName string) error {
 	}
 
 	// Re-generate the snapshot symlink
-	oldPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	oldPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	err = os.Remove(oldPath)
 	if err != nil {
 		return err
 	}
 
-	newPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, filepath.Join(sourceName, newName))
+	newPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, filepath.Join(sourceName, newName))
 	err = os.Symlink(newCephSnapPath, newPath)
 	if err != nil {
 		return err
@@ -970,16 +970,16 @@ func (s *storageCephFs) copyVolume(sourcePool string, source string, target stri
 	// Figure out the mountpoints
 	var srcMountPoint string
 	if shared.IsSnapshot(source) {
-		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
+		srcMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
 	} else {
-		srcMountPoint = getStoragePoolVolumeMountPoint(sourcePool, source)
+		srcMountPoint = driver.GetStoragePoolVolumeMountPoint(sourcePool, source)
 	}
 
 	// Split target name
-	targetVolName, targetSnapName, ok := containerGetParentAndSnapshotName(target)
+	targetVolName, targetSnapName, ok := shared.ContainerGetParentAndSnapshotName(target)
 
 	// Figure out target path
-	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, targetVolName)
+	dstMountPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, targetVolName)
 
 	// Sync data on target
 	bwlimit := s.pool.Config["rsync.bwlimit"]
@@ -998,7 +998,7 @@ func (s *storageCephFs) copyVolume(sourcePool string, source string, target stri
 		}
 
 		// Make the snapshot path a symlink
-		targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
+		targetPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
 		err = os.MkdirAll(filepath.Dir(targetPath), 0711)
 		if err != nil {
 			return err

@@ -284,13 +284,13 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		return errors.Wrap(err, "Get snapshot storage pool")
 	}
 	if targetIsSnapshot {
-		targetContainerMntPoint = getSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
-		sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
+		targetContainerMntPoint = driver.GetSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
+		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(sourceContainer.Project(), sourceName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(sourceContainer.Project(), sourceName))
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
-		targetContainerMntPoint = getContainerMountPoint(sourceContainer.Project(), targetPool, targetContainerName)
+		targetContainerMntPoint = driver.GetContainerMountPoint(sourceContainer.Project(), targetPool, targetContainerName)
 		err = createContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
 	}
 	if err != nil {
@@ -347,8 +347,8 @@ func (s *storageLvm) copySnapshot(target container, source container, refresh bo
 		return err
 	}
 
-	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
+	targetParentName, _, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
+	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
 	err = createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -407,14 +407,14 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 	if err != nil {
 		return err
 	}
-	sourceContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, sourceName)
+	sourceContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, sourceName)
 	if source.IsSnapshot() {
-		sourceContainerMntPoint = getSnapshotMountPoint(source.Project(), sourcePool, sourceName)
+		sourceContainerMntPoint = driver.GetSnapshotMountPoint(source.Project(), sourcePool, sourceName)
 	}
 
-	targetContainerMntPoint := getContainerMountPoint(target.Project(), s.pool.Name, targetName)
+	targetContainerMntPoint := driver.GetContainerMountPoint(target.Project(), s.pool.Name, targetName)
 	if target.IsSnapshot() {
-		targetContainerMntPoint = getSnapshotMountPoint(source.Project(), s.pool.Name, targetName)
+		targetContainerMntPoint = driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, targetName)
 	}
 
 	if source.IsRunning() {
@@ -451,7 +451,7 @@ func (s *storageLvm) copyContainer(target container, source container, refresh b
 		return err
 	}
 
-	targetContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
+	targetContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
 	err = createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
@@ -502,7 +502,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 	logger.Debugf(`Mounted non-thinpool LVM storage volume for container "%s" on storage pool "%s"`, containerName, s.pool.Name)
 
 	imagePath := shared.VarPath("images", fp)
-	containerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(c.Project(), s.pool.Name, containerName)
 	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS, nil)
 	if err != nil {
 		logger.Errorf(`Failed to unpack image "%s" into non-thinpool LVM storage volume "%s" for container "%s" on storage pool "%s": %s`, imagePath, containerMntPoint, containerName, s.pool.Name, err)
@@ -952,7 +952,7 @@ func lvmVersionIsAtLeast(sTypeVersion string, versionString string) (bool, error
 
 // Copy an LVM custom volume.
 func (s *storageLvm) copyVolume(sourcePool string, source string) error {
-	targetMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	targetMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
 	err := os.MkdirAll(targetMntPoint, 0711)
 	if err != nil {
@@ -972,9 +972,9 @@ func (s *storageLvm) copyVolume(sourcePool string, source string) error {
 }
 
 func (s *storageLvm) copyVolumeSnapshot(sourcePool string, source string) error {
-	_, snapOnlyName, _ := containerGetParentAndSnapshotName(source)
+	_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(source)
 	target := fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName)
-	targetMntPoint := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
+	targetMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
 
 	err := os.MkdirAll(targetMntPoint, 0711)
 	if err != nil {
@@ -1000,18 +1000,18 @@ func (s *storageLvm) copyVolumeLv(sourcePool string, source string, target strin
 	sourceIsSnapshot := shared.IsSnapshot(source)
 
 	if sourceIsSnapshot {
-		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
+		srcMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
 	} else {
-		srcMountPoint = getStoragePoolVolumeMountPoint(sourcePool, source)
+		srcMountPoint = driver.GetStoragePoolVolumeMountPoint(sourcePool, source)
 
 	}
 
 	targetIsSnapshot := shared.IsSnapshot(target)
 
 	if targetIsSnapshot {
-		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
+		dstMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
 	} else {
-		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, target)
+		dstMountPoint = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, target)
 	}
 
 	var err error

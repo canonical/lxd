@@ -63,7 +63,7 @@ func (s *storageDir) StoragePoolCreate() error {
 
 	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 
 	source := shared.HostPath(s.pool.Config["source"])
 	if source == "" {
@@ -156,7 +156,7 @@ func (s *storageDir) StoragePoolDelete() error {
 
 	prefix := shared.VarPath("storage-pools")
 	if !strings.HasPrefix(source, prefix) {
-		storagePoolSymlink := getStoragePoolMountPoint(s.pool.Name)
+		storagePoolSymlink := driver.GetStoragePoolMountPoint(s.pool.Name)
 		if !shared.PathExists(storagePoolSymlink) {
 			return nil
 		}
@@ -177,7 +177,7 @@ func (s *storageDir) StoragePoolMount() (bool, error) {
 		return false, fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 	cleanSource := filepath.Clean(source)
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	if cleanSource == poolMntPoint {
 		return true, nil
 	}
@@ -233,7 +233,7 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 		return false, fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 	cleanSource := filepath.Clean(source)
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	if cleanSource == poolMntPoint {
 		return true, nil
 	}
@@ -328,9 +328,9 @@ func (s *storageDir) StoragePoolVolumeCreate() error {
 	var storageVolumePath string
 
 	if isSnapshot {
-		storageVolumePath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+		storageVolumePath = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	} else {
-		storageVolumePath = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		storageVolumePath = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
 	err = os.MkdirAll(storageVolumePath, 0711)
@@ -355,7 +355,7 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	storageVolumePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if !shared.PathExists(storageVolumePath) {
 		return nil
 	}
@@ -406,9 +406,9 @@ func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 		logger.Infof(`Restoring DIR storage volume "%s" from snapshot "%s"`,
 			s.volume.Name, writable.Restore)
 
-		sourcePath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name,
+		sourcePath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name,
 			fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore))
-		targetPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		targetPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
 		// Restore using rsync
 		bwlimit := s.pool.Config["rsync.bwlimit"]
@@ -474,8 +474,8 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 			s.volume.Name, s.pool.Name)
 	}
 
-	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, newName)
+	oldPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, newName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
 		return err
@@ -489,7 +489,7 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 }
 
 func (s *storageDir) ContainerStorageReady(container container) bool {
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
 	return !ok
 }
@@ -507,7 +507,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	err = createContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
 	if err != nil {
 		return err
@@ -551,7 +551,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 
 	privileged := container.IsPrivileged()
 	containerName := container.Name()
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(containerMntPoint, container.Path(), privileged)
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
@@ -602,7 +602,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 	// Delete the container on its storage pool:
 	// ${POOL}/containers/<container_name>
 	containerName := container.Name()
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, containerName)
 
 	err = s.deleteQuota(containerMntPoint, s.volumeID)
 	if err != nil {
@@ -626,7 +626,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 	}
 
 	// Delete potential leftover snapshot mountpoints.
-	snapshotMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	snapshotMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
 	if shared.PathExists(snapshotMntPoint) {
 		err := os.RemoveAll(snapshotMntPoint)
 		if err != nil {
@@ -651,11 +651,11 @@ func (s *storageDir) ContainerDelete(container container) error {
 func (s *storageDir) copyContainer(target container, source container) error {
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
-	sourceContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, source.Name())
+	sourceContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
 	if source.IsSnapshot() {
-		sourceContainerMntPoint = getSnapshotMountPoint(source.Project(), sourcePool, source.Name())
+		sourceContainerMntPoint = driver.GetSnapshotMountPoint(source.Project(), sourcePool, source.Name())
 	}
-	targetContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
+	targetContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
 
 	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
@@ -684,11 +684,11 @@ func (s *storageDir) copyContainer(target container, source container) error {
 func (s *storageDir) copySnapshot(target container, targetPool string, source container, sourcePool string) error {
 	sourceName := source.Name()
 	targetName := target.Name()
-	sourceContainerMntPoint := getSnapshotMountPoint(source.Project(), sourcePool, sourceName)
-	targetContainerMntPoint := getSnapshotMountPoint(target.Project(), targetPool, targetName)
+	sourceContainerMntPoint := driver.GetSnapshotMountPoint(source.Project(), sourcePool, sourceName)
+	targetContainerMntPoint := driver.GetSnapshotMountPoint(target.Project(), targetPool, targetName)
 
-	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(target.Project(), targetPool, targetParentName)
+	targetParentName, _, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
+	containersPath := driver.GetSnapshotMountPoint(target.Project(), targetPool, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -788,7 +788,7 @@ func (s *storageDir) doContainerCopy(target container, source container, contain
 			return err
 		}
 
-		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
 		targetSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), newSnapName)
 		if err != nil {
@@ -837,9 +837,9 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	oldContainerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	oldContainerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	oldContainerSymlink := shared.VarPath("containers", project.Prefix(container.Project(), container.Name()))
-	newContainerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, newName)
+	newContainerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, newName)
 	newContainerSymlink := shared.VarPath("containers", project.Prefix(container.Project(), newName))
 	err = renameContainerMountpoint(oldContainerMntPoint, oldContainerSymlink, newContainerMntPoint, newContainerSymlink)
 	if err != nil {
@@ -848,8 +848,8 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 
 	// Rename the snapshot mountpoint for the container if existing:
 	// ${POOL}/snapshots/<old_container_name> to ${POOL}/snapshots/<new_container_name>
-	oldSnapshotsMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
-	newSnapshotsMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, newName)
+	oldSnapshotsMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	newSnapshotsMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, newName)
 	if shared.PathExists(oldSnapshotsMntPoint) {
 		err = os.Rename(oldSnapshotsMntPoint, newSnapshotsMntPoint)
 		if err != nil {
@@ -902,7 +902,7 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 }
 
 func (s *storageDir) ContainerGetUsage(c container) (int64, error) {
-	path := getContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+	path := driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 
 	ok, err := quota.Supported(path)
 	if err != nil || !ok {
@@ -928,7 +928,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 
 	// Create the path for the snapshot.
 	targetContainerName := snapshotContainer.Name()
-	targetContainerMntPoint := getSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
+	targetContainerMntPoint := driver.GetSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
 	err = os.MkdirAll(targetContainerMntPoint, 0711)
 	if err != nil {
 		return err
@@ -953,7 +953,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 
 	_, sourcePool, _ := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerName := sourceContainer.Name()
-	sourceContainerMntPoint := getContainerMountPoint(sourceContainer.Project(), sourcePool, sourceContainerName)
+	sourceContainerMntPoint := driver.GetContainerMountPoint(sourceContainer.Project(), sourcePool, sourceContainerName)
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
@@ -983,7 +983,7 @@ onSuccess:
 	// ${LXD_DIR}/snapshots/<source_container_name> to ${POOL_PATH}/snapshots/<source_container_name>
 	// exists and if not create it.
 	sourceContainerSymlink := shared.VarPath("snapshots", project.Prefix(sourceContainer.Project(), sourceContainerName))
-	sourceContainerSymlinkTarget := getSnapshotMountPoint(sourceContainer.Project(), sourcePool, sourceContainerName)
+	sourceContainerSymlinkTarget := driver.GetSnapshotMountPoint(sourceContainer.Project(), sourcePool, sourceContainerName)
 	if !shared.PathExists(sourceContainerSymlink) {
 		err = os.Symlink(sourceContainerSymlinkTarget, sourceContainerSymlink)
 		if err != nil {
@@ -1005,7 +1005,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 
 	// Create the path for the snapshot.
 	targetContainerName := snapshotContainer.Name()
-	targetContainerMntPoint := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, targetContainerName)
+	targetContainerMntPoint := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, targetContainerName)
 	err = os.MkdirAll(targetContainerMntPoint, 0711)
 	if err != nil {
 		return err
@@ -1021,9 +1021,9 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	// Check if the symlink
 	// ${LXD_DIR}/snapshots/<source_container_name> to ${POOL_PATH}/snapshots/<source_container_name>
 	// exists and if not create it.
-	targetContainerMntPoint = getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name,
+	targetContainerMntPoint = driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name,
 		targetContainerName)
-	sourceName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(targetContainerName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
 		s.pool.Name, "containers-snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
@@ -1040,7 +1040,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 }
 
 func dirSnapshotDeleteInternal(projectName, poolName string, snapshotName string) error {
-	snapshotContainerMntPoint := getSnapshotMountPoint(projectName, poolName, snapshotName)
+	snapshotContainerMntPoint := driver.GetSnapshotMountPoint(projectName, poolName, snapshotName)
 	if shared.PathExists(snapshotContainerMntPoint) {
 		err := os.RemoveAll(snapshotContainerMntPoint)
 		if err != nil {
@@ -1048,8 +1048,8 @@ func dirSnapshotDeleteInternal(projectName, poolName string, snapshotName string
 		}
 	}
 
-	sourceContainerName, _, _ := containerGetParentAndSnapshotName(snapshotName)
-	snapshotContainerPath := getSnapshotMountPoint(projectName, poolName, sourceContainerName)
+	sourceContainerName, _, _ := shared.ContainerGetParentAndSnapshotName(snapshotName)
+	snapshotContainerPath := driver.GetSnapshotMountPoint(projectName, poolName, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
 		err := os.Remove(snapshotContainerPath)
@@ -1102,8 +1102,8 @@ func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newNam
 
 	// Rename the mountpoint for the snapshot:
 	// ${POOL}/snapshots/<old_snapshot_name> to ${POOL}/snapshots/<new_snapshot_name>
-	oldSnapshotMntPoint := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
-	newSnapshotMntPoint := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, newName)
+	oldSnapshotMntPoint := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
+	newSnapshotMntPoint := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, newName)
 	err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 	if err != nil {
 		return err
@@ -1169,8 +1169,8 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source container) erro
 		}
 
 		for _, snap := range snapshots {
-			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
-			snapshotMntPoint := getSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
+			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+			snapshotMntPoint := driver.GetSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
 			target := fmt.Sprintf("%s/%s", snapshotsPath, snapName)
 
 			// Copy the snapshot
@@ -1221,7 +1221,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	}
 
 	// Create mountpoints
-	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
+	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, info.Name)
 	err = createContainerMountpoint(containerMntPoint, driver.ContainerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
@@ -1244,7 +1244,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 
 	if len(info.Snapshots) > 0 {
 		// Create mountpoints
-		snapshotMntPoint := getSnapshotMountPoint(info.Project, s.pool.Name, info.Name)
+		snapshotMntPoint := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, info.Name)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name,
 			"containers-snapshots", project.Prefix(info.Project, info.Name))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(info.Project, info.Name))
@@ -1315,9 +1315,9 @@ func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data inte
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
 		c := data.(container)
-		path = getContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+		path = driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 	case storagePoolVolumeTypeCustom:
-		path = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		path = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
 	ok, err := quota.Supported(path)
@@ -1384,7 +1384,7 @@ func (s *storageDir) StoragePoolResources() (*api.ResourcesStoragePool, error) {
 		return nil, err
 	}
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 
 	return driver.GetStorageResource(poolMntPoint)
 }
@@ -1427,7 +1427,7 @@ func (s *storageDir) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	}
 
 	for _, snap := range snapshots {
-		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 		err = s.copyVolumeSnapshot(source.Pool, snap, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 		if err != nil {
 			return err
@@ -1459,18 +1459,18 @@ func (s *storageDir) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSn
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	sourceName, _, ok := containerGetParentAndSnapshotName(target.Name)
+	sourceName, _, ok := shared.ContainerGetParentAndSnapshotName(target.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
 
-	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	targetPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
 	err = os.MkdirAll(targetPath, 0711)
 	if err != nil {
 		return err
 	}
 
-	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
+	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	msg, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, true)
 	if err != nil {
@@ -1489,14 +1489,14 @@ func (s *storageDir) StoragePoolVolumeSnapshotDelete() error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	storageVolumePath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	storageVolumePath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	err := os.RemoveAll(storageVolumePath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
-	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
-	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	storageVolumeSnapshotPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
 	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
 	if err == nil && empty {
 		os.RemoveAll(storageVolumeSnapshotPath)
@@ -1517,7 +1517,7 @@ func (s *storageDir) StoragePoolVolumeSnapshotDelete() error {
 }
 
 func (s *storageDir) StoragePoolVolumeSnapshotRename(newName string) error {
-	sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, _, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
 
 	logger.Infof("Renaming DIR storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, fullSnapshotName)
@@ -1526,8 +1526,8 @@ func (s *storageDir) StoragePoolVolumeSnapshotRename(newName string) error {
 		return fmt.Errorf("Not a snapshot name")
 	}
 
-	oldPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
-	newPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
+	oldPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	newPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
 
 	err := os.Rename(oldPath, newPath)
 	if err != nil {
@@ -1543,12 +1543,12 @@ func (s *storageDir) copyVolume(sourcePool string, source string, target string)
 	var srcMountPoint string
 
 	if shared.IsSnapshot(source) {
-		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
+		srcMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
 	} else {
-		srcMountPoint = getStoragePoolVolumeMountPoint(sourcePool, source)
+		srcMountPoint = driver.GetStoragePoolVolumeMountPoint(sourcePool, source)
 	}
 
-	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, target)
+	dstMountPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, target)
 
 	err := os.MkdirAll(dstMountPoint, 0711)
 	if err != nil {
@@ -1573,8 +1573,8 @@ func (s *storageDir) copyVolume(sourcePool string, source string, target string)
 }
 
 func (s *storageDir) copyVolumeSnapshot(sourcePool string, source string, target string) error {
-	srcMountPoint := getStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
-	dstMountPoint := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
+	srcMountPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, source)
+	dstMountPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
 
 	err := os.MkdirAll(dstMountPoint, 0711)
 	if err != nil {

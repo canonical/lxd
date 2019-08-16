@@ -14,16 +14,18 @@ import (
 
 	"github.com/canonical/go-dqlite"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 var clusterCmd = APIEndpoint{
@@ -493,7 +495,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			if err != nil {
 				return errors.Wrap(err, "failed to init ceph pool for joining node")
 			}
-			volumeMntPoint := getStoragePoolVolumeMountPoint(
+			volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(
 				name, storage.(*storageCeph).volume.Name)
 			err = os.MkdirAll(volumeMntPoint, 0711)
 			if err != nil {

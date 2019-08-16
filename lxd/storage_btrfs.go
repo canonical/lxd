@@ -184,7 +184,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 				} else {
 					cleanSource := filepath.Clean(source)
 					lxdDir := shared.VarPath()
-					poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+					poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 					if shared.PathExists(source) && !isOnBtrfs(source) {
 						return fmt.Errorf("Existing path is neither a BTRFS subvolume nor does it reside on a BTRFS filesystem")
 					} else if strings.HasPrefix(cleanSource, lxdDir) {
@@ -206,7 +206,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		}
 	}
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 	if !shared.PathExists(poolMntPoint) {
 		err := os.MkdirAll(poolMntPoint, driver.StoragePoolsDirMode)
 		if err != nil {
@@ -247,31 +247,31 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 	}
 
 	// Create default subvolumes.
-	dummyDir := getContainerMountPoint("default", s.pool.Name, "")
+	dummyDir := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	err := btrfsSubVolumeCreate(dummyDir)
 	if err != nil {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
-	dummyDir = getSnapshotMountPoint("default", s.pool.Name, "")
+	dummyDir = driver.GetSnapshotMountPoint("default", s.pool.Name, "")
 	err = btrfsSubVolumeCreate(dummyDir)
 	if err != nil {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
-	dummyDir = getImageMountPoint(s.pool.Name, "")
+	dummyDir = driver.GetImageMountPoint(s.pool.Name, "")
 	err = btrfsSubVolumeCreate(dummyDir)
 	if err != nil {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
-	dummyDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
+	dummyDir = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, "")
 	err = btrfsSubVolumeCreate(dummyDir)
 	if err != nil {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
-	dummyDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, "")
+	dummyDir = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, "")
 	err = btrfsSubVolumeCreate(dummyDir)
 	if err != nil {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
@@ -299,16 +299,16 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 	}
 
 	// Delete default subvolumes.
-	dummyDir := getContainerMountPoint("default", s.pool.Name, "")
+	dummyDir := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	btrfsSubVolumesDelete(dummyDir)
 
-	dummyDir = getSnapshotMountPoint("default", s.pool.Name, "")
+	dummyDir = driver.GetSnapshotMountPoint("default", s.pool.Name, "")
 	btrfsSubVolumesDelete(dummyDir)
 
-	dummyDir = getImageMountPoint(s.pool.Name, "")
+	dummyDir = driver.GetImageMountPoint(s.pool.Name, "")
 	btrfsSubVolumesDelete(dummyDir)
 
-	dummyDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
+	dummyDir = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, "")
 	btrfsSubVolumesDelete(dummyDir)
 
 	_, err := s.StoragePoolUmount()
@@ -349,7 +349,7 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 	}
 
 	// Remove the mountpoint for the storage pool.
-	err = os.RemoveAll(getStoragePoolMountPoint(s.pool.Name))
+	err = os.RemoveAll(driver.GetStoragePoolMountPoint(s.pool.Name))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -370,7 +370,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 
 	poolMountLockID := getPoolMountLockID(s.pool.Name)
 	lxdStorageMapLock.Lock()
@@ -414,7 +414,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	isBlockDev := shared.IsBlockdevPath(source)
 	if filepath.IsAbs(source) {
 		cleanSource := filepath.Clean(source)
-		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+		poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 		loopFilePath := shared.VarPath("disks", s.pool.Name+".img")
 		if !isBlockDev && cleanSource == loopFilePath {
 			// If source == "${LXD_DIR}"/disks/{pool_name} it is a
@@ -468,7 +468,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	logger.Debugf("Unmounting BTRFS storage pool \"%s\"", s.pool.Name)
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 
 	poolUmountLockID := getPoolUmountLockID(s.pool.Name)
 	lxdStorageMapLock.Lock()
@@ -573,9 +573,9 @@ func (s *storageBtrfs) StoragePoolVolumeCreate() error {
 	var customSubvolumeName string
 
 	if isSnapshot {
-		customSubvolumeName = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+		customSubvolumeName = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	} else {
-		customSubvolumeName = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		customSubvolumeName = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
 	err = btrfsSubVolumeCreate(customSubvolumeName)
@@ -609,7 +609,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 	}
 
 	// Delete subvolume.
-	customSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	customSubvolumeName := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if shared.PathExists(customSubvolumeName) && isBtrfsSubVolume(customSubvolumeName) {
 		err = btrfsSubVolumesDelete(customSubvolumeName)
 		if err != nil {
@@ -667,7 +667,7 @@ func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, c
 		}
 
 		// Create a backup so we can revert.
-		targetVolumeSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		targetVolumeSubvolumeName := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 		backupTargetVolumeSubvolumeName := fmt.Sprintf("%s.tmp", targetVolumeSubvolumeName)
 		err = os.Rename(targetVolumeSubvolumeName, backupTargetVolumeSubvolumeName)
 		if err != nil {
@@ -680,7 +680,7 @@ func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, c
 			}
 		}()
 
-		sourceVolumeSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(
+		sourceVolumeSubvolumeName := driver.GetStoragePoolVolumeSnapshotMountPoint(
 			s.pool.Name, fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore))
 		err = s.btrfsPoolVolumesSnapshot(sourceVolumeSubvolumeName,
 			targetVolumeSubvolumeName, false, true)
@@ -753,8 +753,8 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 			s.volume.Name, s.pool.Name)
 	}
 
-	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, newName)
+	oldPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, newName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
 		return err
@@ -777,13 +777,13 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 	}
 
 	for _, vol := range volumes {
-		_, snapshotName, _ := containerGetParentAndSnapshotName(vol)
+		_, snapshotName, _ := shared.ContainerGetParentAndSnapshotName(vol)
 		oldVolumeName := fmt.Sprintf("%s%s%s", s.volume.Name, shared.SnapshotDelimiter, snapshotName)
 		newVolumeName := fmt.Sprintf("%s%s%s", newName, shared.SnapshotDelimiter, snapshotName)
 
 		// Rename volume snapshots
-		oldPath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, oldVolumeName)
-		newPath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, newVolumeName)
+		oldPath = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, oldVolumeName)
+		newPath = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, newVolumeName)
 		err = os.Rename(oldPath, newPath)
 		if err != nil {
 			return err
@@ -801,7 +801,7 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 
 // Functions dealing with container storage.
 func (s *storageBtrfs) ContainerStorageReady(container container) bool {
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	return isBtrfsSubVolume(containerMntPoint)
 }
 
@@ -828,7 +828,7 @@ func (s *storageBtrfs) doContainerCreate(projectName, name string, privileged bo
 	}
 
 	// Create empty subvolume for container.
-	containerSubvolumeName := getContainerMountPoint(projectName, s.pool.Name, name)
+	containerSubvolumeName := driver.GetContainerMountPoint(projectName, s.pool.Name, name)
 	err = btrfsSubVolumeCreate(containerSubvolumeName)
 	if err != nil {
 		return err
@@ -884,7 +884,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 
 	// Mountpoint of the image:
 	// ${LXD_DIR}/images/<fingerprint>
-	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
+	imageMntPoint := driver.GetImageMountPoint(s.pool.Name, fingerprint)
 	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
@@ -917,7 +917,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// ${LXD_DIR}/storage-pools/<pool>/containers/<name>
 	// from the mounted ro image snapshot mounted at
 	// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>
-	containerSubvolumeName := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	containerSubvolumeName := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	err = s.btrfsPoolVolumesSnapshot(imageMntPoint, containerSubvolumeName, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Failed to storage pool volume snapshot")
@@ -948,7 +948,7 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	}
 
 	// Delete the subvolume.
-	containerSubvolumeName := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	containerSubvolumeName := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	if shared.PathExists(containerSubvolumeName) && isBtrfsSubVolume(containerSubvolumeName) {
 		err = btrfsSubVolumesDelete(containerSubvolumeName)
 		if err != nil {
@@ -963,7 +963,7 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	}
 
 	// Delete potential snapshot mountpoints.
-	snapshotMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	snapshotMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
 	if shared.PathExists(snapshotMntPoint) {
 		err := os.RemoveAll(snapshotMntPoint)
 		if err != nil && !os.IsNotExist(err) {
@@ -986,13 +986,13 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 }
 
 func (s *storageBtrfs) copyContainer(target container, source container) error {
-	sourceContainerSubvolumeName := getContainerMountPoint(source.Project(), s.pool.Name, source.Name())
+	sourceContainerSubvolumeName := driver.GetContainerMountPoint(source.Project(), s.pool.Name, source.Name())
 	if source.IsSnapshot() {
-		sourceContainerSubvolumeName = getSnapshotMountPoint(source.Project(), s.pool.Name, source.Name())
+		sourceContainerSubvolumeName = driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, source.Name())
 	}
-	targetContainerSubvolumeName := getContainerMountPoint(target.Project(), s.pool.Name, target.Name())
+	targetContainerSubvolumeName := driver.GetContainerMountPoint(target.Project(), s.pool.Name, target.Name())
 
-	containersPath := getContainerMountPoint("default", s.pool.Name, "")
+	containersPath := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
 		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
@@ -1022,11 +1022,11 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 func (s *storageBtrfs) copySnapshot(target container, source container) error {
 	sourceName := source.Name()
 	targetName := target.Name()
-	sourceContainerSubvolumeName := getSnapshotMountPoint(source.Project(), s.pool.Name, sourceName)
-	targetContainerSubvolumeName := getSnapshotMountPoint(target.Project(), s.pool.Name, targetName)
+	sourceContainerSubvolumeName := driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, sourceName)
+	targetContainerSubvolumeName := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetName)
 
-	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
+	targetParentName, _, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
+	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1092,11 +1092,11 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 		}
 	}
 
-	destContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
+	destContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	if !containerOnly {
 		for _, snap := range snapshots {
-			srcSnapshotMntPoint := getSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
+			srcSnapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
 			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
 			if err != nil {
 				logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -1104,7 +1104,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 			}
 
 			// create snapshot
-			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 			err = s.doContainerSnapshotCreate(target.Project(), fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
 			if err != nil {
 				return err
@@ -1112,7 +1112,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 		}
 	}
 
-	srcContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, source.Name())
+	srcContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
 	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
 	if err != nil {
 		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -1171,7 +1171,7 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 			return err
 		}
 
-		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
 		targetSnapshot, err := containerLoadByProjectAndName(s.s, target.Project(), newSnapName)
 		if err != nil {
@@ -1234,8 +1234,8 @@ func (s *storageBtrfs) ContainerRename(container container, newName string) erro
 		return err
 	}
 
-	oldContainerSubvolumeName := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
-	newContainerSubvolumeName := getContainerMountPoint(container.Project(), s.pool.Name, newName)
+	oldContainerSubvolumeName := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	newContainerSubvolumeName := driver.GetContainerMountPoint(container.Project(), s.pool.Name, newName)
 	err = os.Rename(oldContainerSubvolumeName, newContainerSubvolumeName)
 	if err != nil {
 		return err
@@ -1247,8 +1247,8 @@ func (s *storageBtrfs) ContainerRename(container container, newName string) erro
 		return err
 	}
 
-	oldSnapshotSubvolumeName := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
-	newSnapshotSubvolumeName := getSnapshotMountPoint(container.Project(), s.pool.Name, newName)
+	oldSnapshotSubvolumeName := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	newSnapshotSubvolumeName := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, newName)
 	if shared.PathExists(oldSnapshotSubvolumeName) {
 		err = os.Rename(oldSnapshotSubvolumeName, newSnapshotSubvolumeName)
 		if err != nil {
@@ -1284,7 +1284,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 	}
 
 	// Create a backup so we can revert.
-	targetContainerSubvolumeName := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
+	targetContainerSubvolumeName := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	backupTargetContainerSubvolumeName := fmt.Sprintf("%s.tmp", targetContainerSubvolumeName)
 	err = os.Rename(targetContainerSubvolumeName, backupTargetContainerSubvolumeName)
 	if err != nil {
@@ -1310,9 +1310,9 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 	_, sourcePool, _ := srcContainerStorage.GetContainerPoolInfo()
 	sourceContainerSubvolumeName := ""
 	if sourceContainer.IsSnapshot() {
-		sourceContainerSubvolumeName = getSnapshotMountPoint(sourceContainer.Project(), sourcePool, sourceContainer.Name())
+		sourceContainerSubvolumeName = driver.GetSnapshotMountPoint(sourceContainer.Project(), sourcePool, sourceContainer.Name())
 	} else {
-		sourceContainerSubvolumeName = getContainerMountPoint(container.Project(), sourcePool, sourceContainer.Name())
+		sourceContainerSubvolumeName = driver.GetContainerMountPoint(container.Project(), sourcePool, sourceContainer.Name())
 	}
 
 	var failure error
@@ -1401,8 +1401,8 @@ func (s *storageBtrfs) doContainerSnapshotCreate(projectName string, targetName 
 		}
 	}
 
-	srcContainerSubvolumeName := getContainerMountPoint(projectName, s.pool.Name, sourceName)
-	snapshotSubvolumeName := getSnapshotMountPoint(projectName, s.pool.Name, targetName)
+	srcContainerSubvolumeName := driver.GetContainerMountPoint(projectName, s.pool.Name, sourceName)
+	snapshotSubvolumeName := driver.GetSnapshotMountPoint(projectName, s.pool.Name, targetName)
 	err = s.btrfsPoolVolumesSnapshot(srcContainerSubvolumeName, snapshotSubvolumeName, true, true)
 	if err != nil {
 		return err
@@ -1423,7 +1423,7 @@ func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sour
 }
 
 func btrfsSnapshotDeleteInternal(projectName, poolName string, snapshotName string) error {
-	snapshotSubvolumeName := getSnapshotMountPoint(projectName, poolName, snapshotName)
+	snapshotSubvolumeName := driver.GetSnapshotMountPoint(projectName, poolName, snapshotName)
 	// Also delete any leftover .ro snapshot.
 	roSnapshotSubvolumeName := fmt.Sprintf("%s.ro", snapshotSubvolumeName)
 	names := []string{snapshotSubvolumeName, roSnapshotSubvolumeName}
@@ -1440,7 +1440,7 @@ func btrfsSnapshotDeleteInternal(projectName, poolName string, snapshotName stri
 	os.Remove(sourceSnapshotMntPoint)
 	os.Remove(snapshotSubvolumeName)
 
-	sourceName, _, _ := containerGetParentAndSnapshotName(snapshotName)
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(snapshotName)
 	snapshotSubvolumePath := getSnapshotSubvolumePath(projectName, poolName, sourceName)
 	os.Remove(snapshotSubvolumePath)
 	if !shared.PathExists(snapshotSubvolumePath) {
@@ -1476,7 +1476,7 @@ func (s *storageBtrfs) ContainerSnapshotStart(container container) (bool, error)
 		return false, err
 	}
 
-	snapshotSubvolumeName := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	snapshotSubvolumeName := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
 	roSnapshotSubvolumeName := fmt.Sprintf("%s.ro", snapshotSubvolumeName)
 	if shared.PathExists(roSnapshotSubvolumeName) {
 		logger.Debugf("The BTRFS snapshot is already mounted read-write")
@@ -1505,7 +1505,7 @@ func (s *storageBtrfs) ContainerSnapshotStop(container container) (bool, error) 
 		return false, err
 	}
 
-	snapshotSubvolumeName := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	snapshotSubvolumeName := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
 	roSnapshotSubvolumeName := fmt.Sprintf("%s.ro", snapshotSubvolumeName)
 	if !shared.PathExists(roSnapshotSubvolumeName) {
 		logger.Debugf("The BTRFS snapshot is currently not mounted read-write")
@@ -1540,8 +1540,8 @@ func (s *storageBtrfs) ContainerSnapshotRename(snapshotContainer container, newN
 
 	// Unmount the snapshot if it is mounted otherwise we'll get EBUSY.
 	// Rename the subvolume on the storage pool.
-	oldSnapshotSubvolumeName := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
-	newSnapshotSubvolumeName := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, newName)
+	oldSnapshotSubvolumeName := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
+	newSnapshotSubvolumeName := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, newName)
 	err = os.Rename(oldSnapshotSubvolumeName, newSnapshotSubvolumeName)
 	if err != nil {
 		return err
@@ -1563,9 +1563,9 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 	}
 
 	// Create the snapshot subvole path on the storage pool.
-	sourceName, _, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(snapshotContainer.Name())
 	snapshotSubvolumePath := getSnapshotSubvolumePath(snapshotContainer.Project(), s.pool.Name, sourceName)
-	snapshotSubvolumeName := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
+	snapshotSubvolumeName := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name())
 	if !shared.PathExists(snapshotSubvolumePath) {
 		err := os.MkdirAll(snapshotSubvolumePath, driver.ContainersDirMode)
 		if err != nil {
@@ -1636,15 +1636,15 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 		}
 
 		for i, snap := range snapshots {
-			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 			// Figure out previous and current subvolumes
 			prev := ""
 			if i > 0 {
 				// /var/lib/lxd/storage-pools/<pool>/containers-snapshots/<container>/<snapshot>
-				prev = getSnapshotMountPoint(source.Project(), s.pool.Name, snapshots[i-1].Name())
+				prev = driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, snapshots[i-1].Name())
 			}
-			cur := getSnapshotMountPoint(source.Project(), s.pool.Name, snap.Name())
+			cur := driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, snap.Name())
 
 			// Make a binary btrfs backup
 			target := fmt.Sprintf("%s/%s.bin", snapshotsPath, snapName)
@@ -1658,8 +1658,8 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 	}
 
 	// Make a temporary copy of the container
-	sourceVolume := getContainerMountPoint(source.Project(), s.pool.Name, source.Name())
-	containersPath := getContainerMountPoint("default", s.pool.Name, "")
+	sourceVolume := driver.GetContainerMountPoint(source.Project(), s.pool.Name, source.Name())
+	containersPath := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
 		return err
@@ -1720,7 +1720,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 		}
 
 		for _, snap := range snapshots {
-			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 			// Mount the snapshot to a usable path
 			_, err := s.ContainerSnapshotStart(snap)
@@ -1728,7 +1728,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 				return err
 			}
 
-			snapshotMntPoint := getSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
+			snapshotMntPoint := driver.GetSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
 			target := fmt.Sprintf("%s/%s", snapshotsPath, snapName)
 
 			// Copy the snapshot
@@ -1741,8 +1741,8 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 	}
 
 	// Make a temporary copy of the container
-	sourceVolume := getContainerMountPoint(source.Project(), s.pool.Name, source.Name())
-	containersPath := getContainerMountPoint("default", s.pool.Name, "")
+	sourceVolume := driver.GetContainerMountPoint(source.Project(), s.pool.Name, source.Name())
+	containersPath := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
 		return err
@@ -1811,9 +1811,9 @@ func (s *storageBtrfs) ContainerBackupCreate(backup backup, source container) er
 }
 
 func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
-	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
+	containerName, _, _ := shared.ContainerGetParentAndSnapshotName(info.Name)
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, "")
+	containerMntPoint := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	unpackDir, err := ioutil.TempDir(containerMntPoint, containerName)
 	if err != nil {
 		return err
@@ -1854,7 +1854,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 		}
 
 		// create mountpoint
-		snapshotMntPoint := getSnapshotMountPoint(info.Project, s.pool.Name, containerName)
+		snapshotMntPoint := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, containerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(info.Project, containerName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(info.Project, containerName))
 		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1892,7 +1892,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 	tmpContainerMntPoint := fmt.Sprintf("%s/.backup", unpackDir)
 	defer btrfsSubVolumesDelete(tmpContainerMntPoint)
 
-	containerMntPoint = getContainerMountPoint(info.Project, s.pool.Name, info.Name)
+	containerMntPoint = driver.GetContainerMountPoint(info.Project, s.pool.Name, info.Name)
 	err = s.btrfsPoolVolumesSnapshot(tmpContainerMntPoint, containerMntPoint, false, true)
 	if err != nil {
 		logger.Errorf("Failed to create btrfs snapshot \"%s\" of \"%s\": %s", tmpContainerMntPoint, containerMntPoint, err)
@@ -1915,7 +1915,7 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.Rea
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
+	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
@@ -2009,7 +2009,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string, tracker *ioprogress.Progr
 	// Create a temporary rw btrfs subvolume. From this rw subvolume we'll
 	// create a ro snapshot below. The path with which we do this is
 	// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>@<pool>_tmp.
-	imageSubvolumeName := getImageMountPoint(s.pool.Name, fingerprint)
+	imageSubvolumeName := driver.GetImageMountPoint(s.pool.Name, fingerprint)
 	tmpImageSubvolumeName := fmt.Sprintf("%s_tmp", imageSubvolumeName)
 	err = btrfsSubVolumeCreate(tmpImageSubvolumeName)
 	if err != nil {
@@ -2065,7 +2065,7 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 
 	// Delete the btrfs subvolume. The path with which we
 	// do this is ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
-	imageSubvolumeName := getImageMountPoint(s.pool.Name, fingerprint)
+	imageSubvolumeName := driver.GetImageMountPoint(s.pool.Name, fingerprint)
 	if shared.PathExists(imageSubvolumeName) && isBtrfsSubVolume(imageSubvolumeName) {
 		err = btrfsSubVolumesDelete(imageSubvolumeName)
 		if err != nil {
@@ -2486,14 +2486,14 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	_, containerPool, _ := s.container.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
-	containersPath := getContainerMountPoint("default", containerPool, "")
+	containersPath := driver.GetContainerMountPoint("default", containerPool, "")
 	sourceName := containerName
 
 	// Deal with sending a snapshot to create a container on another LXD
 	// instance.
 	if s.container.IsSnapshot() {
-		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
-		snapshotsPath := getSnapshotMountPoint(s.container.Project(), containerPool, sourceName)
+		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(containerName)
+		snapshotsPath := driver.GetSnapshotMountPoint(s.container.Project(), containerPool, sourceName)
 		tmpContainerMntPoint, err := ioutil.TempDir(snapshotsPath, sourceName)
 		if err != nil {
 			return err
@@ -2506,7 +2506,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		}
 
 		migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
-		snapshotMntPoint := getSnapshotMountPoint(s.container.Project(), containerPool, containerName)
+		snapshotMntPoint := driver.GetSnapshotMountPoint(s.container.Project(), containerPool, containerName)
 		err = s.btrfs.btrfsPoolVolumesSnapshot(snapshotMntPoint, migrationSendSnapshot, true, true)
 		if err != nil {
 			return err
@@ -2521,10 +2521,10 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		for i, snap := range s.snapshots {
 			prev := ""
 			if i > 0 {
-				prev = getSnapshotMountPoint(snap.Project(), containerPool, s.snapshots[i-1].Name())
+				prev = driver.GetSnapshotMountPoint(snap.Project(), containerPool, s.snapshots[i-1].Name())
 			}
 
-			snapMntPoint := getSnapshotMountPoint(snap.Project(), containerPool, snap.Name())
+			snapMntPoint := driver.GetSnapshotMountPoint(snap.Project(), containerPool, snap.Name())
 			wrapper := StorageProgressReader(op, "fs_progress", snap.Name())
 			if err := s.send(conn, snapMntPoint, prev, wrapper); err != nil {
 				return err
@@ -2544,7 +2544,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 	}
 
 	migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
-	containerMntPoint := getContainerMountPoint(s.container.Project(), containerPool, sourceName)
+	containerMntPoint := driver.GetContainerMountPoint(s.container.Project(), containerPool, sourceName)
 	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPoint, migrationSendSnapshot, true, true)
 	if err != nil {
 		return err
@@ -2561,7 +2561,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 }
 
 func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
-	tmpPath := getSnapshotMountPoint(s.container.Project(), s.btrfs.pool.Name,
+	tmpPath := driver.GetSnapshotMountPoint(s.container.Project(), s.btrfs.pool.Name,
 		fmt.Sprintf("%s/.migration-send", s.container.Name()))
 	err := os.MkdirAll(tmpPath, 0711)
 	if err != nil {
@@ -2574,8 +2574,8 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, b
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	parentName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
-	containerMntPt := getContainerMountPoint(s.container.Project(), s.btrfs.pool.Name, parentName)
+	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
+	containerMntPt := driver.GetContainerMountPoint(s.container.Project(), s.btrfs.pool.Name, parentName)
 	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPt, s.stoppedSnapName, true, true)
 	if err != nil {
 		return err
@@ -2628,7 +2628,7 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 		}
 	}
 
-	driver := &btrfsMigrationSourceDriver{
+	sourceDriver := &btrfsMigrationSourceDriver{
 		container:          args.Container,
 		snapshots:          snapshots,
 		btrfsSnapshotNames: []string{},
@@ -2637,12 +2637,12 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 
 	if !args.ContainerOnly {
 		for _, snap := range snapshots {
-			btrfsPath := getSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
-			driver.btrfsSnapshotNames = append(driver.btrfsSnapshotNames, btrfsPath)
+			btrfsPath := driver.GetSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
+			sourceDriver.btrfsSnapshotNames = append(sourceDriver.btrfsSnapshotNames, btrfsPath)
 		}
 	}
 
-	return driver, nil
+	return sourceDriver, nil
 }
 
 func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
@@ -2721,7 +2721,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 
 	containerName := args.Container.Name()
 	_, containerPool, _ := args.Container.Storage().GetContainerPoolInfo()
-	containersPath := getSnapshotMountPoint(args.Container.Project(), containerPool, containerName)
+	containersPath := driver.GetSnapshotMountPoint(args.Container.Project(), containerPool, containerName)
 	if !args.ContainerOnly && len(args.Snapshots) > 0 {
 		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
 		if err != nil {
@@ -2769,7 +2769,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 				}
 			}
 
-			snapshotMntPoint := getSnapshotMountPoint(args.Container.Project(), containerPool, ctArgs.Name)
+			snapshotMntPoint := driver.GetSnapshotMountPoint(args.Container.Project(), containerPool, ctArgs.Name)
 			_, err := containerCreateEmptySnapshot(args.Container.DaemonState(), ctArgs)
 			if err != nil {
 				return err
@@ -2802,7 +2802,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 	}
 
 	/* finally, do the real container */
-	containersMntPoint := getContainerMountPoint("default", s.pool.Name, "")
+	containersMntPoint := driver.GetContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, project.Prefix(args.Container.Project(), containerName))
 	if err != nil {
 		return err
@@ -2815,7 +2815,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 	}
 
 	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
-	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {
 		return err
@@ -2861,9 +2861,9 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
 		c = data.(container)
-		subvol = getContainerMountPoint(c.Project(), s.pool.Name, c.Name())
+		subvol = driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 	case storagePoolVolumeTypeCustom:
-		subvol = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		subvol = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
 	qgroup, err := btrfsSubVolumeQGroup(subvol)
@@ -2872,7 +2872,7 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 
 		if err == btrfsErrNoQuota {
 			// Enable quotas
-			poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+			poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 
 			output, err = shared.RunCommand("btrfs", "quota", "enable", poolMntPoint)
 			if err != nil {
@@ -2957,7 +2957,7 @@ func (s *storageBtrfs) StoragePoolResources() (*api.ResourcesStoragePool, error)
 		defer s.StoragePoolUmount()
 	}
 
-	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 
 	// Inode allocation is dynamic so no use in reporting them.
 
@@ -3017,23 +3017,23 @@ func (s *storageBtrfs) copyVolume(sourcePool string, sourceName string, targetNa
 	isDstSnapshot := shared.IsSnapshot(targetName)
 
 	if isSrcSnapshot {
-		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, sourceName)
+		srcMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, sourceName)
 	} else {
-		srcMountPoint = getStoragePoolVolumeMountPoint(sourcePool, sourceName)
+		srcMountPoint = driver.GetStoragePoolVolumeMountPoint(sourcePool, sourceName)
 	}
 
 	if isDstSnapshot {
-		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, targetName)
+		dstMountPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, targetName)
 	} else {
-		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, targetName)
+		dstMountPoint = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, targetName)
 	}
 
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if isDstSnapshot {
-		volName, _, _ := containerGetParentAndSnapshotName(targetName)
-		customDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, volName)
+		volName, _, _ := shared.ContainerGetParentAndSnapshotName(targetName)
+		customDir = driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, volName)
 	} else {
-		customDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
+		customDir = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, "")
 	}
 
 	if !shared.PathExists(customDir) {
@@ -3073,7 +3073,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 		return err
 	}
 
-	destVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	destVolumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
 	if !volumeOnly {
@@ -3084,7 +3084,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 		}
 
 		for _, snap := range snapshots {
-			srcSnapshotMntPoint := getStoragePoolVolumeSnapshotMountPoint(sourcePool, snap)
+			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, snap)
 
 			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destVolumeMntPoint, bwlimit, true)
 			if err != nil {
@@ -3093,7 +3093,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 			}
 
 			// create snapshot
-			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 
 			err = s.doVolumeSnapshotCreate(s.pool.Name, s.volume.Name, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 			if err != nil {
@@ -3106,10 +3106,10 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 
 	if shared.IsSnapshot(sourceName) {
 		// copy snapshot to volume
-		srcVolumeMntPoint = getStoragePoolVolumeSnapshotMountPoint(sourcePool, sourceName)
+		srcVolumeMntPoint = driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, sourceName)
 	} else {
 		// copy volume to volume
-		srcVolumeMntPoint = getStoragePoolVolumeMountPoint(sourcePool, sourceName)
+		srcVolumeMntPoint = driver.GetStoragePoolVolumeMountPoint(sourcePool, sourceName)
 	}
 
 	_, err = rsyncLocalCopy(srcVolumeMntPoint, destVolumeMntPoint, bwlimit, true)
@@ -3156,20 +3156,20 @@ func (s *storageBtrfs) doVolumeSnapshotCreate(sourcePool string, sourceName stri
 		return err
 	}
 
-	_, _, ok := containerGetParentAndSnapshotName(targetName)
+	_, _, ok := shared.ContainerGetParentAndSnapshotName(targetName)
 	if !ok {
 		return err
 	}
 
-	customSnapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	customSnapshotSubvolumeName := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 
 	err = os.MkdirAll(customSnapshotSubvolumeName, driver.SnapshotsDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
-	sourcePath := getStoragePoolVolumeMountPoint(sourcePool, sourceName)
-	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, targetName)
+	sourcePath := driver.GetStoragePoolVolumeMountPoint(sourcePool, sourceName)
+	targetPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, targetName)
 
 	return s.btrfsPoolVolumesSnapshot(sourcePath, targetPath, true, true)
 }
@@ -3182,7 +3182,7 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	snapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	snapshotSubvolumeName := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
 		err := btrfsSubVolumesDelete(snapshotSubvolumeName)
 		if err != nil {
@@ -3195,8 +3195,8 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {
 		return err
 	}
 
-	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
-	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	storageVolumeSnapshotPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
 	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
 	if err == nil && empty {
 		err := os.RemoveAll(storageVolumeSnapshotPath)
@@ -3220,7 +3220,7 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {
 }
 
 func (s *storageBtrfs) StoragePoolVolumeSnapshotRename(newName string) error {
-	sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, _, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
 
 	logger.Infof("Renaming BTRFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, fullSnapshotName)
@@ -3228,8 +3228,8 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotRename(newName string) error {
 		return fmt.Errorf("Not a snapshot name")
 	}
 
-	oldPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
-	newPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
+	oldPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	newPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
 
 	err := os.Rename(oldPath, newPath)
 	if err != nil {

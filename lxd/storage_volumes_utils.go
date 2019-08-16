@@ -433,7 +433,7 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volumeName string, volumeTypeName string) ([]string, error) {
 	// Handle container volumes
 	if volumeTypeName == "container" {
-		cName, sName, snap := containerGetParentAndSnapshotName(volumeName)
+		cName, sName, snap := shared.ContainerGetParentAndSnapshotName(volumeName)
 
 		if snap {
 			return []string{fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
