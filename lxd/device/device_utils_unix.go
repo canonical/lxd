@@ -398,8 +398,8 @@ func unixDeviceDecode(text string) string {
 }
 
 // unixDeviceJoinPath joins together prefix and text delimited by a "." for device path generation.
-func unixDeviceJoinPath(prefix string, text string) string {
-	return fmt.Sprintf("%s.%s", prefix, text)
+func unixDeviceJoinPath(parts ...string) string {
+	return strings.Join(parts, ".")
 }
 
 // unixRemoveDevice identifies all files related to the supplied typePrefix and deviceName and then
@@ -408,7 +408,8 @@ func unixDeviceJoinPath(prefix string, text string) string {
 // relative mount path inside the instance encoded into the file name. If there is another device
 // that shares the same mount path then the unmount rule is not added to the runConf as the device
 // may still be in use with another LXD device.
-func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, runConf *RunConfig) error {
+// Accepts an optional file prefix that will be used to narrow the selection of files to remove.
+func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, optPrefix string, runConf *RunConfig) error {
 	// Load all devices.
 	dents, err := ioutil.ReadDir(devicesPath)
 	if err != nil {
@@ -417,7 +418,14 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		}
 	}
 
-	ourPrefix := unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+	var ourPrefix string
+	// If a prefix override has been supplied, use that for filtering the devices to remove.
+	if optPrefix != "" {
+		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName, optPrefix))
+	} else {
+		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+	}
+
 	ourDevs := []string{}
 	otherDevs := []string{}
 
@@ -497,9 +505,16 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 }
 
 // unixDeviceDeleteFiles removes all host side device files for a particular LXD device.
-// This should be run after the files have been detached from the instance using unixDeviceRemove().
-func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string, deviceName string) error {
-	ourPrefix := unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+// Accepts an optional file prefix that will be used to narrow the selection of files to delete.
+// This should be run after the files have been detached from the instance as a post hook.
+func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string, deviceName string, optPrefix string) error {
+	var ourPrefix string
+	// If a prefix override has been supplied, use that for filtering the devices to remove.
+	if optPrefix != "" {
+		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName, optPrefix))
+	} else {
+		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+	}
 
 	// Load all devices.
 	dents, err := ioutil.ReadDir(devicesPath)
@@ -523,7 +538,7 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 			}
 
 			// Remove the host side device file.
-			err = os.Remove(devPath)
+			err := os.Remove(devPath)
 			if err != nil {
 				return err
 			}
