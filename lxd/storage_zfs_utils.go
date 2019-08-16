@@ -206,7 +206,7 @@ func zfsPoolVolumeClone(project, pool string, source string, name string, dest s
 		}
 
 		destSubvol := dest + strings.TrimPrefix(sub, source)
-		snapshotMntPoint := getSnapshotMountPoint(project, pool, destSubvol)
+		snapshotMntPoint := driver.GetSnapshotMountPoint(project, pool, destSubvol)
 
 		output, err := shared.RunCommand(
 			"zfs",
@@ -642,7 +642,7 @@ func (s *storageZfs) doContainerMount(projectName, name string, privileged bool)
 
 	volumeName := project.Prefix(projectName, name)
 	fs := fmt.Sprintf("containers/%s", volumeName)
-	containerPoolVolumeMntPoint := getContainerMountPoint(projectName, s.pool.Name, name)
+	containerPoolVolumeMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, name)
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -708,7 +708,7 @@ func (s *storageZfs) doContainerDelete(projectName, name string) error {
 	poolName := s.getOnDiskPoolName()
 	containerName := name
 	fs := fmt.Sprintf("containers/%s", project.Prefix(projectName, containerName))
-	containerPoolVolumeMntPoint := getContainerMountPoint(projectName, s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	if zfsFilesystemEntityExists(poolName, fs) {
 		removable := true
@@ -768,7 +768,7 @@ func (s *storageZfs) doContainerDelete(projectName, name string) error {
 	zfsPoolVolumeDestroy(poolName, snapshotZfsDataset)
 
 	// Delete potential leftover snapshot mountpoints.
-	snapshotMntPoint := getSnapshotMountPoint(projectName, s.pool.Name, containerName)
+	snapshotMntPoint := driver.GetSnapshotMountPoint(projectName, s.pool.Name, containerName)
 	if shared.PathExists(snapshotMntPoint) {
 		err := os.RemoveAll(snapshotMntPoint)
 		if err != nil {
@@ -798,7 +798,7 @@ func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool
 	fs := fmt.Sprintf("containers/%s", project.Prefix(projectName, containerName))
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
-	containerPoolVolumeMntPoint := getContainerMountPoint(projectName, s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	// Create volume.
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")

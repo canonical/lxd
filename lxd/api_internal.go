@@ -425,7 +425,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	containerMntPoints := []string{}
 	containerPoolName := ""
 	for _, poolName := range storagePoolNames {
-		containerMntPoint := getContainerMountPoint(projectName, poolName, req.Name)
+		containerMntPoint := driver.GetContainerMountPoint(projectName, poolName, req.Name)
 		if shared.PathExists(containerMntPoint) {
 			containerMntPoints = append(containerMntPoints, containerMntPoint)
 			containerPoolName = poolName
@@ -544,7 +544,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if len(backup.Snapshots) > 0 {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snapshotsDirPath := getSnapshotMountPoint(projectName, poolName, req.Name)
+			snapshotsDirPath := driver.GetSnapshotMountPoint(projectName, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return InternalError(err)
@@ -556,7 +556,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			}
 			snapshotsDir.Close()
 		case "dir":
-			snapshotsDirPath := getSnapshotMountPoint(projectName, poolName, req.Name)
+			snapshotsDirPath := driver.GetSnapshotMountPoint(projectName, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return InternalError(err)
@@ -716,7 +716,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	for _, snap := range backup.Snapshots {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snpMntPt := getSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
+			snpMntPt := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) || !isBtrfsSubVolume(snpMntPt) {
 				if req.Force {
 					continue
@@ -724,7 +724,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				return BadRequest(needForce)
 			}
 		case "dir":
-			snpMntPt := getSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
+			snpMntPt := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) {
 				if req.Force {
 					continue
@@ -965,7 +965,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Recreate missing mountpoints and symlinks.
-		snapshotMountPoint := getSnapshotMountPoint(projectName, backup.Pool.Name,
+		snapshotMountPoint := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name,
 			snap.Name)
 		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
 		sourceName = project.Prefix(projectName, sourceName)

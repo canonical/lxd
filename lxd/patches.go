@@ -385,7 +385,7 @@ func patchStorageApi(name string, d *Daemon) error {
 
 func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string, defaultStorageTypeName string, cRegular []string, cSnapshots []string, imgPublic []string, imgPrivate []string) error {
 	poolConfig := map[string]string{}
-	poolSubvolumePath := getStoragePoolMountPoint(defaultPoolName)
+	poolSubvolumePath := driver.GetStoragePoolMountPoint(defaultPoolName)
 	poolConfig["source"] = poolSubvolumePath
 
 	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig, nil)
@@ -448,7 +448,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 	if len(cRegular) > 0 {
 		// ${LXD_DIR}/storage-pools/<name>
-		containersSubvolumePath := getContainerMountPoint("default", defaultPoolName, "")
+		containersSubvolumePath := driver.GetContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -495,7 +495,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// subvolume of the subvolume of the storage pool:
 		// mv ${LXD_DIR}/containers/<container_name> ${LXD_DIR}/storage-pools/<pool>/<container_name>
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
+		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
@@ -539,7 +539,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// Create the snapshots directory in
 			// the new storage pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
-			newSnapshotsMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
+			newSnapshotsMntPoint := driver.GetSnapshotMountPoint("default", defaultPoolName, ct)
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.MkdirAll(newSnapshotsMntPoint, 0700)
 				if err != nil {
@@ -582,7 +582,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// We need to create a new snapshot since we can't move
 			// readonly snapshots.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
-			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, cs)
+			newSnapshotMntPoint := driver.GetSnapshotMountPoint("default", defaultPoolName, cs)
 			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 				err = btrfsSnapshot(d.State(), oldSnapshotMntPoint, newSnapshotMntPoint, true)
 				if err != nil {
@@ -620,7 +620,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// storage pool:
 			// ${LXD_DIR}/snapshots/<container_name> to ${LXD_DIR}/storage-pools/<pool>/snapshots/<container_name>
 			snapshotsPath := shared.VarPath("snapshots", ct)
-			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
+			newSnapshotMntPoint := driver.GetSnapshotMountPoint("default", defaultPoolName, ct)
 			os.Remove(snapshotsPath)
 			if !shared.PathExists(snapshotsPath) {
 				err := os.Symlink(newSnapshotMntPoint, snapshotsPath)
@@ -660,7 +660,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 
-		imagesMntPoint := getImageMountPoint(defaultPoolName, "")
+		imagesMntPoint := driver.GetImageMountPoint(defaultPoolName, "")
 		if !shared.PathExists(imagesMntPoint) {
 			err := os.MkdirAll(imagesMntPoint, 0700)
 			if err != nil {
@@ -669,7 +669,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 
 		oldImageMntPoint := shared.VarPath("images", img+".btrfs")
-		newImageMntPoint := getImageMountPoint(defaultPoolName, img)
+		newImageMntPoint := driver.GetImageMountPoint(defaultPoolName, img)
 		if shared.PathExists(oldImageMntPoint) && !shared.PathExists(newImageMntPoint) {
 			err := os.Rename(oldImageMntPoint, newImageMntPoint)
 			if err != nil {
@@ -780,7 +780,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Create the new path where containers will be located on the
 		// new storage api.
-		containersMntPoint := getContainerMountPoint("default", defaultPoolName, "")
+		containersMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersMntPoint) {
 			err := os.MkdirAll(containersMntPoint, 0711)
 			if err != nil {
@@ -790,7 +790,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
+		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
@@ -838,7 +838,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Now simply rename the snapshots directory as well.
-		newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
+		newSnapshotMntPoint := driver.GetSnapshotMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
@@ -1033,7 +1033,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	// Create pool mountpoint if it doesn't already exist.
-	poolMntPoint := getStoragePoolMountPoint(defaultPoolName)
+	poolMntPoint := driver.GetStoragePoolMountPoint(defaultPoolName)
 	if !shared.PathExists(poolMntPoint) {
 		err = os.MkdirAll(poolMntPoint, 0711)
 		if err != nil {
@@ -1043,7 +1043,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	if len(cRegular) > 0 {
 		// Create generic containers folder on the storage pool.
-		newContainersMntPoint := getContainerMountPoint("default", defaultPoolName, "")
+		newContainersMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(newContainersMntPoint) {
 			err = os.MkdirAll(newContainersMntPoint, 0711)
 			if err != nil {
@@ -1100,7 +1100,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Create the new path where containers will be located on the
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
-		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
+		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
 		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
 		containerLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
@@ -1245,7 +1245,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Create the snapshots directory in the new storage
 			// pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
-			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, cs)
+			newSnapshotMntPoint := driver.GetSnapshotMountPoint("default", defaultPoolName, cs)
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err := os.MkdirAll(newSnapshotMntPoint, 0700)
 				if err != nil {
@@ -1350,7 +1350,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// storage pool:
 			// ${LXD_DIR}/snapshots/<container_name> to ${LXD_DIR}/storage-pools/<pool>/snapshots/<container_name>
 			snapshotsPath := shared.VarPath("snapshots", ct)
-			newSnapshotsPath := getSnapshotMountPoint("default", defaultPoolName, ct)
+			newSnapshotsPath := driver.GetSnapshotMountPoint("default", defaultPoolName, ct)
 			if shared.PathExists(snapshotsPath) {
 				// On a broken update snapshotsPath will contain
 				// empty directories that need to be removed.
@@ -1378,7 +1378,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	images := append(imgPublic, imgPrivate...)
 	if len(images) > 0 {
-		imagesMntPoint := getImageMountPoint(defaultPoolName, "")
+		imagesMntPoint := driver.GetImageMountPoint(defaultPoolName, "")
 		if !shared.PathExists(imagesMntPoint) {
 			err := os.MkdirAll(imagesMntPoint, 0700)
 			if err != nil {
@@ -1429,7 +1429,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		}
 
-		newImageMntPoint := getImageMountPoint(defaultPoolName, img)
+		newImageMntPoint := driver.GetImageMountPoint(defaultPoolName, img)
 		if !shared.PathExists(newImageMntPoint) {
 			err := os.MkdirAll(newImageMntPoint, 0700)
 			if err != nil {
@@ -1567,7 +1567,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	if len(cRegular) > 0 {
-		containersSubvolumePath := getContainerMountPoint("default", poolName, "")
+		containersSubvolumePath := driver.GetContainerMountPoint("default", poolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -1631,7 +1631,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Changing the mountpoint property should have actually created
 		// the path but in case it somehow didn't let's do it ourselves.
 		doesntMatter := false
-		newContainerMntPoint := getContainerMountPoint("default", poolName, ct)
+		newContainerMntPoint := driver.GetContainerMountPoint("default", poolName, ct)
 		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			logger.Warnf("Failed to create mountpoint for the container: %s", newContainerMntPoint)
@@ -1693,7 +1693,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 			// Create the new mountpoint for snapshots in the new
 			// storage api.
-			newSnapshotMntPoint := getSnapshotMountPoint("default", poolName, cs)
+			newSnapshotMntPoint := driver.GetSnapshotMountPoint("default", poolName, cs)
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err = os.MkdirAll(newSnapshotMntPoint, 0711)
 				if err != nil {
@@ -1708,7 +1708,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Create a symlink for this container's snapshots.
 		if len(ctSnapshots) != 0 {
-			newSnapshotsMntPoint := getSnapshotMountPoint("default", poolName, ct)
+			newSnapshotsMntPoint := driver.GetSnapshotMountPoint("default", poolName, ct)
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
 				if err != nil {
@@ -1747,7 +1747,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		imageMntPoint := getImageMountPoint(poolName, img)
+		imageMntPoint := driver.GetImageMountPoint(poolName, img)
 		if !shared.PathExists(imageMntPoint) {
 			err := os.MkdirAll(imageMntPoint, 0700)
 			if err != nil {
@@ -2342,7 +2342,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 			continue
 		}
 
-		pool.Config["source"] = getStoragePoolMountPoint(poolName)
+		pool.Config["source"] = driver.GetStoragePoolMountPoint(poolName)
 
 		// Update the storage pool config.
 		err = d.cluster.StoragePoolUpdate(poolName, pool.Description, pool.Config)
@@ -2632,7 +2632,7 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 			return fmt.Errorf(msg)
 		}
 		cleanSource := filepath.Clean(source)
-		poolMntPoint := getStoragePoolMountPoint(poolName)
+		poolMntPoint := driver.GetStoragePoolMountPoint(poolName)
 
 		if cleanSource == poolMntPoint {
 			continue
@@ -2972,7 +2972,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 				defer volStruct.StoragePoolVolumeUmount()
 			}
 
-			cuMntPoint := getStoragePoolVolumeMountPoint(poolName, vol)
+			cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
 			err = os.Chmod(cuMntPoint, 0711)
 			if err != nil && !os.IsNotExist(err) {
 				return err

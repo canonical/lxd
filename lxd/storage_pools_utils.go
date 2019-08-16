@@ -242,7 +242,7 @@ func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription s
 	// done by the node that triggered this notification. We just need to
 	// create the storage pool directory.
 	if s, ok := s.(*storageCeph); ok && isNotification {
-		volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 		return os.MkdirAll(volumeMntPoint, 0711)
 
 	}

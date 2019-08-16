@@ -9,9 +9,11 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
+
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -549,7 +551,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	// notified us. We just need to delete the local mountpoint.
 	if s, ok := s.(*storageCeph); ok && isClusterNotification(r) {
 		// Delete the mountpoint for the storage pool.
-		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+		poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
 		if shared.PathExists(poolMntPoint) {
 			err := os.RemoveAll(poolMntPoint)
 			if err != nil {

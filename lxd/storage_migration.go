@@ -10,6 +10,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -65,7 +66,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 
 		for _, snap := range snapshots {
 			wrapper := StorageProgressReader(op, "fs_progress", snap)
-			path := getStoragePoolVolumeSnapshotMountPoint(pool.Name, snap)
+			path := driver.GetStoragePoolVolumeSnapshotMountPoint(pool.Name, snap)
 			path = shared.AddSlash(path)
 			logger.Debugf("Starting to send storage volume snapshot %s on storage pool %s from %s", snap, pool.Name, path)
 
@@ -77,7 +78,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 	}
 
 	wrapper := StorageProgressReader(op, "fs_progress", volume.Name)
-	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
+	path := driver.GetStoragePoolVolumeMountPoint(pool.Name, volume.Name)
 	path = shared.AddSlash(path)
 	logger.Debugf("Starting to send storage volume %s on storage pool %s from %s", volume.Name, pool.Name, path)
 	err = RsyncSend(volume.Name, path, conn, wrapper, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
@@ -255,7 +256,7 @@ func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args Migrati
 			}
 
 			wrapper := StorageProgressWriter(op, "fs_progress", target.Name)
-			path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
+			path := driver.GetStoragePoolVolumeMountPoint(pool.Name, volume.Name)
 			path = shared.AddSlash(path)
 			logger.Debugf("Starting to receive storage volume snapshot %s on storage pool %s into %s", target.Name, pool.Name, path)
 
@@ -272,7 +273,7 @@ func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args Migrati
 	}
 
 	wrapper := StorageProgressWriter(op, "fs_progress", volume.Name)
-	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
+	path := driver.GetStoragePoolVolumeMountPoint(pool.Name, volume.Name)
 	path = shared.AddSlash(path)
 	logger.Debugf("Starting to receive storage volume %s on storage pool %s into %s", volume.Name, pool.Name, path)
 	return RsyncRecv(path, conn, wrapper, args.RsyncFeatures)
