@@ -779,13 +779,13 @@ func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
 	return config, nil
 }
 
-// LegacyContainersList returns the names of all the containers of the given type.
+// LegacyContainersList returns the names of all the containers.
 //
 // NOTE: this is a pre-projects legacy API that is used only by patches. Don't
 // use it for new code.
-func (c *Cluster) LegacyContainersList(cType ContainerType) ([]string, error) {
+func (c *Cluster) LegacyContainersList() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
-	inargs := []interface{}{cType}
+	inargs := []interface{}{CTypeRegular}
 	var container string
 	outfmt := []interface{}{container}
 	result, err := queryScan(c.db, q, inargs, outfmt)
@@ -796,6 +796,34 @@ func (c *Cluster) LegacyContainersList(cType ContainerType) ([]string, error) {
 	var ret []string
 	for _, container := range result {
 		ret = append(ret, container[0].(string))
+	}
+
+	return ret, nil
+}
+
+// LegacySnapshotsList returns the names of all the snapshots.
+//
+// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
+// use it for new code.
+func (c *Cluster) LegacySnapshotsList() ([]string, error) {
+	q := fmt.Sprintf(`
+SELECT instances.name, instances_snapshots.name
+FROM instances_snapshots
+JOIN instances ON instances.id = instances_snapshots.instance_id
+WHERE type=? ORDER BY instances.name, instances_snapshots.name
+`)
+	inargs := []interface{}{CTypeRegular}
+	var container string
+	var snapshot string
+	outfmt := []interface{}{container, snapshot}
+	result, err := queryScan(c.db, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []string
+	for _, r := range result {
+		ret = append(ret, r[0].(string)+shared.SnapshotDelimiter+r[1].(string))
 	}
 
 	return ret, nil
