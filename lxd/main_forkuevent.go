@@ -221,8 +221,8 @@ func (c *cmdForkuevent) Command() *cobra.Command {
 
 	// pull
 	cmdInject := &cobra.Command{}
-	cmdInject.Use = "inject <PID> <len> <uevent>"
-	cmdInject.Args = cobra.ExactArgs(3)
+	cmdInject.Use = "inject <PID> <len> <uevent parts>..."
+	cmdInject.Args = cobra.MinimumNArgs(3)
 	cmdInject.RunE = c.Run
 	cmd.AddCommand(cmdInject)
 
