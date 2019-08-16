@@ -956,15 +956,14 @@ func (c *ClusterTx) ContainerGetSnapshotsFull(project string, name string) ([]In
 // ContainerNextSnapshot returns the index the next snapshot of the container
 // with the given name and pattern should have.
 func (c *Cluster) ContainerNextSnapshot(project string, name string, pattern string) int {
-	base := name + shared.SnapshotDelimiter
-	length := len(base)
 	q := `
-SELECT instances.name
-  FROM instances
+SELECT instances_snapshots.name
+  FROM instances_snapshots
+  JOIN instances ON instances.id = instances_snapshots.instance_id
   JOIN projects ON projects.id = instances.project_id
- WHERE projects.name=? AND instances.type=? AND SUBSTR(instances.name,1,?)=?`
+WHERE projects.name=? AND instances.name=?`
 	var numstr string
-	inargs := []interface{}{project, CTypeSnapshot, length, base}
+	inargs := []interface{}{project, name}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -973,7 +972,7 @@ SELECT instances.name
 	max := 0
 
 	for _, r := range results {
-		snapOnlyName := strings.SplitN(r[0].(string), shared.SnapshotDelimiter, 2)[1]
+		snapOnlyName := r[0].(string)
 		fields := strings.SplitN(pattern, "%d", 2)
 
 		var num int
