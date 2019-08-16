@@ -1998,7 +1998,7 @@ func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
 }
 
 // deviceAddCgroupRules live adds cgroup rules to a container.
-func (c *containerLXC) deviceAddCgroupRules(configCopy map[string]string, cgroups []device.RunConfigItem) error {
+func (c *containerLXC) deviceAddCgroupRules(cgroups []device.RunConfigItem) error {
 	for _, rule := range cgroups {
 		// Only apply devices cgroup rules if container is running privileged and host has devices cgroup controller.
 		if strings.HasPrefix(rule.Key, "devices.") && (!c.isCurrentlyPrivileged() || c.state.OS.RunningInUserNS || !c.state.OS.CGroupDevicesController) {
@@ -2098,7 +2098,7 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 
 		// Add cgroup rules if requested and container is running.
 		if len(runConf.CGroups) > 0 && stopHookNetnsPath == "" {
-			err = c.deviceAddCgroupRules(configCopy, runConf.CGroups)
+			err = c.deviceAddCgroupRules(runConf.CGroups)
 			if err != nil {
 				return err
 			}
@@ -2106,7 +2106,7 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 
 		// Detach mounts if requested and container is running.
 		if len(runConf.Mounts) > 0 && stopHookNetnsPath == "" {
-			err = c.deviceDetachMounts(configCopy, runConf.Mounts)
+			err = c.deviceHandleMounts(runConf.Mounts)
 			if err != nil {
 				return err
 			}
