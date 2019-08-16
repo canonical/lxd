@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	"github.com/pborman/uuid"
 )
 
 type rbdMigrationSourceDriver struct {
@@ -301,7 +301,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		}
 		logger.Debugf(`Received RBD storage volume "%s"`, curSnapName)
 
-		snapshotMntPoint := getSnapshotMountPoint(args.Container.Project(), s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
+		snapshotMntPoint := driver.GetSnapshotMountPoint(args.Container.Project(), s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
 			err := os.MkdirAll(snapshotMntPoint, 0700)
 			if err != nil {
@@ -351,7 +351,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(
 		containerMntPoint,
 		args.Container.Path(),

@@ -13,8 +13,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -467,7 +467,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 	poolVolumePut.Config["volatile.idmap.next"] = nextJsonMap
 
 	// get mountpoint of storage volume
-	remapPath := getStoragePoolVolumeMountPoint(poolName, volumeName)
+	remapPath := driver.GetStoragePoolVolumeMountPoint(poolName, volumeName)
 
 	if !nextIdmap.Equals(lastIdmap) {
 		logger.Debugf("Shifting storage volume")
@@ -605,36 +605,6 @@ func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName s
 	}
 
 	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)
-}
-
-// {LXD_DIR}/storage-pools/<pool>
-func getStoragePoolMountPoint(poolName string) string {
-	return shared.VarPath("storage-pools", poolName)
-}
-
-// ${LXD_DIR}/storage-pools/<pool>/containers/[<project_name>_]<container_name>
-func getContainerMountPoint(projectName string, poolName string, containerName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers", project.Prefix(projectName, containerName))
-}
-
-// ${LXD_DIR}/storage-pools/<pool>/containers-snapshots/<snapshot_name>
-func getSnapshotMountPoint(projectName, poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Prefix(projectName, snapshotName))
-}
-
-// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>
-func getImageMountPoint(poolName string, fingerprint string) string {
-	return shared.VarPath("storage-pools", poolName, "images", fingerprint)
-}
-
-// ${LXD_DIR}/storage-pools/<pool>/custom/<storage_volume>
-func getStoragePoolVolumeMountPoint(poolName string, volumeName string) string {
-	return shared.VarPath("storage-pools", poolName, "custom", volumeName)
-}
-
-// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>
-func getStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
 }
 
 func createContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
