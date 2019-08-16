@@ -802,7 +802,7 @@ func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) e
 		}
 
 		for _, snap := range snapshots {
-			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 			err = s.copyVolume(source.Pool, snap, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 			if err != nil {
 				return err
@@ -850,7 +850,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolum
 	}
 
 	// Parse the name
-	sourceName, snapName, ok := containerGetParentAndSnapshotName(target.Name)
+	sourceName, snapName, ok := shared.ContainerGetParentAndSnapshotName(target.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -890,7 +890,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	// Parse the name
-	sourceName, snapName, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, snapName, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -932,7 +932,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotRename(newName string) error {
 	}
 
 	// Rename the snapshot entry
-	sourceName, oldSnapName, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, oldSnapName, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
 	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	oldCephSnapPath := filepath.Join(sourcePath, ".snap", oldSnapName)
 	newCephSnapPath := filepath.Join(sourcePath, ".snap", newName)
@@ -976,7 +976,7 @@ func (s *storageCephFs) copyVolume(sourcePool string, source string, target stri
 	}
 
 	// Split target name
-	targetVolName, targetSnapName, ok := containerGetParentAndSnapshotName(target)
+	targetVolName, targetSnapName, ok := shared.ContainerGetParentAndSnapshotName(target)
 
 	// Figure out target path
 	dstMountPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, targetVolName)

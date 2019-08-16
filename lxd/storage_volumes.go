@@ -123,7 +123,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 		}
 
 		if !recursion {
-			volName, snapName, ok := containerGetParentAndSnapshotName(volume.Name)
+			volName, snapName, ok := shared.ContainerGetParentAndSnapshotName(volume.Name)
 			if ok {
 				resultString = append(resultString,
 					fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s",

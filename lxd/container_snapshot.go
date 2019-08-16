@@ -43,7 +43,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		}
 
 		for _, snap := range snaps {
-			_, snapName, _ := containerGetParentAndSnapshotName(snap)
+			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 			if project == "default" {
 				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
 				resultString = append(resultString, url)
@@ -325,7 +325,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		}
 
 		if reqNew.Live {
-			sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
+			sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(containerName)
 			if sourceName != reqNew.Name {
 				return BadRequest(fmt.Errorf(`Copying `+
 					`stateful containers requires that `+
