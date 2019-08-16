@@ -353,36 +353,18 @@ SELECT instances.name, nodes.name
 // SnapshotIDsAndNames returns a map of snapshot IDs to snapshot names for the
 // container with the given name.
 func (c *ClusterTx) SnapshotIDsAndNames(project, name string) (map[int]string, error) {
-	prefix := name + shared.SnapshotDelimiter
-	length := len(prefix)
-	objects := make([]struct {
-		ID   int
-		Name string
-	}, 0)
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			ID   int
-			Name string
-		}{})
-		return []interface{}{&objects[i].ID, &objects[i].Name}
+	filter := InstanceSnapshotFilter{
+		Project:  project,
+		Instance: name,
 	}
-	stmt, err := c.tx.Prepare(`
-SELECT instances.id, instances.name
-FROM instances
-JOIN projects ON projects.id = instances.project_id
-WHERE SUBSTR(instances.name,1,?)=? AND instances.type=? AND projects.name=?
-`)
+	objects, err := c.InstanceSnapshotList(filter)
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
-	err = query.SelectObjects(stmt, dest, length, prefix, CTypeSnapshot, project)
-	if err != nil {
-		return nil, err
-	}
+
 	result := make(map[int]string)
 	for i := range objects {
-		result[objects[i].ID] = strings.Split(objects[i].Name, shared.SnapshotDelimiter)[1]
+		result[objects[i].ID] = objects[i].Name
 	}
 	return result, nil
 }
