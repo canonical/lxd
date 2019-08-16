@@ -1896,7 +1896,9 @@ func (c *containerLXC) deviceAdd(deviceName string, rawConfig map[string]string)
 	return d.Add()
 }
 
-// deviceStart loads a new device and calls its Start() function.
+// deviceStart loads a new device and calls its Start() function. After processing the runtime
+// config returned from Start(), it also runs the device's Register() function irrespective of
+// whether the container is running or not.
 func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]string, isRunning bool) (*device.RunConfig, error) {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
@@ -1927,7 +1929,7 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		if isRunning {
 			// Attach mounts if requested.
 			if len(runConf.Mounts) > 0 {
-				err = c.deviceAttachMounts(configCopy, runConf.Mounts)
+				err = c.deviceHandleMounts(runConf.Mounts)
 				if err != nil {
 					return nil, err
 				}
@@ -1935,7 +1937,7 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 
 			// Add cgroup rules if requested.
 			if len(runConf.CGroups) > 0 {
-				err = c.deviceAddCgroupRules(configCopy, runConf.CGroups)
+				err = c.deviceAddCgroupRules(runConf.CGroups)
 				if err != nil {
 					return nil, err
 				}
@@ -1956,6 +1958,12 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 				return nil, err
 			}
 		}
+	}
+
+	// Check whether device wants to register for any events irrespective of instance run state.
+	err = d.Register()
+	if err != nil {
+		return nil, err
 	}
 
 	return runConf, nil
