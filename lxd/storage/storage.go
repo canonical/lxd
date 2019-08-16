@@ -4,8 +4,92 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
+
+var backends = map[string]driver{
+	"dir": &dir{},
+}
+
+// VolumeType defines the type of a volume
+type VolumeType int
+
+const (
+	// VolumeTypeContainer represents the container type.
+	VolumeTypeContainer VolumeType = iota
+	// VolumeTypeContainerSnapshot represents the container snapshot type.
+	VolumeTypeContainerSnapshot
+	// VolumeTypeCustom represents a custom volume type.
+	VolumeTypeCustom
+	// VolumeTypeCustomSnapshot represents a custom volume snapshot type.
+	VolumeTypeCustomSnapshot
+	// VolumeTypeImage represents an image type.
+	VolumeTypeImage
+	// VolumeTypeImageSnapshot represents an image snapshot type.
+	VolumeTypeImageSnapshot
+)
+
+type driver interface {
+	Driver
+
+	commonInit(s *state.State, pool *api.StoragePool, poolID int64, volume *api.StorageVolume)
+	init() error
+
+	UsesThinpool() bool
+	GetBlockFilesystem() string
+}
+
+// Driver represents a storage backend.
+type Driver interface {
+	GetVersion() string
+
+	StoragePoolCheck() error
+	StoragePoolCreate() error
+	StoragePoolDelete() error
+	StoragePoolMount() (bool, error)
+	StoragePoolUmount() (bool, error)
+	StoragePoolResources() (*api.ResourcesStoragePool, error)
+	StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error
+
+	VolumeCreate(project string, volumeName string, volumeType VolumeType) error
+	VolumeCopy(project, source string, target string, snapshots []string, volumeType VolumeType) error
+	VolumeDelete(project string, volumeName string, recursive bool, volumeType VolumeType) error
+	VolumeRename(project string, oldName string, newName string, snapshots []string, volumeType VolumeType) error
+	VolumeMount(project string, name string, volumeType VolumeType) (bool, error)
+	VolumeUmount(project string, name string, volumeType VolumeType) (bool, error)
+	VolumeGetUsage(project, name, path string) (int64, error)
+	VolumeSetQuota(project, name string, size int64, userns bool, volumeType VolumeType) error
+	VolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error
+	VolumeReady(project string, name string) bool
+	VolumePrepareRestore(sourceName string, targetName string, targetSnapshots []string, f func() error) error
+	VolumeRestore(project string, sourceName string, targetName string, volumeType VolumeType) error
+	VolumeSnapshotCreate(project string, source string, target string, volumeType VolumeType) error
+	VolumeSnapshotCopy(project, source string, target string, volumeType VolumeType) error
+	VolumeSnapshotDelete(project string, volumeName string, recursive bool, volumeType VolumeType) error
+	VolumeSnapshotRename(project string, oldName string, newName string, volumeType VolumeType) error
+	VolumeBackupCreate(path string, project string, source string, snapshots []string, optimized bool) error
+	VolumeBackupLoad(backupDir string, project string, containerName string, snapshots []string, privileged bool, optimized bool) error
+}
+
+// Init initializes a storage backend.
+func Init(driverName string, s *state.State, pool *api.StoragePool, poolID int64, volume *api.StorageVolume) (Driver, error) {
+	storageDriver := backends[driverName]
+
+	if storageDriver == nil {
+		return nil, ErrUnsupportedStorageDriver
+	}
+
+	storageDriver.commonInit(s, pool, poolID, volume)
+
+	err := storageDriver.init()
+	if err != nil {
+		return nil, err
+	}
+
+	return storageDriver, nil
+}
 
 // ContainerPath returns the directory of a container or snapshot.
 func ContainerPath(name string, isSnapshot bool) string {
