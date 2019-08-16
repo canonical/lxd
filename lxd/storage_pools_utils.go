@@ -111,7 +111,7 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 		switch apiEndpoint {
 		case storagePoolVolumeAPIEndpointContainers:
 			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
-				parentName, snapOnlyName, _ := containerGetParentAndSnapshotName(volumes[i].Name)
+				parentName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(volumes[i].Name)
 				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, parentName, snapOnlyName)
 			} else {
 				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, volumes[i].Name)
@@ -242,7 +242,7 @@ func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription s
 	// done by the node that triggered this notification. We just need to
 	// create the storage pool directory.
 	if s, ok := s.(*storageCeph); ok && isNotification {
-		volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 		return os.MkdirAll(volumeMntPoint, 0711)
 
 	}

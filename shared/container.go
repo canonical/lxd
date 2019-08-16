@@ -410,3 +410,14 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 
 	return nil, fmt.Errorf("Unknown configuration key: %s", key)
 }
+
+// ContainerGetParentAndSnapshotName returns the parent container name, snapshot
+// name, and whether it actually was a snapshot name.
+func ContainerGetParentAndSnapshotName(name string) (string, string, bool) {
+	fields := strings.SplitN(name, SnapshotDelimiter, 2)
+	if len(fields) == 1 {
+		return name, "", false
+	}
+
+	return fields[0], fields[1], true
+}

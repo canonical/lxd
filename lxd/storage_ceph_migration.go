@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	"github.com/pborman/uuid"
 )
 
 type rbdMigrationSourceDriver struct {
@@ -80,7 +80,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	if s.container.IsSnapshot() {
 		// ContainerSnapshotStart() will create the clone that is
 		// referenced by sendName here.
-		containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
+		containerOnlyName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(containerName)
 		sendName := fmt.Sprintf(
 			"%s/snapshots_%s_%s_start_clone",
 			s.ceph.OSDPoolName,
@@ -301,7 +301,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		}
 		logger.Debugf(`Received RBD storage volume "%s"`, curSnapName)
 
-		snapshotMntPoint := getSnapshotMountPoint(args.Container.Project(), s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
+		snapshotMntPoint := driver.GetSnapshotMountPoint(args.Container.Project(), s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
 			err := os.MkdirAll(snapshotMntPoint, 0700)
 			if err != nil {
@@ -314,7 +314,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, project.Prefix(args.Container.Project(), containerName), storagePoolVolumeTypeNameContainer, s.UserName)
 		if err == nil {
 			for _, snap := range snaps {
-				snapOnlyName, _, _ := containerGetParentAndSnapshotName(snap)
+				snapOnlyName, _, _ := shared.ContainerGetParentAndSnapshotName(snap)
 				if !strings.HasPrefix(snapOnlyName, "migration-send") {
 					continue
 				}
@@ -351,7 +351,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(
 		containerMntPoint,
 		args.Container.Path(),

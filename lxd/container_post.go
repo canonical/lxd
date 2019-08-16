@@ -14,6 +14,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -528,14 +529,14 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 		return errors.Wrap(err, "Failed to create container snapshot names")
 	}
 
-	containerMntPoint := getContainerMountPoint(c.Project(), poolName, containerName)
+	containerMntPoint := driver.GetContainerMountPoint(c.Project(), poolName, containerName)
 	err = createContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
 	if err != nil {
 		return errors.Wrap(err, "Failed to create container mount point on target node")
 	}
 
 	for _, snapshotName := range snapshotNames {
-		mntPoint := getSnapshotMountPoint(project, poolName, snapshotName)
+		mntPoint := driver.GetSnapshotMountPoint(project, poolName, snapshotName)
 		snapshotsSymlinkTarget := shared.VarPath("storage-pools",
 			poolName, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
