@@ -1,9 +1,13 @@
 package db_test
 
 import (
+	"context"
 	"database/sql"
+	"net"
 	"testing"
+	"time"
 
+	dqlite "github.com/canonical/go-dqlite"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
@@ -40,11 +44,18 @@ func TestImportPreClusteringData(t *testing.T) {
 	dump, err := db.LoadPreClusteringData(tx)
 	require.NoError(t, err)
 
-	cluster, cleanup := db.NewTestCluster(t)
+	dir, store, cleanup := db.NewTestDqliteServer(t)
 	defer cleanup()
 
-	err = cluster.ImportPreClusteringData(dump)
+	dial := func(ctx context.Context, address string) (net.Conn, error) {
+		return net.Dial("unix", address)
+	}
+
+	cluster, err := db.OpenCluster(
+		"test.db", store, "1", dir, 5*time.Second, dump,
+		dqlite.WithDialFunc(dial))
 	require.NoError(t, err)
+	defer cluster.Close()
 
 	// certificates
 	certs, err := cluster.CertificatesGet()

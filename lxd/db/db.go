@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -207,6 +210,30 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 		case <-timer:
 			return nil, fmt.Errorf("failed to connect to cluster database")
 		default:
+		}
+	}
+
+	if dump != nil {
+		logger.Infof("Migrating data from local to global database")
+		err := query.Transaction(db, func(tx *sql.Tx) error {
+			return importPreClusteringData(tx, dump)
+		})
+		if err != nil {
+			// Restore the local sqlite3 backup and wipe the raft
+			// directory, so users can fix problems and retry.
+			path := filepath.Join(dir, "local.db")
+			copyErr := shared.FileCopy(path+".bak", path)
+			if copyErr != nil {
+				// Ignore errors here, there's not much we can do
+				logger.Errorf("Failed to restore local database: %v", copyErr)
+			}
+			rmErr := os.RemoveAll(filepath.Join(dir, "global"))
+			if rmErr != nil {
+				// Ignore errors here, there's not much we can do
+				logger.Errorf("Failed to cleanup global database: %v", rmErr)
+			}
+
+			return nil, errors.Wrap(err, "Failed to migrate data to global database")
 		}
 	}
 
