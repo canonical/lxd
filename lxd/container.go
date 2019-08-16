@@ -1068,6 +1068,41 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			return fmt.Errorf("Project %q does not exist", args.Project)
 		}
 
+		if args.Ctype == db.CTypeSnapshot {
+			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
+			instanceName := parts[0]
+			snapshotName := parts[1]
+			instance, err := tx.InstanceGet(args.Project, instanceName)
+			if err != nil {
+				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
+			}
+			snapshot := db.InstanceSnapshot{
+				Project:      args.Project,
+				Instance:     instanceName,
+				Name:         snapshotName,
+				CreationDate: args.CreationDate,
+				Stateful:     args.Stateful,
+				Description:  args.Description,
+				Config:       args.Config,
+				Devices:      args.Devices,
+				ExpiryDate:   args.ExpiryDate,
+			}
+			_, err = tx.InstanceSnapshotCreate(snapshot)
+			if err != nil {
+				return errors.Wrap(err, "Add snapshot info to the database")
+			}
+
+			// Read back the snapshot, to get ID and creation time.
+			s, err := tx.InstanceSnapshotGet(args.Project, instanceName, snapshotName)
+			if err != nil {
+				return errors.Wrap(err, "Fetch created snapshot from the database")
+			}
+
+			container = db.InstanceSnapshotToInstance(instance, s)
+
+			return nil
+		}
+
 		// Create the container entry
 		container = db.Instance{
 			Project:      args.Project,
