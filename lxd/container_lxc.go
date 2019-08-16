@@ -2632,7 +2632,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	c.removeUnixDevices()
 	c.removeDiskDevices()
 
-	var usbs []usbDevice
 	diskDevices := map[string]config.Device{}
 
 	// Create the devices
@@ -2679,24 +2678,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 					if err != nil {
 						return "", postStartHooks, fmt.Errorf("Failed to add cgroup rule for device")
 					}
-				}
-			}
-		} else if m["type"] == "usb" {
-			if usbs == nil {
-				usbs, err = deviceLoadUsb()
-				if err != nil {
-					return "", postStartHooks, err
-				}
-			}
-
-			for _, usb := range usbs {
-				if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
-					continue
-				}
-
-				err := c.setupUnixDevice(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path, shared.IsTrue(m["required"]), false)
-				if err != nil {
-					return "", postStartHooks, err
 				}
 			}
 		} else if m["type"] == "disk" {
@@ -5022,8 +5003,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			}
 		}
 
-		var usbs []usbDevice
-
 		// Live update the devices
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -5046,25 +5025,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
-			} else if m["type"] == "usb" {
-				if usbs == nil {
-					usbs, err = deviceLoadUsb()
-					if err != nil {
-						return err
-					}
-				}
-
-				/* if the device isn't present, we don't need to remove it */
-				for _, usb := range usbs {
-					if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
-						continue
-					}
-
-					err := c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path)
-					if err != nil {
-						return err
-					}
-				}
 			}
 		}
 
@@ -5079,24 +5039,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				diskDevices[k] = m
-			} else if m["type"] == "usb" {
-				if usbs == nil {
-					usbs, err = deviceLoadUsb()
-					if err != nil {
-						return err
-					}
-				}
-
-				for _, usb := range usbs {
-					if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
-						continue
-					}
-
-					err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path, false)
-					if err != nil {
-						logger.Error("Failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
-					}
-				}
 			}
 		}
 
