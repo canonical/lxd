@@ -431,11 +431,12 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			err := tx.ContainerNodeMove(project, oldName, newName, newNode)
 			if err != nil {
-				return err
+				return errors.Wrapf(
+					err, "Move container %s to %s with new name %s", oldName, newNode, newName)
 			}
 			poolName, err = tx.ContainerPool(project, newName)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Get the container's storage pool name for %s", newName)
 			}
 			return nil
 		})
