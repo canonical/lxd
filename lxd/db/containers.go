@@ -366,9 +366,9 @@ SELECT instances.name, nodes.name
 	return result, nil
 }
 
-// SnapshotIDsAndNames returns a map of snapshot IDs to snapshot names for the
+// Returns a map of snapshot IDs to snapshot names for the
 // container with the given name.
-func (c *ClusterTx) SnapshotIDsAndNames(project, name string) (map[int]string, error) {
+func (c *ClusterTx) snapshotIDsAndNames(project, name string) (map[int]string, error) {
 	filter := InstanceSnapshotFilter{
 		Project:  project,
 		Instance: name,
@@ -414,7 +414,7 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
-	snapshots, err := c.SnapshotIDsAndNames(project, oldName)
+	snapshots, err := c.snapshotIDsAndNames(project, oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's snapshots")
 	}
@@ -433,21 +433,6 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	}
 	if n != 1 {
 		return fmt.Errorf("unexpected number of updated rows in instances table: %d", n)
-	}
-	for snapshotID, snapshotName := range snapshots {
-		newSnapshotName := newName + shared.SnapshotDelimiter + snapshotName
-		stmt := "UPDATE instances SET node_id=?, name=? WHERE id=?"
-		result, err := c.tx.Exec(stmt, node.ID, newSnapshotName, snapshotID)
-		if err != nil {
-			return errors.Wrap(err, "failed to update snapshot's name and node ID")
-		}
-		n, err := result.RowsAffected()
-		if err != nil {
-			return errors.Wrap(err, "failed to get rows affected by snapshot update")
-		}
-		if n != 1 {
-			return fmt.Errorf("unexpected number of updated snapshot rows: %d", n)
-		}
 	}
 
 	// No need to update storage_volumes if the name is identical
