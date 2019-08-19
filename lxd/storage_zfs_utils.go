@@ -670,7 +670,7 @@ func (s *storageZfs) doContainerMount(projectName, name string, privileged bool)
 	// Since we're using mount() directly zfs will not automatically create
 	// the mountpoint for us. So let's check and do it if needed.
 	if !shared.PathExists(containerPoolVolumeMntPoint) {
-		err := createContainerMountpoint(containerPoolVolumeMntPoint, shared.VarPath(fs), privileged)
+		err := driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, shared.VarPath(fs), privileged)
 		if err != nil {
 			return false, err
 		}
@@ -810,7 +810,7 @@ func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool
 		return err
 	}
 
-	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
+	err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
 	if err != nil {
 		return err
 	}

@@ -768,7 +768,7 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 
 	// Create mountpoint
 	targetContainerMountPoint := driver.GetContainerMountPoint(target.Project(), s.pool.Name, target.Name())
-	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
+	err = driver.CreateContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -849,7 +849,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 
 	// Create mountpoint
 	targetContainerMountPoint := driver.GetContainerMountPoint(target.Project(), s.pool.Name, target.Name())
-	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
+	err = driver.CreateContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -1763,7 +1763,7 @@ func (s *storageCeph) doContainerCreate(projectName, name string, privileged boo
 
 	containerPath := shared.VarPath("containers", project.Prefix(projectName, name))
 	containerMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, name)
-	err = createContainerMountpoint(containerMntPoint, containerPath, privileged)
+	err = driver.CreateContainerMountpoint(containerMntPoint, containerPath, privileged)
 	if err != nil {
 		logger.Errorf(`Failed to create mountpoint "%s" for RBD storage volume for container "%s" on storage pool "%s": %s"`, containerMntPoint, name, s.pool.Name, err)
 		return err
@@ -1876,7 +1876,7 @@ func (s *storageCeph) doContainerSnapshotCreate(projectName, targetName string, 
 	sourceOnlyName, _, _ := shared.ContainerGetParentAndSnapshotName(sourceName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(projectName, sourceOnlyName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(projectName, sourceOnlyName))
-	err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	err = driver.CreateSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		logger.Errorf(`Failed to create mountpoint "%s", snapshot symlink target "%s", snapshot mountpoint symlink"%s" for RBD storage volume "%s" on storage pool "%s": %s`, targetContainerMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink, s.volume.Name, s.pool.Name, err)

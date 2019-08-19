@@ -965,7 +965,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 		if err != nil {
 			return err
 		}
-		err = createSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = driver.CreateSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return err
 		}
@@ -976,7 +976,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 		if err != nil {
 			return err
 		}
-		err = createContainerMountpoint(containerMntPoint, containerPath, container.IsPrivileged())
+		err = driver.CreateContainerMountpoint(containerMntPoint, containerPath, container.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -1019,7 +1019,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	if err != nil {
 		return errors.Wrapf(err, "Create container mount point directory at %s", containerMntPoint)
 	}
-	err = createContainerMountpoint(containerMntPoint, containerPath, container.IsPrivileged())
+	err = driver.CreateContainerMountpoint(containerMntPoint, containerPath, container.IsPrivileged())
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
 	}
@@ -1878,10 +1878,10 @@ func (s *storageLvm) doContainerBackupLoad(projectName, containerName string, pr
 		cname, _, _ := shared.ContainerGetParentAndSnapshotName(containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(projectName, cname))
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(projectName, cname))
-		err = createSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget,
+		err = driver.CreateSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)
 	} else {
-		err = createContainerMountpoint(containerMntPoint, containerPath, privileged)
+		err = driver.CreateContainerMountpoint(containerMntPoint, containerPath, privileged)
 	}
 	if err != nil {
 		return "", err

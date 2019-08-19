@@ -508,7 +508,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 	}
 
 	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
-	err = createContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
+	err = driver.CreateContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	privileged := container.IsPrivileged()
 	containerName := container.Name()
 	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, containerName)
-	err = createContainerMountpoint(containerMntPoint, container.Path(), privileged)
+	err = driver.CreateContainerMountpoint(containerMntPoint, container.Path(), privileged)
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
 	}
@@ -657,7 +657,7 @@ func (s *storageDir) copyContainer(target container, source container) error {
 	}
 	targetContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
 
-	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	err := driver.CreateContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -691,7 +691,7 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), targetPool, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
-	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	err := driver.CreateSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
 	}
@@ -1027,7 +1027,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
 		s.pool.Name, "containers-snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
-	err = createSnapshotMountpoint(targetContainerMntPoint,
+	err = driver.CreateSnapshotMountpoint(targetContainerMntPoint,
 		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
@@ -1222,7 +1222,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 
 	// Create mountpoints
 	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, info.Name)
-	err = createContainerMountpoint(containerMntPoint, driver.ContainerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
+	err = driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
 	}
@@ -1248,7 +1248,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name,
 			"containers-snapshots", project.Prefix(info.Project, info.Name))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(info.Project, info.Name))
-		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
+		err := driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)
 		if err != nil {
 			return err

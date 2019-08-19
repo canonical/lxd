@@ -900,7 +900,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	privileged := container.IsPrivileged()
-	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
+	err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
 	if err != nil {
 		return err
 	}
@@ -988,7 +988,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			defer s.ContainerUmount(target, targetContainerPath)
 		}
 
-		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
+		err = driver.CreateContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -1119,7 +1119,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
-	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
+	err = driver.CreateContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -1134,7 +1134,7 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
-	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	err := driver.CreateSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
 	}
@@ -1291,7 +1291,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 		targetContainerName := target.Name()
 		targetContainerPath := target.Path()
 		targetContainerMountPoint := driver.GetContainerMountPoint(target.Project(), s.pool.Name, targetContainerName)
-		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
+		err = driver.CreateContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -2132,7 +2132,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := shared.ContainerGetParentAndSnapshotName(info.Name)
 	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, containerName)
-	err := createContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
+	err := driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -2192,7 +2192,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 		snapshotMntPoint := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, fmt.Sprintf("%s/%s", containerName, snapshotOnlyName))
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(info.Project, containerName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(info.Project, containerName))
-		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			// can't use defer because it needs to run before the mount
 			os.RemoveAll(unpackPath)
