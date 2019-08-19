@@ -836,7 +836,7 @@ func (s *storageBtrfs) doContainerCreate(projectName, name string, privileged bo
 
 	// Create the mountpoint for the container at:
 	// ${LXD_DIR}/containers/<name>
-	err = createContainerMountpoint(containerSubvolumeName, shared.VarPath("containers", project.Prefix(projectName, name)), privileged)
+	err = driver.CreateContainerMountpoint(containerSubvolumeName, shared.VarPath("containers", project.Prefix(projectName, name)), privileged)
 	if err != nil {
 		return err
 	}
@@ -925,7 +925,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 
 	// Create the mountpoint for the container at:
 	// ${LXD_DIR}/containers/<name>
-	err = createContainerMountpoint(containerSubvolumeName, container.Path(), container.IsPrivileged())
+	err = driver.CreateContainerMountpoint(containerSubvolumeName, container.Path(), container.IsPrivileged())
 	if err != nil {
 		return errors.Wrap(err, "Failed to create container mountpoint")
 	}
@@ -1006,7 +1006,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 		return err
 	}
 
-	err = createContainerMountpoint(targetContainerSubvolumeName, target.Path(), target.IsPrivileged())
+	err = driver.CreateContainerMountpoint(targetContainerSubvolumeName, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -1029,7 +1029,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
-	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	err := driver.CreateSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
 	}
@@ -1581,7 +1581,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(snapshotContainer.Project(), sourceName))
 	if !shared.PathExists(snapshotMntPointSymlink) {
-		err := createContainerMountpoint(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink, snapshotContainer.IsPrivileged())
+		err := driver.CreateContainerMountpoint(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink, snapshotContainer.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -1857,7 +1857,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 		snapshotMntPoint := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, containerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(info.Project, containerName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(info.Project, containerName))
-		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			feeder.Close()
 			return err
@@ -1900,7 +1900,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 	}
 
 	// Create mountpoints
-	err = createContainerMountpoint(containerMntPoint, shared.VarPath("containers", project.Prefix(info.Project, info.Name)), info.Privileged)
+	err = driver.CreateContainerMountpoint(containerMntPoint, shared.VarPath("containers", project.Prefix(info.Project, info.Name)), info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -2777,7 +2777,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 
 			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(args.Container.Project(), containerName))
 			snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(args.Container.Project(), containerName))
-			err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+			err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
 				return err
 			}

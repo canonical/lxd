@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"os"
+
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 )
@@ -48,4 +50,62 @@ func GetStoragePoolVolumeMountPoint(poolName string, volumeName string) string {
 // ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>
 func GetStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
+}
+
+// CreateContainerMountpoint creates the provided container mountpoint and symlink.
+func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
+	var mode os.FileMode
+	if privileged {
+		mode = 0700
+	} else {
+		mode = 0711
+	}
+
+	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)
+	mntPointSymlinkTargetExist := shared.PathExists(mountPoint)
+
+	var err error
+	if !mntPointSymlinkTargetExist {
+		err = os.MkdirAll(mountPoint, 0711)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = os.Chmod(mountPoint, mode)
+	if err != nil {
+		return err
+	}
+
+	if !mntPointSymlinkExist {
+		err := os.Symlink(mountPoint, mountPointSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CreateSnapshotMountpoint creates the provided container snapshot mountpoint
+// and symlink.
+func CreateSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget string, snapshotsSymlink string) error {
+	snapshotMntPointExists := shared.PathExists(snapshotMountpoint)
+	mntPointSymlinkExist := shared.PathExists(snapshotsSymlink)
+
+	if !snapshotMntPointExists {
+		err := os.MkdirAll(snapshotMountpoint, 0711)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !mntPointSymlinkExist {
+		err := os.Symlink(snapshotsSymlinkTarget, snapshotsSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

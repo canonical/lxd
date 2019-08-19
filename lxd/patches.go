@@ -524,7 +524,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// ${LXD_DIR}/containers/<container_name> to
 		// ${LXD_DIR}/storage-pools/<pool>/containers/<container_name>
 		doesntMatter := false
-		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
+		err = driver.CreateContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			return err
 		}
@@ -808,7 +808,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		doesntMatter := false
-		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
+		err = driver.CreateContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			return err
 		}
@@ -855,7 +855,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Create a symlink for this container.  snapshots.
-		err = createSnapshotMountpoint(newSnapshotMntPoint, newSnapshotMntPoint, oldSnapshotMntPoint)
+		err = driver.CreateSnapshotMountpoint(newSnapshotMntPoint, newSnapshotMntPoint, oldSnapshotMntPoint)
 		if err != nil {
 			return err
 		}
@@ -1191,7 +1191,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Create the new container mountpoint.
 		doesntMatter := false
-		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
+		err = driver.CreateContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			logger.Errorf("Failed to create container mountpoint \"%s\" for LVM logical volume: %s", newContainerMntPoint, err)
 			return err
@@ -1632,7 +1632,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// the path but in case it somehow didn't let's do it ourselves.
 		doesntMatter := false
 		newContainerMntPoint := driver.GetContainerMountPoint("default", poolName, ct)
-		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
+		err = driver.CreateContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			logger.Warnf("Failed to create mountpoint for the container: %s", newContainerMntPoint)
 			failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to create container mountpoint: %s", ct, err))

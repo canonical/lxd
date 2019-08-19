@@ -352,7 +352,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	}
 
 	containerMntPoint := driver.GetContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
-	err = createContainerMountpoint(
+	err = driver.CreateContainerMountpoint(
 		containerMntPoint,
 		args.Container.Path(),
 		args.Container.IsPrivileged())

@@ -878,7 +878,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 
 	// Create the mountpoint
 	privileged := container.IsPrivileged()
-	err = createContainerMountpoint(containerPoolVolumeMntPoint,
+	err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint,
 		containerPath, privileged)
 	if err != nil {
 		logger.Errorf(`Failed to create mountpoint "%s" for container "%s" for RBD storage volume: %s`, containerPoolVolumeMntPoint, containerName, err)
@@ -1135,7 +1135,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			target.Project(),
 			s.pool.Name,
 			targetContainerName)
-		err = createContainerMountpoint(
+		err = driver.CreateContainerMountpoint(
 			targetContainerMountPoint,
 			targetContainerPath,
 			target.IsPrivileged())
@@ -1248,7 +1248,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 				"snapshots",
 				project.Prefix(target.Project(), targetContainerName))
 
-			err := createSnapshotMountpoint(
+			err := driver.CreateSnapshotMountpoint(
 				containersPath,
 				snapshotMntPointSymlinkTarget,
 				snapshotMntPointSymlink)
