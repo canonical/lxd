@@ -325,7 +325,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 	}
 
 	// Create the device on the host.
-	ourPrefix := unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+	ourPrefix := unixDeviceJoinPath(typePrefix, deviceName)
 	d, err := UnixDeviceCreate(s, nil, devicesPath, ourPrefix, m, defaultMode)
 	if err != nil {
 		return err
