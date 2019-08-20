@@ -2,13 +2,12 @@ package device
 
 import (
 	"fmt"
-	"io/ioutil"
-	"strconv"
-	"strings"
 
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type infinibandSRIOV struct {
@@ -57,26 +56,41 @@ func (d *infinibandSRIOV) Start() (*RunConfig, error) {
 
 	saveData := make(map[string]string)
 
-	devices, err := infinibandLoadDevices()
+	// Load network interface info.
+	nics, err := resources.GetNetwork()
 	if err != nil {
 		return nil, err
 	}
 
+	// Filter the network interfaces to just infiniband devices related to parent.
+	ibDevs := infinibandDevices(nics, d.config["parent"])
+
+	// We don't count the parent as an available VF.
+	delete(ibDevs, d.config["parent"])
+
+	// Load any interfaces already allocated to other devices.
 	reservedDevices, err := instanceGetReservedDevices(d.state, d.config)
 	if err != nil {
 		return nil, err
 	}
 
-	vfDev, err := d.findFreeVirtualFunction(reservedDevices)
-	if err != nil {
-		return nil, err
+	// Remove reserved devices from available list.
+	for k := range reservedDevices {
+		delete(ibDevs, k)
 	}
 
-	saveData["host_name"] = vfDev
-	ifDev, ok := devices[saveData["host_name"]]
-	if !ok {
-		return nil, fmt.Errorf("Specified infiniband device \"%s\" not found", saveData["host_name"])
+	if len(ibDevs) < 1 {
+		return nil, fmt.Errorf("All virtual functions on parent device are already in use")
 	}
+
+	// Get first VF device that is free.
+	var vfDev *api.ResourcesNetworkCardPort
+	for _, v := range ibDevs {
+		vfDev = v
+		break
+	}
+
+	saveData["host_name"] = vfDev.ID
 
 	// Record hwaddr and mtu before potentially modifying them.
 	err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
@@ -103,7 +117,7 @@ func (d *infinibandSRIOV) Start() (*RunConfig, error) {
 	runConf := RunConfig{}
 
 	// Configure runConf with infiniband setup instructions.
-	err = infinibandAddDevices(d.state, d.instance.DevicesPath(), d.name, &ifDev, &runConf)
+	err = infinibandAddDevices(d.state, d.instance.DevicesPath(), d.name, vfDev, &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -121,74 +135,6 @@ func (d *infinibandSRIOV) Start() (*RunConfig, error) {
 	}
 
 	return &runConf, nil
-}
-
-// findFreeVirtualFunction looks on the specified parent device for an unused virtual function.
-// Returns the name of the interface if found, error if not.
-func (d *infinibandSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) (string, error) {
-	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", d.config["parent"])
-	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", d.config["parent"])
-
-	// Verify that this is indeed a SR-IOV enabled device.
-	if !shared.PathExists(sriovTotalVFs) {
-		return "", fmt.Errorf("Parent device '%s' doesn't support SR-IOV", d.config["parent"])
-	}
-
-	// Get parent dev_port and dev_id values.
-	pfDevPort, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_port", d.config["parent"]))
-	if err != nil {
-		return "", err
-	}
-
-	pfDevID, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/dev_id", d.config["parent"]))
-	if err != nil {
-		return "", err
-	}
-
-	// Get number of currently enabled VFs.
-	sriovNumVfsBuf, err := ioutil.ReadFile(sriovNumVFs)
-	if err != nil {
-		return "", err
-	}
-	sriovNumVfsStr := strings.TrimSpace(string(sriovNumVfsBuf))
-	sriovNum, err := strconv.Atoi(sriovNumVfsStr)
-	if err != nil {
-		return "", err
-	}
-
-	// Check if any VFs are already enabled.
-	nicName := ""
-	for i := 0; i < sriovNum; i++ {
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)) {
-			continue
-		}
-
-		// Check if VF is already in use.
-		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i))
-		if err != nil {
-			return "", err
-		}
-		if empty {
-			continue
-		}
-
-		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)
-		nicName, err = NetworkSRIOVGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
-		if err != nil {
-			return "", err
-		}
-
-		// Found a free VF.
-		if nicName != "" {
-			break
-		}
-	}
-
-	if nicName == "" {
-		return "", fmt.Errorf("All virtual functions on parent device are already in use")
-	}
-
-	return nicName, nil
 }
 
 // Stop is run when the device is removed from the instance.
