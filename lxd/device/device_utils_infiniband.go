@@ -41,6 +41,15 @@ type IBF struct {
 	PerFunDevices  []string
 }
 
+func sysfsExists(path string) bool {
+	_, err := os.Lstat(path)
+	if err == nil {
+		return true
+	}
+
+	return false
+}
+
 // infinibandLoadDevices inspects the system and returns information about all infiniband devices.
 func infinibandLoadDevices() (map[string]IBF, error) {
 	// check if there are any infiniband devices.
@@ -86,6 +95,10 @@ func infinibandLoadDevices() (map[string]IBF, error) {
 	UseableDevices := make(map[string]IBF)
 	for _, IBDevName := range IBDevNames {
 		IBDevResourceFile := fmt.Sprintf("/sys/class/infiniband/%s/device/resource", IBDevName)
+		if !sysfsExists(IBDevResourceFile) {
+			continue
+		}
+
 		IBDevResourceBuf, err := ioutil.ReadFile(IBDevResourceFile)
 		if err != nil {
 			return nil, err
@@ -93,11 +106,12 @@ func infinibandLoadDevices() (map[string]IBF, error) {
 
 		for _, NetDevName := range NetDevNames {
 			NetDevResourceFile := fmt.Sprintf("/sys/class/net/%s/device/resource", NetDevName)
+			if !sysfsExists(NetDevResourceFile) {
+				continue
+			}
+
 			NetDevResourceBuf, err := ioutil.ReadFile(NetDevResourceFile)
 			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
 				return nil, err
 			}
 
