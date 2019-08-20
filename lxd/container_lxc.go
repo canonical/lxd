@@ -2267,6 +2267,44 @@ func (c *containerLXC) deviceVolatileSetFunc(devName string) func(save map[strin
 	}
 }
 
+// deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
+// that it is removed then added immediately afterwards.
+func (c *containerLXC) deviceResetVolatile(devName string, oldConfig, newConfig config.Device) error {
+	volatileClear := make(map[string]string)
+	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
+
+	// If the device type has changed, remove all old volatile keys.
+	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
+	// if the device type is being changed but keeping the same name.
+	if newConfig["type"] != oldConfig["type"] || newConfig["nictype"] != oldConfig["nictype"] {
+		for k := range c.localConfig {
+			if !strings.HasPrefix(k, devicePrefix) {
+				continue
+			}
+
+			volatileClear[k] = ""
+		}
+
+		return c.VolatileSet(volatileClear)
+	}
+
+	// If the device type remains the same, then just remove any volatile keys that have
+	// the same key name present in the new config (i.e the new config is replacing the
+	// old volatile key).
+	for k := range c.localConfig {
+		if !strings.HasPrefix(k, devicePrefix) {
+			continue
+		}
+
+		devKey := strings.TrimPrefix(k, devicePrefix)
+		if _, found := newConfig[devKey]; found {
+			volatileClear[k] = ""
+		}
+	}
+
+	return c.VolatileSet(volatileClear)
+}
+
 // DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
 func (c *containerLXC) DeviceEventHandler(runConf *device.RunConfig) error {
 	// Device events can only be processed when the container is running.
@@ -5085,45 +5123,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 	}
 
-	// Cleanup any leftover volatile entries
-	netNames := []string{}
-	for _, k := range c.expandedDevices.DeviceNames() {
-		v := c.expandedDevices[k]
-		if v["type"] == "nic" || v["type"] == "infiniband" {
-			netNames = append(netNames, k)
-		}
-	}
-
-	for k := range c.localConfig {
-		// We only care about volatile
-		if !strings.HasPrefix(k, "volatile.") {
-			continue
-		}
-
-		// Confirm it's a key of format volatile.<device>.<key>
-		fields := strings.SplitN(k, ".", 3)
-		if len(fields) != 3 {
-			continue
-		}
-
-		// The only device keys we care about are name and hwaddr
-		if !shared.StringInSlice(fields[2], []string{"name", "hwaddr", "host_name"}) {
-			continue
-		}
-
-		// Check if the device still exists
-		if shared.StringInSlice(fields[1], netNames) {
-			// Don't remove the volatile entry if the device doesn't have the matching field set
-			if c.expandedDevices[fields[1]][fields[2]] == "" {
-				continue
-			}
-		}
-
-		// Remove the volatile key from the in-memory configs
-		delete(c.localConfig, k)
-		delete(c.expandedConfig, k)
-	}
-
 	// Finally, apply the changes to the database
 	err = query.Retry(func() error {
 		tx, err := c.state.Cluster.Begin()
@@ -5276,6 +5275,14 @@ func (c *containerLXC) updateDevices(removeDevices map[string]config.Device, add
 		err := c.deviceRemove(k, m)
 		if err != nil && err != device.ErrUnsupportedDevType {
 			return errors.Wrapf(err, "Failed to remove device '%s'", k)
+		}
+
+		// Check whether we are about to add the same device back with updated config and
+		// if not, or if the device type has changed, then remove all volatile keys for
+		// this device (as its an actual removal or a device type change).
+		err = c.deviceResetVolatile(k, m, addDevices[k])
+		if err != nil {
+			return errors.Wrapf(err, "Failed to reset volatile data for device '%s'", k)
 		}
 	}
 
