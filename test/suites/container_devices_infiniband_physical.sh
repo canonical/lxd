@@ -19,8 +19,6 @@ test_container_devices_ib_physical() {
   fi
 
   ctName="nt$$"
-  macRand=$(shuf -i 0-9 -n 1)
-  ctMAC1="a0:00:0a:c0:fe:80:00:00:00:00:00:00:a2:44:3c:1f:b0:15:e2:f${macRand}"
 
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
@@ -30,8 +28,7 @@ test_container_devices_ib_physical() {
   lxc config device add "${ctName}" eth0 infiniband \
     nictype=physical \
     parent="${parent}" \
-    mtu=1500 \
-    hwaddr="${ctMAC1}"
+    mtu=1500
   lxc start "${ctName}"
 
   # Check host devices are created.
@@ -103,8 +100,7 @@ test_container_devices_ib_physical() {
   lxc config device add "${ctName}" eth0 infiniband \
     nictype=physical \
     parent="${parent}" \
-    mtu=1500 \
-    hwaddr="${ctMAC1}"
+    mtu=1500
 
   # Check host devices are created.
   ibDevCount=$(find "${LXD_DIR}"/devices/"${ctName}" -type c | wc -l)
