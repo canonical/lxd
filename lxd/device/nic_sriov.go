@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -224,7 +225,7 @@ func (d *nicSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) 
 		}
 
 		vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)
-		nicName, err = NetworkSRIOVGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
+		nicName, err = d.getFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
 		if err != nil {
 			return "", 0, err
 		}
@@ -250,7 +251,7 @@ func (d *nicSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) 
 		// Use next free VF index.
 		for i := sriovNum + 1; i < sriovTotal; i++ {
 			vfListPath := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", d.config["parent"], i)
-			nicName, err = NetworkSRIOVGetFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
+			nicName, err = d.getFreeVFInterface(reservedDevices, vfListPath, pfDevID, pfDevPort)
 			if err != nil {
 				return "", 0, err
 			}
@@ -268,6 +269,45 @@ func (d *nicSRIOV) findFreeVirtualFunction(reservedDevices map[string]struct{}) 
 	}
 
 	return nicName, vfID, nil
+}
+
+// getFreeVFInterface checks the contents of the VF directory to find a free VF interface name that
+// belongs to the same device and port as the parent. Returns VF interface name or empty string if
+// no free interface found.
+func (d *nicSRIOV) getFreeVFInterface(reservedDevices map[string]struct{}, vfListPath string, pfDevID []byte, pfDevPort []byte) (string, error) {
+	ents, err := ioutil.ReadDir(vfListPath)
+	if err != nil {
+		return "", err
+	}
+
+	for _, ent := range ents {
+		// We can't use this VF interface as it is reserved by another device.
+		_, exists := reservedDevices[ent.Name()]
+		if exists {
+			continue
+		}
+
+		// Get VF dev_port and dev_id values.
+		vfDevPort, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, ent.Name()))
+		if err != nil {
+			return "", err
+		}
+
+		vfDevID, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, ent.Name()))
+		if err != nil {
+			return "", err
+		}
+
+		// Skip VFs if they do not relate to the same device and port as the parent PF.
+		// Some card vendors change the device ID for each port.
+		if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
+			continue
+		}
+
+		return ent.Name(), nil
+	}
+
+	return "", nil
 }
 
 // setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original

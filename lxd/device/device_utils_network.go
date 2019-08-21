@@ -2,7 +2,6 @@ package device
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -653,45 +652,6 @@ func NetworkValidNetworkV6List(value string) error {
 	}
 
 	return nil
-}
-
-// NetworkSRIOVGetFreeVFInterface checks the contents of the VF directory to find a free VF
-// interface name that belongs to the same device and port as the parent.
-// Returns VF interface name or empty string if no free interface found.
-func NetworkSRIOVGetFreeVFInterface(reservedDevices map[string]struct{}, vfListPath string, pfDevID []byte, pfDevPort []byte) (string, error) {
-	ents, err := ioutil.ReadDir(vfListPath)
-	if err != nil {
-		return "", err
-	}
-
-	for _, ent := range ents {
-		// We can't use this VF interface as it is reserved by another device.
-		_, exists := reservedDevices[ent.Name()]
-		if exists {
-			continue
-		}
-
-		// Get VF dev_port and dev_id values.
-		vfDevPort, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_port", vfListPath, ent.Name()))
-		if err != nil {
-			return "", err
-		}
-
-		vfDevID, err := ioutil.ReadFile(fmt.Sprintf("%s/%s/dev_id", vfListPath, ent.Name()))
-		if err != nil {
-			return "", err
-		}
-
-		// Skip VFs if they do not relate to the same device and port as the parent PF.
-		// Some card vendors change the device ID for each port.
-		if bytes.Compare(pfDevPort, vfDevPort) != 0 || bytes.Compare(pfDevID, vfDevID) != 0 {
-			continue
-		}
-
-		return ent.Name(), nil
-	}
-
-	return "", nil
 }
 
 // networkParsePortRange validates a port range in the form n-n.
