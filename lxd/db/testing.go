@@ -116,9 +116,6 @@ func NewTestDqliteServer(t *testing.T) (string, *dqlite.DatabaseServerStore, fun
 	server, err := dqlite.NewServer(info, filepath.Join(dir, "global"))
 	require.NoError(t, err)
 
-	err = server.Bootstrap([]dqlite.ServerInfo{info})
-	require.NoError(t, err)
-
 	err = server.Start(listener)
 	require.NoError(t, err)
 
