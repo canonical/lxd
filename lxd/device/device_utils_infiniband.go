@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
@@ -111,4 +112,51 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 	}
 
 	return nil
+}
+
+// infinibandValidMAC validates an infiniband MAC address. Supports both short and long variants,
+// e.g. "4a:c8:f9:1b:aa:57:ef:19" and "a0:00:0f:c0:fe:80:00:00:00:00:00:00:4a:c8:f9:1b:aa:57:ef:19".
+func infinibandValidMAC(value string) error {
+	regexHwaddrLong, err := regexp.Compile("^([0-9a-f]{2}:){19}[0-9a-f]{2}$")
+	if err != nil {
+		return err
+	}
+
+	regexHwaddrShort, err := regexp.Compile("^([0-9a-f]{2}:){7}[0-9a-f]{2}$")
+	if err != nil {
+		return err
+	}
+
+	if regexHwaddrShort.MatchString(value) {
+		return nil
+	}
+
+	if regexHwaddrLong.MatchString(value) {
+		return nil
+	}
+
+	return fmt.Errorf("Invalid value, must be either 8 or 20 bytes of lower case hex separated by colons")
+}
+
+// infinibandSetDevMAC detects whether the supplied MAC is a short or long form variant.
+// If the short form variant is supplied then only the last 8 bytes of the ibDev device's hwaddr
+// are changed. If the long form variant is supplied then the full 20 bytes of the ibDev device's
+// hwaddr are changed.
+func infinibandSetDevMAC(ibDev string, hwaddr string) error {
+	// Handle 20 byte variant, e.g. a0:00:14:c0:fe:80:00:00:00:00:00:00:4a:c8:f9:1b:aa:57:ef:19.
+	if len(hwaddr) == 59 {
+		return NetworkSetDevMAC(ibDev, hwaddr)
+	}
+
+	// Handle 8 byte variant, e.g. 4a:c8:f9:1b:aa:57:ef:19.
+	if len(hwaddr) == 23 {
+		curHwaddr, err := NetworkGetDevMAC(ibDev)
+		if err != nil {
+			return err
+		}
+
+		return NetworkSetDevMAC(ibDev, fmt.Sprintf("%s%s", curHwaddr[:36], hwaddr))
+	}
+
+	return fmt.Errorf("Invalid length")
 }
