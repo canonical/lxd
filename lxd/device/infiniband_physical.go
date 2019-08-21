@@ -5,6 +5,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -54,16 +55,20 @@ func (d *infinibandPhysical) Start() (*RunConfig, error) {
 
 	saveData := make(map[string]string)
 
-	devices, err := infinibandLoadDevices()
+	// Load network interface info.
+	nics, err := resources.GetNetwork()
 	if err != nil {
 		return nil, err
 	}
 
-	saveData["host_name"] = d.config["parent"]
-	ifDev, ok := devices[saveData["host_name"]]
-	if !ok {
-		return nil, fmt.Errorf("Specified infiniband device \"%s\" not found", saveData["host_name"])
+	// Filter the network interfaces to just infiniband devices related to parent.
+	ibDevs := infinibandDevices(nics, d.config["parent"])
+	ibDev, found := ibDevs[d.config["parent"]]
+	if !found {
+		return nil, fmt.Errorf("Specified infiniband device \"%s\" not found", d.config["parent"])
 	}
+
+	saveData["host_name"] = ibDev.ID
 
 	// Record hwaddr and mtu before potentially modifying them.
 	err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
@@ -90,7 +95,7 @@ func (d *infinibandPhysical) Start() (*RunConfig, error) {
 	runConf := RunConfig{}
 
 	// Configure runConf with infiniband setup instructions.
-	err = infinibandAddDevices(d.state, d.instance.DevicesPath(), d.name, &ifDev, &runConf)
+	err = infinibandAddDevices(d.state, d.instance.DevicesPath(), d.name, ibDev, &runConf)
 	if err != nil {
 		return nil, err
 	}

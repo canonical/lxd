@@ -19,9 +19,6 @@ test_container_devices_ib_sriov() {
   fi
 
   ctName="nt$$"
-  macRand=$(shuf -i 0-9 -n 1)
-  ctMAC1="a0:00:0a:a0:fe:80:00:00:00:00:00:00:96:29:52:03:73:4b:81:e${macRand}"
-  ctMAC2="a0:00:0a:c0:fe:80:00:00:00:00:00:00:a2:44:3c:1f:b0:15:e2:f${macRand}"
 
   # Set a known start point config
   ip link set "${parent}" up
@@ -34,13 +31,11 @@ test_container_devices_ib_sriov() {
   lxc config device add "${ctName}" eth0 infiniband \
     nictype=sriov \
     parent="${parent}" \
-    mtu=1500 \
-    hwaddr="${ctMAC1}"
+    mtu=1500
   lxc config device add "${ctName}" eth1 infiniband \
     nictype=sriov \
     parent="${parent}" \
-    mtu=1500 \
-    hwaddr="${ctMAC2}"
+    mtu=1500
   lxc start "${ctName}"
 
   # Check host devices are created.
@@ -113,8 +108,7 @@ test_container_devices_ib_sriov() {
   lxc config device add "${ctName}" eth0 infiniband \
     nictype=sriov \
     parent="${parent}" \
-    mtu=1500 \
-    hwaddr="${ctMAC1}"
+    mtu=1500
 
   # Check host devices are created.
   ibDevCount=$(find "${LXD_DIR}"/devices/"${ctName}" -type c | wc -l)
