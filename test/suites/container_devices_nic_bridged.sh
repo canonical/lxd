@@ -4,7 +4,7 @@ test_container_devices_nic_bridged() {
 
   vethHostName="veth$$"
   ctName="nt$$"
-  ctMAC="0A:92:a7:0d:b7:D9"
+  ctMAC="0a:92:a7:0d:b7:d9"
   ipRand=$(shuf -i 0-9 -n 1)
   brName="lxdt$$"
 
