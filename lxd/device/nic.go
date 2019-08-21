@@ -32,7 +32,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"parent":                  shared.IsAny,
 		"mtu":                     shared.IsAny,
 		"vlan":                    shared.IsAny,
-		"hwaddr":                  shared.IsAny,
+		"hwaddr":                  networkValidMAC,
 		"host_name":               shared.IsAny,
 		"limits.ingress":          shared.IsAny,
 		"limits.egress":           shared.IsAny,

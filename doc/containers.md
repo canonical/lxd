@@ -449,7 +449,7 @@ Key                     | Type      | Default           | Required  | Used by   
 :--                     | :--       | :--               | :--       | :--             | :--           | :--
 nictype                 | string    | -                 | yes       | all             | infiniband    | The device type, one of "physical", or "sriov"
 name                    | string    | kernel assigned   | no        | all             | infiniband    | The name of the interface inside the container
-hwaddr                  | string    | randomly assigned | no        | all             | infiniband    | The MAC address of the new interface
+hwaddr                  | string    | randomly assigned | no        | all             | infiniband    | The MAC address of the new interface. Can be either full 20 byte variant or short 8 byte variant (which will only modify the last 8 bytes of the parent device)
 mtu                     | integer   | parent MTU        | no        | all             | infiniband    | The MTU of the new interface
 parent                  | string    | -                 | yes       | physical, sriov | infiniband    | The name of the host device or bridge
 
