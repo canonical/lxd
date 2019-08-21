@@ -23,8 +23,6 @@ const (
 	Unfreeze ContainerAction = "unfreeze"
 )
 
-var regexHexLc = regexp.MustCompile("^[0-9a-f]+$")
-
 func IsInt64(value string) error {
 	if value == "" {
 		return nil
@@ -147,6 +145,11 @@ func IsOctalFileMode(value string) error {
 func IsDeviceID(value string) error {
 	if value == "" {
 		return nil
+	}
+
+	regexHexLc, err := regexp.Compile("^[0-9a-f]+$")
+	if err != nil {
+		return err
 	}
 
 	if len(value) != 4 || !regexHexLc.MatchString(value) {

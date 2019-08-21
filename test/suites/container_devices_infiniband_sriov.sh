@@ -7,7 +7,7 @@
 # sudo mlxconfig --yes -d /dev/mst/mt4099_pciconf0 set LINK_TYPE_P2=2
 # echo "options mlx4_core num_vfs=4 probe_vf=4" | sudo tee /etc/modprobe.d/mellanox.conf
 # reboot
-test_container_devices_ib_sriov() {
+test_container_devices_infiniband_sriov() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -19,6 +19,8 @@ test_container_devices_ib_sriov() {
   fi
 
   ctName="nt$$"
+  macRand=$(shuf -i 0-9 -n 1)
+  ctMAC="96:29:52:03:73:4b:81:e${macRand}"
 
   # Set a known start point config
   ip link set "${parent}" up
@@ -28,14 +30,17 @@ test_container_devices_ib_sriov() {
 
   # Test basic container with SR-IOV IB. Add 2 devices to check reservation system works.
   lxc init testimage "${ctName}"
+
+  # Name the device eth0 rather than ib0 so that check volatile data reset.
   lxc config device add "${ctName}" eth0 infiniband \
     nictype=sriov \
     parent="${parent}" \
     mtu=1500
-  lxc config device add "${ctName}" eth1 infiniband \
+  lxc config device add "${ctName}" ib1 infiniband \
     nictype=sriov \
     parent="${parent}" \
-    mtu=1500
+    mtu=1500 \
+    hwaddr="${ctMAC}"
   lxc start "${ctName}"
 
   # Check host devices are created.
@@ -49,6 +54,12 @@ test_container_devices_ib_sriov() {
   ibMountCount=$(lxc exec "${ctName}" -- mount | grep -c infiniband)
   if [ "$ibMountCount" != "6" ]; then
     echo "unexpected IB mount count after creation"
+    false
+  fi
+
+  # Check custom MAC is applied in container on boot.
+  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/ib1/address ; then
+    echo "custom mac not applied"
     false
   fi
 
@@ -66,8 +77,19 @@ test_container_devices_ib_sriov() {
     false
   fi
 
-  # Check volatile cleanup on stop.
+  # Get host dev name for ib1 before stop to check MAC restore.
+  ib1HostDev=$(lxc config get "${ctName}" volatile.ib1.host_name)
+  ib1HostMAC=$(lxc config get "${ctName}" volatile.ib1.last_state.hwaddr)
+
   lxc stop -f "${ctName}"
+
+  # Check host dev MAC restore.
+  if ! grep -i "${ib1HostMAC}" /sys/class/net/"${ib1HostDev}"/address ; then
+    echo "host mac not restored"
+    false
+  fi
+
+  # Check volatile cleanup on stop.
   if lxc config show "${ctName}" | grep volatile.eth0 | grep -v volatile.eth0.name ; then
     echo "unexpected volatile key remains"
     false
@@ -101,7 +123,7 @@ test_container_devices_ib_sriov() {
   lxc stop -f "${ctName}"
 
   lxc config device remove "${ctName}" eth0
-  lxc config device remove "${ctName}" eth1
+  lxc config device remove "${ctName}" ib1
 
   # Test hotplugging.
   lxc start "${ctName}"

@@ -3,8 +3,8 @@ test_container_devices_nic_physical() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   ctName="nt$$"
-  dummyMAC="AA:3B:97:97:0F:D5"
-  ctMAC="0A:92:a7:0d:b7:D9"
+  dummyMAC="aa:3b:97:97:0f:d5"
+  ctMAC="0a:92:a7:0d:b7:d9"
 
   # Create dummy interface for use as parent.
   ip link add "${ctName}" address "${dummyMAC}" type dummy

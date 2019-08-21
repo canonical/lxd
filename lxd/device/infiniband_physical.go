@@ -25,7 +25,17 @@ func (d *infinibandPhysical) validateConfig() error {
 		"mtu",
 		"hwaddr",
 	}
-	err := config.ValidateDevice(nicValidationRules(requiredFields, optionalFields), d.config)
+
+	rules := nicValidationRules(requiredFields, optionalFields)
+	rules["hwaddr"] = func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		return infinibandValidMAC(value)
+	}
+
+	err := config.ValidateDevice(rules, d.config)
 	if err != nil {
 		return err
 	}
@@ -78,7 +88,7 @@ func (d *infinibandPhysical) Start() (*RunConfig, error) {
 
 	// Set the MAC address.
 	if d.config["hwaddr"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
+		err := infinibandSetDevMAC(saveData["host_name"], d.config["hwaddr"])
 		if err != nil {
 			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
 		}
