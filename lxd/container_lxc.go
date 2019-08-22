@@ -2072,6 +2072,12 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 	// scenario that a new version of LXD has additional validation restrictions than older
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
+		// If there is no device returned, then we cannot proceed, so return as error.
+		if d == nil {
+			return fmt.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+
+		}
+
 		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
 	}
 
