@@ -129,6 +129,10 @@ func (d *deviceCommon) Remove() error {
 // is still returned with the validation error. If an unknown device is requested or the device is
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
 func New(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+	if conf["type"] == "" {
+		return nil, fmt.Errorf("Missing device type for device '%s'", name)
+	}
+
 	devFunc := devTypes[conf["type"]]
 
 	// Check if top-level type is recognised, if it is known type it will return a function.
