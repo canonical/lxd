@@ -108,27 +108,6 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 
 	switch t {
-	case "unix-char", "unix-block":
-		switch k {
-		case "gid":
-			return true
-		case "major":
-			return true
-		case "minor":
-			return true
-		case "mode":
-			return true
-		case "source":
-			return true
-		case "path":
-			return true
-		case "required":
-			return true
-		case "uid":
-			return true
-		default:
-			return false
-		}
 	case "disk":
 		switch k {
 		case "limits.max":
@@ -339,33 +318,6 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 			if m["shift"] != "" {
 				if m["pool"] != "" {
 					return fmt.Errorf("The \"shift\" property cannot be used with custom storage volumes")
-				}
-			}
-		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-			if m["source"] == "" && m["path"] == "" {
-				return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property")
-			}
-
-			if (m["required"] == "" || shared.IsTrue(m["required"])) && (m["major"] == "" || m["minor"] == "") {
-				srcPath, exist := m["source"]
-				if !exist {
-					srcPath = m["path"]
-				}
-				if !shared.PathExists(srcPath) {
-					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified")
-				}
-
-				dType, _, _, err := device.UnixDeviceAttributes(srcPath)
-				if err != nil {
-					return err
-				}
-
-				if m["type"] == "unix-char" && dType != "c" {
-					return fmt.Errorf("Path specified for unix-char device is a block device")
-				}
-
-				if m["type"] == "unix-block" && dType != "b" {
-					return fmt.Errorf("Path specified for unix-block device is a character device")
 				}
 			}
 		} else if m["type"] == "none" {
