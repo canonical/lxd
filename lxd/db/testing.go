@@ -107,16 +107,18 @@ func NewTestDqliteServer(t *testing.T) (string, *dqlite.DatabaseServerStore, fun
 	require.NoError(t, err)
 
 	address := listener.Addr().String()
+	listener.Close()
 
 	dir, dirCleanup := newDir(t)
 	err = os.Mkdir(filepath.Join(dir, "global"), 0755)
 	require.NoError(t, err)
 
-	info := dqlite.ServerInfo{ID: uint64(1), Address: listener.Addr().String()}
-	server, err := dqlite.NewServer(info, filepath.Join(dir, "global"))
+	info := dqlite.ServerInfo{ID: uint64(1), Address: address}
+	server, err := dqlite.NewServer(
+		info, filepath.Join(dir, "global"), dqlite.WithServerBindAddress(address))
 	require.NoError(t, err)
 
-	err = server.Start(listener)
+	err = server.Start()
 	require.NoError(t, err)
 
 	cleanup := func() {

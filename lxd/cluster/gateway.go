@@ -111,6 +111,9 @@ type Gateway struct {
 	store *dqliteServerStore
 
 	lock sync.RWMutex
+
+	// Abstract unix socket that the local dqlite task is listening to.
+	bindAddress string
 }
 
 // Current dqlite protocol version.
@@ -545,24 +548,30 @@ func (g *Gateway) init() error {
 	// should serve as database node, so create a dqlite driver possibly
 	// exposing it over the network.
 	if raft != nil {
+		// Use the autobind feature of abstract unix sockets to get a
+		// random unused address.
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return errors.Wrap(err, "Failed to allocate loopback port")
+			return errors.Wrap(err, "Failed to autobind unix socket")
 		}
+		g.bindAddress = listener.Addr().String()
+		listener.Close()
+
 		options := []dqlite.ServerOption{
 			dqlite.WithServerLogFunc(DqliteLog),
 			dqlite.WithServerWatchFunc(g.watchFunc),
+			dqlite.WithServerBindAddress(g.bindAddress),
 		}
 
 		if raft.info.Address == "1" {
 			if raft.info.ID != 1 {
 				panic("unexpected server ID")
 			}
-			g.memoryDial = dqliteMemoryDial(listener)
+			g.memoryDial = dqliteMemoryDial(g.bindAddress)
 			g.store.inMemory = dqlite.NewInmemServerStore()
 			g.store.Set(context.Background(), []dqlite.ServerInfo{raft.info})
 		} else {
-			go runDqliteProxy(listener, g.acceptCh)
+			go runDqliteProxy(g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
 			options = append(options, dqlite.WithServerDialFunc(g.raftDial()))
 		}
@@ -576,7 +585,7 @@ func (g *Gateway) init() error {
 			return errors.Wrap(err, "Failed to create dqlite server")
 		}
 
-		err = server.Start(listener)
+		err = server.Start()
 		if err != nil {
 			return errors.Wrap(err, "Failed to start dqlite server")
 		}
@@ -816,10 +825,10 @@ func (g *Gateway) watchFunc(oldState int, newState int) {
 	}
 }
 
-// Create a dial function that connects to the given listener.
-func dqliteMemoryDial(listener net.Listener) dqlite.DialFunc {
+// Create a dial function that connects to the local dqlite.
+func dqliteMemoryDial(bindAddress string) dqlite.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
-		return net.Dial("unix", listener.Addr().String())
+		return net.Dial("unix", bindAddress)
 	}
 }
 
@@ -842,10 +851,12 @@ func DqliteLog(l dqlite.LogLevel, format string, a ...interface{}) {
 	}
 }
 
-func runDqliteProxy(listener net.Listener, acceptCh chan net.Conn) {
+// Copy incoming TLS streams from upgraded HTTPS connections into Unix sockets
+// connected to the dqlite task.
+func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
 	for {
 		src := <-acceptCh
-		dst, err := net.Dial("unix", listener.Addr().String())
+		dst, err := net.Dial("unix", bindAddress)
 		if err != nil {
 			continue
 		}
