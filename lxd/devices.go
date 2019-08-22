@@ -1087,11 +1087,11 @@ func deviceInotifyDirRescan(s *state.State) {
 			}
 
 			// and add its nearest existing ancestor.
-			err = deviceInotifyAddClosestLivingAncestor(s, cleanDevPath)
+			err = deviceInotifyAddClosestLivingAncestor(s, filepath.Dir(cleanDevPath))
 			if err != nil {
-				logger.Errorf("Failed to add \"%s\" to inotify targets: %s", cleanDevPath, err)
+				logger.Errorf("Failed to add \"%s\" to inotify targets: %s", filepath.Dir(cleanDevPath), err)
 			} else {
-				logger.Debugf("Added \"%s\" to inotify targets", cleanDevPath)
+				logger.Debugf("Added \"%s\" to inotify targets", filepath.Dir(cleanDevPath))
 			}
 		}
 	}
