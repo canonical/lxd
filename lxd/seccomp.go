@@ -826,7 +826,7 @@ func CallForkmknod(c container, dev config.Device, requestPID int) int {
 		dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, dev["path"])
 	}
 
-	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
+	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
 		"forksyscall", "mknod", dev["pid"], dev["path"],
 		dev["mode_t"], dev["dev_t"], dev["hostpath"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
@@ -1030,7 +1030,7 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 		whiteout = 1
 	}
 
-	_, stderr, err := shared.RunCommandSplit(util.GetExecPath(),
+	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
 		"forksyscall",
 		"setxattr",
 		fmt.Sprintf("%d", args.pid),

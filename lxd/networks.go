@@ -1292,6 +1292,9 @@ func (n *network) Start() error {
 		fmt.Sprintf("--interface=%s", n.name)}
 
 	dnsmasqVersion, err := dnsmasq.GetVersion()
+	if err != nil {
+		return err
+	}
 
 	// --dhcp-rapid-commit option is only supported on >2.79
 	minVer, _ := version.NewDottedVersion("2.79")

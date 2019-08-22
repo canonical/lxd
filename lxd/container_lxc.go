@@ -5968,6 +5968,7 @@ func (c *containerLXC) FileExists(path string) error {
 
 	// Check if the file exists in the container
 	_, stderr, err := shared.RunCommandSplit(
+		nil,
 		c.state.OS.ExecPath,
 		"forkfile",
 		"exists",
@@ -6015,6 +6016,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 
 	// Get the file from the container
 	_, stderr, err := shared.RunCommandSplit(
+		nil,
 		c.state.OS.ExecPath,
 		"forkfile",
 		"pull",
@@ -6159,6 +6161,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 
 	// Push the file to the container
 	_, stderr, err := shared.RunCommandSplit(
+		nil,
 		c.state.OS.ExecPath,
 		"forkfile",
 		"push",
@@ -6228,6 +6231,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Remove the file from the container
 	_, stderr, err := shared.RunCommandSplit(
+		nil,
 		c.state.OS.ExecPath,
 		"forkfile",
 		"remove",
