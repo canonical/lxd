@@ -2696,7 +2696,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 				}
 				srcPath = shared.HostPath(srcPath)
 
-				err = deviceInotifyAddClosestLivingAncestor(c.state, srcPath)
+				err = deviceInotifyAddClosestLivingAncestor(c.state, filepath.Dir(srcPath))
 				if err != nil {
 					logger.Errorf("Failed to add \"%s\" to inotify targets", srcPath)
 					return "", postStartHooks, err
