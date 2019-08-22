@@ -223,21 +223,18 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 	var diskDevicePaths []string
 	// Check each device individually
 	for name, m := range devices {
-		if m["type"] == "" {
-			return fmt.Errorf("Missing device type for device '%s'", name)
-		}
-
-		if !shared.StringInSlice(m["type"], []string{"disk", "gpu", "infiniband", "nic", "none", "proxy", "unix-block", "unix-char", "usb"}) {
-			return fmt.Errorf("Invalid device type for device '%s'", name)
-		}
-
 		// Validate config using device interface.
 		_, err := device.New(&containerLXC{}, state, name, config.Device(m), nil, nil)
 		if err != device.ErrUnsupportedDevType {
 			if err != nil {
 				return err
 			}
-			continue
+			continue // Validated device OK.
+		}
+
+		// Fallback to legacy validation for non device package devices.
+		if !shared.StringInSlice(m["type"], []string{"disk", "none"}) {
+			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
 		for k := range m {
