@@ -793,8 +793,16 @@ func (e RunError) Error() string {
 	return e.msg
 }
 
-func RunCommandSplit(name string, arg ...string) (string, string, error) {
+// RunCommandSplit runs a command with a supplied environment and optional arguments and returns the
+// resulting stdout and stderr output as separate variables. If the supplied environment is nil then
+// the default environment is used. If the command fails to start or returns a non-zero exit code
+// then an error is returned containing the output of stderr too.
+func RunCommandSplit(env []string, name string, arg ...string) (string, string, error) {
 	cmd := exec.Command(name, arg...)
+
+	if env != nil {
+		cmd.Env = env
+	}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -815,8 +823,18 @@ func RunCommandSplit(name string, arg ...string) (string, string, error) {
 	return string(stdout.Bytes()), string(stderr.Bytes()), nil
 }
 
+// RunCommand runs a command with optional arguments and returns stdout. If the command fails to
+// start or returns a non-zero exit code then an error is returned containing the output of stderr.
 func RunCommand(name string, arg ...string) (string, error) {
-	stdout, _, err := RunCommandSplit(name, arg...)
+	stdout, _, err := RunCommandSplit(nil, name, arg...)
+	return stdout, err
+}
+
+// RunCommandCLocale runs a command with a LANG=C.UTF-8 environment set with optional arguments and
+// returns stdout. If the command fails to start or returns a non-zero exit code then an error is
+// returned containing the output of stderr.
+func RunCommandCLocale(name string, arg ...string) (string, error) {
+	stdout, _, err := RunCommandSplit(append(os.Environ(), "LANG=C.UTF-8"), name, arg...)
 	return stdout, err
 }
 

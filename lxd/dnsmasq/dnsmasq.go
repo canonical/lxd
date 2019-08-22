@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -155,8 +154,7 @@ func Kill(name string, reload bool) error {
 
 // GetVersion returns the version of dnsmasq.
 func GetVersion() (*version.DottedVersion, error) {
-	// Discard stderr on purpose (occasional linker errors)
-	output, err := exec.Command("dnsmasq", "--version").Output()
+	output, err := shared.RunCommandCLocale("dnsmasq", "--version")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to check dnsmasq version: %v", err)
 	}
