@@ -834,9 +834,15 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 		autoUpdate = i18n.G("enabled")
 	}
 
+	imgType := "container"
+	if info.Type != "" {
+		imgType = info.Type
+	}
+
 	fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
 	fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
+	fmt.Printf(i18n.G("Type: %s")+"\n", imgType)
 	fmt.Printf(i18n.G("Public: %s")+"\n", public)
 	fmt.Printf(i18n.G("Timestamps:") + "\n")
 
@@ -922,9 +928,10 @@ Column shorthand chars:
     d - Description
     a - Architecture
     s - Size
-    u - Upload date`))
+    u - Upload date
+    t - Type`))
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdasu", i18n.G("Columns")+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdatsu", i18n.G("Columns")+"``")
 	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.RunE = c.Run
 
@@ -942,6 +949,7 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 		'a': {i18n.G("ARCH"), c.architectureColumnData},
 		's': {i18n.G("SIZE"), c.sizeColumnData},
 		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+		't': {i18n.G("TYPE"), c.typeColumnData},
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
@@ -1007,6 +1015,14 @@ func (c *cmdImageList) architectureColumnData(image api.Image) string {
 
 func (c *cmdImageList) sizeColumnData(image api.Image) string {
 	return fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
+}
+
+func (c *cmdImageList) typeColumnData(image api.Image) string {
+	if image.Type == "" {
+		return "CONTAINER"
+	}
+
+	return strings.ToUpper(image.Type)
 }
 
 func (c *cmdImageList) uploadDateColumnData(image api.Image) string {
