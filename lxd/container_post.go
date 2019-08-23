@@ -229,7 +229,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := d.cluster.ContainerID(req.Name)
+	id, _ := d.cluster.ContainerID(project, req.Name)
 	if id > 0 {
 		return Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
 	}
@@ -357,7 +357,7 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 		}
 
 		// Restore the original value of "volatile.apply_template"
-		id, err := d.cluster.ContainerID(destName)
+		id, err := d.cluster.ContainerID(c.Project(), destName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get ID of moved container")
 		}
@@ -431,11 +431,12 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			err := tx.ContainerNodeMove(project, oldName, newName, newNode)
 			if err != nil {
-				return err
+				return errors.Wrapf(
+					err, "Move container %s to %s with new name %s", oldName, newNode, newName)
 			}
 			poolName, err = tx.ContainerPool(project, newName)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Get the container's storage pool name for %s", newName)
 			}
 			return nil
 		})
