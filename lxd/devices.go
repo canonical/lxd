@@ -48,7 +48,7 @@ func (c deviceTaskCPUs) Len() int           { return len(c) }
 func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func deviceNetlinkListener() (chan []string, chan []string, chan device.USBDevice, error) {
+func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
@@ -73,9 +73,9 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBDevic
 
 	chCPU := make(chan []string, 1)
 	chNetwork := make(chan []string, 0)
-	chUSB := make(chan device.USBDevice)
+	chUSB := make(chan device.USBEvent)
 
-	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBDevice) {
+	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
 			r, err := unix.Read(fd, b)
@@ -170,7 +170,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBDevic
 					return strings.Repeat("0", l-len(s)) + s
 				}
 
-				usb, err := device.USBDeviceLoad(
+				usb, err := device.USBNewEvent(
 					props["ACTION"],
 					/* udev doesn't zero pad these, while
 					 * everything else does, so let's zero pad them
