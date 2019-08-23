@@ -161,7 +161,11 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 
 	for {
 		for _, gateway := range f.gateways {
-			if gateway.IsLeader() {
+			isLeader, err := gateway.IsLeader()
+			if err != nil {
+				f.t.Fatalf("failed to check leadership: %v", err)
+			}
+			if isLeader {
 				return gateway
 			}
 		}
@@ -185,7 +189,11 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 
 	for {
 		for _, gateway := range f.gateways {
-			if !gateway.IsLeader() {
+			isLeader, err := gateway.IsLeader()
+			if err != nil {
+				f.t.Fatalf("failed to check leadership: %v", err)
+			}
+			if !isLeader {
 				return gateway
 			}
 		}

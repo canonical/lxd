@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -239,8 +240,12 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
-			info := g.server.Leader()
-			if info == nil || info.ID != g.raft.info.ID {
+			leader, err := g.server.LeaderAddress(context.Background())
+			if err != nil {
+				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
+				return
+			}
+			if leader != g.raft.info.Address {
 				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
@@ -401,11 +406,21 @@ func (g *Gateway) Sync() {
 		return
 	}
 
-	dir := filepath.Join(g.db.Dir(), "global")
-	err := g.server.Dump("db.bin", dir)
+	files, err := g.server.Dump(context.Background(), "db.bin")
 	if err != nil {
 		// Just log a warning, since this is not fatal.
-		logger.Warnf("Failed to dump database to disk: %v", err)
+		logger.Warnf("Failed get database dump: %v", err)
+		return
+	}
+
+	dir := filepath.Join(g.db.Dir(), "global")
+	for _, file := range files {
+		path := filepath.Join(dir, file.Name)
+		err := ioutil.WriteFile(path, file.Data, 0600)
+		if err != nil {
+			logger.Warnf("Failed to dump database file %s: %v", file.Name, err)
+
+		}
 	}
 }
 
@@ -449,9 +464,12 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	// wait a bit until one is elected.
 	if g.server != nil {
 		for ctx.Err() == nil {
-			info := g.server.Leader()
-			if info != nil {
-				return info.Address, nil
+			leader, err := g.server.LeaderAddress(context.Background())
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to get leader address")
+			}
+			if leader != "" {
+				return leader, nil
 			}
 			time.Sleep(time.Second)
 		}
@@ -616,7 +634,11 @@ func (g *Gateway) waitLeadership() error {
 	sleep := 250 * time.Millisecond
 	for i := 0; i < n; i++ {
 		g.lock.RLock()
-		if g.isLeader() {
+		isLeader, err := g.isLeader()
+		if err != nil {
+			return err
+		}
+		if isLeader {
 			g.lock.RUnlock()
 			return nil
 		}
@@ -627,12 +649,15 @@ func (g *Gateway) waitLeadership() error {
 	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
-func (g *Gateway) isLeader() bool {
+func (g *Gateway) isLeader() (bool, error) {
 	if g.server == nil {
-		return false
+		return false, nil
 	}
-	info := g.server.Leader()
-	return info != nil && info.ID == g.raft.info.ID
+	leader, err := g.server.LeaderAddress(context.Background())
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get leader address")
+	}
+	return leader == g.raft.info.Address, nil
 }
 
 // Internal error signalling that a node not the leader.
@@ -645,7 +670,15 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.raft == nil || !g.isLeader() {
+	if g.raft == nil {
+		return nil, errNotLeader
+	}
+
+	isLeader, err := g.isLeader()
+	if err != nil {
+		return nil, err
+	}
+	if !isLeader {
 		return nil, errNotLeader
 	}
 	servers, err := g.server.Cluster()
