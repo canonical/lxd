@@ -54,11 +54,6 @@ func (d *usb) validateConfig() error {
 	return nil
 }
 
-// validateEnvironment checks the runtime environment for correctness.
-func (d *usb) validateEnvironment() error {
-	return nil
-}
-
 // Register is run after the device is started or when LXD starts.
 func (d *usb) Register() error {
 	// Extract variables needed to run the event hook so that the reference to this device
@@ -111,11 +106,6 @@ func (d *usb) Register() error {
 
 // Start is run when the device is added to the instance.
 func (d *usb) Start() (*RunConfig, error) {
-	err := d.validateEnvironment()
-	if err != nil {
-		return nil, err
-	}
-
 	usbs, err := d.loadUsb()
 	if err != nil {
 		return nil, err
