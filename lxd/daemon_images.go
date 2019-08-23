@@ -79,7 +79,7 @@ func imageGetStreamCache(d *Daemon) (map[string]*imageStreamCacheEntry, error) {
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string) (*api.Image, error) {
+func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string) (*api.Image, error) {
 	var err error
 	var ctxMap log.Ctx
 
@@ -177,6 +177,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 				continue
 			}
 
+			if imageType != "" && entry.Type != imageType {
+				continue
+			}
+
 			fp = entry.Target
 			break
 		}
@@ -210,7 +214,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		// For public images, handle aliases and initial metadata
 		if secret == "" {
 			// Look for a matching alias
-			entry, _, err := remote.GetImageAlias(fp)
+			entry, _, err := remote.GetImageAliasType(imageType, fp)
 			if err == nil {
 				fp = entry.Target
 			}
@@ -235,7 +239,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		return nil, err
 	}
 	if preferCached && interval > 0 && alias != fp {
-		cachedFingerprint, err := d.cluster.ImageSourceGetCachedFingerprint(server, protocol, alias)
+		cachedFingerprint, err := d.cluster.ImageSourceGetCachedFingerprint(server, protocol, alias, imageType)
 		if err == nil && cachedFingerprint != fp {
 			fp = cachedFingerprint
 		}
@@ -251,7 +255,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			err = d.cluster.ImageInsert(
 				project, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false,
 				imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt,
-				imgInfo.Properties)
+				imgInfo.Properties, imgInfo.Type)
 			if err != nil {
 				return nil, err
 			}
@@ -425,6 +429,11 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			}
 		}
 
+		// Compatibility with older LXD servers
+		if info.Type == "" {
+			info.Type = "container"
+		}
+
 		// Download the image
 		var resp *lxd.ImageFileResponse
 		request := lxd.ImageFileRequest{
@@ -517,7 +526,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		// Parse the image
-		imageMeta, err := getImageMetadata(destName)
+		imageMeta, imageType, err := getImageMetadata(destName)
 		if err != nil {
 			return nil, err
 		}
@@ -529,6 +538,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
 		info.ExpiresAt = time.Unix(imageMeta.ExpiryDate, 0)
 		info.Properties = imageMeta.Properties
+		info.Type = imageType
 	} else {
 		return nil, fmt.Errorf("Unsupported protocol: %v", protocol)
 	}
@@ -544,7 +554,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Create the database entry
-	err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 	if err != nil {
 		return nil, err
 	}

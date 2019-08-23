@@ -451,6 +451,16 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
 
+	// Validate the type of the image matches the type of the instance.
+	imgType, err := instance.New(img.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	if imgType != args.Type {
+		return nil, fmt.Errorf("Requested image doesn't match instance type")
+	}
+
 	// Check if the image is available locally or it's on another node.
 	nodeAddress, err := s.Cluster.ImageLocate(hash)
 	if err != nil {
