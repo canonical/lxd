@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-13 13:31+0000\n"
+"POT-Creation-Date: 2019-09-13 18:34+0200\n"
 "PO-Revision-Date: 2018-11-30 03:10+0000\n"
 "Last-Translator: ssantos <ssantos@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -160,7 +160,7 @@ msgstr ""
 "###\n"
 "### Der Name wird zwar angezeigt, lässt sich jedoch nicht ändern.\n"
 
-#: lxc/image.go:327
+#: lxc/image.go:336
 msgid ""
 "### This is a yaml representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -293,7 +293,7 @@ msgstr ""
 msgid "%d (id: %d, online: %v)"
 msgstr ""
 
-#: lxc/image.go:970
+#: lxc/image.go:1003
 #, c-format
 msgid "%s (%d more)"
 msgstr "%s (%d mehr)"
@@ -352,15 +352,15 @@ msgstr ""
 msgid "--target cannot be used with instances"
 msgstr ""
 
-#: lxc/alias.go:125 lxc/image.go:936 lxc/image_alias.go:226
+#: lxc/alias.go:125 lxc/image.go:968 lxc/image_alias.go:230
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:937
+#: lxc/image.go:969
 msgid "ALIASES"
 msgstr ""
 
-#: lxc/image.go:942
+#: lxc/image.go:974
 msgid "ARCH"
 msgstr ""
 
@@ -434,16 +434,16 @@ msgstr "entfernte Instanz %s existiert bereits"
 msgid "Alias %s doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/image_alias.go:81 lxc/image_alias.go:128 lxc/image_alias.go:270
+#: lxc/image_alias.go:81 lxc/image_alias.go:128 lxc/image_alias.go:275
 msgid "Alias name missing"
 msgstr ""
 
-#: lxc/image.go:867
+#: lxc/image.go:898
 #, fuzzy
 msgid "Aliases:"
 msgstr "Aliasse:\n"
 
-#: lxc/image.go:839 lxc/info.go:446
+#: lxc/image.go:869 lxc/info.go:446
 #, fuzzy, c-format
 msgid "Architecture: %s"
 msgstr "Architektur: %s\n"
@@ -500,7 +500,7 @@ msgstr ""
 msgid "Auto negotiation: %v"
 msgstr ""
 
-#: lxc/image.go:877
+#: lxc/image.go:908
 #, c-format
 msgid "Auto update: %s"
 msgstr "automatisches Update: %s"
@@ -525,7 +525,7 @@ msgstr ""
 msgid "Bad key=value pair: %s"
 msgstr ""
 
-#: lxc/image.go:684
+#: lxc/image.go:701
 #, fuzzy, c-format
 msgid "Bad property: %s"
 msgstr "Ungültige Abbild Eigenschaft: %s\n"
@@ -593,7 +593,7 @@ msgstr "ERSTELLT AM"
 msgid "CUDA Version: %v"
 msgstr ""
 
-#: lxc/image.go:876
+#: lxc/image.go:907
 #, fuzzy, c-format
 msgid "Cached: %s"
 msgstr ""
@@ -615,7 +615,7 @@ msgstr ""
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
-#: lxc/image.go:171
+#: lxc/image.go:173
 msgid "Can't provide a name for the target image"
 msgstr ""
 
@@ -704,7 +704,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:927 lxc/list.go:112
+#: lxc/image.go:959 lxc/list.go:112
 msgid "Columns"
 msgstr "Spalten"
 
@@ -736,7 +736,7 @@ msgid "Config key/value to apply to the target container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:143
-#: lxc/image.go:405 lxc/network.go:639 lxc/profile.go:497 lxc/project.go:303
+#: lxc/image.go:414 lxc/network.go:639 lxc/profile.go:497 lxc/project.go:303
 #: lxc/storage.go:302 lxc/storage_volume.go:917 lxc/storage_volume.go:947
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
@@ -769,7 +769,7 @@ msgstr ""
 msgid "Copy a stateful container stateless"
 msgstr ""
 
-#: lxc/image.go:134
+#: lxc/image.go:135
 msgid "Copy aliases from source"
 msgstr "Kopiere Aliasse von der Quelle"
 
@@ -778,11 +778,11 @@ msgstr "Kopiere Aliasse von der Quelle"
 msgid "Copy containers within or in between LXD instances"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/image.go:126
+#: lxc/image.go:127
 msgid "Copy images between servers"
 msgstr ""
 
-#: lxc/image.go:127
+#: lxc/image.go:128
 msgid ""
 "Copy images between servers\n"
 "\n"
@@ -823,7 +823,11 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Copy to a project different from the source"
 msgstr ""
 
-#: lxc/image.go:214
+#: lxc/image.go:138
+msgid "Copy virtual machine images"
+msgstr ""
+
+#: lxc/image.go:223
 #, c-format
 msgid "Copying the image: %s"
 msgstr ""
@@ -916,7 +920,7 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Create the container with no profiles applied"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/image.go:845 lxc/info.go:448
+#: lxc/image.go:876 lxc/info.go:448
 #, c-format
 msgid "Created: %s"
 msgstr "Erstellt: %s"
@@ -940,7 +944,7 @@ msgstr ""
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:941 lxc/image_alias.go:228 lxc/list.go:421 lxc/network.go:869
+#: lxc/image.go:973 lxc/image_alias.go:233 lxc/list.go:421 lxc/network.go:869
 #: lxc/operation.go:159 lxc/storage.go:558 lxc/storage_volume.go:1119
 msgid "DESCRIPTION"
 msgstr "BESCHREIBUNG"
@@ -979,7 +983,7 @@ msgstr ""
 msgid "Delete image aliases"
 msgstr ""
 
-#: lxc/image.go:260 lxc/image.go:261
+#: lxc/image.go:269 lxc/image.go:270
 msgid "Delete images"
 msgstr ""
 
@@ -1021,11 +1025,11 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:32
 #: lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
-#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:127 lxc/image.go:261
-#: lxc/image.go:312 lxc/image.go:435 lxc/image.go:575 lxc/image.go:789
-#: lxc/image.go:903 lxc/image.go:1191 lxc/image.go:1268 lxc/image_alias.go:24
+#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270
+#: lxc/image.go:321 lxc/image.go:446 lxc/image.go:592 lxc/image.go:808
+#: lxc/image.go:934 lxc/image.go:1232 lxc/image.go:1311 lxc/image_alias.go:24
 #: lxc/image_alias.go:57 lxc/image_alias.go:104 lxc/image_alias.go:149
-#: lxc/image_alias.go:246 lxc/import.go:28 lxc/info.go:32 lxc/init.go:39
+#: lxc/image_alias.go:251 lxc/import.go:28 lxc/info.go:32 lxc/init.go:39
 #: lxc/launch.go:23 lxc/list.go:43 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:38 lxc/network.go:31 lxc/network.go:107
 #: lxc/network.go:180 lxc/network.go:253 lxc/network.go:325 lxc/network.go:375
@@ -1108,7 +1112,7 @@ msgid "Didn't get any affected image, container or snapshot from server"
 msgstr ""
 "Falsche Anzahl an Objekten im Abbild, Container oder Sicherungspunkt gelesen."
 
-#: lxc/image.go:590
+#: lxc/image.go:607
 msgid "Directory import is not available on this platform"
 msgstr ""
 
@@ -1185,7 +1189,7 @@ msgstr ""
 msgid "Edit files in containers"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/image.go:311 lxc/image.go:312
+#: lxc/image.go:320 lxc/image.go:321
 msgid "Edit image properties"
 msgstr ""
 
@@ -1209,7 +1213,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:952 lxc/list.go:462
+#: lxc/image.go:985 lxc/list.go:462
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1273,20 +1277,20 @@ msgstr ""
 "\n"
 "lxc exec <Container> [--env EDITOR=/usr/bin/vim]... <Befehl>\n"
 
-#: lxc/image.go:851
+#: lxc/image.go:882
 #, c-format
 msgid "Expires: %s"
 msgstr ""
 
-#: lxc/image.go:853
+#: lxc/image.go:884
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/image.go:434
+#: lxc/image.go:445
 msgid "Export and download images"
 msgstr ""
 
-#: lxc/image.go:435
+#: lxc/image.go:446
 msgid ""
 "Export and download images\n"
 "\n"
@@ -1308,7 +1312,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Exporting the backup: %s"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/image.go:495
+#: lxc/image.go:512
 #, c-format
 msgid "Exporting the image: %s"
 msgstr ""
@@ -1317,8 +1321,8 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:172 lxc/image.go:938 lxc/image.go:939
-#: lxc/image_alias.go:227
+#: lxc/config_trust.go:172 lxc/image.go:970 lxc/image.go:971
+#: lxc/image_alias.go:231
 msgid "FINGERPRINT"
 msgstr "FINGERABDRUCK"
 
@@ -1358,7 +1362,7 @@ msgstr ""
 "Anzeigen von Informationen über entfernte Instanzen wird noch nicht "
 "unterstützt\n"
 
-#: lxc/image.go:837
+#: lxc/image.go:867
 #, fuzzy, c-format
 msgid "Fingerprint: %s"
 msgstr "Fingerabdruck: %s\n"
@@ -1409,7 +1413,7 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:101 lxc/cluster.go:69 lxc/config_template.go:238
-#: lxc/config_trust.go:117 lxc/image.go:928 lxc/image_alias.go:154
+#: lxc/config_trust.go:117 lxc/image.go:960 lxc/image_alias.go:154
 #: lxc/list.go:113 lxc/network.go:810 lxc/network.go:893 lxc/operation.go:103
 #: lxc/profile.go:580 lxc/project.go:385 lxc/remote.go:458 lxc/storage.go:509
 #: lxc/storage_volume.go:1071
@@ -1546,33 +1550,33 @@ msgstr ""
 msgid "Ignore the container state"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/image.go:1251
+#: lxc/image.go:1292
 msgid "Image already up to date."
 msgstr ""
 
-#: lxc/image.go:231
+#: lxc/image.go:240
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/image.go:558
+#: lxc/image.go:575
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:284 lxc/image.go:1214
+#: lxc/image.go:293 lxc/image.go:1255
 msgid "Image identifier missing"
 msgstr ""
 
-#: lxc/image.go:352
+#: lxc/image.go:361
 #, fuzzy, c-format
 msgid "Image identifier missing: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
 
-#: lxc/image.go:762
+#: lxc/image.go:779
 #, fuzzy, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
 
-#: lxc/image.go:1249
+#: lxc/image.go:1290
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -1585,14 +1589,14 @@ msgstr ""
 msgid "Import container backups"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/image.go:575
+#: lxc/image.go:592
 msgid ""
 "Import image into the image store\n"
 "\n"
 "Directory import is only available on Linux and must be performed as root."
 msgstr ""
 
-#: lxc/image.go:574
+#: lxc/image.go:591
 msgid "Import images into the image store"
 msgstr ""
 
@@ -1692,7 +1696,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/image.go:135
+#: lxc/image.go:136
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
@@ -1713,12 +1717,12 @@ msgstr ""
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
-#: lxc/image.go:857
+#: lxc/image.go:888
 #, c-format
 msgid "Last used: %s"
 msgstr ""
 
-#: lxc/image.go:859
+#: lxc/image.go:890
 msgid "Last used: never"
 msgstr ""
 
@@ -1863,11 +1867,11 @@ msgid ""
 "Filters may be part of the image hash or part of the image alias name.\n"
 msgstr ""
 
-#: lxc/image.go:902
+#: lxc/image.go:933
 msgid "List images"
 msgstr ""
 
-#: lxc/image.go:903
+#: lxc/image.go:934
 msgid ""
 "List images\n"
 "\n"
@@ -1890,7 +1894,8 @@ msgid ""
 "    d - Description\n"
 "    a - Architecture\n"
 "    s - Size\n"
-"    u - Upload date"
+"    u - Upload date\n"
+"    t - Type"
 msgstr ""
 
 #: lxc/profile.go:575 lxc/profile.go:576
@@ -1958,7 +1963,7 @@ msgstr ""
 msgid "MTU: %d"
 msgstr ""
 
-#: lxc/image.go:133 lxc/image.go:580
+#: lxc/image.go:134 lxc/image.go:597
 msgid "Make image public"
 msgstr "Veröffentliche Abbild"
 
@@ -2232,7 +2237,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Moving the storage volume: %s"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/image.go:592
+#: lxc/image.go:609
 msgid "Must run as root to import from directory"
 msgstr ""
 
@@ -2321,7 +2326,7 @@ msgstr "Profil %s erstellt\n"
 msgid "New alias to define at target"
 msgstr ""
 
-#: lxc/image.go:136 lxc/image.go:581
+#: lxc/image.go:137 lxc/image.go:598
 msgid "New aliases to add to the image"
 msgstr ""
 
@@ -2370,7 +2375,7 @@ msgstr ""
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
-#: lxc/image.go:665
+#: lxc/image.go:682
 msgid "Only https:// is supported for remote image import"
 msgstr ""
 
@@ -2416,7 +2421,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:940 lxc/remote.go:516
+#: lxc/image.go:972 lxc/remote.go:516
 msgid "PUBLIC"
 msgstr ""
 
@@ -2466,7 +2471,7 @@ msgid "Press enter to open the editor again"
 msgstr ""
 
 #: lxc/config.go:271 lxc/config.go:344 lxc/config_metadata.go:144
-#: lxc/config_template.go:203 lxc/image.go:406
+#: lxc/config_template.go:203 lxc/image.go:415
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -2566,7 +2571,7 @@ msgstr "Profil %s gelöscht\n"
 msgid "Project %s renamed to %s"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/image.go:862
+#: lxc/image.go:893
 #, fuzzy
 msgid "Properties:"
 msgstr "Eigenschaften:\n"
@@ -2575,7 +2580,7 @@ msgstr "Eigenschaften:\n"
 msgid "Public image server"
 msgstr ""
 
-#: lxc/image.go:840
+#: lxc/image.go:871
 #, fuzzy, c-format
 msgid "Public: %s"
 msgstr "Öffentlich: %s\n"
@@ -2610,6 +2615,10 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
+#: lxc/image.go:451 lxc/image.go:811 lxc/image.go:1314
+msgid "Query virtual machine images"
+msgstr ""
+
 #: lxc/info.go:254 lxc/info.go:263
 #, c-format
 msgid "Read-Only: %v"
@@ -2619,7 +2628,7 @@ msgstr ""
 msgid "Recursively transfer files"
 msgstr ""
 
-#: lxc/image.go:1190 lxc/image.go:1191
+#: lxc/image.go:1231 lxc/image.go:1232
 msgid "Refresh images"
 msgstr ""
 
@@ -2628,7 +2637,7 @@ msgstr ""
 msgid "Refreshing container: %s"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/image.go:1219
+#: lxc/image.go:1260
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr ""
@@ -2709,8 +2718,8 @@ msgstr ""
 msgid "Rename a cluster member"
 msgstr ""
 
-#: lxc/alias.go:142 lxc/alias.go:143 lxc/image_alias.go:245
-#: lxc/image_alias.go:246
+#: lxc/alias.go:142 lxc/alias.go:143 lxc/image_alias.go:250
+#: lxc/image_alias.go:251
 msgid "Rename aliases"
 msgstr ""
 
@@ -2808,7 +2817,7 @@ msgstr ""
 msgid "Run command against all containers"
 msgstr ""
 
-#: lxc/image.go:943
+#: lxc/image.go:975
 msgid "SIZE"
 msgstr ""
 
@@ -3017,7 +3026,7 @@ msgstr ""
 msgid "Show full device configuration for containers or profiles"
 msgstr ""
 
-#: lxc/image.go:1267 lxc/image.go:1268
+#: lxc/image.go:1310 lxc/image.go:1311
 msgid "Show image properties"
 msgstr ""
 
@@ -3079,7 +3088,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/image.go:788 lxc/image.go:789
+#: lxc/image.go:807 lxc/image.go:808
 msgid "Show useful information about images"
 msgstr ""
 
@@ -3087,7 +3096,7 @@ msgstr ""
 msgid "Show useful information about storage pools"
 msgstr ""
 
-#: lxc/image.go:838
+#: lxc/image.go:868
 #, fuzzy, c-format
 msgid "Size: %.2fMB"
 msgstr "Größe: %.2vMB\n"
@@ -3116,7 +3125,7 @@ msgstr ""
 msgid "Some containers failed to %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/image.go:880
+#: lxc/image.go:911
 msgid "Source:"
 msgstr ""
 
@@ -3233,8 +3242,8 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:429 lxc/network.go:867 lxc/network.go:940 lxc/operation.go:158
-#: lxc/storage_volume.go:1117
+#: lxc/image.go:977 lxc/image_alias.go:232 lxc/list.go:429 lxc/network.go:867
+#: lxc/network.go:940 lxc/operation.go:158 lxc/storage_volume.go:1117
 msgid "TYPE"
 msgstr ""
 
@@ -3334,7 +3343,7 @@ msgstr ""
 msgid "Time to wait for the container before killing it"
 msgstr "Wartezeit bevor der Container gestoppt wird."
 
-#: lxc/image.go:841
+#: lxc/image.go:872
 #, fuzzy
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
@@ -3387,7 +3396,7 @@ msgstr ""
 msgid "Transferring container: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/image.go:695
+#: lxc/image.go:712
 #, c-format
 msgid "Transferring image: %s"
 msgstr ""
@@ -3397,7 +3406,7 @@ msgstr ""
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
 
-#: lxc/info.go:245
+#: lxc/image.go:870 lxc/info.go:245
 #, c-format
 msgid "Type: %s"
 msgstr ""
@@ -3410,7 +3419,7 @@ msgstr ""
 msgid "Type: persistent"
 msgstr ""
 
-#: lxc/image.go:944
+#: lxc/image.go:976
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -3433,7 +3442,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:959 lxc/list.go:476
+#: lxc/image.go:992 lxc/list.go:476
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -3478,7 +3487,7 @@ msgstr ""
 msgid "Unset storage volume configuration keys"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/image.go:848
+#: lxc/image.go:879
 #, c-format
 msgid "Uploaded: %s"
 msgstr ""
@@ -3652,7 +3661,7 @@ msgstr ""
 msgid "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
 msgstr ""
 
-#: lxc/image.go:124
+#: lxc/image.go:125
 msgid "copy [<remote>:]<image> <remote>:"
 msgstr ""
 
@@ -3727,7 +3736,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/image.go:258
+#: lxc/image.go:267
 #, fuzzy
 msgid "delete [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
@@ -3791,7 +3800,7 @@ msgstr ""
 msgid "device"
 msgstr ""
 
-#: lxc/image.go:832
+#: lxc/image.go:857
 msgid "disabled"
 msgstr ""
 
@@ -3811,7 +3820,7 @@ msgstr ""
 msgid "edit [<remote>:]<container>/<path>"
 msgstr ""
 
-#: lxc/image.go:310
+#: lxc/image.go:319
 msgid "edit [<remote>:]<image>"
 msgstr ""
 
@@ -3853,7 +3862,7 @@ msgstr ""
 msgid "enable [<remote>:] <name>"
 msgstr ""
 
-#: lxc/image.go:834
+#: lxc/image.go:859
 msgid "enabled"
 msgstr ""
 
@@ -3881,7 +3890,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/image.go:433
+#: lxc/image.go:444
 msgid "export [<remote>:]<image> [<target>]"
 msgstr ""
 
@@ -3934,7 +3943,7 @@ msgstr ""
 msgid "image"
 msgstr ""
 
-#: lxc/image.go:573
+#: lxc/image.go:590
 msgid ""
 "import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] "
 "[key=value...]"
@@ -3948,7 +3957,7 @@ msgstr ""
 msgid "info"
 msgstr ""
 
-#: lxc/image.go:787
+#: lxc/image.go:806
 msgid "info [<remote>:]<image>"
 msgstr ""
 
@@ -3985,7 +3994,7 @@ msgstr ""
 msgid "list [<remote>:]"
 msgstr ""
 
-#: lxc/image.go:900 lxc/list.go:40
+#: lxc/image.go:931 lxc/list.go:40
 msgid "list [<remote>:] [<filter>...]"
 msgstr ""
 
@@ -4071,7 +4080,7 @@ msgid ""
 "   To push /etc/hosts into the container \"foo\"."
 msgstr ""
 
-#: lxc/image.go:314
+#: lxc/image.go:323
 msgid ""
 "lxc image edit <image>\n"
 "    Launch a text editor to edit the properties\n"
@@ -4262,7 +4271,7 @@ msgstr ""
 msgid "network"
 msgstr ""
 
-#: lxc/image.go:822 lxc/image.go:827 lxc/image.go:997
+#: lxc/image.go:847 lxc/image.go:852 lxc/image.go:1030
 msgid "no"
 msgstr ""
 
@@ -4332,7 +4341,7 @@ msgstr ""
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
-#: lxc/image.go:1189
+#: lxc/image.go:1230
 #, fuzzy
 msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
@@ -4376,7 +4385,7 @@ msgstr ""
 msgid "rename <remote> <new-name>"
 msgstr ""
 
-#: lxc/image_alias.go:243
+#: lxc/image_alias.go:248
 msgid "rename [<remote>:]<alias> <new-name>"
 msgstr ""
 
@@ -4505,7 +4514,7 @@ msgstr ""
 msgid "show [<remote>:]<container|profile>"
 msgstr ""
 
-#: lxc/image.go:1266
+#: lxc/image.go:1309
 msgid "show [<remote>:]<image>"
 msgstr ""
 
@@ -4673,8 +4682,8 @@ msgstr ""
 msgid "y"
 msgstr ""
 
-#: lxc/cluster.go:275 lxc/delete.go:46 lxc/image.go:824 lxc/image.go:829
-#: lxc/image.go:995
+#: lxc/cluster.go:275 lxc/delete.go:46 lxc/image.go:849 lxc/image.go:854
+#: lxc/image.go:1028
 msgid "yes"
 msgstr ""
 
