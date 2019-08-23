@@ -826,3 +826,6 @@ pool be used for storing the daemon-wide images and backups artifacts.
 
 ## instances
 This introduces the concept of instances, of which currently the only type is "container".
+
+## image\_types
+This introduces support for a new Type field on images, indicating what type of images they are.
