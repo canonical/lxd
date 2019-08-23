@@ -40,6 +40,7 @@ deps:
 		fi; \
 	else \
 		git clone --depth=1 "https://github.com/canonical/sqlite" "$(GOPATH)/deps/sqlite"; \
+		cd "$(GOPATH)/deps/sqlite"; \
 		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest; \
 		git log -1 --format="format:%H" > manifest.uuid; \
 	fi
