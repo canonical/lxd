@@ -15,37 +15,37 @@ var _ = api.ServerEnvironment{}
 
 var profileNames = cluster.RegisterStmt(`
 SELECT projects.name AS project, profiles.name
-  FROM profiles JOIN projects ON project_id = projects.id
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
   ORDER BY projects.id, profiles.name
 `)
 
 var profileNamesByProject = cluster.RegisterStmt(`
 SELECT projects.name AS project, profiles.name
-  FROM profiles JOIN projects ON project_id = projects.id
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? ORDER BY projects.id, profiles.name
 `)
 
 var profileNamesByProjectAndName = cluster.RegisterStmt(`
 SELECT projects.name AS project, profiles.name
-  FROM profiles JOIN projects ON project_id = projects.id
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? AND profiles.name = ? ORDER BY projects.id, profiles.name
 `)
 
 var profileObjects = cluster.RegisterStmt(`
 SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON project_id = projects.id
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
   ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProject = cluster.RegisterStmt(`
 SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON project_id = projects.id
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProjectAndName = cluster.RegisterStmt(`
 SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
-  FROM profiles JOIN projects ON project_id = projects.id
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? AND profiles.name = ? ORDER BY projects.id, profiles.name
 `)
 
@@ -86,13 +86,13 @@ SELECT project, name, value FROM profiles_used_by_ref WHERE project = ? AND name
 `)
 
 var profileID = cluster.RegisterStmt(`
-SELECT profiles.id FROM profiles JOIN projects ON project_id = projects.id
+SELECT profiles.id FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE projects.name = ? AND profiles.name = ?
 `)
 
 var profileCreate = cluster.RegisterStmt(`
 INSERT INTO profiles (project_id, name, description)
-  VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?)
+  VALUES ((SELECT projects.id FROM projects WHERE projects.name = ?), ?, ?)
 `)
 
 var profileCreateConfigRef = cluster.RegisterStmt(`
@@ -110,11 +110,11 @@ INSERT INTO profiles_devices_config (profile_device_id, key, value)
 `)
 
 var profileRename = cluster.RegisterStmt(`
-UPDATE profiles SET name = ? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+UPDATE profiles SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 var profileDelete = cluster.RegisterStmt(`
-DELETE FROM profiles WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 // ProfileURIs returns all available profile URIs.
@@ -212,8 +212,8 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		_, ok := configObjects[objects[i].Project]
-		if !ok {
+		_, ok0 := configObjects[objects[i].Project]
+		if !ok0 {
 			subIndex := map[string]map[string]string{}
 			configObjects[objects[i].Project] = subIndex
 		}
@@ -232,8 +232,8 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		_, ok := devicesObjects[objects[i].Project]
-		if !ok {
+		_, ok0 := devicesObjects[objects[i].Project]
+		if !ok0 {
 			subIndex := map[string]map[string]map[string]string{}
 			devicesObjects[objects[i].Project] = subIndex
 		}
@@ -252,8 +252,8 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		_, ok := usedByObjects[objects[i].Project]
-		if !ok {
+		_, ok0 := usedByObjects[objects[i].Project]
+		if !ok0 {
 			subIndex := map[string][]string{}
 			usedByObjects[objects[i].Project] = subIndex
 		}
@@ -396,8 +396,8 @@ func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[strin
 	index := map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		_, ok := index[object.Project]
-		if !ok {
+		_, ok0 := index[object.Project]
+		if !ok0 {
 			subIndex := map[string]map[string]string{}
 			index[object.Project] = subIndex
 		}
@@ -485,8 +485,8 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 	index := map[string]map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		_, ok := index[object.Project]
-		if !ok {
+		_, ok0 := index[object.Project]
+		if !ok0 {
 			subIndex := map[string]map[string]map[string]string{}
 			index[object.Project] = subIndex
 		}
@@ -580,8 +580,8 @@ func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[strin
 	index := map[string]map[string][]string{}
 
 	for _, object := range objects {
-		_, ok := index[object.Project]
-		if !ok {
+		_, ok0 := index[object.Project]
+		if !ok0 {
 			subIndex := map[string][]string{}
 			index[object.Project] = subIndex
 		}

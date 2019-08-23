@@ -193,6 +193,81 @@ CREATE INDEX instances_project_id_and_node_id_and_name_idx ON instances (project
 CREATE INDEX instances_project_id_and_node_id_idx ON instances (project_id,
     node_id);
 CREATE INDEX instances_project_id_idx ON instances (project_id);
+CREATE TABLE instances_snapshots (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    description TEXT,
+    expiry_date DATETIME,
+    UNIQUE (instance_id, name),
+    FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
+);
+CREATE TABLE instances_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, key)
+);
+CREATE VIEW instances_snapshots_config_ref (
+  project,
+  instance,
+  name,
+  key,
+  value) AS
+  SELECT
+    projects.name,
+    instances.name,
+    instances_snapshots.name,
+    instances_snapshots_config.key,
+    instances_snapshots_config.value
+  FROM instances_snapshots_config
+    JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
+    JOIN instances ON instances.id=instances_snapshots.instance_id
+    JOIN projects ON projects.id=instances.project_id;
+CREATE TABLE instances_snapshots_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, name)
+);
+CREATE TABLE instances_snapshots_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_device_id) REFERENCES instances_snapshots_devices (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_device_id, key)
+);
+CREATE VIEW instances_snapshots_devices_ref (
+  project,
+  instance,
+  name,
+  device,
+  type,
+  key,
+  value) AS
+  SELECT
+    projects.name,
+    instances.name,
+    instances_snapshots.name,
+    instances_snapshots_devices.name,
+    instances_snapshots_devices.type,
+    coalesce(instances_snapshots_devices_config.key,
+    ''),
+    coalesce(instances_snapshots_devices_config.value,
+    '')
+  FROM instances_snapshots_devices
+    LEFT OUTER JOIN instances_snapshots_devices_config
+      ON instances_snapshots_devices_config.instance_snapshot_device_id=instances_snapshots_devices.id
+     JOIN instances ON instances.id=instances_snapshots.instance_id
+     JOIN projects ON projects.id=instances.project_id
+     JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_devices.instance_snapshot_id;
 CREATE TABLE networks (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -405,5 +480,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (15, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (16, strftime("%s"))
 `

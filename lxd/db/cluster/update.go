@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
+	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 
@@ -48,6 +50,384 @@ var updates = map[int]schema.Update{
 	13: updateFromV12,
 	14: updateFromV13,
 	15: updateFromV14,
+	16: updateFromV15,
+}
+
+// Create new snapshot tables and migrate data to them.
+func updateFromV15(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE instances_snapshots (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    description TEXT,
+    expiry_date DATETIME,
+    UNIQUE (instance_id, name),
+    FOREIGN KEY (instance_id) REFERENCES instances (id) ON DELETE CASCADE
+);
+CREATE TABLE instances_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, key)
+);
+CREATE TABLE instances_snapshots_devices (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, name)
+);
+CREATE TABLE instances_snapshots_devices_config (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_device_id) REFERENCES instances_snapshots_devices (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_device_id, key)
+);
+CREATE VIEW instances_snapshots_config_ref (
+  project,
+  instance,
+  name,
+  key,
+  value) AS
+  SELECT
+    projects.name,
+    instances.name,
+    instances_snapshots.name,
+    instances_snapshots_config.key,
+    instances_snapshots_config.value
+  FROM instances_snapshots_config
+    JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
+    JOIN instances ON instances.id=instances_snapshots.instance_id
+    JOIN projects ON projects.id=instances.project_id;
+CREATE VIEW instances_snapshots_devices_ref (
+  project,
+  instance,
+  name,
+  device,
+  type,
+  key,
+  value) AS
+  SELECT
+    projects.name,
+    instances.name,
+    instances_snapshots.name,
+    instances_snapshots_devices.name,
+    instances_snapshots_devices.type,
+    coalesce(instances_snapshots_devices_config.key, ''),
+    coalesce(instances_snapshots_devices_config.value, '')
+  FROM instances_snapshots_devices
+    LEFT OUTER JOIN instances_snapshots_devices_config
+      ON instances_snapshots_devices_config.instance_snapshot_device_id=instances_snapshots_devices.id
+     JOIN instances ON instances.id=instances_snapshots.instance_id
+     JOIN projects ON projects.id=instances.project_id
+     JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_devices.instance_snapshot_id
+`
+	_, err := tx.Exec(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create snapshots tables")
+	}
+
+	// Get the total number of rows in the instances table.
+	count, err := query.Count(tx, "instances", "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to count rows in instances table")
+	}
+
+	// Fetch all rows in the instances table.
+	instances := make([]struct {
+		ID           int
+		Name         string
+		Type         int
+		CreationDate time.Time
+		Stateful     bool
+		Description  string
+		ExpiryDate   time.Time
+	}, count)
+
+	dest := func(i int) []interface{} {
+		return []interface{}{
+			&instances[i].ID,
+			&instances[i].Name,
+			&instances[i].Type,
+			&instances[i].CreationDate,
+			&instances[i].Stateful,
+			&instances[i].Description,
+			&instances[i].ExpiryDate,
+		}
+	}
+
+	stmt, err := tx.Prepare(`
+SELECT id, name, type, creation_date, stateful, description, expiry_date FROM instances
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare instances query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch instances")
+	}
+
+	// Create an index mapping instance names to their IDs.
+	instanceIDsByName := make(map[string]int)
+	for _, instance := range instances {
+		if instance.Type == 1 {
+			continue
+		}
+		instanceIDsByName[instance.Name] = instance.ID
+	}
+
+	// Fetch all rows in the instances_config table that references
+	// snapshots and index them by instance ID.
+	count, err = query.Count(
+		tx,
+		"instances_config JOIN instances ON instances_config.instance_id = instances.id",
+		"instances.type = 1")
+	if err != nil {
+		return errors.Wrap(err, "Failed to count rows in instances_config table")
+	}
+	configs := make([]struct {
+		ID         int
+		InstanceID int
+		Key        string
+		Value      string
+	}, count)
+
+	dest = func(i int) []interface{} {
+		return []interface{}{
+			&configs[i].ID,
+			&configs[i].InstanceID,
+			&configs[i].Key,
+			&configs[i].Value,
+		}
+	}
+
+	stmt, err = tx.Prepare(`
+SELECT instances_config.id, instance_id, key, value
+  FROM instances_config JOIN instances ON instances_config.instance_id = instances.id
+  WHERE instances.type = 1
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare instances_config query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch snapshots config")
+	}
+
+	configBySnapshotID := make(map[int]map[string]string)
+	for _, config := range configs {
+		c, ok := configBySnapshotID[config.InstanceID]
+		if !ok {
+			c = make(map[string]string)
+			configBySnapshotID[config.InstanceID] = c
+		}
+		c[config.Key] = config.Value
+	}
+
+	// Fetch all rows in the instances_devices table that references
+	// snapshots and index them by instance ID.
+	count, err = query.Count(
+		tx,
+		"instances_devices JOIN instances ON instances_devices.instance_id = instances.id",
+		"instances.type = 1")
+	if err != nil {
+		return errors.Wrap(err, "Failed to count rows in instances_devices table")
+	}
+	devices := make([]struct {
+		ID         int
+		InstanceID int
+		Name       string
+		Type       int
+	}, count)
+
+	dest = func(i int) []interface{} {
+		return []interface{}{
+			&devices[i].ID,
+			&devices[i].InstanceID,
+			&devices[i].Name,
+			&devices[i].Type,
+		}
+	}
+
+	stmt, err = tx.Prepare(`
+SELECT instances_devices.id, instance_id, instances_devices.name, instances_devices.type
+  FROM instances_devices JOIN instances ON instances_devices.instance_id = instances.id
+  WHERE instances.type = 1
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare instances_devices query")
+	}
+
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch snapshots devices")
+	}
+
+	devicesBySnapshotID := make(map[int]map[string]struct {
+		Type   int
+		Config map[string]string
+	})
+	for _, device := range devices {
+		d, ok := devicesBySnapshotID[device.InstanceID]
+		if !ok {
+			d = make(map[string]struct {
+				Type   int
+				Config map[string]string
+			})
+			devicesBySnapshotID[device.InstanceID] = d
+		}
+		// Fetch the config for this device.
+		config, err := query.SelectConfig(tx, "instances_devices_config", "instance_device_id = ?", device.ID)
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch snapshots devices config")
+		}
+
+		d[device.Name] = struct {
+			Type   int
+			Config map[string]string
+		}{
+			Type:   device.Type,
+			Config: config,
+		}
+	}
+
+	// Migrate all snapshots to the new tables.
+	for _, instance := range instances {
+		if instance.Type == 0 {
+			continue
+		}
+
+		// Figure out the instance and snapshot names.
+		parts := strings.SplitN(instance.Name, shared.SnapshotDelimiter, 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("Snapshot %s has an invalid name", instance.Name)
+		}
+		instanceName := parts[0]
+		instanceID, ok := instanceIDsByName[instanceName]
+		if !ok {
+			return fmt.Errorf("Found snapshot %s with no associated instance", instance.Name)
+		}
+		snapshotName := parts[1]
+
+		// Insert a new row in instances_snapshots
+		columns := []string{
+			"instance_id",
+			"name",
+			"creation_date",
+			"stateful",
+			"description",
+			"expiry_date",
+		}
+		id, err := query.UpsertObject(
+			tx,
+			"instances_snapshots",
+			columns,
+			[]interface{}{
+				instanceID,
+				snapshotName,
+				instance.CreationDate,
+				instance.Stateful,
+				instance.Description,
+				instance.ExpiryDate,
+			},
+		)
+		if err != nil {
+			return errors.Wrapf(err, "Failed migrate snapshot %s", instance.Name)
+		}
+
+		// Migrate the snapshot config
+		for key, value := range configBySnapshotID[instance.ID] {
+			columns := []string{
+				"instance_snapshot_id",
+				"key",
+				"value",
+			}
+			_, err := query.UpsertObject(
+				tx,
+				"instances_snapshots_config",
+				columns,
+				[]interface{}{
+					id,
+					key,
+					value,
+				},
+			)
+			if err != nil {
+				return errors.Wrapf(err, "Failed migrate config %s/%s for snapshot %s", key, value, instance.Name)
+			}
+		}
+
+		// Migrate the snapshot devices
+		for name, device := range devicesBySnapshotID[instance.ID] {
+			columns := []string{
+				"instance_snapshot_id",
+				"name",
+				"type",
+			}
+			deviceID, err := query.UpsertObject(
+				tx,
+				"instances_snapshots_devices",
+				columns,
+				[]interface{}{
+					id,
+					name,
+					device.Type,
+				},
+			)
+			if err != nil {
+				return errors.Wrapf(err, "Failed migrate device %s for snapshot %s", name, instance.Name)
+			}
+			for key, value := range device.Config {
+				columns := []string{
+					"instance_snapshot_device_id",
+					"key",
+					"value",
+				}
+				_, err := query.UpsertObject(
+					tx,
+					"instances_snapshots_devices_config",
+					columns,
+					[]interface{}{
+						deviceID,
+						key,
+						value,
+					},
+				)
+				if err != nil {
+					return errors.Wrapf(err, "Failed migrate config %s/%s for device %s of snapshot %s", key, value, name, instance.Name)
+				}
+			}
+		}
+
+		deleted, err := query.DeleteObject(tx, "instances", int64(instance.ID))
+		if err != nil {
+			return errors.Wrapf(err, "Failed to delete snapshot %s", instance.Name)
+		}
+		if !deleted {
+			return fmt.Errorf("Expected to delete snapshot %s", instance.Name)
+		}
+	}
+
+	// Make sure that no snapshot is left in the instances table.
+	count, err = query.Count(tx, "instances", "type = 1")
+	if err != nil {
+		return errors.Wrap(err, "Failed to count leftover snapshot rows")
+	}
+	if count != 0 {
+		return fmt.Errorf("Found %d unexpected snapshots left in instances table", count)
+	}
+
+	return nil
 }
 
 // Rename all containers* tables to instances*/

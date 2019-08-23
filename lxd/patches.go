@@ -288,13 +288,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	// Check if this LXD instace currently has any containers, snapshots, or
 	// images configured. If so, we create a default storage pool in the
 	// database. Otherwise, the user will have to run LXD init.
-	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList()
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.LegacySnapshotsList()
 	if err != nil {
 		return err
 	}
@@ -1956,13 +1956,13 @@ func patchStorageApiV1(name string, d *Daemon) error {
 		return nil
 	}
 
-	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList()
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.LegacySnapshotsList()
 	if err != nil {
 		return err
 	}
@@ -1977,7 +1977,7 @@ func patchStorageApiV1(name string, d *Daemon) error {
 }
 
 func patchContainerConfigRegen(name string, d *Daemon) error {
-	cts, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	cts, err := d.cluster.LegacyContainersList()
 	if err != nil {
 		return err
 	}
@@ -2726,7 +2726,7 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 }
 
 func patchDevicesNewNamingScheme(name string, d *Daemon) error {
-	cts, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	cts, err := d.cluster.LegacyContainersList()
 	if err != nil {
 		logger.Errorf("Failed to retrieve containers from database")
 		return err
@@ -2980,7 +2980,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 	}
 
-	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList()
 	if err != nil {
 		return err
 	}
@@ -3047,7 +3047,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 	}
 
 	// Get all containers
-	containers, err := d.cluster.LegacyContainersList(db.CTypeRegular)
+	containers, err := d.cluster.LegacyContainersList()
 	if err != nil {
 		if err != db.ErrNoSuchObject {
 			return err
