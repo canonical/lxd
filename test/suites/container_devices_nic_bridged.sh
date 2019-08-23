@@ -379,6 +379,35 @@ test_container_devices_nic_bridged() {
     false
   fi
 
+  # Check dnsmasq leases file removed if DHCP disabled and that device can be removed.
+  lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
+  lxc start "${ctName}"
+  lxc exec "${ctName}" -- udhcpc -i eth0
+  lxc network unset "${brName}" ipv4.address
+  lxc network unset "${brName}" ipv6.address
+
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.leases" ] ; then
+    echo "dnsmasq.leases file still present after disabling DHCP"
+    false
+  fi
+
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.pid" ] ; then
+    echo "dnsmasq.pid file still present after disabling DHCP"
+    false
+  fi
+
+  lxc config device remove "${ctName}" eth0
+  lxc stop -f "${ctName}"
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+    echo "dnsmasq host config file not removed from network"
+    false
+  fi
+
+  # Re-enable DHCP on network.
+  lxc network set "${brName}" ipv4.address 192.0.2.1/24
+  lxc network set "${brName}" ipv6.address 2001:db8::1/64
+
+  # Check dnsmasq host file is created on add.
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
   if [ ! -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
     echo "dnsmasq host config file not created"

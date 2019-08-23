@@ -1913,6 +1913,15 @@ func (n *network) Start() error {
 				return err
 			}
 		}
+	} else {
+		// Clean up old dnsmasq config if exists and we are not starting dnsmasq.
+		leasesPath := shared.VarPath("networks", n.name, "dnsmasq.leases")
+		if shared.PathExists(leasesPath) {
+			err := os.Remove(leasesPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to remove old dnsmasq leases file '%s'", leasesPath)
+			}
+		}
 	}
 
 	return nil

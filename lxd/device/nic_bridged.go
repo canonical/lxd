@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // dhcpAllocation represents an IP allocation from dnsmasq used for IP filtering.
@@ -274,20 +275,22 @@ func (d *nicBridged) Remove() error {
 		return err
 	}
 
-	// If device was on managed parent, remove old config file.
-	if d.config["parent"] != "" && shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
+	if d.config["parent"] != "" {
 		dnsmasq.ConfigMutex.Lock()
 		defer dnsmasq.ConfigMutex.Unlock()
 
+		// Remove dnsmasq config if it exists (doesn't return error if file is missing).
 		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.instance.Project(), d.instance.Name())
 		if err != nil {
 			return err
 		}
 
-		// Reload dnsmasq to apply new settings.
-		err = dnsmasq.Kill(d.config["parent"], true)
-		if err != nil {
-			return err
+		// Reload dnsmasq to apply new settings if dnsmasq is running.
+		if shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
+			err = dnsmasq.Kill(d.config["parent"], true)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1181,8 +1184,8 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 				srcIP := net.ParseIP(fields[2])
 
 				if dstIPv4 == nil {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv4 lease for instance \"%s\", IP \"%s\", MAC \"%s\", %v", name, srcIP, srcMAC, "No server address found"))
-					continue
+					logger.Warnf("Failed to release DHCPv4 lease for instance \"%s\", IP \"%s\", MAC \"%s\", %v", name, srcIP, srcMAC, "No server address found")
+					continue // Cant send release packet if no dstIP found.
 				}
 
 				err = d.networkDHCPv4Release(srcMAC, srcIP, dstIPv4)
@@ -1200,7 +1203,7 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 				}
 
 				if dstIPv6 == nil {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance \"%s\", IP \"%s\", DUID \"%s\", IAID \"%s\": %s", name, srcIP, DUID, IAID, "No server address found"))
+					logger.Warn("Failed to release DHCPv6 lease for instance \"%s\", IP \"%s\", DUID \"%s\", IAID \"%s\": %s", name, srcIP, DUID, IAID, "No server address found")
 					continue // Cant send release packet if no dstIP found.
 				}
 
