@@ -502,7 +502,7 @@ func TestUpdateFromV15(t *testing.T) {
 
 		// Insert an instance.
 		_, err = db.Exec(`
-INSERT INTO instances VALUES (1, 1, 'eoan', 2, 0, 0, ?, 0, ?, 'Eoan Ermine', 1, ?)
+INSERT INTO instances VALUES (1, 1, 'eoan', 2, 0, 0, ?, 0, ?, NULL, 1, ?)
 `, time.Now(), time.Now(), time.Now())
 		require.NoError(t, err)
 		_, err = db.Exec("INSERT INTO instances_config VALUES (1, 1, 'key', 'value2')")
