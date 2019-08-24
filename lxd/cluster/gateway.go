@@ -681,7 +681,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if !isLeader {
 		return nil, errNotLeader
 	}
-	servers, err := g.server.Cluster()
+	servers, err := g.server.Cluster(context.Background())
 	if err != nil {
 		return nil, err
 	}
