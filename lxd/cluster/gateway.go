@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/eagain"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -577,7 +576,6 @@ func (g *Gateway) init() error {
 
 		options := []dqlite.ServerOption{
 			dqlite.WithServerLogFunc(DqliteLog),
-			dqlite.WithServerWatchFunc(g.watchFunc),
 			dqlite.WithServerBindAddress(g.bindAddress),
 		}
 
@@ -845,17 +843,15 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		goUnix.Close()
 	}()
 
-	return cUnix, nil
-}
-
-func (g *Gateway) watchFunc(oldState int, newState int) {
-	time.Sleep(300 * time.Millisecond)
-	if newState == dqlite.Leader && g.raft != nil {
-		logger.Info("Node was elected as dqlite leader", log.Ctx{"id": g.raft.info.ID, "address": g.raft.info.Address})
-
-		// Trigger an immediate full hearbeat run
+	// We successfully established a connection with the leader. Maybe the
+	// leader is ourselves, and we were recently elected. In that case
+	// trigger a full heartbeat now: it will be a no-op if we aren't
+	// actually leaders.
+	if checkLeader {
 		go g.heartbeat(g.ctx, true)
 	}
+
+	return cUnix, nil
 }
 
 // Create a dial function that connects to the local dqlite.
