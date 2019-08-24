@@ -165,7 +165,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 	}
 
 	stmt, err := tx.Prepare(`
-SELECT id, name, type, creation_date, stateful, description, expiry_date FROM instances
+SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expiry_date FROM instances
 `)
 	if err != nil {
 		return errors.Wrap(err, "Failed to prepare instances query")
