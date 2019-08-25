@@ -182,6 +182,8 @@ kill_lxd() {
         # Kill the daemon
         lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
 
+        sleep 2
+
         # Cleanup shmounts (needed due to the forceful kill)
         find "${daemon_dir}" -name shmounts -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
         find "${daemon_dir}" -name devlxd -exec "umount" "-l" "{}" \; >/dev/null 2>&1 || true
