@@ -6,7 +6,7 @@ import (
 )
 
 // IsLeader returns true if this node is the leader.
-func (g *Gateway) IsLeader() bool {
+func (g *Gateway) IsLeader() (bool, error) {
 	return g.isLeader()
 }
 

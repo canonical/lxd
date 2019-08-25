@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -21,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/eagain"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -111,6 +111,9 @@ type Gateway struct {
 	store *dqliteServerStore
 
 	lock sync.RWMutex
+
+	// Abstract unix socket that the local dqlite task is listening to.
+	bindAddress string
 }
 
 // Current dqlite protocol version.
@@ -236,8 +239,12 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
-			info := g.server.Leader()
-			if info == nil || info.ID != g.raft.info.ID {
+			leader, err := g.server.LeaderAddress(context.Background())
+			if err != nil {
+				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
+				return
+			}
+			if leader != g.raft.info.Address {
 				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
@@ -398,11 +405,21 @@ func (g *Gateway) Sync() {
 		return
 	}
 
-	dir := filepath.Join(g.db.Dir(), "global")
-	err := g.server.Dump("db.bin", dir)
+	files, err := g.server.Dump(context.Background(), "db.bin")
 	if err != nil {
 		// Just log a warning, since this is not fatal.
-		logger.Warnf("Failed to dump database to disk: %v", err)
+		logger.Warnf("Failed get database dump: %v", err)
+		return
+	}
+
+	dir := filepath.Join(g.db.Dir(), "global")
+	for _, file := range files {
+		path := filepath.Join(dir, file.Name)
+		err := ioutil.WriteFile(path, file.Data, 0600)
+		if err != nil {
+			logger.Warnf("Failed to dump database file %s: %v", file.Name, err)
+
+		}
 	}
 }
 
@@ -446,9 +463,12 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	// wait a bit until one is elected.
 	if g.server != nil {
 		for ctx.Err() == nil {
-			info := g.server.Leader()
-			if info != nil {
-				return info.Address, nil
+			leader, err := g.server.LeaderAddress(context.Background())
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to get leader address")
+			}
+			if leader != "" {
+				return leader, nil
 			}
 			time.Sleep(time.Second)
 		}
@@ -545,24 +565,29 @@ func (g *Gateway) init() error {
 	// should serve as database node, so create a dqlite driver possibly
 	// exposing it over the network.
 	if raft != nil {
+		// Use the autobind feature of abstract unix sockets to get a
+		// random unused address.
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return errors.Wrap(err, "Failed to allocate loopback port")
+			return errors.Wrap(err, "Failed to autobind unix socket")
 		}
+		g.bindAddress = listener.Addr().String()
+		listener.Close()
+
 		options := []dqlite.ServerOption{
 			dqlite.WithServerLogFunc(DqliteLog),
-			dqlite.WithServerWatchFunc(g.watchFunc),
+			dqlite.WithServerBindAddress(g.bindAddress),
 		}
 
 		if raft.info.Address == "1" {
 			if raft.info.ID != 1 {
 				panic("unexpected server ID")
 			}
-			g.memoryDial = dqliteMemoryDial(listener)
+			g.memoryDial = dqliteMemoryDial(g.bindAddress)
 			g.store.inMemory = dqlite.NewInmemServerStore()
 			g.store.Set(context.Background(), []dqlite.ServerInfo{raft.info})
 		} else {
-			go runDqliteProxy(listener, g.acceptCh)
+			go runDqliteProxy(g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
 			options = append(options, dqlite.WithServerDialFunc(g.raftDial()))
 		}
@@ -576,16 +601,7 @@ func (g *Gateway) init() error {
 			return errors.Wrap(err, "Failed to create dqlite server")
 		}
 
-		if raft.info.ID == 1 {
-			// Bootstrap the node. This is a no-op if we are
-			// already bootstrapped.
-			err := server.Bootstrap([]dqlite.ServerInfo{raft.info})
-			if err != nil && err != dqlite.ErrServerCantBootstrap {
-				return errors.Wrap(err, "Failed to bootstrap dqlite server")
-			}
-		}
-
-		err = server.Start(listener)
+		err = server.Start()
 		if err != nil {
 			return errors.Wrap(err, "Failed to start dqlite server")
 		}
@@ -616,7 +632,11 @@ func (g *Gateway) waitLeadership() error {
 	sleep := 250 * time.Millisecond
 	for i := 0; i < n; i++ {
 		g.lock.RLock()
-		if g.isLeader() {
+		isLeader, err := g.isLeader()
+		if err != nil {
+			return err
+		}
+		if isLeader {
 			g.lock.RUnlock()
 			return nil
 		}
@@ -627,12 +647,15 @@ func (g *Gateway) waitLeadership() error {
 	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
-func (g *Gateway) isLeader() bool {
+func (g *Gateway) isLeader() (bool, error) {
 	if g.server == nil {
-		return false
+		return false, nil
 	}
-	info := g.server.Leader()
-	return info != nil && info.ID == g.raft.info.ID
+	leader, err := g.server.LeaderAddress(context.Background())
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get leader address")
+	}
+	return leader == g.raft.info.Address, nil
 }
 
 // Internal error signalling that a node not the leader.
@@ -645,10 +668,18 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.raft == nil || !g.isLeader() {
+	if g.raft == nil {
 		return nil, errNotLeader
 	}
-	servers, err := g.server.Cluster()
+
+	isLeader, err := g.isLeader()
+	if err != nil {
+		return nil, err
+	}
+	if !isLeader {
+		return nil, errNotLeader
+	}
+	servers, err := g.server.Cluster(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -812,23 +843,21 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		goUnix.Close()
 	}()
 
+	// We successfully established a connection with the leader. Maybe the
+	// leader is ourselves, and we were recently elected. In that case
+	// trigger a full heartbeat now: it will be a no-op if we aren't
+	// actually leaders.
+	if checkLeader {
+		go g.heartbeat(g.ctx, true)
+	}
+
 	return cUnix, nil
 }
 
-func (g *Gateway) watchFunc(oldState int, newState int) {
-	time.Sleep(300 * time.Millisecond)
-	if newState == dqlite.Leader && g.raft != nil {
-		logger.Info("Node was elected as dqlite leader", log.Ctx{"id": g.raft.info.ID, "address": g.raft.info.Address})
-
-		// Trigger an immediate full hearbeat run
-		go g.heartbeat(g.ctx, true)
-	}
-}
-
-// Create a dial function that connects to the given listener.
-func dqliteMemoryDial(listener net.Listener) dqlite.DialFunc {
+// Create a dial function that connects to the local dqlite.
+func dqliteMemoryDial(bindAddress string) dqlite.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
-		return net.Dial("unix", listener.Addr().String())
+		return net.Dial("unix", bindAddress)
 	}
 }
 
@@ -851,10 +880,12 @@ func DqliteLog(l dqlite.LogLevel, format string, a ...interface{}) {
 	}
 }
 
-func runDqliteProxy(listener net.Listener, acceptCh chan net.Conn) {
+// Copy incoming TLS streams from upgraded HTTPS connections into Unix sockets
+// connected to the dqlite task.
+func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
 	for {
 		src := <-acceptCh
-		dst, err := net.Dial("unix", listener.Addr().String())
+		dst, err := net.Dial("unix", bindAddress)
 		if err != nil {
 			continue
 		}

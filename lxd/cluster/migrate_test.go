@@ -23,18 +23,13 @@ func TestMigrateToDqlite10(t *testing.T) {
 	err := cluster.MigrateToDqlite10(dir)
 	assert.NoError(t, err)
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	address := listener.Addr().String()
 	require.NoError(t, err)
-	info := dqlite.ServerInfo{ID: uint64(1), Address: address}
+	info := dqlite.ServerInfo{ID: uint64(1), Address: "1"}
 	server, err := dqlite.NewServer(info, dir)
 	require.NoError(t, err)
 	defer server.Close()
 
-	err = server.Bootstrap([]dqlite.ServerInfo{info})
-	assert.EqualError(t, err, dqlite.ErrServerCantBootstrap.Error())
-
-	err = server.Start(listener)
+	err = server.Start()
 	require.NoError(t, err)
 
 	store, err := dqlite.DefaultServerStore(":memory:")
@@ -42,7 +37,11 @@ func TestMigrateToDqlite10(t *testing.T) {
 
 	require.NoError(t, store.Set(context.Background(), []dqlite.ServerInfo{info}))
 
-	drv, err := dqlite.NewDriver(store)
+	dial := func(ctx context.Context, address string) (net.Conn, error) {
+		return net.Dial("unix", "@dqlite-1")
+	}
+
+	drv, err := dqlite.NewDriver(store, dqlite.WithDialFunc(dial))
 	require.NoError(t, err)
 
 	conn, err := drv.Open("db.bin")
