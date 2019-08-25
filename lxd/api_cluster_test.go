@@ -20,6 +20,7 @@ import (
 // A LXD node which is already configured for networking can be converted to a
 // single-node LXD cluster.
 func TestCluster_Bootstrap(t *testing.T) {
+	t.Skip("issue #6122")
 	daemon, cleanup := newDaemon(t)
 	defer cleanup()
 
@@ -45,6 +46,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 }
 
 func TestCluster_Get(t *testing.T) {
+	t.Skip("issue #6122")
 	daemon, cleanup := newDaemon(t)
 	defer cleanup()
 
@@ -58,6 +60,7 @@ func TestCluster_Get(t *testing.T) {
 }
 
 func TestCluster_GetMemberConfig(t *testing.T) {
+	t.Skip("issue #6122")
 	daemon, cleanup := newDaemon(t)
 	defer cleanup()
 
@@ -91,6 +94,7 @@ func TestCluster_GetMemberConfig(t *testing.T) {
 // A LXD node which is already configured for networking can join an existing
 // cluster.
 func TestCluster_Join(t *testing.T) {
+	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -193,6 +197,7 @@ func TestCluster_Join(t *testing.T) {
 // If the joining LXD node is not yet configured for networking, the user can
 // requests to expose it with the ServerAddress key.
 func TestCluster_JoinServerAddress(t *testing.T) {
+	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -290,6 +295,7 @@ func TestCluster_JoinServerAddress(t *testing.T) {
 // requests to use a different port for clustering, using the ServerAddress
 // key.
 func TestCluster_JoinDifferentServerAddress(t *testing.T) {
+	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -343,6 +349,7 @@ func TestCluster_JoinDifferentServerAddress(t *testing.T) {
 // If an LXD node is already for networking and the user asks to configure a
 // the same address as cluster address, the request still succeeds.
 func TestCluster_JoinSameServerAddress(t *testing.T) {
+	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -378,6 +385,7 @@ func TestCluster_JoinSameServerAddress(t *testing.T) {
 // If the joining node hasn't added its certificate as trusted client
 // certificate, an authorization error is returned.
 func TestCluster_JoinUnauthorized(t *testing.T) {
+	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -438,6 +446,7 @@ func DISABLED_TestCluster_Failover(t *testing.T) {
 
 // A node can leave a cluster gracefully.
 func TestCluster_Leave(t *testing.T) {
+	t.Skip("issue #6122")
 	if testing.Short() {
 		t.Skip("skipping cluster leave test in short mode.")
 	}
@@ -464,6 +473,7 @@ func TestCluster_Leave(t *testing.T) {
 // A node can't leave a cluster gracefully if it still has images associated
 // with it.
 func TestCluster_LeaveWithImages(t *testing.T) {
+	t.Skip("issue #6122")
 	if testing.Short() {
 		t.Skip("skipping cluster leave test in short mode.")
 	}
@@ -494,6 +504,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 
 // The force flag makes a node leave also if it still has images.
 func TestCluster_LeaveForce(t *testing.T) {
+	t.Skip("issue #6122")
 	if testing.Short() {
 		t.Skip("skipping cluster leave test in short mode.")
 	}
@@ -558,6 +569,7 @@ func FLAKY_TestCluster_LeaveAndPromote(t *testing.T) {
 
 // A LXD node can be renamed.
 func TestCluster_NodeRename(t *testing.T) {
+	t.Skip("issue #6122")
 	daemon, cleanup := newDaemon(t)
 	defer cleanup()
 
