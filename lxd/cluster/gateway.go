@@ -18,6 +18,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
+	dqliteclient "github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -405,7 +406,13 @@ func (g *Gateway) Sync() {
 		return
 	}
 
-	files, err := g.server.Dump(context.Background(), "db.bin")
+	client, err := g.getClient()
+	if err != nil {
+		logger.Warnf("Failed to get client: %v", err)
+		return
+	}
+
+	files, err := client.Dump(context.Background(), "db.bin")
 	if err != nil {
 		// Just log a warning, since this is not fatal.
 		logger.Warnf("Failed get database dump: %v", err)
@@ -421,6 +428,10 @@ func (g *Gateway) Sync() {
 
 		}
 	}
+}
+
+func (g *Gateway) getClient() (*dqliteclient.Client, error) {
+	return dqliteclient.New(context.Background(), g.bindAddress)
 }
 
 // Reset the gateway, shutting it down and starting against from scratch using
