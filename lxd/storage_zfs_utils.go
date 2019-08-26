@@ -81,7 +81,7 @@ func zfsPoolCheck(pool string) error {
 	output, err := shared.RunCommand(
 		"zfs", "get", "-H", "-o", "value", "type", pool)
 	if err != nil {
-		return fmt.Errorf(strings.Split(output, "\n")[0])
+		return err
 	}
 
 	poolType := strings.Split(output, "\n")[0]
@@ -110,25 +110,24 @@ func zfsPoolVolumeExists(dataset string) (bool, error) {
 }
 
 func zfsPoolCreate(pool string, vdev string) error {
-	var output string
 	var err error
 
 	dataset := ""
 
 	if pool == "" {
-		output, err := shared.RunCommand(
+		_, err := shared.RunCommand(
 			"zfs", "create", "-p", "-o", "mountpoint=none", vdev)
 		if err != nil {
-			logger.Errorf("zfs create failed: %s", output)
-			return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
+			logger.Errorf("zfs create failed: %v", err)
+			return errors.Wrap(err, "Failed to create ZFS filesystem")
 		}
 		dataset = vdev
 	} else {
-		output, err = shared.RunCommand(
+		_, err = shared.RunCommand(
 			"zpool", "create", "-f", "-m", "none", "-O", "compression=on", pool, vdev)
 		if err != nil {
-			logger.Errorf("zfs create failed: %s", output)
-			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
+			logger.Errorf("zfs create failed: %v", err)
+			return errors.Wrap(err, "Failed to create the ZFS pool")
 		}
 
 		dataset = pool
@@ -177,7 +176,7 @@ func zfsPoolApplyDefaults(dataset string) error {
 }
 
 func zfsPoolVolumeClone(project, pool string, source string, name string, dest string, mountpoint string) error {
-	output, err := shared.RunCommand(
+	_, err := shared.RunCommand(
 		"zfs",
 		"clone",
 		"-p",
@@ -186,8 +185,8 @@ func zfsPoolVolumeClone(project, pool string, source string, name string, dest s
 		fmt.Sprintf("%s/%s@%s", pool, source, name),
 		fmt.Sprintf("%s/%s", pool, dest))
 	if err != nil {
-		logger.Errorf("zfs clone failed: %s", output)
-		return fmt.Errorf("Failed to clone the filesystem: %s", output)
+		logger.Errorf("zfs clone failed: %v", err)
+		return errors.Wrap(err, "Failed to clone the filesystem")
 	}
 
 	subvols, err := zfsPoolListSubvolumes(pool, fmt.Sprintf("%s/%s", pool, source))
@@ -208,7 +207,7 @@ func zfsPoolVolumeClone(project, pool string, source string, name string, dest s
 		destSubvol := dest + strings.TrimPrefix(sub, source)
 		snapshotMntPoint := driver.GetSnapshotMountPoint(project, pool, destSubvol)
 
-		output, err := shared.RunCommand(
+		_, err = shared.RunCommand(
 			"zfs",
 			"clone",
 			"-p",
@@ -217,8 +216,8 @@ func zfsPoolVolumeClone(project, pool string, source string, name string, dest s
 			fmt.Sprintf("%s/%s@%s", pool, sub, name),
 			fmt.Sprintf("%s/%s", pool, destSubvol))
 		if err != nil {
-			logger.Errorf("zfs clone failed: %s", output)
-			return fmt.Errorf("Failed to clone the sub-volume: %s", output)
+			logger.Errorf("zfs clone failed: %v", err)
+			return errors.Wrap(err, "Failed to clone the sub-volume")
 		}
 	}
 
@@ -226,17 +225,16 @@ func zfsPoolVolumeClone(project, pool string, source string, name string, dest s
 }
 
 func zfsFilesystemEntityDelete(vdev string, pool string) error {
-	var output string
 	var err error
 	if strings.Contains(pool, "/") {
 		// Command to destroy a zfs dataset.
-		output, err = shared.RunCommand("zfs", "destroy", "-r", pool)
+		_, err = shared.RunCommand("zfs", "destroy", "-r", pool)
 	} else {
 		// Command to destroy a zfs pool.
-		output, err = shared.RunCommand("zpool", "destroy", "-f", pool)
+		_, err = shared.RunCommand("zpool", "destroy", "-f", pool)
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to delete the ZFS pool: %s", output)
+		return errors.Wrap(err, "Failed to delete the ZFS pool")
 	}
 
 	// Cleanup storage
@@ -262,15 +260,15 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 	}
 
 	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
-	output, err := shared.TryRunCommand(
+	_, err = shared.TryRunCommand(
 		"zfs",
 		"destroy",
 		"-r",
 		fmt.Sprintf("%s/%s", pool, path))
 
 	if err != nil {
-		logger.Errorf("zfs destroy failed: %s", output)
-		return fmt.Errorf("Failed to destroy ZFS filesystem: %s", output)
+		logger.Errorf("zfs destroy failed: %v", err)
+		return errors.Wrap(err, "Failed to destroy ZFS filesystem")
 	}
 
 	return nil
@@ -355,7 +353,7 @@ func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (strin
 		key,
 		entity)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get ZFS config: %s", output)
+		return "", errors.Wrap(err, "Failed to get ZFS config")
 	}
 
 	return strings.TrimRight(output, "\n"), nil
@@ -363,11 +361,10 @@ func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (strin
 
 func zfsPoolVolumeRename(pool string, source string, dest string, ignoreMounts bool) error {
 	var err error
-	var output string
 
 	for i := 0; i < 20; i++ {
 		if ignoreMounts {
-			output, err = shared.RunCommand(
+			_, err = shared.RunCommand(
 				"/proc/self/exe",
 				"forkzfs",
 				"--",
@@ -376,7 +373,7 @@ func zfsPoolVolumeRename(pool string, source string, dest string, ignoreMounts b
 				fmt.Sprintf("%s/%s", pool, source),
 				fmt.Sprintf("%s/%s", pool, dest))
 		} else {
-			output, err = shared.RunCommand(
+			_, err = shared.RunCommand(
 				"zfs",
 				"rename",
 				"-p",
@@ -398,8 +395,8 @@ func zfsPoolVolumeRename(pool string, source string, dest string, ignoreMounts b
 	}
 
 	// Timeout
-	logger.Errorf("zfs rename failed: %s", output)
-	return fmt.Errorf("Failed to rename ZFS filesystem: %s", output)
+	logger.Errorf("zfs rename failed: %v", err)
+	return errors.Wrap(err, "Failed to rename ZFS filesystem")
 }
 
 func zfsPoolVolumeSet(pool string, path string, key string, value string) error {
@@ -407,55 +404,55 @@ func zfsPoolVolumeSet(pool string, path string, key string, value string) error 
 	if path != "" {
 		vdev = fmt.Sprintf("%s/%s", pool, path)
 	}
-	output, err := shared.RunCommand(
+	_, err := shared.RunCommand(
 		"zfs",
 		"set",
 		fmt.Sprintf("%s=%s", key, value),
 		vdev)
 	if err != nil {
-		logger.Errorf("zfs set failed: %s", output)
-		return fmt.Errorf("Failed to set ZFS config: %s", output)
+		logger.Errorf("zfs set failed: %v", err)
+		return errors.Wrap(err, "Failed to set ZFS config")
 	}
 
 	return nil
 }
 
 func zfsPoolVolumeSnapshotCreate(pool string, path string, name string) error {
-	output, err := shared.RunCommand(
+	_, err := shared.RunCommand(
 		"zfs",
 		"snapshot",
 		"-r",
 		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
-		logger.Errorf("zfs snapshot failed: %s", output)
-		return fmt.Errorf("Failed to create ZFS snapshot: %s", output)
+		logger.Errorf("zfs snapshot failed: %v", err)
+		return errors.Wrap(err, "Failed to create ZFS snapshot")
 	}
 
 	return nil
 }
 
 func zfsPoolVolumeSnapshotDestroy(pool, path string, name string) error {
-	output, err := shared.RunCommand(
+	_, err := shared.RunCommand(
 		"zfs",
 		"destroy",
 		"-r",
 		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
-		logger.Errorf("zfs destroy failed: %s", output)
-		return fmt.Errorf("Failed to destroy ZFS snapshot: %s", output)
+		logger.Errorf("zfs destroy failed: %v", err)
+		return errors.Wrap(err, "Failed to destroy ZFS snapshot")
 	}
 
 	return nil
 }
 
 func zfsPoolVolumeSnapshotRestore(pool string, path string, name string) error {
-	output, err := shared.TryRunCommand(
+	_, err := shared.TryRunCommand(
 		"zfs",
 		"rollback",
 		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
-		logger.Errorf("zfs rollback failed: %s", output)
-		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
+		logger.Errorf("zfs rollback failed: %v", err)
+		return errors.Wrap(err, "Failed to restore ZFS snapshot")
 	}
 
 	subvols, err := zfsPoolListSubvolumes(pool, fmt.Sprintf("%s/%s", pool, path))
@@ -473,13 +470,13 @@ func zfsPoolVolumeSnapshotRestore(pool string, path string, name string) error {
 			continue
 		}
 
-		output, err := shared.TryRunCommand(
+		_, err = shared.TryRunCommand(
 			"zfs",
 			"rollback",
 			fmt.Sprintf("%s/%s@%s", pool, sub, name))
 		if err != nil {
-			logger.Errorf("zfs rollback failed: %s", output)
-			return fmt.Errorf("Failed to restore ZFS sub-volume snapshot: %s", output)
+			logger.Errorf("zfs rollback failed: %v", err)
+			return errors.Wrap(err, "Failed to restore ZFS sub-volume snapshot")
 		}
 	}
 
@@ -487,27 +484,27 @@ func zfsPoolVolumeSnapshotRestore(pool string, path string, name string) error {
 }
 
 func zfsPoolVolumeSnapshotRename(pool string, path string, oldName string, newName string) error {
-	output, err := shared.RunCommand(
+	_, err := shared.RunCommand(
 		"zfs",
 		"rename",
 		"-r",
 		fmt.Sprintf("%s/%s@%s", pool, path, oldName),
 		fmt.Sprintf("%s/%s@%s", pool, path, newName))
 	if err != nil {
-		logger.Errorf("zfs snapshot rename failed: %s", output)
-		return fmt.Errorf("Failed to rename ZFS snapshot: %s", output)
+		logger.Errorf("zfs snapshot rename failed: %v", err)
+		return errors.Wrap(err, "Failed to rename ZFS snapshot")
 	}
 
 	return nil
 }
 
 func zfsMount(poolName string, path string) error {
-	output, err := shared.TryRunCommand(
+	_, err := shared.TryRunCommand(
 		"zfs",
 		"mount",
 		fmt.Sprintf("%s/%s", poolName, path))
 	if err != nil {
-		return fmt.Errorf("Failed to mount ZFS filesystem: %s", output)
+		return errors.Wrap(err, "Failed to mount ZFS filesystem")
 	}
 
 	return nil
@@ -539,8 +536,8 @@ func zfsPoolListSubvolumes(pool string, path string) ([]string, error) {
 		"-H",
 		"-r", path)
 	if err != nil {
-		logger.Errorf("zfs list failed: %s", output)
-		return []string{}, fmt.Errorf("Failed to list ZFS filesystems: %s", output)
+		logger.Errorf("zfs list failed: %v", err)
+		return []string{}, errors.Wrap(err, "Failed to list ZFS filesystems")
 	}
 
 	children := []string{}
@@ -576,8 +573,8 @@ func zfsPoolListSnapshots(pool string, path string) ([]string, error) {
 		"-s", "creation",
 		"-r", fullPath)
 	if err != nil {
-		logger.Errorf("zfs list failed: %s", output)
-		return []string{}, fmt.Errorf("Failed to list ZFS snapshots: %s", output)
+		logger.Errorf("zfs list failed: %v", err)
+		return []string{}, errors.Wrap(err, "Failed to list ZFS snapshots")
 	}
 
 	children := []string{}
