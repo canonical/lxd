@@ -311,9 +311,11 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	lAddr := proxyParseAddr(listenAddr)
 
 	if C.whoami == C.FORKPROXY_CHILD {
-		err := os.Remove(lAddr.addr)
-		if err != nil && !os.IsNotExist(err) {
-			return err
+		if lAddr.connType == "unix" {
+			err := os.Remove(lAddr.addr)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 
 		file, err := getListenerFile(listenAddr)
