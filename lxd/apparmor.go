@@ -76,6 +76,7 @@ const AA_PROFILE_BASE = `
   deny /proc/bus/** wklx,
   deny /proc/kcore rwklx,
   deny /proc/sysrq-trigger rwklx,
+  deny /proc/acpi/** rwklx,
   deny /proc/sys/fs/** wklx,
 
   # Handle securityfs (access handled separately)
