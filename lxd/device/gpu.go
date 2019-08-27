@@ -41,9 +41,9 @@ func (d *gpu) validateConfig() error {
 		"productid": shared.IsDeviceID,
 		"id":        shared.IsAny,
 		"pci":       shared.IsAny,
-		"uid":       shared.IsUnixUserID,
-		"gid":       shared.IsUnixUserID,
-		"mode":      shared.IsOctalFileMode,
+		"uid":       unixValidUserID,
+		"gid":       unixValidUserID,
+		"mode":      unixValidOctalFileMode,
 	}
 
 	err := config.ValidateDevice(rules, d.config)
