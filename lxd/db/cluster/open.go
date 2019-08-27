@@ -23,7 +23,7 @@ import (
 //
 // The dialer argument is a function that returns a gRPC dialer that can be
 // used to connect to a database node using the gRPC SQL package.
-func Open(name string, store driver.ServerStore, options ...driver.Option) (*sql.DB, error) {
+func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.DB, error) {
 	driver, err := driver.New(store, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create dqlite driver")
