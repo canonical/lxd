@@ -652,7 +652,7 @@ func clusterPutDisable(d *Daemon) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	store := d.gateway.ServerStore()
+	store := d.gateway.NodeStore()
 	d.cluster, err = db.OpenCluster(
 		"db.bin", store, address, "/unused/db/dir",
 		d.config.DqliteSetupTimeout,
