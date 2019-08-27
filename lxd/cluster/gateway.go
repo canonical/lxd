@@ -240,12 +240,12 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
-			leader, err := g.server.LeaderAddress(context.Background())
+			leader, err := g.server.Leader(context.Background())
 			if err != nil {
 				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
 				return
 			}
-			if leader != g.raft.info.Address {
+			if leader == nil || leader.ID != g.raft.info.ID {
 				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
@@ -474,12 +474,12 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	// wait a bit until one is elected.
 	if g.server != nil {
 		for ctx.Err() == nil {
-			leader, err := g.server.LeaderAddress(context.Background())
+			leader, err := g.server.Leader(context.Background())
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to get leader address")
 			}
-			if leader != "" {
-				return leader, nil
+			if leader != nil {
+				return leader.Address, nil
 			}
 			time.Sleep(time.Second)
 		}
@@ -662,11 +662,11 @@ func (g *Gateway) isLeader() (bool, error) {
 	if g.server == nil {
 		return false, nil
 	}
-	leader, err := g.server.LeaderAddress(context.Background())
+	leader, err := g.server.Leader(context.Background())
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get leader address")
 	}
-	return leader == g.raft.info.Address, nil
+	return leader != nil && leader.ID == g.raft.info.ID, nil
 }
 
 // Internal error signalling that a node not the leader.
