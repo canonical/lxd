@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,7 +102,7 @@ func NewTestClusterTx(t *testing.T) (*ClusterTx, func()) {
 //
 // Return the directory backing the test server and a newly created server
 // store that can be used to connect to it.
-func NewTestDqliteServer(t *testing.T) (string, driver.ServerStore, func()) {
+func NewTestDqliteServer(t *testing.T) (string, driver.NodeStore, func()) {
 	t.Helper()
 
 	listener, err := net.Listen("unix", "")
@@ -114,9 +115,9 @@ func NewTestDqliteServer(t *testing.T) (string, driver.ServerStore, func()) {
 	err = os.Mkdir(filepath.Join(dir, "global"), 0755)
 	require.NoError(t, err)
 
-	info := driver.ServerInfo{ID: uint64(1), Address: address}
-	server, err := dqlite.NewServer(
-		info, filepath.Join(dir, "global"), dqlite.WithServerBindAddress(address))
+	info := driver.NodeInfo{ID: uint64(1), Address: address}
+	server, err := dqlite.New(
+		info, filepath.Join(dir, "global"), dqlite.WithBindAddress(address))
 	require.NoError(t, err)
 
 	err = server.Start()
@@ -127,10 +128,10 @@ func NewTestDqliteServer(t *testing.T) (string, driver.ServerStore, func()) {
 		dirCleanup()
 	}
 
-	store, err := driver.DefaultServerStore(":memory:")
+	store, err := driver.DefaultNodeStore(":memory:")
 	require.NoError(t, err)
 	ctx := context.Background()
-	require.NoError(t, store.Set(ctx, []driver.ServerInfo{{Address: address}}))
+	require.NoError(t, store.Set(ctx, []driver.NodeInfo{{Address: address}}))
 
 	return dir, store, cleanup
 }
@@ -156,8 +157,8 @@ func newDir(t *testing.T) (string, func()) {
 	return dir, cleanup
 }
 
-func newLogFunc(t *testing.T) dqlite.LogFunc {
-	return func(l dqlite.LogLevel, format string, a ...interface{}) {
+func newLogFunc(t *testing.T) client.LogFunc {
+	return func(l client.LogLevel, format string, a ...interface{}) {
 		format = fmt.Sprintf("%s: %s", l.String(), format)
 		t.Logf(format, a...)
 	}
