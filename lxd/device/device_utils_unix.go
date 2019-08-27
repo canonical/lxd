@@ -550,3 +550,45 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 
 	return nil
 }
+
+// unixValidDeviceNum validates the major and minor numbers for a UNIX device.
+func unixValidDeviceNum(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for a UNIX device number")
+	}
+
+	return nil
+}
+
+// unixValidUserID validates the UNIX UID and GID values for ownership.
+func unixValidUserID(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for a UNIX ID")
+	}
+
+	return nil
+}
+
+// unixValidOctalFileMode validates the UNIX file mode.
+func unixValidOctalFileMode(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 8, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an octal file mode")
+	}
+
+	return nil
+}
