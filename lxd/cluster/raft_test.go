@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -26,7 +26,7 @@ func newRaft(t *testing.T, db *db.Node, cert *shared.CertInfo) *cluster.RaftInst
 // address into the raft_nodes table.
 //
 // This effectively makes the node act as a database raft node.
-func setRaftRole(t *testing.T, database *db.Node, address string) *dqlite.DatabaseServerStore {
+func setRaftRole(t *testing.T, database *db.Node, address string) client.NodeStore {
 	require.NoError(t, database.Transaction(func(tx *db.NodeTx) error {
 		err := tx.UpdateConfig(map[string]string{"cluster.https_address": address})
 		if err != nil {
@@ -36,7 +36,7 @@ func setRaftRole(t *testing.T, database *db.Node, address string) *dqlite.Databa
 		return err
 	}))
 
-	store := dqlite.NewServerStore(database.DB(), "main", "raft_nodes", "address")
+	store := client.NewNodeStore(database.DB(), "main", "raft_nodes", "address")
 	return store
 }
 

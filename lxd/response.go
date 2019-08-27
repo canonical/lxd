@@ -11,8 +11,8 @@ import (
 	"os"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
-	"github.com/mattn/go-sqlite3"
+	"github.com/canonical/go-dqlite/driver"
+	sqlite3 "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
@@ -541,7 +541,7 @@ func SmartError(err error) Response {
 		}
 
 		return Conflict(nil)
-	case dqlite.ErrNoAvailableLeader:
+	case driver.ErrNoAvailableLeader:
 		return Unavailable(err)
 	default:
 		return InternalError(err)

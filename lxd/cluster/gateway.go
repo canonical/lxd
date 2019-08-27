@@ -18,6 +18,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
+	client "github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -53,7 +54,7 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 		cancel:    cancel,
 		upgradeCh: make(chan struct{}, 16),
 		acceptCh:  make(chan net.Conn),
-		store:     &dqliteServerStore{},
+		store:     &dqliteNodeStore{},
 	}
 
 	err := gateway.init()
@@ -79,7 +80,7 @@ type Gateway struct {
 	// The gRPC server exposing the dqlite driver created by this
 	// gateway. It's nil if this LXD node is not supposed to be part of the
 	// raft cluster.
-	server   *dqlite.Server
+	server   *dqlite.Node
 	acceptCh chan net.Conn
 
 	// A dialer that will connect to the dqlite server using a loopback
@@ -88,7 +89,7 @@ type Gateway struct {
 	// but still we want to use dqlite as backend for the "cluster"
 	// database, to minimize the difference between code paths in
 	// clustering and non-clustering modes.
-	memoryDial dqlite.DialFunc
+	memoryDial client.DialFunc
 
 	// Used when shutting down the daemon to cancel any ongoing gRPC
 	// dialing attempt.
@@ -107,8 +108,8 @@ type Gateway struct {
 	Cluster           *db.Cluster
 	HeartbeatNodeHook func(*APIHeartbeat)
 
-	// ServerStore wrapper.
-	store *dqliteServerStore
+	// NodeStore wrapper.
+	store *dqliteNodeStore
 
 	lock sync.RWMutex
 
@@ -239,12 +240,18 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
-			leader, err := g.server.LeaderAddress(context.Background())
+			client, err := g.getClient()
+			if err != nil {
+				http.Error(w, "500 failed to get dqlite client", http.StatusInternalServerError)
+				return
+			}
+			defer client.Close()
+			leader, err := client.Leader(context.Background())
 			if err != nil {
 				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
 				return
 			}
-			if leader != g.raft.info.Address {
+			if leader == nil || leader.ID != g.raft.info.ID {
 				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
@@ -322,7 +329,7 @@ func (g *Gateway) IsDatabaseNode() bool {
 
 // DialFunc returns a dial function that can be used to connect to one of the
 // dqlite nodes.
-func (g *Gateway) DialFunc() dqlite.DialFunc {
+func (g *Gateway) DialFunc() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
@@ -337,7 +344,7 @@ func (g *Gateway) DialFunc() dqlite.DialFunc {
 }
 
 // Dial function for establishing raft connections.
-func (g *Gateway) raftDial() dqlite.DialFunc {
+func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		if address == "0" {
 			provider := raftAddressProvider{db: g.db}
@@ -360,9 +367,9 @@ func (g *Gateway) Context() context.Context {
 	return g.ctx
 }
 
-// ServerStore returns a dqlite server store that can be used to lookup the
+// NodeStore returns a dqlite server store that can be used to lookup the
 // addresses of known database nodes.
-func (g *Gateway) ServerStore() dqlite.ServerStore {
+func (g *Gateway) NodeStore() client.NodeStore {
 	return g.store
 }
 
@@ -405,7 +412,14 @@ func (g *Gateway) Sync() {
 		return
 	}
 
-	files, err := g.server.Dump(context.Background(), "db.bin")
+	client, err := g.getClient()
+	if err != nil {
+		logger.Warnf("Failed to get client: %v", err)
+		return
+	}
+	defer client.Close()
+
+	files, err := client.Dump(context.Background(), "db.bin")
 	if err != nil {
 		// Just log a warning, since this is not fatal.
 		logger.Warnf("Failed get database dump: %v", err)
@@ -421,6 +435,10 @@ func (g *Gateway) Sync() {
 
 		}
 	}
+}
+
+func (g *Gateway) getClient() (*client.Client, error) {
+	return client.New(context.Background(), g.bindAddress)
 }
 
 // Reset the gateway, shutting it down and starting against from scratch using
@@ -463,12 +481,16 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	// wait a bit until one is elected.
 	if g.server != nil {
 		for ctx.Err() == nil {
-			leader, err := g.server.LeaderAddress(context.Background())
+			client, err := g.getClient()
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to get dqlite client")
+			}
+			leader, err := client.Leader(context.Background())
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to get leader address")
 			}
-			if leader != "" {
-				return leader, nil
+			if leader != nil {
+				return leader.Address, nil
 			}
 			time.Sleep(time.Second)
 		}
@@ -574,9 +596,8 @@ func (g *Gateway) init() error {
 		g.bindAddress = listener.Addr().String()
 		listener.Close()
 
-		options := []dqlite.ServerOption{
-			dqlite.WithServerLogFunc(DqliteLog),
-			dqlite.WithServerBindAddress(g.bindAddress),
+		options := []dqlite.Option{
+			dqlite.WithBindAddress(g.bindAddress),
 		}
 
 		if raft.info.Address == "1" {
@@ -584,15 +605,15 @@ func (g *Gateway) init() error {
 				panic("unexpected server ID")
 			}
 			g.memoryDial = dqliteMemoryDial(g.bindAddress)
-			g.store.inMemory = dqlite.NewInmemServerStore()
-			g.store.Set(context.Background(), []dqlite.ServerInfo{raft.info})
+			g.store.inMemory = client.NewInmemNodeStore()
+			g.store.Set(context.Background(), []client.NodeInfo{raft.info})
 		} else {
 			go runDqliteProxy(g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
-			options = append(options, dqlite.WithServerDialFunc(g.raftDial()))
+			options = append(options, dqlite.WithDialFunc(g.raftDial()))
 		}
 
-		server, err := dqlite.NewServer(
+		server, err := dqlite.New(
 			raft.info,
 			dir,
 			options...,
@@ -619,7 +640,7 @@ func (g *Gateway) init() error {
 	}
 
 	g.lock.Lock()
-	g.store.onDisk = dqlite.NewServerStore(g.db.DB(), "main", "raft_nodes", "address")
+	g.store.onDisk = client.NewNodeStore(g.db.DB(), "main", "raft_nodes", "address")
 	g.lock.Unlock()
 
 	return nil
@@ -651,11 +672,15 @@ func (g *Gateway) isLeader() (bool, error) {
 	if g.server == nil {
 		return false, nil
 	}
-	leader, err := g.server.LeaderAddress(context.Background())
+	client, err := g.getClient()
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get dqlite client")
+	}
+	leader, err := client.Leader(context.Background())
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get leader address")
 	}
-	return leader == g.raft.info.Address, nil
+	return leader != nil && leader.ID == g.raft.info.ID, nil
 }
 
 // Internal error signalling that a node not the leader.
@@ -679,7 +704,13 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if !isLeader {
 		return nil, errNotLeader
 	}
-	servers, err := g.server.Cluster(context.Background())
+	client, err := g.getClient()
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	servers, err := client.Cluster(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -829,17 +860,18 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
 		if err != nil {
-			logger.Warnf("Error during dqlite proxy copy: %v", err)
+			logger.Warnf("Dqlite client proxy TLS -> Unix: %v", err)
 		}
+		goUnix.Close()
 		conn.Close()
 	}()
 
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
 		if err != nil {
-			logger.Warnf("Error during dqlite proxy copy: %v", err)
+			logger.Warnf("Dqlite client proxy Unix -> TLS: %v", err)
 		}
-
+		conn.Close()
 		goUnix.Close()
 	}()
 
@@ -855,7 +887,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 }
 
 // Create a dial function that connects to the local dqlite.
-func dqliteMemoryDial(bindAddress string) dqlite.DialFunc {
+func dqliteMemoryDial(bindAddress string) client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		return net.Dial("unix", bindAddress)
 	}
@@ -866,16 +898,16 @@ func dqliteMemoryDial(bindAddress string) dqlite.DialFunc {
 const databaseEndpoint = "/internal/database"
 
 // DqliteLog redirects dqlite's logs to our own logger
-func DqliteLog(l dqlite.LogLevel, format string, a ...interface{}) {
+func DqliteLog(l client.LogLevel, format string, a ...interface{}) {
 	format = fmt.Sprintf("Dqlite: %s", format)
 	switch l {
-	case dqlite.LogDebug:
+	case client.LogDebug:
 		logger.Debugf(format, a...)
-	case dqlite.LogInfo:
+	case client.LogInfo:
 		logger.Debugf(format, a...)
-	case dqlite.LogWarn:
+	case client.LogWarn:
 		logger.Warnf(format, a...)
-	case dqlite.LogError:
+	case client.LogError:
 		logger.Errorf(format, a...)
 	}
 }
@@ -893,37 +925,37 @@ func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
 		go func() {
 			_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
 			if err != nil {
-				logger.Warnf("Error during dqlite proxy copy: %v", err)
+				logger.Warnf("Dqlite server proxy TLS -> Unix: %v", err)
 			}
-
 			src.Close()
+			dst.Close()
 		}()
 
 		go func() {
 			_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
 			if err != nil {
-				logger.Warnf("Error during dqlite proxy copy: %v", err)
+				logger.Warnf("Dqlite server proxy Unix -> TLS: %v", err)
 			}
-
+			src.Close()
 			dst.Close()
 		}()
 	}
 }
 
 // Conditionally uses the in-memory or the on-disk server store.
-type dqliteServerStore struct {
-	inMemory dqlite.ServerStore
-	onDisk   dqlite.ServerStore
+type dqliteNodeStore struct {
+	inMemory client.NodeStore
+	onDisk   client.NodeStore
 }
 
-func (s *dqliteServerStore) Get(ctx context.Context) ([]dqlite.ServerInfo, error) {
+func (s *dqliteNodeStore) Get(ctx context.Context) ([]client.NodeInfo, error) {
 	if s.inMemory != nil {
 		return s.inMemory.Get(ctx)
 	}
 	return s.onDisk.Get(ctx)
 }
 
-func (s *dqliteServerStore) Set(ctx context.Context, servers []dqlite.ServerInfo) error {
+func (s *dqliteNodeStore) Set(ctx context.Context, servers []client.NodeInfo) error {
 	if s.inMemory != nil {
 		return s.inMemory.Set(ctx, servers)
 	}
