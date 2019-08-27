@@ -840,17 +840,18 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: goUnix}, eagain.Reader{Reader: conn})
 		if err != nil {
-			logger.Warnf("Error during dqlite proxy copy: %v", err)
+			logger.Warnf("Dqlite client proxy TLS -> Unix: %v", err)
 		}
+		goUnix.Close()
 		conn.Close()
 	}()
 
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: goUnix})
 		if err != nil {
-			logger.Warnf("Error during dqlite proxy copy: %v", err)
+			logger.Warnf("Dqlite client proxy Unix -> TLS: %v", err)
 		}
-
+		conn.Close()
 		goUnix.Close()
 	}()
 
@@ -904,18 +905,18 @@ func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
 		go func() {
 			_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
 			if err != nil {
-				logger.Warnf("Error during dqlite proxy copy: %v", err)
+				logger.Warnf("Dqlite server proxy TLS -> Unix: %v", err)
 			}
-
 			src.Close()
+			dst.Close()
 		}()
 
 		go func() {
 			_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
 			if err != nil {
-				logger.Warnf("Error during dqlite proxy copy: %v", err)
+				logger.Warnf("Dqlite server proxy Unix -> TLS: %v", err)
 			}
-
+			src.Close()
 			dst.Close()
 		}()
 	}
