@@ -1931,12 +1931,6 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		}
 	}
 
-	// Check whether device wants to register for any events irrespective of instance run state.
-	err = d.Register()
-	if err != nil {
-		return nil, err
-	}
-
 	return runConf, nil
 }
 
