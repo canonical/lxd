@@ -329,7 +329,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			log15.Ctx{"id": id, "address": address, "target": target.Address})
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		err := gateway.server.Join(ctx, gateway.ServerStore(), gateway.raftDial())
+		err := gateway.server.Join(ctx, gateway.NodeStore(), gateway.raftDial())
 		if err != nil {
 			return err
 		}
@@ -610,7 +610,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = gateway.server.Join(ctx, gateway.ServerStore(), gateway.raftDial())
+	err = gateway.server.Join(ctx, gateway.NodeStore(), gateway.raftDial())
 	if err != nil {
 		return err
 	}
@@ -698,7 +698,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 		log15.Ctx{"id": id, "address": address, "target": target})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = dqlite.Leave(ctx, uint64(id), gateway.ServerStore(), gateway.raftDial())
+	err = dqlite.Leave(ctx, uint64(id), gateway.NodeStore(), gateway.raftDial())
 	if err != nil {
 		return "", err
 	}

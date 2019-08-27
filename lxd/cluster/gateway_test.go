@@ -57,7 +57,7 @@ func TestGateway_Single(t *testing.T) {
 	assert.EqualError(t, err, "Node is not clustered")
 
 	driver, err := driver.New(
-		gateway.ServerStore(),
+		gateway.NodeStore(),
 		driver.WithDialFunc(gateway.DialFunc()),
 	)
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	}
 
 	driver, err := driver.New(
-		gateway.ServerStore(),
+		gateway.NodeStore(),
 		driver.WithDialFunc(gateway.DialFunc()),
 	)
 	require.NoError(t, err)

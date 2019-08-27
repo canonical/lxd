@@ -25,18 +25,18 @@ func TestMigrateToDqlite10(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NoError(t, err)
-	info := driver.ServerInfo{ID: uint64(1), Address: "1"}
-	server, err := dqlite.NewServer(info, dir)
+	info := driver.NodeInfo{ID: uint64(1), Address: "1"}
+	server, err := dqlite.New(info, dir)
 	require.NoError(t, err)
 	defer server.Close()
 
 	err = server.Start()
 	require.NoError(t, err)
 
-	store, err := driver.DefaultServerStore(":memory:")
+	store, err := driver.DefaultNodeStore(":memory:")
 	require.NoError(t, err)
 
-	require.NoError(t, store.Set(context.Background(), []driver.ServerInfo{info}))
+	require.NoError(t, store.Set(context.Background(), []driver.NodeInfo{info}))
 
 	dial := func(ctx context.Context, address string) (net.Conn, error) {
 		return net.Dial("unix", "@dqlite-1")
