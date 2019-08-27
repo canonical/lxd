@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +53,7 @@ func TestImportPreClusteringData(t *testing.T) {
 
 	cluster, err := db.OpenCluster(
 		"test.db", store, "1", dir, 5*time.Second, dump,
-		dqlite.WithDialFunc(dial))
+		driver.WithDialFunc(dial))
 	require.NoError(t, err)
 	defer cluster.Close()
 
