@@ -40,9 +40,9 @@ func (d *usb) validateConfig() error {
 	rules := map[string]func(string) error{
 		"vendorid":  shared.IsDeviceID,
 		"productid": shared.IsDeviceID,
-		"uid":       shared.IsUnixUserID,
-		"gid":       shared.IsUnixUserID,
-		"mode":      shared.IsOctalFileMode,
+		"uid":       unixValidUserID,
+		"gid":       unixValidUserID,
+		"mode":      unixValidOctalFileMode,
 		"required":  shared.IsBool,
 	}
 
@@ -99,7 +99,7 @@ func (d *usb) Register() error {
 		return &runConf, nil
 	}
 
-	USBRegisterHandler(d.instance, d.name, f)
+	usbRegisterHandler(d.instance, d.name, f)
 
 	return nil
 }
@@ -112,6 +112,7 @@ func (d *usb) Start() (*RunConfig, error) {
 	}
 
 	runConf := RunConfig{}
+	runConf.PostHooks = []func() error{d.Register}
 
 	for _, usb := range usbs {
 		if !usbIsOurDevice(d.config, &usb) {
@@ -134,7 +135,7 @@ func (d *usb) Start() (*RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *usb) Stop() (*RunConfig, error) {
 	// Unregister any USB event handlers for this device.
-	USBUnregisterHandler(d.instance, d.name)
+	usbUnregisterHandler(d.instance, d.name)
 
 	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
