@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +66,7 @@ func NewTestCluster(t *testing.T) (*Cluster, func()) {
 
 	cluster, err := OpenCluster(
 		"test.db", store, "1", dir, 5*time.Second, nil,
-		dqlite.WithLogFunc(log), dqlite.WithDialFunc(dial))
+		driver.WithLogFunc(log), driver.WithDialFunc(dial))
 	require.NoError(t, err)
 
 	cleanup := func() {
@@ -100,7 +101,7 @@ func NewTestClusterTx(t *testing.T) (*ClusterTx, func()) {
 //
 // Return the directory backing the test server and a newly created server
 // store that can be used to connect to it.
-func NewTestDqliteServer(t *testing.T) (string, *dqlite.DatabaseServerStore, func()) {
+func NewTestDqliteServer(t *testing.T) (string, driver.ServerStore, func()) {
 	t.Helper()
 
 	listener, err := net.Listen("unix", "")
@@ -113,7 +114,7 @@ func NewTestDqliteServer(t *testing.T) (string, *dqlite.DatabaseServerStore, fun
 	err = os.Mkdir(filepath.Join(dir, "global"), 0755)
 	require.NoError(t, err)
 
-	info := dqlite.ServerInfo{ID: uint64(1), Address: address}
+	info := driver.ServerInfo{ID: uint64(1), Address: address}
 	server, err := dqlite.NewServer(
 		info, filepath.Join(dir, "global"), dqlite.WithServerBindAddress(address))
 	require.NoError(t, err)
@@ -126,10 +127,10 @@ func NewTestDqliteServer(t *testing.T) (string, *dqlite.DatabaseServerStore, fun
 		dirCleanup()
 	}
 
-	store, err := dqlite.DefaultServerStore(":memory:")
+	store, err := driver.DefaultServerStore(":memory:")
 	require.NoError(t, err)
 	ctx := context.Background()
-	require.NoError(t, store.Set(ctx, []dqlite.ServerInfo{{Address: address}}))
+	require.NoError(t, store.Set(ctx, []driver.ServerInfo{{Address: address}}))
 
 	return dir, store, cleanup
 }

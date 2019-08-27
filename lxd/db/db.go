@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -163,7 +163,7 @@ type Cluster struct {
 // database matches our version, and possibly trigger a schema update. If the
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
-func OpenCluster(name string, store dqlite.ServerStore, address, dir string, timeout time.Duration, dump *Dump, options ...dqlite.DriverOption) (*Cluster, error) {
+func OpenCluster(name string, store driver.ServerStore, address, dir string, timeout time.Duration, dump *Dump, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
@@ -194,7 +194,7 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 		}
 
 		cause := errors.Cause(err)
-		if cause != dqlite.ErrNoAvailableLeader {
+		if cause != driver.ErrNoAvailableLeader {
 			return nil, err
 		}
 
@@ -315,7 +315,7 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 
 // SetDefaultTimeout sets the default go-dqlite driver timeout.
 func (c *Cluster) SetDefaultTimeout(timeout time.Duration) {
-	driver := c.db.Driver().(*dqlite.Driver)
+	driver := c.db.Driver().(*driver.Driver)
 	driver.SetContextTimeout(timeout)
 }
 
