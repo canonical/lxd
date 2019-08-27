@@ -65,7 +65,7 @@ func newRaft(database *db.Node, cert *shared.CertInfo, latency float64) (*raftIn
 // A LXD-specific wrapper around raft.Raft, which also holds a reference to its
 // network transport and dqlite FSM.
 type raftInstance struct {
-	info client.ServerInfo
+	info client.NodeInfo
 }
 
 // Create a new raftFactory, instantiating all needed raft dependencies.
