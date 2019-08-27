@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -259,11 +259,11 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 
 	var err error
 	require.NoError(f.t, state.Cluster.Close())
-	store := gateway.ServerStore()
+	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
 	state.Cluster, err = db.OpenCluster(
 		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
-		dqlite.WithDialFunc(dial))
+		driver.WithDialFunc(dial))
 	require.NoError(f.t, err)
 
 	f.gateways[len(f.gateways)] = gateway

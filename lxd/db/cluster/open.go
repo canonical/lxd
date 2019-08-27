@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
-	dqlite "github.com/canonical/go-dqlite"
+	driver "github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/util"
@@ -23,8 +23,8 @@ import (
 //
 // The dialer argument is a function that returns a gRPC dialer that can be
 // used to connect to a database node using the gRPC SQL package.
-func Open(name string, store dqlite.ServerStore, options ...dqlite.DriverOption) (*sql.DB, error) {
-	driver, err := dqlite.NewDriver(store, options...)
+func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.DB, error) {
+	driver, err := driver.New(store, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create dqlite driver")
 	}

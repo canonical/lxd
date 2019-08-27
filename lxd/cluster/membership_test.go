@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -254,14 +254,14 @@ func TestJoin(t *testing.T) {
 
 	require.NoError(t, targetState.Cluster.Close())
 
-	targetStore := targetGateway.ServerStore()
+	targetStore := targetGateway.NodeStore()
 	targetDialFunc := targetGateway.DialFunc()
 
 	var err error
 	targetState.Cluster, err = db.OpenCluster(
 		"db.bin", targetStore, targetAddress, "/unused/db/dir",
 		10*time.Second, nil,
-		dqlite.WithDialFunc(targetDialFunc))
+		driver.WithDialFunc(targetDialFunc))
 	require.NoError(t, err)
 
 	targetF := &membershipFixtures{t: t, state: targetState}
@@ -293,12 +293,12 @@ func TestJoin(t *testing.T) {
 
 	require.NoError(t, state.Cluster.Close())
 
-	store := gateway.ServerStore()
+	store := gateway.NodeStore()
 	dialFunc := gateway.DialFunc()
 
 	state.Cluster, err = db.OpenCluster(
 		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
-		dqlite.WithDialFunc(dialFunc))
+		driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}
@@ -378,11 +378,11 @@ func FLAKY_TestPromote(t *testing.T) {
 	targetAddress := targetServer.Listener.Addr().String()
 	var err error
 	require.NoError(t, targetState.Cluster.Close())
-	store := targetGateway.ServerStore()
+	store := targetGateway.NodeStore()
 	dialFunc := targetGateway.DialFunc()
 	targetState.Cluster, err = db.OpenCluster(
 		"db.bin", store, targetAddress, "/unused/db/dir", 5*time.Second, nil,
-		dqlite.WithDialFunc(dialFunc))
+		driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.ClusterAddress(targetAddress)

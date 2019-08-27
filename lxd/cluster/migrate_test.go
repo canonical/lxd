@@ -2,13 +2,14 @@ package cluster_test
 
 import (
 	"context"
-	"database/sql/driver"
+	sqldriver "database/sql/driver"
 	"io/ioutil"
 	"net"
 	"os"
 	"testing"
 
 	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
@@ -24,35 +25,35 @@ func TestMigrateToDqlite10(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NoError(t, err)
-	info := dqlite.ServerInfo{ID: uint64(1), Address: "1"}
-	server, err := dqlite.NewServer(info, dir)
+	info := driver.NodeInfo{ID: uint64(1), Address: "1"}
+	server, err := dqlite.New(info, dir)
 	require.NoError(t, err)
 	defer server.Close()
 
 	err = server.Start()
 	require.NoError(t, err)
 
-	store, err := dqlite.DefaultServerStore(":memory:")
+	store, err := driver.DefaultNodeStore(":memory:")
 	require.NoError(t, err)
 
-	require.NoError(t, store.Set(context.Background(), []dqlite.ServerInfo{info}))
+	require.NoError(t, store.Set(context.Background(), []driver.NodeInfo{info}))
 
 	dial := func(ctx context.Context, address string) (net.Conn, error) {
 		return net.Dial("unix", "@dqlite-1")
 	}
 
-	drv, err := dqlite.NewDriver(store, dqlite.WithDialFunc(dial))
+	drv, err := driver.New(store, driver.WithDialFunc(dial))
 	require.NoError(t, err)
 
 	conn, err := drv.Open("db.bin")
 	require.NoError(t, err)
 	defer conn.Close()
 
-	queryer := conn.(driver.Queryer)
+	queryer := conn.(sqldriver.Queryer)
 	rows, err := queryer.Query("SELECT name FROM containers", nil)
 	require.NoError(t, err)
 
-	values := make([]driver.Value, 1)
+	values := make([]sqldriver.Value, 1)
 	require.NoError(t, rows.Next(values))
 
 	assert.Equal(t, values[0], "c1")

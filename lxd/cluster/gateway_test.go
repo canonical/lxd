@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -56,9 +56,9 @@ func TestGateway_Single(t *testing.T) {
 	assert.Equal(t, "", leader)
 	assert.EqualError(t, err, "Node is not clustered")
 
-	driver, err := dqlite.NewDriver(
-		gateway.ServerStore(),
-		dqlite.WithDialFunc(gateway.DialFunc()),
+	driver, err := driver.New(
+		gateway.NodeStore(),
+		driver.WithDialFunc(gateway.DialFunc()),
 	)
 	require.NoError(t, err)
 
@@ -89,9 +89,9 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 		mux.HandleFunc(path, handler)
 	}
 
-	driver, err := dqlite.NewDriver(
-		gateway.ServerStore(),
-		dqlite.WithDialFunc(gateway.DialFunc()),
+	driver, err := driver.New(
+		gateway.NodeStore(),
+		driver.WithDialFunc(gateway.DialFunc()),
 	)
 	require.NoError(t, err)
 

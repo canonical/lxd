@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/go-dqlite"
+	dqlitedriver "github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagedriver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -495,7 +495,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			if err != nil {
 				return errors.Wrap(err, "failed to init ceph pool for joining node")
 			}
-			volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(
+			volumeMntPoint := storagedriver.GetStoragePoolVolumeMountPoint(
 				name, storage.(*storageCeph).volume.Name)
 			err = os.MkdirAll(volumeMntPoint, 0711)
 			if err != nil {
@@ -652,13 +652,13 @@ func clusterPutDisable(d *Daemon) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	store := d.gateway.ServerStore()
+	store := d.gateway.NodeStore()
 	d.cluster, err = db.OpenCluster(
 		"db.bin", store, address, "/unused/db/dir",
 		d.config.DqliteSetupTimeout,
 		nil,
-		dqlite.WithDialFunc(d.gateway.DialFunc()),
-		dqlite.WithContext(d.gateway.Context()),
+		dqlitedriver.WithDialFunc(d.gateway.DialFunc()),
+		dqlitedriver.WithContext(d.gateway.Context()),
 	)
 	if err != nil {
 		return SmartError(err)

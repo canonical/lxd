@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"database/sql"
-	"database/sql/driver"
+	sqldriver "database/sql/driver"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
-	dqlite "github.com/canonical/go-dqlite"
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -676,7 +676,7 @@ func (d *Daemon) init() error {
 		logger.Info("Initializing global database")
 		dir := filepath.Join(d.os.VarDir, "database")
 
-		store := d.gateway.ServerStore()
+		store := d.gateway.NodeStore()
 
 		contextTimeout := 5 * time.Second
 		if !clustered {
@@ -689,11 +689,11 @@ func (d *Daemon) init() error {
 		d.cluster, err = db.OpenCluster(
 			"db.bin", store, clusterAddress, dir,
 			d.config.DqliteSetupTimeout, dump,
-			dqlite.WithDialFunc(d.gateway.DialFunc()),
-			dqlite.WithContext(d.gateway.Context()),
-			dqlite.WithConnectionTimeout(10*time.Second),
-			dqlite.WithContextTimeout(contextTimeout),
-			dqlite.WithLogFunc(cluster.DqliteLog),
+			driver.WithDialFunc(d.gateway.DialFunc()),
+			driver.WithContext(d.gateway.Context()),
+			driver.WithConnectionTimeout(10*time.Second),
+			driver.WithContextTimeout(contextTimeout),
+			driver.WithLogFunc(cluster.DqliteLog),
 		)
 		if err == nil {
 			break
@@ -1041,7 +1041,7 @@ func (d *Daemon) Stop() error {
 		// If we got io.EOF the network connection was interrupted and
 		// it's likely that the other node shutdown. Let's just log the
 		// event and return cleanly.
-		if errors.Cause(err) == driver.ErrBadConn {
+		if errors.Cause(err) == sqldriver.ErrBadConn {
 			logger.Debugf("Could not close remote database cleanly: %v", err)
 		} else {
 			trackError(err)
