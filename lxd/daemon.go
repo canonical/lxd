@@ -30,6 +30,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
@@ -843,20 +844,20 @@ func (d *Daemon) init() error {
 	}
 
 	if !d.os.MockMode {
-		// Register devices on running instances to receive events.
-		devicesRegister(d.State())
-
 		// Start the scheduler
 		go deviceEventListener(d.State())
 
 		// Setup inotify watches
-		_, err := deviceInotifyInit(d.State())
+		_, err := device.InotifyInit(d.State())
 		if err != nil {
 			return err
 		}
 
-		deviceInotifyDirRescan(d.State())
-		go deviceInotifyHandler(d.State())
+		go device.InotifyHandler(d.State())
+
+		// Register devices on running instances to receive events.
+		// This should come after the event handler go routines have been started.
+		devicesRegister(d.State())
 
 		// Setup seccomp handler
 		if d.os.SeccompListener {
