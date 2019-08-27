@@ -18,7 +18,7 @@ import (
 	"time"
 
 	dqlite "github.com/canonical/go-dqlite"
-	dqliteclient "github.com/canonical/go-dqlite/client"
+	client "github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -89,7 +89,7 @@ type Gateway struct {
 	// but still we want to use dqlite as backend for the "cluster"
 	// database, to minimize the difference between code paths in
 	// clustering and non-clustering modes.
-	memoryDial dqlite.DialFunc
+	memoryDial client.DialFunc
 
 	// Used when shutting down the daemon to cancel any ongoing gRPC
 	// dialing attempt.
@@ -323,7 +323,7 @@ func (g *Gateway) IsDatabaseNode() bool {
 
 // DialFunc returns a dial function that can be used to connect to one of the
 // dqlite nodes.
-func (g *Gateway) DialFunc() dqlite.DialFunc {
+func (g *Gateway) DialFunc() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
@@ -338,7 +338,7 @@ func (g *Gateway) DialFunc() dqlite.DialFunc {
 }
 
 // Dial function for establishing raft connections.
-func (g *Gateway) raftDial() dqlite.DialFunc {
+func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		if address == "0" {
 			provider := raftAddressProvider{db: g.db}
@@ -363,7 +363,7 @@ func (g *Gateway) Context() context.Context {
 
 // ServerStore returns a dqlite server store that can be used to lookup the
 // addresses of known database nodes.
-func (g *Gateway) ServerStore() dqlite.ServerStore {
+func (g *Gateway) ServerStore() client.ServerStore {
 	return g.store
 }
 
@@ -430,8 +430,8 @@ func (g *Gateway) Sync() {
 	}
 }
 
-func (g *Gateway) getClient() (*dqliteclient.Client, error) {
-	return dqliteclient.New(context.Background(), g.bindAddress)
+func (g *Gateway) getClient() (*client.Client, error) {
+	return client.New(context.Background(), g.bindAddress)
 }
 
 // Reset the gateway, shutting it down and starting against from scratch using
@@ -595,8 +595,8 @@ func (g *Gateway) init() error {
 				panic("unexpected server ID")
 			}
 			g.memoryDial = dqliteMemoryDial(g.bindAddress)
-			g.store.inMemory = dqlite.NewInmemServerStore()
-			g.store.Set(context.Background(), []dqlite.ServerInfo{raft.info})
+			g.store.inMemory = client.NewInmemServerStore()
+			g.store.Set(context.Background(), []client.ServerInfo{raft.info})
 		} else {
 			go runDqliteProxy(g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
@@ -630,7 +630,7 @@ func (g *Gateway) init() error {
 	}
 
 	g.lock.Lock()
-	g.store.onDisk = dqlite.NewServerStore(g.db.DB(), "main", "raft_nodes", "address")
+	g.store.onDisk = client.NewServerStore(g.db.DB(), "main", "raft_nodes", "address")
 	g.lock.Unlock()
 
 	return nil
@@ -867,7 +867,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 }
 
 // Create a dial function that connects to the local dqlite.
-func dqliteMemoryDial(bindAddress string) dqlite.DialFunc {
+func dqliteMemoryDial(bindAddress string) client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		return net.Dial("unix", bindAddress)
 	}
@@ -924,18 +924,18 @@ func runDqliteProxy(bindAddress string, acceptCh chan net.Conn) {
 
 // Conditionally uses the in-memory or the on-disk server store.
 type dqliteServerStore struct {
-	inMemory dqlite.ServerStore
-	onDisk   dqlite.ServerStore
+	inMemory client.ServerStore
+	onDisk   client.ServerStore
 }
 
-func (s *dqliteServerStore) Get(ctx context.Context) ([]dqlite.ServerInfo, error) {
+func (s *dqliteServerStore) Get(ctx context.Context) ([]client.ServerInfo, error) {
 	if s.inMemory != nil {
 		return s.inMemory.Get(ctx)
 	}
 	return s.onDisk.Get(ctx)
 }
 
-func (s *dqliteServerStore) Set(ctx context.Context, servers []dqlite.ServerInfo) error {
+func (s *dqliteServerStore) Set(ctx context.Context, servers []client.ServerInfo) error {
 	if s.inMemory != nil {
 		return s.inMemory.Set(ctx, servers)
 	}
