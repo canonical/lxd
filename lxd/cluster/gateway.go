@@ -411,6 +411,7 @@ func (g *Gateway) Sync() {
 		logger.Warnf("Failed to get client: %v", err)
 		return
 	}
+	defer client.Close()
 
 	files, err := client.Dump(context.Background(), "db.bin")
 	if err != nil {
@@ -689,7 +690,13 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if !isLeader {
 		return nil, errNotLeader
 	}
-	servers, err := g.server.Cluster(context.Background())
+	client, err := g.getClient()
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	servers, err := client.Cluster(context.Background())
 	if err != nil {
 		return nil, err
 	}
