@@ -4,7 +4,6 @@ import (
 	"context"
 	sqldriver "database/sql/driver"
 	"io/ioutil"
-	"net"
 	"os"
 	"testing"
 
@@ -25,8 +24,9 @@ func TestMigrateToDqlite10(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NoError(t, err)
-	info := driver.NodeInfo{ID: uint64(1), Address: "1"}
-	server, err := dqlite.New(info, dir)
+	id := uint64(1)
+	address := "@1"
+	server, err := dqlite.New(id, address, dir, dqlite.WithBindAddress(address))
 	require.NoError(t, err)
 	defer server.Close()
 
@@ -36,13 +36,9 @@ func TestMigrateToDqlite10(t *testing.T) {
 	store, err := driver.DefaultNodeStore(":memory:")
 	require.NoError(t, err)
 
-	require.NoError(t, store.Set(context.Background(), []driver.NodeInfo{info}))
+	require.NoError(t, store.Set(context.Background(), []driver.NodeInfo{{ID: id, Address: address}}))
 
-	dial := func(ctx context.Context, address string) (net.Conn, error) {
-		return net.Dial("unix", "@dqlite-1")
-	}
-
-	drv, err := driver.New(store, driver.WithDialFunc(dial))
+	drv, err := driver.New(store)
 	require.NoError(t, err)
 
 	conn, err := drv.Open("db.bin")
