@@ -614,7 +614,8 @@ func (g *Gateway) init() error {
 		}
 
 		server, err := dqlite.New(
-			raft.info,
+			raft.info.ID,
+			raft.info.Address,
 			dir,
 			options...,
 		)

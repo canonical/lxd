@@ -115,9 +115,8 @@ func NewTestDqliteServer(t *testing.T) (string, driver.NodeStore, func()) {
 	err = os.Mkdir(filepath.Join(dir, "global"), 0755)
 	require.NoError(t, err)
 
-	info := driver.NodeInfo{ID: uint64(1), Address: address}
 	server, err := dqlite.New(
-		info, filepath.Join(dir, "global"), dqlite.WithBindAddress(address))
+		uint64(1), address, filepath.Join(dir, "global"), dqlite.WithBindAddress(address))
 	require.NoError(t, err)
 
 	err = server.Start()
