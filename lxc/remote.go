@@ -82,7 +82,13 @@ func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd.Use = i18n.G("add [<remote>] <IP|FQDN|URL>")
 	cmd.Short = i18n.G("Add new remote servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add new remote servers`))
+		`Add new remote servers
+
+URL for remote resources must be HTTPS (https://).
+
+Basic authentication can be used when combined with the "simplestreams" protocol:
+  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --protocol=simplestreams
+`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
