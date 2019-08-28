@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-08-12 16:53-0400\n"
+"POT-Creation-Date: 2019-08-27 23:26-0600\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -356,12 +356,12 @@ msgstr "ARCH"
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
-#: lxc/remote.go:509
+#: lxc/remote.go:515
 #, fuzzy
 msgid "AUTH TYPE"
 msgstr "TYPE"
 
-#: lxc/remote.go:88
+#: lxc/remote.go:94
 msgid "Accept certificate"
 msgstr "Accepter le certificat"
 
@@ -378,8 +378,20 @@ msgstr ""
 msgid "Add new aliases"
 msgstr "Alias :"
 
-#: lxc/remote.go:83 lxc/remote.go:84
+#: lxc/remote.go:83
 msgid "Add new remote servers"
+msgstr ""
+
+#: lxc/remote.go:84
+msgid ""
+"Add new remote servers\n"
+"\n"
+"URL for remote resources must be HTTPS (https://).\n"
+"\n"
+"Basic authentication can be used when combined with the \"simplestreams\" "
+"protocol:\n"
+"  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --"
+"protocol=simplestreams\n"
 msgstr ""
 
 #: lxc/config_trust.go:56 lxc/config_trust.go:57
@@ -396,7 +408,7 @@ msgstr "Création du conteneur"
 msgid "Address: %s"
 msgstr "Expire : %s"
 
-#: lxc/remote.go:357
+#: lxc/remote.go:363
 #, c-format
 msgid "Admin password for %s: "
 msgstr "Mot de passe administrateur pour %s : "
@@ -466,7 +478,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:340
+#: lxc/remote.go:346
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr "Le type d'authentification '%s' n'est pas supporté par le serveur"
@@ -596,7 +608,7 @@ msgstr "impossible de récupérer un répertoire sans --recursive"
 msgid "Can't read from stdin: %s"
 msgstr "Impossible de lire depuis stdin : %s"
 
-#: lxc/remote.go:618
+#: lxc/remote.go:624
 #, fuzzy
 msgid "Can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
@@ -624,7 +636,7 @@ msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 "Impossible de désaffecter la clé '%s', elle n'est pas définie actuellement."
 
-#: lxc/remote.go:93
+#: lxc/remote.go:99
 msgid "Candid domain to use"
 msgstr ""
 
@@ -638,12 +650,12 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr "Créé : %s"
 
-#: lxc/remote.go:252
+#: lxc/remote.go:258
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "Empreinte du certificat : %s"
 
-#: lxc/remote.go:396
+#: lxc/remote.go:402
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré sur le serveur : "
 
@@ -721,7 +733,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:415 lxc/init.go:278
+#: lxc/copy.go:420 lxc/init.go:278
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -807,7 +819,7 @@ msgstr "erreur : %v"
 msgid "Cores:"
 msgstr "erreur : %v"
 
-#: lxc/remote.go:267
+#: lxc/remote.go:273
 msgid "Could not create server cert dir"
 msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
 
@@ -1020,8 +1032,8 @@ msgstr "Copie de l'image : %s"
 #: lxc/project.go:150 lxc/project.go:213 lxc/project.go:333 lxc/project.go:383
 #: lxc/project.go:468 lxc/project.go:523 lxc/project.go:583 lxc/project.go:612
 #: lxc/project.go:665 lxc/publish.go:35 lxc/query.go:30 lxc/remote.go:33
-#: lxc/remote.go:84 lxc/remote.go:412 lxc/remote.go:448 lxc/remote.go:528
-#: lxc/remote.go:590 lxc/remote.go:640 lxc/remote.go:678 lxc/rename.go:21
+#: lxc/remote.go:84 lxc/remote.go:418 lxc/remote.go:454 lxc/remote.go:534
+#: lxc/remote.go:596 lxc/remote.go:646 lxc/remote.go:684 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:32 lxc/storage.go:88
 #: lxc/storage.go:162 lxc/storage.go:212 lxc/storage.go:332 lxc/storage.go:387
 #: lxc/storage.go:507 lxc/storage.go:581 lxc/storage.go:650 lxc/storage.go:734
@@ -1316,7 +1328,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to create alias %s"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/copy.go:410
+#: lxc/copy.go:415
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -1393,7 +1405,7 @@ msgstr ""
 #: lxc/alias.go:101 lxc/cluster.go:69 lxc/config_template.go:238
 #: lxc/config_trust.go:117 lxc/image.go:928 lxc/image_alias.go:154
 #: lxc/list.go:113 lxc/network.go:810 lxc/network.go:893 lxc/operation.go:103
-#: lxc/profile.go:580 lxc/project.go:385 lxc/remote.go:452 lxc/storage.go:509
+#: lxc/profile.go:580 lxc/project.go:385 lxc/remote.go:458 lxc/storage.go:509
 #: lxc/storage_volume.go:1071
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
@@ -1425,7 +1437,7 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:208
+#: lxc/remote.go:214
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Génération d'un certificat client. Ceci peut prendre une minute…"
 
@@ -1517,7 +1529,7 @@ msgstr "IPv6"
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
-#: lxc/main.go:335
+#: lxc/main.go:339
 #, fuzzy
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
@@ -1605,7 +1617,7 @@ msgstr ""
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:160
+#: lxc/remote.go:166
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "Schème d'URL invalide \"%s\" in \"%s\""
@@ -1624,7 +1636,7 @@ msgstr "Clé de configuration invalide"
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 
-#: lxc/utils.go:304
+#: lxc/utils.go:301
 #, fuzzy, c-format
 msgid "Invalid format %q"
 msgstr "Cible invalide %s"
@@ -1645,7 +1657,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:414
+#: lxc/main.go:418
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
@@ -1655,7 +1667,7 @@ msgstr "nombre d'arguments incorrect pour la sous-comande"
 msgid "Invalid path %s"
 msgstr "Cible invalide %s"
 
-#: lxc/remote.go:149
+#: lxc/remote.go:155
 #, fuzzy, c-format
 msgid "Invalid protocol: %s"
 msgstr "Cible invalide %s"
@@ -1938,7 +1950,7 @@ msgstr ""
 msgid "List storage volumes"
 msgstr "Copie de l'image : %s"
 
-#: lxc/remote.go:447 lxc/remote.go:448
+#: lxc/remote.go:453 lxc/remote.go:454
 msgid "List the available remotes"
 msgstr ""
 
@@ -2266,7 +2278,7 @@ msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/cluster.go:125 lxc/list.go:423 lxc/network.go:866 lxc/profile.go:619
-#: lxc/project.go:448 lxc/remote.go:506 lxc/storage.go:557
+#: lxc/project.go:448 lxc/remote.go:512 lxc/storage.go:557
 #: lxc/storage_volume.go:1118
 msgid "NAME"
 msgstr "NOM"
@@ -2280,7 +2292,7 @@ msgid "NICs:"
 msgstr ""
 
 #: lxc/network.go:851 lxc/operation.go:142 lxc/project.go:427
-#: lxc/project.go:432 lxc/remote.go:469 lxc/remote.go:474
+#: lxc/project.go:432 lxc/remote.go:475 lxc/remote.go:480
 msgid "NO"
 msgstr "NON"
 
@@ -2394,7 +2406,7 @@ msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 "Seuls les volumes \"personnalisés\" peuvent être attachés aux conteneurs."
 
-#: lxc/remote.go:143
+#: lxc/remote.go:149
 msgid "Only https URLs are supported for simplestreams"
 msgstr "Seules les URLs https sont supportées par simplestreams"
 
@@ -2443,11 +2455,11 @@ msgstr ""
 msgid "PROFILES"
 msgstr "PROFILS"
 
-#: lxc/remote.go:508
+#: lxc/remote.go:514
 msgid "PROTOCOL"
 msgstr "PROTOCOLE"
 
-#: lxc/image.go:940 lxc/remote.go:510
+#: lxc/image.go:940 lxc/remote.go:516
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -2464,7 +2476,7 @@ msgstr "Paquets émis"
 msgid "Partitions:"
 msgstr "Options :"
 
-#: lxc/main.go:304
+#: lxc/main.go:308
 #, fuzzy, c-format
 msgid "Password for %s: "
 msgstr "Mot de passe administrateur pour %s : "
@@ -2601,7 +2613,7 @@ msgstr "Profil %s ajouté à %s"
 msgid "Properties:"
 msgstr "Propriétés :"
 
-#: lxc/remote.go:92
+#: lxc/remote.go:98
 msgid "Public image server"
 msgstr "Serveur d'images public"
 
@@ -2655,7 +2667,7 @@ msgstr "Pousser ou récupérer des fichiers récursivement"
 msgid "Refresh images"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/copy.go:380
+#: lxc/copy.go:385
 #, fuzzy, c-format
 msgid "Refreshing container: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
@@ -2665,28 +2677,28 @@ msgstr "Ignorer l'état du conteneur (seulement pour start)"
 msgid "Refreshing the image: %s"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/remote.go:556
+#: lxc/remote.go:562
 #, fuzzy, c-format
 msgid "Remote %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/project.go:692 lxc/remote.go:548 lxc/remote.go:610 lxc/remote.go:660
-#: lxc/remote.go:698
+#: lxc/project.go:692 lxc/remote.go:554 lxc/remote.go:616 lxc/remote.go:666
+#: lxc/remote.go:704
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
 msgstr "le serveur distant %s n'existe pas"
 
-#: lxc/remote.go:117
+#: lxc/remote.go:123
 #, fuzzy, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: lxc/remote.go:552 lxc/remote.go:614 lxc/remote.go:702
+#: lxc/remote.go:558 lxc/remote.go:620 lxc/remote.go:708
 #, fuzzy, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "le serveur distant %s est statique et ne peut être modifié"
 
-#: lxc/remote.go:89
+#: lxc/remote.go:95
 msgid "Remote admin password"
 msgstr "Mot de passe de l'administrateur distant"
 
@@ -2729,7 +2741,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Remove profiles from containers"
 msgstr "Création du conteneur"
 
-#: lxc/remote.go:589 lxc/remote.go:590
+#: lxc/remote.go:595 lxc/remote.go:596
 msgid "Remove remotes"
 msgstr ""
 
@@ -2764,7 +2776,7 @@ msgstr ""
 msgid "Rename projects"
 msgstr "Créé : %s"
 
-#: lxc/remote.go:527 lxc/remote.go:528
+#: lxc/remote.go:533 lxc/remote.go:534
 msgid "Rename remotes"
 msgstr ""
 
@@ -2860,7 +2872,7 @@ msgstr ""
 msgid "STATE"
 msgstr "ÉTAT"
 
-#: lxc/remote.go:511
+#: lxc/remote.go:517
 msgid "STATIC"
 msgstr "STATIQUE"
 
@@ -2877,21 +2889,21 @@ msgstr "ENSEMBLE DE STOCKAGE"
 msgid "Send a raw query to LXD"
 msgstr ""
 
-#: lxc/remote.go:91
+#: lxc/remote.go:97
 msgid "Server authentication type (tls or candid)"
 msgstr ""
 
-#: lxc/remote.go:260
+#: lxc/remote.go:266
 msgid "Server certificate NACKed by user"
 msgstr "Certificat serveur rejeté par l'utilisateur"
 
-#: lxc/remote.go:392
+#: lxc/remote.go:398
 #, fuzzy
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 "Le serveur ne nous fait pas confiance après l'ajout de notre certificat"
 
-#: lxc/remote.go:90
+#: lxc/remote.go:96
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "Protocole du serveur (lxd ou simplestreams)"
 
@@ -2999,7 +3011,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:677 lxc/remote.go:678
+#: lxc/remote.go:683 lxc/remote.go:684
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -3102,7 +3114,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show the container's last 100 log lines?"
 msgstr "Afficher les 100 dernières lignes du journal du conteneur ?"
 
-#: lxc/remote.go:411 lxc/remote.go:412
+#: lxc/remote.go:417 lxc/remote.go:418
 #, fuzzy
 msgid "Show the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
@@ -3269,7 +3281,7 @@ msgstr "Swap (pointe)"
 msgid "Switch the current project"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/remote.go:639 lxc/remote.go:640
+#: lxc/remote.go:645 lxc/remote.go:646
 #, fuzzy
 msgid "Switch the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
@@ -3393,7 +3405,7 @@ msgstr "Pour créer un réseau, utiliser : lxc network create"
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:338
+#: lxc/main.go:342
 #, fuzzy
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
@@ -3426,7 +3438,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:349
+#: lxc/copy.go:354
 #, fuzzy, c-format
 msgid "Transferring container: %s"
 msgstr "Transfert de l'image : %s"
@@ -3458,7 +3470,7 @@ msgstr "Type : persistant"
 msgid "UPLOAD DATE"
 msgstr "DATE DE PUBLICATION"
 
-#: lxc/cluster.go:126 lxc/remote.go:507
+#: lxc/cluster.go:126 lxc/remote.go:513
 msgid "URL"
 msgstr "URL"
 
@@ -3603,7 +3615,7 @@ msgid "Whether or not to snapshot the container's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
 #: lxc/network.go:853 lxc/operation.go:144 lxc/project.go:429
-#: lxc/project.go:434 lxc/remote.go:471 lxc/remote.go:476
+#: lxc/project.go:434 lxc/remote.go:477 lxc/remote.go:482
 msgid "YES"
 msgstr "OUI"
 
@@ -3736,7 +3748,7 @@ msgstr ""
 msgid "current"
 msgstr "Swap (courant)"
 
-#: lxc/remote.go:499
+#: lxc/remote.go:505
 msgid "default"
 msgstr "par défaut"
 
@@ -3978,7 +3990,7 @@ msgstr ""
 msgid "get [<remote>:][<container>] <key>"
 msgstr ""
 
-#: lxc/remote.go:410
+#: lxc/remote.go:416
 #, fuzzy
 msgid "get-default"
 msgstr "par défaut"
@@ -4029,7 +4041,7 @@ msgstr ""
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/alias.go:96 lxc/remote.go:445
+#: lxc/alias.go:96 lxc/remote.go:451
 msgid "list"
 msgstr ""
 
@@ -4333,7 +4345,7 @@ msgstr "Nom du réseau"
 msgid "no"
 msgstr "non"
 
-#: lxc/remote.go:253
+#: lxc/remote.go:259
 msgid "ok (y/n)?"
 msgstr "ok (y/n) ?"
 
@@ -4423,7 +4435,7 @@ msgstr "Serveur distant : %s"
 msgid "remove <alias>"
 msgstr ""
 
-#: lxc/remote.go:587
+#: lxc/remote.go:593
 msgid "remove <remote>"
 msgstr ""
 
@@ -4447,7 +4459,7 @@ msgstr ""
 msgid "rename <old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:525
+#: lxc/remote.go:531
 msgid "rename <remote> <new-name>"
 msgstr ""
 
@@ -4573,7 +4585,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/remote.go:676
+#: lxc/remote.go:682
 msgid "set-url <remote> <URL>"
 msgstr ""
 
@@ -4689,7 +4701,7 @@ msgstr ""
 msgid "storage"
 msgstr ""
 
-#: lxc/remote.go:638
+#: lxc/remote.go:644
 #, fuzzy
 msgid "switch <remote>"
 msgstr "impossible de supprimer le serveur distant par défaut"
@@ -4765,7 +4777,7 @@ msgstr ""
 msgid "volume"
 msgstr "Colonnes"
 
-#: lxc/remote.go:259
+#: lxc/remote.go:265
 msgid "y"
 msgstr ""
 
