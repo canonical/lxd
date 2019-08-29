@@ -17,8 +17,15 @@ type MountEntryItem struct {
 	Shift      bool     // Whether or not to use shiftfs with this mount.
 }
 
+// RootFSEntryItem represents the root filesystem options for an Instance.
+type RootFSEntryItem struct {
+	Path string   // Describes the root file system source.
+	Opts []string // Describes the mount options associated with the filesystem.
+}
+
 // RunConfig represents LXD defined run-time config used for device setup/cleanup.
 type RunConfig struct {
+	RootFS           RootFSEntryItem  // RootFS to setup.
 	NetworkInterface []RunConfigItem  // Network interface configuration settings.
 	CGroups          []RunConfigItem  // Cgroup rules to setup.
 	Mounts           []MountEntryItem // Mounts to setup/remove.
