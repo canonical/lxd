@@ -339,7 +339,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 		return nil
 	}
 
-	// Instruct liblxc to perform the mount.
+	// Instruct LXD to perform the mount.
 	runConf.Mounts = append(runConf.Mounts, MountEntryItem{
 		DevPath:    d.HostPath,
 		TargetPath: d.RelativePath,
@@ -348,7 +348,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 		OwnerShift: MountOwnerShiftStatic,
 	})
 
-	// Instruct liblxc to setup the cgroup rule.
+	// Instruct LXD to setup the cgroup rule.
 	runConf.CGroups = append(runConf.CGroups, RunConfigItem{
 		Key:   "devices.allow",
 		Value: fmt.Sprintf("%s %d:%d rwm", d.Type, d.Major, d.Minor),
