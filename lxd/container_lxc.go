@@ -2378,48 +2378,6 @@ func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 	return nil
 }
 
-// setupUnixDevice() creates the unix device and sets up the necessary low-level
-// liblxc configuration items.
-func (c *containerLXC) setupUnixDevice(prefix string, dev config.Device, major int, minor int, path string, createMustSucceed bool, defaultMode bool) error {
-	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
-		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
-		if err != nil {
-			return err
-		}
-	}
-
-	temp := config.Device{}
-	err := shared.DeepCopy(&dev, &temp)
-	if err != nil {
-		return err
-	}
-
-	temp["major"] = fmt.Sprintf("%d", major)
-	temp["minor"] = fmt.Sprintf("%d", minor)
-	temp["path"] = path
-
-	idmapSet, err := c.CurrentIdmap()
-	if err != nil {
-		return err
-	}
-
-	d, err := device.UnixDeviceCreate(c.state, idmapSet, c.DevicesPath(), prefix, temp, defaultMode)
-	if err != nil {
-		logger.Debug("Failed to create device", log.Ctx{"err": err, "device": prefix})
-		if createMustSucceed {
-			return err
-		}
-
-		return nil
-	}
-
-	devPath := shared.EscapePathFstab(d.HostPath)
-	tgtPath := shared.EscapePathFstab(d.RelativePath)
-	val := fmt.Sprintf("%s %s none bind,create=file 0 0", devPath, tgtPath)
-
-	return lxcSetConfigItem(c.c, "lxc.mount.entry", val)
-}
-
 func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
 	var err error
 	roSubvols := []string{}
