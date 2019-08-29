@@ -12,6 +12,7 @@ type InstanceIdentifier interface {
 	Type() string
 	Project() string
 	DevicesPath() string
+	RootfsPath() string
 	LogPath() string
 	ExpandedConfig() map[string]string
 	ExpandedDevices() config.Devices
