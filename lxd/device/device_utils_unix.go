@@ -345,6 +345,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 		TargetPath: d.RelativePath,
 		FSType:     "none",
 		Opts:       []string{"bind", "create=file"},
+		OwnerShift: MountOwnerShiftStatic,
 	})
 
 	// Instruct liblxc to setup the cgroup rule.
