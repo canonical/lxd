@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -23,6 +24,14 @@ import (
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
+
+func init() {
+	// Expose storageVolumeMount to the device package as StorageVolumeMount.
+	device.StorageVolumeMount = storageVolumeMount
+	// Expose storageVolumeUmount to the device package as StorageVolumeUmount.
+	device.StorageVolumeUmount = storageVolumeUmount
+
+}
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
 // operation they are about to perform is already in progress. If it is the
@@ -872,4 +881,42 @@ func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
 	storagePoolDriversCacheLock.Unlock()
 
 	return
+}
+
+// storageVolumeMount initialises a new storage interface and checks the pool and volume are
+// mounted. If they are not then they are mounted.
+func storageVolumeMount(state *state.State, poolName string, volumeName string, volumeTypeName string, instance device.InstanceIdentifier) error {
+	c, ok := instance.(*containerLXC)
+	if !ok {
+		return fmt.Errorf("Received non-LXC container instance")
+	}
+
+	volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
+	s, err := storagePoolVolumeAttachInit(state, poolName, volumeName, volumeType, c)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// storageVolumeUmount unmounts a storage volume on a pool.
+func storageVolumeUmount(state *state.State, poolName string, volumeName string, volumeType int) error {
+	// Custom storage volumes do not currently support projects, so hardcode "default" project.
+	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.StoragePoolVolumeUmount()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
