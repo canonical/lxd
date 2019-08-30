@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -376,7 +375,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	err = containerValidDevices(s, s.Cluster, c.expandedDevices, false, true)
+	err = containerValidDevices(s, s.Cluster, c.Name(), c.expandedDevices, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -1214,31 +1213,6 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
-	diskIdmap, err := c.DiskIdmap()
-	if err != nil {
-		return err
-	}
-
-	if c.state.OS.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
-		// Host side mark mount
-		err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
-		if err != nil {
-			return err
-		}
-
-		// Container side shift mount
-		err = lxcSetConfigItem(cc, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
-		if err != nil {
-			return err
-		}
-
-		// Host side umount of mark mount
-		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", c.RootfsPath()))
-		if err != nil {
-			return err
-		}
-	}
-
 	err = lxcSetConfigItem(cc, "lxc.hook.stop", fmt.Sprintf("%s callhook %s %d stopns", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
@@ -1511,103 +1485,6 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 	}
 
-	// Disk limits
-	if c.state.OS.CGroupBlkioController {
-		diskPriority := c.expandedConfig["limits.disk.priority"]
-		if diskPriority != "" {
-			priorityInt, err := strconv.Atoi(diskPriority)
-			if err != nil {
-				return err
-			}
-
-			// Minimum valid value is 10
-			priority := priorityInt * 100
-			if priority == 0 {
-				priority = 10
-			}
-
-			err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.weight", fmt.Sprintf("%d", priority))
-			if err != nil {
-				return err
-			}
-		}
-
-		hasDiskLimits := false
-		hasRootLimit := false
-		for _, name := range c.expandedDevices.DeviceNames() {
-			m := c.expandedDevices[name]
-			if m["type"] != "disk" {
-				continue
-			}
-
-			if m["limits.read"] != "" || m["limits.write"] != "" || m["limits.max"] != "" {
-				if m["path"] == "/" {
-					hasRootLimit = true
-				}
-
-				hasDiskLimits = true
-			}
-		}
-
-		// Detect initial creation where the rootfs doesn't exist yet (can't mount it)
-		if !shared.PathExists(c.RootfsPath()) {
-			hasRootLimit = false
-		}
-
-		if hasDiskLimits {
-			ourStart := false
-
-			if hasRootLimit {
-				ourStart, err = c.StorageStart()
-				if err != nil {
-					return err
-				}
-			}
-
-			diskLimits, err := c.getDiskLimits()
-			if err != nil {
-				return err
-			}
-
-			if hasRootLimit && ourStart {
-				_, err = c.StorageStop()
-				if err != nil {
-					return err
-				}
-			}
-
-			for block, limit := range diskLimits {
-				if limit.readBps > 0 {
-					err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.read_bps_device", fmt.Sprintf("%s %d", block, limit.readBps))
-					if err != nil {
-						return err
-					}
-				}
-
-				if limit.readIops > 0 {
-					err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.read_iops_device", fmt.Sprintf("%s %d", block, limit.readIops))
-					if err != nil {
-						return err
-					}
-				}
-
-				if limit.writeBps > 0 {
-					err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.write_bps_device", fmt.Sprintf("%s %d", block, limit.writeBps))
-					if err != nil {
-						return err
-					}
-				}
-
-				if limit.writeIops > 0 {
-					err = lxcSetConfigItem(cc, "lxc.cgroup.blkio.throttle.write_iops_device", fmt.Sprintf("%s %d", block, limit.writeIops))
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-	}
-
 	// Processes
 	if c.state.OS.CGroupPidsController {
 		processes := c.expandedConfig["limits.processes"]
@@ -1632,149 +1509,6 @@ func (c *containerLXC) initLXC(config bool) error {
 			err = lxcSetConfigItem(cc, prlimitKey, v)
 			if err != nil {
 				return err
-			}
-		}
-	}
-
-	// Setup devices
-	for _, k := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[k]
-		if m["type"] == "disk" {
-			isRootfs := shared.IsRootDiskDevice(m)
-
-			// source paths
-			srcPath := shared.HostPath(m["source"])
-
-			// destination paths
-			destPath := m["path"]
-			relativeDestPath := strings.TrimPrefix(destPath, "/")
-
-			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("disk.%s.%s", strings.Replace(k, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1)))
-
-			// Various option checks
-			isOptional := shared.IsTrue(m["optional"])
-			isReadOnly := shared.IsTrue(m["readonly"])
-			isRecursive := shared.IsTrue(m["recursive"])
-
-			// If we want to mount a storage volume from a storage
-			// pool we created via our storage api, we are always
-			// mounting a directory.
-			isFile := false
-			if m["pool"] == "" {
-				isFile = !shared.IsDir(srcPath) && !device.IsBlockdev(srcPath)
-			}
-
-			// Deal with a rootfs
-			if isRootfs {
-				if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-					// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
-					err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
-					if err == nil {
-						value := cc.ConfigItem("lxc.rootfs.backend")
-						if len(value) == 0 || value[0] != "dir" {
-							lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
-						}
-					}
-				}
-
-				// Set the rootfs path
-				if util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-					rootfsPath := fmt.Sprintf("dir:%s", c.RootfsPath())
-					err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
-				} else {
-					rootfsPath := c.RootfsPath()
-					err = lxcSetConfigItem(cc, "lxc.rootfs", rootfsPath)
-				}
-				if err != nil {
-					return err
-				}
-
-				// Read-only rootfs (unlikely to work very well)
-				if isReadOnly {
-					err = lxcSetConfigItem(cc, "lxc.rootfs.options", "ro")
-					if err != nil {
-						return err
-					}
-				}
-			} else {
-				shift := false
-				if !c.IsPrivileged() {
-					shift = shared.IsTrue(m["shift"])
-					if !shift && m["pool"] != "" {
-						poolID, _, err := c.state.Cluster.StoragePoolGet(m["pool"])
-						if err != nil {
-							return err
-						}
-
-						_, volume, err := c.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.project, m["source"], storagePoolVolumeTypeCustom, poolID)
-						if err != nil {
-							return err
-						}
-
-						if shared.IsTrue(volume.Config["security.shifted"]) {
-							shift = true
-						}
-					}
-				}
-
-				if shift {
-					if !c.state.OS.Shiftfs {
-						return fmt.Errorf("shiftfs is required by disk entry '%s' but isn't supported on system", k)
-					}
-
-					err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", sourceDevPath, sourceDevPath))
-					if err != nil {
-						return err
-					}
-
-					err = lxcSetConfigItem(cc, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", sourceDevPath, sourceDevPath))
-					if err != nil {
-						return err
-					}
-
-					err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", sourceDevPath))
-					if err != nil {
-						return err
-					}
-				}
-
-				rbind := ""
-				options := []string{}
-				if isReadOnly {
-					options = append(options, "ro")
-				}
-
-				if isOptional {
-					options = append(options, "optional")
-				}
-
-				if isRecursive {
-					rbind = "r"
-				}
-
-				if m["propagation"] != "" {
-					if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-						return fmt.Errorf("liblxc 3.0 is required for mount propagation configuration")
-					}
-
-					options = append(options, m["propagation"])
-				}
-
-				if isFile {
-					options = append(options, "create=file")
-				} else {
-					options = append(options, "create=dir")
-				}
-
-				err = lxcSetConfigItem(cc, "lxc.mount.entry",
-					fmt.Sprintf("%s %s none %sbind,%s 0 0",
-						shared.EscapePathFstab(sourceDevPath),
-						shared.EscapePathFstab(relativeDestPath),
-						rbind,
-						strings.Join(options, ",")))
-				if err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -1890,7 +1624,7 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		// Shift device file ownership if needed before mounting into container.
 		// This needs to be done whether or not container is running.
 		if len(runConf.Mounts) > 0 {
-			err := c.deviceShiftMounts(runConf.Mounts)
+			err := c.deviceStaticShiftMounts(runConf.Mounts)
 			if err != nil {
 				return nil, err
 			}
@@ -1934,8 +1668,8 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 	return runConf, nil
 }
 
-// deviceShiftMounts shift device mount files to active idmap if needed.
-func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
+// deviceStaticShiftMounts statically shift device mount files ownership to active idmap if needed.
+func (c *containerLXC) deviceStaticShiftMounts(mounts []device.MountEntryItem) error {
 	idmapSet, err := c.CurrentIdmap()
 	if err != nil {
 		return fmt.Errorf("Failed to get idmap for device: %s", err)
@@ -1945,9 +1679,9 @@ func (c *containerLXC) deviceShiftMounts(mounts []device.MountEntryItem) error {
 	// device files before they are mounted.
 	if idmapSet != nil && !c.state.OS.RunningInUserNS {
 		for _, mount := range mounts {
-			if mount.DevPath == "" {
-				// This mount doesn't contain a host-side device we can shift.
-				// This is likely to be an unmount request that we dont process.
+			// Skip UID/GID shifting if OwnerShift mode is not static, or the host-side
+			// DevPath is empty (meaning an unmount request that doesn't need shifting).
+			if mount.OwnerShift != device.MountOwnerShiftStatic || mount.DevPath == "" {
 				continue
 			}
 
@@ -2164,25 +1898,35 @@ func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error 
 			for _, opt := range mount.Opts {
 				if opt == "bind" {
 					flags |= unix.MS_BIND
+				} else if opt == "rbind" {
+					flags |= unix.MS_BIND | unix.MS_REC
 				}
 			}
 
+			shiftfs := false
+			if mount.OwnerShift == device.MountOwnerShiftDynamic {
+				shiftfs = true
+			}
+
 			// Mount it into the container.
-			err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, mount.Shift)
+			err := c.insertMount(mount.DevPath, mount.TargetPath, mount.FSType, flags, shiftfs)
 			if err != nil {
-				return fmt.Errorf("Failed to add mount for device: %s", err)
+				return fmt.Errorf("Failed to add mount for device inside container: %s", err)
 			}
 		} else {
 			relativeTargetPath := strings.TrimPrefix(mount.TargetPath, "/")
 			if c.FileExists(relativeTargetPath) == nil {
 				err := c.removeMount(mount.TargetPath)
 				if err != nil {
-					return fmt.Errorf("Error unmounting the device: %s", err)
+					return fmt.Errorf("Error unmounting the device path inside container: %s", err)
 				}
 
 				err = c.FileRemove(relativeTargetPath)
 				if err != nil {
-					return fmt.Errorf("Error removing the device: %s", err)
+					// Only warn here and don't fail as removing a directory
+					// mount may fail if there was already files inside
+					// directory before it was mouted over preventing delete.
+					logger.Warnf("Could not remove the device path inside container: %s", err)
 				}
 			}
 		}
@@ -2283,9 +2027,13 @@ func (c *containerLXC) DeviceEventHandler(runConf *device.RunConfig) error {
 		return nil
 	}
 
+	if runConf == nil {
+		return nil
+	}
+
 	// Shift device file ownership if needed before mounting devices into container.
 	if len(runConf.Mounts) > 0 {
-		err := c.deviceShiftMounts(runConf.Mounts)
+		err := c.deviceStaticShiftMounts(runConf.Mounts)
 		if err != nil {
 			return err
 		}
@@ -2431,21 +2179,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		return "", postStartHooks, fmt.Errorf("The container is already running")
 	}
 
-	// Sanity checks for devices
-	for name, m := range c.expandedDevices {
-		switch m["type"] {
-		case "disk":
-			// When we want to attach a storage volume created via
-			// the storage api m["source"] only contains the name of
-			// the storage volume, not the path where it is mounted.
-			// So do only check for the existence of m["source"]
-			// when m["pool"] is empty.
-			if m["pool"] == "" && m["source"] != "" && !shared.IsTrue(m["optional"]) && !shared.PathExists(shared.HostPath(m["source"])) {
-				return "", postStartHooks, fmt.Errorf("Missing source '%s' for disk '%s'", m["source"], name)
-			}
-		}
-	}
-
 	// Load any required kernel modules
 	kernelModules := c.expandedConfig["linux.kernel_modules"]
 	if kernelModules != "" {
@@ -2584,79 +2317,141 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	c.removeUnixDevices()
 	c.removeDiskDevices()
 
-	diskDevices := map[string]config.Device{}
-
 	// Create the devices
 	nicID := -1
-	for _, k := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[k]
-		if m["type"] == "disk" {
-			if m["path"] != "/" {
-				diskDevices[k] = m
+
+	// Setup devices in sorted order, this ensures that device mounts are added in path order.
+	for _, dev := range c.expandedDevices.Sorted() {
+		// Start the device.
+		runConf, err := c.deviceStart(dev.Name, dev.Config, false)
+		if err != nil {
+			return "", postStartHooks, errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
+		}
+
+		if runConf == nil {
+			continue
+		}
+
+		// Process rootfs setup.
+		if runConf.RootFS.Path != "" {
+			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
+				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
+				err := lxcSetConfigItem(c.c, "lxc.rootfs.backend", "dir")
+				if err == nil {
+					value := c.c.ConfigItem("lxc.rootfs.backend")
+					if len(value) == 0 || value[0] != "dir" {
+						lxcSetConfigItem(c.c, "lxc.rootfs.backend", "")
+					}
+				}
 			}
-		} else {
-			// Use new Device interface if supported.
-			runConf, err := c.deviceStart(k, m, false)
-			if err != device.ErrUnsupportedDevType {
+
+			if util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
+				rootfsPath := fmt.Sprintf("dir:%s", runConf.RootFS.Path)
+				err = lxcSetConfigItem(c.c, "lxc.rootfs.path", rootfsPath)
+			} else {
+				err = lxcSetConfigItem(c.c, "lxc.rootfs", runConf.RootFS.Path)
+			}
+
+			if err != nil {
+				return "", postStartHooks, errors.Wrapf(err, "Failed to setup device rootfs '%s'", dev.Name)
+			}
+
+			if len(runConf.RootFS.Opts) > 0 {
+				err = lxcSetConfigItem(c.c, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return "", postStartHooks, errors.Wrapf(err, "Failed to start device '%s'", k)
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device rootfs '%s'", dev.Name)
+				}
+			}
+
+			if c.state.OS.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
+				// Host side mark mount.
+				err = lxcSetConfigItem(c.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
+				if err != nil {
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 				}
 
-				// Pass any cgroups rules into LXC.
-				if len(runConf.CGroups) > 0 {
-					for _, rule := range runConf.CGroups {
-						err = lxcSetConfigItem(c.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
-						if err != nil {
-							return "", postStartHooks, err
-						}
-					}
+				// Container side shift mount.
+				err = lxcSetConfigItem(c.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
+				if err != nil {
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 				}
 
-				// Pass any mounts into LXC.
-				if len(runConf.Mounts) > 0 {
-					for _, mount := range runConf.Mounts {
-						mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
-						err = lxcSetConfigItem(c.c, "lxc.mount.entry", mntVal)
-						if err != nil {
-							return "", postStartHooks, err
-						}
-					}
+				// Host side umount of mark mount.
+				err = lxcSetConfigItem(c.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", c.RootfsPath()))
+				if err != nil {
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
 				}
-
-				// Pass any network setup config into LXC.
-				if len(runConf.NetworkInterface) > 0 {
-					// Increment nicID so that LXC network index is unique per device.
-					nicID++
-
-					networkKeyPrefix := "lxc.net"
-					if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-						networkKeyPrefix = "lxc.network"
-					}
-
-					for _, dev := range runConf.NetworkInterface {
-						err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, dev.Key), dev.Value)
-						if err != nil {
-							return "", postStartHooks, err
-						}
-					}
-				}
-
-				// Add any post start hooks.
-				if len(runConf.PostHooks) > 0 {
-					postStartHooks = append(postStartHooks, runConf.PostHooks...)
-				}
-
-				continue
 			}
 		}
-	}
 
-	err = c.addDiskDevices(diskDevices, func(name string, d config.Device) error {
-		_, err := c.createDiskDevice(name, d)
-		return err
-	})
-	if err != nil {
-		return "", postStartHooks, err
+		// Pass any cgroups rules into LXC.
+		if len(runConf.CGroups) > 0 {
+			for _, rule := range runConf.CGroups {
+				err = lxcSetConfigItem(c.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
+				if err != nil {
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device cgroup '%s'", dev.Name)
+				}
+			}
+		}
+
+		// Pass any mounts into LXC.
+		if len(runConf.Mounts) > 0 {
+			for _, mount := range runConf.Mounts {
+				if shared.StringInSlice("propagation", mount.Opts) && !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+					return "", postStartHooks, errors.Wrapf(fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"), "Failed to setup device mount '%s'", dev.Name)
+				}
+
+				if mount.OwnerShift == device.MountOwnerShiftDynamic && !c.IsPrivileged() {
+					if !c.state.OS.Shiftfs {
+						return "", postStartHooks, errors.Wrapf(fmt.Errorf("shiftfs is required but isn't supported on system"), "Failed to setup device mount '%s'", dev.Name)
+					}
+
+					err = lxcSetConfigItem(c.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", mount.DevPath, mount.DevPath))
+					if err != nil {
+						return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+					}
+
+					err = lxcSetConfigItem(c.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", mount.DevPath, mount.DevPath))
+					if err != nil {
+						return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+					}
+
+					err = lxcSetConfigItem(c.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", mount.DevPath))
+					if err != nil {
+						return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount shiftfs '%s'", dev.Name)
+					}
+				}
+
+				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, strings.Join(mount.Opts, ","), mount.Freq, mount.PassNo)
+				err = lxcSetConfigItem(c.c, "lxc.mount.entry", mntVal)
+				if err != nil {
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device mount '%s'", dev.Name)
+				}
+			}
+		}
+
+		// Pass any network setup config into LXC.
+		if len(runConf.NetworkInterface) > 0 {
+			// Increment nicID so that LXC network index is unique per device.
+			nicID++
+
+			networkKeyPrefix := "lxc.net"
+			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
+				networkKeyPrefix = "lxc.network"
+			}
+
+			for _, nicItem := range runConf.NetworkInterface {
+				err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
+				if err != nil {
+					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device network interface '%s'", dev.Name)
+				}
+			}
+		}
+
+		// Add any post start hooks.
+		if len(runConf.PostHooks) > 0 {
+			postStartHooks = append(postStartHooks, runConf.PostHooks...)
+		}
 	}
 
 	// Create any missing directory
@@ -3301,15 +3096,13 @@ func (c *containerLXC) OnStop(target string) error {
 
 // cleanupDevices performs any needed device cleanup steps when container is stopped.
 func (c *containerLXC) cleanupDevices(netns string) {
-	for _, k := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[k]
-
+	for _, dev := range c.expandedDevices.Sorted() {
 		// Use the device interface if device supports it.
-		err := c.deviceStop(k, m, netns)
+		err := c.deviceStop(dev.Name, dev.Config, netns)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			logger.Errorf("Failed to stop device '%s': %v", k, err)
+			logger.Errorf("Failed to stop device '%s': %v", dev.Name, err)
 		}
 	}
 }
@@ -4318,8 +4111,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return errors.Wrap(err, "Invalid config")
 	}
 
-	// Validate the new devices
-	err = containerValidDevices(c.state, c.state.Cluster, args.Devices, false, false)
+	// Validate the new devices without using expanded devices validation (expensive checks disabled).
+	err = containerValidDevices(c.state, c.state.Cluster, c.Name(), args.Devices, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid devices")
 	}
@@ -4494,18 +4287,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
-		d, err := device.New(c, c.state, "", config.Device(newDevice), nil, nil)
-		if err != device.ErrUnsupportedDevType {
-			if err != nil {
-				return []string{} // Couldn't create Device, so this cannot be an update.
-			}
-
-			_, updateFields := d.CanHotPlug()
-			return updateFields
+		d, err := device.New(c, c.state, "", newDevice, nil, nil)
+		if err != nil {
+			return []string{} // Couldn't create Device, so this cannot be an update.
 		}
 
-		// Legacy non-nic updatable fields.
-		return []string{"limits.max", "limits.read", "limits.write"}
+		_, updateFields := d.CanHotPlug()
+		return updateFields
 	})
 
 	// Do some validation of the config diff
@@ -4514,8 +4302,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return errors.Wrap(err, "Invalid expanded config")
 	}
 
-	// Do some validation of the devices diff
-	err = containerValidDevices(c.state, c.state.Cluster, c.expandedDevices, false, true)
+	// Do full expanded validation of the devices diff.
+	err = containerValidDevices(c.state, c.state.Cluster, c.Name(), c.expandedDevices, true)
 	if err != nil {
 		return errors.Wrap(err, "Invalid expanded devices")
 	}
@@ -4931,65 +4719,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			}
 		}
-
-		// Live update the devices
-		for k, m := range removeDevices {
-			if m["type"] == "disk" && m["path"] != "/" {
-				err = c.removeDiskDevice(k, m)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		diskDevices := map[string]config.Device{}
-		for k, m := range addDevices {
-			if m["type"] == "disk" && m["path"] != "/" {
-				diskDevices[k] = m
-			}
-		}
-
-		err = c.addDiskDevices(diskDevices, c.insertDiskDevice)
-		if err != nil {
-			return errors.Wrap(err, "Add disk devices")
-		}
-
-		updateDiskLimit := false
-		for _, m := range updateDevices {
-			if m["type"] == "disk" {
-				updateDiskLimit = true
-			}
-		}
-
-		// Disk limits parse all devices, so just apply them once
-		if updateDiskLimit && c.state.OS.CGroupBlkioController {
-			diskLimits, err := c.getDiskLimits()
-			if err != nil {
-				return err
-			}
-
-			for block, limit := range diskLimits {
-				err = c.CGroupSet("blkio.throttle.read_bps_device", fmt.Sprintf("%s %d", block, limit.readBps))
-				if err != nil {
-					return err
-				}
-
-				err = c.CGroupSet("blkio.throttle.read_iops_device", fmt.Sprintf("%s %d", block, limit.readIops))
-				if err != nil {
-					return err
-				}
-
-				err = c.CGroupSet("blkio.throttle.write_bps_device", fmt.Sprintf("%s %d", block, limit.writeBps))
-				if err != nil {
-					return err
-				}
-
-				err = c.CGroupSet("blkio.throttle.write_iops_device", fmt.Sprintf("%s %d", block, limit.writeIops))
-				if err != nil {
-					return err
-				}
-			}
-		}
 	}
 
 	// Finally, apply the changes to the database
@@ -5137,53 +4866,55 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *containerLXC) updateDevices(removeDevices map[string]config.Device, addDevices map[string]config.Device, updateDevices map[string]config.Device, oldExpandedDevices config.Devices) error {
+func (c *containerLXC) updateDevices(removeDevices config.Devices, addDevices config.Devices, updateDevices config.Devices, oldExpandedDevices config.Devices) error {
 	isRunning := c.IsRunning()
 
-	for k, m := range removeDevices {
+	// Remove devices in reverse order to how they were added.
+	for _, dev := range removeDevices.Reversed() {
 		if isRunning {
-			err := c.deviceStop(k, m, "")
+			err := c.deviceStop(dev.Name, dev.Config, "")
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
-				return errors.Wrapf(err, "Failed to stop device '%s'", k)
+				return errors.Wrapf(err, "Failed to stop device '%s'", dev.Name)
 			}
 		}
 
-		err := c.deviceRemove(k, m)
+		err := c.deviceRemove(dev.Name, dev.Config)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to remove device '%s'", k)
+			return errors.Wrapf(err, "Failed to remove device '%s'", dev.Name)
 		}
 
 		// Check whether we are about to add the same device back with updated config and
 		// if not, or if the device type has changed, then remove all volatile keys for
 		// this device (as its an actual removal or a device type change).
-		err = c.deviceResetVolatile(k, m, addDevices[k])
+		err = c.deviceResetVolatile(dev.Name, dev.Config, addDevices[dev.Name])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to reset volatile data for device '%s'", k)
+			return errors.Wrapf(err, "Failed to reset volatile data for device '%s'", dev.Name)
 		}
 	}
 
-	for k, m := range addDevices {
-		err := c.deviceAdd(k, m)
+	// Add devices in sorted order, this ensures that device mounts are added in path order.
+	for _, dev := range addDevices.Sorted() {
+		err := c.deviceAdd(dev.Name, dev.Config)
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to add device '%s'", k)
+			return errors.Wrapf(err, "Failed to add device '%s'", dev.Name)
 		}
 
 		if isRunning {
-			_, err := c.deviceStart(k, m, isRunning)
+			_, err := c.deviceStart(dev.Name, dev.Config, isRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to start device '%s'", k)
+				return errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
 			}
 		}
 	}
 
-	for k, m := range updateDevices {
-		err := c.deviceUpdate(k, m, oldExpandedDevices[k], isRunning)
+	for _, dev := range updateDevices.Sorted() {
+		err := c.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices[dev.Name], isRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to update device '%s'", k)
+			return errors.Wrapf(err, "Failed to update device '%s'", dev.Name)
 		}
 	}
 
@@ -6325,13 +6056,12 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 		return disk
 	}
 
-	for _, name := range c.expandedDevices.DeviceNames() {
-		d := c.expandedDevices[name]
-		if d["type"] != "disk" {
+	for _, dev := range c.expandedDevices.Sorted() {
+		if dev.Config["type"] != "disk" {
 			continue
 		}
 
-		if d["path"] != "/" {
+		if dev.Config["path"] != "/" {
 			continue
 		}
 
@@ -6340,7 +6070,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 			continue
 		}
 
-		disk[name] = api.ContainerStateDisk{Usage: usage}
+		disk[dev.Name] = api.ContainerStateDisk{Usage: usage}
 	}
 
 	return disk
@@ -6769,10 +6499,9 @@ func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.D
 		devNames := []string{}
 
 		// Include all static interface names
-		for _, k := range c.expandedDevices.DeviceNames() {
-			v := c.expandedDevices[k]
-			if v["name"] != "" && !shared.StringInSlice(v["name"], devNames) {
-				devNames = append(devNames, v["name"])
+		for _, dev := range c.expandedDevices.Sorted() {
+			if dev.Config["name"] != "" && !shared.StringInSlice(dev.Config["name"], devNames) {
+				devNames = append(devNames, dev.Config["name"])
 			}
 		}
 
@@ -6920,284 +6649,6 @@ func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.D
 	return newDevice, nil
 }
 
-// Disk device handling
-func (c *containerLXC) createDiskDevice(name string, m config.Device) (string, error) {
-	// source paths
-	relativeDestPath := strings.TrimPrefix(m["path"], "/")
-	devName := fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
-	srcPath := shared.HostPath(m["source"])
-
-	// Check if read-only
-	isOptional := shared.IsTrue(m["optional"])
-	isReadOnly := shared.IsTrue(m["readonly"])
-	isRecursive := shared.IsTrue(m["recursive"])
-
-	isFile := false
-	if m["pool"] == "" {
-		isFile = !shared.IsDir(srcPath) && !device.IsBlockdev(srcPath)
-	} else {
-		// Deal with mounting storage volumes created via the storage
-		// api. Extract the name of the storage volume that we are
-		// supposed to attach. We assume that the only syntactically
-		// valid ways of specifying a storage volume are:
-		// - <volume_name>
-		// - <type>/<volume_name>
-		// Currently, <type> must either be empty or "custom". We do not
-		// yet support container mounts.
-
-		if filepath.IsAbs(m["source"]) {
-			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path")
-		}
-
-		volumeTypeName := ""
-		volumeName := filepath.Clean(m["source"])
-		slash := strings.Index(volumeName, "/")
-		if (slash > 0) && (len(volumeName) > slash) {
-			// Extract volume name.
-			volumeName = m["source"][(slash + 1):]
-			// Extract volume type.
-			volumeTypeName = m["source"][:slash]
-		}
-
-		switch volumeTypeName {
-		case storagePoolVolumeTypeNameContainer:
-			return "", fmt.Errorf("Using container storage volumes is not supported")
-		case "":
-			// We simply received the name of a storage volume.
-			volumeTypeName = storagePoolVolumeTypeNameCustom
-			fallthrough
-		case storagePoolVolumeTypeNameCustom:
-			srcPath = shared.VarPath("storage-pools", m["pool"], volumeTypeName, volumeName)
-		case storagePoolVolumeTypeNameImage:
-			return "", fmt.Errorf("Using image storage volumes is not supported")
-		default:
-			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found", volumeTypeName)
-		}
-
-		// Initialize a new storage interface and check if the
-		// pool/volume is mounted. If it is not, mount it.
-		volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
-		s, err := storagePoolVolumeAttachInit(c.state, m["pool"], volumeName, volumeType, c)
-		if err != nil && !isOptional {
-			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s",
-				volumeName,
-				volumeTypeName,
-				m["pool"], err)
-		} else if err == nil {
-			_, err = s.StoragePoolVolumeMount()
-			if err != nil {
-				msg := fmt.Sprintf("Could not mount storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.",
-					volumeName,
-					volumeTypeName,
-					m["pool"], err)
-				if !isOptional {
-					logger.Errorf(msg)
-					return "", err
-				}
-				logger.Warnf(msg)
-			}
-		}
-	}
-
-	// Check if the source exists
-	if !shared.PathExists(srcPath) {
-		if isOptional {
-			return "", nil
-		}
-		return "", fmt.Errorf("Source path %s doesn't exist for device %s", srcPath, name)
-	}
-
-	// Create the devices directory if missing
-	if !shared.PathExists(c.DevicesPath()) {
-		err := os.Mkdir(c.DevicesPath(), 0711)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// Clean any existing entry
-	if shared.PathExists(devPath) {
-		err := os.Remove(devPath)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// Create the mount point
-	if isFile {
-		f, err := os.Create(devPath)
-		if err != nil {
-			return "", err
-		}
-
-		f.Close()
-	} else {
-		err := os.Mkdir(devPath, 0700)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// Mount the fs
-	err := device.DiskMount(srcPath, devPath, isReadOnly, isRecursive, m["propagation"])
-	if err != nil {
-		return "", err
-	}
-
-	return devPath, nil
-}
-
-func (c *containerLXC) insertDiskDevice(name string, m config.Device) error {
-	// Check that the container is running
-	if !c.IsRunning() {
-		return fmt.Errorf("Can't insert device into stopped container")
-	}
-
-	isRecursive := shared.IsTrue(m["recursive"])
-
-	// Create the device on the host
-	devPath, err := c.createDiskDevice(name, m)
-	if err != nil {
-		return fmt.Errorf("Failed to setup device: %s", err)
-	}
-
-	if devPath == "" && shared.IsTrue(m["optional"]) {
-		return nil
-	}
-
-	flags := unix.MS_BIND
-	if isRecursive {
-		flags |= unix.MS_REC
-	}
-
-	// Detect shifting
-	shift := false
-	if !c.isCurrentlyPrivileged() {
-		shift = shared.IsTrue(m["shift"])
-		if !shift && m["pool"] != "" {
-			poolID, _, err := c.state.Cluster.StoragePoolGet(m["pool"])
-			if err != nil {
-				return err
-			}
-
-			_, volume, err := c.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.project, m["source"], storagePoolVolumeTypeCustom, poolID)
-			if err != nil {
-				return err
-			}
-
-			if shared.IsTrue(volume.Config["security.shifted"]) {
-				shift = true
-			}
-		}
-	}
-
-	if shift && !c.state.OS.Shiftfs {
-		return fmt.Errorf("shiftfs is required by disk entry '%s' but isn't supported on system", name)
-	}
-
-	// Bind-mount it into the container
-	destPath := strings.TrimSuffix(m["path"], "/")
-	err = c.insertMount(devPath, destPath, "none", flags, shift)
-	if err != nil {
-		return fmt.Errorf("Failed to add mount for device: %s", err)
-	}
-
-	return nil
-}
-
-type byPath []config.Device
-
-func (a byPath) Len() int {
-	return len(a)
-}
-
-func (a byPath) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byPath) Less(i, j int) bool {
-	return a[i]["path"] < a[j]["path"]
-}
-
-func (c *containerLXC) addDiskDevices(devices map[string]config.Device, handler func(string, config.Device) error) error {
-	ordered := byPath{}
-
-	for _, d := range devices {
-		ordered = append(ordered, d)
-	}
-
-	sort.Sort(ordered)
-	for _, d := range ordered {
-		key := ""
-		for k, dd := range devices {
-			key = ""
-			if reflect.DeepEqual(d, dd) {
-				key = k
-				break
-			}
-		}
-
-		err := handler(key, d)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (c *containerLXC) removeDiskDevice(name string, m config.Device) error {
-	// Check that the container is running
-	pid := c.InitPID()
-	if pid == -1 {
-		return fmt.Errorf("Can't remove device from stopped container")
-	}
-
-	// Figure out the paths
-	destPath := strings.TrimPrefix(m["path"], "/")
-	devName := fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), strings.Replace(destPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
-
-	// The disk device doesn't exist.
-	if !shared.PathExists(devPath) {
-		return nil
-	}
-
-	// Remove the bind-mount from the container
-	err := c.removeMount(m["path"])
-	if err != nil {
-		return fmt.Errorf("Error unmounting the device: %s", err)
-	}
-
-	// Unmount the host side
-	err = unix.Unmount(devPath, unix.MNT_DETACH)
-	if err != nil {
-		return err
-	}
-
-	// Check if pool-specific action should be taken
-	if m["pool"] != "" {
-		s, err := storagePoolVolumeInit(c.state, "default", m["pool"], m["source"], storagePoolVolumeTypeCustom)
-		if err != nil {
-			return err
-		}
-
-		_, err = s.StoragePoolVolumeUmount()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Remove the host side
-	err = os.Remove(devPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *containerLXC) removeDiskDevices() error {
 	// Check that we indeed have devices to remove
 	if !shared.PathExists(c.DevicesPath()) {
@@ -7229,155 +6680,6 @@ func (c *containerLXC) removeDiskDevices() error {
 	}
 
 	return nil
-}
-
-// Block I/O limits
-func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
-	result := map[string]deviceBlockLimit{}
-
-	// Build a list of all valid block devices
-	validBlocks := []string{}
-
-	dents, err := ioutil.ReadDir("/sys/class/block/")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range dents {
-		fPath := filepath.Join("/sys/class/block/", f.Name())
-		if shared.PathExists(fmt.Sprintf("%s/partition", fPath)) {
-			continue
-		}
-
-		if !shared.PathExists(fmt.Sprintf("%s/dev", fPath)) {
-			continue
-		}
-
-		block, err := ioutil.ReadFile(fmt.Sprintf("%s/dev", fPath))
-		if err != nil {
-			return nil, err
-		}
-
-		validBlocks = append(validBlocks, strings.TrimSuffix(string(block), "\n"))
-	}
-
-	// Process all the limits
-	blockLimits := map[string][]deviceBlockLimit{}
-	for _, k := range c.expandedDevices.DeviceNames() {
-		m := c.expandedDevices[k]
-		if m["type"] != "disk" {
-			continue
-		}
-
-		// Apply max limit
-		if m["limits.max"] != "" {
-			m["limits.read"] = m["limits.max"]
-			m["limits.write"] = m["limits.max"]
-		}
-
-		// Parse the user input
-		readBps, readIops, writeBps, writeIops, err := deviceParseDiskLimit(m["limits.read"], m["limits.write"])
-		if err != nil {
-			return nil, err
-		}
-
-		// Set the source path
-		source := shared.HostPath(m["source"])
-		if source == "" {
-			source = c.RootfsPath()
-		}
-
-		// Don't try to resolve the block device behind a non-existing path
-		if !shared.PathExists(source) {
-			continue
-		}
-
-		// Get the backing block devices (major:minor)
-		blocks, err := deviceGetParentBlocks(source)
-		if err != nil {
-			if readBps == 0 && readIops == 0 && writeBps == 0 && writeIops == 0 {
-				// If the device doesn't exist, there is no limit to clear so ignore the failure
-				continue
-			} else {
-				return nil, err
-			}
-		}
-
-		device := deviceBlockLimit{readBps: readBps, readIops: readIops, writeBps: writeBps, writeIops: writeIops}
-		for _, block := range blocks {
-			blockStr := ""
-
-			if shared.StringInSlice(block, validBlocks) {
-				// Straightforward entry (full block device)
-				blockStr = block
-			} else {
-				// Attempt to deal with a partition (guess its parent)
-				fields := strings.SplitN(block, ":", 2)
-				fields[1] = "0"
-				if shared.StringInSlice(fmt.Sprintf("%s:%s", fields[0], fields[1]), validBlocks) {
-					blockStr = fmt.Sprintf("%s:%s", fields[0], fields[1])
-				}
-			}
-
-			if blockStr == "" {
-				return nil, fmt.Errorf("Block device doesn't support quotas: %s", block)
-			}
-
-			if blockLimits[blockStr] == nil {
-				blockLimits[blockStr] = []deviceBlockLimit{}
-			}
-			blockLimits[blockStr] = append(blockLimits[blockStr], device)
-		}
-	}
-
-	// Average duplicate limits
-	for block, limits := range blockLimits {
-		var readBpsCount, readBpsTotal, readIopsCount, readIopsTotal, writeBpsCount, writeBpsTotal, writeIopsCount, writeIopsTotal int64
-
-		for _, limit := range limits {
-			if limit.readBps > 0 {
-				readBpsCount += 1
-				readBpsTotal += limit.readBps
-			}
-
-			if limit.readIops > 0 {
-				readIopsCount += 1
-				readIopsTotal += limit.readIops
-			}
-
-			if limit.writeBps > 0 {
-				writeBpsCount += 1
-				writeBpsTotal += limit.writeBps
-			}
-
-			if limit.writeIops > 0 {
-				writeIopsCount += 1
-				writeIopsTotal += limit.writeIops
-			}
-		}
-
-		device := deviceBlockLimit{}
-
-		if readBpsCount > 0 {
-			device.readBps = readBpsTotal / readBpsCount
-		}
-
-		if readIopsCount > 0 {
-			device.readIops = readIopsTotal / readIopsCount
-		}
-
-		if writeBpsCount > 0 {
-			device.writeBps = writeBpsTotal / writeBpsCount
-		}
-
-		if writeIopsCount > 0 {
-			device.writeIops = writeIopsTotal / writeIopsCount
-		}
-
-		result[block] = device
-	}
-
-	return result, nil
 }
 
 // Network I/O limits
