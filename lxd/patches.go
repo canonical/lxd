@@ -2785,18 +2785,16 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 
 		// go through all devices for each container
 		expandedDevices := c.ExpandedDevices()
-		for _, name := range expandedDevices.DeviceNames() {
-			d := expandedDevices[name]
-
+		for _, dev := range expandedDevices.Sorted() {
 			// We only care about unix-{char,block} and disk devices
 			// since other devices don't create on-disk files.
-			if !shared.StringInSlice(d["type"], []string{"disk", "unix-char", "unix-block"}) {
+			if !shared.StringInSlice(dev.Config["type"], []string{"disk", "unix-char", "unix-block"}) {
 				continue
 			}
 
 			// Handle disks
-			if d["type"] == "disk" {
-				relativeDestPath := strings.TrimPrefix(d["path"], "/")
+			if dev.Config["type"] == "disk" {
+				relativeDestPath := strings.TrimPrefix(dev.Config["path"], "/")
 				hyphenatedDevName := strings.Replace(relativeDestPath, "/", "-", -1)
 				devNameLegacy := fmt.Sprintf("disk.%s", hyphenatedDevName)
 				devPathLegacy := filepath.Join(devicesPath, devNameLegacy)
@@ -2825,9 +2823,9 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 			}
 
 			// Handle unix devices
-			srcPath := d["source"]
+			srcPath := dev.Config["source"]
 			if srcPath == "" {
-				srcPath = d["path"]
+				srcPath = dev.Config["path"]
 			}
 
 			relativeSrcPathLegacy := strings.TrimPrefix(srcPath, "/")
@@ -2842,9 +2840,9 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 
 			hasDeviceEntry[devPathLegacy] = true
 
-			srcPath = d["path"]
+			srcPath = dev.Config["path"]
 			if srcPath == "" {
-				srcPath = d["source"]
+				srcPath = dev.Config["source"]
 			}
 
 			relativeSrcPathNew := strings.TrimPrefix(srcPath, "/")
