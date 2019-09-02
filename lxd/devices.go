@@ -523,22 +523,21 @@ func devicesRegister(s *state.State) {
 		}
 
 		devices := c.ExpandedDevices()
-		for _, name := range devices.DeviceNames() {
-			m := devices[name]
-			d, _, err := c.deviceLoad(name, m)
+		for _, dev := range devices.Sorted() {
+			d, _, err := c.deviceLoad(dev.Name, dev.Config)
 			if err == device.ErrUnsupportedDevType {
 				continue
 			}
 
 			if err != nil {
-				logger.Error("Failed to load device to register", log.Ctx{"err": err, "container": c.Name(), "device": name})
+				logger.Error("Failed to load device to register", log.Ctx{"err": err, "container": c.Name(), "device": dev.Name})
 				continue
 			}
 
 			// Check whether device wants to register for any events.
 			err = d.Register()
 			if err != nil {
-				logger.Error("Failed to register device", log.Ctx{"err": err, "container": c.Name(), "device": name})
+				logger.Error("Failed to register device", log.Ctx{"err": err, "container": c.Name(), "device": dev.Name})
 				continue
 			}
 		}
