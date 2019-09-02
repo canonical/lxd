@@ -17,6 +17,7 @@ var devTypes = map[string]func(config.Device) device{
 	"unix-char":  func(c config.Device) device { return &unixCommon{} },
 	"unix-block": func(c config.Device) device { return &unixCommon{} },
 	"disk":       func(c config.Device) device { return &disk{} },
+	"none":       func(c config.Device) device { return &none{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
