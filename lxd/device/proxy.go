@@ -264,12 +264,7 @@ func (d *proxy) setupNAT() error {
 	var IPv4Addr string
 	var IPv6Addr string
 
-	instanceConfig, err := InstanceLoadByProjectAndName(d.state, d.instance.Project(), d.instance.Name())
-	if err != nil {
-		return err
-	}
-
-	for _, devConfig := range instanceConfig.ExpandedDevices() {
+	for _, devConfig := range d.instance.ExpandedDevices() {
 		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig["nictype"] != "bridged") {
 			continue
 		}
