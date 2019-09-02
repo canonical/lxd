@@ -108,7 +108,7 @@ test_storage_profiles() {
     lxc launch testimage cOnDefault
     ! lxc profile assign cOnDefault default,dummyDup,dummyNoDup || false
 
-    # Verify that we can create a container with two profiles that speficy the
+    # Verify that we can create a container with two profiles that specify the
     # same root disk device.
     lxc launch testimage cNonConflictingProfiles -p dummy -p dummyDup
 
