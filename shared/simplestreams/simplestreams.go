@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-var ssDefaultOS = map[string]string{
+var urlDefaultOS = map[string]string{
 	"https://cloud-images.ubuntu.com": "ubuntu",
 }
 
@@ -393,7 +393,7 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 	sort.Sort(sortedImages(images))
 
 	defaultOS := ""
-	for k, v := range ssDefaultOS {
+	for k, v := range urlDefaultOS {
 		if strings.HasPrefix(s.url, k) {
 			defaultOS = v
 			break
