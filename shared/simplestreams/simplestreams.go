@@ -33,7 +33,7 @@ func NewClient(url string, httpClient http.Client, useragent string) *SimpleStre
 	return &SimpleStreams{
 		http:           &httpClient,
 		url:            url,
-		cachedManifest: map[string]*SimpleStreamsManifest{},
+		cachedManifest: map[string]*Products{},
 		useragent:      useragent,
 	}
 }
@@ -44,7 +44,7 @@ type SimpleStreams struct {
 	useragent string
 
 	cachedStream   *Stream
-	cachedManifest map[string]*SimpleStreamsManifest
+	cachedManifest map[string]*Products
 	cachedImages   []api.Image
 	cachedAliases  map[string]*api.ImageAliasesEntry
 }
@@ -91,7 +91,7 @@ func (s *SimpleStreams) parseIndex() (*Stream, error) {
 	return &stream, nil
 }
 
-func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, error) {
+func (s *SimpleStreams) parseManifest(path string) (*Products, error) {
 	if s.cachedManifest[path] != nil {
 		return s.cachedManifest[path], nil
 	}
@@ -122,7 +122,7 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 	}
 
 	// Parse the idnex
-	ssManifest := SimpleStreamsManifest{}
+	ssManifest := Products{}
 	err = json.Unmarshal(body, &ssManifest)
 	if err != nil {
 		return nil, err

@@ -10,46 +10,53 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-type SimpleStreamsManifest struct {
-	Updated  string                                  `json:"updated,omitempty"`
-	DataType string                                  `json:"datatype"`
-	Format   string                                  `json:"format"`
-	License  string                                  `json:"license,omitempty"`
-	Products map[string]SimpleStreamsManifestProduct `json:"products"`
+// Products represents the base of download.json
+type Products struct {
+	ContentID string             `json:"content_id"`
+	DataType  string             `json:"datatype"`
+	Format    string             `json:"format"`
+	License   string             `json:"license,omitempty"`
+	Products  map[string]Product `json:"products"`
+	Updated   string             `json:"updated,omitempty"`
 }
 
-type SimpleStreamsManifestProduct struct {
-	Aliases         string                                         `json:"aliases"`
-	Architecture    string                                         `json:"arch"`
-	OperatingSystem string                                         `json:"os"`
-	Release         string                                         `json:"release"`
-	ReleaseCodename string                                         `json:"release_codename,omitempty"`
-	ReleaseTitle    string                                         `json:"release_title"`
-	Supported       bool                                           `json:"supported,omitempty"`
-	SupportedEOL    string                                         `json:"support_eol,omitempty"`
-	Version         string                                         `json:"version,omitempty"`
-	Versions        map[string]SimpleStreamsManifestProductVersion `json:"versions"`
+// Product represents a single product inside download.json
+type Product struct {
+	Aliases         string                    `json:"aliases"`
+	Architecture    string                    `json:"arch"`
+	OperatingSystem string                    `json:"os"`
+	Release         string                    `json:"release"`
+	ReleaseCodename string                    `json:"release_codename,omitempty"`
+	ReleaseTitle    string                    `json:"release_title"`
+	Supported       bool                      `json:"supported,omitempty"`
+	SupportedEOL    string                    `json:"support_eol,omitempty"`
+	Version         string                    `json:"version,omitempty"`
+	Versions        map[string]ProductVersion `json:"versions"`
 }
 
-type SimpleStreamsManifestProductVersion struct {
-	PublicName string                                             `json:"pubname,omitempty"`
-	Label      string                                             `json:"label,omitempty"`
-	Items      map[string]SimpleStreamsManifestProductVersionItem `json:"items"`
+// ProductVersion represents a particular version of a product
+type ProductVersion struct {
+	Items      map[string]ProductVersionItem `json:"items"`
+	Label      string                        `json:"label,omitempty"`
+	PublicName string                        `json:"pubname,omitempty"`
 }
 
-type SimpleStreamsManifestProductVersionItem struct {
-	Path                  string `json:"path"`
+// ProductVersionItem represents a file/item of a particular ProductVersion
+type ProductVersionItem struct {
+	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256,omitempty"`
+	LXDHashSha256         string `json:"combined_sha256,omitempty"`
+	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256,omitempty"`
 	FileType              string `json:"ftype"`
 	HashMd5               string `json:"md5,omitempty"`
+	Path                  string `json:"path"`
 	HashSha256            string `json:"sha256,omitempty"`
-	LXDHashSha256         string `json:"combined_sha256,omitempty"`
-	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256,omitempty"`
-	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256,omitempty"`
 	Size                  int64  `json:"size"`
 	DeltaBase             string `json:"delta_base,omitempty"`
 }
 
-func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
+
+// ToLXD converts the products data into a list of LXD images and associated downloadable files
+func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
 
 	images := []api.Image{}
@@ -79,10 +86,10 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				continue
 			}
 
-			var meta SimpleStreamsManifestProductVersionItem
-			var rootTar SimpleStreamsManifestProductVersionItem
-			var rootSquash SimpleStreamsManifestProductVersionItem
-			deltas := []SimpleStreamsManifestProductVersionItem{}
+			var meta ProductVersionItem
+			var rootTar ProductVersionItem
+			var rootSquash ProductVersionItem
+			deltas := []ProductVersionItem{}
 
 			for _, item := range version.Items {
 				// Identify deltas
