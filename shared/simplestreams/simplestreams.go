@@ -43,15 +43,15 @@ type SimpleStreams struct {
 	url       string
 	useragent string
 
-	cachedIndex    *SimpleStreamsIndex
+	cachedStream   *Stream
 	cachedManifest map[string]*SimpleStreamsManifest
 	cachedImages   []api.Image
 	cachedAliases  map[string]*api.ImageAliasesEntry
 }
 
-func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
-	if s.cachedIndex != nil {
-		return s.cachedIndex, nil
+func (s *SimpleStreams) parseIndex() (*Stream, error) {
+	if s.cachedStream != nil {
+		return s.cachedStream, nil
 	}
 
 	url := fmt.Sprintf("%s/streams/v1/index.json", s.url)
@@ -80,15 +80,15 @@ func (s *SimpleStreams) parseIndex() (*SimpleStreamsIndex, error) {
 	}
 
 	// Parse the idnex
-	ssIndex := SimpleStreamsIndex{}
-	err = json.Unmarshal(body, &ssIndex)
+	stream := Stream{}
+	err = json.Unmarshal(body, &stream)
 	if err != nil {
 		return nil, err
 	}
 
-	s.cachedIndex = &ssIndex
+	s.cachedStream = &stream
 
-	return &ssIndex, nil
+	return &stream, nil
 }
 
 func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, error) {
