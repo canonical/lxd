@@ -85,170 +85,177 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				continue
 			}
 
-			var meta ProductVersionItem
-			var rootTar ProductVersionItem
-			var rootSquash ProductVersionItem
-			deltas := []ProductVersionItem{}
-
-			for _, item := range version.Items {
-				// Identify deltas
-				if item.FileType == "squashfs.vcdiff" {
-					deltas = append(deltas, item)
-				}
-
-				// Skip the files we don't care about
-				if !shared.StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "lxd_combined.tar.gz", "squashfs"}) {
-					continue
-				}
-
-				if item.FileType == "lxd.tar.xz" {
-					meta = item
-				} else if item.FileType == "squashfs" {
-					rootSquash = item
-				} else if item.FileType == "root.tar.xz" {
-					rootTar = item
-				} else if item.FileType == "lxd_combined.tar.gz" {
-					meta = item
-					rootTar = item
-				}
-			}
-
-			if meta.FileType == "" || (rootTar.FileType == "" && rootSquash.FileType == "") {
-				// Invalid image
-				continue
-			}
-
-			var rootfsSize int64
-			metaPath := meta.Path
-			metaHash := meta.HashSha256
-			metaSize := meta.Size
-			rootfsPath := ""
-			rootfsHash := ""
-			fields := strings.Split(meta.Path, "/")
-			filename := fields[len(fields)-1]
-			size := meta.Size
-			fingerprint := ""
-
-			if rootSquash.FileType != "" {
-				if meta.LXDHashSha256SquashFs != "" {
-					fingerprint = meta.LXDHashSha256SquashFs
-				} else {
-					fingerprint = meta.LXDHashSha256
-				}
-				size += rootSquash.Size
-				rootfsPath = rootSquash.Path
-				rootfsHash = rootSquash.HashSha256
-				rootfsSize = rootSquash.Size
-			} else {
-				if meta == rootTar {
-					fingerprint = meta.HashSha256
-					size = meta.Size
-				} else {
-					if meta.LXDHashSha256RootXz != "" {
-						fingerprint = meta.LXDHashSha256RootXz
-					} else {
-						fingerprint = meta.LXDHashSha256
+			// Image processing function
+			addImage := func(meta *ProductVersionItem, root *ProductVersionItem) error {
+				// Look for deltas (only on squashfs)
+				deltas := []ProductVersionItem{}
+				if root != nil && root.FileType == "squashfs" {
+					for _, item := range version.Items {
+						if item.FileType == "squashfs.vcdiff" {
+							deltas = append(deltas, item)
+						}
 					}
-					size += rootTar.Size
-				}
-				rootfsPath = rootTar.Path
-				rootfsHash = rootTar.HashSha256
-				rootfsSize = rootTar.Size
-			}
-
-			if size == 0 || filename == "" || fingerprint == "" {
-				// Invalid image
-				continue
-			}
-
-			// Generate the actual image entry
-			description := fmt.Sprintf("%s %s %s", product.OperatingSystem, product.ReleaseTitle, product.Architecture)
-			if version.Label != "" {
-				description = fmt.Sprintf("%s (%s)", description, version.Label)
-			}
-			description = fmt.Sprintf("%s (%s)", description, name)
-
-			image := api.Image{}
-			image.Architecture = architectureName
-			image.Public = true
-			image.Size = size
-			image.CreatedAt = creationDate
-			image.UploadedAt = creationDate
-			image.Filename = filename
-			image.Fingerprint = fingerprint
-			image.Properties = map[string]string{
-				"os":           product.OperatingSystem,
-				"release":      product.Release,
-				"version":      product.Version,
-				"architecture": product.Architecture,
-				"label":        version.Label,
-				"serial":       name,
-				"description":  description,
-			}
-
-			// Add the provided aliases
-			if product.Aliases != "" {
-				image.Aliases = []api.ImageAlias{}
-				for _, entry := range strings.Split(product.Aliases, ",") {
-					image.Aliases = append(image.Aliases, api.ImageAlias{Name: entry})
-				}
-			}
-
-			// Clear unset properties
-			for k, v := range image.Properties {
-				if v == "" {
-					delete(image.Properties, k)
-				}
-			}
-
-			// Attempt to parse the EOL
-			image.ExpiresAt = time.Unix(0, 0).UTC()
-			if product.SupportedEOL != "" {
-				eolDate, err := time.Parse(eolLayout, product.SupportedEOL)
-				if err == nil {
-					image.ExpiresAt = eolDate
-				}
-			}
-
-			var imgDownloads [][]string
-			if meta == rootTar {
-				imgDownloads = [][]string{{metaPath, metaHash, "meta", fmt.Sprintf("%d", metaSize)}}
-			} else {
-				imgDownloads = [][]string{
-					{metaPath, metaHash, "meta", fmt.Sprintf("%d", metaSize)},
-					{rootfsPath, rootfsHash, "root", fmt.Sprintf("%d", rootfsSize)}}
-			}
-
-			// Add the deltas
-			for _, delta := range deltas {
-				srcImage, ok := product.Versions[delta.DeltaBase]
-				if !ok {
-					continue
 				}
 
-				var srcFingerprint string
-				for _, item := range srcImage.Items {
-					if item.FileType != "lxd.tar.xz" {
+				// Figure out the fingerprint
+				fingerprint := ""
+				if root != nil {
+					if root.FileType == "root.tar.xz" {
+						if meta.LXDHashSha256RootXz != "" {
+							fingerprint = meta.LXDHashSha256RootXz
+						} else {
+							fingerprint = meta.LXDHashSha256
+						}
+					} else if root.FileType == "squashfs" {
+						fingerprint = meta.LXDHashSha256SquashFs
+					}
+				} else {
+					fingerprint = meta.HashSha256
+				}
+
+				if fingerprint == "" {
+					return fmt.Errorf("No LXD image fingerprint found")
+				}
+
+				// Figure out the size
+				size := meta.Size
+				if root != nil {
+					size += root.Size
+				}
+
+				// Determine filename
+				if meta.Path == "" {
+					return fmt.Errorf("Missing path field on metadata entry")
+				}
+
+				fields := strings.Split(meta.Path, "/")
+				filename := fields[len(fields)-1]
+
+				// Generate the actual image entry
+				description := fmt.Sprintf("%s %s %s", product.OperatingSystem, product.ReleaseTitle, product.Architecture)
+				if version.Label != "" {
+					description = fmt.Sprintf("%s (%s)", description, version.Label)
+				}
+				description = fmt.Sprintf("%s (%s)", description, name)
+
+				image := api.Image{}
+				image.Architecture = architectureName
+				image.Public = true
+				image.Size = size
+				image.CreatedAt = creationDate
+				image.UploadedAt = creationDate
+				image.Filename = filename
+				image.Fingerprint = fingerprint
+				image.Properties = map[string]string{
+					"os":           product.OperatingSystem,
+					"release":      product.Release,
+					"version":      product.Version,
+					"architecture": product.Architecture,
+					"label":        version.Label,
+					"serial":       name,
+					"description":  description,
+				}
+
+				if root != nil {
+					image.Properties["type"] = root.FileType
+				} else {
+					image.Properties["type"] = "tar.gz"
+				}
+
+				// Clear unset properties
+				for k, v := range image.Properties {
+					if v == "" {
+						delete(image.Properties, k)
+					}
+				}
+
+				// Add the provided aliases
+				if product.Aliases != "" {
+					image.Aliases = []api.ImageAlias{}
+					for _, entry := range strings.Split(product.Aliases, ",") {
+						image.Aliases = append(image.Aliases, api.ImageAlias{Name: entry})
+					}
+				}
+
+				// Attempt to parse the EOL
+				image.ExpiresAt = time.Unix(0, 0).UTC()
+				if product.SupportedEOL != "" {
+					eolDate, err := time.Parse(eolLayout, product.SupportedEOL)
+					if err == nil {
+						image.ExpiresAt = eolDate
+					}
+				}
+
+				// Set the file list
+				var imgDownloads [][]string
+				if root == nil {
+					imgDownloads = [][]string{{meta.Path, meta.HashSha256, "meta", fmt.Sprintf("%d", meta.Size)}}
+				} else {
+					imgDownloads = [][]string{
+						{meta.Path, meta.HashSha256, "meta", fmt.Sprintf("%d", meta.Size)},
+						{root.Path, root.HashSha256, "root", fmt.Sprintf("%d", root.Size)}}
+				}
+
+				// Add the deltas
+				for _, delta := range deltas {
+					srcImage, ok := product.Versions[delta.DeltaBase]
+					if !ok {
+						// Delta for a since expired image
 						continue
 					}
 
-					srcFingerprint = item.LXDHashSha256SquashFs
-					break
+					// Locate source image fingerprint
+					var srcFingerprint string
+					for _, item := range srcImage.Items {
+						if item.FileType != "lxd.tar.xz" {
+							continue
+						}
+
+						srcFingerprint = item.LXDHashSha256SquashFs
+						break
+					}
+
+					if srcFingerprint == "" {
+						// Couldn't find the image
+						continue
+					}
+
+					// Add the delta
+					imgDownloads = append(imgDownloads, []string{
+						delta.Path,
+						delta.HashSha256,
+						fmt.Sprintf("root.delta-%s", srcFingerprint),
+						fmt.Sprintf("%d", delta.Size)})
 				}
 
-				if srcFingerprint == "" {
-					continue
-				}
+				// Add the image
+				downloads[fingerprint] = imgDownloads
+				images = append(images, image)
 
-				imgDownloads = append(imgDownloads, []string{
-					delta.Path,
-					delta.HashSha256,
-					fmt.Sprintf("root.delta-%s", srcFingerprint),
-					fmt.Sprintf("%d", delta.Size)})
+				return nil
 			}
 
-			downloads[fingerprint] = imgDownloads
-			images = append(images, image)
+			// Locate a valid LXD image
+			for _, item := range version.Items {
+				if item.FileType == "lxd_combined.tar.gz" {
+					err := addImage(&item, nil)
+					if err != nil {
+						continue
+					}
+				}
+
+				if item.FileType == "lxd.tar.xz" {
+					// Locate the root files
+					for _, subItem := range version.Items {
+						if shared.StringInSlice(subItem.FileType, []string{"root.tar.xz", "squashfs"}) {
+							err := addImage(&item, &subItem)
+							if err != nil {
+								continue
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
