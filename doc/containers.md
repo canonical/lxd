@@ -485,7 +485,7 @@ limits.write    | string    | -                 | no        | I/O limit in byte/
 limits.max      | string    | -                 | no        | Same as modifying both limits.read and limits.write
 path            | string    | -                 | yes       | Path inside the container where the disk will be mounted
 source          | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
-optional        | boolean   | false             | no        | Controls whether to fail if the source doesn't exist
+required        | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
 readonly        | boolean   | false             | no        | Controls whether to make the mount read-only
 size            | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/).
 recursive       | boolean   | false             | no        | Whether or not to recursively mount the source path
@@ -543,7 +543,7 @@ productid   | string    | -                 | no        | The product id of the 
 uid         | int       | 0                 | no        | UID of the device owner in the container
 gid         | int       | 0                 | no        | GID of the device owner in the container
 mode        | int       | 0660              | no        | Mode of the device in the container
-required    | boolean   | false             | no        | Whether or not this device is required to start the container. (The default is no, and all devices are hot-pluggable.)
+required    | boolean   | false             | no        | Whether or not this device is required to start the container. (The default is false, and all devices are hot-pluggable)
 
 ### Type: gpu
 GPU device entries simply make the requested gpu device appear in the
