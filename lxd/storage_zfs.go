@@ -900,7 +900,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	privileged := container.IsPrivileged()
-	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
+	err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
 	if err != nil {
 		return err
 	}
@@ -988,7 +988,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			defer s.ContainerUmount(target, targetContainerPath)
 		}
 
-		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
+		err = driver.CreateContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -1119,7 +1119,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
-	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
+	err = driver.CreateContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -1134,7 +1134,7 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
-	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	err := driver.CreateSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
 	}
@@ -1291,7 +1291,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 		targetContainerName := target.Name()
 		targetContainerPath := target.Path()
 		targetContainerMountPoint := driver.GetContainerMountPoint(target.Project(), s.pool.Name, targetContainerName)
-		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
+		err = driver.CreateContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
 		}
@@ -2132,7 +2132,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := shared.ContainerGetParentAndSnapshotName(info.Name)
 	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, containerName)
-	err := createContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
+	err := driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -2192,7 +2192,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 		snapshotMntPoint := driver.GetSnapshotMountPoint(info.Project, s.pool.Name, fmt.Sprintf("%s/%s", containerName, snapshotOnlyName))
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(info.Project, containerName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(info.Project, containerName))
-		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			// can't use defer because it needs to run before the mount
 			os.RemoveAll(unpackPath)
@@ -2504,131 +2504,6 @@ func (s *storageZfs) ImageMount(fingerprint string) (bool, error) {
 
 func (s *storageZfs) ImageUmount(fingerprint string) (bool, error) {
 	return true, nil
-}
-
-type zfsMigrationSourceDriver struct {
-	container        container
-	snapshots        []container
-	zfsSnapshotNames []string
-	zfs              *storageZfs
-	runningSnapName  string
-	stoppedSnapName  string
-	zfsFeatures      []string
-}
-
-func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
-	sourceParentName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
-	poolName := s.zfs.getOnDiskPoolName()
-	args := []string{"send"}
-
-	// Negotiated options
-	if s.zfsFeatures != nil && len(s.zfsFeatures) > 0 {
-		if shared.StringInSlice("compress", s.zfsFeatures) {
-			args = append(args, "-c")
-			args = append(args, "-L")
-		}
-	}
-
-	args = append(args, []string{fmt.Sprintf("%s/containers/%s@%s", poolName, project.Prefix(s.container.Project(), sourceParentName), zfsName)}...)
-	if zfsParent != "" {
-		args = append(args, "-i", fmt.Sprintf("%s/containers/%s@%s", poolName, project.Prefix(s.container.Project(), s.container.Name()), zfsParent))
-	}
-
-	cmd := exec.Command("zfs", args...)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	readPipe := io.ReadCloser(stdout)
-	if readWrapper != nil {
-		readPipe = readWrapper(stdout)
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	<-shared.WebsocketSendStream(conn, readPipe, 4*1024*1024)
-
-	output, err := ioutil.ReadAll(stderr)
-	if err != nil {
-		logger.Errorf("Problem reading zfs send stderr: %s", err)
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		logger.Errorf("Problem with zfs send: %s", string(output))
-	}
-
-	return err
-}
-
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
-	if s.container.IsSnapshot() {
-		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
-		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
-		wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
-		return s.send(conn, snapshotName, "", wrapper)
-	}
-
-	lastSnap := ""
-	if !containerOnly {
-		for i, snap := range s.zfsSnapshotNames {
-			prev := ""
-			if i > 0 {
-				prev = s.zfsSnapshotNames[i-1]
-			}
-
-			lastSnap = snap
-
-			wrapper := StorageProgressReader(op, "fs_progress", snap)
-			if err := s.send(conn, snap, prev, wrapper); err != nil {
-				return err
-			}
-		}
-	}
-
-	s.runningSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
-	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.runningSnapName); err != nil {
-		return err
-	}
-
-	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
-	if err := s.send(conn, s.runningSnapName, lastSnap, wrapper); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
-	s.stoppedSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
-	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.stoppedSnapName); err != nil {
-		return err
-	}
-
-	if err := s.send(conn, s.stoppedSnapName, s.runningSnapName, nil); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *zfsMigrationSourceDriver) Cleanup() {
-	poolName := s.zfs.getOnDiskPoolName()
-	if s.stoppedSnapName != "" {
-		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.stoppedSnapName)
-	}
-	if s.runningSnapName != "" {
-		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.runningSnapName)
-	}
 }
 
 func (s *storageZfs) MigrationType() migration.MigrationFSType {
@@ -3323,12 +3198,6 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 
 	logger.Infof(successMsg)
 	return nil
-}
-
-func (s *zfsMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
 }
 
 func (s *storageZfs) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {

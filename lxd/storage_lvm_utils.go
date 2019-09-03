@@ -288,10 +288,10 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(sourceContainer.Project(), sourceName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(sourceContainer.Project(), sourceName))
-		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = driver.CreateSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
 		targetContainerMntPoint = driver.GetContainerMountPoint(sourceContainer.Project(), targetPool, targetContainerName)
-		err = createContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
+		err = driver.CreateContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
 	}
 	if err != nil {
 		return errors.Wrap(err, "Create mount point")
@@ -351,7 +351,7 @@ func (s *storageLvm) copySnapshot(target container, source container, refresh bo
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
-	err = createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	err = driver.CreateSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
 	}
@@ -452,7 +452,7 @@ func (s *storageLvm) copyContainer(target container, source container, refresh b
 	}
 
 	targetContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
-	err = createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	err = driver.CreateContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
