@@ -23,7 +23,7 @@ var urlDefaultOS = map[string]string{
 	"https://cloud-images.ubuntu.com": "ubuntu",
 }
 
-type SimpleStreamsFile struct {
+type DownloadableFile struct {
 	Path   string
 	Sha256 string
 	Size   int64
@@ -244,7 +244,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEn
 	return images, aliases, nil
 }
 
-func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]SimpleStreamsFile, error) {
+func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFile, error) {
 	// Load the main index
 	ssIndex, err := s.parseIndex()
 	if err != nil {
@@ -272,7 +272,7 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]SimpleStreamsFi
 
 		for _, image := range manifestImages {
 			if strings.HasPrefix(image.Fingerprint, fingerprint) {
-				files := map[string]SimpleStreamsFile{}
+				files := map[string]DownloadableFile{}
 
 				for _, path := range downloads[image.Fingerprint] {
 					size, err := strconv.ParseInt(path[3], 10, 64)
@@ -280,7 +280,7 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]SimpleStreamsFi
 						return nil, err
 					}
 
-					files[path[2]] = SimpleStreamsFile{
+					files[path[2]] = DownloadableFile{
 						Path:   path[0],
 						Sha256: path[1],
 						Size:   size}
