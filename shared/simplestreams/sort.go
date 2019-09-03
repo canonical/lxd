@@ -16,6 +16,12 @@ func (a sortedImages) Swap(i, j int) {
 }
 
 func (a sortedImages) Less(i, j int) bool {
+	if a[i].Properties["type"] != a[j].Properties["type"] {
+		if a[i].Properties["type"] == "squashfs" {
+			return true
+		}
+	}
+
 	if a[i].Properties["os"] == a[j].Properties["os"] {
 		if a[i].Properties["release"] == a[j].Properties["release"] {
 			if !shared.TimeIsSet(a[i].CreatedAt) {
