@@ -27,6 +27,16 @@ type unixCommon struct {
 	deviceCommon
 }
 
+// isRequired indicates whether the device config requires this device to start OK.
+func (d *unixCommon) isRequired() bool {
+	// Defaults to required.
+	if d.config["required"] == "" || shared.IsTrue(d.config["required"]) {
+		return true
+	}
+
+	return false
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *unixCommon) validateConfig() error {
 	if d.instance.Type() != instance.TypeContainer {
@@ -59,7 +69,7 @@ func (d *unixCommon) validateConfig() error {
 // Register is run after the device is started or when LXD starts.
 func (d *unixCommon) Register() error {
 	// Don't register for hot plug events if the device is required.
-	if d.config["required"] == "" || shared.IsTrue(d.config["required"]) {
+	if d.isRequired() {
 		return nil
 	}
 
@@ -166,7 +176,7 @@ func (d *unixCommon) Start() (*RunConfig, error) {
 			if err != nil {
 				return nil, err
 			}
-		} else if d.config["required"] == "" || shared.IsTrue(d.config["required"]) {
+		} else if d.isRequired() {
 			// If the file is missing and the device is required then we cannot proceed.
 			return nil, fmt.Errorf("The required device path doesn't exist and the major and minor settings are not specified")
 		}
