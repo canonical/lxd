@@ -20,56 +20,6 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-type ssSortImage []api.Image
-
-func (a ssSortImage) Len() int {
-	return len(a)
-}
-
-func (a ssSortImage) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a ssSortImage) Less(i, j int) bool {
-	if a[i].Properties["os"] == a[j].Properties["os"] {
-		if a[i].Properties["release"] == a[j].Properties["release"] {
-			if !shared.TimeIsSet(a[i].CreatedAt) {
-				return true
-			}
-
-			if !shared.TimeIsSet(a[j].CreatedAt) {
-				return false
-			}
-
-			if a[i].CreatedAt == a[j].CreatedAt {
-				return a[i].Properties["serial"] > a[j].Properties["serial"]
-			}
-
-			return a[i].CreatedAt.UTC().Unix() > a[j].CreatedAt.UTC().Unix()
-		}
-
-		if a[i].Properties["release"] == "" {
-			return false
-		}
-
-		if a[j].Properties["release"] == "" {
-			return true
-		}
-
-		return a[i].Properties["release"] < a[j].Properties["release"]
-	}
-
-	if a[i].Properties["os"] == "" {
-		return false
-	}
-
-	if a[j].Properties["os"] == "" {
-		return true
-	}
-
-	return a[i].Properties["os"] < a[j].Properties["os"]
-}
-
 var ssDefaultOS = map[string]string{
 	"https://cloud-images.ubuntu.com": "ubuntu",
 }
@@ -440,7 +390,7 @@ func (s *SimpleStreams) parseManifest(path string) (*SimpleStreamsManifest, erro
 func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[string]*api.ImageAliasesEntry, error) {
 	aliases := map[string]*api.ImageAliasesEntry{}
 
-	sort.Sort(ssSortImage(images))
+	sort.Sort(sortedImages(images))
 
 	defaultOS := ""
 	for k, v := range ssDefaultOS {
