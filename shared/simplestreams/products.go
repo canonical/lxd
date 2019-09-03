@@ -54,7 +54,6 @@ type ProductVersionItem struct {
 	DeltaBase             string `json:"delta_base,omitempty"`
 }
 
-
 // ToLXD converts the products data into a list of LXD images and associated downloadable files
 func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 	downloads := map[string][][]string{}
