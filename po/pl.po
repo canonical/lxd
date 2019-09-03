@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-08-27 23:26-0600\n"
+"POT-Creation-Date: 2019-09-03 09:02-0400\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -257,7 +257,7 @@ msgstr ""
 msgid "--container-only can't be passed when the source is a snapshot"
 msgstr ""
 
-#: lxc/init.go:93
+#: lxc/init.go:115
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
@@ -432,7 +432,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:123 lxc/init.go:149 lxc/project.go:120 lxc/publish.go:176
+#: lxc/copy.go:123 lxc/init.go:180 lxc/project.go:120 lxc/publish.go:176
 #: lxc/storage.go:122 lxc/storage_volume.go:504
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -584,7 +584,7 @@ msgid "Client version: %s\n"
 msgstr ""
 
 #: lxc/config.go:96 lxc/config.go:376 lxc/config.go:469 lxc/config.go:584
-#: lxc/config.go:702 lxc/copy.go:52 lxc/info.go:44 lxc/init.go:47
+#: lxc/config.go:702 lxc/copy.go:52 lxc/info.go:44 lxc/init.go:53
 #: lxc/move.go:58 lxc/network.go:256 lxc/network.go:671 lxc/network.go:729
 #: lxc/network.go:1016 lxc/network.go:1083 lxc/network.go:1145
 #: lxc/storage.go:91 lxc/storage.go:335 lxc/storage.go:391 lxc/storage.go:587
@@ -617,7 +617,7 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/copy.go:44 lxc/init.go:41
+#: lxc/copy.go:44 lxc/init.go:47
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
@@ -644,7 +644,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:420 lxc/init.go:278
+#: lxc/copy.go:420 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -734,7 +734,7 @@ msgstr ""
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:49
+#: lxc/init.go:55
 msgid "Create an empty container"
 msgstr ""
 
@@ -758,7 +758,7 @@ msgid ""
 "running state, including process memory state, TCP connections, ..."
 msgstr ""
 
-#: lxc/init.go:35 lxc/init.go:36
+#: lxc/init.go:38 lxc/init.go:39
 msgid "Create containers from images"
 msgstr ""
 
@@ -786,7 +786,7 @@ msgstr ""
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/init.go:48
+#: lxc/copy.go:54 lxc/init.go:54
 msgid "Create the container with no profiles applied"
 msgstr ""
 
@@ -795,12 +795,12 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:128
+#: lxc/init.go:150
 #, c-format
 msgid "Creating %s"
 msgstr ""
 
-#: lxc/init.go:126
+#: lxc/init.go:148
 msgid "Creating the container"
 msgstr ""
 
@@ -894,7 +894,7 @@ msgstr ""
 #: lxc/image.go:312 lxc/image.go:435 lxc/image.go:575 lxc/image.go:789
 #: lxc/image.go:903 lxc/image.go:1191 lxc/image.go:1268 lxc/image_alias.go:24
 #: lxc/image_alias.go:57 lxc/image_alias.go:104 lxc/image_alias.go:149
-#: lxc/image_alias.go:246 lxc/import.go:28 lxc/info.go:32 lxc/init.go:36
+#: lxc/image_alias.go:246 lxc/import.go:28 lxc/info.go:32 lxc/init.go:39
 #: lxc/launch.go:23 lxc/list.go:43 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:31 lxc/network.go:107
 #: lxc/network.go:180 lxc/network.go:253 lxc/network.go:325 lxc/network.go:375
@@ -967,7 +967,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:272
+#: lxc/init.go:308
 msgid "Didn't get any affected image, container or snapshot from server"
 msgstr ""
 
@@ -1095,7 +1095,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:47 lxc/init.go:43
+#: lxc/copy.go:47 lxc/init.go:49
 msgid "Ephemeral container"
 msgstr ""
 
@@ -1451,7 +1451,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/init.go:46
+#: lxc/init.go:52
 msgid "Instance type"
 msgstr ""
 
@@ -2092,7 +2092,7 @@ msgstr ""
 msgid "Network %s renamed to %s"
 msgstr ""
 
-#: lxc/init.go:44
+#: lxc/init.go:50
 msgid "Network name"
 msgstr ""
 
@@ -2310,7 +2310,7 @@ msgstr ""
 msgid "Profile %s renamed to %s"
 msgstr ""
 
-#: lxc/copy.go:46 lxc/init.go:42
+#: lxc/copy.go:46 lxc/init.go:48
 msgid "Profile to apply to the new container"
 msgstr ""
 
@@ -2559,7 +2559,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr ""
 
-#: lxc/init.go:235
+#: lxc/init.go:271
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -2873,7 +2873,7 @@ msgstr ""
 msgid "Start containers"
 msgstr ""
 
-#: lxc/launch.go:65
+#: lxc/launch.go:68
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -2920,7 +2920,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:45 lxc/move.go:57
+#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:51 lxc/move.go:57
 msgid "Storage pool name"
 msgstr ""
 
@@ -3003,7 +3003,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:329
+#: lxc/init.go:365
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -3016,12 +3016,12 @@ msgstr ""
 msgid "The device doesn't exist"
 msgstr ""
 
-#: lxc/init.go:313
+#: lxc/init.go:349
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:309
+#: lxc/init.go:345
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -3071,11 +3071,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:331
+#: lxc/init.go:367
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:330
+#: lxc/init.go:366
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -3124,7 +3124,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/action.go:196 lxc/launch.go:96
+#: lxc/action.go:196 lxc/launch.go:99
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -3631,8 +3631,8 @@ msgstr ""
 msgid "info [<remote>:][<container>]"
 msgstr ""
 
-#: lxc/init.go:34
-msgid "init [[<remote>:]<image>] [<remote>:][<name>]"
+#: lxc/init.go:37
+msgid "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr ""
 
 #: lxc/launch.go:21
@@ -3758,12 +3758,20 @@ msgid ""
 "    For LXD server information."
 msgstr ""
 
-#: lxc/init.go:37
-msgid "lxc init ubuntu:16.04 u1"
+#: lxc/init.go:40
+msgid ""
+"lxc init ubuntu:16.04 u1\n"
+"\n"
+"lxc init ubuntu:16.04 u1 < config.yaml\n"
+"    Create the container with configuration from config.yaml"
 msgstr ""
 
 #: lxc/launch.go:25
-msgid "lxc launch ubuntu:16.04 u1"
+msgid ""
+"lxc launch ubuntu:16.04 u1\n"
+"\n"
+"lxc launch ubuntu:16.04 u1 < config.yaml\n"
+"    Create and start the container with configuration from config.yaml"
 msgstr ""
 
 #: lxc/list.go:103
