@@ -607,40 +607,6 @@ func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName s
 	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
-func createContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
-	var mode os.FileMode
-	if privileged {
-		mode = 0700
-	} else {
-		mode = 0711
-	}
-
-	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)
-	mntPointSymlinkTargetExist := shared.PathExists(mountPoint)
-
-	var err error
-	if !mntPointSymlinkTargetExist {
-		err = os.MkdirAll(mountPoint, 0711)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = os.Chmod(mountPoint, mode)
-	if err != nil {
-		return err
-	}
-
-	if !mntPointSymlinkExist {
-		err := os.Symlink(mountPoint, mountPointSymlink)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, storageTypeName string) error {
 	if shared.PathExists(mountPointSymlink) {
 		err := os.Remove(mountPointSymlink)
@@ -693,27 +659,6 @@ func renameContainerMountpoint(oldMountPoint string, oldMountPointSymlink string
 	err := os.Symlink(newMountPoint, newMountPointSymlink)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func createSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget string, snapshotsSymlink string) error {
-	snapshotMntPointExists := shared.PathExists(snapshotMountpoint)
-	mntPointSymlinkExist := shared.PathExists(snapshotsSymlink)
-
-	if !snapshotMntPointExists {
-		err := os.MkdirAll(snapshotMountpoint, 0711)
-		if err != nil {
-			return err
-		}
-	}
-
-	if !mntPointSymlinkExist {
-		err := os.Symlink(snapshotsSymlinkTarget, snapshotsSymlink)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

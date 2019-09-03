@@ -923,7 +923,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if backup.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
 	}
-	err = createContainerMountpoint(containerMntPoint, containerPath,
+	err = driver.CreateContainerMountpoint(containerMntPoint, containerPath,
 		isPrivileged)
 	if err != nil {
 		return InternalError(err)
@@ -1029,7 +1029,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		sourceName = project.Prefix(projectName, sourceName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		err = createSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = driver.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return InternalError(err)
 		}

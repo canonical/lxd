@@ -531,7 +531,7 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 	}
 
 	containerMntPoint := driver.GetContainerMountPoint(c.Project(), poolName, containerName)
-	err = createContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
+	err = driver.CreateContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
 	if err != nil {
 		return errors.Wrap(err, "Failed to create container mount point on target node")
 	}
@@ -541,7 +541,7 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 		snapshotsSymlinkTarget := shared.VarPath("storage-pools",
 			poolName, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
-		err := createSnapshotMountpoint(mntPoint, snapshotsSymlinkTarget, snapshotMntPointSymlink)
+		err := driver.CreateSnapshotMountpoint(mntPoint, snapshotsSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create snapshot mount point on target node")
 		}
