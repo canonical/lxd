@@ -40,7 +40,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:16.04 u1
 
 lxc init ubuntu:16.04 u1 < config.yaml
-Create the container with configuration from config.yaml`))
+    Create the container with configuration from config.yaml`))
 	cmd.Hidden = true
 
 	cmd.RunE = c.Run
