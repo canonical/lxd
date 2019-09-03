@@ -1,21 +1,15 @@
 package simplestreams
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -294,72 +288,6 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 	return nil, fmt.Errorf("Couldn't find the requested image")
 }
 
-func (s *SimpleStreams) downloadFile(path string, hash string, target string, progress func(int64, int64)) error {
-	download := func(url string, hash string, target string) error {
-		out, err := os.Create(target)
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			return err
-		}
-
-		if s.useragent != "" {
-			req.Header.Set("User-Agent", s.useragent)
-		}
-
-		r, err := s.http.Do(req)
-		if err != nil {
-			return err
-		}
-		defer r.Body.Close()
-
-		if r.StatusCode != http.StatusOK {
-			return fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
-		}
-
-		body := &ioprogress.ProgressReader{
-			ReadCloser: r.Body,
-			Tracker: &ioprogress.ProgressTracker{
-				Length:  r.ContentLength,
-				Handler: progress,
-			},
-		}
-
-		sha256 := sha256.New()
-		_, err = io.Copy(io.MultiWriter(out, sha256), body)
-		if err != nil {
-			return err
-		}
-
-		result := fmt.Sprintf("%x", sha256.Sum(nil))
-		if result != hash {
-			os.Remove(target)
-			return fmt.Errorf("Hash mismatch for %s: %s != %s", path, result, hash)
-		}
-
-		return nil
-	}
-
-	// Try http first
-	if strings.HasPrefix(s.url, "https://") {
-		err := download(fmt.Sprintf("http://%s/%s", strings.TrimPrefix(s.url, "https://"), path), hash, target)
-		if err == nil {
-			return nil
-		}
-	}
-
-	err := download(fmt.Sprintf("%s/%s", s.url, path), hash, target)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
@@ -415,41 +343,4 @@ func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	}
 
 	return &matches[0], nil
-}
-
-func (s *SimpleStreams) ExportImage(image string, target string) (string, error) {
-	if !shared.IsDir(target) {
-		return "", fmt.Errorf("Split images can only be written to a directory")
-	}
-
-	files, err := s.GetFiles(image)
-	if err != nil {
-		return "", err
-	}
-
-	for _, file := range files {
-		fields := strings.Split(file.Path, "/")
-		targetFile := filepath.Join(target, fields[len(fields)-1])
-
-		err := s.downloadFile(file.Path, file.Sha256, targetFile, nil)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return target, nil
-}
-
-func (s *SimpleStreams) Download(image string, fileType string, target string, progress func(int64, int64)) error {
-	files, err := s.GetFiles(image)
-	if err != nil {
-		return err
-	}
-
-	file, ok := files[fileType]
-	if ok {
-		return s.downloadFile(file.Path, file.Sha256, target, progress)
-	}
-
-	return fmt.Errorf("The file couldn't be found")
 }
