@@ -64,6 +64,11 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if len(args) == 0 && !c.flagEmpty {
+		cmd.Usage()
+		return nil
+	}
+
 	_, _, err = c.create(c.global.conf, args)
 	return err
 }
