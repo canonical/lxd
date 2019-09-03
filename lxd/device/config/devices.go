@@ -126,15 +126,15 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 	return rmlist, addlist, updatelist, updateDiff
 }
 
-// DeviceNames returns the name of all devices in the set, sorted properly
-func (list Devices) DeviceNames() []string {
-	sortable := sortableDevices{}
-	for k, d := range list {
-		sortable = append(sortable, namedDevice{k, d})
+// Clone returns a copy of the Devices set.
+func (list Devices) Clone() Devices {
+	copy := Devices{}
+
+	for deviceName, device := range list {
+		copy[deviceName] = device.Clone()
 	}
 
-	sort.Sort(sortable)
-	return sortable.Names()
+	return copy
 }
 
 // CloneNative returns a copy of the Devices set as a native map[string]map[string]string type.
@@ -146,4 +146,26 @@ func (list Devices) CloneNative() map[string]map[string]string {
 	}
 
 	return copy
+}
+
+// Sorted returns the name of all devices in the set, sorted properly.
+func (list Devices) Sorted() DevicesSortable {
+	sortable := DevicesSortable{}
+	for k, d := range list {
+		sortable = append(sortable, DeviceNamed{k, d})
+	}
+
+	sort.Sort(sortable)
+	return sortable
+}
+
+// Reversed returns the name of all devices in the set, sorted reversed.
+func (list Devices) Reversed() DevicesSortable {
+	sortable := DevicesSortable{}
+	for k, d := range list {
+		sortable = append(sortable, DeviceNamed{k, d})
+	}
+
+	sort.Sort(sort.Reverse(sortable))
+	return sortable
 }
