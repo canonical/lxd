@@ -1639,36 +1639,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	// Setup devices
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
-		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-			// destination paths
-			destPath := m["path"]
-			if destPath == "" {
-				destPath = m["source"]
-			}
-
-			srcPath := m["source"]
-			if srcPath == "" {
-				srcPath = m["path"]
-			}
-
-			relativeDestPath := strings.TrimPrefix(destPath, "/")
-			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", strings.Replace(k, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1)))
-
-			// Don't add mount entry for devices that don't yet exist
-			if m["required"] != "" && !shared.IsTrue(m["required"]) && srcPath != "" && !shared.PathExists(srcPath) {
-				continue
-			}
-
-			// inform liblxc about the mount
-			err = lxcSetConfigItem(cc, "lxc.mount.entry",
-				fmt.Sprintf("%s %s %s",
-					shared.EscapePathFstab(sourceDevPath),
-					shared.EscapePathFstab(relativeDestPath),
-					"none bind,create=file 0 0"))
-			if err != nil {
-				return err
-			}
-		} else if m["type"] == "disk" {
+		if m["type"] == "disk" {
 			isRootfs := shared.IsRootDiskDevice(m)
 
 			// source paths
@@ -1960,12 +1931,6 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]strin
 		}
 	}
 
-	// Check whether device wants to register for any events irrespective of instance run state.
-	err = d.Register()
-	if err != nil {
-		return nil, err
-	}
-
 	return runConf, nil
 }
 
@@ -2072,6 +2037,12 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string
 	// scenario that a new version of LXD has additional validation restrictions than older
 	// versions we still need to allow previously valid devices to be stopped.
 	if err != nil {
+		// If there is no device returned, then we cannot proceed, so return as error.
+		if d == nil {
+			return fmt.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+
+		}
+
 		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
 	}
 
@@ -2407,48 +2378,6 @@ func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 	return nil
 }
 
-// setupUnixDevice() creates the unix device and sets up the necessary low-level
-// liblxc configuration items.
-func (c *containerLXC) setupUnixDevice(prefix string, dev config.Device, major int, minor int, path string, createMustSucceed bool, defaultMode bool) error {
-	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
-		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
-		if err != nil {
-			return err
-		}
-	}
-
-	temp := config.Device{}
-	err := shared.DeepCopy(&dev, &temp)
-	if err != nil {
-		return err
-	}
-
-	temp["major"] = fmt.Sprintf("%d", major)
-	temp["minor"] = fmt.Sprintf("%d", minor)
-	temp["path"] = path
-
-	idmapSet, err := c.CurrentIdmap()
-	if err != nil {
-		return err
-	}
-
-	d, err := device.UnixDeviceCreate(c.state, idmapSet, c.DevicesPath(), prefix, temp, defaultMode)
-	if err != nil {
-		logger.Debug("Failed to create device", log.Ctx{"err": err, "device": prefix})
-		if createMustSucceed {
-			return err
-		}
-
-		return nil
-	}
-
-	devPath := shared.EscapePathFstab(d.HostPath)
-	tgtPath := shared.EscapePathFstab(d.RelativePath)
-	val := fmt.Sprintf("%s %s none bind,create=file 0 0", devPath, tgtPath)
-
-	return lxcSetConfigItem(c.c, "lxc.mount.entry", val)
-}
-
 func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
 	var err error
 	roSubvols := []string{}
@@ -2513,21 +2442,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 			// when m["pool"] is empty.
 			if m["pool"] == "" && m["source"] != "" && !shared.IsTrue(m["optional"]) && !shared.PathExists(shared.HostPath(m["source"])) {
 				return "", postStartHooks, fmt.Errorf("Missing source '%s' for disk '%s'", m["source"], name)
-			}
-		case "unix-char", "unix-block":
-			srcPath, exist := m["source"]
-			if !exist {
-				srcPath = m["path"]
-			}
-
-			if srcPath != "" && m["required"] != "" && !shared.IsTrue(m["required"]) {
-				err = deviceInotifyAddClosestLivingAncestor(c.state, filepath.Dir(srcPath))
-				if err != nil {
-					logger.Errorf("Failed to add \"%s\" to inotify targets", srcPath)
-					return "", postStartHooks, fmt.Errorf("Failed to setup inotify watch for '%s': %v", srcPath, err)
-				}
-			} else if srcPath != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(srcPath) {
-				return "", postStartHooks, fmt.Errorf("Missing source '%s' for device '%s'", srcPath, name)
 			}
 		}
 	}
@@ -2676,49 +2590,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	nicID := -1
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
-		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-			idmapSet, err := c.CurrentIdmap()
-			if err != nil {
-				return "", postStartHooks, err
-			}
-
-			// Unix device
-			d, err := device.UnixDeviceCreate(c.state, idmapSet, c.DevicesPath(), fmt.Sprintf("unix.%s", k), m, true)
-			if err != nil {
-				// Deal with device hotplug
-				if m["required"] == "" || shared.IsTrue(m["required"]) {
-					return "", postStartHooks, err
-				}
-
-				srcPath := m["source"]
-				if srcPath == "" {
-					srcPath = m["path"]
-				}
-				srcPath = shared.HostPath(srcPath)
-
-				err = deviceInotifyAddClosestLivingAncestor(c.state, filepath.Dir(srcPath))
-				if err != nil {
-					logger.Errorf("Failed to add \"%s\" to inotify targets", srcPath)
-					return "", postStartHooks, err
-				}
-				continue
-			}
-			devPath := d.HostPath
-			if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
-				// Add the new device cgroup rule
-				dType, dMajor, dMinor, err := device.UnixDeviceAttributes(devPath)
-				if err != nil {
-					if m["required"] == "" || shared.IsTrue(m["required"]) {
-						return "", postStartHooks, err
-					}
-				} else {
-					err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
-					if err != nil {
-						return "", postStartHooks, fmt.Errorf("Failed to add cgroup rule for device")
-					}
-				}
-			}
-		} else if m["type"] == "disk" {
+		if m["type"] == "disk" {
 			if m["path"] != "/" {
 				diskDevices[k] = m
 			}
@@ -5062,22 +4934,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 		// Live update the devices
 		for k, m := range removeDevices {
-			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-				prefix := fmt.Sprintf("unix.%s", k)
-				destPath := m["path"]
-				if destPath == "" {
-					destPath = m["source"]
-				}
-
-				if !device.UnixDeviceExists(c.DevicesPath(), prefix, destPath) && (m["required"] != "" && !shared.IsTrue(m["required"])) {
-					continue
-				}
-
-				err = c.removeUnixDevice(fmt.Sprintf("unix.%s", k), m, true)
-				if err != nil {
-					return err
-				}
-			} else if m["type"] == "disk" && m["path"] != "/" {
+			if m["type"] == "disk" && m["path"] != "/" {
 				err = c.removeDiskDevice(k, m)
 				if err != nil {
 					return err
@@ -5087,14 +4944,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 		diskDevices := map[string]config.Device{}
 		for k, m := range addDevices {
-			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-				err = c.insertUnixDevice(fmt.Sprintf("unix.%s", k), m, true)
-				if err != nil {
-					if m["required"] == "" || shared.IsTrue(m["required"]) {
-						return err
-					}
-				}
-			} else if m["type"] == "disk" && m["path"] != "/" {
+			if m["type"] == "disk" && m["path"] != "/" {
 				diskDevices[k] = m
 			}
 		}
@@ -6820,73 +6670,6 @@ func (c *containerLXC) removeMount(mount string) error {
 	return nil
 }
 
-func (c *containerLXC) insertUnixDevice(prefix string, m config.Device, defaultMode bool) error {
-	// Check that the container is running
-	if !c.IsRunning() {
-		return fmt.Errorf("Can't insert device into stopped container")
-	}
-
-	idmapSet, err := c.CurrentIdmap()
-	if err != nil {
-		return err
-	}
-
-	// Create the device on the host
-	d, err := device.UnixDeviceCreate(c.state, idmapSet, c.DevicesPath(), prefix, m, defaultMode)
-	if err != nil {
-		return fmt.Errorf("Failed to setup device: %s", err)
-	}
-	devPath := d.HostPath
-	tgtPath := d.RelativePath
-
-	// Bind-mount it into the container
-	err = c.insertMount(devPath, tgtPath, "none", unix.MS_BIND, false)
-	if err != nil {
-		return fmt.Errorf("Failed to add mount for device: %s", err)
-	}
-
-	// Check if we've been passed major and minor numbers already.
-	var dMajor, dMinor uint32
-	if m["major"] != "" {
-		tmp, err := strconv.ParseUint(m["major"], 10, 32)
-		if err != nil {
-			return err
-		}
-		dMajor = uint32(tmp)
-	}
-
-	if m["minor"] != "" {
-		tmp, err := strconv.ParseUint(m["minor"], 10, 32)
-		if err != nil {
-			return err
-		}
-		dMinor = uint32(tmp)
-	}
-
-	dType := ""
-	if m["type"] == "unix-char" {
-		dType = "c"
-	} else if m["type"] == "unix-block" {
-		dType = "b"
-	}
-
-	if dType == "" || m["major"] == "" || m["minor"] == "" {
-		dType, dMajor, dMinor, err = device.UnixDeviceAttributes(devPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
-		// Add the new device cgroup rule
-		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
-			return fmt.Errorf("Failed to add cgroup rule for device")
-		}
-	}
-
-	return nil
-}
-
 func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error {
 	if pid < 0 {
 		return fmt.Errorf("Invalid request PID specified")
@@ -6940,132 +6723,6 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, p
 	// Bind-mount it into the container
 	defer os.Remove(devPath)
 	return c.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, false)
-}
-
-func (c *containerLXC) insertUnixDeviceNum(name string, m config.Device, major int, minor int, path string, defaultMode bool) error {
-	temp := config.Device{}
-	if err := shared.DeepCopy(&m, &temp); err != nil {
-		return err
-	}
-
-	temp["major"] = fmt.Sprintf("%d", major)
-	temp["minor"] = fmt.Sprintf("%d", minor)
-	temp["path"] = path
-
-	return c.insertUnixDevice(name, temp, defaultMode)
-}
-
-// removeUnixDevice does the following: retrieves the device type, major and minor numbers,
-// adds a cgroup deny rule for the device if container is privileged.
-// Then it removes the mount and file inside container.
-// Finally it removes the host-side mount if running in UserNS and removes host-side dev file.
-func (c *containerLXC) removeUnixDevice(prefix string, m config.Device, eject bool) error {
-	// Check that the container is running
-	pid := c.InitPID()
-	if pid == -1 {
-		return fmt.Errorf("Can't remove device from stopped container")
-	}
-
-	// Check if we've been passed major and minor numbers already.
-	var err error
-	var dMajor, dMinor uint32
-	if m["major"] != "" {
-		tmp, err := strconv.ParseUint(m["major"], 10, 32)
-		if err != nil {
-			return err
-		}
-
-		dMajor = uint32(tmp)
-	}
-
-	if m["minor"] != "" {
-		tmp, err := strconv.ParseUint(m["minor"], 10, 32)
-		if err != nil {
-			return err
-		}
-
-		dMinor = uint32(tmp)
-	}
-
-	dType := ""
-	if m["type"] == "unix-char" {
-		dType = "c"
-	} else if m["type"] == "unix-block" {
-		dType = "b"
-	}
-
-	// Figure out the paths
-	destPath := m["path"]
-	if destPath == "" {
-		destPath = m["source"]
-	}
-	relativeDestPath := strings.TrimPrefix(destPath, "/")
-	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
-
-	if dType == "" || m["major"] == "" || m["minor"] == "" {
-		dType, dMajor, dMinor, err = device.UnixDeviceAttributes(devPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
-		// Remove the device cgroup rule
-		err := c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
-		if err != nil {
-			return err
-		}
-	}
-
-	if eject && c.FileExists(relativeDestPath) == nil {
-		err := c.removeMount(destPath)
-		if err != nil {
-			return fmt.Errorf("Error unmounting the device: %s", err)
-		}
-
-		err = c.FileRemove(relativeDestPath)
-		if err != nil {
-			return fmt.Errorf("Error removing the device: %s", err)
-		}
-	}
-
-	// Remove the host side
-	if c.state.OS.RunningInUserNS {
-		unix.Unmount(devPath, unix.MNT_DETACH)
-	}
-
-	err = os.Remove(devPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *containerLXC) removeUnixDeviceNum(prefix string, m config.Device, major int, minor int, path string) error {
-	pid := c.InitPID()
-	if pid == -1 {
-		return fmt.Errorf("Can't remove device from stopped container")
-	}
-
-	temp := config.Device{}
-	if err := shared.DeepCopy(&m, &temp); err != nil {
-		return err
-	}
-
-	temp["major"] = fmt.Sprintf("%d", major)
-	temp["minor"] = fmt.Sprintf("%d", minor)
-	temp["path"] = path
-
-	err := c.removeUnixDevice(prefix, temp, true)
-	if err != nil {
-		logger.Error("Failed to remove device", log.Ctx{"err": err, m["type"]: path, "container": c.Name()})
-		return err
-	}
-
-	c.FileRemove(filepath.Dir(path))
-	return nil
 }
 
 func (c *containerLXC) removeUnixDevices() error {

@@ -12,6 +12,21 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+// usbDevPath is the path where USB devices can be enumerated.
+const usbDevPath = "/sys/bus/usb/devices"
+
+// usbIsOurDevice indicates whether the USB device event qualifies as part of our device.
+// This function is not defined against the usb struct type so that it can be used in event
+// callbacks without needing to keep a reference to the usb device struct.
+func usbIsOurDevice(config config.Device, usb *USBEvent) bool {
+	// Check if event matches criteria for this device, if not return.
+	if (config["vendorid"] != "" && config["vendorid"] != usb.Vendor) || (config["productid"] != "" && config["productid"] != usb.Product) {
+		return false
+	}
+
+	return true
+}
+
 type usb struct {
 	deviceCommon
 }
@@ -25,9 +40,9 @@ func (d *usb) validateConfig() error {
 	rules := map[string]func(string) error{
 		"vendorid":  shared.IsDeviceID,
 		"productid": shared.IsDeviceID,
-		"uid":       shared.IsUnixUserID,
-		"gid":       shared.IsUnixUserID,
-		"mode":      shared.IsOctalFileMode,
+		"uid":       unixValidUserID,
+		"gid":       unixValidUserID,
+		"mode":      unixValidOctalFileMode,
 		"required":  shared.IsBool,
 	}
 
@@ -36,11 +51,6 @@ func (d *usb) validateConfig() error {
 		return err
 	}
 
-	return nil
-}
-
-// validateEnvironment checks the runtime environment for correctness.
-func (d *usb) validateEnvironment() error {
 	return nil
 }
 
@@ -54,20 +64,20 @@ func (d *usb) Register() error {
 	state := d.state
 
 	// Handler for when a USB event occurs.
-	f := func(usb USBDevice) (*RunConfig, error) {
-		if !USBIsOurDevice(deviceConfig, &usb) {
+	f := func(e USBEvent) (*RunConfig, error) {
+		if !usbIsOurDevice(deviceConfig, &e) {
 			return nil, nil
 		}
 
 		runConf := RunConfig{}
 
-		if usb.Action == "add" {
-			err := unixDeviceSetupCharNum(state, devicesPath, "unix", deviceName, deviceConfig, usb.Major, usb.Minor, usb.Path, false, &runConf)
+		if e.Action == "add" {
+			err := unixDeviceSetupCharNum(state, devicesPath, "unix", deviceName, deviceConfig, e.Major, e.Minor, e.Path, false, &runConf)
 			if err != nil {
 				return nil, err
 			}
-		} else if usb.Action == "remove" {
-			relativeTargetPath := strings.TrimPrefix(usb.Path, "/")
+		} else if e.Action == "remove" {
+			relativeTargetPath := strings.TrimPrefix(e.Path, "/")
 			err := unixDeviceRemove(devicesPath, "unix", deviceName, relativeTargetPath, &runConf)
 			if err != nil {
 				return nil, err
@@ -84,32 +94,28 @@ func (d *usb) Register() error {
 			}}
 		}
 
-		runConf.Uevents = append(runConf.Uevents, usb.UeventParts)
+		runConf.Uevents = append(runConf.Uevents, e.UeventParts)
 
 		return &runConf, nil
 	}
 
-	USBRegisterHandler(d.instance, d.name, f)
+	usbRegisterHandler(d.instance, d.name, f)
 
 	return nil
 }
 
 // Start is run when the device is added to the instance.
 func (d *usb) Start() (*RunConfig, error) {
-	err := d.validateEnvironment()
-	if err != nil {
-		return nil, err
-	}
-
 	usbs, err := d.loadUsb()
 	if err != nil {
 		return nil, err
 	}
 
 	runConf := RunConfig{}
+	runConf.PostHooks = []func() error{d.Register}
 
 	for _, usb := range usbs {
-		if !USBIsOurDevice(d.config, &usb) {
+		if !usbIsOurDevice(d.config, &usb) {
 			continue
 		}
 
@@ -129,7 +135,7 @@ func (d *usb) Start() (*RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *usb) Stop() (*RunConfig, error) {
 	// Unregister any USB event handlers for this device.
-	USBUnregisterHandler(d.instance, d.name)
+	usbUnregisterHandler(d.instance, d.name)
 
 	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
@@ -155,8 +161,8 @@ func (d *usb) postStop() error {
 }
 
 // loadUsb scans the host machine for USB devices.
-func (d *usb) loadUsb() ([]USBDevice, error) {
-	result := []USBDevice{}
+func (d *usb) loadUsb() ([]USBEvent, error) {
+	result := []USBEvent{}
 
 	ents, err := ioutil.ReadDir(usbDevPath)
 	if err != nil {
@@ -175,15 +181,15 @@ func (d *usb) loadUsb() ([]USBDevice, error) {
 				continue
 			}
 
-			return []USBDevice{}, err
+			return []USBEvent{}, err
 		}
 
 		parts := strings.Split(values["dev"], ":")
 		if len(parts) != 2 {
-			return []USBDevice{}, fmt.Errorf("invalid device value %s", values["dev"])
+			return []USBEvent{}, fmt.Errorf("invalid device value %s", values["dev"])
 		}
 
-		usb, err := USBDeviceLoad(
+		usb, err := USBNewEvent(
 			"add",
 			values["idVendor"],
 			values["idProduct"],

@@ -14,7 +14,7 @@ test_container_devices_gpu() {
   startMountCount=$(lxc exec "${ctName}" -- mount | wc -l)
   startDevCount=$(find "${LXD_DIR}"/devices/"${ctName}" -type c | wc -l)
   lxc config device add "${ctName}" gpu-basic gpu mode=0600 id=0
-  lxc exec "${ctName}" -- mount | grep "tmpfs on /dev/dri/card0 type tmpfs"
+  lxc exec "${ctName}" -- mount | grep "/dev/dri/card0"
   lxc exec "${ctName}" -- stat -c '%a' /dev/dri/card0 | grep 600
   stat -c '%a' "${LXD_DIR}"/devices/"${ctName}"/unix.gpu--basic.dev-dri-card0 | grep 600
   lxc config device remove "${ctName}" gpu-basic

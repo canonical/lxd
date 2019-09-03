@@ -17,6 +17,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// unixDefaultMode default mode to create unix devices with if not specified in device config.
+const unixDefaultMode = 0660
+
 // unixDeviceInstanceAttributes returns the UNIX device attributes for an instance device.
 // Uses supplied device config for device properties, and if they haven't been set, falls back to
 // using UnixGetDeviceAttributes() to directly query an existing device file.
@@ -48,11 +51,7 @@ func unixDeviceInstanceAttributes(devicesPath string, prefix string, config conf
 		dType = "b"
 	}
 
-	// Figure out the paths
-	destPath := config["path"]
-	if destPath == "" {
-		destPath = config["source"]
-	}
+	destPath := unixDeviceDestPath(config)
 	relativeDestPath := strings.TrimPrefix(destPath, "/")
 	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(devicesPath, devName)
@@ -93,13 +92,8 @@ func UnixDeviceAttributes(path string) (string, uint32, uint32, error) {
 	return dType, major, minor, nil
 }
 
+// unixDeviceModeOct converts a string unix octal mode to an int.
 func unixDeviceModeOct(strmode string) (int, error) {
-	// Default mode
-	if strmode == "" {
-		return 0600, nil
-	}
-
-	// Converted mode
 	i, err := strconv.ParseInt(strmode, 8, 32)
 	if err != nil {
 		return 0, fmt.Errorf("Bad device mode: %s", strmode)
@@ -120,8 +114,19 @@ type UnixDevice struct {
 	GID          int         // Owner GID.
 }
 
+// unixDeviceSourcePath returns the absolute path for a device on the host.
+// This is based on the "source" property of the device's config, or the "path" property if "source"
+// not define. This uses the shared.HostPath function so works when running in a snap environment.
+func unixDeviceSourcePath(m config.Device) string {
+	srcPath := m["source"]
+	if srcPath == "" {
+		srcPath = m["path"]
+	}
+	return shared.HostPath(srcPath)
+}
+
 // unixDeviceDestPath returns the absolute path for a device inside an instance.
-// This is based on the "path" property of the devices' config, or the "source" property if "path"
+// This is based on the "path" property of the device's config, or the "source" property if "path"
 // not defined.
 func unixDeviceDestPath(m config.Device) string {
 	destPath := m["path"]
@@ -153,51 +158,49 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		}
 	}
 
-	srcPath := m["source"]
-	if srcPath == "" {
-		srcPath = m["path"]
-	}
-	srcPath = shared.HostPath(srcPath)
+	srcPath := unixDeviceSourcePath(m)
 
 	// Get the major/minor of the device we want to create.
 	if m["major"] == "" && m["minor"] == "" {
 		// If no major and minor are set, use those from the device on the host.
 		_, d.Major, d.Minor, err = UnixDeviceAttributes(srcPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", m["path"], err)
+			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", srcPath, err)
 		}
 	} else if m["major"] == "" || m["minor"] == "" {
-		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", m["path"])
+		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", srcPath)
 	} else {
 		tmp, err := strconv.ParseUint(m["major"], 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], m["path"])
+			return nil, fmt.Errorf("Bad major %s in device %s", m["major"], srcPath)
 		}
 		d.Major = uint32(tmp)
 
 		tmp, err = strconv.ParseUint(m["minor"], 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], m["path"])
+			return nil, fmt.Errorf("Bad minor %s in device %s", m["minor"], srcPath)
 		}
 		d.Minor = uint32(tmp)
 	}
 
-	// Get the device mode (defaults to 0660 if not supplied).
-	d.Mode = os.FileMode(0660)
+	// Get the device mode (defaults to unixDefaultMode if not supplied).
+	d.Mode = os.FileMode(unixDefaultMode)
 	if m["mode"] != "" {
 		tmp, err := unixDeviceModeOct(m["mode"])
 		if err != nil {
-			return nil, fmt.Errorf("Bad mode %s in device %s", m["mode"], m["path"])
+			return nil, fmt.Errorf("Bad mode %s in device %s", m["mode"], srcPath)
 		}
 		d.Mode = os.FileMode(tmp)
 	} else if !defaultMode {
+		// If not specified mode in device config, and default mode is false, then try and
+		// read the source device's mode and use that inside the instance.
 		d.Mode, err = shared.GetPathMode(srcPath)
 		if err != nil {
 			errno, isErrno := shared.GetErrno(err)
 			if !isErrno || errno != unix.ENOENT {
-				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", m["path"], err)
+				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", srcPath, err)
 			}
-			d.Mode = os.FileMode(0660)
+			d.Mode = os.FileMode(unixDefaultMode)
 		}
 	}
 
@@ -213,14 +216,14 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	if m["uid"] != "" {
 		d.UID, err = strconv.Atoi(m["uid"])
 		if err != nil {
-			return nil, fmt.Errorf("Invalid uid %s in device %s", m["uid"], m["path"])
+			return nil, fmt.Errorf("Invalid uid %s in device %s", m["uid"], srcPath)
 		}
 	}
 
 	if m["gid"] != "" {
 		d.GID, err = strconv.Atoi(m["gid"])
 		if err != nil {
-			return nil, fmt.Errorf("Invalid gid %s in device %s", m["gid"], m["path"])
+			return nil, fmt.Errorf("Invalid gid %s in device %s", m["gid"], srcPath)
 		}
 	}
 
@@ -242,7 +245,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		devNum := int(unix.Mkdev(d.Major, d.Minor))
 		err := unix.Mknod(devPath, uint32(d.Mode), devNum)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
+			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, srcPath, err)
 		}
 
 		err = os.Chown(devPath, d.UID, d.GID)
@@ -260,7 +263,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 			err := idmapSet.ShiftFile(devPath)
 			if err != nil {
 				// uidshift failing is weird, but not a big problem. Log and proceed.
-				logger.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
+				logger.Debugf("Failed to uidshift device %s: %s\n", srcPath, err)
 			}
 		}
 	} else {
@@ -543,6 +546,48 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+// unixValidDeviceNum validates the major and minor numbers for a UNIX device.
+func unixValidDeviceNum(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for a UNIX device number")
+	}
+
+	return nil
+}
+
+// unixValidUserID validates the UNIX UID and GID values for ownership.
+func unixValidUserID(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for a UNIX ID")
+	}
+
+	return nil
+}
+
+// unixValidOctalFileMode validates the UNIX file mode.
+func unixValidOctalFileMode(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 8, 32)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an octal file mode")
 	}
 
 	return nil
