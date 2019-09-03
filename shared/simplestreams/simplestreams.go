@@ -17,12 +17,14 @@ var urlDefaultOS = map[string]string{
 	"https://cloud-images.ubuntu.com": "ubuntu",
 }
 
+// DownloadableFile represents a file with its URL, hash and size
 type DownloadableFile struct {
 	Path   string
 	Sha256 string
 	Size   int64
 }
 
+// NewClient returns a simplestreams client for the provided stream URL
 func NewClient(url string, httpClient http.Client, useragent string) *SimpleStreams {
 	return &SimpleStreams{
 		http:           &httpClient,
@@ -32,6 +34,7 @@ func NewClient(url string, httpClient http.Client, useragent string) *SimpleStre
 	}
 }
 
+// SimpleStreams represents a simplestream client
 type SimpleStreams struct {
 	http      *http.Client
 	url       string
@@ -238,6 +241,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEn
 	return images, aliases, nil
 }
 
+// GetFiles returns a map of files for the provided image fingerprint
 func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFile, error) {
 	// Load the main stream
 	stream, err := s.parseStream()
@@ -288,6 +292,7 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 	return nil, fmt.Errorf("Couldn't find the requested image")
 }
 
+// ListAliases returns a list of image aliases for the provided image fingerprint
 func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
@@ -303,11 +308,13 @@ func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 	return aliases, nil
 }
 
+// ListImages returns a list of LXD images
 func (s *SimpleStreams) ListImages() ([]api.Image, error) {
 	images, _, err := s.getImages()
 	return images, err
 }
 
+// GetAlias returns a LXD ImageAliasesEntry for the provided alias name
 func (s *SimpleStreams) GetAlias(name string) (*api.ImageAliasesEntry, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
@@ -322,6 +329,7 @@ func (s *SimpleStreams) GetAlias(name string) (*api.ImageAliasesEntry, error) {
 	return alias, nil
 }
 
+// GetImage returns a LXD image for the provided image fingerprint
 func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	images, _, err := s.getImages()
 	if err != nil {
