@@ -27,7 +27,7 @@ volatile.initial\_source        | string    | -                                 
 volatile.pool.pristine          | string    | -                                 | true                       | storage\_driver\_ceph              | Whether the pool has been empty on creation time.
 volume.block.filesystem         | string    | block based driver (lvm)          | ext4                       | storage                            | Filesystem to use for new volumes
 volume.block.mount\_options     | string    | block based driver (lvm)          | discard                    | storage                            | Mount options for block devices
-volume.size                     | string    | appropriate driver                | 0                          | storage                            | Default volume size
+volume.size                     | string    | appropriate driver                | unlimited (10GB for block) | storage                            | Default volume size
 volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false                      | storage                            | Remove snapshots as needed
 volume.zfs.use\_refquota        | bool      | zfs driver                        | false                      | storage                            | Use refquota instead of quota for space.
 zfs.clone\_copy                 | bool      | zfs driver                        | true                       | storage\_zfs\_clone\_copy          | Whether to use ZFS lightweight clones rather than full dataset copies.
@@ -43,8 +43,8 @@ lxc storage set [<remote>:]<pool> <key> <value>
 Key                     | Type      | Condition                 | Default                               | API Extension     | Description
 :--                     | :---      | :--------                 | :------                               | :------------     | :----------
 size                    | string    | appropriate driver        | same as volume.size                   | storage           | Size of the storage volume
-block.filesystem        | string    | block based driver (lvm)  | same as volume.block.filesystem       | storage           | Filesystem of the storage volume
-block.mount\_options    | string    | block based driver (lvm)  | same as volume.block.mount\_options   | storage           | Mount options for block devices
+block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | storage           | Filesystem of the storage volume
+block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | storage           | Mount options for block devices
 security.shifted        | bool      | custom volume             | false                                 | storage\_shifted  | Enable id shifting overlay (allows attach by multiple isolated containers)
 security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped | Disable id mapping for the volume
 zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage           | Remove snapshots as needed
