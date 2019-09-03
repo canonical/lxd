@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -13,6 +15,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type cmdInit struct {
@@ -31,10 +34,13 @@ type cmdInit struct {
 
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("init [[<remote>:]<image>] [<remote>:][<name>]")
+	cmd.Use = i18n.G("init [[<remote>:]<image>] [<remote>:][<name>] [< config")
 	cmd.Short = i18n.G("Create containers from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create containers from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:16.04 u1`))
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:16.04 u1
+
+lxc init ubuntu:16.04 u1 < config.yaml
+    Create the container with configuration from config.yaml`))
 	cmd.Hidden = true
 
 	cmd.RunE = c.Run
@@ -68,6 +74,22 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 	var remote string
 	var iremote string
 	var err error
+	var stdinData api.ContainerPut
+	var devicesMap map[string]map[string]string
+	var configMap map[string]string
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, "", err
+		}
+
+		err = yaml.Unmarshal(contents, &stdinData)
+		if err != nil {
+			return nil, "", err
+		}
+	}
 
 	if len(args) > 0 {
 		iremote, image, err = conf.ParseRemote(args[0])
@@ -129,7 +151,12 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 		}
 	}
 
-	devicesMap := map[string]map[string]string{}
+	if len(stdinData.Devices) > 0 {
+		devicesMap = stdinData.Devices
+	} else {
+		devicesMap = map[string]map[string]string{}
+	}
+
 	if c.flagNetwork != "" {
 		network, _, err := d.GetNetwork(c.flagNetwork)
 		if err != nil {
@@ -143,7 +170,11 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 		}
 	}
 
-	configMap := map[string]string{}
+	if len(stdinData.Config) > 0 {
+		configMap = stdinData.Config
+	} else {
+		configMap = map[string]string{}
+	}
 	for _, entry := range c.flagConfig {
 		if !strings.Contains(entry, "=") {
 			return nil, "", fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
@@ -174,8 +205,13 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 	}
 	req.Config = configMap
 	req.Devices = devicesMap
+
 	if !c.flagNoProfiles && len(profiles) == 0 {
-		req.Profiles = nil
+		if len(stdinData.Profiles) > 0 {
+			req.Profiles = stdinData.Profiles
+		} else {
+			req.Profiles = nil
+		}
 	} else {
 		req.Profiles = profiles
 	}
