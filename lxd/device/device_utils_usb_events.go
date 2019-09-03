@@ -7,17 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// usbDevPath is the path where USB devices can be enumerated.
-const usbDevPath = "/sys/bus/usb/devices"
-
-// USBDevice represents the properties of a USB device and a USB uevent.
-type USBDevice struct {
+// USBEvent represents the properties of a USB device uevent.
+type USBEvent struct {
 	Action string
 
 	Vendor  string
@@ -31,13 +27,13 @@ type USBDevice struct {
 }
 
 // usbHandlers stores the event handler callbacks for USB events.
-var usbHandlers = map[string]func(USBDevice) (*RunConfig, error){}
+var usbHandlers = map[string]func(USBEvent) (*RunConfig, error){}
 
 // usbMutex controls access to the usbHandlers map.
 var usbMutex sync.Mutex
 
-// USBRegisterHandler registers a handler function to be called whenever a USB device event occurs.
-func USBRegisterHandler(instance InstanceIdentifier, deviceName string, handler func(USBDevice) (*RunConfig, error)) {
+// usbRegisterHandler registers a handler function to be called whenever a USB device event occurs.
+func usbRegisterHandler(instance InstanceIdentifier, deviceName string, handler func(USBEvent) (*RunConfig, error)) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
@@ -46,8 +42,8 @@ func USBRegisterHandler(instance InstanceIdentifier, deviceName string, handler 
 	usbHandlers[key] = handler
 }
 
-// USBUnregisterHandler removes a registered USB handler function for a device.
-func USBUnregisterHandler(instance InstanceIdentifier, deviceName string) {
+// usbUnregisterHandler removes a registered USB handler function for a device.
+func usbUnregisterHandler(instance InstanceIdentifier, deviceName string) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
@@ -57,7 +53,7 @@ func USBUnregisterHandler(instance InstanceIdentifier, deviceName string) {
 }
 
 // USBRunHandlers executes any handlers registered for USB events.
-func USBRunHandlers(state *state.State, event *USBDevice) {
+func USBRunHandlers(state *state.State, event *USBEvent) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
@@ -96,28 +92,28 @@ func USBRunHandlers(state *state.State, event *USBDevice) {
 	}
 }
 
-// USBDeviceLoad instantiates a new USBDevice struct.
-func USBDeviceLoad(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string, ueventParts []string, ueventLen int) (USBDevice, error) {
+// USBNewEvent instantiates a new USBEvent struct.
+func USBNewEvent(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string, ueventParts []string, ueventLen int) (USBEvent, error) {
 	majorInt, err := strconv.ParseUint(major, 10, 32)
 	if err != nil {
-		return USBDevice{}, err
+		return USBEvent{}, err
 	}
 
 	minorInt, err := strconv.ParseUint(minor, 10, 32)
 	if err != nil {
-		return USBDevice{}, err
+		return USBEvent{}, err
 	}
 
 	path := devname
 	if devname == "" {
 		busnumInt, err := strconv.Atoi(busnum)
 		if err != nil {
-			return USBDevice{}, err
+			return USBEvent{}, err
 		}
 
 		devnumInt, err := strconv.Atoi(devnum)
 		if err != nil {
-			return USBDevice{}, err
+			return USBEvent{}, err
 		}
 		path = fmt.Sprintf("/dev/bus/usb/%03d/%03d", busnumInt, devnumInt)
 	} else {
@@ -126,7 +122,7 @@ func USBDeviceLoad(action string, vendor string, product string, major string, m
 		}
 	}
 
-	return USBDevice{
+	return USBEvent{
 		action,
 		vendor,
 		product,
@@ -136,14 +132,4 @@ func USBDeviceLoad(action string, vendor string, product string, major string, m
 		ueventParts,
 		ueventLen,
 	}, nil
-}
-
-// USBIsOurDevice indicates whether the USB device event qualifies as part of our device.
-func USBIsOurDevice(config config.Device, usb *USBDevice) bool {
-	// Check if event matches criteria for this device, if not return.
-	if (config["vendorid"] != "" && config["vendorid"] != usb.Vendor) || (config["productid"] != "" && config["productid"] != usb.Product) {
-		return false
-	}
-
-	return true
 }

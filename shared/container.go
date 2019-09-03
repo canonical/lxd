@@ -115,32 +115,6 @@ func IsNotEmpty(value string) error {
 	return nil
 }
 
-func IsUnixUserID(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	_, err := strconv.ParseUint(value, 10, 32)
-	if err != nil {
-		return fmt.Errorf("Invalid value for a UNIX ID")
-	}
-
-	return nil
-}
-
-func IsOctalFileMode(value string) error {
-	if value == "" {
-		return nil
-	}
-
-	_, err := strconv.ParseUint(value, 8, 32)
-	if err != nil {
-		return fmt.Errorf("Invalid value for an octal file mode")
-	}
-
-	return nil
-}
-
 // IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
 func IsDeviceID(value string) error {
 	if value == "" {

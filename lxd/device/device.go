@@ -14,6 +14,8 @@ var devTypes = map[string]func(config.Device) device{
 	"proxy":      func(c config.Device) device { return &proxy{} },
 	"gpu":        func(c config.Device) device { return &gpu{} },
 	"usb":        func(c config.Device) device { return &usb{} },
+	"unix-char":  func(c config.Device) device { return &unixCommon{} },
+	"unix-block": func(c config.Device) device { return &unixCommon{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
@@ -129,6 +131,10 @@ func (d *deviceCommon) Remove() error {
 // is still returned with the validation error. If an unknown device is requested or the device is
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
 func New(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+	if conf["type"] == "" {
+		return nil, fmt.Errorf("Missing device type for device '%s'", name)
+	}
+
 	devFunc := devTypes[conf["type"]]
 
 	// Check if top-level type is recognised, if it is known type it will return a function.

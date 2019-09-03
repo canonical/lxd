@@ -64,12 +64,12 @@ func (d *proxy) validateConfig() error {
 		"listen":         validateAddr,
 		"connect":        validateAddr,
 		"bind":           validateBind,
-		"mode":           shared.IsOctalFileMode,
+		"mode":           unixValidOctalFileMode,
 		"nat":            shared.IsBool,
-		"gid":            shared.IsUnixUserID,
-		"uid":            shared.IsUnixUserID,
-		"security.uid":   shared.IsUnixUserID,
-		"security.gid":   shared.IsUnixUserID,
+		"gid":            unixValidUserID,
+		"uid":            unixValidUserID,
+		"security.uid":   unixValidUserID,
+		"security.gid":   unixValidUserID,
 		"proxy_protocol": shared.IsBool,
 	}
 
