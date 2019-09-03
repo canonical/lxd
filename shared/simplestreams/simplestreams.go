@@ -33,7 +33,7 @@ func NewClient(url string, httpClient http.Client, useragent string) *SimpleStre
 	return &SimpleStreams{
 		http:           &httpClient,
 		url:            url,
-		cachedManifest: map[string]*Products{},
+		cachedProducts: map[string]*Products{},
 		useragent:      useragent,
 	}
 }
@@ -44,12 +44,12 @@ type SimpleStreams struct {
 	useragent string
 
 	cachedStream   *Stream
-	cachedManifest map[string]*Products
+	cachedProducts map[string]*Products
 	cachedImages   []api.Image
 	cachedAliases  map[string]*api.ImageAliasesEntry
 }
 
-func (s *SimpleStreams) parseIndex() (*Stream, error) {
+func (s *SimpleStreams) parseStream() (*Stream, error) {
 	if s.cachedStream != nil {
 		return s.cachedStream, nil
 	}
@@ -91,9 +91,9 @@ func (s *SimpleStreams) parseIndex() (*Stream, error) {
 	return &stream, nil
 }
 
-func (s *SimpleStreams) parseManifest(path string) (*Products, error) {
-	if s.cachedManifest[path] != nil {
-		return s.cachedManifest[path], nil
+func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
+	if s.cachedProducts[path] != nil {
+		return s.cachedProducts[path], nil
 	}
 
 	url := fmt.Sprintf("%s/%s", s.url, path)
@@ -122,15 +122,15 @@ func (s *SimpleStreams) parseManifest(path string) (*Products, error) {
 	}
 
 	// Parse the idnex
-	ssManifest := Products{}
-	err = json.Unmarshal(body, &ssManifest)
+	products := Products{}
+	err = json.Unmarshal(body, &products)
 	if err != nil {
 		return nil, err
 	}
 
-	s.cachedManifest[path] = &ssManifest
+	s.cachedProducts[path] = &products
 
-	return &ssManifest, nil
+	return &products, nil
 }
 
 func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[string]*api.ImageAliasesEntry, error) {
@@ -202,14 +202,14 @@ func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEn
 
 	images := []api.Image{}
 
-	// Load the main index
-	ssIndex, err := s.parseIndex()
+	// Load the stream data
+	stream, err := s.parseStream()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Iterate through the various image manifests
-	for _, entry := range ssIndex.Index {
+	// Iterate through the various indices
+	for _, entry := range stream.Index {
 		// We only care about images
 		if entry.DataType != "image-downloads" {
 			continue
@@ -220,14 +220,14 @@ func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEn
 			continue
 		}
 
-		manifest, err := s.parseManifest(entry.Path)
+		products, err := s.parseProducts(entry.Path)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		manifestImages, _ := manifest.ToLXD()
+		streamImages, _ := products.ToLXD()
 
-		for _, image := range manifestImages {
+		for _, image := range streamImages {
 			images = append(images, image)
 		}
 	}
@@ -245,14 +245,14 @@ func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEn
 }
 
 func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFile, error) {
-	// Load the main index
-	ssIndex, err := s.parseIndex()
+	// Load the main stream
+	stream, err := s.parseStream()
 	if err != nil {
 		return nil, err
 	}
 
-	// Iterate through the various image manifests
-	for _, entry := range ssIndex.Index {
+	// Iterate through the various indices
+	for _, entry := range stream.Index {
 		// We only care about images
 		if entry.DataType != "image-downloads" {
 			continue
@@ -263,14 +263,14 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 			continue
 		}
 
-		manifest, err := s.parseManifest(entry.Path)
+		products, err := s.parseProducts(entry.Path)
 		if err != nil {
 			return nil, err
 		}
 
-		manifestImages, downloads := manifest.ToLXD()
+		images, downloads := products.ToLXD()
 
-		for _, image := range manifestImages {
+		for _, image := range images {
 			if strings.HasPrefix(image.Fingerprint, fingerprint) {
 				files := map[string]DownloadableFile{}
 
