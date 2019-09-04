@@ -172,7 +172,9 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 }
 
 // Update applies configuration changes to a started device.
-func (d *nicBridged) Update(oldConfig config.Device, isRunning bool) error {
+func (d *nicBridged) Update(oldDevices config.Devices, isRunning bool) error {
+	oldConfig := oldDevices[d.name]
+
 	// If an IPv6 address has changed, flush all existing IPv6 leases for instance so instance
 	// isn't allocated old IP. This is important with IPv6 because DHCPv6 supports multiple IP
 	// address allocation and would result in instance having leases for both old and new IPs.
