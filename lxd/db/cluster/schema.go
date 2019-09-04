@@ -34,6 +34,7 @@ CREATE TABLE "images" (
     last_use_date DATETIME,
     auto_update INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
     UNIQUE (project_id, fingerprint),
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
@@ -480,5 +481,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (16, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (17, strftime("%s"))
 `
