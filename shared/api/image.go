@@ -104,6 +104,9 @@ type ImageAliasesEntry struct {
 	ImageAliasesEntryPut `yaml:",inline"`
 
 	Name string `json:"name" yaml:"name"`
+
+	// API extension: image_types
+	Type string `json:"type" yaml:"type"`
 }
 
 // ImageMetadata represents LXD image metadata
