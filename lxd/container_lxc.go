@@ -2287,6 +2287,22 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	c.removeUnixDevices()
 	c.removeDiskDevices()
 
+	// Create any missing directories.
+	err = os.MkdirAll(c.LogPath(), 0700)
+	if err != nil {
+		return "", postStartHooks, err
+	}
+
+	err = os.MkdirAll(c.DevicesPath(), 0711)
+	if err != nil {
+		return "", postStartHooks, err
+	}
+
+	err = os.MkdirAll(c.ShmountsPath(), 0711)
+	if err != nil {
+		return "", postStartHooks, err
+	}
+
 	// Create the devices
 	nicID := -1
 
@@ -2424,22 +2440,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		}
 	}
 
-	// Create any missing directory
-	err = os.MkdirAll(c.LogPath(), 0700)
-	if err != nil {
-		return "", postStartHooks, err
-	}
-
-	err = os.MkdirAll(c.DevicesPath(), 0711)
-	if err != nil {
-		return "", postStartHooks, err
-	}
-
-	err = os.MkdirAll(c.ShmountsPath(), 0711)
-	if err != nil {
-		return "", postStartHooks, err
-	}
-
 	// Rotate the log file
 	logfile := c.LogFilePath()
 	if shared.PathExists(logfile) {
@@ -2450,7 +2450,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		}
 	}
 
-	// Storage is guaranteed to be mountable now.
+	// Storage is guaranteed to be mountable now (must be called after devices setup).
 	ourStart, err = c.StorageStart()
 	if err != nil {
 		return "", postStartHooks, err
