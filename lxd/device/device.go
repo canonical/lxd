@@ -50,10 +50,10 @@ type Device interface {
 	Register() error
 
 	// Update performs host-side modifications for a device based on the difference between the
-	// current config and previous config supplied as an argument. This called if the only
-	// config fields that have changed are supplied in the list returned from CanHotPlug().
+	// current config and previous devices config supplied as an argument. This called if the
+	// only config fields that have changed are supplied in the list returned from CanHotPlug().
 	// The function also accepts a boolean indicating whether the instance is running or not.
-	Update(oldConfig config.Device, running bool) error
+	Update(oldDevices config.Devices, running bool) error
 
 	// Stop performs any host-side cleanup required when a device is removed from an instance,
 	// either due to unplugging it from a running instance or instance is being shutdown.
@@ -119,7 +119,7 @@ func (d *deviceCommon) CanHotPlug() (bool, []string) {
 }
 
 // Update returns an error as most devices do not support live updates without being restarted.
-func (d *deviceCommon) Update(oldConfig config.Device, isRunning bool) error {
+func (d *deviceCommon) Update(oldDevices config.Devices, isRunning bool) error {
 	return fmt.Errorf("Device does not support updates whilst started")
 }
 
