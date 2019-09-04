@@ -29,7 +29,7 @@ func (d *nicP2P) validateConfig() error {
 		"ipv4.routes",
 		"ipv6.routes",
 	}
-	err := config.ValidateDevice(nicValidationRules([]string{}, optionalFields), d.config)
+	err := d.config.Validate(nicValidationRules([]string{}, optionalFields))
 	if err != nil {
 		return err
 	}

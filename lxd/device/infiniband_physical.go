@@ -3,7 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
@@ -35,7 +34,7 @@ func (d *infinibandPhysical) validateConfig() error {
 		return infinibandValidMAC(value)
 	}
 
-	err := config.ValidateDevice(rules, d.config)
+	err := d.config.Validate(rules)
 	if err != nil {
 		return err
 	}
