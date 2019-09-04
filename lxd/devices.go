@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/rand"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,22 +16,13 @@ import (
 
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
 
 var deviceSchedRebalance = make(chan []string, 2)
-
-type deviceBlockLimit struct {
-	readBps   int64
-	readIops  int64
-	writeBps  int64
-	writeIops int64
-}
 
 type deviceTaskCPU struct {
 	id    int
@@ -631,189 +620,4 @@ func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, st
 	}
 
 	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
-}
-
-func deviceGetParentBlocks(path string) ([]string, error) {
-	var devices []string
-	var dev []string
-
-	// Expand the mount path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return nil, err
-	}
-
-	expPath, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		expPath = absPath
-	}
-
-	// Find the source mount of the path
-	file, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	match := ""
-	for scanner.Scan() {
-		line := scanner.Text()
-		rows := strings.Fields(line)
-
-		if len(rows[4]) <= len(match) {
-			continue
-		}
-
-		if expPath != rows[4] && !strings.HasPrefix(expPath, rows[4]) {
-			continue
-		}
-
-		match = rows[4]
-
-		// Go backward to avoid problems with optional fields
-		dev = []string{rows[2], rows[len(rows)-2]}
-	}
-
-	if dev == nil {
-		return nil, fmt.Errorf("Couldn't find a match /proc/self/mountinfo entry")
-	}
-
-	// Handle the most simple case
-	if !strings.HasPrefix(dev[0], "0:") {
-		return []string{dev[0]}, nil
-	}
-
-	// Deal with per-filesystem oddities. We don't care about failures here
-	// because any non-special filesystem => directory backend.
-	fs, _ := util.FilesystemDetect(expPath)
-
-	if fs == "zfs" && shared.PathExists("/dev/zfs") {
-		// Accessible zfs filesystems
-		poolName := strings.Split(dev[1], "/")[0]
-
-		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", dev[1], output)
-		}
-
-		header := true
-		for _, line := range strings.Split(output, "\n") {
-			fields := strings.Fields(line)
-			if len(fields) < 5 {
-				continue
-			}
-
-			if fields[1] != "ONLINE" {
-				continue
-			}
-
-			if header {
-				header = false
-				continue
-			}
-
-			var path string
-			if shared.PathExists(fields[0]) {
-				if shared.IsBlockdevPath(fields[0]) {
-					path = fields[0]
-				} else {
-					subDevices, err := deviceGetParentBlocks(fields[0])
-					if err != nil {
-						return nil, err
-					}
-
-					for _, dev := range subDevices {
-						devices = append(devices, dev)
-					}
-				}
-			} else {
-				continue
-			}
-
-			if path != "" {
-				_, major, minor, err := device.UnixDeviceAttributes(path)
-				if err != nil {
-					continue
-				}
-
-				devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
-			}
-		}
-
-		if len(devices) == 0 {
-			return nil, fmt.Errorf("Unable to find backing block for zfs pool: %s", poolName)
-		}
-	} else if fs == "btrfs" && shared.PathExists(dev[1]) {
-		// Accessible btrfs filesystems
-		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", dev[1], output)
-		}
-
-		for _, line := range strings.Split(output, "\n") {
-			fields := strings.Fields(line)
-			if len(fields) == 0 || fields[0] != "devid" {
-				continue
-			}
-
-			_, major, minor, err := device.UnixDeviceAttributes(fields[len(fields)-1])
-			if err != nil {
-				return nil, err
-			}
-
-			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
-		}
-	} else if shared.PathExists(dev[1]) {
-		// Anything else with a valid path
-		_, major, minor, err := device.UnixDeviceAttributes(dev[1])
-		if err != nil {
-			return nil, err
-		}
-
-		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
-	} else {
-		return nil, fmt.Errorf("Invalid block device: %s", dev[1])
-	}
-
-	return devices, nil
-}
-
-func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, int64, int64, error) {
-	parseValue := func(value string) (int64, int64, error) {
-		var err error
-
-		bps := int64(0)
-		iops := int64(0)
-
-		if value == "" {
-			return bps, iops, nil
-		}
-
-		if strings.HasSuffix(value, "iops") {
-			iops, err = strconv.ParseInt(strings.TrimSuffix(value, "iops"), 10, 64)
-			if err != nil {
-				return -1, -1, err
-			}
-		} else {
-			bps, err = units.ParseByteSizeString(value)
-			if err != nil {
-				return -1, -1, err
-			}
-		}
-
-		return bps, iops, nil
-	}
-
-	readBps, readIops, err := parseValue(readSpeed)
-	if err != nil {
-		return -1, -1, -1, -1, err
-	}
-
-	writeBps, writeIops, err := parseValue(writeSpeed)
-	if err != nil {
-		return -1, -1, -1, -1, err
-	}
-
-	return readBps, readIops, writeBps, writeIops, nil
 }
