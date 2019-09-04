@@ -15,7 +15,6 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/project"
@@ -73,7 +72,7 @@ func (d *proxy) validateConfig() error {
 		"proxy_protocol": shared.IsBool,
 	}
 
-	err := config.ValidateDevice(rules, d.config)
+	err := d.config.Validate(rules)
 	if err != nil {
 		return err
 	}
