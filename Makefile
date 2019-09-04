@@ -109,7 +109,7 @@ update-protobuf:
 	protoc --go_out=. ./lxd/migration/migrate.proto
 
 .PHONY: update-schema
-generate:
+update-schema:
 	cd shared/generate && go build -o lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	mv shared/generate/lxd-generate $(GOPATH)/bin
 	go generate ./...
