@@ -51,6 +51,13 @@ var updates = map[int]schema.Update{
 	14: updateFromV13,
 	15: updateFromV14,
 	16: updateFromV15,
+	17: updateFromV16,
+}
+
+// Add image type column
+func updateFromV16(tx *sql.Tx) error {
+	_, err := tx.Exec("ALTER TABLE images ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
+	return err
 }
 
 // Create new snapshot tables and migrate data to them.
