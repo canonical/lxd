@@ -1567,7 +1567,7 @@ func (c *containerLXC) runHooks(hooks []func() error) error {
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string) (device.Device, map[string]string, error) {
+func (c *containerLXC) deviceLoad(deviceName string, rawConfig config.Device) (device.Device, config.Device, error) {
 	var configCopy config.Device
 	var err error
 
@@ -1579,10 +1579,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string
 		}
 	} else {
 		// Othewise copy the config so it cannot be modified by device.
-		configCopy = make(map[string]string)
-		for k, v := range rawConfig {
-			configCopy[k] = v
-		}
+		configCopy = rawConfig.Clone()
 	}
 
 	d, err := device.New(c, c.state, deviceName, configCopy, c.deviceVolatileGetFunc(deviceName), c.deviceVolatileSetFunc(deviceName))
@@ -1592,7 +1589,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig map[string]string
 }
 
 // deviceAdd loads a new device and calls its Add() function.
-func (c *containerLXC) deviceAdd(deviceName string, rawConfig map[string]string) error {
+func (c *containerLXC) deviceAdd(deviceName string, rawConfig config.Device) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1604,7 +1601,7 @@ func (c *containerLXC) deviceAdd(deviceName string, rawConfig map[string]string)
 // deviceStart loads a new device and calls its Start() function. After processing the runtime
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the container is running or not.
-func (c *containerLXC) deviceStart(deviceName string, rawConfig map[string]string, isRunning bool) (*device.RunConfig, error) {
+func (c *containerLXC) deviceStart(deviceName string, rawConfig config.Device, isRunning bool) (*device.RunConfig, error) {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1744,7 +1741,7 @@ func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []dev
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (c *containerLXC) deviceUpdate(deviceName string, rawConfig map[string]string, oldConfig map[string]string, isRunning bool) error {
+func (c *containerLXC) deviceUpdate(deviceName string, rawConfig config.Device, oldConfig config.Device, isRunning bool) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1759,7 +1756,7 @@ func (c *containerLXC) deviceUpdate(deviceName string, rawConfig map[string]stri
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (c *containerLXC) deviceStop(deviceName string, rawConfig map[string]string, stopHookNetnsPath string) error {
+func (c *containerLXC) deviceStop(deviceName string, rawConfig config.Device, stopHookNetnsPath string) error {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1936,7 +1933,7 @@ func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error 
 }
 
 // deviceRemove loads a new device and calls its Remove() function.
-func (c *containerLXC) deviceRemove(deviceName string, rawConfig map[string]string) error {
+func (c *containerLXC) deviceRemove(deviceName string, rawConfig config.Device) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -6478,11 +6475,7 @@ func (c *containerLXC) removeUnixDevices() error {
 // fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
 func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.Device, error) {
-	newDevice := config.Device{}
-	err := shared.DeepCopy(&m, &newDevice)
-	if err != nil {
-		return nil, err
-	}
+	newDevice := m.Clone()
 
 	// Function to try and guess an available name
 	nextInterfaceName := func() (string, error) {
@@ -6575,7 +6568,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.D
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address
-			volatileHwaddr, err = deviceNextInterfaceHWAddr()
+			volatileHwaddr, err := deviceNextInterfaceHWAddr()
 			if err != nil {
 				return nil, err
 			}
@@ -6612,7 +6605,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.D
 		volatileName := c.localConfig[configKey]
 		if volatileName == "" {
 			// Generate a new interface name
-			volatileName, err = nextInterfaceName()
+			volatileName, err := nextInterfaceName()
 			if err != nil {
 				return nil, err
 			}
