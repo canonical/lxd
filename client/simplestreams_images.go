@@ -229,7 +229,7 @@ func (r *ProtocolSimpleStreams) GetImageAliasNames() ([]string, error) {
 
 // GetImageAlias returns an existing alias as an ImageAliasesEntry struct
 func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEntry, string, error) {
-	alias, err := r.ssClient.GetAlias(name)
+	alias, err := r.ssClient.GetAlias("container", name)
 	if err != nil {
 		return nil, "", err
 	}
