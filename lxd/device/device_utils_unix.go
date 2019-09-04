@@ -58,7 +58,7 @@ func unixDeviceInstanceAttributes(devicesPath string, prefix string, config conf
 
 	// If any config options missing then retrieve all the needed set of attributes from device.
 	if dType == "" || config["major"] == "" || config["minor"] == "" {
-		dType, dMajor, dMinor, err = UnixDeviceAttributes(devPath)
+		dType, dMajor, dMinor, err = unixDeviceAttributes(devPath)
 		if err != nil {
 			return dType, dMajor, dMinor, err
 		}
@@ -67,8 +67,8 @@ func unixDeviceInstanceAttributes(devicesPath string, prefix string, config conf
 	return dType, dMajor, dMinor, err
 }
 
-// UnixDeviceAttributes returns the decice type, major and minor numbers for a device.
-func UnixDeviceAttributes(path string) (string, uint32, uint32, error) {
+// unixDeviceAttributes returns the decice type, major and minor numbers for a device.
+func unixDeviceAttributes(path string) (string, uint32, uint32, error) {
 	// Get a stat struct from the provided path
 	stat := unix.Stat_t{}
 	err := unix.Stat(path, &stat)
@@ -163,7 +163,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 	// Get the major/minor of the device we want to create.
 	if m["major"] == "" && m["minor"] == "" {
 		// If no major and minor are set, use those from the device on the host.
-		_, d.Major, d.Minor, err = UnixDeviceAttributes(srcPath)
+		_, d.Major, d.Minor, err = unixDeviceAttributes(srcPath)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", srcPath, err)
 		}
@@ -493,7 +493,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		})
 
 		absDevPath := filepath.Join(devicesPath, ourDev)
-		dType, dMajor, dMinor, err := UnixDeviceAttributes(absDevPath)
+		dType, dMajor, dMinor, err := unixDeviceAttributes(absDevPath)
 		if err != nil {
 			return fmt.Errorf("Failed to get UNIX device attributes for '%s': %v", absDevPath, err)
 		}
