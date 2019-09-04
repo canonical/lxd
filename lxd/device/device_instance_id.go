@@ -15,6 +15,7 @@ type InstanceIdentifier interface {
 	RootfsPath() string
 	LogPath() string
 	ExpandedConfig() map[string]string
+	LocalDevices() config.Devices
 	ExpandedDevices() config.Devices
 	DeviceEventHandler(*RunConfig) error
 }
