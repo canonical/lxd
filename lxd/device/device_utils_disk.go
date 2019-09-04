@@ -16,6 +16,9 @@ var StorageVolumeMount func(s *state.State, poolName string, volumeName string, 
 // StorageVolumeUmount unmounts a storage volume.
 var StorageVolumeUmount func(s *state.State, poolName string, volumeName string, volumeType int) error
 
+// StorageRootFSApplyQuota applies a new quota.
+var StorageRootFSApplyQuota func(instance InstanceIdentifier, newSize int64) (bool, error)
+
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
 	out, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
