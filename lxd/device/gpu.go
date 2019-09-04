@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
@@ -46,7 +45,7 @@ func (d *gpu) validateConfig() error {
 		"mode":      unixValidOctalFileMode,
 	}
 
-	err := config.ValidateDevice(rules, d.config)
+	err := d.config.Validate(rules)
 	if err != nil {
 		return err
 	}

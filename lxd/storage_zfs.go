@@ -2629,7 +2629,7 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operation, args Mig
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
 	parentExpandedDevices := args.Container.ExpandedDevices()
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
@@ -2648,7 +2648,7 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operation, args Mig
 		// profile on the new instance as well we don't need to
 		// do anything.
 		if ctArgs.Devices != nil {
-			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(ctArgs.Devices)
+			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(ctArgs.Devices.CloneNative())
 			if snapLocalRootDiskDeviceKey != "" {
 				ctArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}

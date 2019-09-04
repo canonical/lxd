@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 )
@@ -48,7 +47,7 @@ func (d *nicIPVLAN) validateConfig() error {
 		return NetworkValidAddressV6List(value)
 	}
 
-	err := config.ValidateDevice(rules, d.config)
+	err := d.config.Validate(rules)
 	if err != nil {
 		return err
 	}

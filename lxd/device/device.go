@@ -81,7 +81,7 @@ type device interface {
 type deviceCommon struct {
 	instance    InstanceIdentifier
 	name        string
-	config      map[string]string
+	config      config.Device
 	state       *state.State
 	volatileGet func() map[string]string
 	volatileSet func(map[string]string) error

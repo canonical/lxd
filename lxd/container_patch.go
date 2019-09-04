@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -102,7 +103,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 
 	// Check if devices was passed
 	if req.Devices == nil {
-		req.Devices = c.LocalDevices()
+		req.Devices = c.LocalDevices().CloneNative()
 	} else {
 		for k, v := range c.LocalDevices() {
 			_, ok := req.Devices[k]
@@ -117,7 +118,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 		Architecture: architecture,
 		Config:       req.Config,
 		Description:  req.Description,
-		Devices:      req.Devices,
+		Devices:      deviceConfig.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Profiles:     req.Profiles,
 		Project:      project,
