@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -167,8 +166,6 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	profile.Project = project
 	profile.Name = "default"
 	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
-	profile.Config = map[string]string{}
-	profile.Devices = config.Devices{}
 
 	_, err := tx.ProfileCreate(profile)
 	if err != nil {
