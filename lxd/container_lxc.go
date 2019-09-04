@@ -4369,22 +4369,12 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Make sure we have a valid root disk device (and only one)
-	newRootDiskDeviceKey := ""
-	for k, v := range c.expandedDevices {
-		if v["type"] == "disk" && v["path"] == "/" && v["pool"] != "" {
-			if newRootDiskDeviceKey != "" {
-				return fmt.Errorf("Containers may only have one root disk device")
-			}
-
-			newRootDiskDeviceKey = k
-		}
+	newRootDiskDeviceKey, _, err := shared.GetRootDiskDevice(c.expandedDevices.CloneNative())
+	if err != nil {
+		return errors.Wrap(err, "Detect root disk device")
 	}
 
-	if newRootDiskDeviceKey == "" {
-		return fmt.Errorf("Containers must have a root disk device (directly or inherited)")
-	}
-
-	// Retrieve the old root disk device
+	// Retrieve the first old root disk device key, even if there are duplicates.
 	oldRootDiskDeviceKey := ""
 	for k, v := range oldExpandedDevices {
 		if v["type"] == "disk" && v["path"] == "/" && v["pool"] != "" {
