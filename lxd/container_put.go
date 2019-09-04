@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -65,7 +66,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 				Architecture: architecture,
 				Config:       configRaw.Config,
 				Description:  configRaw.Description,
-				Devices:      configRaw.Devices,
+				Devices:      deviceConfig.NewDevices(configRaw.Devices),
 				Ephemeral:    configRaw.Ephemeral,
 				Profiles:     configRaw.Profiles,
 				Project:      project,

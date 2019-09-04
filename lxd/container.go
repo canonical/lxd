@@ -326,7 +326,7 @@ func containerValidDevices(state *state.State, cluster *db.Cluster, devices conf
 
 	// Checks on the expanded config
 	if expanded {
-		_, _, err := shared.GetRootDiskDevice(devices)
+		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
 		if err != nil {
 			return errors.Wrap(err, "Detect root disk device")
 		}
@@ -669,7 +669,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
 	parentExpandedDevices := ct.ExpandedDevices()
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
@@ -715,7 +715,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 			// do anything.
 			snapDevices := snap.LocalDevices()
 			if snapDevices != nil {
-				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapDevices)
+				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapDevices.CloneNative())
 				if snapLocalRootDiskDeviceKey != "" {
 					snapDevices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				} else {
@@ -1015,7 +1015,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 				Stateful:     args.Stateful,
 				Description:  args.Description,
 				Config:       args.Config,
-				Devices:      args.Devices,
+				Devices:      args.Devices.CloneNative(),
 				ExpiryDate:   args.ExpiryDate,
 			}
 			_, err = tx.InstanceSnapshotCreate(snapshot)
@@ -1047,7 +1047,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			LastUseDate:  args.LastUsedDate,
 			Description:  args.Description,
 			Config:       args.Config,
-			Devices:      args.Devices,
+			Devices:      args.Devices.CloneNative(),
 			Profiles:     args.Profiles,
 			ExpiryDate:   args.ExpiryDate,
 		}
@@ -1099,7 +1099,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 
 func containerConfigureInternal(c container) error {
 	// Find the root device
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices())
+	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
