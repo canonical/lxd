@@ -384,7 +384,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Retrieve the container's storage pool
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.expandedDevices)
+	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.expandedDevices.CloneNative())
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -3448,14 +3448,14 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 		ct := api.ContainerSnapshot{
 			CreatedAt:       c.creationDate,
 			ExpandedConfig:  c.expandedConfig,
-			ExpandedDevices: c.expandedDevices,
+			ExpandedDevices: c.expandedDevices.CloneNative(),
 			LastUsedAt:      c.lastUsedDate,
 			Name:            strings.SplitN(c.name, "/", 2)[1],
 			Stateful:        c.stateful,
 		}
 		ct.Architecture = architectureName
 		ct.Config = c.localConfig
-		ct.Devices = c.localDevices
+		ct.Devices = c.localDevices.CloneNative()
 		ct.Ephemeral = c.ephemeral
 		ct.Profiles = c.profiles
 		ct.ExpiresAt = c.expiryDate
@@ -3475,7 +3475,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 
 	ct := api.Container{
 		ExpandedConfig:  c.expandedConfig,
-		ExpandedDevices: c.expandedDevices,
+		ExpandedDevices: c.expandedDevices.CloneNative(),
 		Name:            c.name,
 		Status:          statusCode.String(),
 		StatusCode:      statusCode,
@@ -3486,7 +3486,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	ct.Architecture = architectureName
 	ct.Config = c.localConfig
 	ct.CreatedAt = c.creationDate
-	ct.Devices = c.localDevices
+	ct.Devices = c.localDevices.CloneNative()
 	ct.Ephemeral = c.ephemeral
 	ct.LastUsedAt = c.lastUsedDate
 	ct.Profiles = c.profiles
@@ -4646,7 +4646,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	if !c.IsSnapshot() && updateMAAS {
-		err = c.maasUpdate(oldExpandedDevices)
+		err = c.maasUpdate(oldExpandedDevices.CloneNative())
 		if err != nil {
 			return err
 		}
@@ -7728,7 +7728,7 @@ func (c *containerLXC) maasUpdate(oldDevices map[string]map[string]string) error
 	}
 
 	// Check if there's something that uses MAAS
-	interfaces, err := c.maasInterfaces(c.expandedDevices)
+	interfaces, err := c.maasInterfaces(c.expandedDevices.CloneNative())
 	if err != nil {
 		return err
 	}
@@ -7776,7 +7776,7 @@ func (c *containerLXC) maasRename(newName string) error {
 		return nil
 	}
 
-	interfaces, err := c.maasInterfaces(c.expandedDevices)
+	interfaces, err := c.maasInterfaces(c.expandedDevices.CloneNative())
 	if err != nil {
 		return err
 	}
@@ -7811,7 +7811,7 @@ func (c *containerLXC) maasDelete() error {
 		return nil
 	}
 
-	interfaces, err := c.maasInterfaces(c.expandedDevices)
+	interfaces, err := c.maasInterfaces(c.expandedDevices.CloneNative())
 	if err != nil {
 		return err
 	}

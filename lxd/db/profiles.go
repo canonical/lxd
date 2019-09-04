@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
@@ -384,7 +385,7 @@ func ProfilesExpandDevices(devices config.Devices, profiles []api.Profile) confi
 	// Apply all the profiles
 	profileDevices := make([]config.Devices, len(profiles))
 	for i, profile := range profiles {
-		profileDevices[i] = profile.Devices
+		profileDevices[i] = deviceConfig.NewDevices(profile.Devices)
 	}
 	for i := range profileDevices {
 		for k, v := range profileDevices[i] {

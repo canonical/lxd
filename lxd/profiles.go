@@ -14,6 +14,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -105,7 +106,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d.State(), d.cluster, req.Devices, true, false)
+	err = containerValidDevices(d.State(), d.cluster, deviceConfig.NewDevices(req.Devices), true, false)
 	if err != nil {
 		return BadRequest(err)
 	}

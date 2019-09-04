@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -1859,7 +1860,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 				continue
 			}
 
-			err = db.DevicesAdd(tx, "profile", pID, p.Devices)
+			err = db.DevicesAdd(tx, "profile", pID, deviceConfig.NewDevices(p.Devices))
 			if err != nil {
 				logger.Errorf("Failed to add new profile profile root disk device: %s: %s", pName, err)
 				tx.Rollback()
@@ -1898,14 +1899,14 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 		// Check if the container already has a valid root device entry (profile or previous upgrade)
 		expandedDevices := c.ExpandedDevices()
-		k, d, _ := shared.GetRootDiskDevice(expandedDevices)
+		k, d, _ := shared.GetRootDiskDevice(expandedDevices.CloneNative())
 		if k != "" && d["pool"] != "" {
 			continue
 		}
 
 		// Look for a local root device entry
 		localDevices := c.LocalDevices()
-		k, _, _ = shared.GetRootDiskDevice(localDevices)
+		k, _, _ = shared.GetRootDiskDevice(localDevices.CloneNative())
 		if k != "" {
 			localDevices[k]["pool"] = poolName
 		} else {

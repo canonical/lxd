@@ -24,10 +24,9 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 func createFromImage(d *Daemon, project string, req *api.ContainersPost) Response {
@@ -99,7 +98,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 			Config:      req.Config,
 			Ctype:       db.CTypeRegular,
 			Description: req.Description,
-			Devices:     req.Devices,
+			Devices:     config.NewDevices(req.Devices),
 			Ephemeral:   req.Ephemeral,
 			Name:        req.Name,
 			Profiles:    req.Profiles,
@@ -155,7 +154,7 @@ func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response
 		Config:      req.Config,
 		Ctype:       db.CTypeRegular,
 		Description: req.Description,
-		Devices:     req.Devices,
+		Devices:     config.NewDevices(req.Devices),
 		Ephemeral:   req.Ephemeral,
 		Name:        req.Name,
 		Profiles:    req.Profiles,
@@ -211,7 +210,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Ctype:        db.CTypeRegular,
-		Devices:      req.Devices,
+		Devices:      config.NewDevices(req.Devices),
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
@@ -248,7 +247,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		rootDev["path"] = "/"
 		rootDev["pool"] = storagePool
 		if args.Devices == nil {
-			args.Devices = map[string]map[string]string{}
+			args.Devices = config.Devices{}
 		}
 
 		// Make sure that we do not overwrite a device the user
@@ -305,7 +304,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 				return InternalError(err)
 			}
 
-			_, rootDiskDevice, err := shared.GetRootDiskDevice(cM.ExpandedDevices())
+			_, rootDiskDevice, err := shared.GetRootDiskDevice(cM.ExpandedDevices().CloneNative())
 			if err != nil {
 				return InternalError(err)
 			}
@@ -462,7 +461,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 
 		if serverName != source.Location() {
 			// Check if we are copying from a ceph-based container.
-			_, rootDevice, _ := shared.GetRootDiskDevice(source.ExpandedDevices())
+			_, rootDevice, _ := shared.GetRootDiskDevice(source.ExpandedDevices().CloneNative())
 			sourcePoolName := rootDevice["pool"]
 
 			destPoolName, _, _, _, resp := containerFindStoragePool(d, targetProject, req)
@@ -558,7 +557,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 		Config:       req.Config,
 		Ctype:        db.CTypeRegular,
 		Description:  req.Description,
-		Devices:      req.Devices,
+		Devices:      config.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     req.Profiles,
@@ -760,7 +759,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Devices == nil {
-		req.Devices = config.Devices{}
+		req.Devices = map[string]map[string]string{}
 	}
 
 	if req.Config == nil {

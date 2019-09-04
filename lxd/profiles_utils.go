@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -18,7 +19,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 		return err
 	}
 
-	err = containerValidDevices(d.State(), d.cluster, req.Devices, true, false)
+	err = containerValidDevices(d.State(), d.cluster, deviceConfig.NewDevices(req.Devices), true, false)
 	if err != nil {
 		return err
 	}
@@ -35,7 +36,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 		// Check for containers using the device
 		for _, container := range containers {
 			// Check if the device is locally overridden
-			k, v, _ := shared.GetRootDiskDevice(container.Devices)
+			k, v, _ := shared.GetRootDiskDevice(container.Devices.CloneNative())
 			if k != "" && v["pool"] != "" {
 				continue
 			}
@@ -101,7 +102,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			return err
 		}
 
-		err = db.DevicesAdd(tx, "profile", id, req.Devices)
+		err = db.DevicesAdd(tx, "profile", id, deviceConfig.NewDevices(req.Devices))
 		if err != nil {
 			tx.Rollback()
 			return err

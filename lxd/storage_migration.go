@@ -292,7 +292,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 	// disk device so we can simply retrieve it from the expanded devices.
 	parentStoragePool := ""
 	parentExpandedDevices := args.Container.ExpandedDevices()
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
@@ -335,7 +335,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 				// profile on the new instance as well we don't need to
 				// do anything.
 				if snapArgs.Devices != nil {
-					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices)
+					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
 					if snapLocalRootDiskDeviceKey != "" {
 						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 					}
@@ -396,7 +396,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 				// profile on the new instance as well we don't need to
 				// do anything.
 				if snapArgs.Devices != nil {
-					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices)
+					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
 					if snapLocalRootDiskDeviceKey != "" {
 						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 					}

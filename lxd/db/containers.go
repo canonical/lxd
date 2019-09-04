@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -105,7 +106,7 @@ func ContainerToArgs(container *Instance) ContainerArgs {
 		LastUsedDate: container.LastUseDate,
 		Description:  container.Description,
 		Config:       container.Config,
-		Devices:      container.Devices,
+		Devices:      deviceConfig.NewDevices(container.Devices),
 		Profiles:     container.Profiles,
 		ExpiryDate:   container.ExpiryDate,
 	}
@@ -324,7 +325,7 @@ func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
 		}
 
 		instances[i].Config = ProfilesExpandConfig(instance.Config, profiles)
-		instances[i].Devices = ProfilesExpandDevices(instance.Devices, profiles)
+		instances[i].Devices = ProfilesExpandDevices(deviceConfig.NewDevices(instance.Devices), profiles).CloneNative()
 	}
 
 	return instances, nil
