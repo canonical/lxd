@@ -102,7 +102,7 @@ func (d *unixCommon) Register() error {
 			}
 
 			// Get the file type and sanity check it matches what the user was expecting.
-			dType, _, _, err := UnixDeviceAttributes(e.Path)
+			dType, _, _, err := unixDeviceAttributes(e.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -157,7 +157,7 @@ func (d *unixCommon) Start() (*RunConfig, error) {
 	srcPath := unixDeviceSourcePath(d.config)
 
 	// If device file already exists on system, proceed to add it whether its required or not.
-	dType, _, _, err := UnixDeviceAttributes(srcPath)
+	dType, _, _, err := unixDeviceAttributes(srcPath)
 	if err == nil {
 		// Sanity check device type matches what the device config is expecting.
 		if !unixIsOurDeviceType(d.config, dType) {
