@@ -30,6 +30,8 @@ func init() {
 	device.StorageVolumeMount = storageVolumeMount
 	// Expose storageVolumeUmount to the device package as StorageVolumeUmount.
 	device.StorageVolumeUmount = storageVolumeUmount
+	// Expose storageRootFSApplyQuota to the device package as StorageRootFSApplyQuota.
+	device.StorageRootFSApplyQuota = storageRootFSApplyQuota
 
 }
 
@@ -919,4 +921,33 @@ func storageVolumeUmount(state *state.State, poolName string, volumeName string,
 	}
 
 	return nil
+}
+
+// storageRootFSApplyQuota applies a quota to an instance if it can, if it cannot then it will
+// return false indicating that the quota needs to be stored in volatile to be applied on next boot.
+func storageRootFSApplyQuota(instance device.InstanceIdentifier, newSizeBytes int64) (bool, error) {
+	c, ok := instance.(*containerLXC)
+	if !ok {
+		return false, fmt.Errorf("Received non-LXC container instance")
+	}
+
+	err := c.initStorage()
+	if err != nil {
+		return false, errors.Wrap(err, "Initialize storage")
+	}
+
+	storageTypeName := c.storage.GetStorageTypeName()
+	storageIsReady := c.storage.ContainerStorageReady(c)
+
+	// If we cannot apply the quota now, then return false as needs to be applied on next boot.
+	if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() || !storageIsReady {
+		return false, nil
+	}
+
+	err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, newSizeBytes, c)
+	if err != nil {
+		return false, errors.Wrap(err, "Set storage quota")
+	}
+
+	return true, nil
 }
