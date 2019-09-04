@@ -1,16 +1,75 @@
 package config
 
 import (
+	"fmt"
 	"sort"
-
-	"github.com/lxc/lxd/shared"
 )
 
 // Device represents a LXD container device
 type Device map[string]string
 
+// Clone returns a copy of the Device.
+func (device Device) Clone() Device {
+	copy := map[string]string{}
+
+	for k, v := range device {
+		copy[k] = v
+	}
+
+	return copy
+}
+
+// Validate accepts a map of field/validation functions to run against the device's config.
+func (device Device) Validate(rules map[string]func(value string) error) error {
+	checkedFields := map[string]struct{}{}
+
+	for k, validator := range rules {
+		checkedFields[k] = struct{}{} //Mark field as checked.
+		err := validator(device[k])
+		if err != nil {
+			return fmt.Errorf("Invalid value for device option %s: %v", k, err)
+		}
+	}
+
+	// Look for any unchecked fields, as these are unknown fields and validation should fail.
+	for k := range device {
+		_, checked := checkedFields[k]
+		if checked {
+			continue
+		}
+
+		// Skip type fields are these are validated by the presence of an implementation.
+		if k == "type" {
+			continue
+		}
+
+		if k == "nictype" && (device["type"] == "nic" || device["type"] == "infiniband") {
+			continue
+		}
+
+		return fmt.Errorf("Invalid device option: %s", k)
+	}
+
+	return nil
+}
+
 // Devices represents a set of LXD container devices
-type Devices map[string]map[string]string
+type Devices map[string]Device
+
+// NewDevices creates a new Devices set from a native map[string]map[string]string set.
+func NewDevices(nativeSet map[string]map[string]string) Devices {
+	newDevices := Devices{}
+
+	for devName, devConfig := range nativeSet {
+		newDev := Device{}
+		for k, v := range devConfig {
+			newDev[k] = v
+		}
+		newDevices[devName] = newDev
+	}
+
+	return newDevices
+}
 
 // Contains checks if a given device exists in the set and if it's
 // identical to that provided
@@ -46,18 +105,10 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 	updateDiff := []string{}
 	for key, d := range addlist {
 		srcOldDevice := rmlist[key]
-		var oldDevice Device
-		err := shared.DeepCopy(&srcOldDevice, &oldDevice)
-		if err != nil {
-			continue
-		}
+		oldDevice := srcOldDevice.Clone()
 
 		srcNewDevice := newlist[key]
-		var newDevice Device
-		err = shared.DeepCopy(&srcNewDevice, &newDevice)
-		if err != nil {
-			continue
-		}
+		newDevice := srcNewDevice.Clone()
 
 		updateDiff = deviceEqualsDiffKeys(oldDevice, newDevice)
 		for _, k := range updateFields(oldDevice, newDevice) {
@@ -84,4 +135,15 @@ func (list Devices) DeviceNames() []string {
 
 	sort.Sort(sortable)
 	return sortable.Names()
+}
+
+// CloneNative returns a copy of the Devices set as a native map[string]map[string]string type.
+func (list Devices) CloneNative() map[string]map[string]string {
+	copy := map[string]map[string]string{}
+
+	for deviceName, device := range list {
+		copy[deviceName] = device.Clone()
+	}
+
+	return copy
 }

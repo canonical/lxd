@@ -14,7 +14,6 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -232,7 +231,7 @@ func convertContainer(d lxd.ContainerServer, container *lxc.Container, storage s
 		newConfig["security.privileged"] = "false"
 	}
 
-	newDevices := make(deviceConfig.Devices, 0)
+	newDevices := make(map[string]map[string]string, 0)
 
 	// Convert network configuration
 	err = convertNetworkConfig(container, newDevices)
@@ -449,7 +448,7 @@ func convertContainer(d lxd.ContainerServer, container *lxc.Container, storage s
 	return nil
 }
 
-func convertNetworkConfig(container *lxc.Container, devices deviceConfig.Devices) error {
+func convertNetworkConfig(container *lxc.Container, devices map[string]map[string]string) error {
 	networkDevice := func(network map[string]string) map[string]string {
 		if network == nil {
 			return nil
@@ -525,7 +524,7 @@ func convertNetworkConfig(container *lxc.Container, devices deviceConfig.Devices
 	return nil
 }
 
-func convertStorageConfig(conf []string, devices deviceConfig.Devices) error {
+func convertStorageConfig(conf []string, devices map[string]map[string]string) error {
 	fmt.Println("Processing storage configuration")
 
 	i := 0

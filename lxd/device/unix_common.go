@@ -44,7 +44,7 @@ func (d *unixCommon) validateConfig() error {
 		"required": shared.IsBool,
 	}
 
-	err := config.ValidateDevice(rules, d.config)
+	err := d.config.Validate(rules)
 	if err != nil {
 		return err
 	}

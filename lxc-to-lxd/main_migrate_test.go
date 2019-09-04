@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/stretchr/testify/require"
 	lxc "gopkg.in/lxc/go-lxc.v2"
 )
@@ -116,15 +115,15 @@ func TestConvertNetworkConfig(t *testing.T) {
 	tests := []struct {
 		name            string
 		config          []string
-		expectedDevices config.Devices
+		expectedDevices map[string]map[string]string
 		expectedError   string
 		shouldFail      bool
 	}{
 		{
 			"loopback only",
 			[]string{},
-			config.Devices{
-				"eth0": map[string]string{
+			map[string]map[string]string{
+				"eth0": {
 					"type": "none",
 				},
 			},
@@ -144,18 +143,18 @@ func TestConvertNetworkConfig(t *testing.T) {
 				"lxc.net.1.hwaddr = 00:16:3e:a2:7d:54",
 				"lxc.net.1.name = eth2",
 			},
-			config.Devices{
-				"net1": map[string]string{
+			map[string]map[string]string{
+				"net1": {
 					"type":    "nic",
 					"nictype": "bridged",
 					"parent":  "lxcbr0",
 					"name":    "eth2",
 					"hwaddr":  "00:16:3e:a2:7d:54",
 				},
-				"eth0": map[string]string{
+				"eth0": {
 					"type": "none",
 				},
-				"net0": map[string]string{
+				"net0": {
 					"name":    "eth1",
 					"hwaddr":  "00:16:3e:8d:4f:51",
 					"type":    "nic",
@@ -179,18 +178,18 @@ func TestConvertNetworkConfig(t *testing.T) {
 				"lxc.net.1.link = lxcbr0",
 				"lxc.net.1.hwaddr = 00:16:3e:a2:7d:54",
 			},
-			config.Devices{
-				"net1": map[string]string{
+			map[string]map[string]string{
+				"net1": {
 					"type":    "nic",
 					"nictype": "bridged",
 					"parent":  "lxcbr0",
 					"name":    "eth2",
 					"hwaddr":  "00:16:3e:a2:7d:54",
 				},
-				"eth0": map[string]string{
+				"eth0": {
 					"type": "none",
 				},
-				"net0": map[string]string{
+				"net0": {
 					"name":    "eth1",
 					"hwaddr":  "00:16:3e:8d:4f:51",
 					"type":    "nic",
@@ -226,7 +225,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		devices := make(config.Devices, 0)
+		devices := make(map[string]map[string]string, 0)
 		err = convertNetworkConfig(c, devices)
 		if tt.shouldFail {
 			require.EqualError(t, err, tt.expectedError)
@@ -244,7 +243,7 @@ func TestConvertStorageConfig(t *testing.T) {
 	tests := []struct {
 		name            string
 		config          []string
-		expectedDevices config.Devices
+		expectedDevices map[string]map[string]string
 		expectedError   string
 		shouldFail      bool
 	}{
@@ -253,7 +252,7 @@ func TestConvertStorageConfig(t *testing.T) {
 			[]string{
 				"lxc.mount.entry = /foo lib none ro,bind 0 0",
 			},
-			config.Devices{},
+			map[string]map[string]string{},
 			"Invalid path: /foo",
 			true,
 		},
@@ -262,7 +261,7 @@ func TestConvertStorageConfig(t *testing.T) {
 			[]string{
 				"lxc.mount.entry = proc /proc proc defaults 0 0",
 			},
-			config.Devices{},
+			map[string]map[string]string{},
 			"",
 			false,
 		},
@@ -271,7 +270,7 @@ func TestConvertStorageConfig(t *testing.T) {
 			[]string{
 				"lxc.mount.entry = shm /dev/shm tmpfs defaults 0 0",
 			},
-			config.Devices{},
+			map[string]map[string]string{},
 			"",
 			false,
 		},
@@ -285,33 +284,33 @@ func TestConvertStorageConfig(t *testing.T) {
 				"lxc.mount.entry = /sys/kernel/security /sys/kernel/security none ro,bind,optional 1 0",
 				"lxc.mount.entry = /mnt /tmp/mnt none ro,bind 0 0",
 			},
-			config.Devices{
-				"mount0": map[string]string{
+			map[string]map[string]string{
+				"mount0": {
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/lib",
 					"path":     "/lib",
 				},
-				"mount1": map[string]string{
+				"mount1": {
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/usr/lib",
 					"path":     "/usr/lib",
 				},
-				"mount2": map[string]string{
+				"mount2": {
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/home",
 					"path":     "/home",
 				},
-				"mount3": map[string]string{
+				"mount3": {
 					"type":     "disk",
 					"readonly": "true",
 					"optional": "true",
 					"source":   "/sys/kernel/security",
 					"path":     "/sys/kernel/security",
 				},
-				"mount4": map[string]string{
+				"mount4": {
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/mnt",
@@ -325,7 +324,7 @@ func TestConvertStorageConfig(t *testing.T) {
 
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
-		devices := make(config.Devices, 0)
+		devices := make(map[string]map[string]string, 0)
 		err := convertStorageConfig(tt.config, devices)
 		if tt.shouldFail {
 			require.EqualError(t, err, tt.expectedError)

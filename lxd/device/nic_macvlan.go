@@ -3,7 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 )
@@ -20,7 +19,7 @@ func (d *nicMACVLAN) validateConfig() error {
 
 	requiredFields := []string{"parent"}
 	optionalFields := []string{"name", "mtu", "hwaddr", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6"}
-	err := config.ValidateDevice(nicValidationRules(requiredFields, optionalFields), d.config)
+	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
 	}
