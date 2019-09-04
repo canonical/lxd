@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 )
@@ -79,7 +80,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	rootDev["type"] = "disk"
 	rootDev["path"] = "/"
 	rootDev["pool"] = lxdTestSuiteDefaultStoragePool
-	devicesMap := map[string]map[string]string{}
+	devicesMap := deviceConfig.Devices{}
 	devicesMap["root"] = rootDev
 
 	defaultID, _, err := suite.d.cluster.ProfileGet("default", "default")
