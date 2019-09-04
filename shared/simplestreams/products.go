@@ -43,6 +43,7 @@ type ProductVersion struct {
 
 // ProductVersionItem represents a file/item of a particular ProductVersion
 type ProductVersionItem struct {
+	LXDHashSha256DiskImg  string `json:"combined_disk1-img_sha256,omitempty"`
 	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256,omitempty"`
 	LXDHashSha256         string `json:"combined_sha256,omitempty"`
 	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256,omitempty"`
@@ -108,6 +109,8 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 						}
 					} else if root.FileType == "squashfs" {
 						fingerprint = meta.LXDHashSha256SquashFs
+					} else if root.FileType == "disk1.img" {
+						fingerprint = meta.LXDHashSha256DiskImg
 					}
 				} else {
 					fingerprint = meta.HashSha256
@@ -155,9 +158,13 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					"serial":       name,
 					"description":  description,
 				}
+				image.Type = "container"
 
 				if root != nil {
 					image.Properties["type"] = root.FileType
+					if root.FileType == "disk1.img" {
+						image.Type = "virtual-machine"
+					}
 				} else {
 					image.Properties["type"] = "tar.gz"
 				}
@@ -247,7 +254,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				if item.FileType == "lxd.tar.xz" {
 					// Locate the root files
 					for _, subItem := range version.Items {
-						if shared.StringInSlice(subItem.FileType, []string{"root.tar.xz", "squashfs"}) {
+						if shared.StringInSlice(subItem.FileType, []string{"disk1.img", "root.tar.xz", "squashfs"}) {
 							err := addImage(&item, &subItem)
 							if err != nil {
 								continue
