@@ -2188,33 +2188,6 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		}
 	}
 
-	newSize, ok := c.LocalConfig()["volatile.apply_quota"]
-	if ok {
-		err := c.initStorage()
-		if err != nil {
-			return "", postStartHooks, errors.Wrap(err, "Initialize storage")
-		}
-
-		size, err := units.ParseByteSizeString(newSize)
-		if err != nil {
-			return "", postStartHooks, err
-		}
-		err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
-		if err != nil {
-			return "", postStartHooks, errors.Wrap(err, "Set storage quota")
-		}
-
-		// Remove the volatile key from the DB
-		err = c.state.Cluster.ContainerConfigRemove(c.id, "volatile.apply_quota")
-		if err != nil {
-			return "", postStartHooks, errors.Wrap(err, "Remove volatile.apply_quota config key")
-		}
-
-		// Remove the volatile key from the in-memory configs
-		delete(c.localConfig, "volatile.apply_quota")
-		delete(c.expandedConfig, "volatile.apply_quota")
-	}
-
 	/* Deal with idmap changes */
 	nextIdmap, err := c.NextIdmap()
 	if err != nil {
@@ -4365,52 +4338,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		c.idmapset = nil
 	}
 
-	// Make sure we have a valid root disk device (and only one)
-	newRootDiskDeviceKey, _, err := shared.GetRootDiskDevice(c.expandedDevices.CloneNative())
-	if err != nil {
-		return errors.Wrap(err, "Detect root disk device")
-	}
-
-	// Retrieve the first old root disk device key, even if there are duplicates.
-	oldRootDiskDeviceKey := ""
-	for k, v := range oldExpandedDevices {
-		if v["type"] == "disk" && v["path"] == "/" && v["pool"] != "" {
-			oldRootDiskDeviceKey = k
-			break
-		}
-	}
-
-	// Check for pool change
-	oldRootDiskDevicePool := oldExpandedDevices[oldRootDiskDeviceKey]["pool"]
-	newRootDiskDevicePool := c.expandedDevices[newRootDiskDeviceKey]["pool"]
-	if oldRootDiskDevicePool != newRootDiskDevicePool {
-		return fmt.Errorf("The storage pool of the root disk can only be changed through move")
-	}
-
-	// Deal with quota changes
-	oldRootDiskDeviceSize := oldExpandedDevices[oldRootDiskDeviceKey]["size"]
-	newRootDiskDeviceSize := c.expandedDevices[newRootDiskDeviceKey]["size"]
-
-	isRunning := c.IsRunning()
-	// Apply disk quota changes
-	if newRootDiskDeviceSize != oldRootDiskDeviceSize {
-		storageTypeName := c.storage.GetStorageTypeName()
-		storageIsReady := c.storage.ContainerStorageReady(c)
-		if (storageTypeName == "lvm" || storageTypeName == "ceph") && isRunning || !storageIsReady {
-			c.localConfig["volatile.apply_quota"] = newRootDiskDeviceSize
-		} else {
-			size, err := units.ParseByteSizeString(newRootDiskDeviceSize)
-			if err != nil {
-				return err
-			}
-
-			err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	// Update MAAS
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
@@ -4434,6 +4361,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Apply the live changes
+	isRunning := c.IsRunning()
 	if isRunning {
 		// Live update the container config
 		for _, key := range changedConfig {
