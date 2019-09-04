@@ -1741,13 +1741,13 @@ func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []dev
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (c *containerLXC) deviceUpdate(deviceName string, rawConfig config.Device, oldConfig config.Device, isRunning bool) error {
+func (c *containerLXC) deviceUpdate(deviceName string, rawConfig config.Device, oldDevices config.Devices, isRunning bool) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
 
-	err = d.Update(oldConfig, isRunning)
+	err = d.Update(oldDevices, isRunning)
 	if err != nil {
 		return err
 	}
@@ -4899,7 +4899,7 @@ func (c *containerLXC) updateDevices(removeDevices config.Devices, addDevices co
 	}
 
 	for _, dev := range updateDevices.Sorted() {
-		err := c.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices[dev.Name], isRunning)
+		err := c.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, isRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
 			return errors.Wrapf(err, "Failed to update device '%s'", dev.Name)
 		}
