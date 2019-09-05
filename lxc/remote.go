@@ -211,7 +211,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	// adding the remote server.
 	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == "tls" || c.flagAuthType == "") {
 		if !conf.HasClientCertificate() {
-			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute…")+"\n")
 			err = conf.GenerateClientCertificate()
 			if err != nil {
 				return err
