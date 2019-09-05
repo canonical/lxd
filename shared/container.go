@@ -133,10 +133,13 @@ func IsDeviceID(value string) error {
 	return nil
 }
 
-// IsRootDiskDevice returns true if the given device representation is
-// configured as root disk for a container. It typically get passed a specific
-// entry of api.Container.Devices.
+// IsRootDiskDevice returns true if the given device representation is configured as root disk for
+// a container. It typically get passed a specific entry of api.Container.Devices.
 func IsRootDiskDevice(device map[string]string) bool {
+	// Root disk devices also need a non-empty "pool" property, but we can't check that here
+	// because this function is used with clients talking to older servers where there was no
+	// concept of a storage pool, and also it is used for migrating from old to new servers.
+	// The validation of the non-empty "pool" property is done inside the disk device itself.
 	if device["type"] == "disk" && device["path"] == "/" && device["source"] == "" {
 		return true
 	}
