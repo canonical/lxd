@@ -457,7 +457,7 @@ type cmdStorageVolumeCreate struct {
 
 func (c *cmdStorageVolumeCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<pool> <volume> [key=value...]")
+	cmd.Use = i18n.G("create [<remote>:]<pool> <volume> [key=value…]")
 	cmd.Short = i18n.G("Create new custom storage volumes")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create new custom storage volumes`))
@@ -1271,7 +1271,7 @@ type cmdStorageVolumeSet struct {
 
 func (c *cmdStorageVolumeSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<pool> <volume> <key>=<value>...")
+	cmd.Use = i18n.G("set [<remote>:]<pool> <volume> <key>=<value>…")
 	cmd.Short = i18n.G("Set storage volume configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set storage volume configuration keys
