@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -810,46 +811,88 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 }
 
 func getImageMetadata(fname string) (*api.ImageMetadata, error) {
-	metadataName := "metadata.yaml"
+	var tr *tar.Reader
+	var result api.ImageMetadata
 
-	compressionArgs, _, _, err := shared.DetectCompression(fname)
-
+	// Open the file
+	r, err := os.Open(fname)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"detectCompression failed, err='%v', tarfile='%s'",
-			err,
-			fname)
+		return nil, err
+	}
+	defer r.Close()
+
+	// Decompress if needed
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	if err != nil {
+		return nil, err
+	}
+	r.Seek(0, 0)
+
+	if unpacker == nil {
+		return nil, fmt.Errorf("Unsupported backup compression")
 	}
 
-	args := []string{"-O"}
-	args = append(args, compressionArgs...)
-	args = append(args, fname, metadataName)
+	// Open the tarball
+	if len(unpacker) > 0 {
+		cmd := exec.Command(unpacker[0], unpacker[1:]...)
+		cmd.Stdin = r
 
-	// read the metadata.yaml
-	output, err := shared.RunCommand("tar", args...)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, err
+		}
+		defer stdout.Close()
 
-	if err != nil {
-		outputLines := strings.Split(output, "\n")
-		return nil, fmt.Errorf("Could not extract image %s from tar: %v (%s)", metadataName, err, outputLines[0])
+		err = cmd.Start()
+		if err != nil {
+			return nil, err
+		}
+		defer cmd.Wait()
+
+		// Double close stdout, this is to avoid hangs in Wait()
+		defer stdout.Close()
+
+		tr = tar.NewReader(stdout)
+	} else {
+		tr = tar.NewReader(r)
 	}
 
-	metadata := api.ImageMetadata{}
-	err = yaml.Unmarshal([]byte(output), &metadata)
+	// Parse the content
+	hasMeta := false
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
+		if hdr.Name == "metadata.yaml" || hdr.Name == "./metadata.yaml" {
+			err = yaml.NewDecoder(tr).Decode(&result)
+			if err != nil {
+				return nil, err
+			}
+
+			hasMeta = true
+			break
+		}
 	}
 
-	_, err = osarch.ArchitectureId(metadata.Architecture)
+	if !hasMeta {
+		return nil, fmt.Errorf("Metadata tarball is missing metadata.yaml")
+	}
+
+	_, err = osarch.ArchitectureId(result.Architecture)
 	if err != nil {
 		return nil, err
 	}
 
-	if metadata.CreationDate == 0 {
+	if result.CreationDate == 0 {
 		return nil, fmt.Errorf("Missing creation date")
 	}
 
-	return &metadata, nil
+	return &result, nil
 }
 
 func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interface{}, error) {
