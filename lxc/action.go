@@ -26,7 +26,7 @@ func (c *cmdStart) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("start")
-	cmd.Use = i18n.G("start [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Use = i18n.G("start [<remote>:]<container> [[<remote>:]<container>…]")
 	cmd.Short = i18n.G("Start containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Start containers`))
@@ -45,7 +45,7 @@ func (c *cmdPause) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("pause")
-	cmd.Use = i18n.G("pause [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Use = i18n.G("pause [<remote>:]<container> [[<remote>:]<container>…]")
 	cmd.Short = i18n.G("Pause containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Pause containers`))
@@ -65,7 +65,7 @@ func (c *cmdRestart) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("restart")
-	cmd.Use = i18n.G("restart [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Use = i18n.G("restart [<remote>:]<container> [[<remote>:]<container>…]")
 	cmd.Short = i18n.G("Restart containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Restart containers
@@ -86,7 +86,7 @@ func (c *cmdStop) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("stop")
-	cmd.Use = i18n.G("stop [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Use = i18n.G("stop [<remote>:]<container> [[<remote>:]<container>…]")
 	cmd.Short = i18n.G("Stop containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Stop containers`))
