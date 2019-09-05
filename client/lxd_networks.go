@@ -58,7 +58,7 @@ func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
 	network := api.Network{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s", url.QueryEscape(name)), nil, "", &network)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s", url.PathEscape(name)), nil, "", &network)
 	if err != nil {
 		return nil, "", err
 	}
@@ -75,7 +75,7 @@ func (r *ProtocolLXD) GetNetworkLeases(name string) ([]api.NetworkLease, error) 
 	leases := []api.NetworkLease{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/leases", url.QueryEscape(name)), nil, "", &leases)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/leases", url.PathEscape(name)), nil, "", &leases)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *ProtocolLXD) GetNetworkState(name string) (*api.NetworkState, error) {
 	state := api.NetworkState{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/state", url.QueryEscape(name)), nil, "", &state)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/state", url.PathEscape(name)), nil, "", &state)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag st
 	}
 
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/networks/%s", url.QueryEscape(name)), network, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, ETag)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) error 
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/networks/%s", url.QueryEscape(name)), network, "")
+	_, _, err := r.query("POST", fmt.Sprintf("/networks/%s", url.PathEscape(name)), network, "")
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (r *ProtocolLXD) DeleteNetwork(name string) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/networks/%s", url.QueryEscape(name)), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/networks/%s", url.PathEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
