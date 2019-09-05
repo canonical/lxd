@@ -106,7 +106,8 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d.State(), d.cluster, deviceConfig.NewDevices(req.Devices), true, false)
+	// Validate container devices with an empty instanceName to indicate profile validation.
+	err = containerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return BadRequest(err)
 	}

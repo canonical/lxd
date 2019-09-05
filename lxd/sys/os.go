@@ -54,16 +54,17 @@ type OS struct {
 	AppArmorStacking  bool
 
 	// Cgroup features
-	CGroupBlkioController   bool
-	CGroupCPUacctController bool
-	CGroupCPUController     bool
-	CGroupCPUsetController  bool
-	CGroupDevicesController bool
-	CGroupFreezerController bool
-	CGroupMemoryController  bool
-	CGroupNetPrioController bool
-	CGroupPidsController    bool
-	CGroupSwapAccounting    bool
+	CGroupBlkioController       bool
+	CGroupBlkioWeightController bool
+	CGroupCPUacctController     bool
+	CGroupCPUController         bool
+	CGroupCPUsetController      bool
+	CGroupDevicesController     bool
+	CGroupFreezerController     bool
+	CGroupMemoryController      bool
+	CGroupNetPrioController     bool
+	CGroupPidsController        bool
+	CGroupSwapAccounting        bool
 
 	// Kernel features
 	NetnsGetifaddrs bool

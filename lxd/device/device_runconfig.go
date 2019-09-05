@@ -1,5 +1,14 @@
 package device
 
+// MountOwnerShiftNone do not use owner shifting.
+const MountOwnerShiftNone = ""
+
+// MountOwnerShiftDynamic use shiftfs for dynamic owner shifting.
+const MountOwnerShiftDynamic = "dynamic"
+
+// MountOwnerShiftStatic statically modify ownership.
+const MountOwnerShiftStatic = "static"
+
 // RunConfigItem represents a single config item.
 type RunConfigItem struct {
 	Key   string
@@ -14,11 +23,18 @@ type MountEntryItem struct {
 	Opts       []string // Describes the mount options associated with the filesystem.
 	Freq       int      // Used by dump(8) to determine which filesystems need to be dumped. Defaults to zero (don't dump) if not present.
 	PassNo     int      // Used by fsck(8) to determine the order in which filesystem checks are done at boot time. Defaults to zero (don't fsck) if not present.
-	Shift      bool     // Whether or not to use shiftfs with this mount.
+	OwnerShift string   // Ownership shifting mode, use constants MountOwnerShiftNone, MountOwnerShiftStatic or MountOwnerShiftDynamic.
+}
+
+// RootFSEntryItem represents the root filesystem options for an Instance.
+type RootFSEntryItem struct {
+	Path string   // Describes the root file system source.
+	Opts []string // Describes the mount options associated with the filesystem.
 }
 
 // RunConfig represents LXD defined run-time config used for device setup/cleanup.
 type RunConfig struct {
+	RootFS           RootFSEntryItem  // RootFS to setup.
 	NetworkInterface []RunConfigItem  // Network interface configuration settings.
 	CGroups          []RunConfigItem  // Cgroup rules to setup.
 	Mounts           []MountEntryItem // Mounts to setup/remove.

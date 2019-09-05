@@ -102,48 +102,6 @@ func containerValidConfigKey(os *sys.OS, key string, value string) error {
 	return nil
 }
 
-func containerValidDeviceConfigKey(t, k string) bool {
-	if k == "type" {
-		return true
-	}
-
-	switch t {
-	case "disk":
-		switch k {
-		case "limits.max":
-			return true
-		case "limits.read":
-			return true
-		case "limits.write":
-			return true
-		case "optional":
-			return true
-		case "path":
-			return true
-		case "readonly":
-			return true
-		case "size":
-			return true
-		case "source":
-			return true
-		case "recursive":
-			return true
-		case "pool":
-			return true
-		case "propagation":
-			return true
-		case "shift":
-			return true
-		default:
-			return false
-		}
-	case "none":
-		return false
-	default:
-		return false
-	}
-}
-
 func allowedUnprivilegedOnlyMap(rawIdmap string) error {
 	rawMaps, err := parseRawIdmap(rawIdmap)
 	if err != nil {
@@ -214,117 +172,35 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	return nil
 }
 
-func containerValidDevices(state *state.State, cluster *db.Cluster, devices config.Devices, profile bool, expanded bool) error {
+// containerValidDevices validate container device configs.
+func containerValidDevices(state *state.State, cluster *db.Cluster, instanceName string, devices config.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
 	}
 
-	var diskDevicePaths []string
-	// Check each device individually
-	for name, m := range devices {
-		// Validate config using device interface.
-		_, err := device.New(&containerLXC{}, state, name, config.Device(m), nil, nil)
-		if err != device.ErrUnsupportedDevType {
-			if err != nil {
-				return err
-			}
-			continue // Validated device OK.
-		}
-
-		// Fallback to legacy validation for non device package devices.
-		if !shared.StringInSlice(m["type"], []string{"disk", "none"}) {
-			return fmt.Errorf("Invalid device type for device '%s'", name)
-		}
-
-		for k := range m {
-			if !containerValidDeviceConfigKey(m["type"], k) {
-				return fmt.Errorf("Invalid device configuration key for %s: %s", m["type"], k)
-			}
-		}
-
-		if m["type"] == "infiniband" {
-			if m["nictype"] == "" {
-				return fmt.Errorf("Missing nic type")
-			}
-
-			if !shared.StringInSlice(m["nictype"], []string{"physical", "sriov"}) {
-				return fmt.Errorf("Bad nic type: %s", m["nictype"])
-			}
-
-			if m["parent"] == "" {
-				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
-			}
-		} else if m["type"] == "disk" {
-			if !expanded && !shared.StringInSlice(m["path"], diskDevicePaths) {
-				diskDevicePaths = append(diskDevicePaths, m["path"])
-			} else if !expanded {
-				return fmt.Errorf("More than one disk device uses the same path: %s", m["path"])
-			}
-
-			if m["path"] == "" {
-				return fmt.Errorf("Disk entry is missing the required \"path\" property")
-			}
-
-			if m["source"] == "" && m["path"] != "/" {
-				return fmt.Errorf("Disk entry is missing the required \"source\" property")
-			}
-
-			if m["path"] == "/" && m["source"] != "" {
-				return fmt.Errorf("Root disk entry may not have a \"source\" property set")
-			}
-
-			if m["size"] != "" && m["path"] != "/" {
-				return fmt.Errorf("Only the root disk may have a size quota")
-			}
-
-			if (m["path"] == "/" || !shared.IsDir(shared.HostPath(m["source"]))) && m["recursive"] != "" {
-				return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths")
-			}
-
-			if m["pool"] != "" {
-				if filepath.IsAbs(m["source"]) {
-					return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
-				}
-
-				_, err := cluster.StoragePoolGetID(m["pool"])
-				if err != nil {
-					return fmt.Errorf("The \"%s\" storage pool doesn't exist", m["pool"])
-				}
-
-				if !profile && expanded && m["source"] != "" && m["path"] != "/" {
-					isAvailable, err := cluster.StorageVolumeIsAvailable(
-						m["pool"], m["source"])
-					if err != nil {
-						return errors.Wrap(err, "Check if volume is available")
-					}
-					if !isAvailable {
-						return fmt.Errorf(
-							"Storage volume %q is already attached to a container "+
-								"on a different node", m["source"])
-					}
-				}
-			}
-
-			if m["propagation"] != "" {
-				if !shared.StringInSlice(m["propagation"], []string{"private", "shared", "slave", "unbindable", "rprivate", "rshared", "rslave", "runbindable"}) {
-					return fmt.Errorf("Invalid propagation mode '%s'", m["propagation"])
-				}
-			}
-
-			if m["shift"] != "" {
-				if m["pool"] != "" {
-					return fmt.Errorf("The \"shift\" property cannot be used with custom storage volumes")
-				}
-			}
-		} else if m["type"] == "none" {
-			continue
-		} else {
-			return fmt.Errorf("Invalid device type: %s", m["type"])
-		}
+	// Create a temporary containerLXC struct to use as an Instance in device validation.
+	// Populate it's name, localDevices and expandedDevices properties based on the mode of
+	// validation occurring. In non-expanded validation expensive checks should be avoided.
+	instance := &containerLXC{
+		name:         instanceName,
+		localDevices: devices.Clone(), // Prevent devices from modifying their config.
 	}
 
-	// Checks on the expanded config
+	if expanded {
+		instance.expandedDevices = instance.localDevices // Avoid another clone.
+	}
+
+	// Check each device individually using the device package.
+	for name, config := range devices {
+		_, err := device.New(instance, state, name, config, nil, nil)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	// Check we have a root disk if in expanded validation mode.
 	if expanded {
 		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
 		if err != nil {
@@ -939,8 +815,8 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		return nil, err
 	}
 
-	// Validate container devices
-	err = containerValidDevices(s, s.Cluster, args.Devices, false, false)
+	// Validate container devices with the supplied container name and devices.
+	err = containerValidDevices(s, s.Cluster, args.Name, args.Devices, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
