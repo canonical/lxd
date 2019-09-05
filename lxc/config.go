@@ -449,7 +449,7 @@ type cmdConfigSet struct {
 
 func (c *cmdConfigSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:][<container>] <key>=<value>...")
+	cmd.Use = i18n.G("set [<remote>:][<container>] <key>=<value>…")
 	cmd.Short = i18n.G("Set container or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set container or server configuration keys
