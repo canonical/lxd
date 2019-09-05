@@ -37,7 +37,7 @@ type cmdList struct {
 
 func (c *cmdList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:] [<filter>...]")
+	cmd.Use = i18n.G("list [<remote>:] [<filter>…]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
