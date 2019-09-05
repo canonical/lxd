@@ -24,7 +24,7 @@ type cmdDelete struct {
 
 func (c *cmdDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/<snapshot>]...]")
+	cmd.Use = i18n.G("delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/<snapshot>]…]")
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete containers and snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
