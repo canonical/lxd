@@ -602,6 +602,10 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		},
 	}
 
+	if args != nil {
+		req.Source.ImageType = args.Type
+	}
+
 	// Generate secret token if needed
 	if !image.Public {
 		secret, err := source.GetImageSecret(image.Fingerprint)
