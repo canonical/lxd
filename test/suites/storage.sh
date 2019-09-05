@@ -759,19 +759,43 @@ test_storage() {
     fi
   )
 
-  # Test applying quota
+  # Test applying quota (expected size ranges are in KB and have an allowable range to account for allocation variations).
   QUOTA1="10GB"
+  rootMinKB1="9456000"
+  rootMaxKB1="9999999"
+
   QUOTA2="11GB"
+  rootMinKB2="10402000"
+  rootMaxKB2="10744999"
+
   if [ "$lxd_backend" = "lvm" ]; then
     QUOTA1="20MB"
+    rootMinKB1="17000"
+    rootMaxKB1="20000"
+
     QUOTA2="21MB"
+    rootMinKB2="21000"
+    rootMaxKB2="23000"
   fi
 
   if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "ceph" ]; then
     lxc launch testimage quota1
+    rootOrigSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+    rootOrigMinSizeKB=$((rootOrigSizeKB-1000))
+    rootOrigMaxSizeKB=$((rootOrigSizeKB+1000))
+
     lxc profile device set default root size "${QUOTA1}"
     lxc stop -f quota1
     lxc start quota1
+
+    # BTRFS quota isn't accessible with the df tool.
+    if [ "$lxd_backend" != "btrfs" ]; then
+    rootSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKB" -gt "$rootMaxKB1" ] || [ "$rootSizeKB" -lt "$rootMinKB1" ] ; then
+        echo "root size not within quota range"
+        false
+      fi
+    fi
 
     lxc launch testimage quota2
     lxc stop -f quota2
@@ -787,13 +811,37 @@ test_storage() {
 
     lxc stop -f quota2
     lxc start quota2
+    if [ "$lxd_backend" != "btrfs" ]; then
+      rootSizeKB=$(lxc exec quota2 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKB" -gt "$rootMaxKB2" ] || [ "$rootSizeKB" -lt "$rootMinKB2" ] ; then
+        echo "root size not within quota range"
+        false
+      fi
+    fi
 
     lxc stop -f quota3
     lxc start quota3
 
     lxc profile device unset default root size
+
+    # Only ZFS supports hot quota changes (LVM requires a reboot).
+    if [ "$lxd_backend" = "zfs" ]; then
+      rootSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKB" -gt "$rootOrigMaxSizeKB" ] || [ "$rootSizeKB" -lt "$rootOrigMinSizeKB" ] ; then
+        echo "original root size not restored"
+        false
+      fi
+    fi
+
     lxc stop -f quota1
     lxc start quota1
+    if [ "$lxd_backend" = "zfs" ]; then
+      rootSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
+      if [ "$rootSizeKB" -gt "$rootOrigMaxSizeKB" ] || [ "$rootSizeKB" -lt "$rootOrigMinSizeKB" ] ; then
+        echo "original root size not restored"
+        false
+      fi
+    fi
 
     lxc stop -f quota2
     lxc start quota2
