@@ -71,7 +71,7 @@ type cmdConfigDeviceAdd struct {
 
 func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("add [<remote>:]<container|profile> <device> <type> [key=value...]")
+	cmd.Use = i18n.G("add [<remote>:]<container|profile> <device> <type> [key=value…]")
 	cmd.Short = i18n.G("Add devices to containers or profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add devices to containers or profiles`))
@@ -316,7 +316,7 @@ type cmdConfigDeviceOverride struct {
 
 func (c *cmdConfigDeviceOverride) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("override [<remote>:]<container> <device> [key=value...]")
+	cmd.Use = i18n.G("override [<remote>:]<container> <device> [key=value…]")
 	cmd.Short = i18n.G("Copy profile inherited devices and override configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Copy profile inherited devices and override configuration keys`))
@@ -404,7 +404,7 @@ type cmdConfigDeviceRemove struct {
 
 func (c *cmdConfigDeviceRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remove [<remote>:]<container|profile> <name>...")
+	cmd.Use = i18n.G("remove [<remote>:]<container|profile> <name>…")
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Remove container devices")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -495,7 +495,7 @@ type cmdConfigDeviceSet struct {
 
 func (c *cmdConfigDeviceSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<container|profile> <device> <key>=<value>...")
+	cmd.Use = i18n.G("set [<remote>:]<container|profile> <device> <key>=<value>…")
 	cmd.Short = i18n.G("Set container device configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set container device configuration keys
