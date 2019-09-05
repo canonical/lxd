@@ -518,7 +518,7 @@ type cmdProjectSet struct {
 
 func (c *cmdProjectSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<project> <key>=<value>...")
+	cmd.Use = i18n.G("set [<remote>:]<project> <key>=<value>…")
 	cmd.Short = i18n.G("Set project configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set project configuration keys
