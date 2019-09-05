@@ -778,7 +778,7 @@ test_storage() {
     rootMaxKB2="23000"
   fi
 
-  if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "ceph" ]; then
+  if [ "$lxd_backend" != "dir" ]; then
     lxc launch testimage quota1
     rootOrigSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
     rootOrigMinSizeKB=$((rootOrigSizeKB-1000))
