@@ -1,47 +1,38 @@
 package config
 
-type namedDevice struct {
-	name   string
-	device Device
+// DeviceNamed contains the name of a device and its config.
+type DeviceNamed struct {
+	Name   string
+	Config Device
 }
 
-type sortableDevices []namedDevice
+// DevicesSortable is a sortable slice of device names and config.
+type DevicesSortable []DeviceNamed
 
-func (devices sortableDevices) Len() int {
+func (devices DevicesSortable) Len() int {
 	return len(devices)
 }
 
-func (devices sortableDevices) Less(i, j int) bool {
+func (devices DevicesSortable) Less(i, j int) bool {
 	a := devices[i]
 	b := devices[j]
 
-	// First sort by types
-	if a.device["type"] != b.device["type"] {
-		return a.device["type"] < b.device["type"]
+	// First sort by types.
+	if a.Config["type"] != b.Config["type"] {
+		return a.Config["type"] < b.Config["type"]
 	}
 
-	// Special case disk paths
-	if a.device["type"] == "disk" && b.device["type"] == "disk" {
-		if a.device["path"] != b.device["path"] {
-			return a.device["path"] < b.device["path"]
+	// Special case disk paths.
+	if a.Config["type"] == "disk" && b.Config["type"] == "disk" {
+		if a.Config["path"] != b.Config["path"] {
+			return a.Config["path"] < b.Config["path"]
 		}
 	}
 
-	// Fallback to sorting by names
-	return a.name < b.name
+	// Fallback to sorting by names.
+	return a.Name < b.Name
 }
 
-func (devices sortableDevices) Swap(i, j int) {
-	tmp := devices[i]
-	devices[i] = devices[j]
-	devices[j] = tmp
-}
-
-func (devices sortableDevices) Names() []string {
-	result := []string{}
-	for _, d := range devices {
-		result = append(result, d.name)
-	}
-
-	return result
+func (devices DevicesSortable) Swap(i, j int) {
+	devices[i], devices[j] = devices[j], devices[i]
 }

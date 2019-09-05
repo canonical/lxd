@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -23,6 +24,16 @@ import (
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
+
+func init() {
+	// Expose storageVolumeMount to the device package as StorageVolumeMount.
+	device.StorageVolumeMount = storageVolumeMount
+	// Expose storageVolumeUmount to the device package as StorageVolumeUmount.
+	device.StorageVolumeUmount = storageVolumeUmount
+	// Expose storageRootFSApplyQuota to the device package as StorageRootFSApplyQuota.
+	device.StorageRootFSApplyQuota = storageRootFSApplyQuota
+
+}
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
 // operation they are about to perform is already in progress. If it is the
@@ -872,4 +883,71 @@ func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
 	storagePoolDriversCacheLock.Unlock()
 
 	return
+}
+
+// storageVolumeMount initialises a new storage interface and checks the pool and volume are
+// mounted. If they are not then they are mounted.
+func storageVolumeMount(state *state.State, poolName string, volumeName string, volumeTypeName string, instance device.InstanceIdentifier) error {
+	c, ok := instance.(*containerLXC)
+	if !ok {
+		return fmt.Errorf("Received non-LXC container instance")
+	}
+
+	volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
+	s, err := storagePoolVolumeAttachInit(state, poolName, volumeName, volumeType, c)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// storageVolumeUmount unmounts a storage volume on a pool.
+func storageVolumeUmount(state *state.State, poolName string, volumeName string, volumeType int) error {
+	// Custom storage volumes do not currently support projects, so hardcode "default" project.
+	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.StoragePoolVolumeUmount()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// storageRootFSApplyQuota applies a quota to an instance if it can, if it cannot then it will
+// return false indicating that the quota needs to be stored in volatile to be applied on next boot.
+func storageRootFSApplyQuota(instance device.InstanceIdentifier, newSizeBytes int64) (bool, error) {
+	c, ok := instance.(*containerLXC)
+	if !ok {
+		return false, fmt.Errorf("Received non-LXC container instance")
+	}
+
+	err := c.initStorage()
+	if err != nil {
+		return false, errors.Wrap(err, "Initialize storage")
+	}
+
+	storageTypeName := c.storage.GetStorageTypeName()
+	storageIsReady := c.storage.ContainerStorageReady(c)
+
+	// If we cannot apply the quota now, then return false as needs to be applied on next boot.
+	if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() || !storageIsReady {
+		return false, nil
+	}
+
+	err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, newSizeBytes, c)
+	if err != nil {
+		return false, errors.Wrap(err, "Set storage quota")
+	}
+
+	return true, nil
 }

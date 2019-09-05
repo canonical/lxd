@@ -11,6 +11,7 @@ import (
 func (s *OS) initCGroup() {
 	flags := []*bool{
 		&s.CGroupBlkioController,
+		&s.CGroupBlkioWeightController,
 		&s.CGroupCPUController,
 		&s.CGroupCPUacctController,
 		&s.CGroupCPUsetController,
@@ -42,6 +43,7 @@ var cGroups = []struct {
 	warn string
 }{
 	{"blkio", cGroupMissing("blkio", "I/O limits will be ignored")},
+	{"blkio/blkio.weight", cGroupMissing("blkio.weight", "I/O weight limits will be ignored")},
 	{"cpu", cGroupMissing("CPU controller", "CPU time limits will be ignored")},
 	{"cpuacct", cGroupMissing("CPUacct controller", "CPU accounting will not be available")},
 	{"cpuset", cGroupMissing("CPUset controller", "CPU pinning will be ignored")},
