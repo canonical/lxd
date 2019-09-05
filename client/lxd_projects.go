@@ -60,7 +60,7 @@ func (r *ProtocolLXD) GetProject(name string) (*api.Project, string, error) {
 	project := api.Project{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/projects/%s", url.QueryEscape(name)), nil, "", &project)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/projects/%s", url.PathEscape(name)), nil, "", &project)
 	if err != nil {
 		return nil, "", err
 	}
@@ -90,7 +90,7 @@ func (r *ProtocolLXD) UpdateProject(name string, project api.ProjectPut, ETag st
 	}
 
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/projects/%s", url.QueryEscape(name)), project, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/projects/%s", url.PathEscape(name)), project, ETag)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (r *ProtocolLXD) RenameProject(name string, project api.ProjectPost) (Opera
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/projects/%s", url.QueryEscape(name)), project, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/projects/%s", url.PathEscape(name)), project, "")
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (r *ProtocolLXD) DeleteProject(name string) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/projects/%s", url.QueryEscape(name)), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/projects/%s", url.PathEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
