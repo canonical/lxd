@@ -30,7 +30,7 @@ func (c *cmdPublish) showByDefault() bool {
 
 func (c *cmdPublish) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] [key=value...]")
+	cmd.Use = i18n.G("publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] [key=value…]")
 	cmd.Short = i18n.G("Publish containers as images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Publish containers as images`))
