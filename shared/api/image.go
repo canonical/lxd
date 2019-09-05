@@ -81,6 +81,9 @@ type ImageSource struct {
 	Certificate string `json:"certificate" yaml:"certificate"`
 	Protocol    string `json:"protocol" yaml:"protocol"`
 	Server      string `json:"server" yaml:"server"`
+
+	// API extension: image_types
+	ImageType string `json:"image_type" yaml:"image_type"`
 }
 
 // ImageAliasesPost represents a new LXD image alias
