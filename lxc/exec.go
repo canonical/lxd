@@ -42,7 +42,7 @@ func (c *cmdExec) Command() *cobra.Command {
 		`Execute commands in containers
 
 The command is executed directly using exec, so there is no shell and
-shell patterns (variables, file redirects, ...) won't be understood.
+shell patterns (variables, file redirects, …) won't be understood.
 If you need a shell environment you need to execute the shell
 executable, passing the shell commands as arguments, for example:
 
