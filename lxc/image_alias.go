@@ -143,7 +143,7 @@ type cmdImageAliasList struct {
 
 func (c *cmdImageAliasList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:] [<filters>...]")
+	cmd.Use = i18n.G("list [<remote>:] [<filters>…]")
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List image aliases")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
