@@ -101,7 +101,7 @@ type cmdFileDelete struct {
 
 func (c *cmdFileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]")
+	cmd.Use = i18n.G("delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>…]")
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete files in containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
@@ -214,7 +214,7 @@ type cmdFilePull struct {
 
 func (c *cmdFilePull) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] <target path>")
+	cmd.Use = i18n.G("pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>…] <target path>")
 	cmd.Short = i18n.G("Pull files from containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Pull files from containers`))
@@ -404,7 +404,7 @@ type cmdFilePush struct {
 
 func (c *cmdFilePush) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]")
+	cmd.Use = i18n.G("push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/<path>…]")
 	cmd.Short = i18n.G("Push files into containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Push files into containers`))
