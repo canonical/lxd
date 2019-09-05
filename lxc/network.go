@@ -248,7 +248,7 @@ type cmdNetworkCreate struct {
 
 func (c *cmdNetworkCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<network> [key=value...]")
+	cmd.Use = i18n.G("create [<remote>:]<network> [key=value…]")
 	cmd.Short = i18n.G("Create new networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create new networks`))
@@ -1005,7 +1005,7 @@ type cmdNetworkSet struct {
 
 func (c *cmdNetworkSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:]<network> <key>=<value>...")
+	cmd.Use = i18n.G("set [<remote>:]<network> <key>=<value>…")
 	cmd.Short = i18n.G("Set network configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Set network configuration keys
