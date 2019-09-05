@@ -463,24 +463,19 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		imageTarf.Close()
 		if err != nil {
-			logger.Error(
-				"Failed to copy the image tarfile",
-				log.Ctx{"err": err})
+			logger.Error("Failed to copy the image tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		// Get the rootfs tarball
 		part, err = mr.NextPart()
 		if err != nil {
-			logger.Error(
-				"Failed to get the next part",
-				log.Ctx{"err": err})
+			logger.Error("Failed to get the next part", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		if part.FormName() != "rootfs" {
-			logger.Error(
-				"Invalid multipart image")
+			logger.Error("Invalid multipart image")
 
 			return nil, fmt.Errorf("Invalid multipart image")
 		}
@@ -497,9 +492,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		rootfsTarf.Close()
 		if err != nil {
-			logger.Error(
-				"Failed to copy the rootfs tarfile",
-				log.Ctx{"err": err})
+			logger.Error("Failed to copy the rootfs tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
 
@@ -514,33 +507,27 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		imageMeta, err = getImageMetadata(imageTarf.Name())
 		if err != nil {
-			logger.Error(
-				"Failed to get image metadata",
-				log.Ctx{"err": err})
+			logger.Error("Failed to get image metadata", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
-			logger.Error(
-				"Failed to move the image tarfile",
-				log.Ctx{
-					"err":    err,
-					"source": imageTarf.Name(),
-					"dest":   imgfname})
+			logger.Error("Failed to move the image tarfile", log.Ctx{
+				"err":    err,
+				"source": imageTarf.Name(),
+				"dest":   imgfname})
 			return nil, err
 		}
 
 		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
 		err = shared.FileMove(rootfsTarf.Name(), rootfsfname)
 		if err != nil {
-			logger.Error(
-				"Failed to move the rootfs tarfile",
-				log.Ctx{
-					"err":    err,
-					"source": rootfsTarf.Name(),
-					"dest":   imgfname})
+			logger.Error("Failed to move the rootfs tarfile", log.Ctx{
+				"err":    err,
+				"source": rootfsTarf.Name(),
+				"dest":   imgfname})
 			return nil, err
 		}
 	} else {
@@ -549,9 +536,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		info.Size = size
 		logger.Debug("Tar size", log.Ctx{"size": size})
 		if err != nil {
-			logger.Error(
-				"Failed to copy the tarfile",
-				log.Ctx{"err": err})
+			logger.Error("Failed to copy the tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
 
@@ -560,35 +545,26 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
-			logger.Error(
-				"Fingerprints don't match",
-				log.Ctx{
-					"got":      info.Fingerprint,
-					"expected": expectedFingerprint})
-			err = fmt.Errorf(
-				"fingerprints don't match, got %s expected %s",
-				info.Fingerprint,
-				expectedFingerprint)
+			logger.Error("Fingerprints don't match", log.Ctx{
+				"got":      info.Fingerprint,
+				"expected": expectedFingerprint})
+			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
 			return nil, err
 		}
 
 		imageMeta, err = getImageMetadata(post.Name())
 		if err != nil {
-			logger.Error(
-				"Failed to get image metadata",
-				log.Ctx{"err": err})
+			logger.Error("Failed to get image metadata", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(post.Name(), imgfname)
 		if err != nil {
-			logger.Error(
-				"Failed to move the tarfile",
-				log.Ctx{
-					"err":    err,
-					"source": post.Name(),
-					"dest":   imgfname})
+			logger.Error("Failed to move the tarfile", log.Ctx{
+				"err":    err,
+				"source": post.Name(),
+				"dest":   imgfname})
 			return nil, err
 		}
 	}
@@ -612,6 +588,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 	if err != nil {
 		return nil, err
 	}
+
 	if exists {
 		// Do not create a database entry if the request is coming from the internal
 		// cluster communications for image synchronization
