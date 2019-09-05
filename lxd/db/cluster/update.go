@@ -52,6 +52,13 @@ var updates = map[int]schema.Update{
 	15: updateFromV14,
 	16: updateFromV15,
 	17: updateFromV16,
+	18: updateFromV17,
+}
+
+// Add image source type column
+func updateFromV17(tx *sql.Tx) error {
+	_, err := tx.Exec("ALTER TABLE images_source ADD COLUMN type INTEGER NOT NULL DEFAULT 0;")
+	return err
 }
 
 // Add image type column

@@ -73,6 +73,7 @@ CREATE TABLE images_source (
     protocol INTEGER NOT NULL,
     certificate TEXT NOT NULL,
     alias TEXT NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
 );
 CREATE TABLE "instances" (
@@ -481,5 +482,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (17, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (18, strftime("%s"))
 `
