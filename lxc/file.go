@@ -50,8 +50,6 @@ func fileGetWrapper(server lxd.ContainerServer, container string, path string) (
 
 	count := 0
 	for {
-		var err error
-
 		select {
 		case <-chDone:
 			return buf, resp, err
