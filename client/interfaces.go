@@ -384,6 +384,9 @@ type ImageCopyArgs struct {
 
 	// Whether this image is to be made available to unauthenticated users
 	Public bool
+
+	// The image type to use for resolution
+	Type string
 }
 
 // The StoragePoolVolumeCopyArgs struct is used to pass additional options
