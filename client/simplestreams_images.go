@@ -57,7 +57,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 	// Attempt to download from host
 	if shared.PathExists("/dev/lxd/sock") && os.Geteuid() == 0 {
-		unixURI := fmt.Sprintf("http://unix.socket/1.0/images/%s/export", url.QueryEscape(fingerprint))
+		unixURI := fmt.Sprintf("http://unix.socket/1.0/images/%s/export", url.PathEscape(fingerprint))
 
 		// Setup the HTTP client
 		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock")
