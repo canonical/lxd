@@ -93,6 +93,10 @@ func (d *disk) validateConfig() error {
 		return fmt.Errorf("Root disk entry may not have a \"source\" property set")
 	}
 
+	if d.config["path"] == "/" && d.config["pool"] == "" {
+		return fmt.Errorf("Root disk entry must have a \"pool\" property set")
+	}
+
 	if d.config["size"] != "" && d.config["path"] != "/" {
 		return fmt.Errorf("Only the root disk may have a size quota")
 	}
