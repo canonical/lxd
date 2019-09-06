@@ -28,7 +28,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 			logger.Debugf("DBERR: containersGet: error %q", err)
 			return SmartError(err)
 		}
-		// 1 s may seem drastic, but we really don't want to thrash
+		// 100 ms may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
 		time.Sleep(100 * time.Millisecond)
 	}
