@@ -80,7 +80,7 @@ The two best options for use with LXD are ZFS and btrfs.
 They have about similar functionalities but ZFS is more reliable if available on your particular platform.
 
 Whenever possible, you should dedicate a full disk or partition to your LXD storage pool.  
-While LXD will let you create loop based storage, this isn't a recommended for production use.
+While LXD will let you create loop based storage, this isn't recommended for production use.
 
 Similarly, the directory backend is to be considered as a last resort option.  
 It does support all main LXD features, but is terribly slow and inefficient as it can't perform  
@@ -256,7 +256,7 @@ lxc storage create pool1 ceph source=my-already-existing-osd
 lxc storage create pool1 btrfs
 ```
 
- - Create a btrfs subvolume named "pool1" on the btrfs filesystem `/some/path` and use as pool.
+ - Create a new pool called "pool1" using an existing btrfs filesystem at `/some/path`.
 
 ```bash
 lxc storage create pool1 btrfs source=/some/path
