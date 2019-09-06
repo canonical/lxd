@@ -36,14 +36,14 @@ import (
 var networkCreateLock sync.Mutex
 
 var networksCmd = APIEndpoint{
-	Name: "networks",
+	Path: "networks",
 
 	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: networksPost},
 }
 
 var networkCmd = APIEndpoint{
-	Name: "networks/{name}",
+	Path: "networks/{name}",
 
 	Delete: APIEndpointAction{Handler: networkDelete},
 	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: AllowAuthenticated},
@@ -53,13 +53,13 @@ var networkCmd = APIEndpoint{
 }
 
 var networkLeasesCmd = APIEndpoint{
-	Name: "networks/{name}/leases",
+	Path: "networks/{name}/leases",
 
 	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: AllowAuthenticated},
 }
 
 var networkStateCmd = APIEndpoint{
-	Name: "networks/{name}/state",
+	Path: "networks/{name}/state",
 
 	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: AllowAuthenticated},
 }

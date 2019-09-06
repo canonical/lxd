@@ -13,15 +13,19 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var containerLogCmd = APIEndpoint{
-	Name: "containers/{name}/logs/{file}",
+var instanceLogCmd = APIEndpoint{
+	Name:    "instanceLog",
+	Path:    "instances/{name}/logs/{file}",
+	Aliases: []APIEndpointAlias{{Name: "containerLog", Path: "containers/{name}/logs/{file}"}},
 
 	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
-var containerLogsCmd = APIEndpoint{
-	Name: "containers/{name}/logs",
+var instanceLogsCmd = APIEndpoint{
+	Name:    "instanceLogs",
+	Path:    "instances/{name}/logs",
+	Aliases: []APIEndpointAlias{{Name: "containerLogs", Path: "containers/{name}/logs"}},
 
 	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }

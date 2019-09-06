@@ -31,6 +31,16 @@ func RestServer(d *Daemon) *http.Server {
 
 	for _, c := range api10 {
 		d.createCmd(mux, "1.0", c)
+
+		// Create any alias endpoints using the same handlers as the parent endpoint but
+		// with a different path and name (so the handler can differentiate being called via
+		// a different endpoint) if it wants to.
+		for _, alias := range c.Aliases {
+			ac := c
+			ac.Name = alias.Name
+			ac.Path = alias.Path
+			d.createCmd(mux, "1.0", ac)
+		}
 	}
 
 	for _, c := range apiInternal {

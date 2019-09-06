@@ -21,7 +21,7 @@ import (
 )
 
 var internalClusterContainerMovedCmd = APIEndpoint{
-	Name: "cluster/container-moved/{name}",
+	Path: "cluster/container-moved/{name}",
 
 	Post: APIEndpointAction{Handler: internalClusterContainerMovedPost},
 }

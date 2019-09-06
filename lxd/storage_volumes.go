@@ -22,21 +22,21 @@ import (
 )
 
 var storagePoolVolumesCmd = APIEndpoint{
-	Name: "storage-pools/{name}/volumes",
+	Path: "storage-pools/{name}/volumes",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolVolumesPost},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
-	Name: "storage-pools/{name}/volumes/{type}",
+	Path: "storage-pools/{name}/volumes/{type}",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost},
 }
 
 var storagePoolVolumeTypeContainerCmd = APIEndpoint{
-	Name: "storage-pools/{pool}/volumes/container/{name:.*}",
+	Path: "storage-pools/{pool}/volumes/container/{name:.*}",
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet, AccessHandler: AllowAuthenticated},
@@ -46,7 +46,7 @@ var storagePoolVolumeTypeContainerCmd = APIEndpoint{
 }
 
 var storagePoolVolumeTypeCustomCmd = APIEndpoint{
-	Name: "storage-pools/{pool}/volumes/custom/{name}",
+	Path: "storage-pools/{pool}/volumes/custom/{name}",
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet, AccessHandler: AllowAuthenticated},
@@ -56,7 +56,7 @@ var storagePoolVolumeTypeCustomCmd = APIEndpoint{
 }
 
 var storagePoolVolumeTypeImageCmd = APIEndpoint{
-	Name: "storage-pools/{pool}/volumes/image/{name}",
+	Path: "storage-pools/{pool}/volumes/image/{name}",
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet, AccessHandler: AllowAuthenticated},

@@ -29,20 +29,20 @@ import (
 )
 
 var clusterCmd = APIEndpoint{
-	Name: "cluster",
+	Path: "cluster",
 
 	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: AllowAuthenticated},
 	Put: APIEndpointAction{Handler: clusterPut},
 }
 
 var clusterNodesCmd = APIEndpoint{
-	Name: "cluster/members",
+	Path: "cluster/members",
 
 	Get: APIEndpointAction{Handler: clusterNodesGet, AccessHandler: AllowAuthenticated},
 }
 
 var clusterNodeCmd = APIEndpoint{
-	Name: "cluster/members/{name}",
+	Path: "cluster/members/{name}",
 
 	Delete: APIEndpointAction{Handler: clusterNodeDelete},
 	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: AllowAuthenticated},
@@ -50,19 +50,19 @@ var clusterNodeCmd = APIEndpoint{
 }
 
 var internalClusterAcceptCmd = APIEndpoint{
-	Name: "cluster/accept",
+	Path: "cluster/accept",
 
 	Post: APIEndpointAction{Handler: internalClusterPostAccept},
 }
 
 var internalClusterRebalanceCmd = APIEndpoint{
-	Name: "cluster/rebalance",
+	Path: "cluster/rebalance",
 
 	Post: APIEndpointAction{Handler: internalClusterPostRebalance},
 }
 
 var internalClusterPromoteCmd = APIEndpoint{
-	Name: "cluster/promote",
+	Path: "cluster/promote",
 
 	Post: APIEndpointAction{Handler: internalClusterPostPromote},
 }
