@@ -81,6 +81,7 @@ type ContainerServer interface {
 
 	// Container functions
 	GetContainerNames() (names []string, err error)
+	GetInstances() (containers []api.Instance, err error)
 	GetContainers() (containers []api.Container, err error)
 	GetContainersFull() (containers []api.ContainerFull, err error)
 	GetContainer(name string) (container *api.Container, ETag string, err error)
