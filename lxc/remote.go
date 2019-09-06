@@ -360,7 +360,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	if c.flagAuthType == "tls" {
 		// Prompt for trust password
 		if c.flagPassword == "" {
-			fmt.Printf(i18n.G("Admin password for %s: "), server)
+			fmt.Printf(i18n.G("Admin password for %s:")+" ", server)
 			pwd, err := terminal.ReadPassword(0)
 			if err != nil {
 				/* We got an error, maybe this isn't a terminal, let's try to
@@ -399,7 +399,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagAuthType == "tls" {
-		fmt.Println(i18n.G("Client certificate stored at server: "), server)
+		fmt.Println(i18n.G("Client certificate stored at server:")+" ", server)
 	}
 
 	return conf.SaveConfig(c.global.confPath)
