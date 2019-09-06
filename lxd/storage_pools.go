@@ -24,14 +24,14 @@ import (
 var storagePoolCreateLock sync.Mutex
 
 var storagePoolsCmd = APIEndpoint{
-	Name: "storage-pools",
+	Path: "storage-pools",
 
 	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolsPost},
 }
 
 var storagePoolCmd = APIEndpoint{
-	Name: "storage-pools/{name}",
+	Path: "storage-pools/{name}",
 
 	Delete: APIEndpointAction{Handler: storagePoolDelete},
 	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: AllowAuthenticated},

@@ -17,14 +17,14 @@ import (
 )
 
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
-	Name: "storage-pools/{pool}/volumes/{type}/{name}/snapshots",
+	Path: "storage-pools/{pool}/volumes/{type}/{name}/snapshots",
 
 	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
-	Name: "storage-pools/{pool}/volumes/{type}/{name}/snapshots/{snapshotName}",
+	Path: "storage-pools/{pool}/volumes/{type}/{name}/snapshots/{snapshotName}",
 
 	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete},
 	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: AllowAuthenticated},

@@ -44,14 +44,14 @@ import (
 )
 
 var imagesCmd = APIEndpoint{
-	Name: "images",
+	Path: "images",
 
 	Get:  APIEndpointAction{Handler: imagesGet, AllowUntrusted: true},
 	Post: APIEndpointAction{Handler: imagesPost, AccessHandler: AllowProjectPermission("images", "manage-images")},
 }
 
 var imageCmd = APIEndpoint{
-	Name: "images/{fingerprint}",
+	Path: "images/{fingerprint}",
 
 	Delete: APIEndpointAction{Handler: imageDelete, AccessHandler: AllowProjectPermission("images", "manage-images")},
 	Get:    APIEndpointAction{Handler: imageGet, AllowUntrusted: true},
@@ -60,32 +60,32 @@ var imageCmd = APIEndpoint{
 }
 
 var imageExportCmd = APIEndpoint{
-	Name: "images/{fingerprint}/export",
+	Path: "images/{fingerprint}/export",
 
 	Get: APIEndpointAction{Handler: imageExport, AllowUntrusted: true},
 }
 
 var imageSecretCmd = APIEndpoint{
-	Name: "images/{fingerprint}/secret",
+	Path: "images/{fingerprint}/secret",
 
 	Post: APIEndpointAction{Handler: imageSecret, AccessHandler: AllowProjectPermission("images", "view")},
 }
 
 var imageRefreshCmd = APIEndpoint{
-	Name: "images/{fingerprint}/refresh",
+	Path: "images/{fingerprint}/refresh",
 
 	Post: APIEndpointAction{Handler: imageRefresh, AccessHandler: AllowProjectPermission("images", "manage-images")},
 }
 
 var imageAliasesCmd = APIEndpoint{
-	Name: "images/aliases",
+	Path: "images/aliases",
 
 	Get:  APIEndpointAction{Handler: imageAliasesGet, AccessHandler: AllowProjectPermission("images", "view")},
 	Post: APIEndpointAction{Handler: imageAliasesPost, AccessHandler: AllowProjectPermission("images", "manage-images")},
 }
 
 var imageAliasCmd = APIEndpoint{
-	Name: "images/aliases/{name:.*}",
+	Path: "images/aliases/{name:.*}",
 
 	Delete: APIEndpointAction{Handler: imageAliasDelete, AccessHandler: AllowProjectPermission("images", "manage-images")},
 	Get:    APIEndpointAction{Handler: imageAliasGet, AllowUntrusted: true},
