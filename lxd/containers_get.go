@@ -5,22 +5,26 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instance"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
 
-func containersGet(d *Daemon, r *http.Request) Response {
+func instancesGet(d *Daemon, r *http.Request) Response {
 	for i := 0; i < 100; i++ {
-		result, err := doContainersGet(d, r)
+		result, err := doInstancesGet(d, r)
 		if err == nil {
 			return SyncResponse(true, result)
 		}
@@ -33,14 +37,19 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	logger.Debugf("DBERR: containersGet, db is locked")
+	logger.Debugf("DBERR: instancesGet, db is locked")
 	logger.Debugf(logger.GetStack())
 	return InternalError(fmt.Errorf("DB is locked"))
 }
 
-func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
+func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	resultString := []string{}
-	resultList := []*api.Container{}
+	resultList := []*api.Instance{}
 	resultFullList := []*api.ContainerFull{}
 	resultMu := sync.Mutex{}
 
@@ -56,17 +65,17 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	project := projectParam(r)
 
 	// Get the list and location of all containers
-	var result map[string][]string // Containers by node address
-	var nodes map[string]string    // Node names by container
+	var result map[string][]string // Instances by node address
+	var nodes map[string]string    // Node names by instance
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.ContainersListByNodeAddress(project)
+		result, err = tx.InstancesListByNodeAddress(project, instanceType)
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.ContainersByNodeName(project)
+		nodes, err = tx.InstancesByNodeName(project, instanceType)
 		if err != nil {
 			return err
 		}
@@ -77,10 +86,10 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		return []string{}, err
 	}
 
-	// Get the local containers
+	// Get the local instances
 	nodeCts := map[string]container{}
 	if recursion > 0 {
-		cts, err := containerLoadNodeProjectAll(d.State(), project)
+		cts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
 		if err != nil {
 			return nil, err
 		}
@@ -90,10 +99,10 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 	}
 
-	// Append containers to list and handle errors
-	resultListAppend := func(name string, c api.Container, err error) {
+	// Append instances to list and handle errors
+	resultListAppend := func(name string, c api.Instance, err error) {
 		if err != nil {
-			c = api.Container{
+			c = api.Instance{
 				Name:       name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
@@ -121,21 +130,21 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	// Get the data
 	wg := sync.WaitGroup{}
-	for address, containers := range result {
+	for address, instances := range result {
 		// If this is an internal request from another cluster node,
-		// ignore containers from other nodes, and return only the ones
+		// ignore instances from other nodes, and return only the ones
 		// on this node
 		if isClusterNotification(r) && address != "" {
 			continue
 		}
 
-		// Mark containers on unavailable nodes as down
+		// Mark instances on unavailable nodes as down
 		if recursion > 0 && address == "0.0.0.0" {
-			for _, container := range containers {
+			for _, instanceName := range instances {
 				if recursion == 1 {
-					resultListAppend(container, api.Container{}, fmt.Errorf("unavailable"))
+					resultListAppend(instanceName, api.Instance{}, fmt.Errorf("unavailable"))
 				} else {
-					resultFullListAppend(container, api.ContainerFull{}, fmt.Errorf("unavailable"))
+					resultFullListAppend(instanceName, api.ContainerFull{}, fmt.Errorf("unavailable"))
 				}
 			}
 
@@ -143,18 +152,18 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 
 		// For recursion requests we need to fetch the state of remote
-		// containers from their respective nodes.
+		// instances from their respective nodes.
 		if recursion > 0 && address != "" && !isClusterNotification(r) {
 			wg.Add(1)
-			go func(address string, containers []string) {
+			go func(address string, instances []string) {
 				defer wg.Done()
 				cert := d.endpoints.NetworkCert()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(project, address, cert)
+					cs, err := doInstancesGetFromNode(project, address, instanceType, cert)
 					if err != nil {
-						for _, name := range containers {
-							resultListAppend(name, api.Container{}, err)
+						for _, name := range instances {
+							resultListAppend(name, api.Instance{}, err)
 						}
 
 						return
@@ -169,7 +178,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 				cs, err := doContainersFullGetFromNode(project, address, cert)
 				if err != nil {
-					for _, name := range containers {
+					for _, name := range instances {
 						resultFullListAppend(name, api.ContainerFull{}, err)
 					}
 
@@ -179,20 +188,26 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				for _, c := range cs {
 					resultFullListAppend(c.Name, c, nil)
 				}
-			}(address, containers)
+			}(address, instances)
 
 			continue
 		}
 
 		if recursion == 0 {
-			for _, container := range containers {
-				url := fmt.Sprintf("/%s/containers/%s", version.APIVersion, container)
+			for _, instanceName := range instances {
+				path := "instances"
+				// Use the container path in the generated URL if container list
+				// endpoint used to avoid breaking old code that expects this.
+				if instanceType == instance.TypeContainer {
+					path = "containers"
+				}
+				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, path, instanceName)
 				resultString = append(resultString, url)
 			}
 		} else {
 			threads := 4
-			if len(containers) < threads {
-				threads = len(containers)
+			if len(instances) < threads {
+				threads = len(instances)
 			}
 
 			queue := make(chan string, threads)
@@ -202,27 +217,27 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 				go func() {
 					for {
-						container, more := <-queue
+						instanceName, more := <-queue
 						if !more {
 							break
 						}
 
 						if recursion == 1 {
-							c, _, err := nodeCts[container].Render()
+							c, _, err := nodeCts[instanceName].Render()
 							if err != nil {
-								resultListAppend(container, api.Container{}, err)
+								resultListAppend(instanceName, api.Instance{}, err)
 							} else {
-								resultListAppend(container, *c.(*api.Container), err)
+								resultListAppend(instanceName, api.Instance(*c.(*api.Container)), err)
 							}
 
 							continue
 						}
 
-						c, _, err := nodeCts[container].RenderFull()
+						c, _, err := nodeCts[instanceName].RenderFull()
 						if err != nil {
-							resultFullListAppend(container, api.ContainerFull{}, err)
+							resultFullListAppend(instanceName, api.ContainerFull{}, err)
 						} else {
-							resultFullListAppend(container, *c, err)
+							resultFullListAppend(instanceName, *c, err)
 						}
 					}
 
@@ -230,8 +245,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				}()
 			}
 
-			for _, container := range containers {
-				queue <- container
+			for _, instanceName := range instances {
+				queue <- instanceName
 			}
 
 			close(queue)
@@ -260,10 +275,10 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	return resultFullList, nil
 }
 
-// Fetch information about the containers on the given remote node, using the
+// doInstancesGetFromNode Fetch information about the instances on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(project, node string, cert *shared.CertInfo) ([]api.Container, error) {
-	f := func() ([]api.Container, error) {
+func doInstancesGetFromNode(project, node string, instanceType instance.Type, cert *shared.CertInfo) ([]api.Instance, error) {
+	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
@@ -271,32 +286,48 @@ func doContainersGetFromNode(project, node string, cert *shared.CertInfo) ([]api
 
 		client = client.UseProject(project)
 
-		containers, err := client.GetContainers()
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get containers from node %s", node)
+		var instances []api.Instance
+
+		if instanceType == instance.TypeAny {
+			instances, err = client.GetInstances()
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+			}
+		} else if instanceType == instance.TypeContainer {
+			containers, err := client.GetContainers()
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to get containers from node %s", node)
+
+			}
+			instances = make([]api.Instance, len(containers))
+			for k, v := range containers {
+				instances[k] = api.Instance(v)
+			}
+		} else {
+			return nil, errors.Wrapf(err, "Failed to get instances from node %s: Unknown instance type", node)
 		}
 
-		return containers, nil
+		return instances, nil
 	}
 
 	timeout := time.After(30 * time.Second)
 	done := make(chan struct{})
 
-	var containers []api.Container
+	var instances []api.Instance
 	var err error
 
 	go func() {
-		containers, err = f()
+		instances, err = f()
 		done <- struct{}{}
 	}()
 
 	select {
 	case <-timeout:
-		err = fmt.Errorf("Timeout getting containers from node %s", node)
+		err = fmt.Errorf("Timeout getting instances from node %s", node)
 	case <-done:
 	}
 
-	return containers, err
+	return instances, err
 }
 
 func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo) ([]api.ContainerFull, error) {
