@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/instance"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -292,7 +293,7 @@ type container interface {
 	Location() string
 	Project() string
 	Name() string
-	Type() string
+	Type() instance.Type
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
