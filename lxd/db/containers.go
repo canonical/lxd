@@ -338,18 +338,29 @@ func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
 	return instances, nil
 }
 
-// ContainersByNodeName returns a map associating each container to the name of
-// its node.
-func (c *ClusterTx) ContainersByNodeName(project string) (map[string]string, error) {
-	stmt := `
+// InstancesByNodeName returns a map associating each container to the name of its node.
+func (c *ClusterTx) InstancesByNodeName(project string, instanceType instance.Type) (map[string]string, error) {
+	var filters strings.Builder
+	args := make([]interface{}, 0, 2) // Pre-allocate for 2 filters to avoid extra allocations.
+
+	// Add project filter.
+	args = append(args, project)
+	filters.WriteString("projects.name = ?")
+
+	// Add instance type filter if supplied.
+	if instanceType != instance.TypeAny {
+		filters.WriteString(" AND instances.type = ?")
+		args = append(args, instanceType)
+	}
+
+	stmt := fmt.Sprintf(`
 SELECT instances.name, nodes.name
   FROM instances
   JOIN nodes ON nodes.id = instances.node_id
   JOIN projects ON projects.id = instances.project_id
-  WHERE instances.type=?
-    AND projects.name = ?
-`
-	rows, err := c.tx.Query(stmt, instance.TypeContainer, project)
+  WHERE %s
+`, filters.String())
+	rows, err := c.tx.Query(stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -501,8 +512,8 @@ func (c *ClusterTx) ContainerNodeList() ([]Instance, error) {
 	return c.InstanceList(filter)
 }
 
-// ContainerNodeProjectList returns all container objects on the local node within the given project.
-func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Instance, error) {
+// InstanceNodeProjectList returns all container objects on the local node within the given project.
+func (c *ClusterTx) InstanceNodeProjectList(project string, instanceType instance.Type) ([]Instance, error) {
 	node, err := c.NodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
@@ -510,7 +521,7 @@ func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Instance, error)
 	filter := InstanceFilter{
 		Project: project,
 		Node:    node,
-		Type:    instance.TypeContainer,
+		Type:    instanceType,
 	}
 
 	return c.InstanceList(filter)
