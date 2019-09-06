@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -462,24 +463,19 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		imageTarf.Close()
 		if err != nil {
-			logger.Error(
-				"Failed to copy the image tarfile",
-				log.Ctx{"err": err})
+			logger.Error("Failed to copy the image tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		// Get the rootfs tarball
 		part, err = mr.NextPart()
 		if err != nil {
-			logger.Error(
-				"Failed to get the next part",
-				log.Ctx{"err": err})
+			logger.Error("Failed to get the next part", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		if part.FormName() != "rootfs" {
-			logger.Error(
-				"Invalid multipart image")
+			logger.Error("Invalid multipart image")
 
 			return nil, fmt.Errorf("Invalid multipart image")
 		}
@@ -496,9 +492,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		rootfsTarf.Close()
 		if err != nil {
-			logger.Error(
-				"Failed to copy the rootfs tarfile",
-				log.Ctx{"err": err})
+			logger.Error("Failed to copy the rootfs tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
 
@@ -513,33 +507,27 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		imageMeta, err = getImageMetadata(imageTarf.Name())
 		if err != nil {
-			logger.Error(
-				"Failed to get image metadata",
-				log.Ctx{"err": err})
+			logger.Error("Failed to get image metadata", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
-			logger.Error(
-				"Failed to move the image tarfile",
-				log.Ctx{
-					"err":    err,
-					"source": imageTarf.Name(),
-					"dest":   imgfname})
+			logger.Error("Failed to move the image tarfile", log.Ctx{
+				"err":    err,
+				"source": imageTarf.Name(),
+				"dest":   imgfname})
 			return nil, err
 		}
 
 		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
 		err = shared.FileMove(rootfsTarf.Name(), rootfsfname)
 		if err != nil {
-			logger.Error(
-				"Failed to move the rootfs tarfile",
-				log.Ctx{
-					"err":    err,
-					"source": rootfsTarf.Name(),
-					"dest":   imgfname})
+			logger.Error("Failed to move the rootfs tarfile", log.Ctx{
+				"err":    err,
+				"source": rootfsTarf.Name(),
+				"dest":   imgfname})
 			return nil, err
 		}
 	} else {
@@ -548,9 +536,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		info.Size = size
 		logger.Debug("Tar size", log.Ctx{"size": size})
 		if err != nil {
-			logger.Error(
-				"Failed to copy the tarfile",
-				log.Ctx{"err": err})
+			logger.Error("Failed to copy the tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
 
@@ -559,35 +545,26 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 		expectedFingerprint := r.Header.Get("X-LXD-fingerprint")
 		if expectedFingerprint != "" && info.Fingerprint != expectedFingerprint {
-			logger.Error(
-				"Fingerprints don't match",
-				log.Ctx{
-					"got":      info.Fingerprint,
-					"expected": expectedFingerprint})
-			err = fmt.Errorf(
-				"fingerprints don't match, got %s expected %s",
-				info.Fingerprint,
-				expectedFingerprint)
+			logger.Error("Fingerprints don't match", log.Ctx{
+				"got":      info.Fingerprint,
+				"expected": expectedFingerprint})
+			err = fmt.Errorf("fingerprints don't match, got %s expected %s", info.Fingerprint, expectedFingerprint)
 			return nil, err
 		}
 
 		imageMeta, err = getImageMetadata(post.Name())
 		if err != nil {
-			logger.Error(
-				"Failed to get image metadata",
-				log.Ctx{"err": err})
+			logger.Error("Failed to get image metadata", log.Ctx{"err": err})
 			return nil, err
 		}
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(post.Name(), imgfname)
 		if err != nil {
-			logger.Error(
-				"Failed to move the tarfile",
-				log.Ctx{
-					"err":    err,
-					"source": post.Name(),
-					"dest":   imgfname})
+			logger.Error("Failed to move the tarfile", log.Ctx{
+				"err":    err,
+				"source": post.Name(),
+				"dest":   imgfname})
 			return nil, err
 		}
 	}
@@ -611,6 +588,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 	if err != nil {
 		return nil, err
 	}
+
 	if exists {
 		// Do not create a database entry if the request is coming from the internal
 		// cluster communications for image synchronization
@@ -810,46 +788,88 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 }
 
 func getImageMetadata(fname string) (*api.ImageMetadata, error) {
-	metadataName := "metadata.yaml"
+	var tr *tar.Reader
+	var result api.ImageMetadata
 
-	compressionArgs, _, _, err := shared.DetectCompression(fname)
-
+	// Open the file
+	r, err := os.Open(fname)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"detectCompression failed, err='%v', tarfile='%s'",
-			err,
-			fname)
+		return nil, err
+	}
+	defer r.Close()
+
+	// Decompress if needed
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	if err != nil {
+		return nil, err
+	}
+	r.Seek(0, 0)
+
+	if unpacker == nil {
+		return nil, fmt.Errorf("Unsupported backup compression")
 	}
 
-	args := []string{"-O"}
-	args = append(args, compressionArgs...)
-	args = append(args, fname, metadataName)
+	// Open the tarball
+	if len(unpacker) > 0 {
+		cmd := exec.Command(unpacker[0], unpacker[1:]...)
+		cmd.Stdin = r
 
-	// read the metadata.yaml
-	output, err := shared.RunCommand("tar", args...)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, err
+		}
+		defer stdout.Close()
 
-	if err != nil {
-		outputLines := strings.Split(output, "\n")
-		return nil, fmt.Errorf("Could not extract image %s from tar: %v (%s)", metadataName, err, outputLines[0])
+		err = cmd.Start()
+		if err != nil {
+			return nil, err
+		}
+		defer cmd.Wait()
+
+		// Double close stdout, this is to avoid hangs in Wait()
+		defer stdout.Close()
+
+		tr = tar.NewReader(stdout)
+	} else {
+		tr = tar.NewReader(r)
 	}
 
-	metadata := api.ImageMetadata{}
-	err = yaml.Unmarshal([]byte(output), &metadata)
+	// Parse the content
+	hasMeta := false
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, fmt.Errorf("Could not parse %s: %v", metadataName, err)
+		if hdr.Name == "metadata.yaml" || hdr.Name == "./metadata.yaml" {
+			err = yaml.NewDecoder(tr).Decode(&result)
+			if err != nil {
+				return nil, err
+			}
+
+			hasMeta = true
+			break
+		}
 	}
 
-	_, err = osarch.ArchitectureId(metadata.Architecture)
+	if !hasMeta {
+		return nil, fmt.Errorf("Metadata tarball is missing metadata.yaml")
+	}
+
+	_, err = osarch.ArchitectureId(result.Architecture)
 	if err != nil {
 		return nil, err
 	}
 
-	if metadata.CreationDate == 0 {
+	if result.CreationDate == 0 {
 		return nil, fmt.Errorf("Missing creation date")
 	}
 
-	return &metadata, nil
+	return &result, nil
 }
 
 func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interface{}, error) {
