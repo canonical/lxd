@@ -234,29 +234,41 @@ SELECT nodes.id, nodes.address
 	return address, nil
 }
 
-// ContainersListByNodeAddress returns the names of all containers grouped by
-// cluster node address.
+// InstancesListByNodeAddress returns the names of all instances grouped by cluster node address.
 //
-// The node address of containers running on the local node is set to the empty
-// string, to distinguish it from remote nodes.
+// The node address of instances running on the local node is set to the empty string, to
+// distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress(project string) (map[string][]string, error) {
+func (c *ClusterTx) InstancesListByNodeAddress(project string, instanceType instance.Type) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := `
+	var filters strings.Builder
+	args := make([]interface{}, 0, 2) // Pre-allocate for 2 filters to avoid extra allocations.
+
+	// Add project filter.
+	args = append(args, project)
+	filters.WriteString("projects.name = ?")
+
+	// Add instance type filter if supplied.
+	if instanceType != instance.TypeAny {
+		filters.WriteString(" AND instances.type = ?")
+		args = append(args, instanceType)
+	}
+
+	stmt := fmt.Sprintf(`
 SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
   FROM instances
   JOIN nodes ON nodes.id = instances.node_id
   JOIN projects ON projects.id = instances.project_id
-  WHERE instances.type=?
-    AND projects.name = ?
+  WHERE %s
   ORDER BY instances.id
-`
-	rows, err := c.tx.Query(stmt, instance.TypeContainer, project)
+`, filters.String())
+
+	rows, err := c.tx.Query(stmt, args...)
 	if err != nil {
 		return nil, err
 	}
