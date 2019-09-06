@@ -313,7 +313,17 @@ func TestContainersListByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.ContainersListByNodeAddress("default")
+	result, err := tx.InstancesListByNodeAddress("default", instance.TypeContainer)
+	require.NoError(t, err)
+	assert.Equal(
+		t,
+		map[string][]string{
+			"":            {"c2"},
+			"1.2.3.4:666": {"c1", "c4"},
+			"0.0.0.0":     {"c3"},
+		}, result)
+
+	result, err = tx.InstancesListByNodeAddress("default", instance.TypeAny)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -324,8 +334,8 @@ func TestContainersListByNodeAddress(t *testing.T) {
 		}, result)
 }
 
-// Containers are associated with their node name.
-func TestContainersByNodeName(t *testing.T) {
+// Instances are associated with their node name.
+func TestInstancesByNodeName(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -337,7 +347,16 @@ func TestContainersByNodeName(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.ContainersByNodeName("default")
+	result, err := tx.InstancesByNodeName("default", instance.TypeContainer)
+	require.NoError(t, err)
+	assert.Equal(
+		t,
+		map[string]string{
+			"c1": "node2",
+			"c2": "none",
+		}, result)
+
+	result, err = tx.InstancesByNodeName("default", instance.TypeAny)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
