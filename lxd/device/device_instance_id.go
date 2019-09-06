@@ -2,6 +2,7 @@ package device
 
 import (
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/shared/instance"
 )
 
 // InstanceIdentifier is an interface that allows us to identify an Instance and its properties.
@@ -9,7 +10,7 @@ import (
 // independent of when they're called in the instance lifecycle.
 type InstanceIdentifier interface {
 	Name() string
-	Type() string
+	Type() instance.Type
 	Project() string
 	DevicesPath() string
 	RootfsPath() string
