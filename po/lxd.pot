@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2019-09-05 12:51-0400\n"
+        "POT-Creation-Date: 2019-09-06 02:09-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -162,7 +162,7 @@ msgstr  ""
 msgid   "%s (%d more)"
 msgstr  ""
 
-#: lxc/file.go:846
+#: lxc/file.go:844
 #, c-format
 msgid   "%s is not a directory"
 msgstr  ""
@@ -172,7 +172,7 @@ msgstr  ""
 msgid   "%v (interrupt two more times to force)"
 msgstr  ""
 
-#: lxc/file.go:740
+#: lxc/file.go:738
 #, c-format
 msgid   "'%s' isn't a supported file type"
 msgstr  ""
@@ -276,7 +276,7 @@ msgstr  ""
 
 #: lxc/remote.go:363
 #, c-format
-msgid   "Admin password for %s: "
+msgid   "Admin password for %s:"
 msgstr  ""
 
 #: lxc/alias.go:76 lxc/alias.go:172
@@ -458,7 +458,7 @@ msgstr  ""
 msgid   "Can't provide a name for the target image"
 msgstr  ""
 
-#: lxc/file.go:303
+#: lxc/file.go:301
 msgid   "Can't pull a directory without --recursive"
 msgstr  ""
 
@@ -483,7 +483,7 @@ msgstr  ""
 msgid   "Can't specify column L when not clustered"
 msgstr  ""
 
-#: lxc/file.go:483
+#: lxc/file.go:481
 msgid   "Can't supply uid/gid/mode in recursive mode"
 msgstr  ""
 
@@ -512,7 +512,7 @@ msgid   "Certificate fingerprint: %s"
 msgstr  ""
 
 #: lxc/remote.go:402
-msgid   "Client certificate stored at server: "
+msgid   "Client certificate stored at server:"
 msgstr  ""
 
 #: lxc/version.go:37
@@ -665,7 +665,7 @@ msgstr  ""
 msgid   "Create and start containers from images"
 msgstr  ""
 
-#: lxc/file.go:225 lxc/file.go:416
+#: lxc/file.go:223 lxc/file.go:414
 msgid   "Create any directories necessary"
 msgstr  ""
 
@@ -763,7 +763,7 @@ msgstr  ""
 msgid   "Delete containers and snapshots"
 msgstr  ""
 
-#: lxc/file.go:106 lxc/file.go:107
+#: lxc/file.go:104 lxc/file.go:105
 msgid   "Delete files in containers"
 msgstr  ""
 
@@ -795,7 +795,7 @@ msgstr  ""
 msgid   "Delete storage volumes"
 msgstr  ""
 
-#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:21 lxc/alias.go:53 lxc/alias.go:99 lxc/alias.go:143 lxc/alias.go:194 lxc/cluster.go:28 lxc/cluster.go:67 lxc/cluster.go:145 lxc/cluster.go:195 lxc/cluster.go:245 lxc/cluster.go:330 lxc/config.go:31 lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:580 lxc/config.go:699 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:182 lxc/config_device.go:255 lxc/config_device.go:321 lxc/config_device.go:410 lxc/config_device.go:500 lxc/config_device.go:599 lxc/config_device.go:667 lxc/config_metadata.go:28 lxc/config_metadata.go:53 lxc/config_metadata.go:175 lxc/config_template.go:28 lxc/config_template.go:65 lxc/config_template.go:108 lxc/config_template.go:150 lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:32 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:31 lxc/file.go:74 lxc/file.go:107 lxc/file.go:156 lxc/file.go:219 lxc/file.go:409 lxc/image.go:38 lxc/image.go:127 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435 lxc/image.go:575 lxc/image.go:789 lxc/image.go:903 lxc/image.go:1191 lxc/image.go:1268 lxc/image_alias.go:24 lxc/image_alias.go:57 lxc/image_alias.go:104 lxc/image_alias.go:149 lxc/image_alias.go:246 lxc/import.go:28 lxc/info.go:32 lxc/init.go:39 lxc/launch.go:23 lxc/list.go:43 lxc/main.go:50 lxc/manpage.go:19 lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:31 lxc/network.go:107 lxc/network.go:180 lxc/network.go:253 lxc/network.go:325 lxc/network.go:375 lxc/network.go:460 lxc/network.go:545 lxc/network.go:668 lxc/network.go:726 lxc/network.go:806 lxc/network.go:891 lxc/network.go:960 lxc/network.go:1010 lxc/network.go:1080 lxc/network.go:1142 lxc/operation.go:23 lxc/operation.go:52 lxc/operation.go:101 lxc/operation.go:180 lxc/profile.go:28 lxc/profile.go:100 lxc/profile.go:163 lxc/profile.go:243 lxc/profile.go:299 lxc/profile.go:353 lxc/profile.go:403 lxc/profile.go:527 lxc/profile.go:576 lxc/profile.go:635 lxc/profile.go:711 lxc/profile.go:761 lxc/profile.go:820 lxc/profile.go:874 lxc/project.go:28 lxc/project.go:85 lxc/project.go:150 lxc/project.go:213 lxc/project.go:333 lxc/project.go:383 lxc/project.go:468 lxc/project.go:523 lxc/project.go:583 lxc/project.go:612 lxc/project.go:665 lxc/publish.go:35 lxc/query.go:30 lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:418 lxc/remote.go:454 lxc/remote.go:534 lxc/remote.go:596 lxc/remote.go:646 lxc/remote.go:684 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:32 lxc/storage.go:88 lxc/storage.go:162 lxc/storage.go:212 lxc/storage.go:332 lxc/storage.go:387 lxc/storage.go:507 lxc/storage.go:581 lxc/storage.go:650 lxc/storage.go:734 lxc/storage_volume.go:32 lxc/storage_volume.go:139 lxc/storage_volume.go:218 lxc/storage_volume.go:301 lxc/storage_volume.go:462 lxc/storage_volume.go:539 lxc/storage_volume.go:615 lxc/storage_volume.go:697 lxc/storage_volume.go:778 lxc/storage_volume.go:978 lxc/storage_volume.go:1069 lxc/storage_volume.go:1142 lxc/storage_volume.go:1173 lxc/storage_volume.go:1276 lxc/storage_volume.go:1352 lxc/storage_volume.go:1451 lxc/storage_volume.go:1482 lxc/storage_volume.go:1553 lxc/version.go:22
+#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91 lxc/alias.go:21 lxc/alias.go:53 lxc/alias.go:99 lxc/alias.go:143 lxc/alias.go:194 lxc/cluster.go:28 lxc/cluster.go:67 lxc/cluster.go:145 lxc/cluster.go:195 lxc/cluster.go:245 lxc/cluster.go:330 lxc/config.go:31 lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:580 lxc/config.go:699 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:182 lxc/config_device.go:255 lxc/config_device.go:321 lxc/config_device.go:410 lxc/config_device.go:500 lxc/config_device.go:599 lxc/config_device.go:667 lxc/config_metadata.go:28 lxc/config_metadata.go:53 lxc/config_metadata.go:175 lxc/config_template.go:28 lxc/config_template.go:65 lxc/config_template.go:108 lxc/config_template.go:150 lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:32 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:31 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:127 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435 lxc/image.go:575 lxc/image.go:789 lxc/image.go:903 lxc/image.go:1191 lxc/image.go:1268 lxc/image_alias.go:24 lxc/image_alias.go:57 lxc/image_alias.go:104 lxc/image_alias.go:149 lxc/image_alias.go:246 lxc/import.go:28 lxc/info.go:32 lxc/init.go:39 lxc/launch.go:23 lxc/list.go:43 lxc/main.go:50 lxc/manpage.go:19 lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:31 lxc/network.go:107 lxc/network.go:180 lxc/network.go:253 lxc/network.go:325 lxc/network.go:375 lxc/network.go:460 lxc/network.go:545 lxc/network.go:668 lxc/network.go:726 lxc/network.go:806 lxc/network.go:891 lxc/network.go:960 lxc/network.go:1010 lxc/network.go:1080 lxc/network.go:1142 lxc/operation.go:23 lxc/operation.go:52 lxc/operation.go:101 lxc/operation.go:180 lxc/profile.go:28 lxc/profile.go:100 lxc/profile.go:163 lxc/profile.go:243 lxc/profile.go:299 lxc/profile.go:353 lxc/profile.go:403 lxc/profile.go:527 lxc/profile.go:576 lxc/profile.go:635 lxc/profile.go:711 lxc/profile.go:761 lxc/profile.go:820 lxc/profile.go:874 lxc/project.go:28 lxc/project.go:85 lxc/project.go:150 lxc/project.go:213 lxc/project.go:333 lxc/project.go:383 lxc/project.go:468 lxc/project.go:523 lxc/project.go:583 lxc/project.go:612 lxc/project.go:665 lxc/publish.go:35 lxc/query.go:30 lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:418 lxc/remote.go:454 lxc/remote.go:534 lxc/remote.go:596 lxc/remote.go:646 lxc/remote.go:684 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:32 lxc/storage.go:88 lxc/storage.go:162 lxc/storage.go:212 lxc/storage.go:332 lxc/storage.go:387 lxc/storage.go:507 lxc/storage.go:581 lxc/storage.go:650 lxc/storage.go:734 lxc/storage_volume.go:32 lxc/storage_volume.go:139 lxc/storage_volume.go:218 lxc/storage_volume.go:301 lxc/storage_volume.go:462 lxc/storage_volume.go:539 lxc/storage_volume.go:615 lxc/storage_volume.go:697 lxc/storage_volume.go:778 lxc/storage_volume.go:978 lxc/storage_volume.go:1069 lxc/storage_volume.go:1142 lxc/storage_volume.go:1173 lxc/storage_volume.go:1276 lxc/storage_volume.go:1352 lxc/storage_volume.go:1451 lxc/storage_volume.go:1482 lxc/storage_volume.go:1553 lxc/version.go:22
 msgid   "Description"
 msgstr  ""
 
@@ -894,7 +894,7 @@ msgstr  ""
 msgid   "EXPIRY DATE"
 msgstr  ""
 
-#: lxc/file.go:65
+#: lxc/file.go:63
 msgid   "Early server side processing of file tranfer requests cannot be canceled (interrupt two more times to force)"
 msgstr  ""
 
@@ -910,7 +910,7 @@ msgstr  ""
 msgid   "Edit container or server configurations as YAML"
 msgstr  ""
 
-#: lxc/file.go:155 lxc/file.go:156
+#: lxc/file.go:153 lxc/file.go:154
 msgid   "Edit files in containers"
 msgstr  ""
 
@@ -1055,7 +1055,7 @@ msgstr  ""
 msgid   "Failed to remove alias %s"
 msgstr  ""
 
-#: lxc/file.go:735
+#: lxc/file.go:733
 #, c-format
 msgid   "Failed to walk path for %s: %s"
 msgstr  ""
@@ -1349,7 +1349,7 @@ msgstr  ""
 msgid   "Invalid number of arguments"
 msgstr  ""
 
-#: lxc/file.go:131
+#: lxc/file.go:129
 #, c-format
 msgid   "Invalid path %s"
 msgstr  ""
@@ -1359,12 +1359,12 @@ msgstr  ""
 msgid   "Invalid protocol: %s"
 msgstr  ""
 
-#: lxc/file.go:277
+#: lxc/file.go:275
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
 
-#: lxc/file.go:437
+#: lxc/file.go:435
 #, c-format
 msgid   "Invalid target %s"
 msgstr  ""
@@ -1649,7 +1649,7 @@ msgstr  ""
 msgid   "Manage container metadata files"
 msgstr  ""
 
-#: lxc/file.go:73 lxc/file.go:74
+#: lxc/file.go:71 lxc/file.go:72
 msgid   "Manage files in containers"
 msgstr  ""
 
@@ -1788,7 +1788,7 @@ msgstr  ""
 msgid   "Missing source volume name"
 msgstr  ""
 
-#: lxc/file.go:530
+#: lxc/file.go:528
 msgid   "Missing target directory"
 msgstr  ""
 
@@ -1816,7 +1816,7 @@ msgstr  ""
 msgid   "More than one device matches, specify the device name"
 msgstr  ""
 
-#: lxc/file.go:258
+#: lxc/file.go:256
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -2180,20 +2180,20 @@ msgstr  ""
 msgid   "Publishing container: %s"
 msgstr  ""
 
-#: lxc/file.go:218 lxc/file.go:219
+#: lxc/file.go:216 lxc/file.go:217
 msgid   "Pull files from containers"
 msgstr  ""
 
-#: lxc/file.go:366 lxc/file.go:689
+#: lxc/file.go:364 lxc/file.go:687
 #, c-format
 msgid   "Pulling %s from %s: %%s"
 msgstr  ""
 
-#: lxc/file.go:408 lxc/file.go:409
+#: lxc/file.go:406 lxc/file.go:407
 msgid   "Push files into containers"
 msgstr  ""
 
-#: lxc/file.go:625 lxc/file.go:781
+#: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid   "Pushing %s to %s: %%s"
 msgstr  ""
@@ -2203,7 +2203,7 @@ msgstr  ""
 msgid   "Read-Only: %v"
 msgstr  ""
 
-#: lxc/file.go:226 lxc/file.go:415
+#: lxc/file.go:224 lxc/file.go:413
 msgid   "Recursively transfer files"
 msgstr  ""
 
@@ -2517,15 +2517,15 @@ msgstr  ""
 msgid   "Set the URL for the remote"
 msgstr  ""
 
-#: lxc/file.go:418
+#: lxc/file.go:416
 msgid   "Set the file's gid on push"
 msgstr  ""
 
-#: lxc/file.go:419
+#: lxc/file.go:417
 msgid   "Set the file's perms on push"
 msgstr  ""
 
-#: lxc/file.go:417
+#: lxc/file.go:415
 msgid   "Set the file's uid on push"
 msgstr  ""
 
@@ -2945,7 +2945,7 @@ msgstr  ""
 msgid   "UUID: %v"
 msgstr  ""
 
-#: lxc/file.go:181
+#: lxc/file.go:179
 #, c-format
 msgid   "Unable to create a temporary file: %v"
 msgstr  ""
@@ -2955,7 +2955,7 @@ msgstr  ""
 msgid   "Unknown column shorthand char '%c' in '%s'"
 msgstr  ""
 
-#: lxc/file.go:722
+#: lxc/file.go:720
 #, c-format
 msgid   "Unknown file type '%s'"
 msgstr  ""
@@ -3014,7 +3014,7 @@ msgstr  ""
 msgid   "User aborted delete operation"
 msgstr  ""
 
-#: lxc/file.go:62 lxc/utils/cancel.go:63
+#: lxc/file.go:60 lxc/utils/cancel.go:63
 msgid   "User signaled us three times, exiting. The remote operation will keep running"
 msgstr  ""
 
@@ -3195,7 +3195,7 @@ msgstr  ""
 msgid   "delete [<remote>:]<container> <template>"
 msgstr  ""
 
-#: lxc/file.go:104
+#: lxc/file.go:102
 msgid   "delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]"
 msgstr  ""
 
@@ -3271,7 +3271,7 @@ msgstr  ""
 msgid   "edit [<remote>:]<container> <template>"
 msgstr  ""
 
-#: lxc/file.go:154
+#: lxc/file.go:152
 msgid   "edit [<remote>:]<container>/<path>"
 msgstr  ""
 
@@ -3333,7 +3333,7 @@ msgstr  ""
 msgid   "export [<remote>:]<image> [<target>]"
 msgstr  ""
 
-#: lxc/file.go:72
+#: lxc/file.go:70
 msgid   "file"
 msgstr  ""
 
@@ -3482,12 +3482,12 @@ msgid   "lxc export u1 backup0.tar.gz\n"
         "    Download a backup tarball of the u1 container."
 msgstr  ""
 
-#: lxc/file.go:221
+#: lxc/file.go:219
 msgid   "lxc file pull foo/etc/hosts .\n"
         "   To pull /etc/hosts from the container and write it to the current directory."
 msgstr  ""
 
-#: lxc/file.go:411
+#: lxc/file.go:409
 msgid   "lxc file push /etc/hosts foo/etc/hosts\n"
         "   To push /etc/hosts into the container \"foo\"."
 msgstr  ""
@@ -3684,11 +3684,11 @@ msgstr  ""
 msgid   "publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr  ""
 
-#: lxc/file.go:217
+#: lxc/file.go:215
 msgid   "pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] <target path>"
 msgstr  ""
 
-#: lxc/file.go:407
+#: lxc/file.go:405
 msgid   "push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]"
 msgstr  ""
 
