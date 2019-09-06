@@ -39,6 +39,19 @@ func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
 	return names, nil
 }
 
+// GetInstances returns a list of instances.
+func (r *ProtocolLXD) GetInstances() ([]api.Instance, error) {
+	instances := []api.Instance{}
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", "/instances?recursion=1", nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
 // GetContainers returns a list of containers
 func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
 	containers := []api.Container{}
