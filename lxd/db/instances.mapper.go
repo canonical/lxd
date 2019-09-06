@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instance"
 	"github.com/pkg/errors"
 )
 
@@ -163,7 +164,7 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
-	if filter.Type != -1 {
+	if filter.Type != instance.TypeAny {
 		criteria["Type"] = filter.Type
 	}
 
@@ -306,7 +307,7 @@ func (c *ClusterTx) InstanceGet(project string, name string) (*Instance, error) 
 	filter := InstanceFilter{}
 	filter.Project = project
 	filter.Name = name
-	filter.Type = -1
+	filter.Type = instance.TypeAny
 
 	objects, err := c.InstanceList(filter)
 	if err != nil {
