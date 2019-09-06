@@ -16,15 +16,19 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-var containersCmd = APIEndpoint{
-	Name: "containers",
+var instancesCmd = APIEndpoint{
+	Name:    "instances",
+	Path:    "instances",
+	Aliases: []APIEndpointAlias{{Name: "containers", Path: "containers"}},
 
 	Get:  APIEndpointAction{Handler: containersGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containersPost, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
-var containerCmd = APIEndpoint{
-	Name: "containers/{name}",
+var instanceCmd = APIEndpoint{
+	Name:    "instance",
+	Path:    "instances/{name}",
+	Aliases: []APIEndpointAlias{{Name: "container", Path: "containers/{name}"}},
 
 	Get:    APIEndpointAction{Handler: containerGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Put:    APIEndpointAction{Handler: containerPut, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
@@ -33,30 +37,38 @@ var containerCmd = APIEndpoint{
 	Patch:  APIEndpointAction{Handler: containerPatch, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
-var containerStateCmd = APIEndpoint{
-	Name: "containers/{name}/state",
+var instanceStateCmd = APIEndpoint{
+	Name:    "instanceState",
+	Path:    "instances/{name}/state",
+	Aliases: []APIEndpointAlias{{Name: "containerState", Path: "containers/{name}/state"}},
 
 	Get: APIEndpointAction{Handler: containerState, AccessHandler: AllowProjectPermission("containers", "view")},
 	Put: APIEndpointAction{Handler: containerStatePut, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerFileCmd = APIEndpoint{
-	Name: "containers/{name}/files",
+var instanceFileCmd = APIEndpoint{
+	Name:    "instanceFile",
+	Path:    "instances/{name}/files",
+	Aliases: []APIEndpointAlias{{Name: "containerFile", Path: "containers/{name}/files"}},
 
 	Get:    APIEndpointAction{Handler: containerFileHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Post:   APIEndpointAction{Handler: containerFileHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Delete: APIEndpointAction{Handler: containerFileHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerSnapshotsCmd = APIEndpoint{
-	Name: "containers/{name}/snapshots",
+var instanceSnapshotsCmd = APIEndpoint{
+	Name:    "instanceSnapshots",
+	Path:    "instances/{name}/snapshots",
+	Aliases: []APIEndpointAlias{{Name: "containerSnapshots", Path: "containers/{name}/snapshots"}},
 
 	Get:  APIEndpointAction{Handler: containerSnapshotsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containerSnapshotsPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerSnapshotCmd = APIEndpoint{
-	Name: "containers/{name}/snapshots/{snapshotName}",
+var instanceSnapshotCmd = APIEndpoint{
+	Name:    "instanceSnapshot",
+	Path:    "instances/{name}/snapshots/{snapshotName}",
+	Aliases: []APIEndpointAlias{{Name: "containerSnapshot", Path: "containers/{name}/snapshots/{snapshotName}"}},
 
 	Get:    APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Post:   APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
@@ -64,29 +76,37 @@ var containerSnapshotCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerConsoleCmd = APIEndpoint{
-	Name: "containers/{name}/console",
+var instanceConsoleCmd = APIEndpoint{
+	Name:    "instanceConsole",
+	Path:    "instances/{name}/console",
+	Aliases: []APIEndpointAlias{{Name: "containerConsole", Path: "containers/{name}/console"}},
 
 	Get:    APIEndpointAction{Handler: containerConsoleLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post:   APIEndpointAction{Handler: containerConsolePost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Delete: APIEndpointAction{Handler: containerConsoleLogDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerExecCmd = APIEndpoint{
-	Name: "containers/{name}/exec",
+var instanceExecCmd = APIEndpoint{
+	Name:    "instanceExec",
+	Path:    "instances/{name}/exec",
+	Aliases: []APIEndpointAlias{{Name: "containerExec", Path: "containers/{name}/exec"}},
 
 	Post: APIEndpointAction{Handler: containerExecPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerMetadataCmd = APIEndpoint{
-	Name: "containers/{name}/metadata",
+var instanceMetadataCmd = APIEndpoint{
+	Name:    "instanceMetadata",
+	Path:    "instances/{name}/metadata",
+	Aliases: []APIEndpointAlias{{Name: "containerMetadata", Path: "containers/{name}/metadata"}},
 
 	Get: APIEndpointAction{Handler: containerMetadataGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Put: APIEndpointAction{Handler: containerMetadataPut, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
-var containerMetadataTemplatesCmd = APIEndpoint{
-	Name: "containers/{name}/metadata/templates",
+var instanceMetadataTemplatesCmd = APIEndpoint{
+	Name:    "instanceMetadataTemplates",
+	Path:    "instances/{name}/metadata/templates",
+	Aliases: []APIEndpointAlias{{Name: "containerMetadataTemplates", Path: "containers/{name}/metadata/templates"}},
 
 	Get:    APIEndpointAction{Handler: containerMetadataTemplatesGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post:   APIEndpointAction{Handler: containerMetadataTemplatesPostPut, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
@@ -94,23 +114,29 @@ var containerMetadataTemplatesCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: containerMetadataTemplatesDelete, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
-var containerBackupsCmd = APIEndpoint{
-	Name: "containers/{name}/backups",
+var instanceBackupsCmd = APIEndpoint{
+	Name:    "instanceBackups",
+	Path:    "instances/{name}/backups",
+	Aliases: []APIEndpointAlias{{Name: "containerBackups", Path: "containers/{name}/backups"}},
 
 	Get:  APIEndpointAction{Handler: containerBackupsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containerBackupsPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerBackupCmd = APIEndpoint{
-	Name: "containers/{name}/backups/{backupName}",
+var instanceBackupCmd = APIEndpoint{
+	Name:    "instanceBackup",
+	Path:    "instances/{name}/backups/{backupName}",
+	Aliases: []APIEndpointAlias{{Name: "containerBackup", Path: "containers/{name}/backups/{backupName}"}},
 
 	Get:    APIEndpointAction{Handler: containerBackupGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post:   APIEndpointAction{Handler: containerBackupPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Delete: APIEndpointAction{Handler: containerBackupDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
-var containerBackupExportCmd = APIEndpoint{
-	Name: "containers/{name}/backups/{backupName}/export",
+var instanceBackupExportCmd = APIEndpoint{
+	Name:    "instanceBackupExport",
+	Path:    "instances/{name}/backups/{backupName}/export",
+	Aliases: []APIEndpointAlias{{Name: "containerBackupExport", Path: "containers/{name}/backups/{backupName}/export"}},
 
 	Get: APIEndpointAction{Handler: containerBackupExportGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }

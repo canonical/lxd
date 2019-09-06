@@ -19,7 +19,7 @@ import (
 )
 
 var eventsCmd = APIEndpoint{
-	Name: "events",
+	Path: "events",
 
 	Get: APIEndpointAction{Handler: eventsGet, AccessHandler: AllowAuthenticated},
 }

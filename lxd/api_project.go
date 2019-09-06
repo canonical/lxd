@@ -19,14 +19,14 @@ import (
 )
 
 var projectsCmd = APIEndpoint{
-	Name: "projects",
+	Path: "projects",
 
 	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: projectsPost},
 }
 
 var projectCmd = APIEndpoint{
-	Name: "projects/{name}",
+	Path: "projects/{name}",
 
 	Delete: APIEndpointAction{Handler: projectDelete},
 	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: AllowAuthenticated},

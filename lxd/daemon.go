@@ -155,12 +155,20 @@ func DefaultDaemon() *Daemon {
 
 // APIEndpoint represents a URL in our API.
 type APIEndpoint struct {
-	Name   string
-	Get    APIEndpointAction
-	Put    APIEndpointAction
-	Post   APIEndpointAction
-	Delete APIEndpointAction
-	Patch  APIEndpointAction
+	Name    string             // Name for this endpoint.
+	Path    string             // Path pattern for this endpoint.
+	Aliases []APIEndpointAlias // Any aliases for this endpoint.
+	Get     APIEndpointAction
+	Put     APIEndpointAction
+	Post    APIEndpointAction
+	Delete  APIEndpointAction
+	Patch   APIEndpointAction
+}
+
+// APIEndpointAlias represents an alias URL of and APIEndpoint in our API.
+type APIEndpointAlias struct {
+	Name string // Name for this alias.
+	Path string // Path pattern for this alias.
 }
 
 // APIEndpointAction represents an action on an API endpoint.
@@ -338,13 +346,13 @@ func (d *Daemon) UnixSocket() string {
 
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	var uri string
-	if c.Name == "" {
+	if c.Path == "" {
 		uri = fmt.Sprintf("/%s", version)
 	} else {
-		uri = fmt.Sprintf("/%s/%s", version, c.Name)
+		uri = fmt.Sprintf("/%s/%s", version, c.Path)
 	}
 
-	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		// Block public API requests until we're done with basic
@@ -371,7 +379,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		// Reject internal queries to remote, non-cluster, clients
 		if version == "internal" && !shared.StringInSlice(protocol, []string{"unix", "cluster"}) {
 			// Except for the initial cluster accept request (done over trusted TLS)
-			if !trusted || c.Name != "cluster/accept" || protocol != "tls" {
+			if !trusted || c.Path != "cluster/accept" || protocol != "tls" {
 				logger.Warn("Rejecting remote internal API request", log.Ctx{"ip": r.RemoteAddr})
 				Forbidden(nil).Render(w)
 				return
@@ -455,6 +463,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 		}
 	})
+
+	// If the endpoint has a canonical name then record it so it can be used to build URLS
+	// and accessed in the context of the request by the handler function.
+	if c.Name != "" {
+		route.Name(c.Name)
+	}
 }
 
 // have we setup shared mounts?
