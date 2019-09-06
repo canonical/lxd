@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-05 12:51-0400\n"
+"POT-Creation-Date: 2019-09-06 02:09-0400\n"
 "PO-Revision-Date: 2019-06-13 16:56+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -245,7 +245,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d más)"
 
-#: lxc/file.go:846
+#: lxc/file.go:844
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s no es un directorio"
@@ -255,7 +255,7 @@ msgstr "%s no es un directorio"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrumpe dos o más tiempos a la fuerza)"
 
-#: lxc/file.go:740
+#: lxc/file.go:738
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "%s no es un tipo de archivo soportado."
@@ -363,8 +363,8 @@ msgid "Address: %s"
 msgstr "Expira: %s"
 
 #: lxc/remote.go:363
-#, c-format
-msgid "Admin password for %s: "
+#, fuzzy, c-format
+msgid "Admin password for %s:"
 msgstr "Contraseña admin para %s:"
 
 #: lxc/alias.go:76 lxc/alias.go:172
@@ -549,7 +549,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:303
+#: lxc/file.go:301
 msgid "Can't pull a directory without --recursive"
 msgstr "No se puede jalar un directorio sin - recursivo"
 
@@ -575,7 +575,7 @@ msgstr "No se puede especificar un remote diferente para renombrar."
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:483
+#: lxc/file.go:481
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -604,7 +604,8 @@ msgid "Certificate fingerprint: %s"
 msgstr "Certificado de la huella digital: %s"
 
 #: lxc/remote.go:402
-msgid "Client certificate stored at server: "
+#, fuzzy
+msgid "Client certificate stored at server:"
 msgstr "Certificado del cliente almacenado en el servidor:"
 
 #: lxc/version.go:37
@@ -773,7 +774,7 @@ msgstr "Creando el contenedor"
 msgid "Create and start containers from images"
 msgstr ""
 
-#: lxc/file.go:225 lxc/file.go:416
+#: lxc/file.go:223 lxc/file.go:414
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -874,7 +875,7 @@ msgstr ""
 msgid "Delete containers and snapshots"
 msgstr ""
 
-#: lxc/file.go:106 lxc/file.go:107
+#: lxc/file.go:104 lxc/file.go:105
 msgid "Delete files in containers"
 msgstr ""
 
@@ -921,8 +922,8 @@ msgstr ""
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
 #: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:32
 #: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:31
-#: lxc/file.go:74 lxc/file.go:107 lxc/file.go:156 lxc/file.go:219
-#: lxc/file.go:409 lxc/image.go:38 lxc/image.go:127 lxc/image.go:261
+#: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
+#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:127 lxc/image.go:261
 #: lxc/image.go:312 lxc/image.go:435 lxc/image.go:575 lxc/image.go:789
 #: lxc/image.go:903 lxc/image.go:1191 lxc/image.go:1268 lxc/image_alias.go:24
 #: lxc/image_alias.go:57 lxc/image_alias.go:104 lxc/image_alias.go:149
@@ -1055,7 +1056,7 @@ msgstr ""
 msgid "EXPIRY DATE"
 msgstr "FECHA DE EXPIRACIÓN"
 
-#: lxc/file.go:65
+#: lxc/file.go:63
 msgid ""
 "Early server side processing of file tranfer requests cannot be canceled "
 "(interrupt two more times to force)"
@@ -1073,7 +1074,7 @@ msgstr ""
 msgid "Edit container or server configurations as YAML"
 msgstr ""
 
-#: lxc/file.go:155 lxc/file.go:156
+#: lxc/file.go:153 lxc/file.go:154
 msgid "Edit files in containers"
 msgstr ""
 
@@ -1228,7 +1229,7 @@ msgstr ""
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:735
+#: lxc/file.go:733
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -1536,7 +1537,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr ""
 
-#: lxc/file.go:131
+#: lxc/file.go:129
 #, c-format
 msgid "Invalid path %s"
 msgstr ""
@@ -1546,12 +1547,12 @@ msgstr ""
 msgid "Invalid protocol: %s"
 msgstr ""
 
-#: lxc/file.go:277
+#: lxc/file.go:275
 #, c-format
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:437
+#: lxc/file.go:435
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -1844,7 +1845,7 @@ msgstr ""
 msgid "Manage container metadata files"
 msgstr ""
 
-#: lxc/file.go:73 lxc/file.go:74
+#: lxc/file.go:71 lxc/file.go:72
 msgid "Manage files in containers"
 msgstr ""
 
@@ -2006,7 +2007,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr ""
 
-#: lxc/file.go:530
+#: lxc/file.go:528
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s no es un directorio"
@@ -2037,7 +2038,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr ""
 
-#: lxc/file.go:258
+#: lxc/file.go:256
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
@@ -2406,20 +2407,20 @@ msgstr ""
 msgid "Publishing container: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/file.go:218 lxc/file.go:219
+#: lxc/file.go:216 lxc/file.go:217
 msgid "Pull files from containers"
 msgstr ""
 
-#: lxc/file.go:366 lxc/file.go:689
+#: lxc/file.go:364 lxc/file.go:687
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
 
-#: lxc/file.go:408 lxc/file.go:409
+#: lxc/file.go:406 lxc/file.go:407
 msgid "Push files into containers"
 msgstr ""
 
-#: lxc/file.go:625 lxc/file.go:781
+#: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -2429,7 +2430,7 @@ msgstr ""
 msgid "Read-Only: %v"
 msgstr ""
 
-#: lxc/file.go:226 lxc/file.go:415
+#: lxc/file.go:224 lxc/file.go:413
 msgid "Recursively transfer files"
 msgstr ""
 
@@ -2762,15 +2763,15 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr ""
 
-#: lxc/file.go:418
+#: lxc/file.go:416
 msgid "Set the file's gid on push"
 msgstr ""
 
-#: lxc/file.go:419
+#: lxc/file.go:417
 msgid "Set the file's perms on push"
 msgstr ""
 
-#: lxc/file.go:417
+#: lxc/file.go:415
 msgid "Set the file's uid on push"
 msgstr ""
 
@@ -3201,7 +3202,7 @@ msgstr ""
 msgid "UUID: %v"
 msgstr ""
 
-#: lxc/file.go:181
+#: lxc/file.go:179
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr ""
@@ -3211,7 +3212,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:722
+#: lxc/file.go:720
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -3271,7 +3272,7 @@ msgstr ""
 msgid "User aborted delete operation"
 msgstr ""
 
-#: lxc/file.go:62 lxc/utils/cancel.go:63
+#: lxc/file.go:60 lxc/utils/cancel.go:63
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
@@ -3461,7 +3462,7 @@ msgstr ""
 msgid "delete [<remote>:]<container> <template>"
 msgstr ""
 
-#: lxc/file.go:104
+#: lxc/file.go:102
 msgid "delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]"
 msgstr ""
 
@@ -3539,7 +3540,7 @@ msgstr ""
 msgid "edit [<remote>:]<container> <template>"
 msgstr ""
 
-#: lxc/file.go:154
+#: lxc/file.go:152
 msgid "edit [<remote>:]<container>/<path>"
 msgstr ""
 
@@ -3604,7 +3605,7 @@ msgstr ""
 msgid "export [<remote>:]<image> [<target>]"
 msgstr ""
 
-#: lxc/file.go:72
+#: lxc/file.go:70
 msgid "file"
 msgstr ""
 
@@ -3764,14 +3765,14 @@ msgid ""
 "    Download a backup tarball of the u1 container."
 msgstr ""
 
-#: lxc/file.go:221
+#: lxc/file.go:219
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the container and write it to the current "
 "directory."
 msgstr ""
 
-#: lxc/file.go:411
+#: lxc/file.go:409
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the container \"foo\"."
@@ -3997,13 +3998,13 @@ msgid ""
 "[key=value...]"
 msgstr ""
 
-#: lxc/file.go:217
+#: lxc/file.go:215
 msgid ""
 "pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] "
 "<target path>"
 msgstr ""
 
-#: lxc/file.go:407
+#: lxc/file.go:405
 msgid ""
 "push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/"
 "<path>...]"
