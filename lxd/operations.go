@@ -24,26 +24,26 @@ import (
 )
 
 var operationCmd = APIEndpoint{
-	Name: "operations/{id}",
+	Path: "operations/{id}",
 
 	Delete: APIEndpointAction{Handler: operationDelete, AccessHandler: AllowAuthenticated},
 	Get:    APIEndpointAction{Handler: operationGet, AccessHandler: AllowAuthenticated},
 }
 
 var operationsCmd = APIEndpoint{
-	Name: "operations",
+	Path: "operations",
 
 	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: AllowAuthenticated},
 }
 
 var operationWait = APIEndpoint{
-	Name: "operations/{id}/wait",
+	Path: "operations/{id}/wait",
 
 	Get: APIEndpointAction{Handler: operationWaitGet, AccessHandler: AllowAuthenticated},
 }
 
 var operationWebsocket = APIEndpoint{
-	Name: "operations/{id}/websocket",
+	Path: "operations/{id}/websocket",
 
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }

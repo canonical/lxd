@@ -48,56 +48,56 @@ var apiInternal = []APIEndpoint{
 }
 
 var internalShutdownCmd = APIEndpoint{
-	Name: "shutdown",
+	Path: "shutdown",
 
 	Put: APIEndpointAction{Handler: internalShutdown},
 }
 
 var internalReadyCmd = APIEndpoint{
-	Name: "ready",
+	Path: "ready",
 
 	Get: APIEndpointAction{Handler: internalWaitReady},
 }
 
 var internalContainerOnStartCmd = APIEndpoint{
-	Name: "containers/{id}/onstart",
+	Path: "containers/{id}/onstart",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStart},
 }
 
 var internalContainerOnStopNSCmd = APIEndpoint{
-	Name: "containers/{id}/onstopns",
+	Path: "containers/{id}/onstopns",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStopNS},
 }
 
 var internalContainerOnStopCmd = APIEndpoint{
-	Name: "containers/{id}/onstop",
+	Path: "containers/{id}/onstop",
 
 	Get: APIEndpointAction{Handler: internalContainerOnStop},
 }
 
 var internalSQLCmd = APIEndpoint{
-	Name: "sql",
+	Path: "sql",
 
 	Get:  APIEndpointAction{Handler: internalSQLGet},
 	Post: APIEndpointAction{Handler: internalSQLPost},
 }
 
 var internalContainersCmd = APIEndpoint{
-	Name: "containers",
+	Path: "containers",
 
 	Post: APIEndpointAction{Handler: internalImport},
 }
 
 var internalGarbageCollectorCmd = APIEndpoint{
-	Name: "gc",
+	Path: "gc",
 
 	Get: APIEndpointAction{Handler: internalGC},
 }
 
 var internalRAFTSnapshotCmd = APIEndpoint{
-	Name: "raft-snapshot",
+	Path: "raft-snapshot",
 
 	Get: APIEndpointAction{Handler: internalRAFTSnapshot},
 }

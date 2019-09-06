@@ -22,14 +22,14 @@ import (
 )
 
 var profilesCmd = APIEndpoint{
-	Name: "profiles",
+	Path: "profiles",
 
 	Get:  APIEndpointAction{Handler: profilesGet, AccessHandler: AllowProjectPermission("profiles", "view")},
 	Post: APIEndpointAction{Handler: profilesPost, AccessHandler: AllowProjectPermission("profiles", "manage-profiles")},
 }
 
 var profileCmd = APIEndpoint{
-	Name: "profiles/{name}",
+	Path: "profiles/{name}",
 
 	Delete: APIEndpointAction{Handler: profileDelete, AccessHandler: AllowProjectPermission("profiles", "manage-profiles")},
 	Get:    APIEndpointAction{Handler: profileGet, AccessHandler: AllowProjectPermission("profiles", "view")},
