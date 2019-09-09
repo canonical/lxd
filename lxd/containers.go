@@ -22,7 +22,7 @@ var instancesCmd = APIEndpoint{
 	Aliases: []APIEndpointAlias{{Name: "containers", Path: "containers"}},
 
 	Get:  APIEndpointAction{Handler: instancesGet, AccessHandler: AllowProjectPermission("containers", "view")},
-	Post: APIEndpointAction{Handler: containersPost, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
+	Post: APIEndpointAction{Handler: instancesPost, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceCmd = APIEndpoint{
