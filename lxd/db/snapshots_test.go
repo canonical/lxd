@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instance"
 )
 
 func TestInstanceSnapshotList(t *testing.T) {

@@ -3,10 +3,10 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instance"
 )
 
 type infinibandSRIOV struct {

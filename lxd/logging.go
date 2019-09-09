@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instance"
 	"github.com/lxc/lxd/shared/logger"
 
 	log "github.com/lxc/lxd/shared/log15"

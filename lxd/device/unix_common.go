@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instance"
 )
 
 // unixIsOurDeviceType checks that device file type matches what we are expecting in the config.
