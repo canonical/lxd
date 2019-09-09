@@ -85,6 +85,7 @@ type ContainerServer interface {
 	GetContainers() (containers []api.Container, err error)
 	GetContainersFull() (containers []api.ContainerFull, err error)
 	GetContainer(name string) (container *api.Container, ETag string, err error)
+	CreateInstance(container api.InstancesPost) (op Operation, err error)
 	CreateContainer(container api.ContainersPost) (op Operation, err error)
 	CreateContainerFromImage(source ImageServer, image api.Image, imgcontainer api.ContainersPost) (op RemoteOperation, err error)
 	CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (op RemoteOperation, err error)
