@@ -608,7 +608,8 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 			csArgs := db.ContainerArgs{
 				Architecture: snap.Architecture(),
 				Config:       snap.LocalConfig(),
-				Ctype:        db.CTypeSnapshot,
+				Type:         ct.Type(),
+				IsSnapshot:   true,
 				Devices:      snapDevices,
 				Description:  snap.Description(),
 				Ephemeral:    snap.IsEphemeral(),
@@ -799,8 +800,9 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		args.Architecture = s.OS.Architectures[0]
 	}
 
-	// Validate container name
-	if args.Ctype == db.CTypeRegular {
+	// Only validate instance name if not snapshot, as snapshot names contain a / character that
+	// is not normally allowed in instance names.
+	if !args.IsSnapshot {
 		err := containerValidName(args.Name)
 		if err != nil {
 			return nil, err
@@ -876,7 +878,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			return fmt.Errorf("Project %q does not exist", args.Project)
 		}
 
-		if args.Ctype == db.CTypeSnapshot {
+		if args.IsSnapshot == true {
 			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
 			instanceName := parts[0]
 			snapshotName := parts[1]
@@ -916,7 +918,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			Project:      args.Project,
 			Name:         args.Name,
 			Node:         node,
-			Type:         int(args.Ctype),
+			Type:         args.Type,
 			Architecture: args.Architecture,
 			Ephemeral:    args.Ephemeral,
 			CreationDate: args.CreationDate,
@@ -1082,7 +1084,7 @@ func containerLoadByProject(s *state.State, project string) ([]container, error)
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
 			Project: project,
-			Type:    int(db.CTypeRegular),
+			Type:    instance.TypeContainer,
 		}
 		var err error
 		cts, err = tx.InstanceList(filter)
@@ -1385,7 +1387,8 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []c
 			args := db.ContainerArgs{
 				Architecture: c.Architecture(),
 				Config:       c.LocalConfig(),
-				Ctype:        db.CTypeSnapshot,
+				Type:         c.Type(),
+				IsSnapshot:   true,
 				Devices:      c.LocalDevices(),
 				Ephemeral:    c.IsEphemeral(),
 				Name:         snapshotName,

@@ -26,6 +26,7 @@ import (
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instance"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -905,7 +906,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
 		CreationDate: backup.Container.CreatedAt,
-		Ctype:        db.CTypeRegular,
+		Type:         instance.Type(backup.Container.Type),
 		Description:  backup.Container.Description,
 		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
 		Ephemeral:    backup.Container.Ephemeral,
@@ -1011,7 +1012,8 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			BaseImage:    baseImage,
 			Config:       snap.Config,
 			CreationDate: snap.CreatedAt,
-			Ctype:        db.CTypeSnapshot,
+			Type:         instance.Type(backup.Container.Type),
+			IsSnapshot:   true,
 			Devices:      deviceConfig.NewDevices(snap.Devices),
 			Ephemeral:    snap.Ephemeral,
 			LastUsedDate: snap.LastUsedAt,

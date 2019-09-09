@@ -328,7 +328,8 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		cType:        args.Ctype,
+		instanceType: args.Type,
+		isSnapshot:   args.IsSnapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
@@ -562,7 +563,8 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		cType:        args.Ctype,
+		instanceType: args.Type,
+		isSnapshot:   args.IsSnapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
 		profiles:     args.Profiles,
@@ -593,7 +595,8 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 type containerLXC struct {
 	// Properties
 	architecture int
-	cType        db.ContainerType
+	instanceType instance.Type
+	isSnapshot   bool
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
@@ -6681,7 +6684,7 @@ func (c *containerLXC) IsRunning() bool {
 }
 
 func (c *containerLXC) IsSnapshot() bool {
-	return c.cType == db.CTypeSnapshot
+	return c.isSnapshot
 }
 
 // Various property query functions

@@ -198,7 +198,7 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	args := db.ContainerArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
-		Ctype:        db.CTypeSnapshot,
+		IsSnapshot:   true,
 		Devices:      devices,
 		Ephemeral:    snap.GetEphemeral(),
 		Name:         name,

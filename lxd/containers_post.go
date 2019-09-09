@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -96,7 +97,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 		args := db.ContainerArgs{
 			Project:     project,
 			Config:      req.Config,
-			Ctype:       db.CTypeRegular,
+			Type:        instance.TypeContainer,
 			Description: req.Description,
 			Devices:     config.NewDevices(req.Devices),
 			Ephemeral:   req.Ephemeral,
@@ -152,7 +153,7 @@ func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response
 	args := db.ContainerArgs{
 		Project:     project,
 		Config:      req.Config,
-		Ctype:       db.CTypeRegular,
+		Type:        instance.TypeContainer,
 		Description: req.Description,
 		Devices:     config.NewDevices(req.Devices),
 		Ephemeral:   req.Ephemeral,
@@ -209,7 +210,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Ctype:        db.CTypeRegular,
+		Type:         instance.TypeContainer,
 		Devices:      config.NewDevices(req.Devices),
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
@@ -555,7 +556,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Ctype:        db.CTypeRegular,
+		Type:         instance.TypeContainer,
 		Description:  req.Description,
 		Devices:      config.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
