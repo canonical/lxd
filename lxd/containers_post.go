@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
@@ -30,7 +31,7 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func createFromImage(d *Daemon, project string, req *api.ContainersPost) Response {
+func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response {
 	var hash string
 	var err error
 
@@ -149,7 +150,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 	return OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response {
+func createFromNone(d *Daemon, project string, req *api.InstancesPost) Response {
 	args := db.ContainerArgs{
 		Project:     project,
 		Config:      req.Config,
@@ -185,7 +186,7 @@ func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response
 	return OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Response {
+func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -427,7 +428,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 	return OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response {
+func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response {
 	if req.Source.Source == "" {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
@@ -669,9 +670,9 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 	return OperationResponse(op)
 }
 
-func containersPost(d *Daemon, r *http.Request) Response {
+func instancesPost(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
-	logger.Debugf("Responding to container create")
+	logger.Debugf("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
@@ -679,9 +680,14 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Parse the request
-	req := api.ContainersPost{}
+	req := api.InstancesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
+	}
+
+	// Force instanceType to container if container create route has been used.
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		req.Type = instance.TypeContainer
 	}
 
 	targetNode := queryParam(r, "target")
@@ -717,7 +723,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			client = client.UseTarget(targetNode)
 
 			logger.Debugf("Forward container post request to %s", address)
-			op, err := client.CreateContainer(req)
+			op, err := client.CreateInstance(req)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -781,7 +787,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
+		return BadRequest(fmt.Errorf("Invalid instance name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
 	switch req.Source.Type {
@@ -798,7 +804,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func containerFindStoragePool(d *Daemon, project string, req *api.ContainersPost) (string, string, string, map[string]string, Response) {
+func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost) (string, string, string, map[string]string, Response) {
 	// Grab the container's root device if one is specified
 	storagePool := ""
 	storagePoolProfile := ""
@@ -855,7 +861,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.ContainersPost
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, source container, project string, req *api.ContainersPost) Response {
+func clusterCopyContainerInternal(d *Daemon, source container, project string, req *api.InstancesPost) Response {
 	name := req.Source.Source
 
 	// Locate the source of the container
