@@ -2,17 +2,23 @@ package api
 
 import (
 	"time"
+
+	"github.com/lxc/lxd/shared/instance"
 )
 
-// ContainersPost represents the fields available for a new LXD container
-type ContainersPost struct {
+// InstancesPost represents the fields available for a new LXD instance.
+type InstancesPost struct {
 	ContainerPut `yaml:",inline"`
 
 	Name   string          `json:"name" yaml:"name"`
+	Type   instance.Type   `json:"type" yaml:"type"`
 	Source ContainerSource `json:"source" yaml:"source"`
 
 	InstanceType string `json:"instance_type" yaml:"instance_type"`
 }
+
+// ContainersPost represents the fields available for a new LXD container.
+type ContainersPost InstancesPost
 
 // ContainerPost represents the fields required to rename/move a LXD container
 type ContainerPost struct {
