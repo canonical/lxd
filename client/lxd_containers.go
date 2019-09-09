@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/instance"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -164,21 +165,38 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	return &op, nil
 }
 
-// CreateContainer requests that LXD creates a new container
-func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, error) {
-	if container.Source.ContainerOnly {
+// CreateInstance requests that LXD creates a new instance.
+func (r *ProtocolLXD) CreateInstance(req api.InstancesPost) (Operation, error) {
+	if req.Source.ContainerOnly {
 		if !r.HasExtension("container_only_migration") {
 			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
 		}
 	}
 
+	path := "/instances"
+	if !r.HasExtension("instances") {
+		path = "/containers" // Fallback to using old containers endpoint.
+
+		// Old containers end point can only be used to create containers.
+		if req.Type != instance.TypeContainer {
+			return nil, fmt.Errorf("The server is missing the required \"instances\" API extension")
+		}
+	}
+
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/containers", container, "")
+	op, _, err := r.queryOperation("POST", path, req, "")
 	if err != nil {
 		return nil, err
 	}
 
 	return op, nil
+}
+
+// CreateContainer requests that LXD creates a new container.
+func (r *ProtocolLXD) CreateContainer(req api.ContainersPost) (Operation, error) {
+	instanceReq := api.InstancesPost(req)
+	instanceReq.Type = instance.TypeContainer
+	return r.CreateInstance(instanceReq)
 }
 
 func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) (RemoteOperation, error) {
