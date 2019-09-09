@@ -781,8 +781,8 @@ test_storage() {
   if [ "$lxd_backend" != "dir" ]; then
     lxc launch testimage quota1
     rootOrigSizeKB=$(lxc exec quota1 -- df -P / | tail -n1 | awk '{print $2}')
-    rootOrigMinSizeKB=$((rootOrigSizeKB-1000))
-    rootOrigMaxSizeKB=$((rootOrigSizeKB+1000))
+    rootOrigMinSizeKB=$((rootOrigSizeKB-2000))
+    rootOrigMaxSizeKB=$((rootOrigSizeKB+2000))
 
     lxc profile device set default root size "${QUOTA1}"
     lxc stop -f quota1
