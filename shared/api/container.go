@@ -63,8 +63,8 @@ type ContainerPut struct {
 	Description string `json:"description" yaml:"description"`
 }
 
-// Container represents a LXD container
-type Container struct {
+// Instance represents a LXD instance.
+type Instance struct {
 	ContainerPut `yaml:",inline"`
 
 	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
@@ -81,6 +81,9 @@ type Container struct {
 	// API extension: clustering
 	Location string `json:"location" yaml:"location"`
 }
+
+// Container represents a LXD container.
+type Container Instance
 
 // ContainerFull is a combination of Container, ContainerState and CotnainerSnapshot
 //
