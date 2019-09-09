@@ -67,6 +67,7 @@ type Container struct {
 	Name            string                       `json:"name" yaml:"name"`
 	Status          string                       `json:"status" yaml:"status"`
 	StatusCode      StatusCode                   `json:"status_code" yaml:"status_code"`
+	Type            int                          `json:"type" yaml:"type"`
 
 	// API extension: container_last_used_at
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
