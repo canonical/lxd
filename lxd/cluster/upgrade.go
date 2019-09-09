@@ -65,6 +65,10 @@ func MaybeUpdate(state *state.State) error {
 		return nil
 	}
 
+	if state.Cluster == nil {
+		return fmt.Errorf("Failed checking cluster update, state not initialised yet")
+	}
+
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		outdated, err := tx.NodeIsOutdated()
 		if err != nil {
