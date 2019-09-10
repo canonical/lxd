@@ -313,7 +313,7 @@ func TestContainersListByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.ContainersListByNodeAddress("default")
+	result, err := tx.ContainersListByNodeAddress("default", instance.TypeContainer)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -337,7 +337,7 @@ func TestContainersByNodeName(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.ContainersByNodeName("default")
+	result, err := tx.ContainersByNodeName("default", instance.TypeContainer)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
