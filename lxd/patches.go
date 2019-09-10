@@ -1889,12 +1889,8 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			Description:  c.Description(),
 			Ephemeral:    c.IsEphemeral(),
 			Profiles:     c.Profiles(),
-		}
-
-		if c.IsSnapshot() {
-			args.Ctype = db.CTypeSnapshot
-		} else {
-			args.Ctype = db.CTypeRegular
+			Type:         c.Type(),
+			Snapshot:     c.IsSnapshot(),
 		}
 
 		// Check if the container already has a valid root device entry (profile or previous upgrade)
