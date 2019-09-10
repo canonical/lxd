@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -198,7 +199,8 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	args := db.ContainerArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
-		Ctype:        db.CTypeSnapshot,
+		Type:         instance.TypeContainer,
+		Snapshot:     true,
 		Devices:      devices,
 		Ephemeral:    snap.GetEphemeral(),
 		Name:         name,
