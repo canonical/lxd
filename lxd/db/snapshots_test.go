@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func TestInstanceSnapshotList(t *testing.T) {
@@ -95,7 +97,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Project:      "default",
 		Name:         "i1",
 		Node:         "none",
-		Type:         int(db.CTypeRegular),
+		Type:         instance.TypeContainer,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -108,7 +110,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Project:      "p1",
 		Name:         "i1",
 		Node:         "none",
-		Type:         int(db.CTypeRegular),
+		Type:         instance.TypeContainer,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,

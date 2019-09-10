@@ -320,6 +320,8 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			Ephemeral:    c.IsEphemeral(),
 			Profiles:     c.Profiles(),
 			Project:      c.Project(),
+			Type:         c.Type(),
+			Snapshot:     c.IsSnapshot(),
 		}
 
 		err = c.Update(args, false)

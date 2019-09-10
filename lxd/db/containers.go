@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device/config"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -69,7 +70,8 @@ type Instance struct {
 	Project      string `db:"primary=yes&join=projects.name"`
 	Name         string `db:"primary=yes"`
 	Node         string `db:"join=nodes.name"`
-	Type         int
+	Type         instance.Type
+	Snapshot     bool
 	Architecture int
 	Ephemeral    bool
 	CreationDate time.Time
@@ -87,7 +89,7 @@ type InstanceFilter struct {
 	Project string
 	Name    string
 	Node    string
-	Type    int
+	Type    instance.Type
 }
 
 // ContainerToArgs is a convenience to convert the new Container db struct into
@@ -98,7 +100,8 @@ func ContainerToArgs(container *Instance) ContainerArgs {
 		Project:      container.Project,
 		Name:         container.Name,
 		Node:         container.Node,
-		Ctype:        ContainerType(container.Type),
+		Type:         container.Type,
+		Snapshot:     container.Snapshot,
 		Architecture: container.Architecture,
 		Ephemeral:    container.Ephemeral,
 		CreationDate: container.CreationDate,
@@ -122,9 +125,10 @@ func ContainerToArgs(container *Instance) ContainerArgs {
 // container.
 type ContainerArgs struct {
 	// Don't set manually
-	ID    int
-	Node  string
-	Ctype ContainerType
+	ID       int
+	Node     string
+	Type     instance.Type
+	Snapshot bool
 
 	// Creation only
 	Project      string
@@ -157,15 +161,6 @@ type ContainerBackupArgs struct {
 	OptimizedStorage bool
 }
 
-// ContainerType encodes the type of container (either regular or snapshot).
-type ContainerType int
-
-// Numerical codes for container types.
-const (
-	CTypeRegular  ContainerType = 0
-	CTypeSnapshot ContainerType = 1
-)
-
 // ContainerNames returns the names of all containers the given project.
 func (c *ClusterTx) ContainerNames(project string) ([]string, error) {
 	stmt := `
@@ -173,7 +168,7 @@ SELECT instances.name FROM instances
   JOIN projects ON projects.id = instances.project_id
   WHERE projects.name = ? AND instances.type = ?
 `
-	return query.SelectStrings(c.tx, stmt, project, CTypeRegular)
+	return query.SelectStrings(c.tx, stmt, project, instance.TypeContainer)
 }
 
 // ContainerNodeAddress returns the address of the node hosting the container
@@ -261,7 +256,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
     AND projects.name = ?
   ORDER BY instances.id
 `
-	rows, err := c.tx.Query(stmt, CTypeRegular, project)
+	rows, err := c.tx.Query(stmt, instance.TypeContainer, project)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +337,7 @@ SELECT instances.name, nodes.name
   WHERE instances.type=?
     AND projects.name = ?
 `
-	rows, err := c.tx.Query(stmt, CTypeRegular, project)
+	rows, err := c.tx.Query(stmt, instance.TypeContainer, project)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +483,7 @@ func (c *ClusterTx) ContainerNodeList() ([]Instance, error) {
 	}
 	filter := InstanceFilter{
 		Node: node,
-		Type: int(CTypeRegular),
+		Type: instance.TypeContainer,
 	}
 
 	return c.InstanceList(filter)
@@ -503,7 +498,7 @@ func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Instance, error)
 	filter := InstanceFilter{
 		Project: project,
 		Node:    node,
-		Type:    int(CTypeRegular),
+		Type:    instance.TypeContainer,
 	}
 
 	return c.InstanceList(filter)
@@ -795,7 +790,7 @@ func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
 // use it for new code.
 func (c *Cluster) LegacyContainersList() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
-	inargs := []interface{}{CTypeRegular}
+	inargs := []interface{}{instance.TypeContainer}
 	var container string
 	outfmt := []interface{}{container}
 	result, err := queryScan(c.db, q, inargs, outfmt)
@@ -822,7 +817,7 @@ FROM instances_snapshots
 JOIN instances ON instances.id = instances_snapshots.instance_id
 WHERE type=? ORDER BY instances.name, instances_snapshots.name
 `)
-	inargs := []interface{}{CTypeRegular}
+	inargs := []interface{}{instance.TypeContainer}
 	var container string
 	var snapshot string
 	outfmt := []interface{}{container, snapshot}
@@ -841,9 +836,9 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 
 // ContainersNodeList returns the names of all the containers of the given type
 // running on the local node.
-func (c *Cluster) ContainersNodeList(cType ContainerType) ([]string, error) {
+func (c *Cluster) ContainersNodeList(instanceType instance.Type) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? AND node_id=? ORDER BY name")
-	inargs := []interface{}{cType, c.nodeID}
+	inargs := []interface{}{instanceType, c.nodeID}
 	var container string
 	outfmt := []interface{}{container}
 	result, err := queryScan(c.db, q, inargs, outfmt)

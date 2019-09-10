@@ -140,7 +140,8 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Project:      c.Project(),
 			Architecture: c.Architecture(),
 			Config:       c.LocalConfig(),
-			Ctype:        db.CTypeSnapshot,
+			Type:         c.Type(),
+			Snapshot:     true,
 			Devices:      c.LocalDevices(),
 			Ephemeral:    c.IsEphemeral(),
 			Name:         fullName,
@@ -255,6 +256,8 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response
 				Profiles:     sc.Profiles(),
 				Project:      sc.Project(),
 				ExpiryDate:   configRaw.ExpiresAt,
+				Type:         sc.Type(),
+				Snapshot:     sc.IsSnapshot(),
 			}
 
 			err = sc.Update(args, false)
