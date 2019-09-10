@@ -5,17 +5,21 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 func containersGet(d *Daemon, r *http.Request) Response {
@@ -44,6 +48,12 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	resultFullList := []*api.ContainerFull{}
 	resultMu := sync.Mutex{}
 
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	// Parse the recursion field
 	recursionStr := r.FormValue("recursion")
 
@@ -61,12 +71,12 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.ContainersListByNodeAddress(project)
+		result, err = tx.ContainersListByNodeAddress(project, instanceType)
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.ContainersByNodeName(project)
+		nodes, err = tx.ContainersByNodeName(project, instanceType)
 		if err != nil {
 			return err
 		}
@@ -80,7 +90,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Get the local containers
 	nodeCts := map[string]container{}
 	if recursion > 0 {
-		cts, err := containerLoadNodeProjectAll(d.State(), project)
+		cts, err := containerLoadNodeProjectAll(d.State(), project, instanceType)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +161,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				cert := d.endpoints.NetworkCert()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(project, address, cert)
+					cs, err := doContainersGetFromNode(project, address, cert, instanceType)
 					if err != nil {
 						for _, name := range containers {
 							resultListAppend(name, api.Container{}, err)
@@ -167,7 +177,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(project, address, cert)
+				cs, err := doContainersFullGetFromNode(project, address, cert, instanceType)
 				if err != nil {
 					for _, name := range containers {
 						resultFullListAppend(name, api.ContainerFull{}, err)
@@ -186,7 +196,11 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 		if recursion == 0 {
 			for _, container := range containers {
-				url := fmt.Sprintf("/%s/containers/%s", version.APIVersion, container)
+				instancePath := "instances"
+				if instanceType == instance.TypeContainer {
+					instancePath = "containers"
+				}
+				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container)
 				resultString = append(resultString, url)
 			}
 		} else {
@@ -262,7 +276,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(project, node string, cert *shared.CertInfo) ([]api.Container, error) {
+func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.Container, error) {
 	f := func() ([]api.Container, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
@@ -299,7 +313,7 @@ func doContainersGetFromNode(project, node string, cert *shared.CertInfo) ([]api
 	return containers, err
 }
 
-func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo) ([]api.ContainerFull, error) {
+func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.ContainerFull, error) {
 	f := func() ([]api.ContainerFull, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
