@@ -157,15 +157,6 @@ type ContainerBackupArgs struct {
 	OptimizedStorage bool
 }
 
-// ContainerType encodes the type of container (either regular or snapshot).
-type ContainerType int
-
-// Numerical codes for container types.
-const (
-	CTypeRegular  ContainerType = 0
-	CTypeSnapshot ContainerType = 1
-)
-
 // ContainerNames returns the names of all containers the given project.
 func (c *ClusterTx) ContainerNames(project string) ([]string, error) {
 	stmt := `
