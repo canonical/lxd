@@ -4,6 +4,9 @@ import (
 	"time"
 )
 
+// InstanceTypeContainer defines the instance type value for a container.
+const InstanceTypeContainer = "container"
+
 // ContainersPost represents the fields available for a new LXD container
 type ContainersPost struct {
 	ContainerPut `yaml:",inline"`
@@ -12,6 +15,9 @@ type ContainersPost struct {
 	Source ContainerSource `json:"source" yaml:"source"`
 
 	InstanceType string `json:"instance_type" yaml:"instance_type"`
+
+	// API extension: instances
+	Type string `json:"type" yaml:"type"`
 }
 
 // ContainerPost represents the fields required to rename/move a LXD container
@@ -73,6 +79,9 @@ type Container struct {
 
 	// API extension: clustering
 	Location string `json:"location" yaml:"location"`
+
+	// API extension: instances
+	Type string `json:"type" yaml:"type"`
 }
 
 // ContainerFull is a combination of Container, ContainerState and CotnainerSnapshot
