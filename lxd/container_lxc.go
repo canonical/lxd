@@ -630,7 +630,7 @@ type containerLXC struct {
 	expiryDate time.Time
 }
 
-func (c *containerLXC) Type() string {
+func (c *containerLXC) Type() instance.Type {
 	return instance.TypeContainer
 }
 
