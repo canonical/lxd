@@ -328,7 +328,8 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		cType:        args.Ctype,
+		dbType:       args.Type,
+		snapshot:     args.Snapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
@@ -562,7 +563,8 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		cType:        args.Ctype,
+		dbType:       args.Type,
+		snapshot:     args.Snapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
 		profiles:     args.Profiles,
@@ -593,7 +595,8 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 type containerLXC struct {
 	// Properties
 	architecture int
-	cType        db.ContainerType
+	dbType       instance.Type
+	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
@@ -631,7 +634,7 @@ type containerLXC struct {
 }
 
 func (c *containerLXC) Type() instance.Type {
-	return instance.TypeContainer
+	return c.dbType
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -3434,6 +3437,8 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 				Ephemeral:    false,
 				Profiles:     c.Profiles(),
 				Project:      c.Project(),
+				Type:         c.Type(),
+				Snapshot:     c.IsSnapshot(),
 			}
 
 			err := c.Update(args, false)
@@ -3490,6 +3495,8 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 		Ephemeral:    sourceContainer.IsEphemeral(),
 		Profiles:     sourceContainer.Profiles(),
 		Project:      sourceContainer.Project(),
+		Type:         sourceContainer.Type(),
+		Snapshot:     sourceContainer.IsSnapshot(),
 	}
 
 	err = c.Update(args, false)
@@ -6681,7 +6688,7 @@ func (c *containerLXC) IsRunning() bool {
 }
 
 func (c *containerLXC) IsSnapshot() bool {
-	return c.cType == db.CTypeSnapshot
+	return c.snapshot
 }
 
 // Various property query functions
