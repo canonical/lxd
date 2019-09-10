@@ -613,9 +613,9 @@ func (s *storageDir) ContainerDelete(container container) error {
 		err := os.RemoveAll(containerMntPoint)
 		if err != nil {
 			// RemovaAll fails on very long paths, so attempt an rm -Rf
-			output, err := shared.RunCommand("rm", "-Rf", containerMntPoint)
+			_, err := shared.RunCommand("rm", "-Rf", containerMntPoint)
 			if err != nil {
-				return fmt.Errorf("error removing %s: %s", containerMntPoint, output)
+				return fmt.Errorf("error removing %s: %s", containerMntPoint, err)
 			}
 		}
 	}
