@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -292,7 +293,7 @@ type container interface {
 	Location() string
 	Project() string
 	Name() string
-	Type() string
+	Type() instance.Type
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
