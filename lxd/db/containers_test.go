@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/shared/api"
 )
 
 func TestContainerList(t *testing.T) {
@@ -30,7 +32,7 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := db.InstanceFilter{Type: int(db.CTypeRegular)}
+	filter := db.InstanceFilter{Type: instance.TypeContainer}
 	containers, err := tx.InstanceList(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
@@ -72,7 +74,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	filter := db.InstanceFilter{
 		Project: "default",
 		Node:    "node2",
-		Type:    int(db.CTypeRegular),
+		Type:    instance.TypeContainer,
 	}
 
 	containers, err := tx.InstanceList(filter)
@@ -117,7 +119,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Project:      "blah",
 		Name:         "c1",
 		Node:         "none",
-		Type:         int(db.CTypeRegular),
+		Type:         instance.TypeContainer,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -132,7 +134,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Project:      "test",
 		Name:         "c1",
 		Node:         "none",
-		Type:         int(db.CTypeRegular),
+		Type:         instance.TypeContainer,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -171,7 +173,7 @@ func TestInstanceListExpanded(t *testing.T) {
 		Project:      "default",
 		Name:         "c1",
 		Node:         "none",
-		Type:         int(db.CTypeRegular),
+		Type:         instance.TypeContainer,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -396,7 +398,7 @@ func TestContainersNodeList(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	names, err := cluster.ContainersNodeList(db.CTypeRegular)
+	names, err := cluster.ContainersNodeList(instance.TypeContainer)
 	require.NoError(t, err)
 	assert.Equal(t, names, []string{"c1"})
 }
@@ -448,7 +450,7 @@ func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
 INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
-	_, err := tx.Tx().Exec(stmt, nodeID, name, db.CTypeRegular)
+	_, err := tx.Tx().Exec(stmt, nodeID, name, instance.TypeContainer)
 	require.NoError(t, err)
 }
 
