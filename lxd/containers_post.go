@@ -93,11 +93,16 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 		return BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
+	dbType, err := instance.New(req.Type)
+	if err != nil {
+		return BadRequest(fmt.Errorf("Invalid instance type"))
+	}
+
 	run := func(op *operation) error {
 		args := db.ContainerArgs{
 			Project:     project,
 			Config:      req.Config,
-			Type:        instance.TypeContainer,
+			Type:        dbType,
 			Description: req.Description,
 			Devices:     config.NewDevices(req.Devices),
 			Ephemeral:   req.Ephemeral,
@@ -150,10 +155,15 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 }
 
 func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response {
+	dbType, err := instance.New(req.Type)
+	if err != nil {
+		return BadRequest(fmt.Errorf("Invalid instance type"))
+	}
+
 	args := db.ContainerArgs{
 		Project:     project,
 		Config:      req.Config,
-		Type:        instance.TypeContainer,
+		Type:        dbType,
 		Description: req.Description,
 		Devices:     config.NewDevices(req.Devices),
 		Ephemeral:   req.Ephemeral,
@@ -204,13 +214,18 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		req.Profiles = []string{"default"}
 	}
 
+	dbType, err := instance.New(req.Type)
+	if err != nil {
+		return BadRequest(fmt.Errorf("Invalid instance type"))
+	}
+
 	// Prepare the container creation request
 	args := db.ContainerArgs{
 		Project:      project,
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Type:         instance.TypeContainer,
+		Type:         dbType,
 		Devices:      config.NewDevices(req.Devices),
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
@@ -551,12 +566,17 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 		}
 	}
 
+	dbType, err := instance.New(req.Type)
+	if err != nil {
+		return BadRequest(fmt.Errorf("Invalid instance type"))
+	}
+
 	args := db.ContainerArgs{
 		Project:      targetProject,
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Type:         instance.TypeContainer,
+		Type:         dbType,
 		Description:  req.Description,
 		Devices:      config.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
