@@ -241,22 +241,35 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress(project string) (map[string][]string, error) {
+func (c *ClusterTx) ContainersListByNodeAddress(project string, instanceType instance.Type) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := `
+	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
+	var filters strings.Builder
+
+	// Project filter.
+	filters.WriteString("projects.name = ?")
+	args = append(args, project)
+
+	// Instance type filter.
+	if instanceType != instance.TypeAny {
+		filters.WriteString(" AND instances.type = ?")
+		args = append(args, instanceType)
+	}
+
+	stmt := fmt.Sprintf(`
 SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
   FROM instances
   JOIN nodes ON nodes.id = instances.node_id
   JOIN projects ON projects.id = instances.project_id
-  WHERE instances.type=?
-    AND projects.name = ?
+  WHERE %s
   ORDER BY instances.id
-`
-	rows, err := c.tx.Query(stmt, instance.TypeContainer, project)
+`, filters.String())
+
+	rows, err := c.tx.Query(stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -328,16 +341,29 @@ func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
 
 // ContainersByNodeName returns a map associating each container to the name of
 // its node.
-func (c *ClusterTx) ContainersByNodeName(project string) (map[string]string, error) {
-	stmt := `
+func (c *ClusterTx) ContainersByNodeName(project string, instanceType instance.Type) (map[string]string, error) {
+	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
+	var filters strings.Builder
+
+	// Project filter.
+	filters.WriteString("projects.name = ?")
+	args = append(args, project)
+
+	// Instance type filter.
+	if instanceType != instance.TypeAny {
+		filters.WriteString(" AND instances.type = ?")
+		args = append(args, instanceType)
+	}
+
+	stmt := fmt.Sprintf(`
 SELECT instances.name, nodes.name
   FROM instances
   JOIN nodes ON nodes.id = instances.node_id
   JOIN projects ON projects.id = instances.project_id
-  WHERE instances.type=?
-    AND projects.name = ?
-`
-	rows, err := c.tx.Query(stmt, instance.TypeContainer, project)
+  WHERE %s
+`, filters.String())
+
+	rows, err := c.tx.Query(stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +516,7 @@ func (c *ClusterTx) ContainerNodeList() ([]Instance, error) {
 }
 
 // ContainerNodeProjectList returns all container objects on the local node within the given project.
-func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Instance, error) {
+func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instance.Type) ([]Instance, error) {
 	node, err := c.NodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
@@ -498,7 +524,7 @@ func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Instance, error)
 	filter := InstanceFilter{
 		Project: project,
 		Node:    node,
-		Type:    instance.TypeContainer,
+		Type:    instanceType,
 	}
 
 	return c.InstanceList(filter)
