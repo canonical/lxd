@@ -823,3 +823,6 @@ Export infiniband character device information (issm, umad, uverb) as part of th
 This introduces two new configuration keys `storage.images\_volume` and
 `storage.backups\_volume` to allow for a storage volume on an existing
 pool be used for storing the daemon-wide images and backups artifacts.
+
+## instances
+This introduces the concept of instances, of which currently the only type is "container".
