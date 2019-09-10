@@ -1435,20 +1435,22 @@ func (n *network) Start() error {
 
 		// Update the dnsmasq config
 		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
-		if (n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"])) && (n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"])) {
-			// Setup basic iptables overrides for DHCP/DNS
-			rules := [][]string{
-				{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
-				{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
-				{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
-				{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
-				{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
-				{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+		if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
+			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
+				// Setup basic iptables overrides for DHCP/DNS
+				rules := [][]string{
+					{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
+					{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+					{"ipv6", n.name, "", "INPUT", "-i", n.name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
+					{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
+					{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
+					{"ipv6", n.name, "", "OUTPUT", "-o", n.name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
 
-			for _, rule := range rules {
-				err = iptables.NetworkPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
-				if err != nil {
-					return err
+				for _, rule := range rules {
+					err = iptables.NetworkPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+					if err != nil {
+						return err
+					}
 				}
 			}
 
