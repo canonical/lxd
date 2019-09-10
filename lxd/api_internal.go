@@ -900,13 +900,19 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
+	dbType, err := instance.New(backup.Container.Type)
+	if err != nil {
+		return SmartError(fmt.Errorf("Invalid instance type"))
+	}
+
 	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
 		CreationDate: backup.Container.CreatedAt,
-		Type:         instance.TypeContainer,
+		Type:         dbType,
 		Description:  backup.Container.Description,
 		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
 		Ephemeral:    backup.Container.Ephemeral,
@@ -1012,7 +1018,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			BaseImage:    baseImage,
 			Config:       snap.Config,
 			CreationDate: snap.CreatedAt,
-			Type:         instance.TypeContainer,
+			Type:         dbType,
 			Snapshot:     true,
 			Devices:      deviceConfig.NewDevices(snap.Devices),
 			Ephemeral:    snap.Ephemeral,
