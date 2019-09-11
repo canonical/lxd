@@ -164,6 +164,7 @@ var APIExtensions = []string{
 	"storage_shifted",
 	"resources_infiniband",
 	"daemon_storage",
+	"instances",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

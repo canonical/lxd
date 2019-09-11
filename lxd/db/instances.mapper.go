@@ -5,10 +5,13 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -163,7 +166,7 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
-	if filter.Type != -1 {
+	if filter.Type != instance.TypeAny {
 		criteria["Type"] = filter.Type
 	}
 

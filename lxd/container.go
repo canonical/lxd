@@ -1152,12 +1152,12 @@ func containerLoadNodeAll(s *state.State) ([]container, error) {
 }
 
 // Load all containers of this nodes under the given project.
-func containerLoadNodeProjectAll(s *state.State, project string) ([]container, error) {
+func containerLoadNodeProjectAll(s *state.State, project string, instanceType instance.Type) ([]container, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerNodeProjectList(project)
+		cts, err = tx.ContainerNodeProjectList(project, instanceType)
 		if err != nil {
 			return err
 		}
