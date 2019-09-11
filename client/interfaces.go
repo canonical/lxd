@@ -79,6 +79,11 @@ type ContainerServer interface {
 	UpdateCertificate(fingerprint string, certificate api.CertificatePut, ETag string) (err error)
 	DeleteCertificate(fingerprint string) (err error)
 
+	// Instance functions
+	GetInstanceNames(api.InstanceType) (names []string, err error)
+	GetInstances(api.InstanceType) (instances []api.Instance, err error)
+	GetInstancesFull(api.InstanceType) (containers []api.InstanceFull, err error)
+
 	// Container functions
 	GetContainerNames() (names []string, err error)
 	GetContainers() (containers []api.Container, err error)

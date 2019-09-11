@@ -17,42 +17,106 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-// Container handling functions
+// Instance handling functions.
 
-// GetContainerNames returns a list of container names
-func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
+// instanceTypeToPath converts the instance type to a URL path prefix.
+// If supplied type is InstanceTypeAny and the remote server only supports containers then the
+// /containers prefix is used.
+func (r *ProtocolLXD) instanceTypeToPath(instanceType api.InstanceType) (string, error) {
+	// If requested type is containers or the requested type is any and server only supports
+	// containers use the /containers endpoint.
+	if instanceType == api.InstanceTypeContainer || (instanceType == api.InstanceTypeAny && !r.HasExtension("instances")) {
+		return "/containers", nil
+	} else if instanceType == api.InstanceTypeAny {
+		return "/instances", nil
+	}
+
+	return "", fmt.Errorf("Invalid instance type or not supported by server")
+}
+
+// GetInstanceNames returns a list of instance names.
+func (r *ProtocolLXD) GetInstanceNames(instanceType api.InstanceType) ([]string, error) {
 	urls := []string{}
 
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/containers", nil, "", &urls)
+	path, err := r.instanceTypeToPath(instanceType)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
+	// Fetch the raw value.
+	_, err = r.queryStruct("GET", path, nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it.
 	names := []string{}
+	prefix := path + "/"
 	for _, url := range urls {
-		fields := strings.Split(url, "/containers/")
+		fields := strings.Split(url, prefix)
 		names = append(names, fields[len(fields)-1])
 	}
 
 	return names, nil
 }
 
-// GetContainers returns a list of containers
-func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
-	containers := []api.Container{}
+// GetContainerNames returns a list of container names.
+func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
+	return r.GetInstanceNames(api.InstanceTypeContainer)
+}
 
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/containers?recursion=1", nil, "", &containers)
+// GetInstances returns a list of instances.
+func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instance, error) {
+	instances := []api.Instance{}
+
+	path, err := r.instanceTypeToPath(instanceType)
 	if err != nil {
 		return nil, err
 	}
 
-	return containers, nil
+	// Fetch the raw value.
+	_, err = r.queryStruct("GET", fmt.Sprintf("/%s?recursion=1", path), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
 }
 
-// GetContainersFull returns a list of containers including snapshots, backups and state
+// GetContainers returns a list of containers.
+func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
+	instances, err := r.GetInstances(api.InstanceTypeContainer)
+	containers := make([]api.Container, len(instances))
+	for k, v := range instances {
+		containers[k] = api.Container(v)
+	}
+
+	return containers, err
+}
+
+// GetInstancesFull returns a list of instances including snapshots, backups and state.
+func (r *ProtocolLXD) GetInstancesFull(instanceType api.InstanceType) ([]api.InstanceFull, error) {
+	instances := []api.InstanceFull{}
+
+	if !r.HasExtension("container_full") {
+		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")
+	}
+
+	path, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the raw value.
+	_, err = r.queryStruct("GET", fmt.Sprintf("/%s?recursion=2", path), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetContainersFull returns a list of containers including snapshots, backups and state.
 func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
 	containers := []api.ContainerFull{}
 
@@ -69,17 +133,29 @@ func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
 	return containers, nil
 }
 
-// GetContainer returns the container entry for the provided name
-func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) {
-	container := api.Container{}
+// GetInstance returns the container entry for the provided name.
+func (r *ProtocolLXD) GetInstance(instanceType api.InstanceType, name string) (*api.Instance, string, error) {
+	instance := api.Instance{}
 
-	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s", url.PathEscape(name)), nil, "", &container)
+	path, err := r.instanceTypeToPath(instanceType)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return &container, etag, nil
+	// Fetch the raw value
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/%s/%s", path, url.PathEscape(name)), nil, "", &instance)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &instance, etag, nil
+}
+
+// GetContainer returns the container entry for the provided name.
+func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) {
+	instance, etag, err := r.GetInstance(api.InstanceTypeContainer, name)
+	ct := api.Container(*instance)
+	return &ct, etag, err
 }
 
 // CreateContainerFromBackup is a convenience function to make it easier to
