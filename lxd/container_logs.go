@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -38,11 +39,18 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	 * However, we should check this name and ensure it's a valid container
 	 * name just so that people can't list arbitrary directories.
 	 */
+
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -84,11 +92,17 @@ func validLogFileName(fname string) bool {
 }
 
 func containerLogGet(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -115,11 +129,17 @@ func containerLogGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerLogDelete(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return SmartError(err)
 	}
