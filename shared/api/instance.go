@@ -4,8 +4,14 @@ import (
 	"time"
 )
 
+// InstanceType represents the type if instance being returned or requested via the API.
+type InstanceType string
+
+// InstanceTypeAny defines the instance type value for requesting any instance type.
+const InstanceTypeAny = InstanceType("")
+
 // InstanceTypeContainer defines the instance type value for a container.
-const InstanceTypeContainer = "container"
+const InstanceTypeContainer = InstanceType("container")
 
 // InstancesPost represents the fields available for a new LXD instance.
 //
