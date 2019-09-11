@@ -1,14 +1,21 @@
 package api
 
-// ContainerExecControl represents a message on the container exec "control" socket
-type ContainerExecControl struct {
+// InstanceExecControl represents a message on the instance exec "control" socket.
+//
+// API extension: instances
+type InstanceExecControl struct {
 	Command string            `json:"command" yaml:"command"`
 	Args    map[string]string `json:"args" yaml:"args"`
 	Signal  int               `json:"signal" yaml:"signal"`
 }
 
-// ContainerExecPost represents a LXD container exec request
-type ContainerExecPost struct {
+// ContainerExecControl represents a message on the container exec "control" socket.
+type ContainerExecControl InstanceExecControl
+
+// InstanceExecPost represents a LXD instance exec request.
+//
+// API extension: instances
+type InstanceExecPost struct {
 	Command     []string          `json:"command" yaml:"command"`
 	WaitForWS   bool              `json:"wait-for-websocket" yaml:"wait-for-websocket"`
 	Interactive bool              `json:"interactive" yaml:"interactive"`
@@ -24,3 +31,6 @@ type ContainerExecPost struct {
 	Group uint32 `json:"group" yaml:"group"`
 	Cwd   string `json:"cwd" yaml:"cwd"`
 }
+
+// ContainerExecPost represents a LXD container exec request.
+type ContainerExecPost InstanceExecPost

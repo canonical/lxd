@@ -7,7 +7,22 @@ import (
 // InstanceTypeContainer defines the instance type value for a container.
 const InstanceTypeContainer = "container"
 
-// ContainersPost represents the fields available for a new LXD container
+// InstancesPost represents the fields available for a new LXD instance.
+//
+// API extension: instances
+type InstancesPost struct {
+	InstancePut `yaml:",inline"`
+
+	Name   string         `json:"name" yaml:"name"`
+	Source InstanceSource `json:"source" yaml:"source"`
+
+	InstanceType string `json:"instance_type" yaml:"instance_type"`
+
+	// API extension: instances
+	Type string `json:"type" yaml:"type"`
+}
+
+// ContainersPost represents the fields available for a new LXD container,
 type ContainersPost struct {
 	ContainerPut `yaml:",inline"`
 
@@ -20,7 +35,27 @@ type ContainersPost struct {
 	Type string `json:"type" yaml:"type"`
 }
 
-// ContainerPost represents the fields required to rename/move a LXD container
+// InstancePost represents the fields required to rename/move a LXD instance.
+//
+// API extension: instances
+type InstancePost struct {
+	// Used for renames
+	Name string `json:"name" yaml:"name"`
+
+	// Used for migration
+	Migration bool `json:"migration" yaml:"migration"`
+
+	// API extension: container_stateless_copy
+	Live bool `json:"live" yaml:"live"`
+
+	// API extension: container_only_migration
+	ContainerOnly bool `json:"container_only" yaml:"container_only"`
+
+	// API extension: container_push_target
+	Target *InstancePostTarget `json:"target" yaml:"target"`
+}
+
+// ContainerPost represents the fields required to rename/move a LXD container.
 type ContainerPost struct {
 	// Used for renames
 	Name string `json:"name" yaml:"name"`
@@ -38,17 +73,24 @@ type ContainerPost struct {
 	Target *ContainerPostTarget `json:"target" yaml:"target"`
 }
 
-// ContainerPostTarget represents the migration target host and operation
+// InstancePostTarget represents the migration target host and operation.
 //
-// API extension: container_push_target
-type ContainerPostTarget struct {
+// API extension: instances
+type InstancePostTarget struct {
 	Certificate string            `json:"certificate" yaml:"certificate"`
 	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
 	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
-// ContainerPut represents the modifiable fields of a LXD container
-type ContainerPut struct {
+// ContainerPostTarget represents the migration target host and operation.
+//
+// API extension: container_push_target
+type ContainerPostTarget InstancePostTarget
+
+// InstancePut represents the modifiable fields of a LXD instance.
+//
+// API extension: instances
+type InstancePut struct {
 	Architecture string                       `json:"architecture" yaml:"architecture"`
 	Config       map[string]string            `json:"config" yaml:"config"`
 	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
@@ -63,9 +105,14 @@ type ContainerPut struct {
 	Description string `json:"description" yaml:"description"`
 }
 
-// Container represents a LXD container
-type Container struct {
-	ContainerPut `yaml:",inline"`
+// ContainerPut represents the modifiable fields of a LXD container.
+type ContainerPut InstancePut
+
+// Instance represents a LXD instance.
+//
+// API extension: instances
+type Instance struct {
+	InstancePut `yaml:",inline"`
 
 	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
 	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
@@ -84,24 +131,13 @@ type Container struct {
 	Type string `json:"type" yaml:"type"`
 }
 
-// ContainerFull is a combination of Container, ContainerState and CotnainerSnapshot
-//
-// API extension: container_full
-type ContainerFull struct {
-	Container `yaml:",inline"`
-
-	Backups   []ContainerBackup   `json:"backups" yaml:"backups"`
-	State     *ContainerState     `json:"state" yaml:"state"`
-	Snapshots []ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
+// Writable converts a full Instance struct into a InstancePut struct (filters read-only fields).
+func (c *Instance) Writable() InstancePut {
+	return c.InstancePut
 }
 
-// Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)
-func (c *Container) Writable() ContainerPut {
-	return c.ContainerPut
-}
-
-// IsActive checks whether the container state indicates the container is active
-func (c Container) IsActive() bool {
+// IsActive checks whether the instance state indicates the instance is active.
+func (c Instance) IsActive() bool {
 	switch c.StatusCode {
 	case Stopped:
 		return false
@@ -112,8 +148,45 @@ func (c Container) IsActive() bool {
 	}
 }
 
-// ContainerSource represents the creation source for a new container
-type ContainerSource struct {
+// Container represents a LXD container.
+type Container Instance
+
+// Writable converts a full Container struct into a ContainerPut struct (filters read-only fields).
+func (c *Container) Writable() ContainerPut {
+	return ContainerPut(c.InstancePut)
+}
+
+// IsActive checks whether the container state indicates the container is active.
+func (c Container) IsActive() bool {
+	return Instance(c).IsActive()
+}
+
+// InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
+//
+// API extension: instances
+type InstanceFull struct {
+	Instance `yaml:",inline"`
+
+	Backups   []InstanceBackup   `json:"backups" yaml:"backups"`
+	State     *InstanceState     `json:"state" yaml:"state"`
+	Snapshots []InstanceSnapshot `json:"snapshots" yaml:"snapshots"`
+}
+
+// ContainerFull is a combination of Container, ContainerBackup, ContainerState and ContainerSnapshot.
+//
+// API extension: container_full
+type ContainerFull struct {
+	Container `yaml:",inline"`
+
+	Backups   []ContainerBackup   `json:"backups" yaml:"backups"`
+	State     *ContainerState     `json:"state" yaml:"state"`
+	Snapshots []ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
+}
+
+// InstanceSource represents the creation source for a new instance.
+//
+// API extension: instances
+type InstanceSource struct {
 	Type        string `json:"type" yaml:"type"`
 	Certificate string `json:"certificate" yaml:"certificate"`
 
@@ -148,3 +221,6 @@ type ContainerSource struct {
 	// API extension: container_copy_project
 	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
+
+// ContainerSource represents the creation source for a new container.
+type ContainerSource InstanceSource
