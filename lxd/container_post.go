@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
@@ -14,6 +15,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -27,6 +29,12 @@ var internalClusterContainerMovedCmd = APIEndpoint{
 }
 
 func containerPost(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 
 	name := mux.Vars(r)["name"]
@@ -70,7 +78,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.ContainerNodeAddress(project, name)
+			address, err := tx.ContainerNodeAddress(project, name, instanceType)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of container's node")
 			}
@@ -121,7 +129,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
 		// Handle requests targeted to a container on a different node
-		response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
+		response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -181,7 +189,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return SmartError(err)
 			}
 			if pool.Driver == "ceph" {
-				return containerPostClusteringMigrateWithCeph(d, c, project, name, req.Name, targetNode)
+				return containerPostClusteringMigrateWithCeph(d, c, project, name, req.Name, targetNode, instanceType)
 			}
 
 			// If this is not a ceph-based container, make sure
@@ -393,7 +401,7 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, oldName, newName, newNode string) Response {
+func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, oldName, newName, newNode string, instanceType instance.Type) Response {
 	run := func(*operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -467,7 +475,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 
 		// Create the container mount point on the target node
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, newName, cert)
+		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, newName, cert, instanceType)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -18,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -254,6 +256,12 @@ func (s *consoleWs) Do(op *operation) error {
 }
 
 func containerConsolePost(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
@@ -270,7 +278,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert)
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -343,11 +351,17 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 }
 
 func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Forward the request if the container is remote.
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return SmartError(err)
 	}

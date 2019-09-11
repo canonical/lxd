@@ -19,13 +19,13 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 type execWs struct {
@@ -342,6 +342,12 @@ func (s *execWs) Do(op *operation) error {
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
@@ -357,7 +363,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert)
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
 		return SmartError(err)
 	}
