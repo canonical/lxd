@@ -2467,8 +2467,8 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		return "", postStartHooks, err
 	}
 
-	// Undo liblxc modifying container directory ownership
-	err = os.Chown(c.Path(), 0, 0)
+	// Set ownership to match container root
+	currentIdmapset, err := c.CurrentIdmap()
 	if err != nil {
 		if ourStart {
 			c.StorageStop()
@@ -2476,15 +2476,21 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		return "", postStartHooks, err
 	}
 
-	// Set right permission to allow traversal
-	var mode os.FileMode
-	if c.isCurrentlyPrivileged() {
-		mode = 0700
-	} else {
-		mode = 0711
+	uid := int64(0)
+	if currentIdmapset != nil {
+		uid, _ = currentIdmapset.ShiftFromNs(0, 0)
 	}
 
-	err = os.Chmod(c.Path(), mode)
+	err = os.Chown(c.Path(), int(uid), 0)
+	if err != nil {
+		if ourStart {
+			c.StorageStop()
+		}
+		return "", postStartHooks, err
+	}
+
+	// We only need traversal by root in the container
+	err = os.Chmod(c.Path(), 0100)
 	if err != nil {
 		if ourStart {
 			c.StorageStop()
@@ -2988,8 +2994,27 @@ func (c *containerLXC) OnStop(target string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
+	// Remove directory ownership (to avoid issue if uidmap is re-used)
+	err := os.Chown(c.Path(), 0, 0)
+	if err != nil {
+		if op != nil {
+			op.Done(err)
+		}
+
+		return err
+	}
+
+	err = os.Chmod(c.Path(), 0100)
+	if err != nil {
+		if op != nil {
+			op.Done(err)
+		}
+
+		return err
+	}
+
 	// Stop the storage for this container
-	_, err := c.StorageStop()
+	_, err = c.StorageStop()
 	if err != nil {
 		if op != nil {
 			op.Done(err)
