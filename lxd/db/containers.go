@@ -175,30 +175,53 @@ SELECT instances.name FROM instances
 // with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) ContainerNodeAddress(project string, name string) (string, error) {
+func (c *ClusterTx) ContainerNodeAddress(project string, name string, instanceType instance.Type) (string, error) {
 	var stmt string
-	args := []interface{}{project}
+
+	args := make([]interface{}, 0, 4) // Expect up to 4 filters.
+	var filters strings.Builder
+
+	// Project filter.
+	filters.WriteString("projects.name = ?")
+	args = append(args, project)
+
+	// Instance type filter.
+	if instanceType != instance.TypeAny {
+		filters.WriteString(" AND instances.type = ?")
+		args = append(args, instanceType)
+	}
 
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		stmt = `
+
+		// Instance name filter.
+		filters.WriteString(" AND instances.name = ?")
+		args = append(args, parts[0])
+
+		// Snapshot name filter.
+		filters.WriteString(" AND instances_snapshots.name = ?")
+		args = append(args, parts[1])
+
+		stmt = fmt.Sprintf(`
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
   JOIN instances_snapshots ON instances_snapshots.instance_id = instances.id
- WHERE projects.name = ? AND instances.name = ? AND instances_snapshots.name = ?
-`
-		args = append(args, parts[0], parts[1])
+ WHERE %s
+`, filters.String())
 	} else {
-		stmt = `
+		// Instance name filter.
+		filters.WriteString(" AND instances.name = ?")
+		args = append(args, name)
+
+		stmt = fmt.Sprintf(`
 SELECT nodes.id, nodes.address
   FROM nodes
   JOIN instances ON instances.node_id = nodes.id
   JOIN projects ON projects.id = instances.project_id
- WHERE projects.name = ? AND instances.name = ?
-`
-		args = append(args, name)
+ WHERE %s
+`, filters.String())
 	}
 
 	var address string
