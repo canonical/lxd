@@ -2,6 +2,8 @@ package instance
 
 import (
 	"fmt"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Type indicates the type of instance.
@@ -19,7 +21,7 @@ const (
 // If an invalid name is supplied an error will be returned.
 func New(name string) (Type, error) {
 	// If "container" or "" is supplied, return type as TypeContainer.
-	if name == "container" || name == "" {
+	if api.InstanceType(name) == api.InstanceTypeContainer || name == "" {
 		return TypeContainer, nil
 	}
 
@@ -30,7 +32,7 @@ func New(name string) (Type, error) {
 // Returns empty string if value is not a valid instance type.
 func (instanceType Type) String() string {
 	if instanceType == TypeContainer {
-		return "container"
+		return string(api.InstanceTypeContainer)
 	}
 
 	return ""
