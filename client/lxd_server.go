@@ -89,8 +89,8 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	return &resources, nil
 }
 
-// UseProject returns a client that will use a specific project.
-func (r *ProtocolLXD) UseProject(name string) ContainerServer {
+// UseInstanceProject returns a client that will use a specific project.
+func (r *ProtocolLXD) UseInstanceProject(name string) InstanceServer {
 	return &ProtocolLXD{
 		server:               r.server,
 		http:                 r.http,
@@ -106,10 +106,15 @@ func (r *ProtocolLXD) UseProject(name string) ContainerServer {
 	}
 }
 
-// UseTarget returns a client that will target a specific cluster member.
+// UseProject returns a client that will use a specific project.
+func (r *ProtocolLXD) UseProject(name string) ContainerServer {
+	return ContainerServer(r.UseInstanceProject(name))
+}
+
+// UseInstanceTarget returns a client that will target a specific cluster member.
 // Use this member-specific operations such as specific container
 // placement, preparing a new storage pool or network, ...
-func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
+func (r *ProtocolLXD) UseInstanceTarget(name string) InstanceServer {
 	return &ProtocolLXD{
 		server:               r.server,
 		http:                 r.http,
@@ -123,4 +128,11 @@ func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
 		project:              r.project,
 		clusterTarget:        name,
 	}
+}
+
+// UseTarget returns a client that will target a specific cluster member.
+// Use this member-specific operations such as specific container
+// placement, preparing a new storage pool or network, ...
+func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
+	return ContainerServer(r.UseInstanceTarget(name))
 }
