@@ -25,7 +25,7 @@ import (
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
-func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error) {
+func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error) {
 	var netnsid_aware C.bool
 	var ifaddrs *C.struct_netns_ifaddrs
 	var netnsID C.__s32
@@ -57,15 +57,15 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 
 	// We're using the interface name as key here but we should really
 	// switch to the ifindex at some point to handle ip aliasing correctly.
-	networks := map[string]api.ContainerStateNetwork{}
+	networks := map[string]api.InstanceStateNetwork{}
 
 	for addr := ifaddrs; addr != nil; addr = addr.ifa_next {
 		var address [C.INET6_ADDRSTRLEN]C.char
 		addNetwork, networkExists := networks[C.GoString(addr.ifa_name)]
 		if !networkExists {
-			addNetwork = api.ContainerStateNetwork{
-				Addresses: []api.ContainerStateNetworkAddress{},
-				Counters:  api.ContainerStateNetworkCounters{},
+			addNetwork = api.InstanceStateNetwork{
+				Addresses: []api.InstanceStateNetworkAddress{},
+				Counters:  api.InstanceStateNetworkCounters{},
 			}
 		}
 
@@ -117,7 +117,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 			}
 
 			if addNetwork.Addresses == nil {
-				addNetwork.Addresses = []api.ContainerStateNetworkAddress{}
+				addNetwork.Addresses = []api.InstanceStateNetworkAddress{}
 			}
 
 			goAddrString := C.GoString(address_str)
@@ -138,7 +138,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 				scope = "link"
 			}
 
-			address := api.ContainerStateNetworkAddress{}
+			address := api.InstanceStateNetworkAddress{}
 			address.Family = family
 			address.Address = goAddrString
 			address.Netmask = fmt.Sprintf("%d", int(addr.ifa_prefixlen))
