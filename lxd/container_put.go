@@ -55,7 +55,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	configRaw := api.ContainerPut{}
+	configRaw := api.InstancePut{}
 	if err := json.NewDecoder(r.Body).Decode(&configRaw); err != nil {
 		return BadRequest(err)
 	}

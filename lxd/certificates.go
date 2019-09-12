@@ -204,7 +204,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		req.Name = name
 		req.Type = "client"
 
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			return client.CreateCertificate(req)
 		})
 		if err != nil {

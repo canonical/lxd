@@ -1406,7 +1406,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			op, err := client.DeleteImage(imgInfo.Fingerprint)
 			if err != nil {
 				return errors.Wrap(err, "Failed to request to delete image from peer node")
@@ -1951,7 +1951,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func imageImportFromNode(imagesDir string, client lxd.ContainerServer, fingerprint string) error {
+func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
 	// Prepare the temp files
 	buildDir, err := ioutil.TempDir(imagesDir, "lxd_build_")
 	if err != nil {

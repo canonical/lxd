@@ -166,7 +166,7 @@ func (s *consoleWs) Do(op *operation) error {
 				break
 			}
 
-			command := api.ContainerConsoleControl{}
+			command := api.InstanceConsoleControl{}
 
 			err = json.Unmarshal(buf, &command)
 			if err != nil {
@@ -265,7 +265,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	post := api.ContainerConsolePost{}
+	post := api.InstanceConsolePost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return BadRequest(err)

@@ -111,7 +111,7 @@ func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]
 var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
 
 type forwardedResponse struct {
-	client  lxd.ContainerServer
+	client  lxd.InstanceServer
 	request *http.Request
 }
 
@@ -154,7 +154,7 @@ func (r *forwardedResponse) String() string {
 
 // ForwardedResponse takes a request directed to a node and forwards it to
 // another node, writing back the response it gegs.
-func ForwardedResponse(client lxd.ContainerServer, request *http.Request) Response {
+func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Response {
 	return &forwardedResponse{
 		client:  client,
 		request: request,

@@ -266,7 +266,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	if err != nil {
 		return err
 	}
-	notifyErr := notifier(func(client lxd.ContainerServer) error {
+	notifyErr := notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
 			return err
@@ -491,7 +491,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			return client.DeleteNetwork(name)
 		})
 		if err != nil {
@@ -824,7 +824,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			memberLeases, err := client.GetNetworkLeases(name)
 			if err != nil {
 				return err

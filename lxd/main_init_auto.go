@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*cmdInitData, error) {
+func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
 	// Sanity checks
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, supportedStoragePoolDrivers) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)

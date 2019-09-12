@@ -19,7 +19,7 @@ import (
 // If 'notify' switch is true, then the user agent will be set to the special
 // value 'lxd-cluster-notifier', which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
-func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.ContainerServer, error) {
+func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
 	args := &lxd.ConnectionArgs{
 		TLSServerCert: string(cert.PublicKey()),
 		TLSClientCert: string(cert.PublicKey()),
@@ -38,7 +38,7 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.ContainerS
 // running the container with the given name. If it's not the local node will
 // connect to it and return the connected client, otherwise it will just return
 // nil.
-func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo, instanceType instance.Type) (lxd.ContainerServer, error) {
+func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo, instanceType instance.Type) (lxd.InstanceServer, error) {
 	var address string // Node address
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -62,7 +62,7 @@ func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert 
 //
 // If there is more than one node with a matching volume name, an error is
 // returned.
-func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.ContainerServer, error) {
+func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName string, volumeType int, cert *shared.CertInfo) (lxd.InstanceServer, error) {
 	var addresses []string // Node addresses
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -99,7 +99,7 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 	return Connect(address, cert, false)
 }
 
-// SetupTrust is a convenience around ContainerServer.CreateCertificate that
+// SetupTrust is a convenience around InstanceServer.CreateCertificate that
 // adds the given client certificate to the trusted pool of the cluster at the
 // given address, using the given password.
 func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
