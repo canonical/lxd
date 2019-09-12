@@ -50,7 +50,7 @@ func (c *cmdDelete) promptDelete(name string) error {
 	return nil
 }
 
-func (c *cmdDelete) doDelete(d lxd.ContainerServer, name string) error {
+func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	var op lxd.Operation
 	var err error
 

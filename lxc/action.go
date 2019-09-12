@@ -142,7 +142,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		return err
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		d, err := conf.GetContainerServer(conf.DefaultRemote)
+		d, err := conf.GetInstanceServer(conf.DefaultRemote)
 		if err != nil {
 			return err
 		}

@@ -68,7 +68,7 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Attempt to connect
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}

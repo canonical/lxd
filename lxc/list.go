@@ -201,7 +201,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
 	return true
 }
 
-func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cinfos []api.Container, filters []string, columns []column) error {
+func (c *cmdList) listContainers(conf *config.Config, d lxd.InstanceServer, cinfos []api.Container, filters []string, columns []column) error {
 	threads := 10
 	if len(cinfos) < threads {
 		threads = len(cinfos)
@@ -371,7 +371,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Connect to LXD
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}

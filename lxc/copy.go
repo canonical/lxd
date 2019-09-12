@@ -88,19 +88,19 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Connect to the source host
-	source, err := conf.GetContainerServer(sourceRemote)
+	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
 		return err
 	}
 
 	// Connect to the destination host
-	var dest lxd.ContainerServer
+	var dest lxd.InstanceServer
 	if sourceRemote == destRemote {
 		// Source and destination are the same
 		dest = source
 	} else {
 		// Destination is different, connect to it
-		dest, err = conf.GetContainerServer(destRemote)
+		dest, err = conf.GetInstanceServer(destRemote)
 		if err != nil {
 			return err
 		}

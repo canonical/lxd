@@ -69,7 +69,7 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func (c *cmdInfo) renderCPU(cpu api.ResourcesCPUSocket, prefix string) {
 	}
 }
 
-func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
+func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 	// Targeting
 	if c.flagTarget != "" {
 		if !d.IsClustered() {
@@ -417,7 +417,7 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 	return nil
 }
 
-func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, name string, showLog bool) error {
+func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
 	// Sanity checks
 	if c.flagTarget != "" {
 		return fmt.Errorf(i18n.G("--target cannot be used with containers"))

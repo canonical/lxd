@@ -36,7 +36,7 @@ type cmdFile struct {
 	flagRecursive bool
 }
 
-func fileGetWrapper(server lxd.ContainerServer, container string, path string) (buf io.ReadCloser, resp *lxd.ContainerFileResponse, err error) {
+func fileGetWrapper(server lxd.InstanceServer, container string, path string) (buf io.ReadCloser, resp *lxd.ContainerFileResponse, err error) {
 	// Signal handling
 	chSignal := make(chan os.Signal)
 	signal.Notify(chSignal, os.Interrupt)
@@ -648,7 +648,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p string, targetDir string) error {
+func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, container string, p string, targetDir string) error {
 	buf, resp, err := d.GetContainerFile(container, p)
 	if err != nil {
 		return err
@@ -723,7 +723,7 @@ func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p s
 	return nil
 }
 
-func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, source string, target string) error {
+func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, container string, source string, target string) error {
 	source = filepath.Clean(source)
 	sourceDir, _ := filepath.Split(source)
 	sourceLen := len(sourceDir)
@@ -821,7 +821,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 	return filepath.Walk(source, sendFile)
 }
 
-func (c *cmdFile) recursiveMkdir(d lxd.ContainerServer, container string, p string, mode *os.FileMode, uid int64, gid int64) error {
+func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, container string, p string, mode *os.FileMode, uid int64, gid int64) error {
 	/* special case, every container has a /, we don't need to do anything */
 	if p == "/" {
 		return nil

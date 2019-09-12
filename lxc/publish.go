@@ -83,14 +83,14 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
 	}
 
-	d, err := conf.GetContainerServer(iRemote)
+	d, err := conf.GetInstanceServer(iRemote)
 	if err != nil {
 		return err
 	}
 
 	s := d
 	if cRemote != iRemote {
-		s, err = conf.GetContainerServer(cRemote)
+		s, err = conf.GetInstanceServer(cRemote)
 		if err != nil {
 			return err
 		}
