@@ -225,7 +225,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	if c.flagPublic {
 		d, err = conf.GetImageServer(server)
 	} else {
-		d, err = conf.GetContainerServer(server)
+		d, err = conf.GetInstanceServer(server)
 	}
 
 	// Handle Unix socket connections
@@ -286,7 +286,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		if c.flagPublic {
 			d, err = conf.GetImageServer(server)
 		} else {
-			d, err = conf.GetContainerServer(server)
+			d, err = conf.GetInstanceServer(server)
 		}
 
 		if err != nil {
@@ -301,11 +301,11 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagAuthType == "candid" {
-		d.(lxd.ContainerServer).RequireAuthenticated(false)
+		d.(lxd.InstanceServer).RequireAuthenticated(false)
 	}
 
 	// Get server information
-	srv, _, err := d.(lxd.ContainerServer).GetServer()
+	srv, _, err := d.(lxd.InstanceServer).GetServer()
 	if err != nil {
 		return err
 	}
@@ -321,14 +321,14 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			conf.Remotes[server] = remote
 
 			// Re-setup the client
-			d, err = conf.GetContainerServer(server)
+			d, err = conf.GetInstanceServer(server)
 			if err != nil {
 				return err
 			}
 
-			d.(lxd.ContainerServer).RequireAuthenticated(false)
+			d.(lxd.InstanceServer).RequireAuthenticated(false)
 
-			srv, _, err = d.(lxd.ContainerServer).GetServer()
+			srv, _, err = d.(lxd.InstanceServer).GetServer()
 			if err != nil {
 				return err
 			}
@@ -380,16 +380,16 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 		req.Type = "client"
 
-		err = d.(lxd.ContainerServer).CreateCertificate(req)
+		err = d.(lxd.InstanceServer).CreateCertificate(req)
 		if err != nil {
 			return err
 		}
 	} else {
-		d.(lxd.ContainerServer).RequireAuthenticated(true)
+		d.(lxd.InstanceServer).RequireAuthenticated(true)
 	}
 
 	// And check if trusted now
-	srv, _, err = d.(lxd.ContainerServer).GetServer()
+	srv, _, err = d.(lxd.InstanceServer).GetServer()
 	if err != nil {
 		return err
 	}

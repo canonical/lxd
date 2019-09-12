@@ -693,7 +693,7 @@ func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Make sure the project exists
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}

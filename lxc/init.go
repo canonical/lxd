@@ -73,7 +73,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServer, string, error) {
+func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer, string, error) {
 	var name string
 	var image string
 	var remote string
@@ -134,7 +134,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 		}
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return nil, "", err
 	}
@@ -325,7 +325,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 	return d, name, nil
 }
 
-func (c *cmdInit) guessImage(conf *config.Config, d lxd.ContainerServer, remote string, iremote string, image string) (string, string) {
+func (c *cmdInit) guessImage(conf *config.Config, d lxd.InstanceServer, remote string, iremote string, image string) (string, string) {
 	if remote != iremote {
 		return iremote, image
 	}
@@ -355,7 +355,7 @@ func (c *cmdInit) guessImage(conf *config.Config, d lxd.ContainerServer, remote 
 	return fields[0], fields[1]
 }
 
-func (c *cmdInit) checkNetwork(d lxd.ContainerServer, name string) {
+func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 	ct, _, err := d.GetContainer(name)
 	if err != nil {
 		return

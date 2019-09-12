@@ -365,12 +365,12 @@ func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
 }
 
 type remoteResource struct {
-	server lxd.ContainerServer
+	server lxd.InstanceServer
 	name   string
 }
 
 func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
-	servers := map[string]lxd.ContainerServer{}
+	servers := map[string]lxd.InstanceServer{}
 	resources := []remoteResource{}
 
 	for _, remote := range remotes {
@@ -394,7 +394,7 @@ func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
 		}
 
 		// New connection
-		d, err := c.conf.GetContainerServer(remoteName)
+		d, err := c.conf.GetInstanceServer(remoteName)
 		if err != nil {
 			return nil, err
 		}

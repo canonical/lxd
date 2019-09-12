@@ -108,7 +108,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Can't override configuration or profiles in local rename"))
 		}
 
-		source, err := conf.GetContainerServer(sourceRemote)
+		source, err := conf.GetInstanceServer(sourceRemote)
 		if err != nil {
 			return err
 		}
@@ -212,7 +212,7 @@ func moveClusterContainer(conf *config.Config, sourceResource, destResource, tar
 	}
 
 	// Connect to the source host
-	source, err := conf.GetContainerServer(sourceRemote)
+	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
 		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
 	}
