@@ -51,14 +51,14 @@ type ConnectionArgs struct {
 	SkipGetServer bool
 }
 
-// ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
+// ConnectLXDInstance lets you connect to a remote LXD daemon over HTTPs.
 //
 // A client certificate (TLSClientCert) and key (TLSClientKey) must be provided.
 //
 // If connecting to a LXD daemon running in PKI mode, the PKI CA (TLSCA) must also be provided.
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
-func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
+func ConnectLXDInstance(url string, args *ConnectionArgs) (InstanceServer, error) {
 	logger.Debugf("Connecting to a remote LXD over HTTPs")
 
 	// Cleanup URL
@@ -67,12 +67,23 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	return httpsLXD(url, args)
 }
 
-// ConnectLXDUnix lets you connect to a remote LXD daemon over a local unix socket.
+// ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
+//
+// A client certificate (TLSClientCert) and key (TLSClientKey) must be provided.
+//
+// If connecting to a LXD daemon running in PKI mode, the PKI CA (TLSCA) must also be provided.
+//
+// Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
+func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
+	return ConnectLXDInstance(url, args)
+}
+
+// ConnectLXDInstanceUnix lets you connect to a remote LXD daemon over a local unix socket.
 //
 // If the path argument is empty, then $LXD_SOCKET will be used, if
 // unset $LXD_DIR/unix.socket will be used and if that one isn't set
 // either, then the path will default to /var/lib/lxd/unix.socket.
-func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) {
+func ConnectLXDInstanceUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 	logger.Debugf("Connecting to a local LXD over a Unix socket")
 
 	// Use empty args if not specified
@@ -120,6 +131,15 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 	}
 
 	return &server, nil
+}
+
+// ConnectLXDUnix lets you connect to a remote LXD daemon over a local unix socket.
+//
+// If the path argument is empty, then $LXD_SOCKET will be used, if
+// unset $LXD_DIR/unix.socket will be used and if that one isn't set
+// either, then the path will default to /var/lib/lxd/unix.socket.
+func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) {
+	return ConnectLXDInstanceUnix(path, args)
 }
 
 // ConnectPublicLXD lets you connect to a remote public LXD daemon over HTTPs.
@@ -170,7 +190,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 }
 
 // Internal function called by ConnectLXD and ConnectPublicLXD
-func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
+func httpsLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}
