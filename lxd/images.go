@@ -23,12 +23,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-
 	"gopkg.in/yaml.v2"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
@@ -36,12 +36,11 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var imagesCmd = APIEndpoint{
@@ -637,6 +636,12 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
+	// Instance type.
+	instanceType := instance.TypeAny
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		instanceType = instance.TypeContainer
+	}
+
 	project := projectParam(r)
 
 	var err error
@@ -698,7 +703,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		if name != "" {
 			post.Seek(0, 0)
 			r.Body = post
-			response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
+			response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 			if err != nil {
 				cleanup(builddir, post)
 				return SmartError(err)

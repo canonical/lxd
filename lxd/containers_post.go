@@ -864,7 +864,7 @@ func clusterCopyContainerInternal(d *Daemon, source container, project string, r
 		var err error
 
 		// Load source node.
-		nodeAddress, err = tx.ContainerNodeAddress(project, name)
+		nodeAddress, err = tx.ContainerNodeAddress(project, name, source.Type())
 		if err != nil {
 			return errors.Wrap(err, "Failed to get address of container's node")
 		}
