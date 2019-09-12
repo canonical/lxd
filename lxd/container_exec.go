@@ -202,7 +202,7 @@ func (s *execWs) Do(op *operation) error {
 					break
 				}
 
-				command := api.ContainerExecControl{}
+				command := api.InstanceExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
 					logger.Debugf("Failed to unmarshal control socket command: %s", err)
@@ -351,7 +351,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	post := api.ContainerExecPost{}
+	post := api.InstanceExecPost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return BadRequest(err)

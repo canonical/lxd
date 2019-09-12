@@ -22,7 +22,7 @@ func NotifyUpgradeCompleted(state *state.State, cert *shared.CertInfo) error {
 	if err != nil {
 		return err
 	}
-	return notifier(func(client lxd.ContainerServer) error {
+	return notifier(func(client lxd.InstanceServer) error {
 		info, err := client.GetConnectionInfo()
 		if err != nil {
 			return errors.Wrap(err, "failed to get connection info")

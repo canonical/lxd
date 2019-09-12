@@ -1133,7 +1133,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 }
 
-func (s *migrationSourceWs) ConnectContainerTarget(target api.ContainerPostTarget) error {
+func (s *migrationSourceWs) ConnectContainerTarget(target api.InstancePostTarget) error {
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 

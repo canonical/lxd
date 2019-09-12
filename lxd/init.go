@@ -26,7 +26,7 @@ type initDataCluster struct {
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
 //
 // In case of error, the returned function can be used to revert the changes.
-func initDataNodeApply(d lxd.ContainerServer, config initDataNode) (func(), error) {
+func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error) {
 	// Handle reverts
 	reverts := []func(){}
 	revert := func() {
@@ -339,7 +339,7 @@ func initDataNodeApply(d lxd.ContainerServer, config initDataNode) (func(), erro
 // Helper to initialize LXD clustering.
 //
 // Used by the 'lxd init' command.
-func initDataClusterApply(d lxd.ContainerServer, config *initDataCluster) error {
+func initDataClusterApply(d lxd.InstanceServer, config *initDataCluster) error {
 	if config == nil || !config.Enabled {
 		return nil
 	}

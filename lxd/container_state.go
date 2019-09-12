@@ -65,7 +65,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	raw := api.ContainerStatePut{}
+	raw := api.InstanceStatePut{}
 
 	// We default to -1 (i.e. no timeout) here instead of 0 (instant
 	// timeout).

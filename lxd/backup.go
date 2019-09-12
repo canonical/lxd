@@ -146,8 +146,8 @@ func (b *backup) Delete() error {
 	return doBackupDelete(b.state, b.name, b.container.Name())
 }
 
-func (b *backup) Render() *api.ContainerBackup {
-	return &api.ContainerBackup{
+func (b *backup) Render() *api.InstanceBackup {
+	return &api.InstanceBackup{
 		Name:             strings.SplitN(b.name, "/", 2)[1],
 		CreatedAt:        b.creationDate,
 		ExpiresAt:        b.expiryDate,

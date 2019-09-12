@@ -157,7 +157,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	req := api.ContainerPost{}
+	req := api.InstancePost{}
 	err = json.NewDecoder(rdr2).Decode(&req)
 	if err != nil {
 		return BadRequest(err)
@@ -348,11 +348,11 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 		// If the destination name is not set, we have generated a random name for
 		// the new container, so we need to rename it.
 		if isSameName {
-			containerPost := api.ContainerPost{
+			instancePost := api.InstancePost{
 				Name: oldName,
 			}
 
-			op, err := dest.RenameContainer(destName, containerPost)
+			op, err := dest.RenameInstance(destName, instancePost)
 			if err != nil {
 				return errors.Wrap(err, "Failed to issue rename container API request")
 			}

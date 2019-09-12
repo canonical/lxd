@@ -50,7 +50,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	resultString := []string{}
-	resultMap := []*api.ContainerBackup{}
+	resultMap := []*api.InstanceBackup{}
 
 	for _, backup := range backups {
 		if !recursion {
@@ -112,7 +112,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	req := api.ContainerBackupsPost{}
+	req := api.InstanceBackupsPost{}
 
 	err = json.Unmarshal(body, &req)
 	if err != nil {
@@ -237,7 +237,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	req := api.ContainerBackupPost{}
+	req := api.InstanceBackupPost{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return BadRequest(err)

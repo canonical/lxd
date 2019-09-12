@@ -65,7 +65,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	req := api.ContainerPut{}
+	req := api.InstancePut{}
 	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
 		return BadRequest(err)
 	}

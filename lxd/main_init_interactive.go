@@ -24,7 +24,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 )
 
-func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*cmdInitData, error) {
+func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
 	// Initialize config
 	config := cmdInitData{}
 	config.Node.Config = map[string]interface{}{}
@@ -98,7 +98,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Contai
 	return &config, nil
 }
 
-func (c *cmdInit) askClustering(config *cmdInitData, d lxd.ContainerServer) error {
+func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error {
 	if cli.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no") {
 		config.Cluster = &initDataCluster{}
 		config.Cluster.Enabled = true
@@ -209,7 +209,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.ContainerServer) erro
 	return nil
 }
 
-func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.ContainerServer) error {
+func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.InstanceServer) error {
 	if !cli.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no") {
 		return nil
 	}
@@ -230,7 +230,7 @@ func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.ContainerServer) error {
 	return nil
 }
 
-func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.ContainerServer) error {
+func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error {
 	if config.Cluster != nil || !cli.AskBool("Would you like to create a new local network bridge? (yes/no) [default=yes]: ", "yes") {
 		// At this time, only the Ubuntu kernel supports the Fan, detect it
 		fanKernel := false
@@ -386,7 +386,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.ContainerServer) erro
 	return nil
 }
 
-func (c *cmdInit) askStorage(config *cmdInitData, d lxd.ContainerServer) error {
+func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer) error {
 	if config.Cluster != nil {
 		if cli.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes") {
 			err := c.askStoragePool(config, d, "local")
@@ -412,7 +412,7 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.ContainerServer) error {
 	return c.askStoragePool(config, d, "all")
 }
 
-func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poolType string) error {
+func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, poolType string) error {
 	// Figure out the preferred storage driver
 	availableBackends := c.availableStorageDrivers(poolType)
 
@@ -599,7 +599,7 @@ your Linux distribution and run "lxd init" again afterwards.
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *cmdInitData, d lxd.ContainerServer) error {
+func (c *cmdInit) askDaemon(config *cmdInitData, d lxd.InstanceServer) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {

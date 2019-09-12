@@ -3236,7 +3236,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 		// Prepare the ETag
 		etag := []interface{}{c.expiryDate}
 
-		ct := api.ContainerSnapshot{
+		ct := api.InstanceSnapshot{
 			CreatedAt:       c.creationDate,
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices.CloneNative(),
@@ -3264,7 +3264,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	}
 	statusCode := lxcStatusCode(cState)
 
-	ct := api.Container{
+	ct := api.Instance{
 		ExpandedConfig:  c.expandedConfig,
 		ExpandedDevices: c.expandedDevices.CloneNative(),
 		Name:            c.name,
@@ -3286,7 +3286,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	return &ct, etag, nil
 }
 
-func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
+func (c *containerLXC) RenderFull() (*api.InstanceFull, interface{}, error) {
 	if c.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull only works with containers")
 	}
@@ -3298,7 +3298,7 @@ func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
 	}
 
 	// Convert to ContainerFull
-	ct := api.ContainerFull{Container: *base.(*api.Container)}
+	ct := api.InstanceFull{Instance: *base.(*api.Instance)}
 
 	// Add the ContainerState
 	ct.State, err = c.RenderState()
@@ -3319,10 +3319,10 @@ func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
 		}
 
 		if ct.Snapshots == nil {
-			ct.Snapshots = []api.ContainerSnapshot{}
+			ct.Snapshots = []api.InstanceSnapshot{}
 		}
 
-		ct.Snapshots = append(ct.Snapshots, *render.(*api.ContainerSnapshot))
+		ct.Snapshots = append(ct.Snapshots, *render.(*api.InstanceSnapshot))
 	}
 
 	// Add the ContainerBackups
@@ -3335,7 +3335,7 @@ func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
 		render := backup.Render()
 
 		if ct.Backups == nil {
-			ct.Backups = []api.ContainerBackup{}
+			ct.Backups = []api.InstanceBackup{}
 		}
 
 		ct.Backups = append(ct.Backups, *render)
@@ -3344,13 +3344,13 @@ func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
 	return &ct, etag, nil
 }
 
-func (c *containerLXC) RenderState() (*api.ContainerState, error) {
+func (c *containerLXC) RenderState() (*api.InstanceState, error) {
 	cState, err := c.getLxcState()
 	if err != nil {
 		return nil, err
 	}
 	statusCode := lxcStatusCode(cState)
-	status := api.ContainerState{
+	status := api.InstanceState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}
@@ -3994,10 +3994,10 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 }
 
 type backupFile struct {
-	Container *api.Container           `yaml:"container"`
-	Snapshots []*api.ContainerSnapshot `yaml:"snapshots"`
-	Pool      *api.StoragePool         `yaml:"pool"`
-	Volume    *api.StorageVolume       `yaml:"volume"`
+	Container *api.Instance           `yaml:"container"`
+	Snapshots []*api.InstanceSnapshot `yaml:"snapshots"`
+	Pool      *api.StoragePool        `yaml:"pool"`
+	Volume    *api.StorageVolume      `yaml:"volume"`
 }
 
 func writeBackupFile(c container) error {
@@ -4022,7 +4022,7 @@ func writeBackupFile(c container) error {
 		return errors.Wrap(err, "Failed to get snapshots")
 	}
 
-	var sis []*api.ContainerSnapshot
+	var sis []*api.InstanceSnapshot
 
 	for _, s := range snapshots {
 		si, _, err := s.Render()
@@ -4030,7 +4030,7 @@ func writeBackupFile(c container) error {
 			return err
 		}
 
-		sis = append(sis, si.(*api.ContainerSnapshot))
+		sis = append(sis, si.(*api.InstanceSnapshot))
 	}
 
 	poolName, err := c.StoragePool()
@@ -4050,7 +4050,7 @@ func writeBackupFile(c container) error {
 	}
 
 	data, err := yaml.Marshal(&backupFile{
-		Container: ci.(*api.Container),
+		Container: ci.(*api.Instance),
 		Snapshots: sis,
 		Pool:      pool,
 		Volume:    volume,
@@ -5969,8 +5969,8 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	return nil, 0, attachedPid, nil
 }
 
-func (c *containerLXC) cpuState() api.ContainerStateCPU {
-	cpu := api.ContainerStateCPU{}
+func (c *containerLXC) cpuState() api.InstanceStateCPU {
+	cpu := api.InstanceStateCPU{}
 
 	if !c.state.OS.CGroupCPUacctController {
 		return cpu
@@ -5994,8 +5994,8 @@ func (c *containerLXC) cpuState() api.ContainerStateCPU {
 	return cpu
 }
 
-func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
-	disk := map[string]api.ContainerStateDisk{}
+func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
+	disk := map[string]api.InstanceStateDisk{}
 
 	// Initialize storage interface for the container.
 	err := c.initStorage()
@@ -6017,14 +6017,14 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 			continue
 		}
 
-		disk[dev.Name] = api.ContainerStateDisk{Usage: usage}
+		disk[dev.Name] = api.InstanceStateDisk{Usage: usage}
 	}
 
 	return disk
 }
 
-func (c *containerLXC) memoryState() api.ContainerStateMemory {
-	memory := api.ContainerStateMemory{}
+func (c *containerLXC) memoryState() api.InstanceStateMemory {
+	memory := api.InstanceStateMemory{}
 
 	if !c.state.OS.CGroupMemoryController {
 		return memory
@@ -6067,8 +6067,8 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 	return memory
 }
 
-func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
-	result := map[string]api.ContainerStateNetwork{}
+func (c *containerLXC) networkState() map[string]api.InstanceStateNetwork {
+	result := map[string]api.InstanceStateNetwork{}
 
 	pid := c.InitPID()
 	if pid < 1 {
@@ -6105,7 +6105,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 		// setns() + netns_getifaddrs() style retrieval.
 		c.state.OS.NetnsGetifaddrs = false
 
-		nw := map[string]api.ContainerStateNetwork{}
+		nw := map[string]api.InstanceStateNetwork{}
 		err = json.Unmarshal([]byte(out), &nw)
 		if err != nil {
 			logger.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
