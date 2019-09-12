@@ -233,6 +233,16 @@ type ContainerServer interface {
 	RawOperation(method string, path string, data interface{}, queryETag string) (op Operation, ETag string, err error)
 }
 
+// The InstanceServer type represents a full featured LXD server with Instances support.
+//
+// API extension: instances
+type InstanceServer interface {
+	ContainerServer
+
+	UseInstanceTarget(name string) (client InstanceServer)
+	UseInstanceProject(name string) (client InstanceServer)
+}
+
 // The ConnectionInfo struct represents general information for a connection
 type ConnectionInfo struct {
 	Addresses   []string
@@ -243,14 +253,17 @@ type ConnectionInfo struct {
 	Project     string
 }
 
-// The ContainerBackupArgs struct is used when creating a container from a backup
-type ContainerBackupArgs struct {
+// The InstanceBackupArgs struct is used when creating a container from a backup
+type InstanceBackupArgs struct {
 	// The backup file
 	BackupFile io.Reader
 
 	// Storage pool to use
 	PoolName string
 }
+
+// The ContainerBackupArgs struct is used when creating a container from a backup
+type ContainerBackupArgs InstanceBackupArgs
 
 // The BackupFileRequest struct is used for a backup download request
 type BackupFileRequest struct {
@@ -356,8 +369,8 @@ type StoragePoolVolumeMoveArgs struct {
 	StoragePoolVolumeCopyArgs
 }
 
-// The ContainerCopyArgs struct is used to pass additional options during container copy
-type ContainerCopyArgs struct {
+// The InstanceCopyArgs struct is used to pass additional options during container copy
+type InstanceCopyArgs struct {
 	// If set, the container will be renamed on copy
 	Name string
 
@@ -375,8 +388,11 @@ type ContainerCopyArgs struct {
 	Refresh bool
 }
 
-// The ContainerSnapshotCopyArgs struct is used to pass additional options during container copy
-type ContainerSnapshotCopyArgs struct {
+// The ContainerCopyArgs struct is used to pass additional options during container copy
+type ContainerCopyArgs InstanceCopyArgs
+
+// The InstanceSnapshotCopyArgs struct is used to pass additional options during container copy
+type InstanceSnapshotCopyArgs struct {
 	// If set, the container will be renamed on copy
 	Name string
 
@@ -388,9 +404,12 @@ type ContainerSnapshotCopyArgs struct {
 	Live bool
 }
 
-// The ContainerConsoleArgs struct is used to pass additional options during a
+// The ContainerSnapshotCopyArgs struct is used to pass additional options during container copy
+type ContainerSnapshotCopyArgs InstanceSnapshotCopyArgs
+
+// The InstanceConsoleArgs struct is used to pass additional options during a
 // container console session
-type ContainerConsoleArgs struct {
+type InstanceConsoleArgs struct {
 	// Bidirectional fd to pass to the container
 	Terminal io.ReadWriteCloser
 
@@ -401,13 +420,21 @@ type ContainerConsoleArgs struct {
 	ConsoleDisconnect chan bool
 }
 
-// The ContainerConsoleLogArgs struct is used to pass additional options during a
+// The ContainerConsoleArgs struct is used to pass additional options during a
+// container console session
+type ContainerConsoleArgs InstanceConsoleArgs
+
+// The InstanceConsoleLogArgs struct is used to pass additional options during a
 // container console log request
-type ContainerConsoleLogArgs struct {
+type InstanceConsoleLogArgs struct {
 }
 
-// The ContainerExecArgs struct is used to pass additional options during container exec
-type ContainerExecArgs struct {
+// The ContainerConsoleLogArgs struct is used to pass additional options during a
+// container console log request
+type ContainerConsoleLogArgs InstanceConsoleLogArgs
+
+// The InstanceExecArgs struct is used to pass additional options during container exec
+type InstanceExecArgs struct {
 	// Standard input
 	Stdin io.ReadCloser
 
@@ -424,8 +451,11 @@ type ContainerExecArgs struct {
 	DataDone chan bool
 }
 
-// The ContainerFileArgs struct is used to pass the various options for a container file upload
-type ContainerFileArgs struct {
+// The ContainerExecArgs struct is used to pass additional options during container exec
+type ContainerExecArgs InstanceExecArgs
+
+// The InstanceFileArgs struct is used to pass the various options for a container file upload
+type InstanceFileArgs struct {
 	// File content
 	Content io.ReadSeeker
 
@@ -445,8 +475,11 @@ type ContainerFileArgs struct {
 	WriteMode string
 }
 
-// The ContainerFileResponse struct is used as part of the response for a container file download
-type ContainerFileResponse struct {
+// The ContainerFileArgs struct is used to pass the various options for a container file upload
+type ContainerFileArgs InstanceFileArgs
+
+// The InstanceFileResponse struct is used as part of the response for a container file download
+type InstanceFileResponse struct {
 	// User id that owns the file
 	UID int64
 
@@ -462,3 +495,6 @@ type ContainerFileResponse struct {
 	// If a directory, the list of files inside it
 	Entries []string
 }
+
+// The ContainerFileResponse struct is used as part of the response for a container file download
+type ContainerFileResponse InstanceFileResponse
