@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -21,10 +20,9 @@ import (
 )
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -41,7 +39,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	recursion := util.IsRecursionRequest(r)
 	resultString := []string{}
-	resultMap := []*api.ContainerSnapshot{}
+	resultMap := []*api.InstanceSnapshot{}
 
 	if !recursion {
 		snaps, err := d.cluster.ContainerGetSnapshots(project, cname)
@@ -76,7 +74,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			resultMap = append(resultMap, render.(*api.ContainerSnapshot))
+			resultMap = append(resultMap, render.(*api.InstanceSnapshot))
 		}
 	}
 
@@ -88,10 +86,9 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -117,7 +114,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	req := api.ContainerSnapshotsPost{}
+	req := api.InstanceSnapshotsPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -183,10 +180,9 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -257,7 +253,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response
 			return InternalError(err)
 		}
 
-		configRaw := api.ContainerSnapshotPut{}
+		configRaw := api.InstanceSnapshotPut{}
 
 		err = json.Unmarshal(body, &configRaw)
 		if err != nil {
@@ -308,7 +304,7 @@ func snapshotGet(sc container, name string) Response {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, render.(*api.ContainerSnapshot))
+	return SyncResponse(true, render.(*api.InstanceSnapshot))
 }
 
 func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) Response {
@@ -329,13 +325,13 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 		rdr3 := ioutil.NopCloser(bytes.NewBuffer(body))
 
-		req := api.ContainerPost{}
+		req := api.InstancePost{}
 		err = json.NewDecoder(rdr2).Decode(&req)
 		if err != nil {
 			return BadRequest(err)
 		}
 
-		reqNew := api.ContainerSnapshotPost{}
+		reqNew := api.InstanceSnapshotPost{}
 		err = json.NewDecoder(rdr3).Decode(&reqNew)
 		if err != nil {
 			return BadRequest(err)

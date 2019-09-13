@@ -237,7 +237,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 	if err != nil {
 		return err
 	}
-	notifyErr := notifier(func(client lxd.ContainerServer) error {
+	notifyErr := notifier(func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		if err != nil {
 			return err
@@ -369,7 +369,7 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
 		})
 		if err != nil {
@@ -456,7 +456,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
 		})
 		if err != nil {
@@ -599,7 +599,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			_, _, err := client.GetServer()
 			if err != nil {
 				return err

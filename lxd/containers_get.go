@@ -22,6 +22,23 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either
+// explicitly via the instance-type query param or implicitly via the endpoint URL used.
+func urlInstanceTypeDetect(r *http.Request) (instance.Type, error) {
+	reqInstanceType := r.URL.Query().Get("instance-type")
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		return instance.TypeContainer, nil
+	} else if reqInstanceType != "" {
+		instanceType, err := instance.New(reqInstanceType)
+		if err != nil {
+			return instance.TypeAny, err
+		}
+		return instanceType, nil
+	}
+
+	return instance.TypeAny, nil
+}
+
 func containersGet(d *Daemon, r *http.Request) Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
@@ -44,14 +61,13 @@ func containersGet(d *Daemon, r *http.Request) Response {
 
 func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	resultString := []string{}
-	resultList := []*api.Container{}
-	resultFullList := []*api.ContainerFull{}
+	resultList := []*api.Instance{}
+	resultFullList := []*api.InstanceFull{}
 	resultMu := sync.Mutex{}
 
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse the recursion field
@@ -101,9 +117,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 
 	// Append containers to list and handle errors
-	resultListAppend := func(name string, c api.Container, err error) {
+	resultListAppend := func(name string, c api.Instance, err error) {
 		if err != nil {
-			c = api.Container{
+			c = api.Instance{
 				Name:       name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
@@ -115,9 +131,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		resultMu.Unlock()
 	}
 
-	resultFullListAppend := func(name string, c api.ContainerFull, err error) {
+	resultFullListAppend := func(name string, c api.InstanceFull, err error) {
 		if err != nil {
-			c = api.ContainerFull{Container: api.Container{
+			c = api.InstanceFull{Instance: api.Instance{
 				Name:       name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
@@ -143,9 +159,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		if recursion > 0 && address == "0.0.0.0" {
 			for _, container := range containers {
 				if recursion == 1 {
-					resultListAppend(container, api.Container{}, fmt.Errorf("unavailable"))
+					resultListAppend(container, api.Instance{}, fmt.Errorf("unavailable"))
 				} else {
-					resultFullListAppend(container, api.ContainerFull{}, fmt.Errorf("unavailable"))
+					resultFullListAppend(container, api.InstanceFull{}, fmt.Errorf("unavailable"))
 				}
 			}
 
@@ -164,7 +180,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 					cs, err := doContainersGetFromNode(project, address, cert, instanceType)
 					if err != nil {
 						for _, name := range containers {
-							resultListAppend(name, api.Container{}, err)
+							resultListAppend(name, api.Instance{}, err)
 						}
 
 						return
@@ -180,7 +196,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				cs, err := doContainersFullGetFromNode(project, address, cert, instanceType)
 				if err != nil {
 					for _, name := range containers {
-						resultFullListAppend(name, api.ContainerFull{}, err)
+						resultFullListAppend(name, api.InstanceFull{}, err)
 					}
 
 					return
@@ -197,7 +213,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		if recursion == 0 {
 			for _, container := range containers {
 				instancePath := "instances"
-				if instanceType == instance.TypeContainer {
+				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
 				}
 				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container)
@@ -224,9 +240,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 						if recursion == 1 {
 							c, _, err := nodeCts[container].Render()
 							if err != nil {
-								resultListAppend(container, api.Container{}, err)
+								resultListAppend(container, api.Instance{}, err)
 							} else {
-								resultListAppend(container, *c.(*api.Container), err)
+								resultListAppend(container, *c.(*api.Instance), err)
 							}
 
 							continue
@@ -234,7 +250,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 						c, _, err := nodeCts[container].RenderFull()
 						if err != nil {
-							resultFullListAppend(container, api.ContainerFull{}, err)
+							resultFullListAppend(container, api.InstanceFull{}, err)
 						} else {
 							resultFullListAppend(container, *c, err)
 						}
@@ -276,8 +292,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.Container, error) {
-	f := func() ([]api.Container, error) {
+func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.Instance, error) {
+	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
@@ -285,9 +301,9 @@ func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instan
 
 		client = client.UseProject(project)
 
-		containers, err := client.GetContainers()
+		containers, err := client.GetInstances(api.InstanceType(instanceType.String()))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get containers from node %s", node)
+			return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
 		}
 
 		return containers, nil
@@ -296,7 +312,7 @@ func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instan
 	timeout := time.After(30 * time.Second)
 	done := make(chan struct{})
 
-	var containers []api.Container
+	var containers []api.Instance
 	var err error
 
 	go func() {
@@ -306,15 +322,15 @@ func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instan
 
 	select {
 	case <-timeout:
-		err = fmt.Errorf("Timeout getting containers from node %s", node)
+		err = fmt.Errorf("Timeout getting instances from node %s", node)
 	case <-done:
 	}
 
 	return containers, err
 }
 
-func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.ContainerFull, error) {
-	f := func() ([]api.ContainerFull, error) {
+func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.InstanceFull, error) {
+	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
@@ -322,30 +338,30 @@ func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo, in
 
 		client = client.UseProject(project)
 
-		containers, err := client.GetContainersFull()
+		instances, err := client.GetInstancesFull(api.InstanceType(instanceType.String()))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get containers from node %s", node)
+			return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
 		}
 
-		return containers, nil
+		return instances, nil
 	}
 
 	timeout := time.After(30 * time.Second)
 	done := make(chan struct{})
 
-	var containers []api.ContainerFull
+	var instances []api.InstanceFull
 	var err error
 
 	go func() {
-		containers, err = f()
+		instances, err = f()
 		done <- struct{}{}
 	}()
 
 	select {
 	case <-timeout:
-		err = fmt.Errorf("Timeout getting containers from node %s", node)
+		err = fmt.Errorf("Timeout getting instances from node %s", node)
 	case <-done:
 	}
 
-	return containers, err
+	return instances, err
 }

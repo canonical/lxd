@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -19,10 +18,9 @@ import (
 )
 
 func containerBackupsGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -50,7 +48,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	resultString := []string{}
-	resultMap := []*api.ContainerBackup{}
+	resultMap := []*api.InstanceBackup{}
 
 	for _, backup := range backups {
 		if !recursion {
@@ -71,10 +69,9 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupsPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -112,7 +109,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	req := api.ContainerBackupsPost{}
+	req := api.InstanceBackupsPost{}
 
 	err = json.Unmarshal(body, &req)
 	if err != nil {
@@ -156,6 +153,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + req.Name
+	instanceOnly := req.InstanceOnly || req.ContainerOnly
 
 	backup := func(op *operation) error {
 		args := db.ContainerBackupArgs{
@@ -163,7 +161,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 			ContainerID:      c.Id(),
 			CreationDate:     time.Now(),
 			ExpiryDate:       req.ExpiresAt,
-			ContainerOnly:    req.ContainerOnly,
+			InstanceOnly:     instanceOnly,
 			OptimizedStorage: req.OptimizedStorage,
 		}
 
@@ -189,10 +187,9 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -218,10 +215,9 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -237,7 +233,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	req := api.ContainerBackupPost{}
+	req := api.InstanceBackupPost{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return BadRequest(err)
@@ -278,10 +274,9 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupDelete(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -325,10 +320,9 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupExportGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)

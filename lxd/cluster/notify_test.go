@@ -33,7 +33,7 @@ func TestNewNotifier(t *testing.T) {
 	require.NoError(t, err)
 
 	peers := make(chan string, 2)
-	hook := func(client lxd.ContainerServer) error {
+	hook := func(client lxd.InstanceServer) error {
 		server, _, err := client.GetServer()
 		require.NoError(t, err)
 		peers <- server.Config["cluster.https_address"].(string)
@@ -88,7 +88,7 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 	assert.NoError(t, err)
 
 	i := 0
-	hook := func(client lxd.ContainerServer) error {
+	hook := func(client lxd.InstanceServer) error {
 		i++
 		return nil
 	}

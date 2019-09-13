@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func (c *cmdInit) RunDump(d lxd.ContainerServer) error {
+func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	currentServer, _, err := d.GetServer()
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve current server configuration")

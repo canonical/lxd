@@ -432,7 +432,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	err = notifier(func(client lxd.ContainerServer) error {
+	err = notifier(func(client lxd.InstanceServer) error {
 		server, etag, err := client.GetServer()
 		if err != nil {
 			return err

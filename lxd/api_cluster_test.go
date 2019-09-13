@@ -596,7 +596,7 @@ func TestCluster_NodeRename(t *testing.T) {
 // Test helper for cluster-related APIs.
 type clusterFixture struct {
 	t       *testing.T
-	clients map[*Daemon]lxd.ContainerServer
+	clients map[*Daemon]lxd.InstanceServer
 	daemons []*Daemon
 }
 
@@ -716,9 +716,9 @@ func (f *clusterFixture) RegisterCertificate(daemon1, daemon2 *Daemon, name, pas
 
 // Get a client for the given daemon connected via UNIX socket, creating one if
 // needed.
-func (f *clusterFixture) ClientUnix(daemon *Daemon) lxd.ContainerServer {
+func (f *clusterFixture) ClientUnix(daemon *Daemon) lxd.InstanceServer {
 	if f.clients == nil {
-		f.clients = make(map[*Daemon]lxd.ContainerServer)
+		f.clients = make(map[*Daemon]lxd.InstanceServer)
 	}
 	client, ok := f.clients[daemon]
 	if !ok {

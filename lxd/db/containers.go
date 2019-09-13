@@ -157,7 +157,7 @@ type ContainerBackupArgs struct {
 	Name             string
 	CreationDate     time.Time
 	ExpiryDate       time.Time
-	ContainerOnly    bool
+	InstanceOnly     bool
 	OptimizedStorage bool
 }
 
@@ -1165,7 +1165,7 @@ func (c *Cluster) ContainerGetBackup(project, name string) (ContainerBackupArgs,
 	args := ContainerBackupArgs{}
 	args.Name = name
 
-	containerOnlyInt := -1
+	instanceOnlyInt := -1
 	optimizedStorageInt := -1
 	q := `
 SELECT instances_backups.id, instances_backups.instance_id,
@@ -1178,7 +1178,7 @@ SELECT instances_backups.id, instances_backups.instance_id,
 `
 	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&args.ID, &args.ContainerID, &args.CreationDate,
-		&args.ExpiryDate, &containerOnlyInt, &optimizedStorageInt}
+		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1188,8 +1188,8 @@ SELECT instances_backups.id, instances_backups.instance_id,
 		return args, err
 	}
 
-	if containerOnlyInt == 1 {
-		args.ContainerOnly = true
+	if instanceOnlyInt == 1 {
+		args.InstanceOnly = true
 	}
 
 	if optimizedStorageInt == 1 {
@@ -1230,9 +1230,9 @@ func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		containerOnlyInt := 0
-		if args.ContainerOnly {
-			containerOnlyInt = 1
+		instanceOnlyInt := 0
+		if args.InstanceOnly {
+			instanceOnlyInt = 1
 		}
 
 		optimizedStorageInt := 0
@@ -1247,7 +1247,7 @@ func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
 		}
 		defer stmt.Close()
 		result, err := stmt.Exec(args.ContainerID, args.Name,
-			args.CreationDate.Unix(), args.ExpiryDate.Unix(), containerOnlyInt,
+			args.CreationDate.Unix(), args.ExpiryDate.Unix(), instanceOnlyInt,
 			optimizedStorageInt)
 		if err != nil {
 			return err

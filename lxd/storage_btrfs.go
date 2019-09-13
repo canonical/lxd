@@ -1618,7 +1618,7 @@ func (s *storageBtrfs) doBtrfsBackup(cur string, prev string, target string) err
 func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup backup, source container) error {
 	// Handle snapshots
 	finalParent := ""
-	if !backup.containerOnly {
+	if !backup.instanceOnly {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots
@@ -1702,7 +1702,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
 	// Handle snapshots
-	if !backup.containerOnly {
+	if !backup.instanceOnly {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots
@@ -2457,7 +2457,7 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 	 */
 	var err error
 	var snapshots = []container{}
-	if !args.ContainerOnly {
+	if !args.InstanceOnly {
 		snapshots, err = args.Container.Snapshots()
 		if err != nil {
 			return nil, err
@@ -2471,7 +2471,7 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 		btrfs:              s,
 	}
 
-	if !args.ContainerOnly {
+	if !args.InstanceOnly {
 		for _, snap := range snapshots {
 			btrfsPath := driver.GetSnapshotMountPoint(snap.Project(), s.pool.Name, snap.Name())
 			sourceDriver.btrfsSnapshotNames = append(sourceDriver.btrfsSnapshotNames, btrfsPath)
@@ -2558,7 +2558,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 	containerName := args.Container.Name()
 	_, containerPool, _ := args.Container.Storage().GetContainerPoolInfo()
 	containersPath := driver.GetSnapshotMountPoint(args.Container.Project(), containerPool, containerName)
-	if !args.ContainerOnly && len(args.Snapshots) > 0 {
+	if !args.InstanceOnly && len(args.Snapshots) > 0 {
 		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
 		if err != nil {
 			return err
@@ -2589,7 +2589,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
-	if !args.ContainerOnly {
+	if !args.InstanceOnly {
 		for _, snap := range args.Snapshots {
 			ctArgs := snapshotProtobufToContainerArgs(args.Container.Project(), containerName, snap)
 

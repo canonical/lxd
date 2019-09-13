@@ -573,7 +573,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 				return
 			}
 
-			imageImport := func(client lxd.ContainerServer, fingerprint string, projects []string) error {
+			imageImport := func(client lxd.InstanceServer, fingerprint string, projects []string) error {
 				err := imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, fingerprint)
 				if err != nil {
 					return err
@@ -677,7 +677,7 @@ func clusterPutDisable(d *Daemon) Response {
 //
 // We pass to LXD client instances, one connected to ourselves (the joining
 // node) and one connected to the target cluster node to join.
-func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.ClusterMemberConfigKey) error {
+func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) error {
 	data := initDataNode{}
 
 	// Fetch all pools currently defined in the cluster.
@@ -788,7 +788,7 @@ func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.Cluster
 // mode can be accepted into the cluster and obtain joining information such as
 // the cluster private certificate.
 func clusterAcceptMember(
-	client lxd.ContainerServer,
+	client lxd.InstanceServer,
 	name, address string, schema, apiExt int,
 	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
 

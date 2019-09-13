@@ -1925,7 +1925,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 		return err
 	}
 
-	if backup.containerOnly || len(snapshots) == 0 {
+	if backup.instanceOnly || len(snapshots) == 0 {
 		err = s.doContainerOnlyBackup(tmpPath, backup, source)
 	} else {
 		prev := ""
@@ -2002,7 +2002,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	projectName := backup.container.Project()
 
 	// Handle snapshots
-	if !backup.containerOnly {
+	if !backup.instanceOnly {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots
@@ -2530,7 +2530,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 		zfsFeatures:      args.ZfsFeatures,
 	}
 
-	if args.ContainerOnly {
+	if args.InstanceOnly {
 		return &driver, nil
 	}
 

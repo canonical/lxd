@@ -531,7 +531,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		defer initPool.StoragePoolUmount()
 	}
 
-	existingSnapshots := []*api.ContainerSnapshot{}
+	existingSnapshots := []*api.InstanceSnapshot{}
 	needForce := fmt.Errorf(`The snapshot does not exist on disk. Pass ` +
 		`"force" to discard non-existing snapshots`)
 
