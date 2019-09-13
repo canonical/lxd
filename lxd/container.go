@@ -272,8 +272,8 @@ type container interface {
 
 	// Status
 	Render() (interface{}, interface{}, error)
-	RenderFull() (*api.ContainerFull, interface{}, error)
-	RenderState() (*api.ContainerState, error)
+	RenderFull() (*api.InstanceFull, interface{}, error)
+	RenderState() (*api.InstanceState, error)
 	IsPrivileged() bool
 	IsRunning() bool
 	IsFrozen() bool

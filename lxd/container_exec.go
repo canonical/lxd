@@ -19,7 +19,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -202,7 +201,7 @@ func (s *execWs) Do(op *operation) error {
 					break
 				}
 
-				command := api.ContainerExecControl{}
+				command := api.InstanceExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
 					logger.Debugf("Failed to unmarshal control socket command: %s", err)
@@ -342,16 +341,15 @@ func (s *execWs) Do(op *operation) error {
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	post := api.ContainerExecPost{}
+	post := api.InstanceExecPost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return BadRequest(err)

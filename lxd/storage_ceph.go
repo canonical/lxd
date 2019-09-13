@@ -1908,7 +1908,7 @@ func (s *storageCeph) ContainerBackupCreate(backup backup, source container) err
 	defer os.RemoveAll(tmpPath)
 
 	// Generate the actual backup
-	if !backup.containerOnly {
+	if !backup.instanceOnly {
 		snapshots, err := source.Snapshots()
 		if err != nil {
 			return err
@@ -2833,7 +2833,7 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 	}
 
 	containerName := args.Container.Name()
-	if args.ContainerOnly {
+	if args.InstanceOnly {
 		logger.Debugf(`Only migrating the RBD storage volume for container "%s" on storage pool "%s`, containerName, s.pool.Name)
 		return &driver, nil
 	}

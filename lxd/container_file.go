@@ -7,19 +7,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 )
 
 func containerFileHandler(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)

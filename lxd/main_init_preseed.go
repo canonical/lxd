@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/client"
 )
 
-func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*cmdInitData, error) {
+func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
 	// Read the YAML
 	bytes, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {

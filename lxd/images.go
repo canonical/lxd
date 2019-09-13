@@ -28,7 +28,6 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
@@ -636,15 +635,12 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
-
-	var err error
 
 	// create a directory under which we keep everything while building
 	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
@@ -1406,7 +1402,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 
-		err = notifier(func(client lxd.ContainerServer) error {
+		err = notifier(func(client lxd.InstanceServer) error {
 			op, err := client.DeleteImage(imgInfo.Fingerprint)
 			if err != nil {
 				return errors.Wrap(err, "Failed to request to delete image from peer node")
@@ -1951,7 +1947,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func imageImportFromNode(imagesDir string, client lxd.ContainerServer, fingerprint string) error {
+func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprint string) error {
 	// Prepare the temp files
 	buildDir, err := ioutil.TempDir(imagesDir, "lxd_build_")
 	if err != nil {

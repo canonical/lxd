@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
@@ -29,10 +28,9 @@ var internalClusterContainerMovedCmd = APIEndpoint{
 }
 
 func containerPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -157,7 +155,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	req := api.ContainerPost{}
+	req := api.InstancePost{}
 	err = json.NewDecoder(rdr2).Decode(&req)
 	if err != nil {
 		return BadRequest(err)
@@ -204,7 +202,8 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return containerPostClusteringMigrate(d, c, name, req.Name, targetNode)
 		}
 
-		ws, err := NewMigrationSource(c, stateful, req.ContainerOnly)
+		instanceOnly := req.InstanceOnly || req.ContainerOnly
+		ws, err := NewMigrationSource(c, stateful, instanceOnly)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -348,11 +347,11 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 		// If the destination name is not set, we have generated a random name for
 		// the new container, so we need to rename it.
 		if isSameName {
-			containerPost := api.ContainerPost{
+			instancePost := api.InstancePost{
 				Name: oldName,
 			}
 
-			op, err := dest.RenameContainer(destName, containerPost)
+			op, err := dest.RenameInstance(destName, instancePost)
 			if err != nil {
 				return errors.Wrap(err, "Failed to issue rename container API request")
 			}
