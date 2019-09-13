@@ -485,7 +485,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 
 	daemon := daemons[1]
 	err := daemon.State().Cluster.ImageInsert(
-		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
+		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil, "container")
 	require.NoError(t, err)
 
 	client := f.ClientUnix(daemons[1])
@@ -516,7 +516,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 
 	daemon := daemons[1]
 	err := daemon.State().Cluster.ImageInsert(
-		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
+		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil, "container")
 	require.NoError(t, err)
 
 	client := f.ClientUnix(daemons[1])
