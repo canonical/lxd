@@ -146,7 +146,7 @@ func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSour
 
 func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var snapshots = []container{}
-	if !args.ContainerOnly {
+	if !args.InstanceOnly {
 		allSnapshots, err := args.Container.Snapshots()
 		if err != nil {
 			return nil, err
@@ -168,7 +168,7 @@ func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (Mi
 func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var err error
 	var snapshots = []container{}
-	if !args.ContainerOnly {
+	if !args.InstanceOnly {
 		snapshots, err = args.Container.Snapshots()
 		if err != nil {
 			return nil, err
@@ -311,7 +311,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 
 	isDirBackend := args.Container.Storage().GetStorageType() == storageTypeDir
 	if isDirBackend {
-		if !args.ContainerOnly {
+		if !args.InstanceOnly {
 			for _, snap := range args.Snapshots {
 				isSnapshotOutdated := true
 
@@ -372,7 +372,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 			return err
 		}
 	} else {
-		if !args.ContainerOnly {
+		if !args.InstanceOnly {
 			for _, snap := range args.Snapshots {
 				isSnapshotOutdated := true
 

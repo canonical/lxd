@@ -204,7 +204,8 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return containerPostClusteringMigrate(d, c, name, req.Name, targetNode)
 		}
 
-		ws, err := NewMigrationSource(c, stateful, req.ContainerOnly)
+		instanceOnly := req.InstanceOnly || req.ContainerOnly
+		ws, err := NewMigrationSource(c, stateful, instanceOnly)
 		if err != nil {
 			return InternalError(err)
 		}

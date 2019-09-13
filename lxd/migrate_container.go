@@ -24,9 +24,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewMigrationSource(c container, stateful bool, containerOnly bool) (*migrationSourceWs, error) {
+func NewMigrationSource(c container, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
-	ret.containerOnly = containerOnly
+	ret.instanceOnly = instanceOnly
 
 	var err error
 	ret.controlSecret, err = shared.RandomCryptoString()
@@ -359,7 +359,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
 	// Only send snapshots when requested.
-	if !s.containerOnly {
+	if !s.instanceOnly {
 		fullSnaps, err := s.container.Snapshots()
 		if err == nil {
 			for _, snap := range fullSnaps {
@@ -426,7 +426,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	// Set source args
 	sourceArgs := MigrationSourceArgs{
 		Container:     s.container,
-		ContainerOnly: s.containerOnly,
+		InstanceOnly:  s.instanceOnly,
 		RsyncFeatures: rsyncFeatures,
 		ZfsFeatures:   zfsFeatures,
 	}
@@ -478,7 +478,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
-	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.containerOnly)
+	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.instanceOnly)
 	if err != nil {
 		return abort(err)
 	}
@@ -698,8 +698,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:     migrationFields{container: args.Container, containerOnly: args.ContainerOnly},
-		dest:    migrationFields{containerOnly: args.ContainerOnly},
+		src:     migrationFields{container: args.Container, instanceOnly: args.InstanceOnly},
+		dest:    migrationFields{instanceOnly: args.InstanceOnly},
 		url:     args.Url,
 		dialer:  args.Dialer,
 		push:    args.Push,
@@ -985,7 +985,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 			args := MigrationSinkArgs{
 				Container:     c.src.container,
-				ContainerOnly: c.src.containerOnly,
+				InstanceOnly:  c.src.instanceOnly,
 				Idmap:         srcIdmap,
 				Live:          sendFinalFsDelta,
 				Refresh:       c.refresh,

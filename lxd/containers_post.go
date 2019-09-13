@@ -367,17 +367,18 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		push = true
 	}
 
+	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 	migrationArgs := MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
 			NetDial:         shared.RFC3493Dialer},
-		Container:     c,
-		Secrets:       req.Source.Websockets,
-		Push:          push,
-		Live:          req.Source.Live,
-		ContainerOnly: req.Source.ContainerOnly,
-		Refresh:       req.Source.Refresh,
+		Container:    c,
+		Secrets:      req.Source.Websockets,
+		Push:         push,
+		Live:         req.Source.Live,
+		InstanceOnly: instanceOnly,
+		Refresh:      req.Source.Refresh,
 	}
 
 	sink, err := NewMigrationSink(&migrationArgs)
@@ -566,7 +567,8 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 	}
 
 	run := func(op *operation) error {
-		_, err := containerCreateAsCopy(d.State(), args, source, req.Source.ContainerOnly, req.Source.Refresh)
+		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+		_, err := containerCreateAsCopy(d.State(), args, source, instanceOnly, req.Source.Refresh)
 		if err != nil {
 			return err
 		}
@@ -905,10 +907,12 @@ func clusterCopyContainerInternal(d *Daemon, source container, project string, r
 
 		opAPI = op.Get()
 	} else {
+		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 		pullReq := api.InstancePost{
 			Migration:     true,
 			Live:          req.Source.Live,
-			ContainerOnly: req.Source.ContainerOnly,
+			ContainerOnly: instanceOnly,
+			InstanceOnly:  instanceOnly,
 			Name:          req.Name,
 		}
 
