@@ -8,7 +8,8 @@ import "time"
 type InstanceBackupsPost struct {
 	Name             string    `json:"name" yaml:"name"`
 	ExpiresAt        time.Time `json:"expires_at" yaml:"expires_at"`
-	ContainerOnly    bool      `json:"container_only" yaml:"container_only"`
+	InstanceOnly     bool      `json:"instance_only" yaml:"instance_only"`
+	ContainerOnly    bool      `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
 	OptimizedStorage bool      `json:"optimized_storage" yaml:"optimized_storage"`
 }
 
@@ -19,7 +20,8 @@ type InstanceBackup struct {
 	Name             string    `json:"name" yaml:"name"`
 	CreatedAt        time.Time `json:"created_at" yaml:"created_at"`
 	ExpiresAt        time.Time `json:"expires_at" yaml:"expires_at"`
-	ContainerOnly    bool      `json:"container_only" yaml:"container_only"`
+	InstanceOnly     bool      `json:"instance_only" yaml:"instance_only"`
+	ContainerOnly    bool      `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
 	OptimizedStorage bool      `json:"optimized_storage" yaml:"optimized_storage"`
 }
 
