@@ -353,7 +353,7 @@ func FileCopy(source string, dest string) error {
 		return err
 	}
 
-	var d *os.File
+	_, uid, gid := GetOwnerMode(fi)
 
 	if fi.Mode()&os.ModeSymlink != 0 {
 		target, err := os.Readlink(source)
@@ -373,40 +373,39 @@ func FileCopy(source string, dest string) error {
 			return err
 		}
 
-		d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
-		if err != nil {
-			return err
+		if runtime.GOOS != "windows" {
+			return os.Lchown(dest, uid, gid)
 		}
-		defer d.Close()
-	} else {
-		s, err := os.Open(source)
-		if err != nil {
-			return err
-		}
-		defer s.Close()
 
-		d, err = os.Create(dest)
-		if err != nil {
-			if os.IsExist(err) {
-				d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
-				if err != nil {
-					return err
-				}
-			} else {
+		return nil
+	}
+
+	s, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	d, err := os.Create(dest)
+	if err != nil {
+		if os.IsExist(err) {
+			d, err = os.OpenFile(dest, os.O_WRONLY, fi.Mode())
+			if err != nil {
 				return err
 			}
-		}
-		defer d.Close()
-
-		_, err = io.Copy(d, s)
-		if err != nil {
+		} else {
 			return err
 		}
+	}
+	defer d.Close()
+
+	_, err = io.Copy(d, s)
+	if err != nil {
+		return err
 	}
 
 	/* chown not supported on windows */
 	if runtime.GOOS != "windows" {
-		_, uid, gid := GetOwnerMode(fi)
 		return d.Chown(uid, gid)
 	}
 
