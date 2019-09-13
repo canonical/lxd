@@ -156,6 +156,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + req.Name
+	instanceOnly := req.InstanceOnly || req.ContainerOnly
 
 	backup := func(op *operation) error {
 		args := db.ContainerBackupArgs{
@@ -163,7 +164,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 			ContainerID:      c.Id(),
 			CreationDate:     time.Now(),
 			ExpiryDate:       req.ExpiresAt,
-			ContainerOnly:    req.ContainerOnly,
+			InstanceOnly:     instanceOnly,
 			OptimizedStorage: req.OptimizedStorage,
 		}
 

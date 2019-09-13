@@ -1693,7 +1693,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
 	// Handle snapshots
-	if !backup.containerOnly {
+	if !backup.instanceOnly {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots

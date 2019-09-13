@@ -36,9 +36,9 @@ type migrationFields struct {
 	fsConn   *websocket.Conn
 
 	// container specific fields
-	live          bool
-	containerOnly bool
-	container     container
+	live         bool
+	instanceOnly bool
+	container    container
 
 	// storage specific fields
 	storage    storage
@@ -262,12 +262,12 @@ type MigrationSinkArgs struct {
 	Url     string
 
 	// Container specific fields
-	Container     container
-	ContainerOnly bool
-	Idmap         *idmap.IdmapSet
-	Live          bool
-	Refresh       bool
-	Snapshots     []*migration.Snapshot
+	Container    container
+	InstanceOnly bool
+	Idmap        *idmap.IdmapSet
+	Live         bool
+	Refresh      bool
+	Snapshots    []*migration.Snapshot
 
 	// Storage specific fields
 	Storage    storage
@@ -279,8 +279,8 @@ type MigrationSinkArgs struct {
 
 type MigrationSourceArgs struct {
 	// Container specific fields
-	Container     container
-	ContainerOnly bool
+	Container    container
+	InstanceOnly bool
 
 	// Transport specific fields
 	RsyncFeatures []string

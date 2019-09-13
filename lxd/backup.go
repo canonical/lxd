@@ -46,7 +46,7 @@ func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 		name:             name,
 		creationDate:     args.CreationDate,
 		expiryDate:       args.ExpiryDate,
-		containerOnly:    args.ContainerOnly,
+		instanceOnly:     args.InstanceOnly,
 		optimizedStorage: args.OptimizedStorage,
 	}, nil
 }
@@ -89,7 +89,7 @@ type backup struct {
 	name             string
 	creationDate     time.Time
 	expiryDate       time.Time
-	containerOnly    bool
+	instanceOnly     bool
 	optimizedStorage bool
 }
 
@@ -151,7 +151,8 @@ func (b *backup) Render() *api.InstanceBackup {
 		Name:             strings.SplitN(b.name, "/", 2)[1],
 		CreatedAt:        b.creationDate,
 		ExpiresAt:        b.expiryDate,
-		ContainerOnly:    b.containerOnly,
+		InstanceOnly:     b.instanceOnly,
+		ContainerOnly:    b.instanceOnly,
 		OptimizedStorage: b.optimizedStorage,
 	}
 }
@@ -337,7 +338,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 		Snapshots:  []string{},
 	}
 
-	if !backup.containerOnly {
+	if !backup.instanceOnly {
 		snaps, err := container.Snapshots()
 		if err != nil {
 			return err
