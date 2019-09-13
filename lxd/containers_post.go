@@ -93,11 +93,16 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 		return BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
+	dbType, err := instance.New(string(req.Type))
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	run := func(op *operation) error {
 		args := db.ContainerArgs{
 			Project:     project,
 			Config:      req.Config,
-			Type:        instance.TypeContainer,
+			Type:        dbType,
 			Description: req.Description,
 			Devices:     config.NewDevices(req.Devices),
 			Ephemeral:   req.Ephemeral,
@@ -150,10 +155,15 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 }
 
 func createFromNone(d *Daemon, project string, req *api.InstancesPost) Response {
+	dbType, err := instance.New(string(req.Type))
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	args := db.ContainerArgs{
 		Project:     project,
 		Config:      req.Config,
-		Type:        instance.TypeContainer,
+		Type:        dbType,
 		Description: req.Description,
 		Devices:     config.NewDevices(req.Devices),
 		Ephemeral:   req.Ephemeral,
@@ -204,13 +214,18 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		req.Profiles = []string{"default"}
 	}
 
+	dbType, err := instance.New(string(req.Type))
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	// Prepare the container creation request
 	args := db.ContainerArgs{
 		Project:      project,
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Type:         instance.TypeContainer,
+		Type:         dbType,
 		Devices:      config.NewDevices(req.Devices),
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
@@ -552,12 +567,21 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 		}
 	}
 
+	dbType, err := instance.New(string(req.Type))
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	if dbType != instance.TypeAny && dbType != source.Type() {
+		return BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
+	}
+
 	args := db.ContainerArgs{
 		Project:      targetProject,
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Type:         instance.TypeContainer,
+		Type:         source.Type(),
 		Description:  req.Description,
 		Devices:      config.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
