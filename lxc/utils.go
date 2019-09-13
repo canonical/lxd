@@ -56,7 +56,7 @@ func (a stringList) Less(i, j int) bool {
 	return a[i][x] < a[j][x]
 }
 
-// Container name sorting
+// Instance name sorting
 type byName [][]string
 
 func (a byName) Len() int {
@@ -130,9 +130,9 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 }
 
 // Add a device to a container
-func containerDeviceAdd(client lxd.ContainerServer, name string, devName string, dev map[string]string) error {
+func containerDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
 	// Get the container entry
-	container, etag, err := client.GetContainer(name)
+	container, etag, err := client.GetInstance(name)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func containerDeviceAdd(client lxd.ContainerServer, name string, devName string,
 
 	container.Devices[devName] = dev
 
-	op, err := client.UpdateContainer(name, container.Writable(), etag)
+	op, err := client.UpdateInstance(name, container.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func containerDeviceAdd(client lxd.ContainerServer, name string, devName string,
 }
 
 // Add a device to a profile
-func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, dev map[string]string) error {
+func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
 	// Get the profile entry
 	profile, profileEtag, err := client.GetProfile(name)
 	if err != nil {
@@ -167,7 +167,7 @@ func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, d
 		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
 	}
 
-	// Add the device to the container
+	// Add the device to the instance
 	profile.Devices[devName] = dev
 
 	err = client.UpdateProfile(name, profile.Writable(), profileEtag)
@@ -179,7 +179,7 @@ func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, d
 }
 
 // Create the specified image alises, updating those that already exist
-func ensureImageAliases(client lxd.ContainerServer, aliases []api.ImageAlias, fingerprint string) error {
+func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string) error {
 	if len(aliases) == 0 {
 		return nil
 	}

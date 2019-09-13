@@ -23,6 +23,7 @@ type cmdCopy struct {
 	flagConfig        []string
 	flagDevice        []string
 	flagEphemeral     bool
+	flagInstanceOnly  bool
 	flagContainerOnly bool
 	flagMode          string
 	flagStateless     bool
@@ -46,7 +47,8 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new container")+"``")
 	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral container"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
-	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
+	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, i18n.G("Copy the instance without its snapshots"))
+	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Copy the container without its snapshots (deprecated, use instance-only)"))
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -88,19 +90,19 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Connect to the source host
-	source, err := conf.GetContainerServer(sourceRemote)
+	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
 		return err
 	}
 
 	// Connect to the destination host
-	var dest lxd.ContainerServer
+	var dest lxd.InstanceServer
 	if sourceRemote == destRemote {
 		// Source and destination are the same
 		dest = source
 	} else {
 		// Destination is different, connect to it
-		dest, err = conf.GetContainerServer(destRemote)
+		dest, err = conf.GetInstanceServer(destRemote)
 		if err != nil {
 			return err
 		}
@@ -145,7 +147,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	var op lxd.RemoteOperation
-	var writable api.ContainerPut
+	var writable api.InstancePut
 	var start bool
 
 	if shared.IsSnapshot(sourceName) {
@@ -153,8 +155,8 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			return fmt.Errorf(i18n.G("--container-only can't be passed when the source is a snapshot"))
 		}
 
-		// Prepare the container creation request
-		args := lxd.ContainerSnapshotCopyArgs{
+		// Prepare the instance creation request
+		args := lxd.InstanceSnapshotCopyArgs{
 			Name: destName,
 			Mode: mode,
 			Live: stateful,
@@ -166,7 +168,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 
 		// Copy of a snapshot into a new container
 		srcFields := strings.SplitN(sourceName, shared.SnapshotDelimiter, 2)
-		entry, _, err := source.GetContainerSnapshot(srcFields[0], srcFields[1])
+		entry, _, err := source.GetInstanceSnapshot(srcFields[0], srcFields[1])
 		if err != nil {
 			return err
 		}
@@ -244,22 +246,22 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			dest = dest.UseTarget(c.flagTarget)
 		}
 
-		op, err = dest.CopyContainerSnapshot(source, srcFields[0], *entry, &args)
+		op, err = dest.CopyInstanceSnapshot(source, srcFields[0], *entry, &args)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Prepare the container creation request
-		args := lxd.ContainerCopyArgs{
-			Name:          destName,
-			Live:          stateful,
-			ContainerOnly: containerOnly,
-			Mode:          mode,
-			Refresh:       c.flagRefresh,
+		args := lxd.InstanceCopyArgs{
+			Name:         destName,
+			Live:         stateful,
+			InstanceOnly: containerOnly,
+			Mode:         mode,
+			Refresh:      c.flagRefresh,
 		}
 
 		// Copy of a container into a new container
-		entry, _, err := source.GetContainer(sourceName)
+		entry, _, err := source.GetInstance(sourceName)
 		if err != nil {
 			return err
 		}
@@ -341,7 +343,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			dest = dest.UseTarget(c.flagTarget)
 		}
 
-		op, err = dest.CopyContainer(source, *entry, &args)
+		op, err = dest.CopyInstance(source, *entry, &args)
 		if err != nil {
 			return err
 		}
@@ -370,12 +372,12 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	progress.Done("")
 
 	if c.flagRefresh {
-		_, etag, err := dest.GetContainer(destName)
+		_, etag, err := dest.GetInstance(destName)
 		if err != nil {
 			return fmt.Errorf("Failed to refresh target container '%s': %v", destName, err)
 		}
 
-		op, err := dest.UpdateContainer(destName, writable, etag)
+		op, err := dest.UpdateInstance(destName, writable, etag)
 		if err != nil {
 			return err
 		}
@@ -422,11 +424,11 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 
 	// Start the container if needed
 	if start {
-		req := api.ContainerStatePut{
+		req := api.InstanceStatePut{
 			Action: string(shared.Start),
 		}
 
-		op, err := dest.UpdateContainerState(destName, req, "")
+		op, err := dest.UpdateInstanceState(destName, req, "")
 		if err != nil {
 			return err
 		}
@@ -464,13 +466,15 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 	stateful := !c.flagStateless && !c.flagRefresh
 	keepVolatile := c.flagRefresh
 
+	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
+
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
 		return c.copyContainer(conf, args[0], "", keepVolatile, ephem,
-			stateful, c.flagContainerOnly, mode, c.flagStorage, false)
+			stateful, instanceOnly, mode, c.flagStorage, false)
 	}
 
 	// Normal copy with a pre-determined name
 	return c.copyContainer(conf, args[0], args[1], keepVolatile, ephem,
-		stateful, c.flagContainerOnly, mode, c.flagStorage, false)
+		stateful, instanceOnly, mode, c.flagStorage, false)
 }

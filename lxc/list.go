@@ -25,7 +25,7 @@ type column struct {
 	NeedsSnapshots bool
 }
 
-type columnData func(api.ContainerFull) string
+type columnData func(api.InstanceFull) string
 
 type cmdList struct {
 	global *cmdGlobal
@@ -136,7 +136,7 @@ func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
+func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -201,18 +201,18 @@ func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
 	return true
 }
 
-func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cinfos []api.Container, filters []string, columns []column) error {
+func (c *cmdList) listContainers(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
 	threads := 10
 	if len(cinfos) < threads {
 		threads = len(cinfos)
 	}
 
-	cStates := map[string]*api.ContainerState{}
+	cStates := map[string]*api.InstanceState{}
 	cStatesLock := sync.Mutex{}
 	cStatesQueue := make(chan string, threads)
 	cStatesWg := sync.WaitGroup{}
 
-	cSnapshots := map[string][]api.ContainerSnapshot{}
+	cSnapshots := map[string][]api.InstanceSnapshot{}
 	cSnapshotsLock := sync.Mutex{}
 	cSnapshotsQueue := make(chan string, threads)
 	cSnapshotsWg := sync.WaitGroup{}
@@ -226,7 +226,7 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 					break
 				}
 
-				state, _, err := d.GetContainerState(cName)
+				state, _, err := d.GetInstanceState(cName)
 				if err != nil {
 					continue
 				}
@@ -246,7 +246,7 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 					break
 				}
 
-				snaps, err := d.GetContainerSnapshots(cName)
+				snaps, err := d.GetInstanceSnapshots(cName)
 				if err != nil {
 					continue
 				}
@@ -298,10 +298,10 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 	cStatesWg.Wait()
 	cSnapshotsWg.Wait()
 
-	// Convert to ContainerFull
-	data := make([]api.ContainerFull, len(cinfos))
+	// Convert to Instance
+	data := make([]api.InstanceFull, len(cinfos))
 	for i := range cinfos {
-		data[i].Container = cinfos[i]
+		data[i].Instance = cinfos[i]
 		data[i].State = cStates[cinfos[i].Name]
 		data[i].Snapshots = cSnapshots[cinfos[i].Name]
 	}
@@ -309,11 +309,11 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 	return c.showContainers(data, filters, columns)
 }
 
-func (c *cmdList) showContainers(cts []api.ContainerFull, filters []string, columns []column) error {
+func (c *cmdList) showContainers(cts []api.InstanceFull, filters []string, columns []column) error {
 	// Generate the table data
 	data := [][]string{}
 	for _, ct := range cts {
-		if !c.shouldShow(filters, &ct.Container) {
+		if !c.shouldShow(filters, &ct.Instance) {
 			continue
 		}
 
@@ -371,7 +371,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Connect to LXD
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
@@ -383,8 +383,8 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(filters) == 0 && needsData && d.HasExtension("container_full") {
-		// Using the GetContainersFull shortcut
-		cts, err := d.GetContainersFull()
+		// Using the GetInstancesFull shortcut
+		cts, err := d.GetInstancesFull(api.InstanceTypeAny)
 		if err != nil {
 			return err
 		}
@@ -393,8 +393,8 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the list of containers
-	var cts []api.Container
-	ctslist, err := d.GetContainers()
+	var cts []api.Instance
+	ctslist, err := d.GetInstances(api.InstanceTypeAny)
 	if err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 				}
 			}
 
-			column.Data = func(cInfo api.ContainerFull) string {
+			column.Data = func(cInfo api.InstanceFull) string {
 				v, ok := cInfo.Config[k]
 				if !ok {
 					v, _ = cInfo.ExpandedConfig[k]
@@ -536,7 +536,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	return columns, needsData, nil
 }
 
-func (c *cmdList) getBaseImage(cInfo api.ContainerFull, long bool) string {
+func (c *cmdList) getBaseImage(cInfo api.InstanceFull, long bool) string {
 	v, ok := cInfo.Config["volatile.base_image"]
 	if !ok {
 		return ""
@@ -549,27 +549,27 @@ func (c *cmdList) getBaseImage(cInfo api.ContainerFull, long bool) string {
 	return v
 }
 
-func (c *cmdList) baseImageColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) baseImageColumnData(cInfo api.InstanceFull) string {
 	return c.getBaseImage(cInfo, false)
 }
 
-func (c *cmdList) baseImageFullColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) baseImageFullColumnData(cInfo api.InstanceFull) string {
 	return c.getBaseImage(cInfo, true)
 }
 
-func (c *cmdList) nameColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) nameColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Name
 }
 
-func (c *cmdList) descriptionColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) descriptionColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Description
 }
 
-func (c *cmdList) statusColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) statusColumnData(cInfo api.InstanceFull) string {
 	return strings.ToUpper(cInfo.Status)
 }
 
-func (c *cmdList) IP4ColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) IP4ColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv4s := []string{}
 		for netName, net := range cInfo.State.Network {
@@ -594,7 +594,7 @@ func (c *cmdList) IP4ColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) IP6ColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv6s := []string{}
 		for netName, net := range cInfo.State.Network {
@@ -619,7 +619,7 @@ func (c *cmdList) IP6ColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) typeColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Ephemeral {
 		return i18n.G("EPHEMERAL")
 	}
@@ -627,7 +627,7 @@ func (c *cmdList) typeColumnData(cInfo api.ContainerFull) string {
 	return i18n.G("PERSISTENT")
 }
 
-func (c *cmdList) numberSnapshotsColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
 	if cInfo.Snapshots != nil {
 		return fmt.Sprintf("%d", len(cInfo.Snapshots))
 	}
@@ -635,7 +635,7 @@ func (c *cmdList) numberSnapshotsColumnData(cInfo api.ContainerFull) string {
 	return "0"
 }
 
-func (c *cmdList) PIDColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) PIDColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
 		return fmt.Sprintf("%d", cInfo.State.Pid)
 	}
@@ -643,11 +643,11 @@ func (c *cmdList) PIDColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) ArchitectureColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) ArchitectureColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Architecture
 }
 
-func (c *cmdList) StoragePoolColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) StoragePoolColumnData(cInfo api.InstanceFull) string {
 	for _, v := range cInfo.ExpandedDevices {
 		if v["type"] == "disk" && v["path"] == "/" {
 			return v["pool"]
@@ -657,11 +657,11 @@ func (c *cmdList) StoragePoolColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) ProfilesColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) ProfilesColumnData(cInfo api.InstanceFull) string {
 	return strings.Join(cInfo.Profiles, "\n")
 }
 
-func (c *cmdList) CreatedColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) CreatedColumnData(cInfo api.InstanceFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if shared.TimeIsSet(cInfo.CreatedAt) {
@@ -671,7 +671,7 @@ func (c *cmdList) CreatedColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) LastUsedColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) LastUsedColumnData(cInfo api.InstanceFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if !cInfo.LastUsedAt.IsZero() && shared.TimeIsSet(cInfo.LastUsedAt) {
@@ -681,7 +681,7 @@ func (c *cmdList) LastUsedColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) NumberOfProcessesColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) NumberOfProcessesColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil {
 		return fmt.Sprintf("%d", cInfo.State.Processes)
 	}
@@ -689,6 +689,6 @@ func (c *cmdList) NumberOfProcessesColumnData(cInfo api.ContainerFull) string {
 	return ""
 }
 
-func (c *cmdList) locationColumnData(cInfo api.ContainerFull) string {
+func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 	return cInfo.Location
 }

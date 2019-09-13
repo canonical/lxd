@@ -68,12 +68,12 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf(i18n.G("Starting %s")+"\n", name)
 	}
 
-	req := api.ContainerStatePut{
+	req := api.InstanceStatePut{
 		Action:  "start",
 		Timeout: -1,
 	}
 
-	op, err := d.UpdateContainerState(name, req, "")
+	op, err := d.UpdateInstanceState(name, req, "")
 	if err != nil {
 		return err
 	}

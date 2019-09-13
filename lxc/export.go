@@ -21,6 +21,7 @@ type cmdExport struct {
 	global *cmdGlobal
 
 	flagContainerOnly    bool
+	flagInstanceOnly     bool
 	flagOptimizedStorage bool
 }
 
@@ -36,7 +37,9 @@ func (c *cmdExport) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false,
-		i18n.G("Whether or not to only backup the container (without snapshots)"))
+		i18n.G("Whether or not to only backup the container (without snapshots), (deprecated, use instance-only)"))
+	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false,
+		i18n.G("Whether or not to only backup the instance (without snapshots)"))
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
 
@@ -58,19 +61,22 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
 
-	req := api.ContainerBackupsPost{
+	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
+
+	req := api.InstanceBackupsPost{
 		Name:             "",
 		ExpiresAt:        time.Now().Add(24 * time.Hour),
-		ContainerOnly:    c.flagContainerOnly,
+		ContainerOnly:    instanceOnly,
+		InstanceOnly:     instanceOnly,
 		OptimizedStorage: c.flagOptimizedStorage,
 	}
 
-	op, err := d.CreateContainerBackup(name, req)
+	op, err := d.CreateInstanceBackup(name, req)
 	if err != nil {
 		return errors.Wrap(err, "Create container backup")
 	}
@@ -87,7 +93,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	defer func() {
 		// Delete backup after we're done
-		op, err = d.DeleteContainerBackup(name, backupName)
+		op, err = d.DeleteInstanceBackup(name, backupName)
 		if err == nil {
 			op.Wait()
 		}
@@ -117,7 +123,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Export tarball
-	_, err = d.GetContainerBackupFile(name, backupName, &backupFileRequest)
+	_, err = d.GetInstanceBackupFile(name, backupName, &backupFileRequest)
 	if err != nil {
 		os.Remove(targetName)
 		progress.Done("")

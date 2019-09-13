@@ -406,7 +406,7 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the container entry
-	container, etag, err := resource.server.GetContainer(args[1])
+	container, etag, err := resource.server.GetInstance(args[1])
 	if err != nil {
 		return err
 	}
@@ -439,7 +439,7 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 
 	// Remove the device
 	delete(container.Devices, devName)
-	op, err := resource.server.UpdateContainer(args[1], container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(args[1], container.Writable(), etag)
 	if err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ type cmdFile struct {
 	flagRecursive bool
 }
 
-func fileGetWrapper(server lxd.ContainerServer, container string, path string) (buf io.ReadCloser, resp *lxd.ContainerFileResponse, err error) {
+func fileGetWrapper(server lxd.InstanceServer, container string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
 	// Signal handling
 	chSignal := make(chan os.Signal)
 	signal.Notify(chSignal, os.Interrupt)
@@ -44,7 +44,7 @@ func fileGetWrapper(server lxd.ContainerServer, container string, path string) (
 	// Operation handling
 	chDone := make(chan bool)
 	go func() {
-		buf, resp, err = server.GetContainerFile(container, path)
+		buf, resp, err = server.GetInstanceFile(container, path)
 		close(chDone)
 	}()
 
@@ -130,7 +130,7 @@ func (c *cmdFileDelete) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Delete the file
-		err = resource.server.DeleteContainerFile(pathSpec[0], pathSpec[1])
+		err = resource.server.DeleteInstanceFile(pathSpec[0], pathSpec[1])
 		if err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 						newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
 					}
 
-					buf, resp, err = resource.server.GetContainerFile(pathSpec[0], newPath)
+					buf, resp, err = resource.server.GetInstanceFile(pathSpec[0], newPath)
 					if err != nil {
 						return err
 					}
@@ -577,7 +577,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Transfer the files
-		args := lxd.ContainerFileArgs{
+		args := lxd.InstanceFileArgs{
 			UID:  -1,
 			GID:  -1,
 			Mode: -1,
@@ -637,7 +637,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		}, f)
 
 		logger.Infof("Pushing %s to %s (%s)", f.Name(), fpath, args.Type)
-		err = resource.server.CreateContainerFile(resource.name, fpath, args)
+		err = resource.server.CreateInstanceFile(resource.name, fpath, args)
 		if err != nil {
 			progress.Done("")
 			return err
@@ -648,8 +648,8 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p string, targetDir string) error {
-	buf, resp, err := d.GetContainerFile(container, p)
+func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, container string, p string, targetDir string) error {
+	buf, resp, err := d.GetInstanceFile(container, p)
 	if err != nil {
 		return err
 	}
@@ -723,7 +723,7 @@ func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p s
 	return nil
 }
 
-func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, source string, target string) error {
+func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, container string, source string, target string) error {
 	source = filepath.Clean(source)
 	sourceDir, _ := filepath.Split(source)
 	sourceLen := len(sourceDir)
@@ -741,7 +741,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 		// Prepare for file transfer
 		targetPath := path.Join(target, filepath.ToSlash(p[sourceLen:]))
 		mode, uid, gid := shared.GetOwnerMode(fInfo)
-		args := lxd.ContainerFileArgs{
+		args := lxd.InstanceFileArgs{
 			UID:  int64(uid),
 			GID:  int64(gid),
 			Mode: int(mode.Perm()),
@@ -805,7 +805,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 		}
 
 		logger.Infof("Pushing %s to %s (%s)", p, targetPath, args.Type)
-		err = d.CreateContainerFile(container, targetPath, args)
+		err = d.CreateInstanceFile(container, targetPath, args)
 		if err != nil {
 			if args.Type != "directory" {
 				progress.Done("")
@@ -821,7 +821,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 	return filepath.Walk(source, sendFile)
 }
 
-func (c *cmdFile) recursiveMkdir(d lxd.ContainerServer, container string, p string, mode *os.FileMode, uid int64, gid int64) error {
+func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, container string, p string, mode *os.FileMode, uid int64, gid int64) error {
 	/* special case, every container has a /, we don't need to do anything */
 	if p == "/" {
 		return nil
@@ -835,7 +835,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.ContainerServer, container string, p stri
 
 	for ; i >= 1; i-- {
 		cur := filepath.Join(parts[:i]...)
-		_, resp, err := d.GetContainerFile(container, cur)
+		_, resp, err := d.GetInstanceFile(container, cur)
 		if err != nil {
 			continue
 		}
@@ -860,7 +860,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.ContainerServer, container string, p stri
 		if mode != nil {
 			modeArg = int(mode.Perm())
 		}
-		args := lxd.ContainerFileArgs{
+		args := lxd.InstanceFileArgs{
 			UID:  uid,
 			GID:  gid,
 			Mode: modeArg,
@@ -868,7 +868,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.ContainerServer, container string, p stri
 		}
 
 		logger.Infof("Creating %s (%s)", cur, args.Type)
-		err := d.CreateContainerFile(container, cur, args)
+		err := d.CreateInstanceFile(container, cur, args)
 		if err != nil {
 			return err
 		}
