@@ -26,7 +26,7 @@ func TestDotPrefixMatch(t *testing.T) {
 func TestShouldShow(t *testing.T) {
 	list := cmdList{}
 
-	state := &api.Container{
+	state := &api.Instance{
 		Name: "foo",
 		ExpandedConfig: map[string]string{
 			"security.privileged": "1",

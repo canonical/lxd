@@ -21,6 +21,7 @@ type cmdMove struct {
 	flagProfile       []string
 	flagConfig        []string
 	flagContainerOnly bool
+	flagInstanceOnly  bool
 	flagDevice        []string
 	flagMode          string
 	flagStateless     bool
@@ -51,7 +52,8 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target container")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Unset all profiles on the target container"))
-	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
+	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots (deprecated, use instance-only)"))
+	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, i18n.G("Move the instance without its snapshots"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", moveDefaultMode, i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
@@ -118,7 +120,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			srcFields := strings.SplitN(sourceName, shared.SnapshotDelimiter, 2)
 			dstFields := strings.SplitN(destName, shared.SnapshotDelimiter, 2)
 
-			op, err := source.RenameContainerSnapshot(srcFields[0], srcFields[1], api.ContainerSnapshotPost{Name: dstFields[1]})
+			op, err := source.RenameInstanceSnapshot(srcFields[0], srcFields[1], api.InstanceSnapshotPost{Name: dstFields[1]})
 			if err != nil {
 				return err
 			}
@@ -126,8 +128,8 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			return op.Wait()
 		}
 
-		// Container rename
-		op, err := source.RenameContainer(sourceName, api.ContainerPost{Name: destName})
+		// Instance rename
+		op, err := source.RenameInstance(sourceName, api.InstancePost{Name: destName})
 		if err != nil {
 			return err
 		}
@@ -152,6 +154,10 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("The --container-only flag can't be used with --target"))
 		}
 
+		if c.flagInstanceOnly {
+			return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
+		}
+
 		if c.flagMode != moveDefaultMode {
 			return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 		}
@@ -169,10 +175,11 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	cpy.flagNoProfiles = c.flagNoProfiles
 
 	stateful := !c.flagStateless
+	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, c.flagContainerOnly, mode, c.flagStorage, true)
+	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, instanceOnly, mode, c.flagStorage, true)
 	if err != nil {
 		return err
 	}
@@ -224,8 +231,8 @@ func moveClusterContainer(conf *config.Config, sourceResource, destResource, tar
 
 	// The migrate API will do the right thing when passed a target.
 	source = source.UseTarget(target)
-	req := api.ContainerPost{Name: destName, Migration: true}
-	op, err := source.MigrateContainer(sourceName, req)
+	req := api.InstancePost{Name: destName, Migration: true}
+	op, err := source.MigrateInstance(sourceName, req)
 	if err != nil {
 		return errors.Wrap(err, i18n.G("Migration API failure"))
 	}

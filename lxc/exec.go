@@ -76,7 +76,7 @@ func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
 		return err
 	}
 
-	msg := api.ContainerExecControl{}
+	msg := api.InstanceExecControl{}
 	msg.Command = "window-resize"
 	msg.Args = make(map[string]string)
 	msg.Args["width"] = strconv.Itoa(width)
@@ -190,7 +190,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	stdout := getStdout()
 
 	// Prepare the command
-	req := api.ContainerExecPost{
+	req := api.InstanceExecPost{
 		Command:     args[1:],
 		WaitForWS:   true,
 		Interactive: interactive,
@@ -202,7 +202,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		Cwd:         c.flagCwd,
 	}
 
-	execArgs := lxd.ContainerExecArgs{
+	execArgs := lxd.InstanceExecArgs{
 		Stdin:    stdin,
 		Stdout:   stdout,
 		Stderr:   os.Stderr,
@@ -211,7 +211,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run the command in the container
-	op, err := d.ExecContainer(name, req, &execArgs)
+	op, err := d.ExecInstance(name, req, &execArgs)
 	if err != nil {
 		return err
 	}

@@ -79,7 +79,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	var remote string
 	var iremote string
 	var err error
-	var stdinData api.ContainerPut
+	var stdinData api.InstancePut
 	var devicesMap map[string]map[string]string
 	var configMap map[string]string
 
@@ -204,7 +204,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	}
 
 	// Setup container creation request
-	req := api.ContainersPost{
+	req := api.InstancesPost{
 		Name:         name,
 		InstanceType: c.flagType,
 	}
@@ -266,7 +266,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		}
 
 		// Create the container
-		op, err := d.CreateContainerFromImage(imgRemote, *imgInfo, req)
+		op, err := d.CreateInstanceFromImage(imgRemote, *imgInfo, req)
 		if err != nil {
 			return nil, "", err
 		}
@@ -300,7 +300,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	} else {
 		req.Source.Type = "none"
 
-		op, err := d.CreateContainer(req)
+		op, err := d.CreateInstance(req)
 		if err != nil {
 			return nil, "", err
 		}
@@ -356,7 +356,7 @@ func (c *cmdInit) guessImage(conf *config.Config, d lxd.InstanceServer, remote s
 }
 
 func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
-	ct, _, err := d.GetContainer(name)
+	ct, _, err := d.GetInstance(name)
 	if err != nil {
 		return
 	}
