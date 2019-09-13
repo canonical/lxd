@@ -22,6 +22,23 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either
+// explicitly via the instance-type query param or implicitly via the endpoint URL used.
+func urlInstanceTypeDetect(r *http.Request) (instance.Type, error) {
+	reqInstanceType := r.URL.Query().Get("instance-type")
+	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+		return instance.TypeContainer, nil
+	} else if reqInstanceType != "" {
+		instanceType, err := instance.New(reqInstanceType)
+		if err != nil {
+			return instance.TypeAny, err
+		}
+		return instanceType, nil
+	}
+
+	return instance.TypeAny, nil
+}
+
 func containersGet(d *Daemon, r *http.Request) Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
@@ -48,10 +65,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	resultFullList := []*api.InstanceFull{}
 	resultMu := sync.Mutex{}
 
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse the recursion field
@@ -197,7 +213,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		if recursion == 0 {
 			for _, container := range containers {
 				instancePath := "instances"
-				if instanceType == instance.TypeContainer {
+				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
 				}
 				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container)

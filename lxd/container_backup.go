@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -19,10 +18,9 @@ import (
 )
 
 func containerBackupsGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -71,10 +69,9 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupsPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -190,10 +187,9 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -219,10 +215,9 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupPost(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -279,10 +274,9 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupDelete(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -326,10 +320,9 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupExportGet(d *Daemon, r *http.Request) Response {
-	// Instance type.
-	instanceType := instance.TypeAny
-	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		instanceType = instance.TypeContainer
+	instanceType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return SmartError(err)
 	}
 
 	project := projectParam(r)
