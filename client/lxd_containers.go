@@ -286,7 +286,7 @@ func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Ima
 }
 
 // CopyContainer copies a container from a remote server. Additional options can be passed using ContainerCopyArgs
-func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (RemoteOperation, error) {
+func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Container, args *ContainerCopyArgs) (RemoteOperation, error) {
 	// Base request
 	req := api.ContainersPost{
 		Name:         container.Name,
@@ -499,7 +499,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	return r.tryCreateContainer(req, info.Addresses)
 }
 
-func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[string]string, source ContainerServer, sourceOp *operation, sourceSecrets map[string]string) error {
+func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[string]string, source InstanceServer, sourceOp *operation, sourceSecrets map[string]string) error {
 	// Sanity checks
 	for n := range targetSecrets {
 		_, ok := sourceSecrets[n]
@@ -611,7 +611,7 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, req api.ContainerPost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, req api.ContainerPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
 	}
@@ -1062,7 +1062,7 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 }
 
 // CopyContainerSnapshot copies a snapshot from a remote server into a new container. Additional options can be passed using ContainerCopyArgs
-func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, containerName string, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
+func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName string, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
 	// Backward compatibility (with broken Name field)
 	fields := strings.Split(snapshot.Name, shared.SnapshotDelimiter)
 	cName := containerName
@@ -1287,7 +1287,7 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
 	}
