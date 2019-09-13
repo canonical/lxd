@@ -3271,6 +3271,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 		Status:          statusCode.String(),
 		StatusCode:      statusCode,
 		Location:        c.node,
+		Type:            c.Type().String(),
 	}
 
 	ct.Description = c.description
