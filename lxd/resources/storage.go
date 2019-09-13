@@ -1,16 +1,103 @@
 package resources
 
 import (
+	"bufio"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
 )
 
+var devDiskByPath = "/dev/disk/by-path"
+var runUdevData = "/run/udev/data"
 var sysClassBlock = "/sys/class/block"
+
+func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) error {
+	// Attempt to open the device path
+	f, err := os.Open(devicePath)
+	if err != nil {
+		if !os.IsPermission(err) && !os.IsNotExist(err) {
+			return err
+		}
+	} else {
+		defer f.Close()
+		fd := int(f.Fd())
+
+		// Retrieve the block size
+		res, err := unix.IoctlGetInt(fd, unix.BLKPBSZGET)
+		if err != nil {
+			return err
+		}
+
+		disk.BlockSize = uint64(res)
+	}
+
+	// Retrieve udev information
+	udevInfo := filepath.Join(runUdevData, fmt.Sprintf("b%s", disk.Device))
+	if sysfsExists(udevInfo) {
+		// Get the udev information
+		f, err := os.Open(udevInfo)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to open \"%s\"", udevInfo)
+		}
+		defer f.Close()
+
+		udevInfo := bufio.NewScanner(f)
+		for udevInfo.Scan() {
+			line := strings.TrimSpace(udevInfo.Text())
+
+			if !strings.HasPrefix(line, "E:") {
+				continue
+			}
+
+			fields := strings.SplitN(line, "=", 2)
+			if len(fields) != 2 {
+				continue
+			}
+
+			key := strings.TrimSpace(fields[0])
+			value := strings.TrimSpace(fields[1])
+
+			// Finer grained disk type
+			if key == "E:ID_ATA_SATA" && value == "1" {
+				disk.Type = "sata"
+			}
+
+			if key == "E:ID_USB_DRIVER" && value == "usb-storage" {
+				disk.Type = "usb"
+			}
+
+			// Model revision number
+			if key == "E:ID_REVISION" && disk.ModelRevision == "" {
+				disk.ModelRevision = value
+			}
+
+			// Serial number
+			if key == "E:ID_SERIAL_SHORT" && disk.Serial == "" {
+				disk.Serial = value
+			}
+
+			// Rotation per minute
+			if key == "E:ID_ATA_ROTATION_RATE_RPM" && disk.RPM == 0 {
+				valueUint, err := strconv.ParseUint(value, 10, 64)
+				if err != nil {
+					return errors.Wrap(err, "Failed to parse RPM value")
+				}
+
+				disk.RPM = valueUint
+			}
+		}
+	}
+
+	return nil
+}
 
 // GetStorage returns a filled api.ResourcesStorage struct ready for use by LXD
 func GetStorage() (*api.ResourcesStorage, error) {
@@ -38,6 +125,16 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			// Setup the entry
 			disk := api.ResourcesStorageDisk{}
 			disk.ID = entryName
+
+			// Firmware revision
+			if sysfsExists(filepath.Join(devicePath, "firmware_rev")) {
+				firmwareRevision, err := ioutil.ReadFile(filepath.Join(devicePath, "firmware_rev"))
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to read \"%s\"", filepath.Join(devicePath, "firmware_rev"))
+				}
+
+				disk.FirmwareVersion = strings.TrimSpace(string(firmwareRevision))
+			}
 
 			// Device node
 			diskDev, err := ioutil.ReadFile(filepath.Join(entryPath, "dev"))
@@ -156,6 +253,34 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 				// Add to list
 				disk.Partitions = append(disk.Partitions, partition)
+			}
+
+			// Try to find the udev device path
+			if sysfsExists(devDiskByPath) {
+				links, err := ioutil.ReadDir(devDiskByPath)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to list the links in \"%s\"", devDiskByPath)
+				}
+
+				for _, link := range links {
+					linkName := link.Name()
+					linkPath := filepath.Join(devDiskByPath, linkName)
+
+					linkTarget, err := filepath.EvalSymlinks(linkPath)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to track down \"%s\"", linkPath)
+					}
+
+					if linkTarget == filepath.Join("/dev", entryName) {
+						disk.DevicePath = linkName
+					}
+				}
+			}
+
+			// Pull direct disk information
+			err = storageAddDriveInfo(filepath.Join("/dev", entryName), &disk)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to retrieve disk information from \"%s\"", filepath.Join("/dev", entryName))
 			}
 
 			// Add to list
