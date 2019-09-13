@@ -12,8 +12,12 @@ type Type int
 const (
 	// TypeAny represents any type of instance.
 	TypeAny = Type(-1)
+
 	// TypeContainer represents a container instance type.
 	TypeContainer = Type(0)
+
+	// TypeVM represents a virtual-machine instance type.
+	TypeVM = Type(1)
 )
 
 // New validates the supplied string against the allowed types of instance and returns the internal
@@ -25,6 +29,11 @@ func New(name string) (Type, error) {
 		return TypeContainer, nil
 	}
 
+	// If "virtual-machine" is supplied, return type as TypeVM.
+	if api.InstanceType(name) == api.InstanceTypeVM {
+		return TypeVM, nil
+	}
+
 	return -1, fmt.Errorf("Invalid instance type")
 }
 
@@ -33,6 +42,10 @@ func New(name string) (Type, error) {
 func (instanceType Type) String() string {
 	if instanceType == TypeContainer {
 		return string(api.InstanceTypeContainer)
+	}
+
+	if instanceType == TypeVM {
+		return string(api.InstanceTypeVM)
 	}
 
 	return ""
