@@ -146,7 +146,7 @@ func (c *cmdExec) forwardSignal(control *websocket.Conn, sig unix.Signal) error 
 		return err
 	}
 
-	msg := api.ContainerExecControl{}
+	msg := api.InstanceExecControl{}
 	msg.Command = "signal"
 	msg.Signal = int(sig)
 

@@ -420,15 +420,15 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
 	// Sanity checks
 	if c.flagTarget != "" {
-		return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+		return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 	}
 
-	ct, _, err := d.GetContainer(name)
+	ct, _, err := d.GetInstance(name)
 	if err != nil {
 		return err
 	}
 
-	cs, _, err := d.GetContainerState(name)
+	cs, _, err := d.GetInstanceState(name)
 	if err != nil {
 		return err
 	}
@@ -551,7 +551,7 @@ func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name
 
 	// List snapshots
 	firstSnapshot := true
-	snaps, err := d.GetContainerSnapshots(name)
+	snaps, err := d.GetInstanceSnapshots(name)
 	if err != nil {
 		return nil
 	}
@@ -583,7 +583,7 @@ func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name
 	}
 
 	if showLog {
-		log, err := d.GetContainerLogfile(name, "lxc.log")
+		log, err := d.GetInstanceLogfile(name, "lxc.log")
 		if err != nil {
 			return err
 		}

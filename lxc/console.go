@@ -54,7 +54,7 @@ func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 		return err
 	}
 
-	msg := api.ContainerExecControl{}
+	msg := api.InstanceExecControl{}
 	msg.Command = "window-resize"
 	msg.Args = make(map[string]string)
 	msg.Args["width"] = strconv.Itoa(width)
@@ -127,8 +127,8 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 
 	// Show the current log if requested
 	if c.flagShowLog {
-		console := &lxd.ContainerConsoleLogArgs{}
-		log, err := d.GetContainerConsoleLog(name, console)
+		console := &lxd.InstanceConsoleLogArgs{}
+		log, err := d.GetInstanceConsoleLog(name, console)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare the remote console
-	req := api.ContainerConsolePost{
+	req := api.InstanceConsolePost{
 		Width:  width,
 		Height: height,
 	}
@@ -170,7 +170,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	sendDisconnect := make(chan bool)
 	defer close(sendDisconnect)
 
-	consoleArgs := lxd.ContainerConsoleArgs{
+	consoleArgs := lxd.InstanceConsoleArgs{
 		Terminal: &readWriteCloser{stdinMirror{os.Stdin,
 			sendDisconnect, new(bool)}, os.Stdout},
 		Control:           handler,
@@ -185,7 +185,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	fmt.Printf(i18n.G("To detach from the console, press: <ctrl>+a q") + "\n\r")
 
 	// Attach to the container console
-	op, err := d.ConsoleContainer(name, req, &consoleArgs)
+	op, err := d.ConsoleInstance(name, req, &consoleArgs)
 	if err != nil {
 		return err
 	}

@@ -113,10 +113,10 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		return resource.server.SetContainerMetadata(resource.name, metadata, "")
+		return resource.server.SetInstanceMetadata(resource.name, metadata, "")
 	}
 
-	metadata, etag, err := resource.server.GetContainerMetadata(resource.name)
+	metadata, etag, err := resource.server.GetInstanceMetadata(resource.name)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 		metadata := api.ImageMetadata{}
 		err = yaml.Unmarshal(content, &metadata)
 		if err == nil {
-			err = resource.server.SetContainerMetadata(resource.name, metadata, etag)
+			err = resource.server.SetInstanceMetadata(resource.name, metadata, etag)
 		}
 
 		// Respawn the editor
@@ -200,7 +200,7 @@ func (c *cmdConfigMetadataShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Show the container metadata
-	metadata, _, err := resource.server.GetContainerMetadata(resource.name)
+	metadata, _, err := resource.server.GetInstanceMetadata(resource.name)
 	if err != nil {
 		return err
 	}

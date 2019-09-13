@@ -63,7 +63,7 @@ func (c *cmdSnapshot) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	req := api.ContainerSnapshotsPost{
+	req := api.InstanceSnapshotsPost{
 		Name:     snapname,
 		Stateful: c.flagStateful,
 	}
@@ -72,7 +72,7 @@ func (c *cmdSnapshot) Run(cmd *cobra.Command, args []string) error {
 		req.ExpiresAt = &time.Time{}
 	}
 
-	op, err := d.CreateContainerSnapshot(name, req)
+	op, err := d.CreateInstanceSnapshot(name, req)
 	if err != nil {
 		return err
 	}

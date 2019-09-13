@@ -57,10 +57,10 @@ func (c *cmdDelete) doDelete(d lxd.InstanceServer, name string) error {
 	if shared.IsSnapshot(name) {
 		// Snapshot delete
 		fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		op, err = d.DeleteContainerSnapshot(fields[0], fields[1])
+		op, err = d.DeleteInstanceSnapshot(fields[0], fields[1])
 	} else {
-		// Container delete
-		op, err = d.DeleteContainer(name)
+		// Instance delete
+		op, err = d.DeleteInstance(name)
 	}
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 			return c.doDelete(resource.server, resource.name)
 		}
 
-		ct, _, err := resource.server.GetContainer(resource.name)
+		ct, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -104,13 +104,13 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force"))
 			}
 
-			req := api.ContainerStatePut{
+			req := api.InstanceStatePut{
 				Action:  "stop",
 				Timeout: -1,
 				Force:   true,
 			}
 
-			op, err := resource.server.UpdateContainerState(resource.name, req, "")
+			op, err := resource.server.UpdateInstanceState(resource.name, req, "")
 			if err != nil {
 				return err
 			}

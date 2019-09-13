@@ -152,7 +152,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	if action == "start" {
-		current, _, err := d.GetContainer(name)
+		current, _, err := d.GetInstance(name)
 		if err != nil {
 			return err
 		}
@@ -168,14 +168,14 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		}
 	}
 
-	req := api.ContainerStatePut{
+	req := api.InstanceStatePut{
 		Action:   action,
 		Timeout:  c.flagTimeout,
 		Force:    c.flagForce,
 		Stateful: state,
 	}
 
-	op, err := d.UpdateContainerState(name, req, "")
+	op, err := d.UpdateInstanceState(name, req, "")
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		ctslist, err := d.GetContainers()
+		ctslist, err := d.GetInstances(api.InstanceTypeAny)
 		if err != nil {
 			return err
 		}
