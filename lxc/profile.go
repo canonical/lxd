@@ -125,14 +125,14 @@ func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add the profile
-	container, etag, err := resource.server.GetContainer(resource.name)
+	container, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
 
 	container.Profiles = append(container.Profiles, args[1])
 
-	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing container name"))
 	}
 
-	container, etag, err := resource.server.GetContainer(resource.name)
+	container, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 		container.Profiles = nil
 	}
 
-	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -660,7 +660,7 @@ func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Remove the profile
-	container, etag, err := resource.server.GetContainer(resource.name)
+	container, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
@@ -680,7 +680,7 @@ func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 
 	container.Profiles = profiles
 
-	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 	if err != nil {
 		return err
 	}

@@ -646,7 +646,7 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the container entry
-	container, etag, err := resource.server.GetContainer(args[2])
+	container, etag, err := resource.server.GetInstance(args[2])
 	if err != nil {
 		return err
 	}
@@ -675,7 +675,7 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 
 	// Remove the device
 	delete(container.Devices, devName)
-	op, err := resource.server.UpdateContainer(args[2], container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(args[2], container.Writable(), etag)
 	if err != nil {
 		return err
 	}

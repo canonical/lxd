@@ -73,7 +73,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
-	createArgs := lxd.ContainerBackupArgs{
+	createArgs := lxd.InstanceBackupArgs{
 		BackupFile: &ioprogress.ProgressReader{
 			ReadCloser: file,
 			Tracker: &ioprogress.ProgressTracker{
@@ -86,7 +86,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		PoolName: c.flagStorage,
 	}
 
-	op, err := resource.server.CreateContainerFromBackup(createArgs)
+	op, err := resource.server.CreateInstanceFromBackup(createArgs)
 	if err != nil {
 		return err
 	}

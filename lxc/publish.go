@@ -83,21 +83,21 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
 	}
 
-	d, err := conf.GetContainerServer(iRemote)
+	d, err := conf.GetInstanceServer(iRemote)
 	if err != nil {
 		return err
 	}
 
 	s := d
 	if cRemote != iRemote {
-		s, err = conf.GetContainerServer(cRemote)
+		s, err = conf.GetInstanceServer(cRemote)
 		if err != nil {
 			return err
 		}
 	}
 
 	if !shared.IsSnapshot(cName) {
-		ct, etag, err := s.GetContainer(cName)
+		ct, etag, err := s.GetInstance(cName)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 			if ct.Ephemeral {
 				ct.Ephemeral = false
-				op, err := s.UpdateContainer(cName, ct.Writable(), etag)
+				op, err := s.UpdateInstance(cName, ct.Writable(), etag)
 				if err != nil {
 					return err
 				}
@@ -123,19 +123,19 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 				}
 
 				// Refresh the ETag
-				_, etag, err = s.GetContainer(cName)
+				_, etag, err = s.GetInstance(cName)
 				if err != nil {
 					return err
 				}
 			}
 
-			req := api.ContainerStatePut{
+			req := api.InstanceStatePut{
 				Action:  string(shared.Stop),
 				Timeout: -1,
 				Force:   true,
 			}
 
-			op, err := s.UpdateContainerState(cName, req, "")
+			op, err := s.UpdateInstanceState(cName, req, "")
 			if err != nil {
 				return err
 			}
@@ -147,7 +147,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 			defer func() {
 				req.Action = string(shared.Start)
-				op, err = s.UpdateContainerState(cName, req, "")
+				op, err = s.UpdateInstanceState(cName, req, "")
 				if err != nil {
 					return
 				}
@@ -157,7 +157,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 			if wasEphemeral {
 				ct.Ephemeral = true
-				op, err := s.UpdateContainer(cName, ct.Writable(), etag)
+				op, err := s.UpdateInstance(cName, ct.Writable(), etag)
 				if err != nil {
 					return err
 				}

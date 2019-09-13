@@ -74,7 +74,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}

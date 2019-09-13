@@ -160,14 +160,14 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 			var op lxd.Operation
 
 			if isSnapshot {
-				snapshot, _, err := resource.server.GetContainerSnapshot(fields[0], fields[1])
+				snapshot, _, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
 				if err != nil {
 					return err
 				}
 
 				// The current expiry date needs to be set here explicitly, otherwise failing to
 				// provide a new value will reset the expiry date to zero time (no expiry).
-				newdata := api.ContainerSnapshotPut{
+				newdata := api.InstanceSnapshotPut{
 					ExpiresAt: snapshot.ExpiresAt,
 				}
 
@@ -176,18 +176,18 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 					return err
 				}
 
-				op, err = resource.server.UpdateContainerSnapshot(fields[0], fields[1], newdata, "")
+				op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1], newdata, "")
 				if err != nil {
 					return err
 				}
 			} else {
-				newdata := api.ContainerPut{}
+				newdata := api.InstancePut{}
 				err = yaml.Unmarshal(contents, &newdata)
 				if err != nil {
 					return err
 				}
 
-				op, err = resource.server.UpdateContainer(resource.name, newdata, "")
+				op, err = resource.server.UpdateInstance(resource.name, newdata, "")
 				if err != nil {
 					return err
 				}
@@ -202,9 +202,9 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 		// Extract the current value
 		if isSnapshot {
-			var container *api.ContainerSnapshot
+			var container *api.InstanceSnapshot
 
-			container, etag, err = resource.server.GetContainerSnapshot(fields[0], fields[1])
+			container, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
 			if err != nil {
 				return err
 			}
@@ -217,9 +217,9 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 			currentExpiryDate = brief.ExpiresAt
 		} else {
-			var container *api.Container
+			var container *api.Instance
 
-			container, etag, err = resource.server.GetContainer(resource.name)
+			container, etag, err = resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
@@ -240,25 +240,25 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 		for {
 			// Parse the text received from the editor
 			if isSnapshot {
-				newdata := api.ContainerSnapshotPut{
+				newdata := api.InstanceSnapshotPut{
 					ExpiresAt: currentExpiryDate,
 				}
 
 				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
 					var op lxd.Operation
-					op, err = resource.server.UpdateContainerSnapshot(fields[0], fields[1],
+					op, err = resource.server.UpdateInstanceSnapshot(fields[0], fields[1],
 						newdata, etag)
 					if err == nil {
 						err = op.Wait()
 					}
 				}
 			} else {
-				newdata := api.ContainerPut{}
+				newdata := api.InstancePut{}
 				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
 					var op lxd.Operation
-					op, err = resource.server.UpdateContainer(resource.name, newdata, etag)
+					op, err = resource.server.UpdateInstance(resource.name, newdata, etag)
 					if err == nil {
 						err = op.Wait()
 					}
@@ -406,7 +406,7 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
 		}
 
-		resp, _, err := resource.server.GetContainer(resource.name)
+		resp, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -504,7 +504,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		container, etag, err := resource.server.GetContainer(resource.name)
+		container, etag, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -522,7 +522,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+		op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 		if err != nil {
 			return err
 		}
@@ -637,14 +637,14 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
 		}
 
-		// Container or snapshot config
+		// Instance or snapshot config
 		var brief interface{}
 
 		if shared.IsSnapshot(resource.name) {
 			// Snapshot
 			fields := strings.Split(resource.name, shared.SnapshotDelimiter)
 
-			snap, _, err := resource.server.GetContainerSnapshot(fields[0], fields[1])
+			snap, _, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
 			if err != nil {
 				return err
 			}
@@ -652,15 +652,15 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			writable := snap.Writable()
 			brief = &writable
 
-			brief.(*api.ContainerSnapshotPut).ExpiresAt = snap.ExpiresAt
+			brief.(*api.InstanceSnapshotPut).ExpiresAt = snap.ExpiresAt
 
 			if c.flagExpanded {
-				brief.(*api.ContainerSnapshotPut).Config = snap.ExpandedConfig
-				brief.(*api.ContainerSnapshotPut).Devices = snap.ExpandedDevices
+				brief.(*api.InstanceSnapshotPut).Config = snap.ExpandedConfig
+				brief.(*api.InstanceSnapshotPut).Devices = snap.ExpandedDevices
 			}
 		} else {
-			// Container
-			container, _, err := resource.server.GetContainer(resource.name)
+			// Instance
+			container, _, err := resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
@@ -669,8 +669,8 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			brief = &writable
 
 			if c.flagExpanded {
-				brief.(*api.ContainerPut).Config = container.ExpandedConfig
-				brief.(*api.ContainerPut).Devices = container.ExpandedDevices
+				brief.(*api.InstancePut).Config = container.ExpandedConfig
+				brief.(*api.InstancePut).Devices = container.ExpandedDevices
 			}
 		}
 

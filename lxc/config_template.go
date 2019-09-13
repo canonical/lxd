@@ -90,7 +90,7 @@ func (c *cmdConfigTemplateCreate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create container file template
-	return resource.server.CreateContainerTemplateFile(resource.name, args[1], nil)
+	return resource.server.CreateInstanceTemplateFile(resource.name, args[1], nil)
 }
 
 // Delete
@@ -133,7 +133,7 @@ func (c *cmdConfigTemplateDelete) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete container file template
-	return resource.server.DeleteContainerTemplateFile(resource.name, args[1])
+	return resource.server.DeleteInstanceTemplateFile(resource.name, args[1])
 }
 
 // Edit
@@ -176,10 +176,10 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// Edit container file template
 	if !termios.IsTerminal(getStdinFd()) {
-		return resource.server.UpdateContainerTemplateFile(resource.name, args[1], os.Stdin)
+		return resource.server.UpdateInstanceTemplateFile(resource.name, args[1], os.Stdin)
 	}
 
-	reader, err := resource.server.GetContainerTemplateFile(resource.name, args[1])
+	reader, err := resource.server.GetInstanceTemplateFile(resource.name, args[1])
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 
 	for {
 		reader := bytes.NewReader(content)
-		err := resource.server.UpdateContainerTemplateFile(resource.name, args[1], reader)
+		err := resource.server.UpdateInstanceTemplateFile(resource.name, args[1], reader)
 		// Respawn the editor
 		if err != nil {
 			fmt.Fprintf(os.Stderr, i18n.G("Error updating template file: %s")+"\n", err)
@@ -262,7 +262,7 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// List the templates
-	templates, err := resource.server.GetContainerTemplateFiles(resource.name)
+	templates, err := resource.server.GetInstanceTemplateFiles(resource.name)
 	if err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func (c *cmdConfigTemplateShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Show the template
-	template, err := resource.server.GetContainerTemplateFile(resource.name, args[1])
+	template, err := resource.server.GetInstanceTemplateFile(resource.name, args[1])
 	if err != nil {
 		return err
 	}

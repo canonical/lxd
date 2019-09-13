@@ -53,7 +53,7 @@ func (c *cmdRestore) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
@@ -64,13 +64,13 @@ func (c *cmdRestore) Run(cmd *cobra.Command, args []string) error {
 		snapname = fmt.Sprintf("%s/%s", name, snapname)
 	}
 
-	req := api.ContainerPut{
+	req := api.InstancePut{
 		Restore:  snapname,
 		Stateful: c.flagStateful,
 	}
 
 	// Restore the snapshot
-	op, err := d.UpdateContainer(name, req, "")
+	op, err := d.UpdateInstance(name, req, "")
 	if err != nil {
 		return err
 	}

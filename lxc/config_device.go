@@ -137,7 +137,7 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		container, etag, err := resource.server.GetContainer(resource.name)
+		container, etag, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 
 		container.Devices[devname] = device
 
-		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+		op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 		if err != nil {
 			return err
 		}
@@ -223,7 +223,7 @@ func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
 
 		fmt.Println(dev[key])
 	} else {
-		container, _, err := resource.server.GetContainer(resource.name)
+		container, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -291,7 +291,7 @@ func (c *cmdConfigDeviceList) Run(cmd *cobra.Command, args []string) error {
 			devices = append(devices, k)
 		}
 	} else {
-		container, _, err := resource.server.GetContainer(resource.name)
+		container, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -346,7 +346,7 @@ func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Override the device
-	container, etag, err := resource.server.GetContainer(resource.name)
+	container, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
@@ -377,7 +377,7 @@ func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
 
 	container.Devices[devname] = device
 
-	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		container, etag, err := resource.server.GetContainer(resource.name)
+		container, etag, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -467,7 +467,7 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 			delete(container.Devices, devname)
 		}
 
-		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+		op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 		if err != nil {
 			return err
 		}
@@ -556,7 +556,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		container, etag, err := resource.server.GetContainer(resource.name)
+		container, etag, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
@@ -570,7 +570,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 		}
 		container.Devices[devname] = dev
 
-		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+		op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
 		if err != nil {
 			return err
 		}
@@ -633,7 +633,7 @@ func (c *cmdConfigDeviceShow) Run(cmd *cobra.Command, args []string) error {
 
 		devices = profile.Devices
 	} else {
-		container, _, err := resource.server.GetContainer(resource.name)
+		container, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}

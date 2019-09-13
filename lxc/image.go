@@ -656,7 +656,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		rootfsFile = shared.HostPath(filepath.Clean(rootfsFile))
 	}
 
-	d, err := conf.GetContainerServer(remote)
+	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
 	}
