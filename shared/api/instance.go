@@ -32,7 +32,8 @@ type InstancePost struct {
 	Name          string              `json:"name" yaml:"name"`
 	Migration     bool                `json:"migration" yaml:"migration"`
 	Live          bool                `json:"live" yaml:"live"`
-	ContainerOnly bool                `json:"container_only" yaml:"container_only"`
+	InstanceOnly  bool                `json:"instance_only" yaml:"instance_only"`
+	ContainerOnly bool                `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
 	Target        *InstancePostTarget `json:"target" yaml:"target"`
 }
 
@@ -126,7 +127,8 @@ type InstanceSource struct {
 	Websockets    map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	Source        string            `json:"source,omitempty" yaml:"source,omitempty"`
 	Live          bool              `json:"live,omitempty" yaml:"live,omitempty"`
-	ContainerOnly bool              `json:"container_only,omitempty" yaml:"container_only,omitempty"`
+	InstanceOnly  bool              `json:"instance_only,omitempty" yaml:"instance_only,omitempty"`
+	ContainerOnly bool              `json:"container_only,omitempty" yaml:"container_only,omitempty"` // Deprecated, use InstanceOnly.
 	Refresh       bool              `json:"refresh,omitempty" yaml:"refresh,omitempty"`
 	Project       string            `json:"project,omitempty" yaml:"project,omitempty"`
 }
