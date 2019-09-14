@@ -119,13 +119,13 @@ type ResourcesGPUCardSRIOV struct {
 // ResourcesGPUCardNvidia represents additional information for NVIDIA GPUs
 // API extension: resources_gpu
 type ResourcesGPUCardNvidia struct {
-	CUDAVersion string `json:"cuda_version" yaml:"cuda_version"`
-	NVRMVersion string `json:"nvrm_version" yaml:"nvrm_version"`
+	CUDAVersion string `json:"cuda_version,omitempty" yaml:"cuda_version,omitempty"`
+	NVRMVersion string `json:"nvrm_version,omitempty" yaml:"nvrm_version,omitempty"`
 
 	Brand        string `json:"brand" yaml:"brand"`
 	Model        string `json:"model" yaml:"model"`
-	UUID         string `json:"uuid" yaml:"uuid"`
-	Architecture string `json:"architecture" yaml:"architecture"`
+	UUID         string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
+	Architecture string `json:"architecture,omitempty" yaml:"architecture,omitempty"`
 
 	// API extension: resources_v2
 	CardName   string `json:"card_name" yaml:"card_name"`
