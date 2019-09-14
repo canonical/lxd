@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
-	"github.com/pkg/errors"
 )
 
-// ImageSourceProtocol maps image source protocol codes to human-readable
-// names.
+// ImageSourceProtocol maps image source protocol codes to human-readable names.
 var ImageSourceProtocol = map[int]string{
 	0: "lxd",
 	1: "direct",
@@ -155,7 +156,16 @@ func (c *Cluster) ImageSourceGet(imageID int) (int, api.ImageSource, error) {
 // ImageSourceGetCachedFingerprint tries to find a source entry of a locally
 // cached image that matches the given remote details (server, protocol and
 // alias). Return the fingerprint linked to the matching entry, if any.
-func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string) (string, error) {
+func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string, typeName string) (string, error) {
+	imageType := instance.TypeAny
+	if typeName != "" {
+		var err error
+		imageType, err = instance.New(typeName)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	protocolInt := -1
 	for protoInt, protoString := range ImageSourceProtocol {
 		if protoString == protocol {
@@ -172,11 +182,18 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 			INNER JOIN images
 			ON images_source.image_id=images.id
 			WHERE server=? AND protocol=? AND alias=? AND auto_update=1
-			ORDER BY creation_date DESC`
+`
+
+	arg1 := []interface{}{server, protocolInt, alias}
+	if imageType > 0 {
+		q += "AND images.type=?\n"
+		arg1 = []interface{}{server, protocolInt, alias, imageType}
+	}
+
+	q += "ORDER BY creation_date DESC"
 
 	fingerprint := ""
 
-	arg1 := []interface{}{server, protocolInt, alias}
 	arg2 := []interface{}{&fingerprint}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
@@ -283,17 +300,18 @@ func (c *Cluster) ImageGet(project, fingerprint string, public bool, strictMatch
 	image := api.Image{}
 	id := -1
 	arch := -1
+	imageType := -1
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
 	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
-		&create, &expire, &used, &upload}
+		&create, &expire, &used, &upload, &imageType}
 
 	inargs := []interface{}{project}
 	query := `
         SELECT
             images.id, fingerprint, filename, size, cached, public, auto_update, architecture,
-            creation_date, expiry_date, last_use_date, upload_date
+            creation_date, expiry_date, last_use_date, upload_date, type
         FROM images
         JOIN projects ON projects.id = images.project_id
        WHERE projects.name = ?`
@@ -340,7 +358,7 @@ SELECT COUNT(images.id)
 		}
 	}
 
-	err = c.imageFill(id, &image, create, expire, used, upload, arch)
+	err = c.imageFill(id, &image, create, expire, used, upload, arch, imageType)
 	if err != nil {
 		return -1, nil, errors.Wrapf(err, "Fill image details")
 	}
@@ -357,17 +375,18 @@ func (c *Cluster) ImageGetFromAnyProject(fingerprint string) (int, *api.Image, e
 	image := api.Image{}
 	id := -1
 	arch := -1
+	imageType := -1
 
 	// These two humongous things will be filled by the call to DbQueryRowScan
 	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
 		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
-		&create, &expire, &used, &upload}
+		&create, &expire, &used, &upload, &imageType}
 
 	inargs := []interface{}{fingerprint}
 	query := `
         SELECT
             images.id, fingerprint, filename, size, cached, public, auto_update, architecture,
-            creation_date, expiry_date, last_use_date, upload_date
+            creation_date, expiry_date, last_use_date, upload_date, type
         FROM images
         WHERE fingerprint = ?
         LIMIT 1`
@@ -381,7 +400,7 @@ func (c *Cluster) ImageGetFromAnyProject(fingerprint string) (int, *api.Image, e
 		return -1, nil, err // Likely: there are no rows for this fingerprint
 	}
 
-	err = c.imageFill(id, &image, create, expire, used, upload, arch)
+	err = c.imageFill(id, &image, create, expire, used, upload, arch, imageType)
 	if err != nil {
 		return -1, nil, errors.Wrapf(err, "Fill image details")
 	}
@@ -391,7 +410,7 @@ func (c *Cluster) ImageGetFromAnyProject(fingerprint string) (int, *api.Image, e
 
 // Fill extra image fields such as properties and alias. This is called after
 // fetching a single row from the images table.
-func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int) error {
+func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int, imageType int) error {
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
 		image.CreatedAt = *create
@@ -412,6 +431,7 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 	}
 
 	image.Architecture, _ = osarch.ArchitectureName(arch)
+	image.Type = instance.Type(imageType).String()
 
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
 	image.UploadedAt = *upload
@@ -599,7 +619,7 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 		return id, entry, err
 	}
 
-	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
+	q := `SELECT images_aliases.id, images.fingerprint, images.type, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
 			 ON images_aliases.image_id=images.id
@@ -611,9 +631,10 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 	}
 
 	var fingerprint, description string
+	var imageType int
 
 	arg1 := []interface{}{project, name}
-	arg2 := []interface{}{&id, &fingerprint, &description}
+	arg2 := []interface{}{&id, &fingerprint, &imageType, &description}
 	err = dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -626,6 +647,7 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 	entry.Name = name
 	entry.Target = fingerprint
 	entry.Description = description
+	entry.Type = instance.Type(imageType).String()
 
 	return id, entry, nil
 }
@@ -765,7 +787,7 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 }
 
 // ImageInsert inserts a new image.
-func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -785,6 +807,19 @@ func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public
 		arch = 0
 	}
 
+	imageType := instance.TypeAny
+	if typeName != "" {
+		var err error
+		imageType, err = instance.New(typeName)
+		if err != nil {
+			return err
+		}
+	}
+
+	if imageType == -1 {
+		return fmt.Errorf("Invalid image type: %v", typeName)
+	}
+
 	err = c.Transaction(func(tx *ClusterTx) error {
 		publicInt := 0
 		if public {
@@ -796,13 +831,13 @@ func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public
 			autoUpdateInt = 1
 		}
 
-		stmt, err := tx.tx.Prepare(`INSERT INTO images (project_id, fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		stmt, err := tx.tx.Prepare(`INSERT INTO images (project_id, fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		if err != nil {
 			return err
 		}
 		defer stmt.Close()
 
-		result, err := stmt.Exec(project, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
+		result, err := stmt.Exec(project, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC(), imageType)
 		if err != nil {
 			return err
 		}

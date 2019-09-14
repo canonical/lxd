@@ -165,6 +165,7 @@ var APIExtensions = []string{
 	"resources_infiniband",
 	"daemon_storage",
 	"instances",
+	"image_types",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

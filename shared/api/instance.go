@@ -13,6 +13,9 @@ const InstanceTypeAny = InstanceType("")
 // InstanceTypeContainer defines the instance type value for a container.
 const InstanceTypeContainer = InstanceType("container")
 
+// InstanceTypeVM defines the instance type value for a virtual-machine.
+const InstanceTypeVM = InstanceType("virtual-machine")
+
 // InstancesPost represents the fields available for a new LXD instance.
 //
 // API extension: instances

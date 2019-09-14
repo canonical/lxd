@@ -95,12 +95,12 @@ hash or alias name (if one is set).`))
 	return cmd
 }
 
-func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, inName string) string {
+func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, imageType string, inName string) string {
 	if inName == "" {
 		inName = "default"
 	}
 
-	result, _, _ := d.GetImageAlias(inName)
+	result, _, _ := d.GetImageAliasType(imageType, inName)
 	if result == nil {
 		return inName
 	}
@@ -117,6 +117,7 @@ type cmdImageCopy struct {
 	flagPublic      bool
 	flagCopyAliases bool
 	flagAutoUpdate  bool
+	flagVM          bool
 }
 
 func (c *cmdImageCopy) Command() *cobra.Command {
@@ -134,6 +135,7 @@ It requires the source to be an alias and for it to be public.`))
 	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
 	cmd.Flags().BoolVar(&c.flagAutoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Copy virtual machine images"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -171,6 +173,12 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Can't provide a name for the target image"))
 	}
 
+	// Resolve image type
+	imageType := ""
+	if c.flagVM {
+		imageType = "virtual-machine"
+	}
+
 	// Copy the image
 	var imgInfo *api.Image
 	var fp string
@@ -183,7 +191,7 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		imgInfo.Public = true
 	} else {
 		// Resolve any alias and then grab the image information from the source
-		image := c.image.dereferenceAlias(sourceServer, name)
+		image := c.image.dereferenceAlias(sourceServer, imageType, name)
 		imgInfo, _, err = sourceServer.GetImage(image)
 		if err != nil {
 			return err
@@ -201,6 +209,7 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	copyArgs := lxd.ImageCopyArgs{
 		AutoUpdate: c.flagAutoUpdate,
 		Public:     c.flagPublic,
+		Type:       imageType,
 	}
 
 	// Do the copy
@@ -284,7 +293,7 @@ func (c *cmdImageDelete) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Image identifier missing"))
 		}
 
-		image := c.image.dereferenceAlias(resource.server, resource.name)
+		image := c.image.dereferenceAlias(resource.server, "", resource.name)
 		op, err := resource.server.DeleteImage(image)
 		if err != nil {
 			return err
@@ -353,7 +362,7 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve any aliases
-	image := c.image.dereferenceAlias(resource.server, resource.name)
+	image := c.image.dereferenceAlias(resource.server, "", resource.name)
 	if image == "" {
 		image = resource.name
 	}
@@ -426,6 +435,8 @@ func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdImageExport struct {
 	global *cmdGlobal
 	image  *cmdImage
+
+	flagVM bool
 }
 
 func (c *cmdImageExport) Command() *cobra.Command {
@@ -437,6 +448,7 @@ func (c *cmdImageExport) Command() *cobra.Command {
 
 The output target is optional and defaults to the working directory.`))
 
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Query virtual machine images"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -461,7 +473,12 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve aliases
-	fingerprint := c.image.dereferenceAlias(remoteServer, name)
+	imageType := ""
+	if c.flagVM {
+		imageType = "virtual-machine"
+	}
+
+	fingerprint := c.image.dereferenceAlias(remoteServer, imageType, name)
 
 	// Default target is current directory
 	target := "."
@@ -780,6 +797,8 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 type cmdImageInfo struct {
 	global *cmdGlobal
 	image  *cmdImage
+
+	flagVM bool
 }
 
 func (c *cmdImageInfo) Command() *cobra.Command {
@@ -789,6 +808,7 @@ func (c *cmdImageInfo) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show useful information about images`))
 
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Query virtual machine images"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -813,7 +833,12 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render info
-	image := c.image.dereferenceAlias(remoteServer, name)
+	imageType := ""
+	if c.flagVM {
+		imageType = "virtual-machine"
+	}
+
+	image := c.image.dereferenceAlias(remoteServer, imageType, name)
 	info, _, err := remoteServer.GetImage(image)
 	if err != nil {
 		return err
@@ -834,9 +859,15 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 		autoUpdate = i18n.G("enabled")
 	}
 
+	imgType := "container"
+	if info.Type != "" {
+		imgType = info.Type
+	}
+
 	fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
 	fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
+	fmt.Printf(i18n.G("Type: %s")+"\n", imgType)
 	fmt.Printf(i18n.G("Public: %s")+"\n", public)
 	fmt.Printf(i18n.G("Timestamps:") + "\n")
 
@@ -922,9 +953,10 @@ Column shorthand chars:
     d - Description
     a - Architecture
     s - Size
-    u - Upload date`))
+    u - Upload date
+    t - Type`))
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdasu", i18n.G("Columns")+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdatsu", i18n.G("Columns")+"``")
 	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.RunE = c.Run
 
@@ -942,6 +974,7 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 		'a': {i18n.G("ARCH"), c.architectureColumnData},
 		's': {i18n.G("SIZE"), c.sizeColumnData},
 		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+		't': {i18n.G("TYPE"), c.typeColumnData},
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
@@ -1007,6 +1040,14 @@ func (c *cmdImageList) architectureColumnData(image api.Image) string {
 
 func (c *cmdImageList) sizeColumnData(image api.Image) string {
 	return fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
+}
+
+func (c *cmdImageList) typeColumnData(image api.Image) string {
+	if image.Type == "" {
+		return "CONTAINER"
+	}
+
+	return strings.ToUpper(image.Type)
 }
 
 func (c *cmdImageList) uploadDateColumnData(image api.Image) string {
@@ -1214,7 +1255,7 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Image identifier missing"))
 		}
 
-		image := c.image.dereferenceAlias(resource.server, resource.name)
+		image := c.image.dereferenceAlias(resource.server, "", resource.name)
 		progress := utils.ProgressRenderer{
 			Format: i18n.G("Refreshing the image: %s"),
 			Quiet:  c.global.flagQuiet,
@@ -1259,6 +1300,8 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 type cmdImageShow struct {
 	global *cmdGlobal
 	image  *cmdImage
+
+	flagVM bool
 }
 
 func (c *cmdImageShow) Command() *cobra.Command {
@@ -1268,6 +1311,7 @@ func (c *cmdImageShow) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show image properties`))
 
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Query virtual machine images"))
 	cmd.RunE = c.Run
 
 	return cmd
@@ -1292,7 +1336,12 @@ func (c *cmdImageShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Show properties
-	image := c.image.dereferenceAlias(remoteServer, name)
+	imageType := ""
+	if c.flagVM {
+		imageType = "virtual-machine"
+	}
+
+	image := c.image.dereferenceAlias(remoteServer, imageType, name)
 	info, _, err := remoteServer.GetImage(image)
 	if err != nil {
 		return err

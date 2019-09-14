@@ -319,6 +319,20 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 	return &alias, etag, nil
 }
 
+// GetImageAliasType returns an existing alias as an ImageAliasesEntry struct
+func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.ImageAliasesEntry, string, error) {
+	alias, etag, err := r.GetImageAlias(name)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if imageType != "" && alias.Type != imageType {
+		return nil, "", fmt.Errorf("Alias doesn't exist for the specified type")
+	}
+
+	return alias, etag, nil
+}
+
 // CreateImage requests that LXD creates, copies or import a new image
 func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (Operation, error) {
 	if image.CompressionAlgorithm != "" {
@@ -586,6 +600,10 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			Mode:        "pull",
 			Type:        "image",
 		},
+	}
+
+	if args != nil {
+		req.Source.ImageType = args.Type
 	}
 
 	// Generate secret token if needed
