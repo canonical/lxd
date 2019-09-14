@@ -145,7 +145,7 @@ func networkValidateConfig(name string, config map[string]string) error {
 		}
 
 		// Bridge mode checks
-		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && v != "" {
+		if bridgeMode == "fan" && strings.HasPrefix(key, "ipv4.") && !shared.StringInSlice(key, []string{"ipv4.dhcp.expiry", "ipv4.firewall", "ipv4.nat", "ipv4.nat.order"}) && v != "" {
 			return fmt.Errorf("IPv4 configuration may not be set when in 'fan' mode")
 		}
 
