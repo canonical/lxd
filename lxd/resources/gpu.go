@@ -1,10 +1,12 @@
 package resources
 
 import (
+	"bufio"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -18,6 +20,66 @@ import (
 )
 
 var sysClassDrm = "/sys/class/drm"
+var procDriverNvidia = "/proc/driver/nvidia"
+
+func loadNvidiaProc() (map[string]*api.ResourcesGPUCardNvidia, error) {
+	nvidiaCards := map[string]*api.ResourcesGPUCardNvidia{}
+
+	gpusPath := filepath.Join(procDriverNvidia, "gpus")
+	if !sysfsExists(gpusPath) {
+		return nil, fmt.Errorf("No NVIDIA GPU proc driver")
+	}
+
+	// List the GPUs from /proc
+	entries, err := ioutil.ReadDir(gpusPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to list \"%s\"", gpusPath)
+	}
+
+	for _, entry := range entries {
+		entryName := entry.Name()
+		entryPath := filepath.Join(gpusPath, entryName)
+
+		if !sysfsExists(filepath.Join(entryPath, "information")) {
+			continue
+		}
+
+		// Get the GPU information
+		f, err := os.Open(filepath.Join(entryPath, "information"))
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to open \"%s\"", filepath.Join(entryPath, "information"))
+		}
+		defer f.Close()
+
+		gpuInfo := bufio.NewScanner(f)
+		nvidiaCard := &api.ResourcesGPUCardNvidia{}
+		for gpuInfo.Scan() {
+			line := strings.TrimSpace(gpuInfo.Text())
+
+			fields := strings.SplitN(line, ":", 2)
+			if len(fields) != 2 {
+				continue
+			}
+
+			key := strings.TrimSpace(fields[0])
+			value := strings.TrimSpace(fields[1])
+
+			if key == "Model" {
+				nvidiaCard.Model = value
+				nvidiaCard.Brand = strings.Split(value, " ")[0]
+			}
+
+			if key == "Device Minor" {
+				nvidiaCard.CardName = fmt.Sprintf("nvidia%s", value)
+				nvidiaCard.CardDevice = fmt.Sprintf("195:%s", value)
+			}
+		}
+
+		nvidiaCards[entryName] = nvidiaCard
+	}
+
+	return nvidiaCards, nil
+}
 
 func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 	// Check for nvidia-container-cli
@@ -271,7 +333,10 @@ func GetGPU() (*api.ResourcesGPU, error) {
 	// Load NVIDIA information
 	nvidiaCards, err := loadNvidiaContainer()
 	if err != nil {
-		nvidiaCards = map[string]*api.ResourcesGPUCardNvidia{}
+		nvidiaCards, err = loadNvidiaProc()
+		if err != nil {
+			nvidiaCards = map[string]*api.ResourcesGPUCardNvidia{}
+		}
 	}
 
 	// Temporary variables
