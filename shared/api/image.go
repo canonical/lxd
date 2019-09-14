@@ -55,6 +55,9 @@ type Image struct {
 	Size         int64        `json:"size" yaml:"size"`
 	UpdateSource *ImageSource `json:"update_source,omitempty" yaml:"update_source,omitempty"`
 
+	// API extension: image_types
+	Type string `json:"type" yaml:"type"`
+
 	CreatedAt  time.Time `json:"created_at" yaml:"created_at"`
 	ExpiresAt  time.Time `json:"expires_at" yaml:"expires_at"`
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
@@ -78,6 +81,9 @@ type ImageSource struct {
 	Certificate string `json:"certificate" yaml:"certificate"`
 	Protocol    string `json:"protocol" yaml:"protocol"`
 	Server      string `json:"server" yaml:"server"`
+
+	// API extension: image_types
+	ImageType string `json:"image_type" yaml:"image_type"`
 }
 
 // ImageAliasesPost represents a new LXD image alias
@@ -101,6 +107,9 @@ type ImageAliasesEntry struct {
 	ImageAliasesEntryPut `yaml:",inline"`
 
 	Name string `json:"name" yaml:"name"`
+
+	// API extension: image_types
+	Type string `json:"type" yaml:"type"`
 }
 
 // ImageMetadata represents LXD image metadata

@@ -55,6 +55,7 @@ type ImageServer interface {
 	GetImageAliasNames() (names []string, err error)
 
 	GetImageAlias(name string) (alias *api.ImageAliasesEntry, ETag string, err error)
+	GetImageAliasType(imageType string, name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 }
 
 // The InstanceServer type represents a full featured LXD server.
@@ -383,6 +384,9 @@ type ImageCopyArgs struct {
 
 	// Whether this image is to be made available to unauthenticated users
 	Public bool
+
+	// The image type to use for resolution
+	Type string
 }
 
 // The StoragePoolVolumeCopyArgs struct is used to pass additional options

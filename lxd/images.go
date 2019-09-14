@@ -28,6 +28,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
@@ -155,6 +156,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  */
 func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operation, builddir string) (*api.Image, error) {
 	info := api.Image{}
+	info.Type = "container"
 	info.Properties = map[string]string{}
 	project := projectParam(r)
 	name := req.Source.Name
@@ -305,7 +307,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	info.Properties = req.Properties
 
 	// Create the database entry
-	err = d.cluster.ImageInsert(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageInsert(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +327,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation, project str
 		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, false, req.AutoUpdate, "", false, project)
+	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, req.Source.ImageType, false, req.AutoUpdate, "", false, project)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +396,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation, project string
 	}
 
 	// Import the image
-	info, err := d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate, "", false, project)
+	info, err := d.ImageDownload(op, url, "direct", "", "", hash, "", false, req.AutoUpdate, "", false, project)
 	if err != nil {
 		return nil, err
 	}
@@ -472,9 +474,12 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 			return nil, err
 		}
 
-		if part.FormName() != "rootfs" {
+		if part.FormName() == "rootfs" {
+			info.Type = instance.TypeContainer.String()
+		} else if part.FormName() == "rootfs.img" {
+			info.Type = instance.TypeVM.String()
+		} else {
 			logger.Error("Invalid multipart image")
-
 			return nil, fmt.Errorf("Invalid multipart image")
 		}
 
@@ -503,7 +508,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 			return nil, err
 		}
 
-		imageMeta, err = getImageMetadata(imageTarf.Name())
+		imageMeta, _, err = getImageMetadata(imageTarf.Name())
 		if err != nil {
 			logger.Error("Failed to get image metadata", log.Ctx{"err": err})
 			return nil, err
@@ -531,12 +536,11 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 	} else {
 		post.Seek(0, 0)
 		size, err = io.Copy(sha256, post)
-		info.Size = size
-		logger.Debug("Tar size", log.Ctx{"size": size})
 		if err != nil {
 			logger.Error("Failed to copy the tarfile", log.Ctx{"err": err})
 			return nil, err
 		}
+		info.Size = size
 
 		info.Filename = r.Header.Get("X-LXD-filename")
 		info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
@@ -550,11 +554,13 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 			return nil, err
 		}
 
-		imageMeta, err = getImageMetadata(post.Name())
+		var imageType string
+		imageMeta, imageType, err = getImageMetadata(post.Name())
 		if err != nil {
 			logger.Error("Failed to get image metadata", log.Ctx{"err": err})
 			return nil, err
 		}
+		info.Type = imageType
 
 		imgfname := shared.VarPath("images", info.Fingerprint)
 		err = shared.FileMove(post.Name(), imgfname)
@@ -600,7 +606,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		}
 	} else {
 		// Create the database entry
-		err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.cluster.ImageInsert(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -788,26 +794,26 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func getImageMetadata(fname string) (*api.ImageMetadata, error) {
+func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	var tr *tar.Reader
 	var result api.ImageMetadata
 
 	// Open the file
 	r, err := os.Open(fname)
 	if err != nil {
-		return nil, err
+		return nil, "unknown", err
 	}
 	defer r.Close()
 
 	// Decompress if needed
 	_, _, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
-		return nil, err
+		return nil, "unknown", err
 	}
 	r.Seek(0, 0)
 
 	if unpacker == nil {
-		return nil, fmt.Errorf("Unsupported backup compression")
+		return nil, "unknown", fmt.Errorf("Unsupported backup compression")
 	}
 
 	// Open the tarball
@@ -817,13 +823,13 @@ func getImageMetadata(fname string) (*api.ImageMetadata, error) {
 
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			return nil, err
+			return nil, "unknown", err
 		}
 		defer stdout.Close()
 
 		err = cmd.Start()
 		if err != nil {
-			return nil, err
+			return nil, "unknown", err
 		}
 		defer cmd.Wait()
 
@@ -837,40 +843,56 @@ func getImageMetadata(fname string) (*api.ImageMetadata, error) {
 
 	// Parse the content
 	hasMeta := false
+	hasRoot := false
+	imageType := "unknown"
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
 			break // End of archive
 		}
 		if err != nil {
-			return nil, err
+			return nil, "unknown", err
 		}
 
 		if hdr.Name == "metadata.yaml" || hdr.Name == "./metadata.yaml" {
 			err = yaml.NewDecoder(tr).Decode(&result)
 			if err != nil {
-				return nil, err
+				return nil, "unknown", err
 			}
 
 			hasMeta = true
+		}
+
+		if strings.HasPrefix(hdr.Name, "rootfs/") || strings.HasPrefix(hdr.Name, "./rootfs/") {
+			hasRoot = true
+			imageType = instance.TypeContainer.String()
+		}
+
+		if hdr.Name == "rootfs.img" || hdr.Name == "./rootfs.img" {
+			hasRoot = true
+			imageType = instance.TypeVM.String()
+		}
+
+		if hasMeta && hasRoot {
+			// Done with the bits we want, no need to keep reading
 			break
 		}
 	}
 
 	if !hasMeta {
-		return nil, fmt.Errorf("Metadata tarball is missing metadata.yaml")
+		return nil, "unknown", fmt.Errorf("Metadata tarball is missing metadata.yaml")
 	}
 
 	_, err = osarch.ArchitectureId(result.Architecture)
 	if err != nil {
-		return nil, err
+		return nil, "unknown", err
 	}
 
 	if result.CreationDate == 0 {
-		return nil, fmt.Errorf("Missing creation date")
+		return nil, "unknown", fmt.Errorf("Missing creation date")
 	}
 
-	return &result, nil
+	return &result, imageType, nil
 }
 
 func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interface{}, error) {
@@ -1061,7 +1083,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image, project 
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
 	for _, poolName := range poolNames {
-		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true, poolName, false, project)
+		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, source.ImageType, false, true, poolName, false, project)
 
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})

@@ -43,7 +43,7 @@ type SimpleStreams struct {
 	cachedStream   *Stream
 	cachedProducts map[string]*Products
 	cachedImages   []api.Image
-	cachedAliases  map[string]*api.ImageAliasesEntry
+	cachedAliases  map[string]map[string]*api.ImageAliasesEntry
 }
 
 func (s *SimpleStreams) parseStream() (*Stream, error) {
@@ -130,11 +130,13 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 	return &products, nil
 }
 
-func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[string]*api.ImageAliasesEntry, error) {
-	aliases := map[string]*api.ImageAliasesEntry{}
+func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[string]map[string]*api.ImageAliasesEntry, error) {
+	aliases := map[string]map[string]*api.ImageAliasesEntry{}
 
+	// Sort the images so we tag the preferred ones
 	sort.Sort(sortedImages(images))
 
+	// Look for the default OS
 	defaultOS := ""
 	for k, v := range urlDefaultOS {
 		if strings.HasPrefix(s.url, k) {
@@ -143,19 +145,24 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 		}
 	}
 
-	addAlias := func(name string, fingerprint string) *api.ImageAlias {
+	addAlias := func(imageType string, name string, fingerprint string) *api.ImageAlias {
+		if aliases[imageType] == nil {
+			aliases[imageType] = map[string]*api.ImageAliasesEntry{}
+		}
+
 		if defaultOS != "" {
 			name = strings.TrimPrefix(name, fmt.Sprintf("%s/", defaultOS))
 		}
 
-		if aliases[name] != nil {
+		if aliases[imageType][name] != nil {
 			return nil
 		}
 
 		alias := api.ImageAliasesEntry{}
 		alias.Name = name
 		alias.Target = fingerprint
-		aliases[name] = &alias
+		alias.Type = imageType
+		aliases[imageType][name] = &alias
 
 		return &api.ImageAlias{Name: name}
 	}
@@ -172,14 +179,14 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 			for _, entry := range aliases {
 				// Short
 				if image.Architecture == architectureName {
-					alias := addAlias(fmt.Sprintf("%s", entry.Name), image.Fingerprint)
+					alias := addAlias(image.Type, fmt.Sprintf("%s", entry.Name), image.Fingerprint)
 					if alias != nil {
 						image.Aliases = append(image.Aliases, *alias)
 					}
 				}
 
 				// Medium
-				alias := addAlias(fmt.Sprintf("%s/%s", entry.Name, image.Properties["architecture"]), image.Fingerprint)
+				alias := addAlias(image.Type, fmt.Sprintf("%s/%s", entry.Name, image.Properties["architecture"]), image.Fingerprint)
 				if alias != nil {
 					image.Aliases = append(image.Aliases, *alias)
 				}
@@ -192,7 +199,7 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 	return newImages, aliases, nil
 }
 
-func (s *SimpleStreams) getImages() ([]api.Image, map[string]*api.ImageAliasesEntry, error) {
+func (s *SimpleStreams) getImages() ([]api.Image, map[string]map[string]*api.ImageAliasesEntry, error) {
 	if s.cachedImages != nil && s.cachedAliases != nil {
 		return s.cachedImages, s.cachedAliases, nil
 	}
@@ -301,8 +308,10 @@ func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 
 	aliases := []api.ImageAliasesEntry{}
 
-	for _, alias := range aliasesMap {
-		aliases = append(aliases, *alias)
+	for _, entries := range aliasesMap {
+		for _, alias := range entries {
+			aliases = append(aliases, *alias)
+		}
 	}
 
 	return aliases, nil
@@ -315,18 +324,30 @@ func (s *SimpleStreams) ListImages() ([]api.Image, error) {
 }
 
 // GetAlias returns a LXD ImageAliasesEntry for the provided alias name
-func (s *SimpleStreams) GetAlias(name string) (*api.ImageAliasesEntry, error) {
+func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAliasesEntry, error) {
 	_, aliasesMap, err := s.getImages()
 	if err != nil {
 		return nil, err
 	}
 
-	alias, ok := aliasesMap[name]
-	if !ok {
+	var match *api.ImageAliasesEntry
+	for entryType, entries := range aliasesMap {
+		for aliasName, alias := range entries {
+			if aliasName == name && (entryType == imageType || imageType == "") {
+				if match != nil {
+					return nil, fmt.Errorf("More than one match for alias '%s'", name)
+				}
+
+				match = alias
+			}
+		}
+	}
+
+	if match == nil {
 		return nil, fmt.Errorf("Alias '%s' doesn't exist", name)
 	}
 
-	return alias, nil
+	return match, nil
 }
 
 // GetImage returns a LXD image for the provided image fingerprint
