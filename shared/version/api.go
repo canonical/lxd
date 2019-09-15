@@ -166,6 +166,7 @@ var APIExtensions = []string{
 	"daemon_storage",
 	"instances",
 	"image_types",
+	"resources_disk_sata",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
