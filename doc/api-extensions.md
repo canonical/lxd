@@ -829,3 +829,12 @@ This introduces the concept of instances, of which currently the only type is "c
 
 ## image\_types
 This introduces support for a new Type field on images, indicating what type of images they are.
+
+## resources\_disk\_sata
+Extends the disk resource API struct to include:
+ - Proper detection of sata devices (type)
+ - Device path
+ - Drive RPM
+ - Block size
+ - Firmware version
+ - Model revision
