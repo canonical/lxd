@@ -1656,12 +1656,17 @@ func (n *network) Start() error {
 		}
 
 		// Update the dnsmasq config
+		expiry := "1h"
+		if n.config["ipv4.dhcp.expiry"] != "" {
+			expiry = n.config["ipv4.dhcp.expiry"]
+		}
+
 		dnsmasqCmd = append(dnsmasqCmd, []string{
 			fmt.Sprintf("--listen-address=%s", addr[0]),
 			"--dhcp-no-override", "--dhcp-authoritative",
 			fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")),
 			fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts")),
-			"--dhcp-range", fmt.Sprintf("%s,%s", networkGetIP(hostSubnet, 2).String(), networkGetIP(hostSubnet, -2).String())}...)
+			"--dhcp-range", fmt.Sprintf("%s,%s,%s", networkGetIP(hostSubnet, 2).String(), networkGetIP(hostSubnet, -2).String(), expiry)}...)
 
 		// Setup the tunnel
 		if n.config["fan.type"] == "ipip" {
@@ -1707,9 +1712,18 @@ func (n *network) Start() error {
 		}
 
 		// Configure NAT
-		err = iptables.NetworkPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
-		if err != nil {
-			return err
+		if n.config["ipv4.nat"] == "" || shared.IsTrue(n.config["ipv4.nat"]) {
+			if n.config["ipv4.nat.order"] == "after" {
+				err = iptables.NetworkAppend("ipv4", n.name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
+				if err != nil {
+					return err
+				}
+			} else {
+				err = iptables.NetworkPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		// Setup clustered DNS
