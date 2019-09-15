@@ -456,10 +456,12 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 		}
 
 		// Add to the default profile
-		config.Node.Profiles[0].Devices["root"] = map[string]string{
-			"type": "disk",
-			"path": "/",
-			"pool": pool.Name,
+		if config.Node.Profiles[0].Devices["root"] == nil {
+			config.Node.Profiles[0].Devices["root"] = map[string]string{
+				"type": "disk",
+				"path": "/",
+				"pool": pool.Name,
+			}
 		}
 
 		// Storage backend
@@ -502,6 +504,12 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 
 				// Ask for the number of placement groups
 				pool.Config["ceph.osd.pg_num"] = cli.AskString("Number of placement groups [default=32]: ", "32", nil)
+			} else if pool.Driver == "cephfs" {
+				// Ask for the name of the cluster
+				pool.Config["cephfs.cluster_name"] = cli.AskString("Name of the existing CEPHfs cluster [default=ceph]: ", "ceph", nil)
+
+				// Ask for the name of the cluster
+				pool.Config["source"] = cli.AskString("Name of the CEPHfs volume: ", "", nil)
 			} else if cli.AskBool("Would you like to use an existing block device? (yes/no) [default=no]: ", "no") {
 				deviceExists := func(path string) error {
 					if !shared.IsBlockdevPath(path) {
