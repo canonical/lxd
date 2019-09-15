@@ -84,7 +84,7 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 			return nil, err
 		}
 
-		if driver == "ceph" {
+		if driver == "ceph" || driver == "cephfs" {
 			return nil, nil
 		}
 
