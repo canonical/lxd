@@ -334,9 +334,14 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return InternalError(errors.Wrap(err, "Failed to check for cluster state"))
+	}
+
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	err := d.db.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(tx)
 		if err != nil {
@@ -348,7 +353,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		curClusterAddress := newNodeConfig.ClusterAddress()
 		newClusterAddress, ok := nodeValues["cluster.https_address"]
 
-		if ok && curClusterAddress != "" && !util.IsAddressCovered(newClusterAddress.(string), curClusterAddress) {
+		if clustered && ok && curClusterAddress != "" && !util.IsAddressCovered(newClusterAddress.(string), curClusterAddress) {
 			return fmt.Errorf("Changing cluster.https_address is currently not supported")
 		}
 
