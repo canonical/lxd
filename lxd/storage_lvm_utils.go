@@ -342,7 +342,7 @@ func (s *storageLvm) copyContainerThinpool(target Instance, source Instance, rea
 	return nil
 }
 
-func (s *storageLvm) copySnapshot(target container, source container, refresh bool) error {
+func (s *storageLvm) copySnapshot(target Instance, source Instance, refresh bool) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err

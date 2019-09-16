@@ -681,7 +681,7 @@ func (s *storageDir) copyContainer(target Instance, source Instance) error {
 	return nil
 }
 
-func (s *storageDir) copySnapshot(target container, targetPool string, source container, sourcePool string) error {
+func (s *storageDir) copySnapshot(target Instance, targetPool string, source Instance, sourcePool string) error {
 	sourceName := source.Name()
 	targetName := target.Name()
 	sourceContainerMntPoint := driver.GetSnapshotMountPoint(source.Project(), sourcePool, sourceName)
@@ -783,14 +783,14 @@ func (s *storageDir) doContainerCopy(target Instance, source Instance, container
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := containerLoadByProjectAndName(srcState, source.Project(), snap.Name())
+		sourceSnapshot, err := instanceLoadByProjectAndName(srcState, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), newSnapName)
+		targetSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), newSnapName)
 		if err != nil {
 			return err
 		}

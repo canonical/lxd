@@ -51,10 +51,10 @@ func init() {
 		return identifiers, nil
 	}
 
-	// Expose containerLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
+	// Expose instanceLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
 	// This is because container types are defined in the main package and are not importable.
 	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.InstanceIdentifier, error) {
-		container, err := containerLoadByProjectAndName(s, project, name)
+		container, err := instanceLoadByProjectAndName(s, project, name)
 		if err != nil {
 			return nil, err
 		}
@@ -428,13 +428,13 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 	return c, nil
 }
 
-func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContainer container, containerOnly bool, refresh bool) (container, error) {
-	var ct container
+func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContainer Instance, containerOnly bool, refresh bool) (Instance, error) {
+	var ct Instance
 	var err error
 
 	if refresh {
 		// Load the target container
-		ct, err = containerLoadByProjectAndName(s, args.Project, args.Name)
+		ct, err = instanceLoadByProjectAndName(s, args.Project, args.Name)
 		if err != nil {
 			refresh = false
 		}
@@ -597,11 +597,15 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	return ct, nil
 }
 
-func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceContainer container) (container, error) {
+func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInstance Instance) (Instance, error) {
+	if sourceInstance.Type() != instance.TypeContainer {
+		return nil, fmt.Errorf("Instance not container type")
+	}
+
 	// Deal with state
 	if args.Stateful {
-		if !sourceContainer.IsRunning() {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. The container isn't running")
+		if !sourceInstance.IsRunning() {
+			return nil, fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
 		}
 
 		_, err := exec.LookPath("criu")
@@ -609,7 +613,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 			return nil, fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
 		}
 
-		stateDir := sourceContainer.StatePath()
+		stateDir := sourceInstance.StatePath()
 		err = os.MkdirAll(stateDir, 0700)
 		if err != nil {
 			return nil, err
@@ -635,9 +639,10 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 			preDumpDir:   "",
 		}
 
-		err = sourceContainer.Migrate(&criuMigrationArgs)
+		c := sourceInstance.(container)
+		err = c.Migrate(&criuMigrationArgs)
 		if err != nil {
-			os.RemoveAll(sourceContainer.StatePath())
+			os.RemoveAll(sourceInstance.StatePath())
 			return nil, err
 		}
 	}
@@ -649,23 +654,23 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 	}
 
 	// Clone the container
-	err = sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer)
+	err = sourceInstance.Storage().ContainerSnapshotCreate(c, sourceInstance)
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 
 	// Attempt to update backup.yaml on container
-	ourStart, err := sourceContainer.StorageStart()
+	ourStart, err := sourceInstance.StorageStart()
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 	if ourStart {
-		defer sourceContainer.StorageStop()
+		defer sourceInstance.StorageStop()
 	}
 
-	err = writeBackupFile(sourceContainer)
+	err = writeBackupFile(sourceInstance)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -673,11 +678,11 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 
 	// Once we're done, remove the state directory
 	if args.Stateful {
-		os.RemoveAll(sourceContainer.StatePath())
+		os.RemoveAll(sourceInstance.StatePath())
 	}
 
-	eventSendLifecycle(sourceContainer.Project(), "container-snapshot-created",
-		fmt.Sprintf("/1.0/containers/%s", sourceContainer.Name()),
+	eventSendLifecycle(sourceInstance.Project(), "container-snapshot-created",
+		fmt.Sprintf("/1.0/containers/%s", sourceInstance.Name()),
 		map[string]interface{}{
 			"snapshot_name": args.Name,
 		})
@@ -887,7 +892,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	return c, nil
 }
 
-func containerConfigureInternal(c container) error {
+func containerConfigureInternal(c Instance) error {
 	// Find the root device
 	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
@@ -933,17 +938,17 @@ func containerConfigureInternal(c container) error {
 	return nil
 }
 
-func containerLoadById(s *state.State, id int) (container, error) {
+func instanceLoadById(s *state.State, id int) (Instance, error) {
 	// Get the DB record
 	project, name, err := s.Cluster.ContainerProjectAndName(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return containerLoadByProjectAndName(s, project, name)
+	return instanceLoadByProjectAndName(s, project, name)
 }
 
-func containerLoadByProjectAndName(s *state.State, project, name string) (container, error) {
+func instanceLoadByProjectAndName(s *state.State, project, name string) (Instance, error) {
 	// Get the DB record
 	var container *db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1133,7 +1138,7 @@ func containerLoadAllInternal(cts []db.Instance, s *state.State) ([]container, e
 	return containers, nil
 }
 
-func containerCompareSnapshots(source Instance, target container) ([]Instance, []Instance, error) {
+func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
 	// Get the source snapshots
 	sourceSnapshots, err := source.Snapshots()
 	if err != nil {
@@ -1407,7 +1412,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	return nil
 }
 
-func containerDetermineNextSnapshotName(d *Daemon, c container, defaultPattern string) (string, error) {
+func containerDetermineNextSnapshotName(d *Daemon, c Instance, defaultPattern string) (string, error) {
 	var err error
 
 	pattern := c.ExpandedConfig()["snapshots.pattern"]

@@ -36,7 +36,7 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -97,7 +97,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -151,7 +151,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -245,7 +245,7 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -318,7 +318,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -357,7 +357,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 }
 
 // Return the full path of a container template.
-func getContainerTemplatePath(c container, filename string) (string, error) {
+func getContainerTemplatePath(c Instance, filename string) (string, error) {
 	if strings.Contains(filename, "/") {
 		return "", fmt.Errorf("Invalid template filename")
 	}
