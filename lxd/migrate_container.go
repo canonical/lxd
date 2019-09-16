@@ -77,7 +77,7 @@ fi
 	return err
 }
 
-func snapshotToProtobuf(c container) *migration.Snapshot {
+func snapshotToProtobuf(c Instance) *migration.Snapshot {
 	config := []*migration.Config{}
 	for k, v := range c.LocalConfig() {
 		kCopy := string(k)
@@ -1137,12 +1137,12 @@ func (s *migrationSourceWs) ConnectContainerTarget(target api.InstancePostTarget
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 
-func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []container) ([]*migration.Snapshot, []container) {
+func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []Instance) ([]*migration.Snapshot, []Instance) {
 	// Compare source and target
 	sourceSnapshotsTime := map[string]int64{}
 	targetSnapshotsTime := map[string]int64{}
 
-	toDelete := []container{}
+	toDelete := []Instance{}
 	toSync := []*migration.Snapshot{}
 
 	for _, snap := range sourceSnapshots {

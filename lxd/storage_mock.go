@@ -109,87 +109,73 @@ func (s *storageMock) StoragePoolUpdate(writable *api.StoragePoolPut, changedCon
 	return nil
 }
 
-func (s *storageMock) ContainerStorageReady(container container) bool {
+func (s *storageMock) ContainerStorageReady(container Instance) bool {
 	return true
 }
 
-func (s *storageMock) ContainerCreate(container container) error {
+func (s *storageMock) ContainerCreate(container Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerCreateFromImage(
-	container container, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
-
+func (s *storageMock) ContainerCreateFromImage(container Instance, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
 	return nil
 }
 
-func (s *storageMock) ContainerDelete(container container) error {
+func (s *storageMock) ContainerDelete(container Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerCopy(target container, source container, containerOnly bool) error {
+func (s *storageMock) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
 	return nil
 }
 
-func (s *storageMock) ContainerRefresh(target container, source container, snapshots []container) error {
+func (s *storageMock) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerMount(c container) (bool, error) {
+func (s *storageMock) ContainerMount(c Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerUmount(c container, path string) (bool, error) {
+func (s *storageMock) ContainerUmount(c Instance, path string) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerRename(
-	container container, newName string) error {
-
+func (s *storageMock) ContainerRename(container Instance, newName string) error {
 	return nil
 }
 
-func (s *storageMock) ContainerRestore(
-	container container, sourceContainer container) error {
-
+func (s *storageMock) ContainerRestore(container Instance, sourceContainer Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerGetUsage(
-	container container) (int64, error) {
-
+func (s *storageMock) ContainerGetUsage(container Instance) (int64, error) {
 	return 0, nil
 }
-func (s *storageMock) ContainerSnapshotCreate(
-	snapshotContainer container, sourceContainer container) error {
-
+func (s *storageMock) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
 	return nil
 }
-func (s *storageMock) ContainerSnapshotDelete(
-	snapshotContainer container) error {
-
+func (s *storageMock) ContainerSnapshotDelete(snapshotContainer Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerSnapshotRename(
-	snapshotContainer container, newName string) error {
-
+func (s *storageMock) ContainerSnapshotRename(snapshotContainer Instance, newName string) error {
 	return nil
 }
 
-func (s *storageMock) ContainerSnapshotStart(container container) (bool, error) {
+func (s *storageMock) ContainerSnapshotStart(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerSnapshotStop(container container) (bool, error) {
+func (s *storageMock) ContainerSnapshotStop(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerBackupCreate(backup backup, sourceContainer container) error {
+func (s *storageMock) ContainerBackupCreate(backup backup, sourceContainer Instance) error {
 	return nil
 }
 

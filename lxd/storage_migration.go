@@ -41,8 +41,8 @@ type MigrationStorageSourceDriver interface {
 }
 
 type rsyncStorageSourceDriver struct {
-	container     container
-	snapshots     []container
+	container     Instance
+	snapshots     []Instance
 	rsyncFeatures []string
 }
 
@@ -145,7 +145,7 @@ func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSour
 }
 
 func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	var snapshots = []container{}
+	var snapshots = []Instance{}
 	if !args.InstanceOnly {
 		allSnapshots, err := args.Container.Snapshots()
 		if err != nil {
@@ -167,7 +167,7 @@ func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (Mi
 
 func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var err error
-	var snapshots = []container{}
+	var snapshots = []Instance{}
 	if !args.InstanceOnly {
 		snapshots, err = args.Container.Snapshots()
 		if err != nil {

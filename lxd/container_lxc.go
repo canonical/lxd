@@ -3369,11 +3369,11 @@ func (c *containerLXC) RenderState() (*api.InstanceState, error) {
 	return &status, nil
 }
 
-func (c *containerLXC) Snapshots() ([]container, error) {
+func (c *containerLXC) Snapshots() ([]Instance, error) {
 	var snaps []db.Instance
 
 	if c.IsSnapshot() {
-		return []container{}, nil
+		return []Instance{}, nil
 	}
 
 	// Get all the snapshots
@@ -3396,7 +3396,12 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 		return nil, err
 	}
 
-	return containers, nil
+	instances := make([]Instance, len(containers))
+	for k, v := range containers {
+		instances[k] = Instance(v)
+	}
+
+	return instances, nil
 }
 
 func (c *containerLXC) Backups() ([]backup, error) {
@@ -3420,7 +3425,7 @@ func (c *containerLXC) Backups() ([]backup, error) {
 	return backups, nil
 }
 
-func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
+func (c *containerLXC) Restore(sourceContainer Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container.
