@@ -18,6 +18,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -25,8 +26,8 @@ import (
 )
 
 type consoleWs struct {
-	// container currently worked on
-	container container
+	// instance currently worked on
+	instance Instance
 
 	// uid to chown pty to
 	rootUid int64
@@ -232,7 +233,7 @@ func (s *consoleWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	consCmd := s.container.Console(slave)
+	consCmd := s.instance.Console(slave)
 	consCmd.Start()
 	consolePidChan <- consCmd.Process.Pid
 	err = consCmd.Wait()
@@ -291,31 +292,35 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 		return ForwardedOperationResponse(project, &opAPI)
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	err = fmt.Errorf("Container is not running")
-	if !c.IsRunning() {
+	if !inst.IsRunning() {
 		return BadRequest(err)
 	}
 
 	err = fmt.Errorf("Container is frozen")
-	if c.IsFrozen() {
+	if inst.IsFrozen() {
 		return BadRequest(err)
 	}
 
 	ws := &consoleWs{}
 	ws.fds = map[int]string{}
 
-	idmapset, err := c.CurrentIdmap()
-	if err != nil {
-		return InternalError(err)
-	}
+	// If the type of instance is container, setup the root UID/GID for web socket.
+	if inst.Type() == instance.TypeContainer {
+		c := inst.(container)
+		idmapset, err := c.CurrentIdmap()
+		if err != nil {
+			return InternalError(err)
+		}
 
-	if idmapset != nil {
-		ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
+		if idmapset != nil {
+			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
+		}
 	}
 
 	ws.conns = map[int]*websocket.Conn{}
@@ -330,13 +335,12 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 
 	ws.allConnected = make(chan bool, 1)
 	ws.controlConnected = make(chan bool, 1)
-
-	ws.container = c
+	ws.instance = inst
 	ws.width = post.Width
 	ws.height = post.Height
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{ws.container.Name()}
+	resources["containers"] = []string{ws.instance.Name()}
 
 	op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
@@ -369,11 +373,16 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
+	if inst.Type() != instance.TypeContainer {
+		return SmartError(fmt.Errorf("Instance is not container type"))
+	}
+
+	c := inst.(container)
 	ent := fileResponseEntry{}
 	if !c.IsRunning() {
 		// Hand back the contents of the console ringbuffer logfile.
@@ -418,10 +427,16 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
+
+	if inst.Type() != instance.TypeContainer {
+		return SmartError(fmt.Errorf("Instance is not container type"))
+	}
+
+	c := inst.(container)
 
 	truncateConsoleLogFile := func(path string) error {
 		// Check that this is a regular file. We don't want to try and unlink
@@ -442,7 +457,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 		return os.Truncate(path, 0)
 	}
 
-	if !c.IsRunning() {
+	if !inst.IsRunning() {
 		consoleLogpath := c.ConsoleBufferLogPath()
 		return SmartError(truncateConsoleLogFile(consoleLogpath))
 	}

@@ -38,7 +38,7 @@ type migrationFields struct {
 	// container specific fields
 	live         bool
 	instanceOnly bool
-	container    container
+	instance     Instance
 
 	// storage specific fields
 	storage    storage
@@ -261,8 +261,8 @@ type MigrationSinkArgs struct {
 	Secrets map[string]string
 	Url     string
 
-	// Container specific fields
-	Container    container
+	// Instance specific fields
+	Instance     Instance
 	InstanceOnly bool
 	Idmap        *idmap.IdmapSet
 	Live         bool
@@ -278,8 +278,8 @@ type MigrationSinkArgs struct {
 }
 
 type MigrationSourceArgs struct {
-	// Container specific fields
-	Container    container
+	// Instance specific fields
+	Instance     Instance
 	InstanceOnly bool
 
 	// Transport specific fields

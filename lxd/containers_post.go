@@ -285,12 +285,18 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 	// Early check for refresh
 	if req.Source.Refresh {
 		// Check if the container exists
-		c, err = containerLoadByProjectAndName(d.State(), project, req.Name)
+		inst, err := instanceLoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
-		} else if c.IsRunning() {
+		} else if inst.IsRunning() {
 			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
+
+		if inst.Type() != instance.TypeContainer {
+			return BadRequest(fmt.Errorf("Instance type not container"))
+		}
+
+		c = inst.(container)
 	}
 
 	if !req.Source.Refresh {
@@ -388,7 +394,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
 			NetDial:         shared.RFC3493Dialer},
-		Container:    c,
+		Instance:     c,
 		Secrets:      req.Source.Websockets,
 		Push:         push,
 		Live:         req.Source.Live,
@@ -454,7 +460,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 	}
 	targetProject := project
 
-	source, err := containerLoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
+	source, err := instanceLoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -559,7 +565,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 	// Early check for refresh
 	if req.Source.Refresh {
 		// Check if the container exists
-		c, err := containerLoadByProjectAndName(d.State(), targetProject, req.Name)
+		c, err := instanceLoadByProjectAndName(d.State(), targetProject, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
 		} else if c.IsRunning() {
@@ -670,7 +676,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
-		c, err := containerLoadByProjectAndName(d.State(), project, bInfo.Name)
+		c, err := instanceLoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
 			return errors.Wrap(err, "Load container")
 		}
@@ -881,7 +887,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, source container, project string, req *api.InstancesPost) Response {
+func clusterCopyContainerInternal(d *Daemon, source Instance, project string, req *api.InstancesPost) Response {
 	name := req.Source.Source
 
 	// Locate the source of the container

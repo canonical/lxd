@@ -15,15 +15,15 @@ import (
 )
 
 type rbdMigrationSourceDriver struct {
-	container        container
-	snapshots        []container
+	container        Instance
+	snapshots        []Instance
 	rbdSnapshotNames []string
 	ceph             *storageCeph
 	runningSnapName  string
 	stoppedSnapName  string
 }
 
-func (s *rbdMigrationSourceDriver) Snapshots() []container {
+func (s *rbdMigrationSourceDriver) Snapshots() []Instance {
 	return s.snapshots
 }
 

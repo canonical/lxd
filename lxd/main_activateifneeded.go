@@ -122,7 +122,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, container := range containers {
-		c, err := containerLoadByProjectAndName(d.State(), container.Project, container.Name)
+		c, err := instanceLoadByProjectAndName(d.State(), container.Project, container.Name)
 		if err != nil {
 			sqldb.Close()
 			return err

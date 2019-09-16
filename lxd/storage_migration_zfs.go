@@ -15,8 +15,8 @@ import (
 )
 
 type zfsMigrationSourceDriver struct {
-	container        container
-	snapshots        []container
+	instance         Instance
+	snapshots        []Instance
 	zfsSnapshotNames []string
 	zfs              *storageZfs
 	runningSnapName  string
@@ -25,7 +25,7 @@ type zfsMigrationSourceDriver struct {
 }
 
 func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
-	sourceParentName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
+	sourceParentName, _, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
 	poolName := s.zfs.getOnDiskPoolName()
 	args := []string{"send"}
 
@@ -37,9 +37,9 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 		}
 	}
 
-	args = append(args, []string{fmt.Sprintf("%s/containers/%s@%s", poolName, project.Prefix(s.container.Project(), sourceParentName), zfsName)}...)
+	args = append(args, []string{fmt.Sprintf("%s/containers/%s@%s", poolName, project.Prefix(s.instance.Project(), sourceParentName), zfsName)}...)
 	if zfsParent != "" {
-		args = append(args, "-i", fmt.Sprintf("%s/containers/%s@%s", poolName, project.Prefix(s.container.Project(), s.container.Name()), zfsParent))
+		args = append(args, "-i", fmt.Sprintf("%s/containers/%s@%s", poolName, project.Prefix(s.instance.Project(), s.instance.Name()), zfsParent))
 	}
 
 	cmd := exec.Command("zfs", args...)
@@ -79,10 +79,10 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 }
 
 func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
-	if s.container.IsSnapshot() {
-		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
+	if s.instance.IsSnapshot() {
+		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
 		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
-		wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+		wrapper := StorageProgressReader(op, "fs_progress", s.instance.Name())
 		return s.send(conn, snapshotName, "", wrapper)
 	}
 
@@ -104,11 +104,11 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	}
 
 	s.runningSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
-	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.runningSnapName); err != nil {
+	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", project.Prefix(s.instance.Project(), s.instance.Name())), s.runningSnapName); err != nil {
 		return err
 	}
 
-	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+	wrapper := StorageProgressReader(op, "fs_progress", s.instance.Name())
 	if err := s.send(conn, s.runningSnapName, lastSnap, wrapper); err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 
 func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	s.stoppedSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
-	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.stoppedSnapName); err != nil {
+	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", project.Prefix(s.instance.Project(), s.instance.Name())), s.stoppedSnapName); err != nil {
 		return err
 	}
 
@@ -132,10 +132,10 @@ func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 func (s *zfsMigrationSourceDriver) Cleanup() {
 	poolName := s.zfs.getOnDiskPoolName()
 	if s.stoppedSnapName != "" {
-		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.stoppedSnapName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", project.Prefix(s.instance.Project(), s.instance.Name())), s.stoppedSnapName)
 	}
 	if s.runningSnapName != "" {
-		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", project.Prefix(s.container.Project(), s.container.Name())), s.runningSnapName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", project.Prefix(s.instance.Project(), s.instance.Name())), s.runningSnapName)
 	}
 }
 

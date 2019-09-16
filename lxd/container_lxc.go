@@ -4006,7 +4006,7 @@ type backupFile struct {
 	Volume    *api.StorageVolume      `yaml:"volume"`
 }
 
-func writeBackupFile(c container) error {
+func writeBackupFile(c Instance) error {
 	// We only write backup files out for actual containers
 	if c.IsSnapshot() {
 		return nil
@@ -4971,7 +4971,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		var arch string
 		if c.IsSnapshot() {
 			parentName, _, _ := shared.ContainerGetParentAndSnapshotName(c.name)
-			parent, err := containerLoadByProjectAndName(c.state, c.project, parentName)
+			parent, err := instanceLoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
 				ctw.Close()
 				logger.Error("Failed exporting container", ctxMap)

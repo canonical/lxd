@@ -1019,7 +1019,7 @@ func (s *storageBtrfs) copyContainer(target Instance, source Instance) error {
 	return nil
 }
 
-func (s *storageBtrfs) copySnapshot(target container, source container) error {
+func (s *storageBtrfs) copySnapshot(target Instance, source Instance) error {
 	sourceName := source.Name()
 	targetName := target.Name()
 	sourceContainerSubvolumeName := driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, sourceName)
@@ -1166,19 +1166,19 @@ func (s *storageBtrfs) ContainerCopy(target Instance, source Instance, container
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), snap.Name())
+		sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := containerLoadByProjectAndName(s.s, target.Project(), newSnapName)
+		targetSnapshot, err := instanceLoadByProjectAndName(s.s, target.Project(), newSnapName)
 		if err != nil {
 			return err
 		}
 
-		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
+		err = s.copySnapshot(sourceSnapshot, targetSnapshot)
 		if err != nil {
 			return err
 		}
@@ -2458,14 +2458,14 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 	var err error
 	var snapshots = []Instance{}
 	if !args.InstanceOnly {
-		snapshots, err = args.Container.Snapshots()
+		snapshots, err = args.Instance.Snapshots()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	sourceDriver := &btrfsMigrationSourceDriver{
-		container:          args.Container,
+		container:          args.Instance,
 		snapshots:          snapshots,
 		btrfsSnapshotNames: []string{},
 		btrfs:              s,
@@ -2555,17 +2555,17 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 		return nil
 	}
 
-	containerName := args.Container.Name()
-	_, containerPool, _ := args.Container.Storage().GetContainerPoolInfo()
-	containersPath := driver.GetSnapshotMountPoint(args.Container.Project(), containerPool, containerName)
+	instanceName := args.Instance.Name()
+	_, instancePool, _ := args.Instance.Storage().GetContainerPoolInfo()
+	containersPath := driver.GetSnapshotMountPoint(args.Instance.Project(), instancePool, instanceName)
 	if !args.InstanceOnly && len(args.Snapshots) > 0 {
 		err := os.MkdirAll(containersPath, driver.ContainersDirMode)
 		if err != nil {
 			return err
 		}
 
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "containers-snapshots", project.Prefix(args.Container.Project(), containerName))
-		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(args.Container.Project(), containerName))
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", instancePool, "containers-snapshots", project.Prefix(args.Instance.Project(), instanceName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(args.Instance.Project(), instanceName))
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -2575,10 +2575,10 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 	}
 
 	// At this point we have already figured out the parent
-	// container's root disk device so we can simply
+	// instances's root disk device so we can simply
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
-	parentExpandedDevices := args.Container.ExpandedDevices()
+	parentExpandedDevices := args.Instance.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -2591,7 +2591,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 
 	if !args.InstanceOnly {
 		for _, snap := range args.Snapshots {
-			ctArgs := snapshotProtobufToContainerArgs(args.Container.Project(), containerName, snap)
+			ctArgs := snapshotProtobufToContainerArgs(args.Instance.Project(), instanceName, snap)
 
 			// Ensure that snapshot and parent container have the
 			// same storage pool in their local root disk device.
@@ -2605,20 +2605,20 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 				}
 			}
 
-			snapshotMntPoint := driver.GetSnapshotMountPoint(args.Container.Project(), containerPool, ctArgs.Name)
-			_, err := containerCreateEmptySnapshot(args.Container.DaemonState(), ctArgs)
+			snapshotMntPoint := driver.GetSnapshotMountPoint(args.Instance.Project(), instancePool, ctArgs.Name)
+			_, err := containerCreateEmptySnapshot(args.Instance.DaemonState(), ctArgs)
 			if err != nil {
 				return err
 			}
 
-			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(args.Container.Project(), containerName))
-			snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(args.Container.Project(), containerName))
+			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(args.Instance.Project(), instanceName))
+			snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(args.Instance.Project(), instanceName))
 			err = driver.CreateSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
 				return err
 			}
 
-			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, project.Prefix(args.Container.Project(), containerName))
+			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, project.Prefix(args.Instance.Project(), instanceName))
 			if err != nil {
 				return err
 			}
@@ -2637,9 +2637,9 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 		}
 	}
 
-	/* finally, do the real container */
+	/* finally, do the real instance */
 	containersMntPoint := driver.GetContainerMountPoint("default", s.pool.Name, "")
-	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, project.Prefix(args.Container.Project(), containerName))
+	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, project.Prefix(args.Instance.Project(), instanceName))
 	if err != nil {
 		return err
 	}
@@ -2650,8 +2650,8 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 		return err
 	}
 
-	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
-	containerMntPoint := driver.GetContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
+	wrapper := StorageProgressWriter(op, "fs_progress", instanceName)
+	containerMntPoint := driver.GetContainerMountPoint(args.Instance.Project(), s.pool.Name, instanceName)
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {
 		return err

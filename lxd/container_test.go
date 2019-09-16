@@ -133,7 +133,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	defer c.Delete()
 
 	// Load the container and trigger initLXC()
-	c2, err := containerLoadByProjectAndName(suite.d.State(), "default", "testFoo")
+	c2, err := instanceLoadByProjectAndName(suite.d.State(), "default", "testFoo")
 	c2.IsRunning()
 	suite.Req.Nil(err)
 	_, err = c2.StorageStart()
