@@ -32,8 +32,8 @@ func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 		return nil, errors.Wrap(err, "Load backup from database")
 	}
 
-	// Load the container it belongs to
-	c, err := containerLoadById(s, args.ContainerID)
+	// Load the instance it belongs to
+	instance, err := instanceLoadById(s, args.ContainerID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load container from database")
 	}
@@ -41,7 +41,7 @@ func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 	// Return the backup struct
 	return &backup{
 		state:            s,
-		container:        c,
+		instance:         instance,
 		id:               args.ID,
 		name:             name,
 		creationDate:     args.CreationDate,
@@ -81,8 +81,8 @@ func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer c
 
 // backup represents a container backup
 type backup struct {
-	state     *state.State
-	container container
+	state    *state.State
+	instance Instance
 
 	// Properties
 	id               int
@@ -109,7 +109,7 @@ func (b *backup) Rename(newName string) error {
 	newBackupPath := shared.VarPath("backups", newName)
 
 	// Create the new backup path
-	backupsPath := shared.VarPath("backups", b.container.Name())
+	backupsPath := shared.VarPath("backups", b.instance.Name())
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -141,9 +141,9 @@ func (b *backup) Rename(newName string) error {
 	return nil
 }
 
-// Delete removes a container backup
+// Delete removes an instance backup
 func (b *backup) Delete() error {
-	return doBackupDelete(b.state, b.name, b.container.Name())
+	return doBackupDelete(b.state, b.name, b.instance.Name())
 }
 
 func (b *backup) Render() *api.InstanceBackup {
@@ -322,24 +322,22 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) erro
 }
 
 func backupCreateTarball(s *state.State, path string, backup backup) error {
-	container := backup.container
-
 	// Create the index
-	pool, err := container.StoragePool()
+	pool, err := backup.instance.StoragePool()
 	if err != nil {
 		return err
 	}
 
 	indexFile := backupInfo{
-		Name:       container.Name(),
-		Backend:    container.Storage().GetStorageTypeName(),
-		Privileged: container.IsPrivileged(),
+		Name:       backup.instance.Name(),
+		Backend:    backup.instance.Storage().GetStorageTypeName(),
+		Privileged: backup.instance.IsPrivileged(),
 		Pool:       pool,
 		Snapshots:  []string{},
 	}
 
 	if !backup.instanceOnly {
-		snaps, err := container.Snapshots()
+		snaps, err := backup.instance.Snapshots()
 		if err != nil {
 			return err
 		}
@@ -367,7 +365,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 	}
 
 	// Create the target path if needed
-	backupsPath := shared.VarPath("backups", backup.container.Name())
+	backupsPath := shared.VarPath("backups", backup.instance.Name())
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
