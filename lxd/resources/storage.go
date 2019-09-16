@@ -22,11 +22,7 @@ var sysClassBlock = "/sys/class/block"
 func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) error {
 	// Attempt to open the device path
 	f, err := os.Open(devicePath)
-	if err != nil {
-		if !os.IsPermission(err) && !os.IsNotExist(err) {
-			return err
-		}
-	} else {
+	if err == nil {
 		defer f.Close()
 		fd := int(f.Fd())
 
