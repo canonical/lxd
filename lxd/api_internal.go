@@ -125,11 +125,16 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	c, err := containerLoadById(d.State(), id)
+	inst, err := instanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
 
+	if inst.Type() != instance.TypeContainer {
+		return SmartError(fmt.Errorf("Instance is not container type"))
+	}
+
+	c := inst.(container)
 	err = c.OnStart()
 	if err != nil {
 		logger.Error("The start hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -151,11 +156,16 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
 	}
 	netns := queryParam(r, "netns")
 
-	c, err := containerLoadById(d.State(), id)
+	inst, err := instanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
 
+	if inst.Type() != instance.TypeContainer {
+		return SmartError(fmt.Errorf("Instance is not container type"))
+	}
+
+	c := inst.(container)
 	err = c.OnStopNS(target, netns)
 	if err != nil {
 		logger.Error("The stopns hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -176,11 +186,16 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		target = "unknown"
 	}
 
-	c, err := containerLoadById(d.State(), id)
+	inst, err := instanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
 
+	if inst.Type() != instance.TypeContainer {
+		return SmartError(fmt.Errorf("Instance is not container type"))
+	}
+
+	c := inst.(container)
 	err = c.OnStop(target)
 	if err != nil {
 		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})

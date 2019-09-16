@@ -102,7 +102,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Target node is offline"))
 	}
 
-	var c container
+	var inst Instance
 
 	// Check whether to forward the request to the node that is running the
 	// container. Here are the possible cases:
@@ -135,7 +135,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return response
 		}
 
-		c, err = containerLoadByProjectAndName(d.State(), project, name)
+		inst, err = instanceLoadByProjectAndName(d.State(), project, name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -171,7 +171,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	if req.Migration {
 		if targetNode != "" {
 			// Check whether the container is running.
-			if c != nil && c.IsRunning() {
+			if inst != nil && inst.IsRunning() {
 				return BadRequest(fmt.Errorf("Container is running"))
 			}
 
@@ -187,7 +187,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return SmartError(err)
 			}
 			if pool.Driver == "ceph" {
-				return containerPostClusteringMigrateWithCeph(d, c, project, name, req.Name, targetNode, instanceType)
+				return containerPostClusteringMigrateWithCeph(d, inst, project, name, req.Name, targetNode, instanceType)
 			}
 
 			// If this is not a ceph-based container, make sure
@@ -199,10 +199,16 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return SmartError(err)
 			}
 
-			return containerPostClusteringMigrate(d, c, name, req.Name, targetNode)
+			return containerPostClusteringMigrate(d, inst, name, req.Name, targetNode)
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
+
+		if inst.Type() != instance.TypeContainer {
+			return SmartError(fmt.Errorf("Instance is not container type"))
+		}
+
+		c := inst.(container)
 		ws, err := NewMigrationSource(c, stateful, instanceOnly)
 		if err != nil {
 			return InternalError(err)
@@ -242,7 +248,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	run := func(*operation) error {
-		return c.Rename(req.Name)
+		return inst.Rename(req.Name)
 	}
 
 	resources := map[string][]string{}
@@ -257,7 +263,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 }
 
 // Move a non-ceph container to another cluster node.
-func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, newNode string) Response {
+func containerPostClusteringMigrate(d *Daemon, c Instance, oldName, newName, newNode string) Response {
 	cert := d.endpoints.NetworkCert()
 
 	var sourceAddress string
@@ -400,7 +406,7 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, oldName, newName, newNode string, instanceType instance.Type) Response {
+func containerPostClusteringMigrateWithCeph(d *Daemon, c Instance, project, oldName, newName, newNode string, instanceType instance.Type) Response {
 	run := func(*operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -524,7 +530,7 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) Response {
 // Used after to create the appropriate mounts point after a container has been
 // moved.
 func containerPostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
-	c, err := containerLoadByProjectAndName(d.State(), project, containerName)
+	c, err := instanceLoadByProjectAndName(d.State(), project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to load moved container on target node")
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -444,7 +445,17 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 				project = strings.Split(name, "_")[0]
 			}
 
-			return containerLoadByProjectAndName(d.State(), project, name)
+			inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+			if err != nil {
+				return nil, err
+			}
+
+			if inst.Type() != instance.TypeContainer {
+				return nil, fmt.Errorf("Instance is not container type")
+			}
+
+			c := inst.(container)
+			return c, nil
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))

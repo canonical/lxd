@@ -40,7 +40,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return NotFound(err)
 	}
@@ -113,12 +113,12 @@ func containerSnapRestore(s *state.State, project, name, snap string, stateful b
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	c, err := containerLoadByProjectAndName(s, project, name)
+	c, err := instanceLoadByProjectAndName(s, project, name)
 	if err != nil {
 		return err
 	}
 
-	source, err := containerLoadByProjectAndName(s, project, snap)
+	source, err := instanceLoadByProjectAndName(s, project, snap)
 	if err != nil {
 		switch err {
 		case db.ErrNoSuchObject:

@@ -358,7 +358,7 @@ func containerDeleteSnapshots(s *state.State, project, cname string) error {
 	}
 
 	for _, sname := range results {
-		sc, err := containerLoadByProjectAndName(s, project, sname)
+		sc, err := instanceLoadByProjectAndName(s, project, sname)
 		if err != nil {
 			logger.Error(
 				"containerDeleteSnapshots: Failed to load the snapshot container",

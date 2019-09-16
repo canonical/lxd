@@ -19,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -28,9 +29,9 @@ import (
 )
 
 type execWs struct {
-	command   []string
-	container container
-	env       map[string]string
+	command  []string
+	instance Instance
+	env      map[string]string
 
 	rootUid          int64
 	rootGid          int64
@@ -310,7 +311,7 @@ func (s *execWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false, s.cwd, s.uid, s.gid)
+	cmd, _, attachedPid, err := s.instance.Exec(s.command, s.env, stdin, stdout, stderr, false, s.cwd, s.uid, s.gid)
 	if err != nil {
 		return err
 	}
@@ -377,22 +378,22 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return ForwardedOperationResponse(project, &opAPI)
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if !c.IsRunning() {
+	if !inst.IsRunning() {
 		return BadRequest(fmt.Errorf("Container is not running"))
 	}
 
-	if c.IsFrozen() {
+	if inst.IsFrozen() {
 		return BadRequest(fmt.Errorf("Container is frozen"))
 	}
 
 	env := map[string]string{}
 
-	for k, v := range c.ExpandedConfig() {
+	for k, v := range inst.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
 			env[strings.TrimPrefix(k, "environment.")] = v
 		}
@@ -408,7 +409,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	_, ok := env["PATH"]
 	if !ok {
 		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-		if c.FileExists("/snap") == nil {
+		if inst.FileExists("/snap") == nil {
 			env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
 		}
 	}
@@ -438,13 +439,16 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
 
-		idmapset, err := c.CurrentIdmap()
-		if err != nil {
-			return InternalError(err)
-		}
+		if inst.Type() == instance.TypeContainer {
+			c := inst.(container)
+			idmapset, err := c.CurrentIdmap()
+			if err != nil {
+				return InternalError(err)
+			}
 
-		if idmapset != nil {
-			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
+			if idmapset != nil {
+				ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
+			}
 		}
 
 		ws.conns = map[int]*websocket.Conn{}
@@ -465,7 +469,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		}
 
 		ws.command = post.Command
-		ws.container = c
+		ws.instance = inst
 		ws.env = env
 
 		ws.width = post.Width
@@ -476,7 +480,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws.gid = post.Group
 
 		resources := map[string][]string{}
-		resources["containers"] = []string{ws.container.Name()}
+		resources["containers"] = []string{ws.instance.Name()}
 
 		op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
@@ -493,29 +497,29 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		if post.RecordOutput {
 			// Prepare stdout and stderr recording
-			stdout, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stdout", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stdout, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stdout", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 			defer stdout.Close()
 
-			stderr, err := os.OpenFile(filepath.Join(c.LogPath(), fmt.Sprintf("exec_%s.stderr", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stderr, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 			defer stderr.Close()
 
 			// Run the command
-			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, stdout, stderr, true, post.Cwd, post.User, post.Group)
+			_, cmdResult, _, cmdErr = inst.Exec(post.Command, env, nil, stdout, stderr, true, post.Cwd, post.User, post.Group)
 
 			// Update metadata with the right URLs
 			metadata["return"] = cmdResult
 			metadata["output"] = shared.Jmap{
-				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, c.Name(), filepath.Base(stdout.Name())),
-				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, c.Name(), filepath.Base(stderr.Name())),
+				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
+				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			_, cmdResult, _, cmdErr = c.Exec(post.Command, env, nil, nil, nil, true, post.Cwd, post.User, post.Group)
+			_, cmdResult, _, cmdErr = inst.Exec(post.Command, env, nil, nil, nil, true, post.Cwd, post.User, post.Group)
 			metadata["return"] = cmdResult
 		}
 

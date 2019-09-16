@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -58,7 +59,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			}
 		}
 	} else {
-		c, err := containerLoadByProjectAndName(d.State(), project, cname)
+		c, err := instanceLoadByProjectAndName(d.State(), project, cname)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -109,7 +110,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -120,7 +121,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		req.Name, err = containerDetermineNextSnapshotName(d, c, "snap%d")
+		req.Name, err = containerDetermineNextSnapshotName(d, inst, "snap%d")
 		if err != nil {
 			return SmartError(err)
 		}
@@ -139,7 +140,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
-		expiry, err = shared.GetSnapshotExpiry(time.Now(), c.LocalConfig()["snapshots.expiry"])
+		expiry, err = shared.GetSnapshotExpiry(time.Now(), inst.LocalConfig()["snapshots.expiry"])
 		if err != nil {
 			return BadRequest(err)
 		}
@@ -147,18 +148,24 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	snapshot := func(op *operation) error {
 		args := db.ContainerArgs{
-			Project:      c.Project(),
-			Architecture: c.Architecture(),
-			Config:       c.LocalConfig(),
-			Type:         c.Type(),
+			Project:      inst.Project(),
+			Architecture: inst.Architecture(),
+			Config:       inst.LocalConfig(),
+			Type:         inst.Type(),
 			Snapshot:     true,
-			Devices:      c.LocalDevices(),
-			Ephemeral:    c.IsEphemeral(),
+			Devices:      inst.LocalDevices(),
+			Ephemeral:    inst.IsEphemeral(),
 			Name:         fullName,
-			Profiles:     c.Profiles(),
+			Profiles:     inst.Profiles(),
 			Stateful:     req.Stateful,
 			ExpiryDate:   expiry,
 		}
+
+		if inst.Type() != instance.TypeContainer {
+			return fmt.Errorf("Instance is not container type")
+		}
+
+		c := inst.(container)
 
 		_, err := containerCreateAsSnapshot(d.State(), args, c)
 		if err != nil {
@@ -201,7 +208,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	sc, err := containerLoadByProjectAndName(
+	inst, err := instanceLoadByProjectAndName(
 		d.State(),
 		project, containerName+
 			shared.SnapshotDelimiter+
@@ -209,6 +216,12 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
+	if inst.Type() != instance.TypeContainer {
+		return SmartError(fmt.Errorf("Instance not container type"))
+	}
+
+	sc := inst.(container)
 
 	switch r.Method {
 	case "GET":

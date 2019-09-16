@@ -30,7 +30,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -52,7 +52,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func containerFileGet(c container, path string, r *http.Request) Response {
+func containerFileGet(c Instance, path string, r *http.Request) Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -97,7 +97,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	}
 }
 
-func containerFilePost(c container, path string, r *http.Request) Response {
+func containerFilePost(c Instance, path string, r *http.Request) Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
 
@@ -150,7 +150,7 @@ func containerFilePost(c container, path string, r *http.Request) Response {
 	}
 }
 
-func containerFileDelete(c container, path string, r *http.Request) Response {
+func containerFileDelete(c Instance, path string, r *http.Request) Response {
 	err := c.FileRemove(path)
 	if err != nil {
 		return SmartError(err)
