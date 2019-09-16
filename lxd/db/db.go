@@ -213,6 +213,12 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 		}
 	}
 
+	// FIXME: https://github.com/canonical/dqlite/issues/163
+	_, err = db.Exec("PRAGMA cache_size=-50000")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to set page cache size")
+	}
+
 	if dump != nil {
 		logger.Infof("Migrating data from local to global database")
 		err := query.Transaction(db, func(tx *sql.Tx) error {
