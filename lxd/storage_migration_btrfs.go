@@ -15,8 +15,8 @@ import (
 )
 
 type btrfsMigrationSourceDriver struct {
-	container          container
-	snapshots          []container
+	container          Instance
+	snapshots          []Instance
 	btrfsSnapshotNames []string
 	btrfs              *storageBtrfs
 	runningSnapName    string
