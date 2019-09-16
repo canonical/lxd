@@ -21,7 +21,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -47,7 +47,7 @@ type nicBridged struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicBridged) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instanceDBTypes.TypeContainer {
 		return ErrUnsupportedDevType
 	}
 

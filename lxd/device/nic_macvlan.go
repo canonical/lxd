@@ -3,7 +3,7 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -13,7 +13,7 @@ type nicMACVLAN struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicMACVLAN) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instanceDBTypes.TypeContainer {
 		return ErrUnsupportedDevType
 	}
 

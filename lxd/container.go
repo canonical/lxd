@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -293,7 +293,7 @@ type container interface {
 	Location() string
 	Project() string
 	Name() string
-	Type() instance.Type
+	Type() instanceDBTypes.Type
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
@@ -452,7 +452,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 	}
 
 	// Validate the type of the image matches the type of the instance.
-	imgType, err := instance.New(img.Type)
+	imgType, err := instanceDBTypes.New(img.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -1094,7 +1094,7 @@ func containerLoadByProject(s *state.State, project string) ([]container, error)
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
 			Project: project,
-			Type:    instance.TypeContainer,
+			Type:    instanceDBTypes.TypeContainer,
 		}
 		var err error
 		cts, err = tx.InstanceList(filter)
@@ -1162,7 +1162,7 @@ func containerLoadNodeAll(s *state.State) ([]container, error) {
 }
 
 // Load all containers of this nodes under the given project.
-func containerLoadNodeProjectAll(s *state.State, project string, instanceType instance.Type) ([]container, error) {
+func containerLoadNodeProjectAll(s *state.State, project string, instanceType instanceDBTypes.Type) ([]container, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {

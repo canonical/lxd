@@ -22,7 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -906,7 +906,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
 		CreationDate: backup.Container.CreatedAt,
-		Type:         instance.TypeContainer,
+		Type:         instanceDBTypes.TypeContainer,
 		Description:  backup.Container.Description,
 		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
 		Ephemeral:    backup.Container.Ephemeral,
@@ -1012,7 +1012,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			BaseImage:    baseImage,
 			Config:       snap.Config,
 			CreationDate: snap.CreatedAt,
-			Type:         instance.TypeContainer,
+			Type:         instanceDBTypes.TypeContainer,
 			Snapshot:     true,
 			Devices:      deviceConfig.NewDevices(snap.Devices),
 			Ephemeral:    snap.Ephemeral,

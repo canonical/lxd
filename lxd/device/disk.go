@@ -14,7 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -44,7 +44,7 @@ func (d *disk) isRequired() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instanceDBTypes.TypeContainer {
 		return ErrUnsupportedDevType
 	}
 

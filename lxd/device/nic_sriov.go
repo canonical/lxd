@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -23,7 +23,7 @@ type nicSRIOV struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicSRIOV) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instanceDBTypes.TypeContainer {
 		return ErrUnsupportedDevType
 	}
 

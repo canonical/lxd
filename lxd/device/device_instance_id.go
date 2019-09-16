@@ -2,7 +2,7 @@ package device
 
 import (
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 )
 
 // InstanceIdentifier is an interface that allows us to identify an Instance and its properties.
@@ -10,7 +10,7 @@ import (
 // independent of when they're called in the instance lifecycle.
 type InstanceIdentifier interface {
 	Name() string
-	Type() instance.Type
+	Type() instanceDBTypes.Type
 	Project() string
 	DevicesPath() string
 	RootfsPath() string

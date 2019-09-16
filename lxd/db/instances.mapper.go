@@ -10,7 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -166,7 +166,7 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
-	if filter.Type != instance.TypeAny {
+	if filter.Type != instanceDBTypes.TypeAny {
 		criteria["Type"] = filter.Type
 	}
 

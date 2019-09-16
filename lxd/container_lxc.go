@@ -30,7 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -595,7 +595,7 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 type containerLXC struct {
 	// Properties
 	architecture int
-	dbType       instance.Type
+	dbType       instanceDBTypes.Type
 	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
@@ -633,7 +633,7 @@ type containerLXC struct {
 	expiryDate time.Time
 }
 
-func (c *containerLXC) Type() instance.Type {
+func (c *containerLXC) Type() instanceDBTypes.Type {
 	return c.dbType
 }
 

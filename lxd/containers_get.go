@@ -15,7 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -24,19 +24,19 @@ import (
 
 // urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either
 // explicitly via the instance-type query param or implicitly via the endpoint URL used.
-func urlInstanceTypeDetect(r *http.Request) (instance.Type, error) {
+func urlInstanceTypeDetect(r *http.Request) (instanceDBTypes.Type, error) {
 	reqInstanceType := r.URL.Query().Get("instance-type")
 	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
-		return instance.TypeContainer, nil
+		return instanceDBTypes.TypeContainer, nil
 	} else if reqInstanceType != "" {
-		instanceType, err := instance.New(reqInstanceType)
+		instanceType, err := instanceDBTypes.New(reqInstanceType)
 		if err != nil {
-			return instance.TypeAny, err
+			return instanceDBTypes.TypeAny, err
 		}
 		return instanceType, nil
 	}
 
-	return instance.TypeAny, nil
+	return instanceDBTypes.TypeAny, nil
 }
 
 func containersGet(d *Daemon, r *http.Request) Response {
@@ -292,7 +292,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.Instance, error) {
+func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instanceType instanceDBTypes.Type) ([]api.Instance, error) {
 	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
@@ -329,7 +329,7 @@ func doContainersGetFromNode(project, node string, cert *shared.CertInfo, instan
 	return containers, err
 }
 
-func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo, instanceType instance.Type) ([]api.InstanceFull, error) {
+func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo, instanceType instanceDBTypes.Type) ([]api.InstanceFull, error) {
 	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {

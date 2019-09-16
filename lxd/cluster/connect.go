@@ -7,7 +7,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -38,7 +38,7 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceSe
 // running the container with the given name. If it's not the local node will
 // connect to it and return the connected client, otherwise it will just return
 // nil.
-func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo, instanceType instance.Type) (lxd.InstanceServer, error) {
+func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo, instanceType instanceDBTypes.Type) (lxd.InstanceServer, error) {
 	var address string // Node address
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error

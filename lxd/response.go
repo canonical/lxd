@@ -18,7 +18,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -192,7 +192,7 @@ func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Respons
 // ForwardedResponseIfContainerIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
-func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instance.Type) (Response, error) {
+func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instanceDBTypes.Type) (Response, error) {
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -400,7 +400,7 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, oldName, newName, newNode string, instanceType instance.Type) Response {
+func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, oldName, newName, newNode string, instanceType instanceDBTypes.Type) Response {
 	run := func(*operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally

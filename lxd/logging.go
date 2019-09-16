@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -53,7 +53,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 	var containers []string
 	ch := make(chan struct{})
 	go func() {
-		containers, err = state.Cluster.ContainersNodeList(instance.TypeContainer)
+		containers, err = state.Cluster.ContainersNodeList(instanceDBTypes.TypeContainer)
 		ch <- struct{}{}
 	}()
 	select {

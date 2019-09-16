@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	instanceDBTypes "github.com/lxc/lxd/lxd/instance/dbtypes"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -93,7 +93,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 		return BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
-	dbType, err := instance.New(string(req.Type))
+	dbType, err := instanceDBTypes.New(string(req.Type))
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -155,7 +155,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 }
 
 func createFromNone(d *Daemon, project string, req *api.InstancesPost) Response {
-	dbType, err := instance.New(string(req.Type))
+	dbType, err := instanceDBTypes.New(string(req.Type))
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -214,7 +214,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		req.Profiles = []string{"default"}
 	}
 
-	dbType, err := instance.New(string(req.Type))
+	dbType, err := instanceDBTypes.New(string(req.Type))
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -567,12 +567,12 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 		}
 	}
 
-	dbType, err := instance.New(string(req.Type))
+	dbType, err := instanceDBTypes.New(string(req.Type))
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	if dbType != instance.TypeAny && dbType != source.Type() {
+	if dbType != instanceDBTypes.TypeAny && dbType != source.Type() {
 		return BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
 
