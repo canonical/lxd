@@ -31,7 +31,7 @@ func containerState(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -74,7 +74,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	// Don't mess with containers while in setup mode
 	<-d.readyChan
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}

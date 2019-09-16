@@ -16,6 +16,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -24,8 +25,8 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewMigrationSource(c container, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
-	ret := migrationSourceWs{migrationFields{container: c}, make(chan bool, 1)}
+func NewMigrationSource(inst Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
+	ret := migrationSourceWs{migrationFields{instance: inst}, make(chan bool, 1)}
 	ret.instanceOnly = instanceOnly
 
 	var err error
@@ -39,7 +40,7 @@ func NewMigrationSource(c container, stateful bool, instanceOnly bool) (*migrati
 		return nil, err
 	}
 
-	if stateful && c.IsRunning() {
+	if stateful && inst.IsRunning() {
 		_, err := exec.LookPath("criu")
 		if err != nil {
 			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
@@ -133,7 +134,14 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		preDumpDir:   "",
 		features:     lxc.FEATURE_MEM_TRACK,
 	}
-	err := s.container.Migrate(&criuMigrationArgs)
+
+	if s.instance.Type() != instance.TypeContainer {
+		return false, 0
+	}
+
+	c := s.instance.(container)
+
+	err := c.Migrate(&criuMigrationArgs)
 
 	if err != nil {
 		// CRIU says it does not know about dirty memory tracking.
@@ -146,7 +154,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	use_pre_dumps := true
 
 	// What does the configuration say about pre-copy
-	tmp := s.container.ExpandedConfig()["migration.incremental.memory"]
+	tmp := s.instance.ExpandedConfig()["migration.incremental.memory"]
 
 	if tmp != "" {
 		use_pre_dumps = shared.IsTrue(tmp)
@@ -157,7 +165,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// migration.incremental.memory.iterations is the value after which the
 	// container will be definitely migrated, even if the remaining number
 	// of memory pages is below the defined threshold.
-	tmp = s.container.ExpandedConfig()["migration.incremental.memory.iterations"]
+	tmp = s.instance.ExpandedConfig()["migration.incremental.memory.iterations"]
 	if tmp != "" {
 		max_iterations, _ = strconv.Atoi(tmp)
 	} else {
@@ -243,14 +251,20 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 
 	final := args.final
 
-	err := s.container.Migrate(&criuMigrationArgs)
+	if s.instance.Type() != instance.TypeContainer {
+		return false, fmt.Errorf("Instance not container type")
+	}
+
+	c := s.instance.(container)
+
+	err := c.Migrate(&criuMigrationArgs)
 	if err != nil {
 		return final, err
 	}
 
 	// Send the pre-dump.
-	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
-	state := s.container.DaemonState()
+	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
+	state := s.instance.DaemonState()
 	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
@@ -276,7 +290,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// threshold is the percentage of memory pages that needs
 	// to be pre-copied for the pre-copy migration to stop.
 	var threshold int
-	tmp := s.container.ExpandedConfig()["migration.incremental.memory.goal"]
+	tmp := s.instance.ExpandedConfig()["migration.incremental.memory.goal"]
 	if tmp != "" {
 		threshold, _ = strconv.Atoi(tmp)
 	} else {
@@ -320,24 +334,30 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
-		if s.container.IsRunning() {
+		if s.instance.IsRunning() {
 			criuType = migration.CRIUType_NONE.Enum()
 		}
 	}
 
+	if s.instance.Type() != instance.TypeContainer {
+		return fmt.Errorf("Instance not container type")
+	}
+
+	c := s.instance.(container)
+
 	// Storage needs to start unconditionally now, since we need to
 	// initialize a new storage interface.
-	ourStart, err := s.container.StorageStart()
+	ourStart, err := s.instance.StorageStart()
 	if err != nil {
 		return err
 	}
 	if ourStart {
-		defer s.container.StorageStop()
+		defer s.instance.StorageStop()
 	}
 
 	idmaps := make([]*migration.IDMapType, 0)
 
-	idmapset, err := s.container.DiskIdmap()
+	idmapset, err := c.DiskIdmap()
 	if err != nil {
 		return err
 	}
@@ -360,7 +380,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	snapshotNames := []string{}
 	// Only send snapshots when requested.
 	if !s.instanceOnly {
-		fullSnaps, err := s.container.Snapshots()
+		fullSnaps, err := s.instance.Snapshots()
 		if err == nil {
 			for _, snap := range fullSnaps {
 				snapshots = append(snapshots, snapshotToProtobuf(snap))
@@ -377,7 +397,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
-	myType := s.container.Storage().MigrationType()
+	myType := s.instance.Storage().MigrationType()
 	hasFeature := true
 	header := migration.MigrationHeader{
 		Fs:            &myType,
@@ -425,14 +445,14 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	// Set source args
 	sourceArgs := MigrationSourceArgs{
-		Container:     s.container,
+		Instance:      s.instance,
 		InstanceOnly:  s.instanceOnly,
 		RsyncFeatures: rsyncFeatures,
 		ZfsFeatures:   zfsFeatures,
 	}
 
 	// Initialize storage driver
-	driver, fsErr := s.container.Storage().MigrationSource(sourceArgs)
+	driver, fsErr := s.instance.Storage().MigrationSource(sourceArgs)
 	if fsErr != nil {
 		s.sendControl(fsErr)
 		return fsErr
@@ -450,7 +470,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 
 		// Check if this storage pool has a rate limit set for rsync.
-		poolwritable := s.container.Storage().GetStoragePoolWritable()
+		poolwritable := s.instance.Storage().GetStoragePoolWritable()
 		if poolwritable.Config != nil {
 			bwlimit = poolwritable.Config["rsync.bwlimit"]
 		}
@@ -522,10 +542,10 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			state := s.container.DaemonState()
+			state := s.instance.DaemonState()
 			actionScriptOp, err := operationCreate(
 				state.Cluster,
-				s.container.Project(),
+				s.instance.Project(),
 				operationClassWebsocket,
 				db.OperationContainerLiveMigrate,
 				nil,
@@ -619,7 +639,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 				// Do the final CRIU dump. This is needs no special
 				// handling if pre-dumps are used or not
-				dumpSuccess <- s.container.Migrate(&criuMigrationArgs)
+				dumpSuccess <- c.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
@@ -644,7 +664,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				preDumpDir:   "",
 			}
 
-			err = s.container.Migrate(&criuMigrationArgs)
+			err = c.Migrate(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
@@ -657,8 +677,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
-		state := s.container.DaemonState()
+		ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
+		state := s.instance.DaemonState()
 		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
@@ -698,7 +718,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:     migrationFields{container: args.Container, instanceOnly: args.InstanceOnly},
+		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
 		dest:    migrationFields{instanceOnly: args.InstanceOnly},
 		url:     args.Url,
 		dialer:  args.Dialer,
@@ -756,6 +776,12 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(migrateOp *operation) error {
+	if c.src.instance.Type() != instance.TypeContainer {
+		return fmt.Errorf("Instance not container type")
+	}
+
+	ct := c.src.instance.(container)
+
 	var err error
 
 	if c.push {
@@ -829,12 +855,12 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		}
 	}
 
-	mySink := c.src.container.Storage().MigrationSink
+	mySink := c.src.instance.Storage().MigrationSink
 	if c.refresh {
 		mySink = rsyncMigrationSink
 	}
 
-	myType := c.src.container.Storage().MigrationType()
+	myType := c.src.instance.Storage().MigrationType()
 	resp := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
@@ -874,7 +900,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	if c.refresh {
 		// Get our existing snapshots
-		targetSnapshots, err := c.src.container.Snapshots()
+		targetSnapshots, err := c.src.instance.Snapshots()
 		if err != nil {
 			controller(err)
 			return err
@@ -959,7 +985,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			 */
 			if len(header.SnapshotNames) != len(header.Snapshots) {
 				for _, name := range header.SnapshotNames {
-					base := snapshotToProtobuf(c.src.container)
+					base := snapshotToProtobuf(c.src.instance)
 					base.Name = &name
 					snapshots = append(snapshots, base)
 				}
@@ -984,7 +1010,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			args := MigrationSinkArgs{
-				Container:     c.src.container,
+				Instance:      c.src.instance,
 				InstanceOnly:  c.src.instanceOnly,
 				Idmap:         srcIdmap,
 				Live:          sendFinalFsDelta,
@@ -999,7 +1025,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				return
 			}
 
-			err = resetContainerDiskIdmap(c.src.container, srcIdmap)
+			err = resetContainerDiskIdmap(ct, srcIdmap)
 			if err != nil {
 				fsTransfer <- err
 				return
@@ -1088,7 +1114,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			// Currently we only do a single CRIU pre-dump so we
 			// can hardcode "final" here since we know that "final" is the
 			// folder for CRIU's final dump.
-			err = c.src.container.Migrate(&criuMigrationArgs)
+			err = ct.Migrate(&criuMigrationArgs)
 			if err != nil {
 				restore <- err
 				return

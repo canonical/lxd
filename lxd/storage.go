@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -491,10 +492,16 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 			if len(volumeUsedBy) > 1 {
 				for _, ctName := range volumeUsedBy {
-					ct, err := containerLoadByProjectAndName(s, c.Project(), ctName)
+					instt, err := instanceLoadByProjectAndName(s, c.Project(), ctName)
 					if err != nil {
 						continue
 					}
+
+					if instt.Type() != instance.TypeContainer {
+						continue
+					}
+
+					ct := instt.(container)
 
 					var ctNextIdmap *idmap.IdmapSet
 					if ct.IsRunning() {

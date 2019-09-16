@@ -25,7 +25,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByProjectAndName(d.State(), project, name)
+	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}

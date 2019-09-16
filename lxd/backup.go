@@ -52,7 +52,7 @@ func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 }
 
 // Create a new backup
-func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer container) error {
+func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer Instance) error {
 	// Create the database entry
 	err := s.Cluster.ContainerBackupCreate(args)
 	if err != nil {
