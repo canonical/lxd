@@ -228,7 +228,6 @@ type ResourcesStorageDisk struct {
 	BlockSize       uint64 `json:"block_size" yaml:"block_size"`
 	FirmwareVersion string `json:"firmware_version,omitempty" yaml:"firmware_version,omitempty"`
 	RPM             uint64 `json:"rpm" yaml:"rpm"`
-	ModelRevision   string `json:"model_revision,omitempty" yaml:"model_revision,omitempty"`
 	Serial          string `json:"serial,omitempty" yaml:"serial,omitempty"`
 
 	Partitions []ResourcesStorageDiskPartition `json:"partitions" yaml:"partitions"`
