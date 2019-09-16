@@ -35,10 +35,10 @@ import (
 )
 
 func init() {
-	// Expose containerLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
+	// Expose instanceLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
 	// This is because container types are defined in the main package and are not importable.
 	device.InstanceLoadNodeAll = func(s *state.State) ([]device.InstanceIdentifier, error) {
-		containers, err := containerLoadNodeAll(s)
+		containers, err := instanceLoadNodeAll(s)
 		if err != nil {
 			return nil, err
 		}
@@ -994,7 +994,7 @@ func instanceLoadByProjectAndName(s *state.State, project, name string) (Instanc
 	return c, nil
 }
 
-func containerLoadByProject(s *state.State, project string) ([]container, error) {
+func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
 	// Get all the containers
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1014,11 +1014,11 @@ func containerLoadByProject(s *state.State, project string) ([]container, error)
 		return nil, err
 	}
 
-	return containerLoadAllInternal(cts, s)
+	return instanceLoadAllInternal(cts, s)
 }
 
-// Load all containers across all projects.
-func containerLoadFromAllProjects(s *state.State) ([]container, error) {
+// Load all instances across all projects.
+func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
 	var projects []string
 
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1030,25 +1030,25 @@ func containerLoadFromAllProjects(s *state.State) ([]container, error) {
 		return nil, err
 	}
 
-	containers := []container{}
+	instances := []Instance{}
 	for _, project := range projects {
-		projectContainers, err := containerLoadByProject(s, project)
+		projectInstances, err := instanceLoadByProject(s, project)
 		if err != nil {
-			return nil, errors.Wrapf(nil, "Load containers in project %s", project)
+			return nil, errors.Wrapf(nil, "Load instances in project %s", project)
 		}
-		containers = append(containers, projectContainers...)
+		instances = append(instances, projectInstances...)
 	}
 
-	return containers, nil
+	return instances, nil
 }
 
 // Legacy interface.
-func containerLoadAll(s *state.State) ([]container, error) {
-	return containerLoadByProject(s, "default")
+func instanceLoadAll(s *state.State) ([]Instance, error) {
+	return instanceLoadByProject(s, "default")
 }
 
-// Load all containers of this nodes.
-func containerLoadNodeAll(s *state.State) ([]container, error) {
+// Load all instances of this nodes.
+func instanceLoadNodeAll(s *state.State) ([]Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1064,11 +1064,11 @@ func containerLoadNodeAll(s *state.State) ([]container, error) {
 		return nil, err
 	}
 
-	return containerLoadAllInternal(cts, s)
+	return instanceLoadAllInternal(cts, s)
 }
 
-// Load all containers of this nodes under the given project.
-func containerLoadNodeProjectAll(s *state.State, project string, instanceType instance.Type) ([]container, error) {
+// Load all instances of this nodes under the given project.
+func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instance.Type) ([]Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1084,19 +1084,19 @@ func containerLoadNodeProjectAll(s *state.State, project string, instanceType in
 		return nil, err
 	}
 
-	return containerLoadAllInternal(cts, s)
+	return instanceLoadAllInternal(cts, s)
 }
 
-func containerLoadAllInternal(cts []db.Instance, s *state.State) ([]container, error) {
+func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Instance, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]map[string]api.Profile{}
-	for _, cArgs := range cts {
-		projectProfiles, ok := profiles[cArgs.Project]
+	for _, instArgs := range dbInstances {
+		projectProfiles, ok := profiles[instArgs.Project]
 		if !ok {
 			projectProfiles = map[string]api.Profile{}
-			profiles[cArgs.Project] = projectProfiles
+			profiles[instArgs.Project] = projectProfiles
 		}
-		for _, profile := range cArgs.Profiles {
+		for _, profile := range instArgs.Profiles {
 			_, ok := projectProfiles[profile]
 			if !ok {
 				projectProfiles[profile] = api.Profile{}
@@ -1116,26 +1116,30 @@ func containerLoadAllInternal(cts []db.Instance, s *state.State) ([]container, e
 		}
 	}
 
-	// Load the container structs
-	containers := []container{}
-	for _, container := range cts {
-		// Figure out the container's profiles
+	// Load the instances structs
+	instances := []Instance{}
+	for _, dbInstance := range dbInstances {
+		// Figure out the instances's profiles
 		cProfiles := []api.Profile{}
-		for _, name := range container.Profiles {
-			cProfiles = append(cProfiles, profiles[container.Project][name])
+		for _, name := range dbInstance.Profiles {
+			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		args := db.ContainerToArgs(&container)
-
-		ct, err := containerLXCLoad(s, args, cProfiles)
-		if err != nil {
-			return nil, err
+		if dbInstance.Type == instance.TypeContainer {
+			args := db.ContainerToArgs(&dbInstance)
+			ct, err := containerLXCLoad(s, args, cProfiles)
+			if err != nil {
+				return nil, err
+			}
+			instances = append(instances, ct)
+		} else {
+			// TODO add virtual machine load here.
+			continue
 		}
 
-		containers = append(containers, ct)
 	}
 
-	return containers, nil
+	return instances, nil
 }
 
 func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
@@ -1190,15 +1194,15 @@ func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		// Load all local containers
-		allContainers, err := containerLoadNodeAll(d.State())
+		// Load all local instances
+		allContainers, err := instanceLoadNodeAll(d.State())
 		if err != nil {
 			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
 			return
 		}
 
 		// Figure out which need snapshotting (if any)
-		containers := []container{}
+		instances := []Instance{}
 		for _, c := range allContainers {
 			schedule := c.ExpandedConfig()["snapshots.schedule"]
 
@@ -1237,15 +1241,15 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				continue
 			}
 
-			containers = append(containers, c)
+			instances = append(instances, c)
 		}
 
-		if len(containers) == 0 {
+		if len(instances) == 0 {
 			return
 		}
 
 		opRun := func(op *operation) error {
-			return autoCreateContainerSnapshots(ctx, d, containers)
+			return autoCreateContainerSnapshots(ctx, d, instances)
 		}
 
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
@@ -1279,9 +1283,9 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []container) error {
+func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []Instance) error {
 	// Make the snapshots
-	for _, c := range containers {
+	for _, c := range instances {
 		ch := make(chan error)
 		go func() {
 			snapshotName, err := containerDetermineNextSnapshotName(d, c, "snap%d")
@@ -1333,16 +1337,16 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []c
 
 func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		// Load all local containers
-		allContainers, err := containerLoadNodeAll(d.State())
+		// Load all local instances
+		allInstances, err := instanceLoadNodeAll(d.State())
 		if err != nil {
-			logger.Error("Failed to load containers for snapshot expiry", log.Ctx{"err": err})
+			logger.Error("Failed to load instances for snapshot expiry", log.Ctx{"err": err})
 			return
 		}
 
 		// Figure out which need snapshotting (if any)
 		expiredSnapshots := []Instance{}
-		for _, c := range allContainers {
+		for _, c := range allInstances {
 			snapshots, err := c.Snapshots()
 			if err != nil {
 				logger.Error("Failed to list snapshots", log.Ctx{"err": err, "container": c.Name(), "project": c.Project()})
@@ -1375,14 +1379,14 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		logger.Info("Pruning expired container snapshots")
+		logger.Info("Pruning expired instance snapshots")
 
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to remove expired container snapshots", log.Ctx{"err": err})
+			logger.Error("Failed to remove expired instance snapshots", log.Ctx{"err": err})
 		}
 
-		logger.Info("Done pruning expired container snapshots")
+		logger.Info("Done pruning expired instance snapshots")
 	}
 
 	first := true

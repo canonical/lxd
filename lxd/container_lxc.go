@@ -867,7 +867,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cts, err := containerLoadAll(state)
+	cts, err := instanceLoadAll(state)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -3391,7 +3391,7 @@ func (c *containerLXC) Snapshots() ([]Instance, error) {
 	}
 
 	// Build the snapshot list
-	containers, err := containerLoadAllInternal(snaps, c.state)
+	containers, err := instanceLoadAllInternal(snaps, c.state)
 	if err != nil {
 		return nil, err
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -429,16 +430,16 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Look for containers using the interface
 	if n.Type != "loopback" {
-		cts, err := containerLoadFromAllProjects(d.State())
+		insts, err := instanceLoadFromAllProjects(d.State())
 		if err != nil {
 			return api.Network{}, err
 		}
 
-		for _, c := range cts {
-			if networkIsInUse(c, n.Name) {
-				uri := fmt.Sprintf("/%s/containers/%s", version.APIVersion, c.Name())
-				if c.Project() != "default" {
-					uri += fmt.Sprintf("?project=%s", c.Project())
+		for _, inst := range insts {
+			if networkIsInUse(inst, n.Name) {
+				uri := fmt.Sprintf("/%s/containers/%s", version.APIVersion, inst.Name())
+				if inst.Project() != "default" {
+					uri += fmt.Sprintf("?project=%s", inst.Project())
 				}
 				n.UsedBy = append(n.UsedBy, uri)
 			}
@@ -712,24 +713,26 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 
 	// Get all static leases
 	if !isClusterNotification(r) {
-		// Get all the containers
-		containers, err := containerLoadByProject(d.State(), project)
+		// Get all the instances
+		instances, err := instanceLoadByProject(d.State(), project)
 		if err != nil {
 			return SmartError(err)
 		}
 
-		for _, c := range containers {
+		for _, inst := range instances {
 			// Go through all its devices (including profiles
-			for k, d := range c.ExpandedDevices() {
+			for k, d := range inst.ExpandedDevices() {
 				// Skip uninteresting entries
 				if d["type"] != "nic" || d["nictype"] != "bridged" || d["parent"] != name {
 					continue
 				}
 
 				// Fill in the hwaddr from volatile
-				d, err = c.(*containerLXC).fillNetworkDevice(k, d)
-				if err != nil {
-					continue
+				if inst.Type() == instance.TypeContainer {
+					d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
+					if err != nil {
+						continue
+					}
 				}
 
 				// Record the MAC
@@ -740,21 +743,21 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 				// Add the lease
 				if d["ipv4.address"] != "" {
 					leases = append(leases, api.NetworkLease{
-						Hostname: c.Name(),
+						Hostname: inst.Name(),
 						Address:  d["ipv4.address"],
 						Hwaddr:   d["hwaddr"],
 						Type:     "static",
-						Location: c.Location(),
+						Location: inst.Location(),
 					})
 				}
 
 				if d["ipv6.address"] != "" {
 					leases = append(leases, api.NetworkLease{
-						Hostname: c.Name(),
+						Hostname: inst.Name(),
 						Address:  d["ipv6.address"],
 						Hwaddr:   d["hwaddr"],
 						Type:     "static",
-						Location: c.Location(),
+						Location: inst.Location(),
 					})
 				}
 			}
@@ -956,14 +959,14 @@ func (n *network) IsRunning() bool {
 }
 
 func (n *network) IsUsed() bool {
-	// Look for containers using the interface
-	cts, err := containerLoadFromAllProjects(n.state)
+	// Look for instances using the interface
+	insts, err := instanceLoadFromAllProjects(n.state)
 	if err != nil {
 		return true
 	}
 
-	for _, c := range cts {
-		if networkIsInUse(c, n.name) {
+	for _, inst := range insts {
+		if networkIsInUse(inst, n.name) {
 			return true
 		}
 	}

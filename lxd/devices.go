@@ -293,16 +293,16 @@ func deviceTaskBalance(s *state.State) {
 		return
 	}
 
-	// Iterate through the containers
-	containers, err := containerLoadNodeAll(s)
+	// Iterate through the instances
+	instances, err := instanceLoadNodeAll(s)
 	if err != nil {
-		logger.Error("Problem loading containers list", log.Ctx{"err": err})
+		logger.Error("Problem loading instances list", log.Ctx{"err": err})
 		return
 	}
 
-	fixedContainers := map[int][]container{}
-	balancedContainers := map[container]int{}
-	for _, c := range containers {
+	fixedInstances := map[int][]Instance{}
+	balancedInstances := map[Instance]int{}
+	for _, c := range instances {
 		conf := c.ExpandedConfig()
 		cpulimit, ok := conf["limits.cpu"]
 		if !ok || cpulimit == "" {
@@ -317,7 +317,7 @@ func deviceTaskBalance(s *state.State) {
 		if err == nil {
 			// Load-balance
 			count = min(count, len(cpus))
-			balancedContainers[c] = count
+			balancedInstances[c] = count
 		} else {
 			// Pinned
 			containerCpus, err := parseCpuset(cpulimit)
@@ -329,18 +329,18 @@ func deviceTaskBalance(s *state.State) {
 					continue
 				}
 
-				_, ok := fixedContainers[nr]
+				_, ok := fixedInstances[nr]
 				if ok {
-					fixedContainers[nr] = append(fixedContainers[nr], c)
+					fixedInstances[nr] = append(fixedInstances[nr], c)
 				} else {
-					fixedContainers[nr] = []container{c}
+					fixedInstances[nr] = []Instance{c}
 				}
 			}
 		}
 	}
 
 	// Balance things
-	pinning := map[container][]string{}
+	pinning := map[Instance][]string{}
 	usage := map[int]deviceTaskCPU{}
 
 	for _, id := range cpus {
@@ -353,7 +353,7 @@ func deviceTaskBalance(s *state.State) {
 		usage[id] = cpu
 	}
 
-	for cpu, ctns := range fixedContainers {
+	for cpu, ctns := range fixedInstances {
 		c, ok := usage[cpu]
 		if !ok {
 			logger.Errorf("Internal error: container using unavailable cpu")
@@ -376,7 +376,7 @@ func deviceTaskBalance(s *state.State) {
 		sortedUsage = append(sortedUsage, value)
 	}
 
-	for ctn, count := range balancedContainers {
+	for ctn, count := range balancedInstances {
 		sort.Sort(sortedUsage)
 		for _, cpu := range sortedUsage {
 			if count == 0 {
@@ -416,12 +416,12 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	containers, err := containerLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s)
 	if err != nil {
 		return
 	}
 
-	for _, c := range containers {
+	for _, c := range instances {
 		// Extract the current priority
 		networkPriority := c.ExpandedConfig()["limits.network.priority"]
 		if networkPriority == "" {
@@ -494,16 +494,16 @@ func deviceEventListener(s *state.State) {
 
 // devicesRegister calls the Register() function on all supported devices so they receive events.
 func devicesRegister(s *state.State) {
-	containers, err := containerLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 
-	for _, containerIf := range containers {
-		c, ok := containerIf.(*containerLXC)
+	for _, instanceIf := range instances {
+		c, ok := instanceIf.(*containerLXC)
 		if !ok {
-			logger.Errorf("Got non-LXC container")
+			logger.Errorf("Instance is not container type")
 			continue
 		}
 
