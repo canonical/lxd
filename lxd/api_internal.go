@@ -125,9 +125,14 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	c, err := containerLoadById(d.State(), id)
+	instance, err := instanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	c, ok := instance.(container)
+	if !ok {
+		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	err = c.OnStart()
@@ -151,9 +156,14 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
 	}
 	netns := queryParam(r, "netns")
 
-	c, err := containerLoadById(d.State(), id)
+	instance, err := instanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	c, ok := instance.(container)
+	if !ok {
+		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	err = c.OnStopNS(target, netns)
@@ -176,9 +186,14 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		target = "unknown"
 	}
 
-	c, err := containerLoadById(d.State(), id)
+	instance, err := instanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	c, ok := instance.(container)
+	if !ok {
+		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	err = c.OnStop(target)

@@ -1999,7 +1999,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	projectName := backup.container.Project()
+	projectName := backup.instance.Project()
 
 	// Handle snapshots
 	if !backup.instanceOnly {
