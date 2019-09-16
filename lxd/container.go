@@ -933,7 +933,7 @@ func containerConfigureInternal(c container) error {
 	return nil
 }
 
-func containerLoadById(s *state.State, id int) (container, error) {
+func instanceLoadById(s *state.State, id int) (Instance, error) {
 	// Get the DB record
 	project, name, err := s.Cluster.ContainerProjectAndName(id)
 	if err != nil {
