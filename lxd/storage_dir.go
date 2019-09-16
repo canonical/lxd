@@ -488,13 +488,13 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
-func (s *storageDir) ContainerStorageReady(container container) bool {
+func (s *storageDir) ContainerStorageReady(container Instance) bool {
 	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
 	return !ok
 }
 
-func (s *storageDir) ContainerCreate(container container) error {
+func (s *storageDir) ContainerCreate(container Instance) error {
 	logger.Debugf("Creating empty DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -536,7 +536,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 	return nil
 }
 
-func (s *storageDir) ContainerCreateFromImage(container container, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageDir) ContainerCreateFromImage(container Instance, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -586,7 +586,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	return nil
 }
 
-func (s *storageDir) ContainerDelete(container container) error {
+func (s *storageDir) ContainerDelete(container Instance) error {
 	logger.Debugf("Deleting DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
@@ -648,7 +648,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageDir) copyContainer(target container, source container) error {
+func (s *storageDir) copyContainer(target Instance, source Instance) error {
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	sourceContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
@@ -705,7 +705,7 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 	return nil
 }
 
-func (s *storageDir) ContainerCopy(target container, source container, containerOnly bool) error {
+func (s *storageDir) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
 	logger.Debugf("Copying DIR container storage %s to %s", source.Name(), target.Name())
 
 	err := s.doContainerCopy(target, source, containerOnly, false, nil)
@@ -717,7 +717,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	return nil
 }
 
-func (s *storageDir) doContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
+func (s *storageDir) doContainerCopy(target Instance, source Instance, containerOnly bool, refresh bool, refreshSnapshots []Instance) error {
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err
@@ -767,7 +767,7 @@ func (s *storageDir) doContainerCopy(target container, source container, contain
 		return nil
 	}
 
-	var snapshots []container
+	var snapshots []Instance
 
 	if refresh {
 		snapshots = refreshSnapshots
@@ -804,7 +804,7 @@ func (s *storageDir) doContainerCopy(target container, source container, contain
 	return nil
 }
 
-func (s *storageDir) ContainerRefresh(target container, source container, snapshots []container) error {
+func (s *storageDir) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
 	logger.Debugf("Refreshing DIR container storage for %s from %s", target.Name(), source.Name())
 
 	err := s.doContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
@@ -816,15 +816,15 @@ func (s *storageDir) ContainerRefresh(target container, source container, snapsh
 	return nil
 }
 
-func (s *storageDir) ContainerMount(c container) (bool, error) {
+func (s *storageDir) ContainerMount(c Instance) (bool, error) {
 	return s.StoragePoolMount()
 }
 
-func (s *storageDir) ContainerUmount(c container, path string) (bool, error) {
+func (s *storageDir) ContainerUmount(c Instance, path string) (bool, error) {
 	return true, nil
 }
 
-func (s *storageDir) ContainerRename(container container, newName string) error {
+func (s *storageDir) ContainerRename(container Instance, newName string) error {
 	logger.Debugf("Renaming DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	_, err := s.StoragePoolMount()
@@ -879,7 +879,7 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 	return nil
 }
 
-func (s *storageDir) ContainerRestore(container container, sourceContainer container) error {
+func (s *storageDir) ContainerRestore(container Instance, sourceContainer Instance) error {
 	logger.Debugf("Restoring DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
 
 	_, err := s.StoragePoolMount()
@@ -901,7 +901,7 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	return nil
 }
 
-func (s *storageDir) ContainerGetUsage(c container) (int64, error) {
+func (s *storageDir) ContainerGetUsage(c Instance) (int64, error) {
 	path := driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 
 	ok, err := quota.Supported(path)
@@ -918,7 +918,7 @@ func (s *storageDir) ContainerGetUsage(c container) (int64, error) {
 	return size, nil
 }
 
-func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
+func (s *storageDir) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
 	logger.Debugf("Creating DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -934,7 +934,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		return err
 	}
 
-	rsync := func(snapshotContainer container, oldPath string, newPath string, bwlimit string) error {
+	rsync := func(snapshotContainer Instance, oldPath string, newPath string, bwlimit string) error {
 		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			s.ContainerDelete(snapshotContainer)
@@ -995,7 +995,7 @@ onSuccess:
 	return nil
 }
 
-func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
 	logger.Debugf("Creating empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1069,7 +1069,7 @@ func dirSnapshotDeleteInternal(projectName, poolName string, snapshotName string
 	return nil
 }
 
-func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error {
+func (s *storageDir) ContainerSnapshotDelete(snapshotContainer Instance) error {
 	logger.Debugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1092,7 +1092,7 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 	return nil
 }
 
-func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newName string) error {
+func (s *storageDir) ContainerSnapshotRename(snapshotContainer Instance, newName string) error {
 	logger.Debugf("Renaming DIR storage volume for snapshot \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	_, err := s.StoragePoolMount()
@@ -1113,15 +1113,15 @@ func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newNam
 	return nil
 }
 
-func (s *storageDir) ContainerSnapshotStart(container container) (bool, error) {
+func (s *storageDir) ContainerSnapshotStart(container Instance) (bool, error) {
 	return s.StoragePoolMount()
 }
 
-func (s *storageDir) ContainerSnapshotStop(container container) (bool, error) {
+func (s *storageDir) ContainerSnapshotStop(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageDir) ContainerBackupCreate(backup backup, source container) error {
+func (s *storageDir) ContainerBackupCreate(backup backup, source Instance) error {
 	// Start storage
 	ourStart, err := source.StorageStart()
 	if err != nil {

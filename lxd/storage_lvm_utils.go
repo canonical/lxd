@@ -257,7 +257,7 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 	return targetLvmVolumePath, nil
 }
 
-func (s *storageLvm) createSnapshotContainer(snapshotContainer container, sourceContainer container, readonly bool) error {
+func (s *storageLvm) createSnapshotContainer(snapshotContainer Instance, sourceContainer Instance, readonly bool) error {
 	tryUndo := true
 
 	sourceContainerName := sourceContainer.Name()
@@ -304,7 +304,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 }
 
 // Copy a container on a storage pool that does use a thinpool.
-func (s *storageLvm) copyContainerThinpool(target container, source container, readonly bool) error {
+func (s *storageLvm) copyContainerThinpool(target Instance, source Instance, readonly bool) error {
 	err := s.createSnapshotContainer(target, source, readonly)
 	if err != nil {
 		logger.Errorf("Error creating snapshot LV for copy: %s", err)
@@ -371,7 +371,7 @@ func (s *storageLvm) copySnapshot(target container, source container, refresh bo
 }
 
 // Copy a container on a storage pool that does not use a thinpool.
-func (s *storageLvm) copyContainerLv(target container, source container, readonly bool, refresh bool) error {
+func (s *storageLvm) copyContainerLv(target Instance, source Instance, readonly bool, refresh bool) error {
 	exists, err := storageLVExists(getLvmDevPath(target.Project(), s.getOnDiskPoolName(),
 		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(target.Name())))
 	if err != nil {
@@ -446,7 +446,7 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 }
 
 // Copy an lvm container.
-func (s *storageLvm) copyContainer(target container, source container, refresh bool) error {
+func (s *storageLvm) copyContainer(target Instance, source Instance, refresh bool) error {
 	targetPool, err := target.StoragePool()
 	if err != nil {
 		return err
@@ -484,7 +484,7 @@ func (s *storageLvm) copyContainer(target container, source container, refresh b
 	return nil
 }
 
-func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
+func (s *storageLvm) containerCreateFromImageLv(c Instance, fp string) error {
 	containerName := c.Name()
 
 	err := s.ContainerCreate(c)
@@ -516,7 +516,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 	return nil
 }
 
-func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) error {
+func (s *storageLvm) containerCreateFromImageThinLv(c Instance, fp string) error {
 	poolName := s.getOnDiskPoolName()
 	// Check if the image already exists.
 	imageLvmDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fp)

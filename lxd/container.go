@@ -463,7 +463,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	}
 
 	csList := []*container{}
-	var snapshots []container
+	var snapshots []Instance
 
 	if !containerOnly {
 		if refresh {
@@ -1133,7 +1133,7 @@ func containerLoadAllInternal(cts []db.Instance, s *state.State) ([]container, e
 	return containers, nil
 }
 
-func containerCompareSnapshots(source container, target container) ([]container, []container, error) {
+func containerCompareSnapshots(source Instance, target container) ([]Instance, []Instance, error) {
 	// Get the source snapshots
 	sourceSnapshots, err := source.Snapshots()
 	if err != nil {
@@ -1150,8 +1150,8 @@ func containerCompareSnapshots(source container, target container) ([]container,
 	sourceSnapshotsTime := map[string]time.Time{}
 	targetSnapshotsTime := map[string]time.Time{}
 
-	toDelete := []container{}
-	toSync := []container{}
+	toDelete := []Instance{}
+	toSync := []Instance{}
 
 	for _, snap := range sourceSnapshots {
 		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
@@ -1336,7 +1336,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		// Figure out which need snapshotting (if any)
-		expiredSnapshots := []container{}
+		expiredSnapshots := []Instance{}
 		for _, c := range allContainers {
 			snapshots, err := c.Snapshots()
 			if err != nil {
@@ -1395,7 +1395,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []container) error {
+func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
 		err := snapshot.Delete()
