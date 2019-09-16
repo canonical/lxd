@@ -800,7 +800,7 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 }
 
 // Functions dealing with container storage.
-func (s *storageBtrfs) ContainerStorageReady(container container) bool {
+func (s *storageBtrfs) ContainerStorageReady(container Instance) bool {
 	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	return isBtrfsSubVolume(containerMntPoint)
 }
@@ -845,7 +845,7 @@ func (s *storageBtrfs) doContainerCreate(projectName, name string, privileged bo
 	return nil
 }
 
-func (s *storageBtrfs) ContainerCreate(container container) error {
+func (s *storageBtrfs) ContainerCreate(container Instance) error {
 	err := s.doContainerCreate(container.Project(), container.Name(), container.IsPrivileged())
 	if err != nil {
 		return err
@@ -855,7 +855,7 @@ func (s *storageBtrfs) ContainerCreate(container container) error {
 }
 
 // And this function is why I started hating on btrfs...
-func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageBtrfs) ContainerCreateFromImage(container Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
@@ -938,7 +938,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	return nil
 }
 
-func (s *storageBtrfs) ContainerDelete(container container) error {
+func (s *storageBtrfs) ContainerDelete(container Instance) error {
 	logger.Debugf("Deleting BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	// The storage pool needs to be mounted.
@@ -985,7 +985,7 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageBtrfs) copyContainer(target container, source container) error {
+func (s *storageBtrfs) copyContainer(target Instance, source Instance) error {
 	sourceContainerSubvolumeName := driver.GetContainerMountPoint(source.Project(), s.pool.Name, source.Name())
 	if source.IsSnapshot() {
 		sourceContainerSubvolumeName = driver.GetSnapshotMountPoint(source.Project(), s.pool.Name, source.Name())
@@ -1050,7 +1050,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 	return nil
 }
 
-func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
+func (s *storageBtrfs) doCrossPoolContainerCopy(target Instance, source Instance, containerOnly bool, refresh bool, refreshSnapshots []Instance) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1075,7 +1075,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 		return err
 	}
 
-	var snapshots []container
+	var snapshots []Instance
 
 	if refresh {
 		snapshots = refreshSnapshots
@@ -1122,7 +1122,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 	return nil
 }
 
-func (s *storageBtrfs) ContainerCopy(target container, source container, containerOnly bool) error {
+func (s *storageBtrfs) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
 	logger.Debugf("Copying BTRFS container storage %s to %s", source.Name(), target.Name())
 
 	// The storage pool needs to be mounted.
@@ -1188,7 +1188,7 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 	return nil
 }
 
-func (s *storageBtrfs) ContainerRefresh(target container, source container, snapshots []container) error {
+func (s *storageBtrfs) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
 	logger.Debugf("Refreshing BTRFS container storage for %s from %s", target.Name(), source.Name())
 
 	// The storage pool needs to be mounted.
@@ -1208,7 +1208,7 @@ func (s *storageBtrfs) ContainerRefresh(target container, source container, snap
 	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
 
-func (s *storageBtrfs) ContainerMount(c container) (bool, error) {
+func (s *storageBtrfs) ContainerMount(c Instance) (bool, error) {
 	logger.Debugf("Mounting BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	// The storage pool must be mounted.
@@ -1221,11 +1221,11 @@ func (s *storageBtrfs) ContainerMount(c container) (bool, error) {
 	return true, nil
 }
 
-func (s *storageBtrfs) ContainerUmount(c container, path string) (bool, error) {
+func (s *storageBtrfs) ContainerUmount(c Instance, path string) (bool, error) {
 	return true, nil
 }
 
-func (s *storageBtrfs) ContainerRename(container container, newName string) error {
+func (s *storageBtrfs) ContainerRename(container Instance, newName string) error {
 	logger.Debugf("Renaming BTRFS storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	// The storage pool must be mounted.
@@ -1274,7 +1274,7 @@ func (s *storageBtrfs) ContainerRename(container container, newName string) erro
 	return nil
 }
 
-func (s *storageBtrfs) ContainerRestore(container container, sourceContainer container) error {
+func (s *storageBtrfs) ContainerRestore(container Instance, sourceContainer Instance) error {
 	logger.Debugf("Restoring BTRFS storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
 
 	// The storage pool must be mounted.
@@ -1359,7 +1359,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 	return failure
 }
 
-func (s *storageBtrfs) ContainerGetUsage(container container) (int64, error) {
+func (s *storageBtrfs) ContainerGetUsage(container Instance) (int64, error) {
 	return s.btrfsPoolVolumeQGroupUsage(container.Path())
 }
 
@@ -1412,7 +1412,7 @@ func (s *storageBtrfs) doContainerSnapshotCreate(projectName string, targetName 
 	return nil
 }
 
-func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
+func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
 	err := s.doContainerSnapshotCreate(sourceContainer.Project(), snapshotContainer.Name(), sourceContainer.Name())
 	if err != nil {
 		s.ContainerSnapshotDelete(snapshotContainer)
@@ -1451,7 +1451,7 @@ func btrfsSnapshotDeleteInternal(projectName, poolName string, snapshotName stri
 	return nil
 }
 
-func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) error {
+func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer Instance) error {
 	logger.Debugf("Deleting BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1468,7 +1468,7 @@ func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) erro
 	return nil
 }
 
-func (s *storageBtrfs) ContainerSnapshotStart(container container) (bool, error) {
+func (s *storageBtrfs) ContainerSnapshotStart(container Instance) (bool, error) {
 	logger.Debugf("Initializing BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1497,7 +1497,7 @@ func (s *storageBtrfs) ContainerSnapshotStart(container container) (bool, error)
 	return true, nil
 }
 
-func (s *storageBtrfs) ContainerSnapshotStop(container container) (bool, error) {
+func (s *storageBtrfs) ContainerSnapshotStop(container Instance) (bool, error) {
 	logger.Debugf("Stopping BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1529,7 +1529,7 @@ func (s *storageBtrfs) ContainerSnapshotStop(container container) (bool, error) 
 }
 
 // ContainerSnapshotRename renames a snapshot of a container.
-func (s *storageBtrfs) ContainerSnapshotRename(snapshotContainer container, newName string) error {
+func (s *storageBtrfs) ContainerSnapshotRename(snapshotContainer Instance, newName string) error {
 	logger.Debugf("Renaming BTRFS storage volume for snapshot \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	// The storage pool must be mounted.
@@ -1553,7 +1553,7 @@ func (s *storageBtrfs) ContainerSnapshotRename(snapshotContainer container, newN
 
 // Needed for live migration where an empty snapshot needs to be created before
 // rsyncing into it.
-func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
+func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
 	logger.Debugf("Creating empty BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	// Mount the storage pool.
@@ -1615,7 +1615,7 @@ func (s *storageBtrfs) doBtrfsBackup(cur string, prev string, target string) err
 	return err
 }
 
-func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup backup, source container) error {
+func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup backup, source Instance) error {
 	// Handle snapshots
 	finalParent := ""
 	if !backup.instanceOnly {
@@ -1688,7 +1688,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source container) error {
+func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source Instance) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
 		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
@@ -1771,7 +1771,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 	return nil
 }
 
-func (s *storageBtrfs) ContainerBackupCreate(backup backup, source container) error {
+func (s *storageBtrfs) ContainerBackupCreate(backup backup, source Instance) error {
 	// Start storage
 	ourStart, err := source.StorageStart()
 	if err != nil {
@@ -2456,7 +2456,7 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 	 * xfer costs. Then, after all that, we send the container itself.
 	 */
 	var err error
-	var snapshots = []container{}
+	var snapshots = []Instance{}
 	if !args.InstanceOnly {
 		snapshots, err = args.Container.Snapshots()
 		if err != nil {

@@ -189,32 +189,32 @@ type storage interface {
 
 	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
-	ContainerCreate(container container) error
+	ContainerCreate(container Instance) error
 
 	// ContainerCreateFromImage creates a container from a image.
-	ContainerCreateFromImage(c container, fingerprint string, tracker *ioprogress.ProgressTracker) error
-	ContainerDelete(c container) error
-	ContainerCopy(target container, source container, containerOnly bool) error
-	ContainerRefresh(target container, source container, snapshots []container) error
-	ContainerMount(c container) (bool, error)
-	ContainerUmount(c container, path string) (bool, error)
-	ContainerRename(container container, newName string) error
-	ContainerRestore(container container, sourceContainer container) error
-	ContainerGetUsage(container container) (int64, error)
+	ContainerCreateFromImage(c Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error
+	ContainerDelete(c Instance) error
+	ContainerCopy(target Instance, source Instance, containerOnly bool) error
+	ContainerRefresh(target Instance, source Instance, snapshots []Instance) error
+	ContainerMount(c Instance) (bool, error)
+	ContainerUmount(c Instance, path string) (bool, error)
+	ContainerRename(container Instance, newName string) error
+	ContainerRestore(container Instance, sourceContainer Instance) error
+	ContainerGetUsage(container Instance) (int64, error)
 	GetContainerPoolInfo() (int64, string, string)
-	ContainerStorageReady(container container) bool
+	ContainerStorageReady(container Instance) bool
 
-	ContainerSnapshotCreate(target container, source container) error
-	ContainerSnapshotDelete(c container) error
-	ContainerSnapshotRename(c container, newName string) error
-	ContainerSnapshotStart(c container) (bool, error)
-	ContainerSnapshotStop(c container) (bool, error)
+	ContainerSnapshotCreate(target Instance, source Instance) error
+	ContainerSnapshotDelete(c Instance) error
+	ContainerSnapshotRename(c Instance, newName string) error
+	ContainerSnapshotStart(c Instance) (bool, error)
+	ContainerSnapshotStop(c Instance) (bool, error)
 
-	ContainerBackupCreate(backup backup, sourceContainer container) error
+	ContainerBackupCreate(backup backup, sourceContainer Instance) error
 	ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error
 
 	// For use in migrating snapshots.
-	ContainerSnapshotCreateEmpty(c container) error
+	ContainerSnapshotCreateEmpty(c Instance) error
 
 	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error
