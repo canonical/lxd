@@ -45,6 +45,7 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 		}
 		defer f.Close()
 
+		udevProperties := map[string]string{}
 		udevInfo := bufio.NewScanner(f)
 		for udevInfo.Scan() {
 			line := strings.TrimSpace(udevInfo.Text())
@@ -60,35 +61,36 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 
 			key := strings.TrimSpace(fields[0])
 			value := strings.TrimSpace(fields[1])
+			udevProperties[key] = value
+		}
 
-			// Finer grained disk type
-			if key == "E:ID_ATA_SATA" && value == "1" {
-				disk.Type = "sata"
+		// Finer grained disk type
+		if udevProperties["E:ID_CDROM"] == "1" {
+			disk.Type = "cdrom"
+		} else if udevProperties["E:ID_USB_DRIVER"] == "usb-storage" {
+			disk.Type = "usb"
+		} else if udevProperties["E:ID_ATA_SATA"] == "1" {
+			disk.Type = "sata"
+		}
+
+		// Model revision number
+		if udevProperties["E:ID_REVISION"] != "" && disk.ModelRevision == "" {
+			disk.ModelRevision = udevProperties["E:ID_REVISION"]
+		}
+
+		// Serial number
+		if udevProperties["E:ID_SERIAL_SHORT"] != "" && disk.Serial == "" {
+			disk.Serial = udevProperties["E:ID_SERIAL_SHORT"]
+		}
+
+		// Rotation per minute
+		if udevProperties["E:ID_ATA_ROTATION_RATE_RPM"] != "" && disk.RPM == 0 {
+			valueUint, err := strconv.ParseUint(udevProperties["E:ID_ATA_ROTATION_RATE_RPM"], 10, 64)
+			if err != nil {
+				return errors.Wrap(err, "Failed to parse RPM value")
 			}
 
-			if key == "E:ID_USB_DRIVER" && value == "usb-storage" {
-				disk.Type = "usb"
-			}
-
-			// Model revision number
-			if key == "E:ID_REVISION" && disk.ModelRevision == "" {
-				disk.ModelRevision = value
-			}
-
-			// Serial number
-			if key == "E:ID_SERIAL_SHORT" && disk.Serial == "" {
-				disk.Serial = value
-			}
-
-			// Rotation per minute
-			if key == "E:ID_ATA_ROTATION_RATE_RPM" && disk.RPM == 0 {
-				valueUint, err := strconv.ParseUint(value, 10, 64)
-				if err != nil {
-					return errors.Wrap(err, "Failed to parse RPM value")
-				}
-
-				disk.RPM = valueUint
-			}
+			disk.RPM = valueUint
 		}
 	}
 
