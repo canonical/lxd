@@ -49,7 +49,7 @@ func (s *storageLvm) StorageCoreInit() error {
 
 	output, err := shared.RunCommand("lvm", "version")
 	if err != nil {
-		return fmt.Errorf("Error getting LVM version: %v\noutput:'%s'", err, output)
+		return fmt.Errorf("Error getting LVM version: %v", err)
 	}
 	lines := strings.Split(output, "\n")
 
@@ -261,9 +261,9 @@ func (s *storageLvm) StoragePoolCreate() error {
 			logger.Errorf("No name for physical volume detected")
 		}
 
-		output, err := shared.TryRunCommand("pvcreate", pvName)
+		_, err := shared.TryRunCommand("pvcreate", pvName)
 		if err != nil {
-			return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %s", output)
+			return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %v", err)
 		}
 		defer func() {
 			if tryUndo {
@@ -313,9 +313,9 @@ func (s *storageLvm) StoragePoolCreate() error {
 			return fmt.Errorf(msg)
 		}
 	} else {
-		output, err := shared.TryRunCommand("vgcreate", poolName, pvName)
+		_, err := shared.TryRunCommand("vgcreate", poolName, pvName)
 		if err != nil {
-			return fmt.Errorf("failed to create the volume group for the lvm storage pool: %s", output)
+			return fmt.Errorf("failed to create the volume group for the lvm storage pool: %v", err)
 		}
 	}
 
@@ -378,9 +378,9 @@ func (s *storageLvm) StoragePoolDelete() error {
 
 	// Remove the volume group.
 	if count == 0 && poolExists {
-		output, err := shared.TryRunCommand("vgremove", "-f", poolName)
+		_, err := shared.TryRunCommand("vgremove", "-f", poolName)
 		if err != nil {
-			logger.Errorf("Failed to destroy the volume group for the lvm storage pool: %s", output)
+			logger.Errorf("Failed to destroy the volume group for the lvm storage pool: %v", err)
 			return err
 		}
 	}
@@ -824,7 +824,7 @@ func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut,
 			bwlimit := s.pool.Config["rsync.bwlimit"]
 			output, err := rsyncLocalCopy(sourceVolumeMntPoint, targetVolumeMntPoint, bwlimit, true)
 			if err != nil {
-				return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+				return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 			}
 		}
 
@@ -1574,9 +1574,9 @@ func (s *storageLvm) ContainerSnapshotStart(container Instance) (bool, error) {
 	}
 
 	if !wasWritableAtCheck {
-		output, err := shared.TryRunCommand("lvchange", "-prw", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, project.Prefix(container.Project(), containerLvmName)))
+		_, err := shared.TryRunCommand("lvchange", "-prw", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, project.Prefix(container.Project(), containerLvmName)))
 		if err != nil {
-			logger.Errorf("Failed to make LVM snapshot \"%s\" read-write: %s", containerName, output)
+			logger.Errorf("Failed to make LVM snapshot \"%s\" read-write: %v", containerName, err)
 			return false, err
 		}
 	}
@@ -1633,9 +1633,9 @@ func (s *storageLvm) ContainerSnapshotStop(container Instance) (bool, error) {
 
 	if wasWritableAtCheck {
 		containerLvmName := containerNameToLVName(project.Prefix(container.Project(), containerName))
-		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName))
+		_, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName))
 		if err != nil {
-			logger.Errorf("Failed to make LVM snapshot read-only: %s", output)
+			logger.Errorf("Failed to make LVM snapshot read-only: %v", err)
 			return false, err
 		}
 	}
