@@ -278,7 +278,7 @@ func containersShutdown(s *state.State) error {
 
 		for project, names := range cnames {
 			for _, name := range names {
-				c, err := containerLXCLoad(s, db.ContainerArgs{
+				inst, err := instanceInstantiate(s, db.ContainerArgs{
 					Project: project,
 					Name:    name,
 					Config:  make(map[string]string),
@@ -287,7 +287,7 @@ func containersShutdown(s *state.State) error {
 					return err
 				}
 
-				instances = append(instances, c)
+				instances = append(instances, inst)
 			}
 		}
 	}

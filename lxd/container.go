@@ -985,13 +985,12 @@ func instanceLoadByProjectAndName(s *state.State, project, name string) (Instanc
 	}
 
 	args := db.ContainerToArgs(container)
-
-	c, err := containerLXCLoad(s, args, nil)
+	inst, err := instanceInstantiate(s, args, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to load container")
 	}
 
-	return c, nil
+	return inst, nil
 }
 
 func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
@@ -1125,18 +1124,13 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		if dbInstance.Type == instance.TypeContainer {
-			args := db.ContainerToArgs(&dbInstance)
-			ct, err := containerLXCLoad(s, args, cProfiles)
-			if err != nil {
-				return nil, err
-			}
-			instances = append(instances, ct)
-		} else {
-			// TODO add virtual machine load here.
-			continue
+		args := db.ContainerToArgs(&dbInstance)
+		inst, err := instanceInstantiate(s, args, cProfiles)
+		if err != nil {
+			return nil, err
 		}
 
+		instances = append(instances, inst)
 	}
 
 	return instances, nil

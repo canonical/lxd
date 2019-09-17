@@ -321,12 +321,12 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 			}
 		} else {
 			// Retrieve the future storage pool
-			cM, err := containerLXCLoad(d.State(), args, nil)
+			inst, err := instanceInstantiate(d.State(), args, nil)
 			if err != nil {
 				return InternalError(err)
 			}
 
-			_, rootDiskDevice, err := shared.GetRootDiskDevice(cM.ExpandedDevices().CloneNative())
+			_, rootDiskDevice, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 			if err != nil {
 				return InternalError(err)
 			}
