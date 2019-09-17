@@ -837,4 +837,4 @@ Extends the disk resource API struct to include:
  - Drive RPM
  - Block size
  - Firmware version
- - Model revision
+ - Serial number
