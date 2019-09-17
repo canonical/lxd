@@ -483,24 +483,28 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	containers, err := containerLoadNodeAll(d.State())
+	instances, err := instanceLoadNodeAll(d.State())
 	if err != nil {
 		return nil, err
 	}
 
-	for _, c := range containers {
-		if !c.IsRunning() {
+	for _, inst := range instances {
+		if inst.Type() != instance.TypeContainer {
 			continue
 		}
 
-		initpid := c.InitPID()
+		if !inst.IsRunning() {
+			continue
+		}
+
+		initpid := inst.InitPID()
 		pidNs, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/pid", initpid))
 		if err != nil {
 			return nil, err
 		}
 
 		if origPidNs == pidNs {
-			return c, nil
+			return inst.(container), nil
 		}
 	}
 

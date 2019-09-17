@@ -238,20 +238,20 @@ func storagePoolVolumeSnapshotUpdate(state *state.State, poolName string, volume
 }
 
 func storagePoolVolumeUsedByContainersGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
-	cts, err := containerLoadByProject(s, project)
+	insts, err := instanceLoadByProject(s, project)
 	if err != nil {
 		return []string{}, err
 	}
 
 	ctsUsingVolume := []string{}
-	for _, c := range cts {
-		for _, dev := range c.LocalDevices() {
+	for _, inst := range insts {
+		for _, dev := range inst.LocalDevices() {
 			if dev["type"] != "disk" {
 				continue
 			}
 
 			if dev["pool"] == poolName && dev["source"] == volumeName {
-				ctsUsingVolume = append(ctsUsingVolume, c.Name())
+				ctsUsingVolume = append(ctsUsingVolume, inst.Name())
 				break
 			}
 		}
@@ -264,14 +264,14 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 	oldVolumeName string, newPoolName string, newVolumeName string) error {
 
 	s := d.State()
-	// update all containers
-	cts, err := containerLoadAll(s)
+	// update all instances
+	insts, err := instanceLoadAll(s)
 	if err != nil {
 		return err
 	}
 
-	for _, c := range cts {
-		devices := c.LocalDevices()
+	for _, inst := range insts {
+		devices := inst.LocalDevices()
 		for k := range devices {
 			if devices[k]["type"] != "disk" {
 				continue
@@ -298,7 +298,6 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			}
 
 			// found entry
-
 			if oldPoolName != newPoolName {
 				devices[k]["pool"] = newPoolName
 			}
@@ -313,18 +312,18 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 		}
 
 		args := db.ContainerArgs{
-			Architecture: c.Architecture(),
-			Description:  c.Description(),
-			Config:       c.LocalConfig(),
+			Architecture: inst.Architecture(),
+			Description:  inst.Description(),
+			Config:       inst.LocalConfig(),
 			Devices:      devices,
-			Ephemeral:    c.IsEphemeral(),
-			Profiles:     c.Profiles(),
-			Project:      c.Project(),
-			Type:         c.Type(),
-			Snapshot:     c.IsSnapshot(),
+			Ephemeral:    inst.IsEphemeral(),
+			Profiles:     inst.Profiles(),
+			Project:      inst.Project(),
+			Type:         inst.Type(),
+			Snapshot:     inst.IsSnapshot(),
 		}
 
-		err = c.Update(args, false)
+		err = inst.Update(args, false)
 		if err != nil {
 			return err
 		}
@@ -398,19 +397,19 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 	poolName string, volumeName string, volumeTypeName string,
 	runningOnly bool) ([]string, error) {
-	cts, err := containerLoadAll(s)
+	insts, err := instanceLoadAll(s)
 	if err != nil {
 		return []string{}, err
 	}
 
 	ctsUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, c := range cts {
-		if runningOnly && !c.IsRunning() {
+	for _, inst := range insts {
+		if runningOnly && !inst.IsRunning() {
 			continue
 		}
 
-		for _, dev := range c.ExpandedDevices() {
+		for _, dev := range inst.ExpandedDevices() {
 			if dev["type"] != "disk" {
 				continue
 			}
@@ -423,7 +422,7 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				ctsUsingVolume = append(ctsUsingVolume, c.Name())
+				ctsUsingVolume = append(ctsUsingVolume, inst.Name())
 			}
 		}
 	}

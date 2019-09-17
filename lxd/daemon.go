@@ -992,14 +992,14 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := containerLoadNodeAll(d.State())
+	results, err := instanceLoadNodeAll(d.State())
 	if err != nil {
 		return 0, err
 	}
 
 	count := 0
-	for _, container := range results {
-		if container.IsRunning() {
+	for _, instance := range results {
+		if instance.IsRunning() {
 			count = count + 1
 		}
 	}
