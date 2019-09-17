@@ -1178,7 +1178,7 @@ func (s *storageBtrfs) ContainerCopy(target Instance, source Instance, container
 			return err
 		}
 
-		err = s.copySnapshot(sourceSnapshot, targetSnapshot)
+		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
 		if err != nil {
 			return err
 		}
