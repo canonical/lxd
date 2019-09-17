@@ -899,7 +899,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %s", dev[1], output)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %v", dev[1], err)
 		}
 
 		header := true
@@ -953,7 +953,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		// Accessible btrfs filesystems
 		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %s", dev[1], output)
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %v", dev[1], err)
 		}
 
 		for _, line := range strings.Split(output, "\n") {

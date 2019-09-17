@@ -505,9 +505,9 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 					return err
 				}
 
-				output, err := rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+				_, err = rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
 				if err != nil {
-					logger.Errorf("Failed to rsync: %s: %s", output, err)
+					logger.Errorf("Failed to rsync: %v", err)
 					return err
 				}
 
@@ -3469,9 +3469,9 @@ func patchUpdateFromV15(tx *sql.Tx) error {
 
 		logger.Debug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
 
-		output, err := shared.RunCommand("lvrename", vgName, cName, newLVName)
+		_, err := shared.RunCommand("lvrename", vgName, cName, newLVName)
 		if err != nil {
-			return fmt.Errorf("Could not rename LV '%s' to '%s': %v\noutput:%s", cName, newLVName, err, output)
+			return fmt.Errorf("Could not rename LV '%s' to '%s': %v", cName, newLVName, err)
 		}
 
 		if err := os.Remove(lvLinkPath); err != nil {

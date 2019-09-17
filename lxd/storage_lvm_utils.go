@@ -178,11 +178,11 @@ func (s *storageLvm) renameLVByPath(project, oldName string, newName string, vol
 
 func removeLV(project, vgName string, volumeType string, lvName string) error {
 	lvmVolumePath := getLvmDevPath(project, vgName, volumeType, lvName)
-	output, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
 
+	_, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
 	if err != nil {
-		logger.Errorf("Could not remove LV \"%s\": %s", lvName, output)
-		return fmt.Errorf("Could not remove LV named %s", lvName)
+		logger.Errorf("Could not remove LV \"%s\": %v", lvName, err)
+		return fmt.Errorf("Could not remove LV named %s: %v", lvName, err)
 	}
 
 	return nil
@@ -202,7 +202,6 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 	}
 
 	lvmPoolVolumeName := getPrefixedLvName(project, volumeType, lvName)
-	var output string
 	args := []string{"-n", lvmPoolVolumeName, "-s", sourceLvmVolumePath}
 	if isRecent {
 		args = append(args, "-kn")
@@ -236,10 +235,10 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 		args = append(args, "-prw")
 	}
 
-	output, err = shared.TryRunCommand("lvcreate", args...)
+	_, err = shared.TryRunCommand("lvcreate", args...)
 	if err != nil {
-		logger.Errorf("Could not create LV snapshot: %s to %s: %s", origLvName, lvName, output)
-		return "", fmt.Errorf("Could not create snapshot LV named %s", lvName)
+		logger.Errorf("Could not create LV snapshot: %s to %s: %v", origLvName, lvName, err)
+		return "", fmt.Errorf("Could not create snapshot LV named %s: %v", lvName, err)
 	}
 
 	targetLvmVolumePath := getLvmDevPath(project, vgName, volumeType, lvName)
@@ -429,15 +428,15 @@ func (s *storageLvm) copyContainerLv(target Instance, source Instance, readonly 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
 
 	if readonly {
 		targetLvmName := containerNameToLVName(targetName)
 		poolName := s.getOnDiskPoolName()
-		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, targetLvmName))
+		_, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, targetLvmName))
 		if err != nil {
-			logger.Errorf("Failed to make LVM snapshot \"%s\" read-write: %s", targetName, output)
+			logger.Errorf("Failed to make LVM snapshot \"%s\" read-write: %v", targetName, err)
 			return err
 		}
 	}
@@ -596,18 +595,18 @@ func lvmLvIsWritable(lvName string) (bool, error) {
 }
 
 func storageVGActivate(lvmVolumePath string) error {
-	output, err := shared.TryRunCommand("vgchange", "-ay", lvmVolumePath)
+	_, err := shared.TryRunCommand("vgchange", "-ay", lvmVolumePath)
 	if err != nil {
-		return fmt.Errorf("could not activate volume group \"%s\": %s: %s", lvmVolumePath, output, err)
+		return fmt.Errorf("could not activate volume group \"%s\": %v", lvmVolumePath, err)
 	}
 
 	return nil
 }
 
 func storageLVActivate(lvmVolumePath string) error {
-	output, err := shared.TryRunCommand("lvchange", "-ay", lvmVolumePath)
+	_, err := shared.TryRunCommand("lvchange", "-ay", lvmVolumePath)
 	if err != nil {
-		return fmt.Errorf("could not activate logival volume \"%s\": %s: %s", lvmVolumePath, output, err)
+		return fmt.Errorf("could not activate logival volume \"%s\": %v", lvmVolumePath, err)
 	}
 
 	return nil
@@ -784,18 +783,18 @@ func storageLVMValidateThinPoolName(s *state.State, vgName string, value string)
 }
 
 func lvmVGRename(oldName string, newName string) error {
-	output, err := shared.TryRunCommand("vgrename", oldName, newName)
+	_, err := shared.TryRunCommand("vgrename", oldName, newName)
 	if err != nil {
-		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %s", oldName, newName, output)
+		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %v", oldName, newName, err)
 	}
 
 	return nil
 }
 
 func lvmLVRename(vgName string, oldName string, newName string) error {
-	output, err := shared.TryRunCommand("lvrename", vgName, oldName, newName)
+	_, err := shared.TryRunCommand("lvrename", vgName, oldName, newName)
 	if err != nil {
-		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %s", oldName, newName, output)
+		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %v", oldName, newName, err)
 	}
 
 	return nil
@@ -844,21 +843,21 @@ func lvmCreateLv(projectName, vgName string, thinPoolName string, lvName string,
 	lvmPoolVolumeName := getPrefixedLvName(projectName, volumeType, lvName)
 	if makeThinLv {
 		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-		output, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSizeString, targetVg)
+		_, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSizeString, targetVg)
 	} else {
-		output, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "-n", lvmPoolVolumeName, "--size", lvSizeString, vgName)
+		_, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "-n", lvmPoolVolumeName, "--size", lvSizeString, vgName)
 	}
 	if err != nil {
-		logger.Errorf("Could not create LV \"%s\": %s", lvmPoolVolumeName, output)
-		return fmt.Errorf("Could not create thin LV named %s", lvmPoolVolumeName)
+		logger.Errorf("Could not create LV \"%s\": %v", lvmPoolVolumeName, err)
+		return fmt.Errorf("Could not create thin LV named %s: %v", lvmPoolVolumeName, err)
 	}
 
 	fsPath := getLvmDevPath(projectName, vgName, volumeType, lvName)
 
 	output, err = driver.MakeFSType(fsPath, lvFsType, nil)
 	if err != nil {
-		logger.Errorf("Filesystem creation failed: %s", output)
-		return fmt.Errorf("Error making filesystem on image LV: %v", err)
+		logger.Errorf("Filesystem creation failed: %s: %v", output, err)
+		return fmt.Errorf("Error making filesystem on image LV: %s: %v", output, err)
 	}
 
 	return nil
@@ -896,16 +895,15 @@ func createDefaultThinPool(sTypeVersion string, vgName string, thinPoolName stri
 
 	// Create the thin pool
 	lvmThinPool := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-	var output string
 	if isRecent {
-		output, err = shared.TryRunCommand(
+		_, err = shared.TryRunCommand(
 			"lvcreate",
 			"-Wy", "--yes",
 			"--poolmetadatasize", "1G",
 			"-l", "100%FREE",
 			"--thinpool", lvmThinPool)
 	} else {
-		output, err = shared.TryRunCommand(
+		_, err = shared.TryRunCommand(
 			"lvcreate",
 			"-Wy", "--yes",
 			"--poolmetadatasize", "1G",
@@ -914,17 +912,17 @@ func createDefaultThinPool(sTypeVersion string, vgName string, thinPoolName stri
 	}
 
 	if err != nil {
-		logger.Errorf("Could not create thin pool \"%s\": %s", thinPoolName, string(output))
-		return fmt.Errorf("Could not create LVM thin pool named %s", thinPoolName)
+		logger.Errorf("Could not create thin pool \"%s\": %v", thinPoolName, err)
+		return fmt.Errorf("Could not create LVM thin pool named %s: %v", thinPoolName, err)
 	}
 
 	if !isRecent {
 		// Grow it to the maximum VG size (two step process required by old LVM)
-		output, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
+		_, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
 
 		if err != nil {
-			logger.Errorf("Could not grow thin pool: \"%s\": %s", thinPoolName, string(output))
-			return fmt.Errorf("Could not grow LVM thin pool named %s", thinPoolName)
+			logger.Errorf("Could not grow thin pool: \"%s\": %v", thinPoolName, err)
+			return fmt.Errorf("Could not grow LVM thin pool named %s: %v", thinPoolName, err)
 		}
 	}
 
@@ -1049,9 +1047,9 @@ func (s *storageLvm) copyVolumeLv(sourcePool string, source string, target strin
 		targetLvmName := containerNameToLVName(target)
 		poolName := s.getOnDiskPoolName()
 
-		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName))
+		_, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName))
 		if err != nil {
-			logger.Errorf("Failed to make LVM snapshot \"%s\" read-only: %s", s.volume.Name, output)
+			logger.Errorf("Failed to make LVM snapshot \"%s\" read-only: %v", s.volume.Name, err)
 			return err
 		}
 	}
