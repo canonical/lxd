@@ -103,10 +103,10 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		return []string{}, err
 	}
 
-	// Get the local containers
-	nodeCts := map[string]container{}
+	// Get the local instances
+	nodeCts := map[string]Instance{}
 	if recursion > 0 {
-		cts, err := containerLoadNodeProjectAll(d.State(), project, instanceType)
+		cts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
 		if err != nil {
 			return nil, err
 		}

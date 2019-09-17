@@ -141,7 +141,7 @@ var instanceBackupExportCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: containerBackupExportGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
-type containerAutostartList []container
+type containerAutostartList []Instance
 
 func (slice containerAutostartList) Len() int {
 	return len(slice)
@@ -165,22 +165,22 @@ func (slice containerAutostartList) Swap(i, j int) {
 }
 
 func containersRestart(s *state.State) error {
-	// Get all the containers
-	result, err := containerLoadNodeAll(s)
+	// Get all the instances
+	result, err := instanceLoadNodeAll(s)
 	if err != nil {
 		return err
 	}
 
-	containers := []container{}
+	instances := []Instance{}
 
 	for _, c := range result {
-		containers = append(containers, c)
+		instances = append(instances, c)
 	}
 
-	sort.Sort(containerAutostartList(containers))
+	sort.Sort(containerAutostartList(instances))
 
-	// Restart the containers
-	for _, c := range containers {
+	// Restart the instances
+	for _, c := range instances {
 		config := c.ExpandedConfig()
 		lastState := config["volatile.last_state.power"]
 
@@ -207,7 +207,7 @@ func containersRestart(s *state.State) error {
 	return nil
 }
 
-type containerStopList []container
+type containerStopList []Instance
 
 func (slice containerStopList) Len() int {
 	return len(slice)
@@ -263,12 +263,12 @@ func containersShutdown(s *state.State) error {
 
 	dbAvailable := true
 
-	// Get all the containers
-	containers, err := containerLoadNodeAll(s)
+	// Get all the instances
+	instances, err := instanceLoadNodeAll(s)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
-		containers = []container{}
+		instances = []Instance{}
 
 		// List all containers on disk
 		cnames, err := containersOnDisk()
@@ -287,12 +287,12 @@ func containersShutdown(s *state.State) error {
 					return err
 				}
 
-				containers = append(containers, c)
+				instances = append(instances, c)
 			}
 		}
 	}
 
-	sort.Sort(containerStopList(containers))
+	sort.Sort(containerStopList(instances))
 
 	if dbAvailable {
 		// Reset all container states
@@ -304,18 +304,18 @@ func containersShutdown(s *state.State) error {
 
 	var lastPriority int
 
-	if len(containers) != 0 {
-		lastPriority, _ = strconv.Atoi(containers[0].ExpandedConfig()["boot.stop.priority"])
+	if len(instances) != 0 {
+		lastPriority, _ = strconv.Atoi(instances[0].ExpandedConfig()["boot.stop.priority"])
 	}
 
-	for _, c := range containers {
+	for _, c := range instances {
 		priority, _ := strconv.Atoi(c.ExpandedConfig()["boot.stop.priority"])
 
 		// Enforce shutdown priority
 		if priority != lastPriority {
 			lastPriority = priority
 
-			// Wait for containers with higher priority to finish
+			// Wait for instances with higher priority to finish
 			wg.Wait()
 		}
 
@@ -324,7 +324,7 @@ func containersShutdown(s *state.State) error {
 
 		// Stop the container
 		if lastState != "BROKEN" && lastState != "STOPPED" {
-			// Determinate how long to wait for the container to shutdown cleanly
+			// Determinate how long to wait for the instance to shutdown cleanly
 			var timeoutSeconds int
 			value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
 			if ok {
@@ -333,9 +333,9 @@ func containersShutdown(s *state.State) error {
 				timeoutSeconds = 30
 			}
 
-			// Stop the container
+			// Stop the instance
 			wg.Add(1)
-			go func(c container, lastState string) {
+			go func(c Instance, lastState string) {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
 				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})

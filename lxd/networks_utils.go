@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -89,7 +90,7 @@ func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
 	return networks, nil
 }
 
-func networkIsInUse(c container, name string) bool {
+func networkIsInUse(c Instance, name string) bool {
 	for _, d := range c.ExpandedDevices() {
 		if d["type"] != "nic" {
 			continue
@@ -637,26 +638,28 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 		networks = []string{networkName}
 	}
 
-	// Get all the containers
-	containers, err := containerLoadNodeAll(s)
+	// Get all the instances
+	insts, err := instanceLoadNodeAll(s)
 	if err != nil {
 		return err
 	}
 
 	// Build a list of dhcp host entries
 	entries := map[string][][]string{}
-	for _, c := range containers {
+	for _, inst := range insts {
 		// Go through all its devices (including profiles
-		for k, d := range c.ExpandedDevices() {
+		for k, d := range inst.ExpandedDevices() {
 			// Skip uninteresting entries
 			if d["type"] != "nic" || d["nictype"] != "bridged" || !shared.StringInSlice(d["parent"], networks) {
 				continue
 			}
 
-			// Fill in the hwaddr from volatile
-			d, err = c.(*containerLXC).fillNetworkDevice(k, d)
-			if err != nil {
-				continue
+			if inst.Type() == instance.TypeContainer {
+				// Fill in the hwaddr from volatile
+				d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
+				if err != nil {
+					continue
+				}
 			}
 
 			// Add the new host entries
@@ -666,7 +669,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], c.Name())
+				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], inst.Name())
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -680,7 +683,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 				}
 			}
 
-			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], c.Project(), c.Name(), d["ipv4.address"], d["ipv6.address"]})
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], inst.Project(), inst.Name(), d["ipv4.address"], d["ipv6.address"]})
 		}
 	}
 
