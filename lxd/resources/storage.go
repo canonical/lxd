@@ -73,9 +73,9 @@ func storageAddDriveInfo(devicePath string, disk *api.ResourcesStorageDisk) erro
 			disk.Type = "sata"
 		}
 
-		// Model revision number
-		if udevProperties["E:ID_REVISION"] != "" && disk.ModelRevision == "" {
-			disk.ModelRevision = udevProperties["E:ID_REVISION"]
+		// Firmware version
+		if udevProperties["E:ID_REVISION"] != "" && disk.FirmwareVersion == "" {
+			disk.FirmwareVersion = udevProperties["E:ID_REVISION"]
 		}
 
 		// Serial number
