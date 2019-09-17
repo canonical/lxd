@@ -1492,7 +1492,7 @@ func (s *storageLvm) ContainerRestore(target Instance, source Instance) error {
 		bwlimit := s.pool.Config["rsync.bwlimit"]
 		output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 		if err != nil {
-			return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+			return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 		}
 	}
 

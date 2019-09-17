@@ -414,7 +414,7 @@ func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 		bwlimit := s.pool.Config["rsync.bwlimit"]
 		output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, true)
 		if err != nil {
-			return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+			return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 		}
 
 		logger.Infof(`Restored DIR storage volume "%s" from snapshot "%s"`,
@@ -670,7 +670,7 @@ func (s *storageDir) copyContainer(target Instance, source Instance) error {
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
 
 	err = target.TemplateApply("copy")
@@ -699,7 +699,7 @@ func (s *storageDir) copySnapshot(target Instance, targetPool string, source Ins
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
 
 	return nil
@@ -894,7 +894,7 @@ func (s *storageDir) ContainerRestore(container Instance, sourceContainer Instan
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
 
 	logger.Debugf("Restored DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
@@ -938,7 +938,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer Instance, sourceC
 		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			s.ContainerDelete(snapshotContainer)
-			return fmt.Errorf("failed to rsync: %s: %s", string(output), err)
+			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
 		return nil
 	}
