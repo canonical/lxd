@@ -3289,7 +3289,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 
 func (c *containerLXC) RenderFull() (*api.InstanceFull, interface{}, error) {
 	if c.IsSnapshot() {
-		return nil, nil, fmt.Errorf("RenderFull only works with containers")
+		return nil, nil, fmt.Errorf("RenderFull doesn't work with snapshots")
 	}
 
 	// Get the Container struct
