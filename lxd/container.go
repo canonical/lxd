@@ -239,7 +239,7 @@ type container interface {
 }
 
 // Loader functions
-func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error) {
+func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (Instance, error) {
 	// Create the container
 	c, err := containerCreateInternal(d.State(), args)
 	if err != nil {
@@ -326,7 +326,7 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 	return pool, nil
 }
 
-func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (container, error) {
+func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (Instance, error) {
 	// Create the snapshot
 	c, err := containerCreateInternal(s, args)
 	if err != nil {
@@ -343,7 +343,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	return c, nil
 }
 
-func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tracker *ioprogress.ProgressTracker) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tracker *ioprogress.ProgressTracker) (Instance, error) {
 	s := d.State()
 
 	// Get the image properties
@@ -462,7 +462,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
 
-	csList := []*container{}
+	csList := []*Instance{}
 	var snapshots []Instance
 
 	if !containerOnly {
@@ -690,7 +690,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInst
 	return c, nil
 }
 
-func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, error) {
+func containerCreateInternal(s *state.State, args db.ContainerArgs) (Instance, error) {
 	// Set default values
 	if args.Project == "" {
 		args.Project = "default"
@@ -882,14 +882,23 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 
 	args = db.ContainerToArgs(&container)
 
-	// Setup the container struct and finish creation (storage and idmap)
-	c, err := containerLXCCreate(s, args)
-	if err != nil {
-		s.Cluster.ContainerRemove(args.Project, args.Name)
-		return nil, errors.Wrap(err, "Create LXC container")
+	var inst Instance
+
+	if args.Type == instance.TypeContainer {
+		// Setup the container struct and finish creation (storage and idmap)
+		inst, err = containerLXCCreate(s, args)
+	} else if args.Type == instance.TypeVM {
+		inst, err = vmQemuCreate(s, args)
+	} else {
+		return nil, fmt.Errorf("Instance type invalid")
 	}
 
-	return c, nil
+	if err != nil {
+		s.Cluster.ContainerRemove(args.Project, args.Name)
+		return nil, errors.Wrap(err, "Create instance")
+	}
+
+	return inst, nil
 }
 
 func containerConfigureInternal(c Instance) error {
@@ -930,9 +939,11 @@ func containerConfigureInternal(c Instance) error {
 		defer c.StorageStop()
 	}
 
-	err = writeBackupFile(c)
-	if err != nil {
-		return err
+	if c.Type() == instance.TypeContainer {
+		err = writeBackupFile(c)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
