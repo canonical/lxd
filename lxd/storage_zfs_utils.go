@@ -64,8 +64,8 @@ func zfsModuleVersionGet() (string, error) {
 	return strings.TrimSpace(zfsVersion), nil
 }
 
-// zfsPoolVolumeCreate creates a ZFS dataset with a set of given properties.
-func zfsPoolVolumeCreate(dataset string, properties ...string) (string, error) {
+// zfsPoolDatasetCreate creates a ZFS dataset with a set of given properties.
+func zfsPoolDatasetCreate(dataset string, properties ...string) (string, error) {
 	cmd := []string{"zfs", "create"}
 
 	for _, prop := range properties {
@@ -73,6 +73,19 @@ func zfsPoolVolumeCreate(dataset string, properties ...string) (string, error) {
 	}
 
 	cmd = append(cmd, []string{"-p", dataset}...)
+
+	return shared.RunCommand(cmd[0], cmd[1:]...)
+}
+
+// zfsPoolVolumeCreate creates a ZFS volume with a set of given properties.
+func zfsPoolVolumeCreate(name string, size string, properties ...string) (string, error) {
+	cmd := []string{"zfs", "create"}
+
+	for _, prop := range properties {
+		cmd = append(cmd, []string{"-o", prop}...)
+	}
+
+	cmd = append(cmd, []string{"-p", name, "-V", size}...)
 
 	return shared.RunCommand(cmd[0], cmd[1:]...)
 }
@@ -176,48 +189,60 @@ func zfsPoolApplyDefaults(dataset string) error {
 }
 
 func zfsPoolVolumeClone(project, pool string, source string, name string, dest string, mountpoint string) error {
-	_, err := shared.RunCommand(
-		"zfs",
+	args := []string{
 		"clone",
 		"-p",
-		"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
-		"-o", "canmount=noauto",
+	}
+
+	if mountpoint != "" {
+		args = append(args,
+			"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
+			"-o", "canmount=noauto",
+		)
+	}
+
+	args = append(args,
 		fmt.Sprintf("%s/%s@%s", pool, source, name),
-		fmt.Sprintf("%s/%s", pool, dest))
+		fmt.Sprintf("%s/%s", pool, dest),
+	)
+
+	_, err := shared.RunCommand("zfs", args...)
 	if err != nil {
 		logger.Errorf("zfs clone failed: %v", err)
 		return errors.Wrap(err, "Failed to clone the filesystem")
 	}
 
-	subvols, err := zfsPoolListSubvolumes(pool, fmt.Sprintf("%s/%s", pool, source))
-	if err != nil {
-		return err
-	}
-
-	for _, sub := range subvols {
-		snaps, err := zfsPoolListSnapshots(pool, sub)
+	if mountpoint != "" {
+		subvols, err := zfsPoolListSubvolumes(pool, fmt.Sprintf("%s/%s", pool, source))
 		if err != nil {
 			return err
 		}
 
-		if !shared.StringInSlice(name, snaps) {
-			continue
-		}
+		for _, sub := range subvols {
+			snaps, err := zfsPoolListSnapshots(pool, sub)
+			if err != nil {
+				return err
+			}
 
-		destSubvol := dest + strings.TrimPrefix(sub, source)
-		snapshotMntPoint := driver.GetSnapshotMountPoint(project, pool, destSubvol)
+			if !shared.StringInSlice(name, snaps) {
+				continue
+			}
 
-		_, err = shared.RunCommand(
-			"zfs",
-			"clone",
-			"-p",
-			"-o", fmt.Sprintf("mountpoint=%s", snapshotMntPoint),
-			"-o", "canmount=noauto",
-			fmt.Sprintf("%s/%s@%s", pool, sub, name),
-			fmt.Sprintf("%s/%s", pool, destSubvol))
-		if err != nil {
-			logger.Errorf("zfs clone failed: %v", err)
-			return errors.Wrap(err, "Failed to clone the sub-volume")
+			destSubvol := dest + strings.TrimPrefix(sub, source)
+			snapshotMntPoint := driver.GetSnapshotMountPoint(project, pool, destSubvol)
+
+			_, err = shared.RunCommand(
+				"zfs",
+				"clone",
+				"-p",
+				"-o", fmt.Sprintf("mountpoint=%s", snapshotMntPoint),
+				"-o", "canmount=noauto",
+				fmt.Sprintf("%s/%s@%s", pool, sub, name),
+				fmt.Sprintf("%s/%s", pool, destSubvol))
+			if err != nil {
+				logger.Errorf("zfs clone failed: %v", err)
+				return errors.Wrap(err, "Failed to clone the sub-volume")
+			}
 		}
 	}
 
@@ -798,7 +823,7 @@ func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool
 	containerPoolVolumeMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	// Create volume.
-	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
+	msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none", "canmount=noauto")
 	if err != nil {
 		logger.Errorf("Failed to create ZFS storage volume for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
