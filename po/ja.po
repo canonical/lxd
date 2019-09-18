@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-13 18:34+0200\n"
+"POT-Creation-Date: 2019-09-18 14:34+0200\n"
 "PO-Revision-Date: 2019-05-18 08:49+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -974,6 +974,10 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
+#: lxc/exec.go:61
+msgid "Directory to run the command in (default /root)"
+msgstr ""
+
 #: lxc/exec.go:57
 msgid "Disable pseudo-terminal allocation"
 msgstr "擬似端末の割り当てを無効にします"
@@ -1351,10 +1355,6 @@ msgstr "ストレージプールの設定値を取得します"
 #: lxc/storage_volume.go:977 lxc/storage_volume.go:978
 msgid "Get values for storage volume configuration keys"
 msgstr "ストレージボリュームの設定値を取得します"
-
-#: lxc/exec.go:61
-msgid "Group ID to run the command as (default /root)"
-msgstr ""
 
 #: lxc/exec.go:60
 msgid "Group ID to run the command as (default 0)"
