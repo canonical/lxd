@@ -48,7 +48,7 @@ type nicBridged struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicBridged) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.instance.Type() != instancetype.Container && d.instance.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
@@ -122,8 +122,16 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 		saveData["host_name"] = NetworkRandomDevName("veth")
 	}
 
+	var peerName string // Only used with containers, empty for VMs.
+
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
-	peerName, err := networkCreateVethPair(saveData["host_name"], d.config)
+	if d.instance.Type() == instancetype.Container {
+		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+	} else if d.instance.Type() == instancetype.VM {
+		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
+		err = networkCreateTap(saveData["host_name"])
+	}
+
 	if err != nil {
 		return nil, err
 	}
