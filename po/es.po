@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-13 18:34+0200\n"
+"POT-Creation-Date: 2019-09-18 14:34+0200\n"
 "PO-Revision-Date: 2019-06-13 16:56+0000\n"
 "Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1021,6 +1021,10 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr "El directorio importado no está disponible en esta plataforma"
 
+#: lxc/exec.go:61
+msgid "Directory to run the command in (default /root)"
+msgstr ""
+
 #: lxc/exec.go:57
 msgid "Disable pseudo-terminal allocation"
 msgstr ""
@@ -1373,10 +1377,6 @@ msgstr ""
 
 #: lxc/storage_volume.go:977 lxc/storage_volume.go:978
 msgid "Get values for storage volume configuration keys"
-msgstr ""
-
-#: lxc/exec.go:61
-msgid "Group ID to run the command as (default /root)"
 msgstr ""
 
 #: lxc/exec.go:60
