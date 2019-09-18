@@ -58,7 +58,7 @@ Mode defaults to non-interactive, interactive mode is selected if both stdin AND
 	cmd.Flags().BoolVarP(&c.flagDisableStdin, "disable-stdin", "n", false, i18n.G("Disable stdin (reads from /dev/null)"))
 	cmd.Flags().Uint32Var(&c.flagUser, "user", 0, i18n.G("User ID to run the command as (default 0)")+"``")
 	cmd.Flags().Uint32Var(&c.flagGroup, "group", 0, i18n.G("Group ID to run the command as (default 0)")+"``")
-	cmd.Flags().StringVar(&c.flagCwd, "cwd", "", i18n.G("Group ID to run the command as (default /root)")+"``")
+	cmd.Flags().StringVar(&c.flagCwd, "cwd", "", i18n.G("Directory to run the command in (default /root)")+"``")
 
 	return cmd
 }
