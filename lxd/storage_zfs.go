@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -266,7 +267,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 	// creation.
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/containers", poolName)
-	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create containers dataset: %s", msg)
 		return err
@@ -284,7 +285,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/images", poolName)
-	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create images dataset: %s", msg)
 		return err
@@ -301,7 +302,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/custom", poolName)
-	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create custom dataset: %s", msg)
 		return err
@@ -318,14 +319,14 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/deleted", poolName)
-	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create deleted dataset: %s", msg)
 		return err
 	}
 
 	dataset = fmt.Sprintf("%s/snapshots", poolName)
-	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create snapshots dataset: %s", msg)
 		return err
@@ -342,7 +343,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/custom-snapshots", poolName)
-	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create snapshots dataset: %s", msg)
 		return err
@@ -415,7 +416,7 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 		customPoolVolumeMntPoint = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
-	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
+	msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none", "canmount=noauto")
 	if err != nil {
 		logger.Errorf("Failed to create ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
@@ -788,6 +789,7 @@ func (s *storageZfs) ContainerUmount(c Instance, path string) (bool, error) {
 
 	var imgerr error
 	ourUmount := false
+
 	if shared.IsMountPoint(containerPoolVolumeMntPoint) {
 		imgerr = zfsUmount(s.getOnDiskPoolName(), fs, containerPoolVolumeMntPoint)
 		ourUmount = true
@@ -822,12 +824,14 @@ func (s *storageZfs) ContainerCreate(container Instance) error {
 		return err
 	}
 
-	ourMount, err := s.ContainerMount(container)
-	if err != nil {
-		return err
-	}
-	if ourMount {
-		defer s.ContainerUmount(container, container.Path())
+	if container.Type() == instance.TypeContainer {
+		ourMount, err := s.ContainerMount(container)
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer s.ContainerUmount(container, container.Path())
+		}
 	}
 
 	err = container.TemplateApply("create")
@@ -878,6 +882,10 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 		}
 	}
 
+	if container.Type() == instance.TypeVM {
+		containerPoolVolumeMntPoint = "" // No mount point for VMs.
+	}
+
 	err := zfsPoolVolumeClone(container.Project(), poolName, fsImage, "readonly", fs, containerPoolVolumeMntPoint)
 	if err != nil {
 		return err
@@ -891,18 +899,20 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 		s.ContainerDelete(container)
 	}()
 
-	ourMount, err := s.ContainerMount(container)
-	if err != nil {
-		return err
-	}
-	if ourMount {
-		defer s.ContainerUmount(container, containerPath)
-	}
+	if container.Type() == instance.TypeContainer {
+		ourMount, err := s.ContainerMount(container)
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer s.ContainerUmount(container, containerPath)
+		}
 
-	privileged := container.IsPrivileged()
-	err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
-	if err != nil {
-		return err
+		privileged := container.IsPrivileged()
+		err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = container.TemplateApply("create")
@@ -980,24 +990,26 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target Instance, source Instance
 			zfsPoolVolumeDestroy(poolName, targetZfsDataset)
 		}()
 
-		ourMount, err := s.ContainerMount(target)
-		if err != nil {
-			return err
-		}
-		if ourMount {
-			defer s.ContainerUmount(target, targetContainerPath)
-		}
-
-		err = driver.CreateContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if !revert {
-				return
+		if source.Type() == instance.TypeContainer {
+			ourMount, err := s.ContainerMount(target)
+			if err != nil {
+				return err
 			}
-			deleteContainerMountpoint(targetContainerMountPoint, targetContainerPath, s.GetStorageTypeName())
-		}()
+			if ourMount {
+				defer s.ContainerUmount(target, targetContainerPath)
+			}
+
+			err = driver.CreateContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if !revert {
+					return
+				}
+				deleteContainerMountpoint(targetContainerMountPoint, targetContainerPath, s.GetStorageTypeName())
+			}()
+		}
 	} else {
 		err := s.ContainerCreate(target)
 		if err != nil {
@@ -1187,12 +1199,14 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 		return err
 	}
 
-	ourMount, err := srcStorage.StoragePoolMount()
-	if err != nil {
-		return err
-	}
-	if ourMount {
-		defer srcStorage.StoragePoolUmount()
+	if source.Type() == instance.TypeContainer {
+		ourMount, err := srcStorage.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer srcStorage.StoragePoolUmount()
+		}
 	}
 
 	targetPool, err := target.StoragePool()
@@ -1217,37 +1231,39 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 		}
 	}
 
-	_, err = s.doContainerMount(target.Project(), target.Name(), target.IsPrivileged())
-	if err != nil {
-		return err
-	}
-	defer s.ContainerUmount(target, shared.VarPath("containers", project.Prefix(target.Project(), target.Name())))
+	if source.Type() == instance.TypeContainer {
+		_, err = s.doContainerMount(target.Project(), target.Name(), target.IsPrivileged())
+		if err != nil {
+			return err
+		}
+		defer s.ContainerUmount(target, shared.VarPath("containers", project.Prefix(target.Project(), target.Name())))
 
-	destContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
-	bwlimit := s.pool.Config["rsync.bwlimit"]
-	if !containerOnly {
-		for _, snap := range snapshots {
-			srcSnapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
-			if err != nil {
-				logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-				return err
-			}
+		destContainerMntPoint := driver.GetContainerMountPoint(target.Project(), targetPool, target.Name())
+		bwlimit := s.pool.Config["rsync.bwlimit"]
+		if !containerOnly {
+			for _, snap := range snapshots {
+				srcSnapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
+				_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
+				if err != nil {
+					logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+					return err
+				}
 
-			// create snapshot
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
-			err = s.doContainerSnapshotCreate(snap.Project(), fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
-			if err != nil {
-				return err
+				// create snapshot
+				_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+				err = s.doContainerSnapshotCreate(snap.Project(), fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	srcContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
-	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
-	if err != nil {
-		logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-		return err
+		srcContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
+		_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
+		if err != nil {
+			logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+			return err
+		}
 	}
 
 	return nil
@@ -2321,13 +2337,18 @@ func (s *storageZfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
 
+	_, image, err := s.GetState().Cluster.ImageGetFromAnyProject(fingerprint)
+	if err != nil {
+		return err
+	}
+
 	poolName := s.getOnDiskPoolName()
 	imageMntPoint := driver.GetImageMountPoint(s.pool.Name, fingerprint)
 	fs := fmt.Sprintf("images/%s", fingerprint)
 	revert := true
 	subrevert := true
 
-	err := s.createImageDbPoolVolume(fingerprint)
+	err = s.createImageDbPoolVolume(fingerprint)
 	if err != nil {
 		return err
 	}
@@ -2376,23 +2397,24 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 		}()
 	}
 
-	// Create temporary mountpoint directory.
-	tmp := driver.GetImageMountPoint(s.pool.Name, "")
-	tmpImageDir, err := ioutil.TempDir(tmp, "")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpImageDir)
-
 	imagePath := shared.VarPath("images", fingerprint)
 
 	// Create a new storage volume on the storage pool for the image.
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
-	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
-	if err != nil {
-		logger.Errorf("Failed to create ZFS dataset \"%s\" on storage pool \"%s\": %s", dataset, s.pool.Name, msg)
-		return err
+	if api.InstanceType(image.Type) == api.InstanceTypeVM {
+		msg, err := zfsPoolVolumeCreate(dataset, "10g")
+		if err != nil {
+			logger.Errorf("Failed to create ZFS volume \"%s\" on storage pool \"%s\": %s", dataset, s.pool.Name, msg)
+			return err
+		}
+	} else {
+		msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none")
+		if err != nil {
+			logger.Errorf("Failed to create ZFS dataset \"%s\" on storage pool \"%s\": %s", dataset, s.pool.Name, msg)
+			return err
+		}
 	}
+
 	subrevert = false
 	defer func() {
 		if !revert {
@@ -2401,36 +2423,54 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 		s.ImageDelete(fingerprint)
 	}()
 
-	// Set a temporary mountpoint for the image.
-	err = zfsPoolVolumeSet(poolName, fs, "mountpoint", tmpImageDir)
-	if err != nil {
-		return err
-	}
+	// For virtual machines, convert qcow2 image to raw on device.
+	if api.InstanceType(image.Type) == api.InstanceTypeVM {
+		filePath := imagePath + ".rootfs"
+		datasetPath := "/dev/zvol/" + dataset
+		_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", filePath, datasetPath)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Create temporary mountpoint directory.
+		tmp := driver.GetImageMountPoint(s.pool.Name, "")
+		tmpImageDir, err := ioutil.TempDir(tmp, "")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmpImageDir)
 
-	// Make sure that the image actually got mounted.
-	if !shared.IsMountPoint(tmpImageDir) {
-		zfsMount(poolName, fs)
-	}
+		// Set a temporary mountpoint for the image.
+		err = zfsPoolVolumeSet(poolName, fs, "mountpoint", tmpImageDir)
+		if err != nil {
+			return err
+		}
 
-	// Unpack the image into the temporary mountpoint.
-	err = unpackImage(imagePath, tmpImageDir, storageTypeZfs, s.s.OS.RunningInUserNS, nil)
-	if err != nil {
-		return err
+		// Make sure that the image actually got mounted.
+		if !shared.IsMountPoint(tmpImageDir) {
+			zfsMount(poolName, fs)
+		}
+
+		// For containers, unpack the image into the temporary mountpoint.
+		err = unpackImage(imagePath, tmpImageDir, storageTypeZfs, s.s.OS.RunningInUserNS, nil)
+		if err != nil {
+			return err
+		}
+
+		// Remove the temporary mountpoint from the image storage volume.
+		if err = zfsPoolVolumeSet(poolName, fs, "mountpoint", "none"); err != nil {
+			return err
+		}
+
+		// Make sure that the image actually got unmounted.
+		if shared.IsMountPoint(tmpImageDir) {
+			zfsUmount(poolName, fs, tmpImageDir)
+		}
 	}
 
 	// Mark the new storage volume for the image as readonly.
 	if err = zfsPoolVolumeSet(poolName, fs, "readonly", "on"); err != nil {
 		return err
-	}
-
-	// Remove the temporary mountpoint from the image storage volume.
-	if err = zfsPoolVolumeSet(poolName, fs, "mountpoint", "none"); err != nil {
-		return err
-	}
-
-	// Make sure that the image actually got unmounted.
-	if shared.IsMountPoint(tmpImageDir) {
-		zfsUmount(poolName, fs, tmpImageDir)
 	}
 
 	// Create a snapshot of that image on the storage pool which we clone for
