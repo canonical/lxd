@@ -201,7 +201,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
-	var c container
+	var c Instance
 
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
@@ -292,11 +292,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
 
-		if inst.Type() != instance.TypeContainer {
-			return BadRequest(fmt.Errorf("Instance type not container"))
-		}
-
-		c = inst.(container)
+		c = inst
 	}
 
 	if !req.Source.Refresh {
