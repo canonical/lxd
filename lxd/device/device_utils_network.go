@@ -323,6 +323,16 @@ func networkCreateVethPair(hostName string, m config.Device) (string, error) {
 	return peerName, nil
 }
 
+// networkCreateTap creates and configures a TAP device.
+func networkCreateTap(hostName string) error {
+	_, err := shared.RunCommand("ip", "tuntap", "add", "name", hostName, "mode", "tap")
+	if err != nil {
+		return fmt.Errorf("Failed to create the tap interfaces %s: %v", hostName, err)
+	}
+
+	return nil
+}
+
 // networkSetupHostVethDevice configures a nic device's host side veth settings.
 func networkSetupHostVethDevice(device config.Device, oldDevice config.Device, v map[string]string) error {
 	// If not configured, check if volatile data contains the most recently added host_name.
