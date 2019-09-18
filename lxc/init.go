@@ -30,6 +30,7 @@ type cmdInit struct {
 	flagType       string
 	flagNoProfiles bool
 	flagEmpty      bool
+	flagVM         bool
 }
 
 func (c *cmdInit) Command() *cobra.Command {
@@ -53,6 +54,7 @@ lxc init ubuntu:16.04 u1 < config.yaml
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty container"))
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create virtual machine"))
 
 	return cmd
 }
@@ -150,7 +152,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 	if !c.global.flagQuiet {
 		if name == "" {
-			fmt.Printf(i18n.G("Creating the container") + "\n")
+			fmt.Printf(i18n.G("Creating the instance") + "\n")
 		} else {
 			fmt.Printf(i18n.G("Creating %s")+"\n", name)
 		}
@@ -203,9 +205,16 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		}
 	}
 
+	// Decide whether we are creating a container or a virtual machine.
+	instanceDBType := api.InstanceTypeContainer
+	if c.flagVM {
+		instanceDBType = api.InstanceTypeVM
+	}
+
 	// Setup container creation request
 	req := api.InstancesPost{
 		Name:         name,
+		Type:         instanceDBType,
 		InstanceType: c.flagType,
 	}
 	req.Config = configMap
