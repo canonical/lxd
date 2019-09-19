@@ -1406,7 +1406,6 @@ func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
 
 func (vm *vmQemu) IsRunning() bool {
 	state := vm.State()
-	logger.Errorf("tomp isrunning %s", state)
 	return state != "BROKEN" && state != "STOPPED"
 }
 

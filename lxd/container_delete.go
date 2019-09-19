@@ -31,7 +31,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	if c.IsRunning() {
-		return BadRequest(fmt.Errorf("container is running"))
+		return BadRequest(fmt.Errorf("instance is running"))
 	}
 
 	rmct := func(op *operation) error {
