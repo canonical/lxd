@@ -1254,6 +1254,7 @@ func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	err = json.NewDecoder(resp.Body).Decode(&status)
 	if err != nil {
