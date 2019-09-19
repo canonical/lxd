@@ -771,6 +771,8 @@ drive = "qemu_config"
 [netdev "lxd_eth0"]
 type = "tap"
 ifname = "%s"
+script = "no"
+downscript = "no"
 
 [device "qemu_pcie5"]
 driver = "pcie-root-port"
