@@ -939,11 +939,16 @@ func containerConfigureInternal(c Instance) error {
 		defer c.StorageStop()
 	}
 
-	if c.Type() == instance.TypeContainer {
-		err = writeBackupFile(c)
+	if c.Type() == instance.TypeVM {
+		err := os.MkdirAll(c.Path(), 0100)
 		if err != nil {
 			return err
 		}
+	}
+
+	err = writeBackupFile(c)
+	if err != nil {
+		return err
 	}
 
 	return nil
