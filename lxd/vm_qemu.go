@@ -785,6 +785,7 @@ netdev = "lxd_eth0"
 mac = "%s"
 bus = "qemu_pcie5"
 addr = "0x0"
+bootindex = "2"
 `, nvramPath, monitorPath, vsockID, rootDrive, configISOPath, tapDev["tap"], tapDev["hwaddr"])
 	configPath := filepath.Join(vm.LogPath(), "qemu.conf")
 	return configPath, ioutil.WriteFile(configPath, []byte(conf), 0640)
