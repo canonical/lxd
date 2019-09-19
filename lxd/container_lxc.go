@@ -4066,9 +4066,11 @@ func writeBackupFile(c Instance) error {
 	}
 
 	// Ensure the container is currently mounted
-	if !shared.PathExists(c.RootfsPath()) {
-		logger.Debug("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name(), "project": c.Project()})
-		return nil
+	if c.Type() == instance.TypeContainer {
+		if !shared.PathExists(c.RootfsPath()) {
+			logger.Debug("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name(), "project": c.Project()})
+			return nil
+		}
 	}
 
 	// Write the YAML
