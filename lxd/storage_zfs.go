@@ -818,7 +818,7 @@ func (s *storageZfs) ContainerStorageReady(container Instance) bool {
 }
 
 func (s *storageZfs) ContainerCreate(container Instance) error {
-	err := s.doContainerCreate(container.Project(), container.Name(), container.IsPrivileged())
+	err := s.doContainerCreate(container.Project(), container.Name(), container.IsPrivileged(), container.Type())
 	if err != nil {
 		s.doContainerDelete(container.Project(), container.Name())
 		return err
@@ -1225,7 +1225,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 		}
 
 		// create the main container
-		err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
+		err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged(), target.Type())
 		if err != nil {
 			return err
 		}
@@ -2257,7 +2257,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 
 func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
-	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
+	err := s.doContainerCreate(info.Project, info.Name, info.Privileged, instance.TypeContainer)
 	if err != nil {
 		s.doContainerDelete(info.Project, info.Name)
 		return errors.Wrap(err, "Create container")

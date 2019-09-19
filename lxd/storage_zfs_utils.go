@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -812,7 +813,7 @@ func (s *storageZfs) doContainerDelete(projectName, name string) error {
 	return nil
 }
 
-func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool) error {
+func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool, instType instance.Type) error {
 	logger.Debugf("Creating empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerPath := shared.VarPath("containers", project.Prefix(projectName, name))
@@ -823,21 +824,29 @@ func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool
 	containerPoolVolumeMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	// Create volume.
-	msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none", "canmount=noauto")
-	if err != nil {
-		logger.Errorf("Failed to create ZFS storage volume for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
-		return err
-	}
+	if instType == instance.TypeVM {
+		msg, err := zfsPoolVolumeCreate(dataset, "10g")
+		if err != nil {
+			logger.Errorf("Failed to create ZFS storage volume \"%s\" on storage pool \"%s\": %s", dataset, s.pool.Name, msg)
+			return err
+		}
+	} else {
+		msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none", "canmount=noauto")
+		if err != nil {
+			logger.Errorf("Failed to create ZFS storage dataset for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
+			return err
+		}
 
-	// Set mountpoint.
-	err = zfsPoolVolumeSet(poolName, fs, "mountpoint", containerPoolVolumeMntPoint)
-	if err != nil {
-		return err
-	}
+		// Set mountpoint.
+		err = zfsPoolVolumeSet(poolName, fs, "mountpoint", containerPoolVolumeMntPoint)
+		if err != nil {
+			return err
+		}
 
-	err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
-	if err != nil {
-		return err
+		err = driver.CreateContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
+		if err != nil {
+			return err
+		}
 	}
 
 	logger.Debugf("Created empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
