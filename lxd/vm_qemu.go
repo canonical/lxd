@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
+	"github.com/mdlayher/vsock"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -1216,9 +1219,45 @@ func (vm *vmQemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 
 func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 	statusCode := vm.statusCode()
-	status := api.InstanceState{
+
+	status, err := vm.agentGetState()
+	if err == nil {
+		status.Status = statusCode.String()
+		status.StatusCode = statusCode
+
+		return status, nil
+
+	}
+
+	// At least return the Status and StatusCode if we couldn't get any
+	// information for the VM agent.
+	return &api.InstanceState{
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
+	}, nil
+}
+
+// agentGetState connects to the agent inside of the VM and does
+// an API call to get the current state.
+func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
+	var status api.InstanceState
+
+	client := http.Client{
+		Transport: &http.Transport{
+			Dial: func(network, addr string) (net.Conn, error) {
+				return vsock.Dial(uint32(vm.vsockID()), 8443)
+			},
+		},
+	}
+
+	resp, err := client.Get("http://vm.socket/state")
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return nil, err
 	}
 
 	return &status, nil
