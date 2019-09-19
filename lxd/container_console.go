@@ -236,7 +236,15 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 	}
 
 	consCmd := s.instance.Console(slave)
-	consCmd.Start()
+	if consCmd == nil {
+		return fmt.Errorf("Failed to start console")
+	}
+
+	err = consCmd.Start()
+	if err != nil {
+		return err
+	}
+
 	consolePidChan <- consCmd.Process.Pid
 	err = consCmd.Wait()
 	if err == nil {
