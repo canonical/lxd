@@ -36,6 +36,8 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
+var vmVsockTimeout time.Duration = time.Second
+
 func vmQemuLoad(s *state.State, args db.ContainerArgs, profiles []api.Profile) (Instance, error) {
 	// Create the container struct.
 	vm := vmQemuInstantiate(s, args)
@@ -276,7 +278,7 @@ func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), 2*time.Second)
+	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
 	if err != nil {
 		return err
 	}
@@ -321,6 +323,9 @@ func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 		<-chShutdown // Block until VM is not running if no timeout provided.
 	}
 
+	os.Remove(vm.pidFilePath())
+	os.Remove(vm.getMonitorPath())
+
 	return nil
 }
 
@@ -330,6 +335,8 @@ func (vm *vmQemu) Start(stateful bool) error {
 	if err != nil {
 		return err
 	}
+
+	pidFile := vm.DevicesPath() + "/qemu.pid"
 
 	configISOPath, err := vm.generateConfigDrive()
 	if err != nil {
@@ -408,7 +415,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return err
 	}
 
-	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile)
+	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", pidFile)
 	if err != nil {
 		return err
 	}
@@ -476,7 +483,7 @@ func (vm *vmQemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, 
 	}
 
 	if canHotPlug, _ := d.CanHotPlug(); isRunning && !canHotPlug {
-		return nil, fmt.Errorf("Device cannot be started when container is running")
+		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
 
 	runConf, err := d.Start()
@@ -783,13 +790,17 @@ addr = "0x0"
 	return configPath, ioutil.WriteFile(configPath, []byte(conf), 0640)
 }
 
+func (vm *vmQemu) pidFilePath() string {
+	return vm.DevicesPath() + "/qemu.pid"
+}
+
 func (vm *vmQemu) Stop(stateful bool) error {
 	if stateful {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), 2*time.Second)
+	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
 	if err != nil {
 		return err
 	}
@@ -805,6 +816,31 @@ func (vm *vmQemu) Stop(stateful bool) error {
 	if err != nil {
 		return err
 	}
+	monitor.Disconnect()
+
+	// Wait for qemu to stop.
+	for {
+		pid, err := ioutil.ReadFile(vm.pidFilePath())
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		// Check if qemu process still running, if so wait.
+		procPath := "/proc" + strings.TrimSpace(string(pid))
+		if shared.PathExists(procPath) {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
+		break
+	}
+
+	os.Remove(vm.pidFilePath())
+	os.Remove(vm.getMonitorPath())
 
 	return nil
 }
@@ -983,7 +1019,7 @@ func (vm *vmQemu) Delete() error {
 	}
 
 	if vm.IsSnapshot() {
-		// Remove the snapshot
+		// Remove the snapshot.
 		if vm.storage != nil && !isImport {
 			err := vm.storage.ContainerSnapshotDelete(vm)
 			if err != nil {
@@ -992,14 +1028,14 @@ func (vm *vmQemu) Delete() error {
 			}
 		}
 	} else {
-		// Remove all snapshots
+		// Remove all snapshots.
 		err := containerDeleteSnapshots(vm.state, vm.Project(), vm.Name())
 		if err != nil {
 			logger.Warn("Failed to delete snapshots", log.Ctx{"name": vm.Name(), "err": err})
 			return err
 		}
 
-		// Remove all backups
+		// Remove all backups.
 		backups, err := vm.Backups()
 		if err != nil {
 			return err
@@ -1012,10 +1048,10 @@ func (vm *vmQemu) Delete() error {
 			}
 		}
 
-		// Clean things up
+		// Clean things up.
 		vm.cleanup()
 
-		// Delete the container from disk
+		// Delete the container from disk.
 		if vm.storage != nil && !isImport {
 			err := vm.storage.ContainerDelete(vm)
 			if err != nil {
@@ -1024,7 +1060,7 @@ func (vm *vmQemu) Delete() error {
 			}
 		}
 
-		// Delete the MAAS entry
+		// Delete the MAAS entry.
 		err = vm.maasDelete()
 		if err != nil {
 			logger.Error("Failed deleting container MAAS record", log.Ctx{"name": vm.Name(), "err": err})
@@ -1151,7 +1187,7 @@ func (vm *vmQemu) FileRemove(path string) error {
 
 func (vm *vmQemu) Console(terminal *os.File) *exec.Cmd {
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), 2*time.Second)
+	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
 	if err != nil {
 		return nil // The VM isn't running as no monitor socket available.
 	}
@@ -1370,6 +1406,7 @@ func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
 
 func (vm *vmQemu) IsRunning() bool {
 	state := vm.State()
+	logger.Errorf("tomp isrunning %s", state)
 	return state != "BROKEN" && state != "STOPPED"
 }
 
@@ -1488,7 +1525,7 @@ func (vm *vmQemu) InitPID() int {
 
 func (vm *vmQemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), 2*time.Second)
+	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
 	if err != nil {
 		return api.Stopped // The VM isn't running as no monitor socket available.
 	}
