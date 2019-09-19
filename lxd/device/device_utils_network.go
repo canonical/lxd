@@ -330,6 +330,12 @@ func networkCreateTap(hostName string) error {
 		return fmt.Errorf("Failed to create the tap interfaces %s: %v", hostName, err)
 	}
 
+	_, err = shared.RunCommand("ip", "link", "set", "dev", hostName, "up")
+	if err != nil {
+		NetworkRemoveInterface(hostName)
+		return fmt.Errorf("Failed to bring up the tap interface %s: %v", hostName, err)
+	}
+
 	return nil
 }
 
