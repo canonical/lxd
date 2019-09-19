@@ -496,7 +496,7 @@ func (vm *vmQemu) generateQemuConfigFile(tapDev map[string]string) (string, erro
 	configDrive := "/home/user/Downloads/vm/config.iso"
 	monitorPath := vm.getMonitorPath()
 	nvramPath := vm.getNvramPath()
-	vsockID := vm.Id() + 3 // 3 is the first vsock ID that can be used.
+	vsockID := vm.vsockID()
 
 	conf := fmt.Sprintf(`
 # Machine
@@ -1251,6 +1251,12 @@ func (vm *vmQemu) DeviceEventHandler(runConf *device.RunConfig) error {
 
 func (vm *vmQemu) Id() int {
 	return vm.id
+}
+
+// vsockID returns the vsock context ID, 3 being the first ID that
+// can be used.
+func (vm *vmQemu) vsockID() int {
+	return vm.id + 3
 }
 
 func (vm *vmQemu) Location() string {
