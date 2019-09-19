@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/mdlayher/vsock"
+	"github.com/linuxkit/virtsock/pkg/vsock"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 	r.HandleFunc("/state", stateHandler)
 	http.Handle("/", r)
 
-	l, err := vsock.Listen(8443)
+	l, err := vsock.Listen(vsock.CIDAny, 8443)
 	if err != nil {
 		log.Fatal(err)
 	}
