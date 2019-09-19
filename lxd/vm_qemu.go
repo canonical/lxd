@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
-	"github.com/mdlayher/vsock"
+	"github.com/linuxkit/virtsock/pkg/vsock"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
