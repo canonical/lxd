@@ -449,11 +449,8 @@ func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name
 	}
 
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
-	if ct.Ephemeral {
-		fmt.Printf(i18n.G("Type: ephemeral") + "\n")
-	} else {
-		fmt.Printf(i18n.G("Type: persistent") + "\n")
-	}
+	fmt.Printf(i18n.G("Type: %s")+"\n", ct.Type)
+
 	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
 	if cs.Pid != 0 {
 		fmt.Printf(i18n.G("Pid: %d")+"\n", cs.Pid)

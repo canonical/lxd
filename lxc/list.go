@@ -620,11 +620,7 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 }
 
 func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
-	if cInfo.Ephemeral {
-		return i18n.G("EPHEMERAL")
-	}
-
-	return i18n.G("PERSISTENT")
+	return i18n.G(strings.ToUpper(cInfo.Type))
 }
 
 func (c *cmdList) numberSnapshotsColumnData(cInfo api.InstanceFull) string {
