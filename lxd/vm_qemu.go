@@ -331,6 +331,11 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return err
 	}
 
+	configISOPath, err := vm.generateConfigDrive()
+	if err != nil {
+		return err
+	}
+
 	err = os.MkdirAll(vm.LogPath(), 0700)
 	if err != nil {
 		return err
@@ -398,7 +403,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		}
 	}
 
-	confFile, err := vm.generateQemuConfigFile(tapDev)
+	confFile, err := vm.generateQemuConfigFile(configISOPath, tapDev)
 	if err != nil {
 		return err
 	}
@@ -490,13 +495,112 @@ func (vm *vmQemu) getNvramPath() string {
 	return vm.DevicesPath() + "/qemu.nvram"
 }
 
+func (vm *vmQemu) generateConfigDrive() (string, error) {
+	configDrivePath := vm.Path() + "/config"
+
+	// Create config drive dir.
+	err := os.MkdirAll(configDrivePath, 0100)
+	if err != nil {
+		return "", err
+	}
+
+	path, err := exec.LookPath("vm-agent")
+	if err != nil {
+		return "", err
+	}
+
+	// Install agent into config drive dir.
+	_, err = shared.RunCommand("cp", path, configDrivePath+"/")
+	if err != nil {
+		return "", err
+	}
+
+	vendorData := `#cloud-config
+runcmd:
+ - "mkdir /media/lxd_config"
+ - "mount -o ro -t iso9660 /dev/disk/by-label/cidata /media/lxd_config"
+ - "cp /media/lxd_config/media-lxd_config.mount /etc/systemd/system/"
+ - "cp /media/lxd_config/lxd-agent.service /etc/systemd/system/"
+ - "systemctl enable media-lxd_config.mount"
+ - "systemctl enable lxd-agent.service"
+ - "systemctl start lxd-agent"
+`
+
+	err = ioutil.WriteFile(configDrivePath+"/vendor-data", []byte(vendorData), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	if vm.expandedConfig["user.user-data"] != "" {
+		err = ioutil.WriteFile(configDrivePath+"/user-data", []byte(vm.expandedConfig["user.user-data"]), 0600)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	metaData := fmt.Sprintf(`instance-id: %s
+local-hostname: %s
+`, vm.Name(), vm.Name())
+
+	err = ioutil.WriteFile(configDrivePath+"/meta-data", []byte(metaData), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	lxdAgentServiceUnit := `[Unit]
+Description=LXD - agent
+After=media-lxd_config.mount
+
+[Service]
+Type=simple
+ExecStart=/media/lxd_config/vm-agent
+
+[Install]
+WantedBy=multi-user.target
+`
+
+	err = ioutil.WriteFile(configDrivePath+"/lxd-agent.service", []byte(lxdAgentServiceUnit), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	lxdConfigDriveMountUnit := `[Unit]
+Description = LXD - config drive
+Before=local-fs.target
+
+[Mount]
+Where=/media/lxd_config
+What=/dev/disk/by-label/cidata
+Type=iso9660
+
+[Install]
+WantedBy=multi-user.target
+`
+
+	err = ioutil.WriteFile(configDrivePath+"/media-lxd_config.mount", []byte(lxdConfigDriveMountUnit), 0600)
+	if err != nil {
+		return "", err
+	}
+
+	// Finally convert the config drive dir into an ISO file. The cidata label is important
+	// as this is what cloud-init uses to detect, mount the drive and run the cloud-init
+	// templates on first boot. The vendor-data template then modifies the system so that the
+	// config drive is mounted and the agent is started on subsequent boots.
+	isoPath := vm.Path() + "/config.iso"
+	_, err = shared.RunCommand("mkisofs", "-R", "-V", "cidata", "-o", isoPath, configDrivePath)
+	if err != nil {
+		return "", err
+	}
+
+	return isoPath, nil
+}
+
 // generateQemuConfigFile writes the qemu config file.
-func (vm *vmQemu) generateQemuConfigFile(tapDev map[string]string) (string, error) {
+func (vm *vmQemu) generateQemuConfigFile(configISOPath string, tapDev map[string]string) (string, error) {
 	_, _, onDiskPoolName := vm.storage.GetContainerPoolInfo()
 	volumeName := project.Prefix(vm.Project(), vm.Name())
 	// TODO add function to the storage API to get block device path.
 	rootDrive := fmt.Sprintf("/dev/zvol/%s/containers/%s", onDiskPoolName, volumeName)
-	configDrive := "/home/user/Downloads/vm/config.iso"
 	monitorPath := vm.getMonitorPath()
 	nvramPath := vm.getNvramPath()
 	vsockID := vm.vsockID()
@@ -674,7 +778,7 @@ netdev = "lxd_eth0"
 mac = "%s"
 bus = "qemu_pcie5"
 addr = "0x0"
-`, nvramPath, monitorPath, vsockID, rootDrive, configDrive, tapDev["tap"], tapDev["hwaddr"])
+`, nvramPath, monitorPath, vsockID, rootDrive, configISOPath, tapDev["tap"], tapDev["hwaddr"])
 	configPath := filepath.Join(vm.LogPath(), "qemu.conf")
 	return configPath, ioutil.WriteFile(configPath, []byte(conf), 0640)
 }
