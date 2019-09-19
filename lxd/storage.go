@@ -625,9 +625,21 @@ func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName s
 	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
-func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, storageTypeName string) error {
-	if shared.PathExists(mountPointSymlink) {
-		err := os.Remove(mountPointSymlink)
+func deleteContainerMountpoint(mountPoint string, mountPointPath string, storageTypeName string) error {
+	fileInfo, err := os.Lstat(mountPointPath)
+	if !os.IsNotExist(err) {
+		if err != nil {
+			return err
+		}
+
+		if fileInfo.IsDir() {
+			// Remove directory if mountPointPath is a directory (used for VMs).
+			err = os.RemoveAll(mountPointPath)
+		} else {
+			// Remove symlink to storage pool mount point (used for containers).
+			err = os.Remove(mountPointPath)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -645,8 +657,7 @@ func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, stor
 	}
 
 	mntPointSuffix := storageTypeName
-	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointSymlink,
-		mntPointSuffix)
+	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointPath, mntPointSuffix)
 	if shared.PathExists(oldStyleMntPointSymlink) {
 		err := os.Remove(oldStyleMntPointSymlink)
 		if err != nil {
