@@ -680,7 +680,7 @@ func (vm *vmQemu) generateQemuConfigFile(configISOPath string, tapDev map[string
 	_, _, onDiskPoolName := vm.storage.GetContainerPoolInfo()
 	volumeName := project.Prefix(vm.Project(), vm.Name())
 	// TODO add function to the storage API to get block device path and return as disk device runConf.
-	rootDrive := fmt.Sprintf("/dev/zvol/%s/containers/%s", onDiskPoolName, volumeName)
+	rootDrive := fmt.Sprintf("/dev/zvol/%s/virtual-machines/%s", onDiskPoolName, volumeName)
 	monitorPath := vm.getMonitorPath()
 	nvramPath := vm.getNvramPath()
 	vsockID := vm.vsockID()
