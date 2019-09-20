@@ -545,11 +545,16 @@ runcmd:
 		return "", err
 	}
 
-	if vm.expandedConfig["user.user-data"] != "" {
-		err = ioutil.WriteFile(configDrivePath+"/user-data", []byte(vm.expandedConfig["user.user-data"]), 0600)
-		if err != nil {
-			return "", err
-		}
+	userData := vm.expandedConfig["user.user-data"]
+
+	// Use an empty user-data file if no custom user-data supplied.
+	if userData == "" {
+		userData = "#cloud-config"
+	}
+
+	err = ioutil.WriteFile(configDrivePath+"/user-data", []byte(userData), 0600)
+	if err != nil {
+		return "", err
 	}
 
 	metaData := fmt.Sprintf(`instance-id: %s
