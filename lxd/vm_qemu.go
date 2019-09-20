@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -330,8 +331,14 @@ func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 }
 
 func (vm *vmQemu) Start(stateful bool) error {
+	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
+	err := util.LoadModule("vhost_vsock")
+	if err != nil {
+		return err
+	}
+
 	// Create any missing directories.
-	err := os.MkdirAll(vm.Path(), 0100)
+	err = os.MkdirAll(vm.Path(), 0100)
 	if err != nil {
 		return err
 	}
@@ -1384,6 +1391,12 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 // an API call to get the current state.
 func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
 	var status api.InstanceState
+
+	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
+	err := util.LoadModule("vhost_vsock")
+	if err != nil {
+		return nil, err
+	}
 
 	client := http.Client{
 		Transport: &http.Transport{
