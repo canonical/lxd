@@ -2864,11 +2864,20 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	// Load the go-lxc struct
-	err = c.initLXC(false)
-	if err != nil {
-		op.Done(err)
-		logger.Error("Failed stopping container", ctxMap)
-		return err
+	if c.expandedConfig["raw.lxc"] != "" {
+		err = c.initLXC(true)
+		if err != nil {
+			op.Done(err)
+			logger.Error("Failed stopping container", ctxMap)
+			return err
+		}
+	} else {
+		err = c.initLXC(false)
+		if err != nil {
+			op.Done(err)
+			logger.Error("Failed stopping container", ctxMap)
+			return err
+		}
 	}
 
 	// Fork-bomb mitigation, prevent forking from this point on
@@ -2935,11 +2944,20 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	logger.Info("Shutting down container", ctxMap)
 
 	// Load the go-lxc struct
-	err = c.initLXC(false)
-	if err != nil {
-		op.Done(err)
-		logger.Error("Failed shutting down container", ctxMap)
-		return err
+	if c.expandedConfig["raw.lxc"] != "" {
+		err = c.initLXC(true)
+		if err != nil {
+			op.Done(err)
+			logger.Error("Failed stopping container", ctxMap)
+			return err
+		}
+	} else {
+		err = c.initLXC(false)
+		if err != nil {
+			op.Done(err)
+			logger.Error("Failed stopping container", ctxMap)
+			return err
+		}
 	}
 
 	if err := c.c.Shutdown(timeout); err != nil {
