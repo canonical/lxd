@@ -324,6 +324,7 @@ func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 		<-chShutdown // Block until VM is not running if no timeout provided.
 	}
 
+	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
 
@@ -337,6 +338,10 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return err
 	}
 
+	if vm.IsRunning() {
+		return fmt.Errorf("The instance is already running")
+	}
+
 	// Create any missing directories.
 	err = os.MkdirAll(vm.Path(), 0100)
 	if err != nil {
@@ -344,7 +349,6 @@ func (vm *vmQemu) Start(stateful bool) error {
 	}
 
 	pidFile := vm.DevicesPath() + "/qemu.pid"
-
 	configISOPath, err := vm.generateConfigDrive()
 	if err != nil {
 		return err
@@ -392,10 +396,6 @@ func (vm *vmQemu) Start(stateful bool) error {
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dev := range vm.expandedDevices.Sorted() {
-		if dev.Config["nictype"] != "bridged" {
-			continue
-		}
-
 		// Start the device.
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
@@ -499,6 +499,66 @@ func (vm *vmQemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, 
 	}
 
 	return runConf, nil
+}
+
+// deviceStop loads a new device and calls its Stop() function.
+func (vm *vmQemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
+	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+
+	// If deviceLoad fails with unsupported device type then return.
+	if err == device.ErrUnsupportedDevType {
+		return err
+	}
+
+	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
+	// scenario that a new version of LXD has additional validation restrictions than older
+	// versions we still need to allow previously valid devices to be stopped.
+	if err != nil {
+		// If there is no device returned, then we cannot proceed, so return as error.
+		if d == nil {
+			return fmt.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+
+		}
+
+		logger.Errorf("Device stop validation failed for '%s': %v", deviceName, err)
+	}
+
+	canHotPlug, _ := d.CanHotPlug()
+
+	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
+	if vm.IsRunning() && !canHotPlug {
+		return fmt.Errorf("Device cannot be stopped when container is running")
+	}
+
+	runConf, err := d.Stop()
+	if err != nil {
+		return err
+	}
+
+	if runConf != nil {
+		// Run post stop hooks irrespective of run state of instance.
+		err = vm.runHooks(runConf.PostHooks)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// runHooks executes the callback functions returned from a function.
+func (vm *vmQemu) runHooks(hooks []func() error) error {
+	// Run any post start hooks.
+	if len(hooks) > 0 {
+		for _, hook := range hooks {
+			err := hook()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (vm *vmQemu) getMonitorPath() string {
@@ -618,7 +678,7 @@ WantedBy=multi-user.target
 func (vm *vmQemu) generateQemuConfigFile(configISOPath string, tapDev map[string]string) (string, error) {
 	_, _, onDiskPoolName := vm.storage.GetContainerPoolInfo()
 	volumeName := project.Prefix(vm.Project(), vm.Name())
-	// TODO add function to the storage API to get block device path.
+	// TODO add function to the storage API to get block device path and return as disk device runConf.
 	rootDrive := fmt.Sprintf("/dev/zvol/%s/containers/%s", onDiskPoolName, volumeName)
 	monitorPath := vm.getMonitorPath()
 	nvramPath := vm.getNvramPath()
@@ -814,6 +874,10 @@ func (vm *vmQemu) Stop(stateful bool) error {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
 	}
 
+	if !vm.IsRunning() {
+		return fmt.Errorf("Instance is not running")
+	}
+
 	// Connect to the monitor.
 	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
 	if err != nil {
@@ -854,6 +918,7 @@ func (vm *vmQemu) Stop(stateful bool) error {
 		break
 	}
 
+	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
 
@@ -961,6 +1026,19 @@ func (vm *vmQemu) cleanup() {
 
 	// Remove the shmounts path
 	os.RemoveAll(vm.ShmountsPath())
+}
+
+// cleanupDevices performs any needed device cleanup steps when instance is stopped.
+func (vm *vmQemu) cleanupDevices() {
+	for _, dev := range vm.expandedDevices.Sorted() {
+		// Use the device interface if device supports it.
+		err := vm.deviceStop(dev.Name, dev.Config)
+		if err == device.ErrUnsupportedDevType {
+			continue
+		} else if err != nil {
+			logger.Errorf("Failed to stop device '%s': %v", dev.Name, err)
+		}
+	}
 }
 
 func (vm *vmQemu) init() error {
