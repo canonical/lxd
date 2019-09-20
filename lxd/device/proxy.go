@@ -126,14 +126,14 @@ func (d *proxy) validateEnvironment() error {
 	return nil
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to the instance.
 func (d *proxy) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
 	}
 
-	// Proxy devices have to be setup once the container is running.
+	// Proxy devices have to be setup once the instance is running.
 	runConf := RunConfig{}
 	runConf.PostHooks = []func() error{
 		func() error {

@@ -1266,7 +1266,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				continue
 			}
 
-			// Check if the container is running
+			// Check if the instance is running.
 			if !shared.IsTrue(c.ExpandedConfig()["snapshots.schedule.stopped"]) && !c.IsRunning() {
 				continue
 			}

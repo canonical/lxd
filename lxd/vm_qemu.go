@@ -527,7 +527,7 @@ func (vm *vmQemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) e
 
 	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
 	if vm.IsRunning() && !canHotPlug {
-		return fmt.Errorf("Device cannot be stopped when container is running")
+		return fmt.Errorf("Device cannot be stopped when instance is running")
 	}
 
 	runConf, err := d.Stop()

@@ -49,7 +49,7 @@ func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert 
 		return nil, err
 	}
 	if address == "" {
-		// The container is running right on this node, no need to connect.
+		// The instance is running right on this node, no need to connect.
 		return nil, nil
 	}
 	return Connect(address, cert, false)

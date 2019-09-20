@@ -185,7 +185,7 @@ snap_restore() {
     # see comment above about snap0
     restore_and_compare_fs snap0
 
-    # check container is running after restore
+    # check instance is running after restore
     lxc list | grep bar | grep RUNNING
   fi
 

@@ -188,7 +188,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q node2
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep foo | grep -q STOPPED
 
-  # A Location: field indicates on which node the container is running
+  # A Location: field indicates on which node the instance is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node2"
 
   # Start the container via node1

@@ -375,7 +375,7 @@ test_basic_usage() {
   fi
 
   lxc launch testimage deleterunning
-  my_curl -X DELETE "https://${LXD_ADDR}/1.0/containers/deleterunning" | grep "container is running"
+  my_curl -X DELETE "https://${LXD_ADDR}/1.0/containers/deleterunning" | grep "instance is running"
   lxc delete deleterunning -f
 
   # cleanup
