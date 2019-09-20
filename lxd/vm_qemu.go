@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -869,6 +870,24 @@ func (vm *vmQemu) pidFilePath() string {
 	return vm.DevicesPath() + "/qemu.pid"
 }
 
+func (vm *vmQemu) pid() (int, error) {
+	pidStr, err := ioutil.ReadFile(vm.pidFilePath())
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+
+	if err != nil {
+		return -1, err
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidStr)))
+	if err != nil {
+		return -1, err
+	}
+
+	return pid, nil
+}
+
 func (vm *vmQemu) Stop(stateful bool) error {
 	if stateful {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
@@ -897,19 +916,19 @@ func (vm *vmQemu) Stop(stateful bool) error {
 	}
 	monitor.Disconnect()
 
-	// Wait for qemu to stop.
+	pid, err := vm.pid()
+	if err != nil {
+		return err
+	}
+
+	// No PID found, qemu not running.
+	if pid < 0 {
+		return nil
+	}
+
+	// Check if qemu process still running, if so wait.
 	for {
-		pid, err := ioutil.ReadFile(vm.pidFilePath())
-		if os.IsNotExist(err) {
-			return nil
-		}
-
-		if err != nil {
-			return err
-		}
-
-		// Check if qemu process still running, if so wait.
-		procPath := "/proc" + strings.TrimSpace(string(pid))
+		procPath := fmt.Sprintf("/proc/%d", pid)
 		if shared.PathExists(procPath) {
 			time.Sleep(500 * time.Millisecond)
 			continue
@@ -1452,19 +1471,21 @@ func (vm *vmQemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 
 func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 	statusCode := vm.statusCode()
+	pid, _ := vm.pid()
 
 	status, err := vm.agentGetState()
 	if err == nil {
+		status.Pid = int64(pid)
 		status.Status = statusCode.String()
 		status.StatusCode = statusCode
 
 		return status, nil
-
 	}
 
 	// At least return the Status and StatusCode if we couldn't get any
 	// information for the VM agent.
 	return &api.InstanceState{
+		Pid:        int64(pid),
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}, nil
@@ -1618,7 +1639,8 @@ func (vm *vmQemu) Profiles() []string {
 }
 
 func (vm *vmQemu) InitPID() int {
-	return -1
+	pid, _ := vm.pid()
+	return pid
 }
 
 func (vm *vmQemu) statusCode() api.StatusCode {
