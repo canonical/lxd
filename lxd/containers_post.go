@@ -116,9 +116,15 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 			if err != nil {
 				return err
 			}
+
+			imgType := "container"
+			if req.Type == "virtual-machine" {
+				imgType = "virtual-machine"
+			}
+
 			info, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
-				req.Source.Secret, hash, "container", true, autoUpdate, "", true, project)
+				req.Source.Secret, hash, imgType, true, autoUpdate, "", true, project)
 			if err != nil {
 				return err
 			}
