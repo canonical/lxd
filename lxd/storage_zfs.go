@@ -167,8 +167,12 @@ func (s *storageZfs) zfsPoolCreate() error {
 
 	zpoolName := s.getOnDiskPoolName()
 	vdev := s.pool.Config["source"]
+	vmZvolSync := true // Virtual machine zvol syncing is enabled by default.
 	defaultVdev := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
 	if vdev == "" || vdev == defaultVdev {
+		vmZvolSync = false // Disable zvol sync if using loopback image to avoid kernal hangs.
+		logger.Warnf("ZFS pool syncing disabled due to use of loopback image to avoid kernel hangs")
+
 		vdev = defaultVdev
 		s.pool.Config["source"] = vdev
 
@@ -263,11 +267,15 @@ func (s *storageZfs) zfsPoolCreate() error {
 		}
 	}
 
+	// Although the parent data set will get these same options, each individual data set is
+	// created with these settings as a "belt and braces" approach to avoid accidents.
+	defaultArgs := []string{"mountpoint=none"}
+
 	// Create default dummy datasets to avoid zfs races during container
 	// creation.
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/containers", poolName)
-	msg, err := zfsPoolDatasetCreate(dataset, "mountpoint=none")
+	msg, err := zfsPoolDatasetCreate(dataset, defaultArgs...)
 	if err != nil {
 		logger.Errorf("Failed to create containers dataset: %s", msg)
 		return err
@@ -284,8 +292,26 @@ func (s *storageZfs) zfsPoolCreate() error {
 		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(driver.ContainersDirMode), 8), err)
 	}
 
+	dataset = fmt.Sprintf("%s/virtual-machines", poolName)
+	vmArgs := append(defaultArgs[:0:0], defaultArgs...)
+
+	// Create VM data sets with volmode=dev so that partitions inside zvols are not enumerated
+	// as devices on the host.
+	vmArgs = append(vmArgs, "volmode=dev")
+
+	// Disable zvol syncing is requested to avoid kernel hangs.
+	if !vmZvolSync {
+		vmArgs = append(vmArgs, "sync=disabled")
+	}
+
+	msg, err = zfsPoolDatasetCreate(dataset, vmArgs...)
+	if err != nil {
+		logger.Errorf("Failed to create virtual-machine dataset: %s", msg)
+		return err
+	}
+
 	dataset = fmt.Sprintf("%s/images", poolName)
-	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, defaultArgs...)
 	if err != nil {
 		logger.Errorf("Failed to create images dataset: %s", msg)
 		return err
@@ -302,7 +328,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/custom", poolName)
-	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, defaultArgs...)
 	if err != nil {
 		logger.Errorf("Failed to create custom dataset: %s", msg)
 		return err
@@ -319,14 +345,14 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/deleted", poolName)
-	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, defaultArgs...)
 	if err != nil {
 		logger.Errorf("Failed to create deleted dataset: %s", msg)
 		return err
 	}
 
 	dataset = fmt.Sprintf("%s/snapshots", poolName)
-	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, defaultArgs...)
 	if err != nil {
 		logger.Errorf("Failed to create snapshots dataset: %s", msg)
 		return err
@@ -343,7 +369,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 	}
 
 	dataset = fmt.Sprintf("%s/custom-snapshots", poolName)
-	msg, err = zfsPoolDatasetCreate(dataset, "mountpoint=none")
+	msg, err = zfsPoolDatasetCreate(dataset, defaultArgs...)
 	if err != nil {
 		logger.Errorf("Failed to create snapshots dataset: %s", msg)
 		return err
@@ -820,7 +846,7 @@ func (s *storageZfs) ContainerStorageReady(container Instance) bool {
 func (s *storageZfs) ContainerCreate(container Instance) error {
 	err := s.doContainerCreate(container.Project(), container.Name(), container.IsPrivileged(), container.Type())
 	if err != nil {
-		s.doContainerDelete(container.Project(), container.Name())
+		s.doContainerDelete(container.Project(), container.Name(), container.Type())
 		return err
 	}
 
@@ -843,7 +869,7 @@ func (s *storageZfs) ContainerCreate(container Instance) error {
 }
 
 func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
-	logger.Debugf("Creating ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	logger.Debugf("Creating ZFS storage volume for instance \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerPath := container.Path()
 	containerName := container.Name()
@@ -884,6 +910,7 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 
 	if container.Type() == instance.TypeVM {
 		containerPoolVolumeMntPoint = "" // No mount point for VMs.
+		fs = fmt.Sprintf("virtual-machines/%s", volumeName)
 	}
 
 	err := zfsPoolVolumeClone(container.Project(), poolName, fsImage, "readonly", fs, containerPoolVolumeMntPoint)
@@ -922,12 +949,12 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 
 	revert = false
 
-	logger.Debugf("Created ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	logger.Debugf("Created ZFS storage volume for instance \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) ContainerDelete(container Instance) error {
-	err := s.doContainerDelete(container.Project(), container.Name())
+	err := s.doContainerDelete(container.Project(), container.Name(), container.Type())
 	if err != nil {
 		return err
 	}
@@ -2259,7 +2286,7 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 	// create the main container
 	err := s.doContainerCreate(info.Project, info.Name, info.Privileged, instance.TypeContainer)
 	if err != nil {
-		s.doContainerDelete(info.Project, info.Name)
+		s.doContainerDelete(info.Project, info.Name, instance.TypeContainer)
 		return errors.Wrap(err, "Create container")
 	}
 

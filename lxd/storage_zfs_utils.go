@@ -725,12 +725,16 @@ func (s *storageZfs) doContainerMount(projectName, name string, privileged bool)
 	return ourMount, nil
 }
 
-func (s *storageZfs) doContainerDelete(projectName, name string) error {
-	logger.Debugf("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+func (s *storageZfs) doContainerDelete(projectName, name string, instanceType instance.Type) error {
+	logger.Debugf("Deleting ZFS storage volume for instance \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
 	containerName := name
 	fs := fmt.Sprintf("containers/%s", project.Prefix(projectName, containerName))
+	if instanceType == instance.TypeVM {
+		fs = fmt.Sprintf("virtual-machines/%s", project.Prefix(projectName, containerName))
+	}
+
 	containerPoolVolumeMntPoint := driver.GetContainerMountPoint(projectName, s.pool.Name, containerName)
 
 	if zfsFilesystemEntityExists(poolName, fs) {
@@ -809,7 +813,7 @@ func (s *storageZfs) doContainerDelete(projectName, name string) error {
 		}
 	}
 
-	logger.Debugf("Deleted ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleted ZFS storage volume for instance \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
