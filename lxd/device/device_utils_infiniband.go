@@ -117,12 +117,12 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 // infinibandValidMAC validates an infiniband MAC address. Supports both short and long variants,
 // e.g. "4a:c8:f9:1b:aa:57:ef:19" and "a0:00:0f:c0:fe:80:00:00:00:00:00:00:4a:c8:f9:1b:aa:57:ef:19".
 func infinibandValidMAC(value string) error {
-	regexHwaddrLong, err := regexp.Compile("^([0-9a-f]{2}:){19}[0-9a-f]{2}$")
+	regexHwaddrLong, err := regexp.Compile("^([0-9a-fA-F]{2}:){19}[0-9a-fA-F]{2}$")
 	if err != nil {
 		return err
 	}
 
-	regexHwaddrShort, err := regexp.Compile("^([0-9a-f]{2}:){7}[0-9a-f]{2}$")
+	regexHwaddrShort, err := regexp.Compile("^([0-9a-fA-F]{2}:){7}[0-9a-fA-F]{2}$")
 	if err != nil {
 		return err
 	}
