@@ -306,6 +306,12 @@ CREATE TABLE nodes (
     UNIQUE (name),
     UNIQUE (address)
 );
+CREATE TABLE nodes_roles (
+    node_id INTEGER NOT NULL,
+    role INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    UNIQUE (node_id, role)
+);
 CREATE TABLE "operations" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     uuid TEXT NOT NULL,
@@ -481,5 +487,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (17, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (18, strftime("%s"))
 `
