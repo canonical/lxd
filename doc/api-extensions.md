@@ -838,3 +838,7 @@ Extends the disk resource API struct to include:
  - Block size
  - Firmware version
  - Serial number
+
+## clustering\_roles
+This adds a new `roles` attribute to cluster entries, exposing a list of
+roles that the member serves in the cluster.
