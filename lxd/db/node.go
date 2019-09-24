@@ -13,6 +13,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ClusterRoles maps role ids into human-readable names.
+var ClusterRoles = map[int]string{
+	0: "database",
+}
+
 // NodeInfo holds information about a single LXD instance in a cluster.
 type NodeInfo struct {
 	ID            int64     // Stable node identifier
@@ -22,6 +27,7 @@ type NodeInfo struct {
 	Schema        int       // Schema version of the LXD code running the node
 	APIExtensions int       // Number of API extensions of the LXD code running on the node
 	Heartbeat     time.Time // Timestamp of the last heartbeat
+	Roles         []string  // List of cluster roles
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -207,6 +213,39 @@ func (c *ClusterTx) NodeRename(old, new string) error {
 
 // Nodes returns all LXD nodes part of the cluster.
 func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]NodeInfo, error) {
+	// Get node roles
+	sql := "SELECT node_id, role FROM nodes_roles;"
+
+	rows, err := c.tx.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodeRoles := map[int64][]string{}
+	for i := 0; rows.Next(); i++ {
+		var nodeID int64
+		var role int
+		err := rows.Scan(&nodeID, &role)
+		if err != nil {
+			return nil, err
+		}
+
+		if nodeRoles[nodeID] == nil {
+			nodeRoles[nodeID] = []string{}
+		}
+
+		roleName := ClusterRoles[role]
+
+		nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	// Process node entries
 	nodes := []NodeInfo{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, NodeInfo{})
@@ -225,21 +264,33 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	} else {
 		args = append([]interface{}{0}, args...)
 	}
-	sql := `
-SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes WHERE pending=? `
+
+	// Get the node entries
+	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes WHERE pending=?"
 	if where != "" {
 		sql += fmt.Sprintf("AND %s ", where)
 	}
 	sql += "ORDER BY id"
+
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
+
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch nodes")
 	}
+
+	// Add the roles
+	for i, node := range nodes {
+		roles, ok := nodeRoles[node.ID]
+		if ok {
+			nodes[i].Roles = roles
+		}
+	}
+
 	return nodes, nil
 }
 

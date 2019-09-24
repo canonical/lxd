@@ -798,6 +798,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 		result[i].ServerName = node.Name
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
 		result[i].Database = shared.StringInSlice(node.Address, addresses)
+		result[i].Roles = node.Roles
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
 			result[i].Message = fmt.Sprintf(
