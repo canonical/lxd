@@ -353,7 +353,7 @@ func networkSetupHostVethDevice(device config.Device, oldDevice config.Device, v
 			oldDevice["host_name"] = v["host_name"]
 		}
 
-		// If not configured, copy the volatile host_name into old device to support live updates.
+		// If not configured, copy the volatile hwaddr into old device to support live updates.
 		if oldDevice["hwaddr"] == "" {
 			oldDevice["hwaddr"] = v["hwaddr"]
 		}
