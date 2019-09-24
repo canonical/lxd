@@ -31,6 +31,7 @@ var ConfigMutex sync.Mutex
 
 // UpdateStaticEntry writes a single dhcp-host line for a network/instance combination.
 func UpdateStaticEntry(network string, projectName string, instanceName string, netConfig map[string]string, hwaddr string, ipv4Address string, ipv6Address string) error {
+	hwaddr = strings.ToLower(hwaddr)
 	line := hwaddr
 
 	// Generate the dhcp-host line
