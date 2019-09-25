@@ -818,16 +818,3 @@ func (s *storageZfs) doContainerCreate(projectName, name string, privileged bool
 	logger.Debugf("Created empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
-
-func zfsIdmapSetSkipper(dir string, absPath string, fi os.FileInfo) bool {
-	strippedPath := absPath
-	if dir != "" {
-		strippedPath = absPath[len(dir):]
-	}
-
-	if fi.IsDir() && strippedPath == "/.zfs/snapshot" {
-		return true
-	}
-
-	return false
-}
