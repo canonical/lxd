@@ -26,6 +26,10 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+func init() {
+	instance.DevLXDEventSend = devlxdEventSend
+}
+
 // DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
 func DevLxdServer(d *Daemon) *http.Server {
