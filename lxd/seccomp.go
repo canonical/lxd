@@ -6,12 +6,10 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -19,12 +17,12 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
-	"github.com/lxc/lxd/shared/osarch"
 )
 
 /*
@@ -498,7 +496,7 @@ func CallForkmknod(c container, dev config.Device, requestPID int) int {
 		return int(-C.EPERM)
 	}
 
-	err, uid, gid, fsuid, fsgid := taskIds(requestPID)
+	err, uid, gid, fsuid, fsgid := instance.TaskIDs(requestPID)
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -671,7 +669,7 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 	args := SetxattrArgs{}
 
 	args.pid = int(siov.req.pid)
-	err, uid, gid, fsuid, fsgid := taskIds(args.pid)
+	err, uid, gid, fsuid, fsgid := instance.TaskIDs(args.pid)
 	if err != nil {
 		return int(-C.EPERM)
 	}
