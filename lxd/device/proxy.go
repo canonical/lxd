@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
@@ -40,7 +40,7 @@ type proxyProcInfo struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *proxy) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
