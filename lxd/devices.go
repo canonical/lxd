@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"crypto/rand"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path"
 	"sort"
@@ -15,6 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/device"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -292,14 +290,14 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the instances
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instance.InstanceLoadNodeAll(s)
 	if err != nil {
 		logger.Error("Problem loading instances list", log.Ctx{"err": err})
 		return
 	}
 
-	fixedInstances := map[int][]Instance{}
-	balancedInstances := map[Instance]int{}
+	fixedInstances := map[int][]instance.Instance{}
+	balancedInstances := map[instance.Instance]int{}
 	for _, c := range instances {
 		conf := c.ExpandedConfig()
 		cpulimit, ok := conf["limits.cpu"]
@@ -331,14 +329,14 @@ func deviceTaskBalance(s *state.State) {
 				if ok {
 					fixedInstances[nr] = append(fixedInstances[nr], c)
 				} else {
-					fixedInstances[nr] = []Instance{c}
+					fixedInstances[nr] = []instance.Instance{c}
 				}
 			}
 		}
 	}
 
 	// Balance things
-	pinning := map[Instance][]string{}
+	pinning := map[instance.Instance][]string{}
 	usage := map[int]deviceTaskCPU{}
 
 	for _, id := range cpus {
@@ -414,7 +412,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instance.InstanceLoadNodeAll(s)
 	if err != nil {
 		return
 	}
@@ -474,7 +472,7 @@ func deviceEventListener(s *state.State) {
 			networkAutoAttach(s.Cluster, e[0])
 		case e := <-chUSB:
 			device.USBRunHandlers(s, &e)
-		case e := <-deviceSchedRebalance:
+		case e := <-device.DeviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
 				continue
