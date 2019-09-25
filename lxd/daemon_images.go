@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -79,7 +80,7 @@ func imageGetStreamCache(d *Daemon) (map[string]*imageStreamCacheEntry, error) {
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string) (*api.Image, error) {
+func (d *Daemon) ImageDownload(op *operation.Operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string) (*api.Image, error) {
 	var err error
 	var ctxMap log.Ctx
 
@@ -356,7 +357,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	if op == nil {
 		ctxMap = log.Ctx{"alias": alias, "server": server}
 	} else {
-		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
+		ctxMap = log.Ctx{"trigger": op.URL, "image": fp, "operation": op.ID, "alias": alias, "server": server}
 	}
 	logger.Info("Downloading image", ctxMap)
 
@@ -379,7 +380,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return
 		}
 
-		meta := op.metadata
+		meta := op.Metadata
 		if meta == nil {
 			meta = make(map[string]interface{})
 		}
@@ -393,7 +394,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	var canceler *cancel.Canceler
 	if op != nil {
 		canceler = cancel.NewCanceler()
-		op.canceler = canceler
+		op.Canceler = canceler
 	}
 
 	if protocol == "lxd" || protocol == "simplestreams" {

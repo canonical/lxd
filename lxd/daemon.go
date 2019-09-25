@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
@@ -29,10 +28,12 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -174,19 +175,19 @@ type APIEndpointAlias struct {
 
 // APIEndpointAction represents an action on an API endpoint.
 type APIEndpointAction struct {
-	Handler        func(d *Daemon, r *http.Request) Response
-	AccessHandler  func(d *Daemon, r *http.Request) Response
+	Handler        func(d *Daemon, r *http.Request) daemon.Response
+	AccessHandler  func(d *Daemon, r *http.Request) daemon.Response
 	AllowUntrusted bool
 }
 
 // AllowAuthenticated is a AccessHandler which allows all requests
-func AllowAuthenticated(d *Daemon, r *http.Request) Response {
+func AllowAuthenticated(d *Daemon, r *http.Request) daemon.Response {
 	return EmptySyncResponse
 }
 
 // AllowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
-func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) Response {
-	return func(d *Daemon, r *http.Request) Response {
+func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) daemon.Response {
+	return func(d *Daemon, r *http.Request) daemon.Response {
 		// Shortcut for speed
 		if d.userIsAdmin(r) {
 			return EmptySyncResponse
@@ -403,7 +404,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Dump full request JSON when in debug mode
-		if debug && r.Method != "GET" && isJSONRequest(r) {
+		if daemon.Debug && r.Method != "GET" && isJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
@@ -417,10 +418,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Actually process the request
-		var resp Response
+		var resp daemon.Response
 		resp = NotImplemented(nil)
 
-		handleRequest := func(action APIEndpointAction) Response {
+		handleRequest := func(action APIEndpointAction) daemon.Response {
 			if action.Handler == nil {
 				return NotImplemented(nil)
 			}
@@ -605,7 +606,7 @@ func (d *Daemon) init() error {
 	/* Setup some mounts (nice to have) */
 	if !d.os.MockMode {
 		// Attempt to mount the shmounts tmpfs
-		setupSharedMounts()
+		daemon.SetupSharedMounts()
 
 		// Attempt to Mount the devlxd tmpfs
 		devlxd := filepath.Join(d.os.VarDir, "devlxd")
@@ -836,7 +837,7 @@ func (d *Daemon) init() error {
 
 		// Register devices on running instances to receive events.
 		// This should come after the event handler go routines have been started.
-		devicesRegister(d.State())
+		instance.DevicesRegister(d.State())
 
 		// Setup seccomp handler
 		if d.os.SeccompListener {
@@ -957,7 +958,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := instanceLoadNodeAll(d.State())
+	results, err := instance.InstanceLoadNodeAll(d.State())
 	if err != nil {
 		return 0, err
 	}
