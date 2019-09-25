@@ -4,23 +4,19 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/version"
 )
 
 var operationCmd = APIEndpoint{
@@ -49,13 +45,13 @@ var operationWebsocket = APIEndpoint{
 }
 
 // API functions
-func operationGet(d *Daemon, r *http.Request) Response {
+func operationGet(d *Daemon, r *http.Request) daemon.Response {
 	id := mux.Vars(r)["id"]
 
 	var body *api.Operation
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGetInternal(id)
+	op, err := operation.OperationGetInternal(id)
 	if err == nil {
 		_, body, err = op.Render()
 		if err != nil {
@@ -94,19 +90,19 @@ func operationGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, body)
 }
 
-func operationDelete(d *Daemon, r *http.Request) Response {
+func operationDelete(d *Daemon, r *http.Request) daemon.Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGetInternal(id)
+	op, err := operation.OperationGetInternal(id)
 	if err == nil {
-		if op.permission != "" {
-			project := op.project
+		if op.Permission != "" {
+			project := op.Project
 			if project == "" {
 				project = "default"
 			}
 
-			if !d.userHasPermission(r, project, op.permission) {
+			if !d.userHasPermission(r, project, op.Permission) {
 				return Forbidden(nil)
 			}
 		}
@@ -148,30 +144,30 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func operationsGet(d *Daemon, r *http.Request) Response {
+func operationsGet(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
 		// Get all the operations
-		operationsLock.Lock()
-		ops := operations
-		operationsLock.Unlock()
+		operation.OperationsLock.Lock()
+		ops := operation.Operations
+		operation.OperationsLock.Unlock()
 
 		// Build a list of URLs
 		body := shared.Jmap{}
 
 		for _, v := range ops {
-			if v.project != "" && v.project != project {
+			if v.Project != "" && v.Project != project {
 				continue
 			}
-			status := strings.ToLower(v.status.String())
+			status := strings.ToLower(v.Status.String())
 			_, ok := body[status]
 			if !ok {
 				body[status] = make([]string, 0)
 			}
 
-			body[status] = append(body[status].([]string), v.url)
+			body[status] = append(body[status].([]string), v.URL)
 		}
 
 		return body, nil
@@ -179,18 +175,18 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 
 	localOperations := func() (shared.Jmap, error) {
 		// Get all the operations
-		operationsLock.Lock()
-		ops := operations
-		operationsLock.Unlock()
+		operation.OperationsLock.Lock()
+		ops := operation.Operations
+		operation.OperationsLock.Unlock()
 
 		// Build a list of operations
 		body := shared.Jmap{}
 
 		for _, v := range ops {
-			if v.project != "" && v.project != project {
+			if v.Project != "" && v.Project != project {
 				continue
 			}
-			status := strings.ToLower(v.status.String())
+			status := strings.ToLower(v.Status.String())
 			_, ok := body[status]
 			if !ok {
 				body[status] = make([]*api.Operation, 0)
@@ -320,7 +316,7 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, md)
 }
 
-func operationWaitGet(d *Daemon, r *http.Request) Response {
+func operationWaitGet(d *Daemon, r *http.Request) daemon.Response {
 	id := mux.Vars(r)["id"]
 
 	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
@@ -329,7 +325,7 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGetInternal(id)
+	op, err := operation.OperationGetInternal(id)
 	if err == nil {
 		_, err = op.WaitFinal(timeout)
 		if err != nil {
@@ -375,7 +371,7 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 
 type operationWebSocket struct {
 	req *http.Request
-	op  *operation
+	op  *operation.Operation
 }
 
 func (r *operationWebSocket) Render(w http.ResponseWriter) error {
@@ -416,11 +412,11 @@ func (r *forwardedOperationWebSocket) String() string {
 	return r.id
 }
 
-func operationWebsocketGet(d *Daemon, r *http.Request) Response {
+func operationWebsocketGet(d *Daemon, r *http.Request) daemon.Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
-	op, err := operationGetInternal(id)
+	op, err := operation.OperationGetInternal(id)
 	if err == nil {
 		return &operationWebSocket{r, op}
 	}
