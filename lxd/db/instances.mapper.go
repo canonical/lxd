@@ -5,13 +5,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -166,7 +163,7 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
-	if filter.Type != instance.TypeAny {
+	if filter.Type != -1 {
 		criteria["Type"] = filter.Type
 	}
 
@@ -174,18 +171,18 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndNameAndType)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-			filter.Type,
-		}
-	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+	if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNodeAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByProjectAndNameAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
 			filter.Type,
 		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
@@ -194,16 +191,16 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndType)
-		args = []interface{}{
-			filter.Project,
-			filter.Type,
-		}
 	} else if criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(instanceObjectsByNodeAndType)
 		args = []interface{}{
 			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByProjectAndType)
+		args = []interface{}{
+			filter.Project,
 			filter.Type,
 		}
 	} else if criteria["Type"] != nil {
