@@ -254,42 +254,6 @@ type migrationSink struct {
 	refresh      bool
 }
 
-type MigrationSinkArgs struct {
-	// General migration fields
-	Dialer  websocket.Dialer
-	Push    bool
-	Secrets map[string]string
-	Url     string
-
-	// Instance specific fields
-	Instance     Instance
-	InstanceOnly bool
-	Idmap        *idmap.IdmapSet
-	Live         bool
-	Refresh      bool
-	Snapshots    []*migration.Snapshot
-
-	// Storage specific fields
-	Storage    storage
-	VolumeOnly bool
-
-	// Transport specific fields
-	RsyncFeatures []string
-}
-
-type MigrationSourceArgs struct {
-	// Instance specific fields
-	Instance     Instance
-	InstanceOnly bool
-
-	// Transport specific fields
-	RsyncFeatures []string
-	ZfsFeatures   []string
-
-	// Volume specific fields
-	VolumeOnly bool
-}
-
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 
