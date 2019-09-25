@@ -14,6 +14,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -40,7 +41,7 @@ var certificateCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: certificatePut},
 }
 
-func certificatesGet(d *Daemon, r *http.Request) Response {
+func certificatesGet(d *Daemon, r *http.Request) daemon.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	if recursion {
@@ -100,7 +101,7 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func certificatesPost(d *Daemon, r *http.Request) Response {
+func certificatesPost(d *Daemon, r *http.Request) daemon.Response {
 	// Parse the request
 	req := api.CertificatesPost{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
@@ -217,7 +218,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
-func certificateGet(d *Daemon, r *http.Request) Response {
+func certificateGet(d *Daemon, r *http.Request) daemon.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	cert, err := doCertificateGet(d.cluster, fingerprint)
@@ -248,7 +249,7 @@ func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, erro
 	return resp, nil
 }
 
-func certificatePut(d *Daemon, r *http.Request) Response {
+func certificatePut(d *Daemon, r *http.Request) daemon.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
@@ -270,7 +271,7 @@ func certificatePut(d *Daemon, r *http.Request) Response {
 	return doCertificateUpdate(d, fingerprint, req)
 }
 
-func certificatePatch(d *Daemon, r *http.Request) Response {
+func certificatePatch(d *Daemon, r *http.Request) daemon.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
@@ -305,7 +306,7 @@ func certificatePatch(d *Daemon, r *http.Request) Response {
 	return doCertificateUpdate(d, fingerprint, req.Writable())
 }
 
-func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) Response {
+func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) daemon.Response {
 	if req.Type != "client" {
 		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
@@ -318,7 +319,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 	return EmptySyncResponse
 }
 
-func certificateDelete(d *Daemon, r *http.Request) Response {
+func certificateDelete(d *Daemon, r *http.Request) daemon.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	certInfo, err := d.cluster.CertificateGet(fingerprint)
