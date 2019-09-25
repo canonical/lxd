@@ -6,13 +6,15 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewStorageMigrationSource(storage storage, volumeOnly bool) (*migrationSourceWs, error) {
+func NewStorageMigrationSource(storage instance.Storage, volumeOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{storage: storage}, make(chan bool, 1)}
 	ret.volumeOnly = volumeOnly
 
@@ -32,7 +34,7 @@ func NewStorageMigrationSource(storage storage, volumeOnly bool) (*migrationSour
 	return &ret, nil
 }
 
-func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
+func (s *migrationSourceWs) DoStorage(migrateOp *operation.Operation) error {
 	<-s.allConnected
 
 	// Storage needs to start unconditionally now, since we need to
@@ -123,7 +125,7 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	zfsFeatures := header.GetZfsFeaturesSlice()
 
 	// Set source args
-	sourceArgs := MigrationSourceArgs{
+	sourceArgs := instance.MigrationSourceArgs{
 		RsyncFeatures: rsyncFeatures,
 		ZfsFeatures:   zfsFeatures,
 		VolumeOnly:    s.volumeOnly,
@@ -179,7 +181,7 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	return nil
 }
 
-func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
+func NewStorageMigrationSink(args *instance.MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:    migrationFields{storage: args.Storage, volumeOnly: args.VolumeOnly},
 		dest:   migrationFields{storage: args.Storage, volumeOnly: args.VolumeOnly},
@@ -223,7 +225,7 @@ func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) DoStorage(migrateOp *operation) error {
+func (c *migrationSink) DoStorage(migrateOp *operation.Operation) error {
 	var err error
 
 	if c.push {
@@ -333,7 +335,7 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 				fsConn = c.src.fsConn
 			}
 
-			args := MigrationSinkArgs{
+			args := instance.MigrationSinkArgs{
 				Storage:       c.dest.storage,
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     header.Snapshots,

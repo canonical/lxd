@@ -17,7 +17,9 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -25,7 +27,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewMigrationSource(inst Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
+func NewMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{instance: inst}, make(chan bool, 1)}
 	ret.instanceOnly = instanceOnly
 
@@ -78,7 +80,7 @@ fi
 	return err
 }
 
-func snapshotToProtobuf(c Instance) *migration.Snapshot {
+func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 	config := []*migration.Config{}
 	for k, v := range c.LocalConfig() {
 		kCopy := string(k)
@@ -124,18 +126,18 @@ func snapshotToProtobuf(c Instance) *migration.Snapshot {
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)
-	criuMigrationArgs := CriuMigrationArgs{
-		cmd:          lxc.MIGRATE_FEATURE_CHECK,
-		stateDir:     "",
-		function:     "feature-check",
-		stop:         false,
-		actionScript: false,
-		dumpDir:      "",
-		preDumpDir:   "",
-		features:     lxc.FEATURE_MEM_TRACK,
+	criuMigrationArgs := instance.CriuMigrationArgs{
+		Cmd:          lxc.MIGRATE_FEATURE_CHECK,
+		StateDir:     "",
+		Function:     "feature-check",
+		Stop:         false,
+		ActionScript: false,
+		DumpDir:      "",
+		PreDumpDir:   "",
+		Features:     lxc.FEATURE_MEM_TRACK,
 	}
 
-	if s.instance.Type() != instance.TypeContainer {
+	if s.instance.Type() != instancetype.Container {
 		return false, 0
 	}
 
@@ -237,21 +239,21 @@ type preDumpLoopArgs struct {
 // of memory pages transferred by pre-dumping has been reached.
 func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// Do a CRIU pre-dump
-	criuMigrationArgs := CriuMigrationArgs{
-		cmd:          lxc.MIGRATE_PRE_DUMP,
-		stop:         false,
-		actionScript: false,
-		preDumpDir:   args.preDumpDir,
-		dumpDir:      args.dumpDir,
-		stateDir:     args.checkpointDir,
-		function:     "migration",
+	criuMigrationArgs := instance.CriuMigrationArgs{
+		Cmd:          lxc.MIGRATE_PRE_DUMP,
+		Stop:         false,
+		ActionScript: false,
+		PreDumpDir:   args.preDumpDir,
+		DumpDir:      args.dumpDir,
+		StateDir:     args.checkpointDir,
+		Function:     "migration",
 	}
 
 	logger.Debugf("Doing another pre-dump in %s", args.preDumpDir)
 
 	final := args.final
 
-	if s.instance.Type() != instance.TypeContainer {
+	if s.instance.Type() != instancetype.Container {
 		return false, fmt.Errorf("Instance not container type")
 	}
 
@@ -328,7 +330,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	return final, nil
 }
 
-func (s *migrationSourceWs) Do(migrateOp *operation) error {
+func (s *migrationSourceWs) Do(migrateOp *operation.Operation) error {
 	<-s.allConnected
 
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
@@ -339,7 +341,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	if s.instance.Type() != instance.TypeContainer {
+	if s.instance.Type() != instancetype.Container {
 		return fmt.Errorf("Instance not container type")
 	}
 
@@ -444,7 +446,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	zfsFeatures := header.GetZfsFeaturesSlice()
 
 	// Set source args
-	sourceArgs := MigrationSourceArgs{
+	sourceArgs := instance.MigrationSourceArgs{
 		Instance:      s.instance,
 		InstanceOnly:  s.instanceOnly,
 		RsyncFeatures: rsyncFeatures,
@@ -543,14 +545,14 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 
 			state := s.instance.DaemonState()
-			actionScriptOp, err := operationCreate(
+			actionScriptOp, err := operation.OperationCreate(
 				state.Cluster,
 				s.instance.Project(),
-				operationClassWebsocket,
+				operation.OperationClassWebsocket,
 				db.OperationContainerLiveMigrate,
 				nil,
 				nil,
-				func(op *operation) error {
+				func(op *operation.Operation) error {
 					result := <-restoreSuccess
 					if !result {
 						return fmt.Errorf("restore failed, failing CRIU")
@@ -558,7 +560,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 					return nil
 				},
 				nil,
-				func(op *operation, r *http.Request, w http.ResponseWriter) error {
+				func(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 					secret := r.FormValue("secret")
 					if secret == "" {
 						return fmt.Errorf("missing secret")
@@ -584,7 +586,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret, state.OS.ExecPath)
+			err = writeActionScript(checkpointDir, actionScriptOp.URL, actionScriptOpSecret, state.OS.ExecPath)
 			if err != nil {
 				os.RemoveAll(checkpointDir)
 				return abort(err)
@@ -627,14 +629,14 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 
 			go func() {
-				criuMigrationArgs := CriuMigrationArgs{
-					cmd:          lxc.MIGRATE_DUMP,
-					stop:         true,
-					actionScript: true,
-					preDumpDir:   preDumpDir,
-					dumpDir:      "final",
-					stateDir:     checkpointDir,
-					function:     "migration",
+				criuMigrationArgs := instance.CriuMigrationArgs{
+					Cmd:          lxc.MIGRATE_DUMP,
+					Stop:         true,
+					ActionScript: true,
+					PreDumpDir:   preDumpDir,
+					DumpDir:      "final",
+					StateDir:     checkpointDir,
+					Function:     "migration",
 				}
 
 				// Do the final CRIU dump. This is needs no special
@@ -654,14 +656,14 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		} else {
 			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
 			defer os.RemoveAll(checkpointDir)
-			criuMigrationArgs := CriuMigrationArgs{
-				cmd:          lxc.MIGRATE_DUMP,
-				stateDir:     checkpointDir,
-				function:     "migration",
-				stop:         true,
-				actionScript: false,
-				dumpDir:      "final",
-				preDumpDir:   "",
+			criuMigrationArgs := instance.CriuMigrationArgs{
+				Cmd:          lxc.MIGRATE_DUMP,
+				StateDir:     checkpointDir,
+				Function:     "migration",
+				Stop:         true,
+				ActionScript: false,
+				DumpDir:      "final",
+				PreDumpDir:   "",
 			}
 
 			err = c.Migrate(&criuMigrationArgs)
@@ -716,7 +718,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	return nil
 }
 
-func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
+func NewMigrationSink(args *instance.MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
 		dest:    migrationFields{instanceOnly: args.InstanceOnly},
@@ -775,8 +777,8 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) Do(migrateOp *operation) error {
-	if c.src.instance.Type() != instance.TypeContainer {
+func (c *migrationSink) Do(migrateOp *operation.Operation) error {
+	if c.src.instance.Type() != instancetype.Container {
 		return fmt.Errorf("Instance not container type")
 	}
 
@@ -1009,7 +1011,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				sendFinalFsDelta = true
 			}
 
-			args := MigrationSinkArgs{
+			args := instance.MigrationSinkArgs{
 				Instance:      c.src.instance,
 				InstanceOnly:  c.src.instanceOnly,
 				Idmap:         srcIdmap,
@@ -1101,14 +1103,14 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		}
 
 		if live {
-			criuMigrationArgs := CriuMigrationArgs{
-				cmd:          lxc.MIGRATE_RESTORE,
-				stateDir:     imagesDir,
-				function:     "migration",
-				stop:         false,
-				actionScript: false,
-				dumpDir:      "final",
-				preDumpDir:   "",
+			criuMigrationArgs := instance.CriuMigrationArgs{
+				Cmd:          lxc.MIGRATE_RESTORE,
+				StateDir:     imagesDir,
+				Function:     "migration",
+				Stop:         false,
+				ActionScript: false,
+				DumpDir:      "final",
+				PreDumpDir:   "",
 			}
 
 			// Currently we only do a single CRIU pre-dump so we
@@ -1163,12 +1165,12 @@ func (s *migrationSourceWs) ConnectContainerTarget(target api.InstancePostTarget
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 
-func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []Instance) ([]*migration.Snapshot, []Instance) {
+func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []instance.Instance) ([]*migration.Snapshot, []instance.Instance) {
 	// Compare source and target
 	sourceSnapshotsTime := map[string]int64{}
 	targetSnapshotsTime := map[string]int64{}
 
-	toDelete := []Instance{}
+	toDelete := []instance.Instance{}
 	toSync := []*migration.Snapshot{}
 
 	for _, snap := range sourceSnapshots {

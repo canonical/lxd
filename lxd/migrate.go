@@ -18,9 +18,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -38,10 +39,10 @@ type migrationFields struct {
 	// container specific fields
 	live         bool
 	instanceOnly bool
-	instance     Instance
+	instance     instance.Instance
 
 	// storage specific fields
-	storage    storage
+	storage    instance.Storage
 	volumeOnly bool
 }
 
@@ -145,7 +146,7 @@ func (s *migrationSourceWs) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSourceWs) Connect(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -281,7 +282,7 @@ func (s *migrationSink) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSink) Connect(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
