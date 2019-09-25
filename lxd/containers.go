@@ -350,29 +350,3 @@ func containersShutdown(s *state.State) error {
 
 	return nil
 }
-
-func containerDeleteSnapshots(s *state.State, project, cname string) error {
-	results, err := s.Cluster.ContainerGetSnapshots(project, cname)
-	if err != nil {
-		return err
-	}
-
-	for _, sname := range results {
-		sc, err := instanceLoadByProjectAndName(s, project, sname)
-		if err != nil {
-			logger.Error(
-				"containerDeleteSnapshots: Failed to load the snapshot container",
-				log.Ctx{"container": cname, "snapshot": sname, "err": err})
-
-			continue
-		}
-
-		if err := sc.Delete(); err != nil {
-			logger.Error(
-				"containerDeleteSnapshots: Failed to delete a snapshot container",
-				log.Ctx{"container": cname, "snapshot": sname, "err": err})
-		}
-	}
-
-	return nil
-}
