@@ -7,6 +7,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -14,13 +15,13 @@ import (
 
 func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Sanity checks
-	err := containerValidConfig(d.os, req.Config, true, false)
+	err := instance.ContainerValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate container devices with an empty instanceName to indicate profile validation.
-	err = containerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
+	err = instance.ContainerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return err
 	}
@@ -206,10 +207,10 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		}
 	}
 
-	c := containerLXCInstantiate(d.State(), args)
+	c := instance.ContainerLXCInstantiate(d.State(), args)
 
-	c.expandConfig(profiles)
-	c.expandDevices(profiles)
+	c.ExpandConfig(profiles)
+	c.ExpandDevices(profiles)
 
 	return c.Update(db.ContainerArgs{
 		Architecture: c.Architecture(),
