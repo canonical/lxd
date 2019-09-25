@@ -320,7 +320,7 @@ func lxcStatusCode(state lxc.State) api.StatusCode {
 	}[int(state)]
 }
 
-// Loader functions
+// ContainerLXCCreate loader function.
 func ContainerLXCCreate(s *state.State, args db.ContainerArgs) (*ContainerLXC, error) {
 	// Create the container struct
 	c := &ContainerLXC{
@@ -527,6 +527,7 @@ func ContainerLXCCreate(s *state.State, args db.ContainerArgs) (*ContainerLXC, e
 	return c, nil
 }
 
+// ContainerLXCLoad instantiates and expands config.
 func ContainerLXCLoad(s *state.State, args db.ContainerArgs, profiles []api.Profile) (*ContainerLXC, error) {
 	// Create the container struct
 	c := ContainerLXCInstantiate(s, args)
@@ -548,7 +549,7 @@ func ContainerLXCLoad(s *state.State, args db.ContainerArgs, profiles []api.Prof
 	return c, nil
 }
 
-// Unload is called by the garbage collector
+// ContainerLXCUnload is called by the garbage collector.
 func ContainerLXCUnload(c *ContainerLXC) {
 	runtime.SetFinalizer(c, nil)
 	if c.c != nil {
@@ -568,7 +569,7 @@ func ContainerLXCInstantiateEmpty(name string, project string) *ContainerLXC {
 	return c
 }
 
-// Create a container struct without initializing it.
+// ContainerLXCInstantiate creates a container struct without initializing it.
 func ContainerLXCInstantiate(s *state.State, args db.ContainerArgs) *ContainerLXC {
 	c := &ContainerLXC{
 		state:        s,
@@ -606,7 +607,7 @@ func ContainerLXCInstantiate(s *state.State, args db.ContainerArgs) *ContainerLX
 	return c
 }
 
-// The LXC container driver
+// ContainerLXC is the LXC container driver.
 type ContainerLXC struct {
 	// Properties
 	architecture int
@@ -648,6 +649,7 @@ type ContainerLXC struct {
 	expiryDate time.Time
 }
 
+// Type returns the type of instance.
 func (c *ContainerLXC) Type() instancetype.Type {
 	return c.dbType
 }
@@ -753,7 +755,7 @@ func parseRawIdmap(value string) ([]idmap.IdmapEntry, error) {
 			}
 
 			size -= base
-			size += 1
+			size++
 		}
 
 		return base, size, nil
@@ -983,6 +985,7 @@ func (c *ContainerLXC) init() error {
 	return nil
 }
 
+// InitLXC initialises the underlying lxc library.
 func (c *ContainerLXC) InitLXC(config bool) error {
 	// No need to go through all that for snapshots
 	if c.IsSnapshot() {
@@ -2096,7 +2099,7 @@ func (c *ContainerLXC) DeviceEventHandler(runConf *device.RunConfig) error {
 	return nil
 }
 
-// Initialize storage interface for this container
+// InitStorage initializes storage interface for this container.
 func (c *ContainerLXC) InitStorage() error {
 	if c.storage != nil {
 		return nil
@@ -2112,7 +2115,7 @@ func (c *ContainerLXC) InitStorage() error {
 	return nil
 }
 
-// Config handling
+// ExpandConfig applies the profile config to the container config.
 func (c *ContainerLXC) ExpandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
@@ -2127,6 +2130,7 @@ func (c *ContainerLXC) ExpandConfig(profiles []api.Profile) error {
 	return nil
 }
 
+// ExpandDevices applies the profile devices to the container devices.
 func (c *ContainerLXC) ExpandDevices(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
@@ -2170,10 +2174,12 @@ func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error 
 	return err
 }
 
+// ShiftBtrfsRootfs shifts the BTRFS rootfs.
 func ShiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 	return shiftBtrfsRootfs(path, diskIdmap, true)
 }
 
+//UnshiftBtrfsRootfs unshifts the BTRFS rootfs.
 func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 	return shiftBtrfsRootfs(path, diskIdmap, false)
 }
@@ -2557,6 +2563,7 @@ func (c *ContainerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 	return nil
 }
 
+// Start starts the container.
 func (c *ContainerLXC) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
@@ -2709,6 +2716,7 @@ func (c *ContainerLXC) Start(stateful bool) error {
 	return nil
 }
 
+// OnStart runs on start.
 func (c *ContainerLXC) OnStart() error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
@@ -2933,6 +2941,7 @@ func (c *ContainerLXC) Stop(stateful bool) error {
 	return nil
 }
 
+// Shutdown shuts down a container.
 func (c *ContainerLXC) Shutdown(timeout time.Duration) error {
 	var ctxMap log.Ctx
 
@@ -3138,7 +3147,7 @@ func (c *ContainerLXC) cleanupDevices(netns string) {
 	}
 }
 
-// Freezer functions
+// Freeze freezes the container.
 func (c *ContainerLXC) Freeze() error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
@@ -3187,6 +3196,7 @@ func (c *ContainerLXC) Freeze() error {
 	return err
 }
 
+// Unfreeze unfreezes the container.
 func (c *ContainerLXC) Unfreeze() error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
@@ -3232,7 +3242,8 @@ func (c *ContainerLXC) Unfreeze() error {
 	return err
 }
 
-var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
+// ErrLxcMonitorState monitor error.
+var ErrLxcMonitorState = fmt.Errorf("Monitor is hung")
 
 // Get lxc container state, with 1 second timeout
 // If we don't get a reply, assume the lxc monitor is hung
@@ -3257,10 +3268,11 @@ func (c *ContainerLXC) getLxcState() (lxc.State, error) {
 	case state := <-monitor:
 		return state, nil
 	case <-time.After(5 * time.Second):
-		return lxc.StateMap["FROZEN"], LxcMonitorStateError
+		return lxc.StateMap["FROZEN"], ErrLxcMonitorState
 	}
 }
 
+// Render renders the API response about a container.
 func (c *ContainerLXC) Render() (interface{}, interface{}, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(c.architecture)
@@ -3320,6 +3332,7 @@ func (c *ContainerLXC) Render() (interface{}, interface{}, error) {
 	return &ct, etag, nil
 }
 
+// RenderFull renders all info about a container.
 func (c *ContainerLXC) RenderFull() (*api.InstanceFull, interface{}, error) {
 	if c.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull only works with containers")
@@ -3378,6 +3391,7 @@ func (c *ContainerLXC) RenderFull() (*api.InstanceFull, interface{}, error) {
 	return &ct, etag, nil
 }
 
+// RenderState just renders state info about a container.
 func (c *ContainerLXC) RenderState() (*api.InstanceState, error) {
 	cState, err := c.getLxcState()
 	if err != nil {
@@ -3402,6 +3416,7 @@ func (c *ContainerLXC) RenderState() (*api.InstanceState, error) {
 	return &status, nil
 }
 
+// Snapshots gets a list of snapshots.
 func (c *ContainerLXC) Snapshots() ([]Instance, error) {
 	var snaps []db.Instance
 
@@ -3437,6 +3452,7 @@ func (c *ContainerLXC) Snapshots() ([]Instance, error) {
 	return instances, nil
 }
 
+// Backups gets a list of backups.
 func (c *ContainerLXC) Backups() ([]Backup, error) {
 	// Get all the backups
 	backupNames, err := c.state.Cluster.ContainerGetBackups(c.project, c.name)
@@ -3458,6 +3474,7 @@ func (c *ContainerLXC) Backups() ([]Backup, error) {
 	return backups, nil
 }
 
+// Restore restores from a source.
 func (c *ContainerLXC) Restore(sourceContainer Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
@@ -3652,6 +3669,7 @@ func (c *ContainerLXC) cleanup() {
 	os.RemoveAll(c.ShmountsPath())
 }
 
+// Delete deletes the container.
 func (c *ContainerLXC) Delete() error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
@@ -3789,6 +3807,7 @@ func (c *ContainerLXC) Delete() error {
 	return nil
 }
 
+// Rename renames the container.
 func (c *ContainerLXC) Rename(newName string) error {
 	oldName := c.Name()
 	ctxMap := log.Ctx{
@@ -3906,9 +3925,9 @@ func (c *ContainerLXC) Rename(newName string) error {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
 			return tx.InstanceSnapshotRename(c.project, oldParts[0], oldParts[1], newParts[1])
-		} else {
-			return tx.InstanceRename(c.project, oldName, newName)
 		}
+
+		return tx.InstanceRename(c.project, oldName, newName)
 	})
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
@@ -3958,6 +3977,7 @@ func (c *ContainerLXC) Rename(newName string) error {
 	return nil
 }
 
+// CGroupGet gets a cgroup item.
 func (c *ContainerLXC) CGroupGet(key string) (string, error) {
 	// Load the go-lxc struct
 	err := c.InitLXC(false)
@@ -3974,6 +3994,7 @@ func (c *ContainerLXC) CGroupGet(key string) (string, error) {
 	return strings.Join(value, "\n"), nil
 }
 
+// CGroupSet sets a cgroup item.
 func (c *ContainerLXC) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct
 	err := c.InitLXC(false)
@@ -3994,6 +4015,7 @@ func (c *ContainerLXC) CGroupSet(key string, value string) error {
 	return nil
 }
 
+// VolatileSet sets data into volatile config keys in database.
 func (c *ContainerLXC) VolatileSet(changes map[string]string) error {
 	// Sanity check
 	for key := range changes {
@@ -4032,6 +4054,7 @@ func (c *ContainerLXC) VolatileSet(changes map[string]string) error {
 	return nil
 }
 
+// Update updates the container's config.
 func (c *ContainerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Set sane defaults for unset keys
 	if args.Project == "" {
@@ -4815,6 +4838,7 @@ func (c *ContainerLXC) updateDevices(removeDevices config.Devices, addDevices co
 	return nil
 }
 
+// Export exports the container.
 func (c *ContainerLXC) Export(w io.Writer, properties map[string]string) error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
@@ -5090,6 +5114,7 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
+// CriuMigrationArgs defines the arguments for CRIU migrations.
 type CriuMigrationArgs struct {
 	Cmd          uint
 	StateDir     string
@@ -5101,6 +5126,7 @@ type CriuMigrationArgs struct {
 	Features     lxc.CriuFeatures
 }
 
+// Migrate migrates a container.
 func (c *ContainerLXC) Migrate(args *CriuMigrationArgs) error {
 	ctxMap := log.Ctx{
 		"project":      c.project,
@@ -5302,6 +5328,7 @@ func (c *ContainerLXC) Migrate(args *CriuMigrationArgs) error {
 	return nil
 }
 
+// TemplateApply applies a template.
 func (c *ContainerLXC) TemplateApply(trigger string) error {
 	// "create" and "copy" are deferred until next start
 	if shared.StringInSlice(trigger, []string{"create", "copy"}) {
@@ -5343,12 +5370,12 @@ func (c *ContainerLXC) templateApplyNow(trigger string) error {
 		return errors.Wrap(err, "Failed to set ID map")
 	}
 
-	rootUid := int64(0)
-	rootGid := int64(0)
+	rootUID := int64(0)
+	rootGID := int64(0)
 
 	// Get the right uid and gid for the container
 	if idmapset != nil {
-		rootUid, rootGid = idmapset.ShiftIntoNs(0, 0)
+		rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
 	}
 
 	// Figure out the container architecture
@@ -5408,7 +5435,7 @@ func (c *ContainerLXC) templateApplyNow(trigger string) error {
 			}
 		} else {
 			// Create the directories leading to the file
-			shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(rootUid), int(rootGid))
+			shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(rootUID), int(rootGID))
 
 			// Create the file itself
 			w, err = os.Create(fullpath)
@@ -5417,7 +5444,7 @@ func (c *ContainerLXC) templateApplyNow(trigger string) error {
 			}
 
 			// Fix ownership and mode
-			w.Chown(int(rootUid), int(rootGid))
+			w.Chown(int(rootUID), int(rootGID))
 			w.Chmod(0644)
 		}
 		defer w.Close()
@@ -5458,6 +5485,7 @@ func (c *ContainerLXC) templateApplyNow(trigger string) error {
 	return nil
 }
 
+// FileExists checks if a file exists inside the container.
 func (c *ContainerLXC) FileExists(path string) error {
 	// Setup container storage if needed
 	var ourStart bool
@@ -5506,6 +5534,7 @@ func (c *ContainerLXC) FileExists(path string) error {
 	return nil
 }
 
+// FilePull pulls the file from the container.
 func (c *ContainerLXC) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
 	var ourStart bool
 	var err error
@@ -5540,7 +5569,7 @@ func (c *ContainerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	uid := int64(-1)
 	gid := int64(-1)
 	mode := -1
-	type_ := "unknown"
+	fileType := "unknown"
 	var dirEnts []string
 	var errStr string
 
@@ -5596,7 +5625,7 @@ func (c *ContainerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 		}
 
 		if strings.HasPrefix(line, "type: ") {
-			type_ = strings.TrimPrefix(line, "type: ")
+			fileType = strings.TrimPrefix(line, "type: ")
 			continue
 		}
 
@@ -5626,12 +5655,13 @@ func (c *ContainerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 		}
 	}
 
-	return uid, gid, os.FileMode(mode), type_, dirEnts, nil
+	return uid, gid, os.FileMode(mode), fileType, dirEnts, nil
 }
 
-func (c *ContainerLXC) FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
-	var rootUid int64
-	var rootGid int64
+// FilePush pushes a file into the container.
+func (c *ContainerLXC) FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
+	var rootUID int64
+	var rootGID int64
 	var errStr string
 
 	// Map uid and gid if needed
@@ -5643,7 +5673,7 @@ func (c *ContainerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 
 		if idmapset != nil {
 			uid, gid = idmapset.ShiftIntoNs(uid, gid)
-			rootUid, rootGid = idmapset.ShiftIntoNs(0, 0)
+			rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
 		}
 	}
 
@@ -5658,7 +5688,7 @@ func (c *ContainerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	}
 
 	defaultMode := 0640
-	if type_ == "directory" {
+	if fileType == "directory" {
 		defaultMode = 0750
 	}
 
@@ -5672,12 +5702,12 @@ func (c *ContainerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 		fmt.Sprintf("%d", c.InitPID()),
 		srcpath,
 		dstpath,
-		type_,
+		fileType,
 		fmt.Sprintf("%d", uid),
 		fmt.Sprintf("%d", gid),
 		fmt.Sprintf("%d", mode),
-		fmt.Sprintf("%d", rootUid),
-		fmt.Sprintf("%d", rootGid),
+		fmt.Sprintf("%d", rootUID),
+		fmt.Sprintf("%d", rootGID),
 		fmt.Sprintf("%d", int(os.FileMode(defaultMode)&os.ModePerm)),
 		write,
 	)
@@ -5719,6 +5749,7 @@ func (c *ContainerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	return nil
 }
 
+// FileRemove removes a file from the container.
 func (c *ContainerLXC) FileRemove(path string) error {
 	var errStr string
 	var ourStart bool
@@ -5780,6 +5811,7 @@ func (c *ContainerLXC) FileRemove(path string) error {
 	return nil
 }
 
+// Console enters container console.
 func (c *ContainerLXC) Console(terminal *os.File) *exec.Cmd {
 	args := []string{
 		c.state.OS.ExecPath,
@@ -5799,6 +5831,7 @@ func (c *ContainerLXC) Console(terminal *os.File) *exec.Cmd {
 	return &cmd
 }
 
+// ConsoleLog gets console log.
 func (c *ContainerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	msg, err := c.c.ConsoleLog(opts)
 	if err != nil {
@@ -5808,6 +5841,7 @@ func (c *ContainerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	return string(msg), nil
 }
 
+// Exec executes a command inside container.
 func (c *ContainerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error) {
 	// Prepare the environment
 	envSlice := []string{}
@@ -6125,6 +6159,7 @@ func (c *ContainerLXC) Storage() Storage {
 	return c.storage
 }
 
+// StorageStart starts the storage layer.
 func (c *ContainerLXC) StorageStart() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.InitStorage()
@@ -6141,7 +6176,7 @@ func (c *ContainerLXC) StorageStart() (bool, error) {
 	return isOurOperation, err
 }
 
-// Kill this function as soon as zfs is fixed.
+// StorageStartSensitive kill this function as soon as zfs is fixed.
 func (c *ContainerLXC) StorageStartSensitive() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.InitStorage()
@@ -6159,6 +6194,7 @@ func (c *ContainerLXC) StorageStartSensitive() (bool, error) {
 	return isOurOperation, err
 }
 
+// StorageStop stops the storage layer.
 func (c *ContainerLXC) StorageStop() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.InitStorage()
@@ -6294,6 +6330,7 @@ func (c *ContainerLXC) removeMount(mount string) error {
 	return nil
 }
 
+// InsertSeccompUnixDevice inserts a seccomp unix device.
 func (c *ContainerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error {
 	if pid < 0 {
 		return fmt.Errorf("Invalid request PID specified")
@@ -6603,36 +6640,39 @@ func (c *ContainerLXC) setNetworkPriority() error {
 
 	// Check that we at least succeeded to set an entry
 	success := false
-	var last_error error
+	var lastError error
 	for _, netif := range netifs {
 		err = c.CGroupSet("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif.Name, networkInt))
 		if err == nil {
 			success = true
 		} else {
-			last_error = err
+			lastError = err
 		}
 	}
 
 	if !success {
-		return fmt.Errorf("Failed to set network device priority: %s", last_error)
+		return fmt.Errorf("Failed to set network device priority: %s", lastError)
 	}
 
 	return nil
 }
 
-// Various state query functions
+// IsStateful indicates if container is stateful.
 func (c *ContainerLXC) IsStateful() bool {
 	return c.stateful
 }
 
+// IsEphemeral indicates if container is ephemeral.
 func (c *ContainerLXC) IsEphemeral() bool {
 	return c.ephemeral
 }
 
+// IsFrozen indicates if container is frozen.
 func (c *ContainerLXC) IsFrozen() bool {
 	return c.State() == "FROZEN"
 }
 
+// IsNesting indicates if container is nested.
 func (c *ContainerLXC) IsNesting() bool {
 	return shared.IsTrue(c.expandedConfig["security.nesting"])
 }
@@ -6650,42 +6690,53 @@ func (c *ContainerLXC) isCurrentlyPrivileged() bool {
 	return idmap == nil
 }
 
+// IsPrivileged indicates if container is privileged.
 func (c *ContainerLXC) IsPrivileged() bool {
 	return shared.IsTrue(c.expandedConfig["security.privileged"])
 }
 
+// IsRunning indicates if container is running.
 func (c *ContainerLXC) IsRunning() bool {
 	state := c.State()
 	return state != "BROKEN" && state != "STOPPED"
 }
 
+// IsSnapshot indicates if container is snapshot.
 func (c *ContainerLXC) IsSnapshot() bool {
 	return c.snapshot
 }
 
-// Various property query functions
+// Architecture gets container's architecture
 func (c *ContainerLXC) Architecture() int {
 	return c.architecture
 }
 
+// CreationDate gets container's creation date.
 func (c *ContainerLXC) CreationDate() time.Time {
 	return c.creationDate
 }
+
+// LastUsedDate gets container's last used date.
 func (c *ContainerLXC) LastUsedDate() time.Time {
 	return c.lastUsedDate
 }
+
+// ExpandedConfig gets expanded config.
 func (c *ContainerLXC) ExpandedConfig() map[string]string {
 	return c.expandedConfig
 }
 
+// ExpandedDevices gets expanded devices.
 func (c *ContainerLXC) ExpandedDevices() config.Devices {
 	return c.expandedDevices
 }
 
+// Id gets container's ID.
 func (c *ContainerLXC) Id() int {
 	return c.id
 }
 
+// InitPID gets container's init PID.
 func (c *ContainerLXC) InitPID() int {
 	// Load the go-lxc struct
 	err := c.InitLXC(false)
@@ -6696,14 +6747,17 @@ func (c *ContainerLXC) InitPID() int {
 	return c.c.InitPid()
 }
 
+// LocalConfig gets container's local config.
 func (c *ContainerLXC) LocalConfig() map[string]string {
 	return c.localConfig
 }
 
+// LocalDevices gets container's devices.
 func (c *ContainerLXC) LocalDevices() config.Devices {
 	return c.localDevices
 }
 
+// CurrentIdmap gets container's current ID map.
 func (c *ContainerLXC) CurrentIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.current"]
 	if !ok {
@@ -6713,6 +6767,7 @@ func (c *ContainerLXC) CurrentIdmap() (*idmap.IdmapSet, error) {
 	return IDMapsetFromString(jsonIdmap)
 }
 
+// DiskIdmap gets container's current disk ID map.
 func (c *ContainerLXC) DiskIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.last_state.idmap"]
 	if !ok {
@@ -6722,6 +6777,7 @@ func (c *ContainerLXC) DiskIdmap() (*idmap.IdmapSet, error) {
 	return IDMapsetFromString(jsonIdmap)
 }
 
+// NextIdmap gets container's next ID map.
 func (c *ContainerLXC) NextIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.next"]
 	if !ok {
@@ -6731,6 +6787,7 @@ func (c *ContainerLXC) NextIdmap() (*idmap.IdmapSet, error) {
 	return IDMapsetFromString(jsonIdmap)
 }
 
+// DaemonState returns the daemon state.
 func (c *ContainerLXC) DaemonState() *state.State {
 	// FIXME: This function should go away, since the abstract container
 	//        interface should not be coupled with internal state details.
@@ -6741,26 +6798,32 @@ func (c *ContainerLXC) DaemonState() *state.State {
 	return c.state
 }
 
+// Location gets the location the container is hosted on.
 func (c *ContainerLXC) Location() string {
 	return c.node
 }
 
+// Project gets the project the container is a part of.
 func (c *ContainerLXC) Project() string {
 	return c.project
 }
 
+// Name gets container's name.
 func (c *ContainerLXC) Name() string {
 	return c.name
 }
 
+// Description gets the container's description.
 func (c *ContainerLXC) Description() string {
 	return c.description
 }
 
+// Profiles gets the profiles applied to the container.
 func (c *ContainerLXC) Profiles() []string {
 	return c.profiles
 }
 
+// State gets the container's state.
 func (c *ContainerLXC) State() string {
 	state, err := c.getLxcState()
 	if err != nil {
@@ -6769,43 +6832,51 @@ func (c *ContainerLXC) State() string {
 	return state.String()
 }
 
-// Various container paths
+// Path gets the container's path.
 func (c *ContainerLXC) Path() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return driver.ContainerPath(name, c.IsSnapshot())
 }
 
+// DevicesPath gets the container's devices path.
 func (c *ContainerLXC) DevicesPath() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return shared.VarPath("devices", name)
 }
 
+// ShmountsPath gets the container's shared mounts path.
 func (c *ContainerLXC) ShmountsPath() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return shared.VarPath("shmounts", name)
 }
 
+// LogPath gets the container's log path.
 func (c *ContainerLXC) LogPath() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return shared.LogPath(name)
 }
 
+// LogFilePath gets the container's log file path.
 func (c *ContainerLXC) LogFilePath() string {
 	return filepath.Join(c.LogPath(), "lxc.log")
 }
 
+// ConsoleBufferLogPath gets the container's console buffer log path.
 func (c *ContainerLXC) ConsoleBufferLogPath() string {
 	return filepath.Join(c.LogPath(), "console.log")
 }
 
+// RootfsPath gets the container's root filesystem path.
 func (c *ContainerLXC) RootfsPath() string {
 	return filepath.Join(c.Path(), "rootfs")
 }
 
+// TemplatesPath gets the container's templates path.
 func (c *ContainerLXC) TemplatesPath() string {
 	return filepath.Join(c.Path(), "templates")
 }
 
+// StatePath gets the container's state path.
 func (c *ContainerLXC) StatePath() string {
 	/* FIXME: backwards compatibility: we used to use Join(RootfsPath(),
 	 * "state"), which was bad. Let's just check to see if that directory
@@ -6818,6 +6889,7 @@ func (c *ContainerLXC) StatePath() string {
 	return filepath.Join(c.Path(), "state")
 }
 
+// StoragePool gets the container's storage pool.
 func (c *ContainerLXC) StoragePool() (string, error) {
 	poolName, err := c.state.Cluster.ContainerPool(c.Project(), c.Name())
 	if err != nil {
@@ -6827,11 +6899,12 @@ func (c *ContainerLXC) StoragePool() (string, error) {
 	return poolName, nil
 }
 
-// Progress tracking
+// SetOperation is for progress tracking.
 func (c *ContainerLXC) SetOperation(op *operation.Operation) {
 	c.op = op
 }
 
+// ExpiryDate gets the container's expiry date.
 func (c *ContainerLXC) ExpiryDate() time.Time {
 	if c.IsSnapshot() {
 		return c.expiryDate
