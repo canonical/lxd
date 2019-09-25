@@ -11,14 +11,16 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var storagePoolVolumesCmd = APIEndpoint{
@@ -67,7 +69,7 @@ var storagePoolVolumeTypeImageCmd = APIEndpoint{
 
 // /1.0/storage-pools/{name}/volumes
 // List all storage volumes attached to a given storage pool.
-func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
+func storagePoolVolumesGet(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 	poolName := mux.Vars(r)["name"]
 
@@ -151,7 +153,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 
 // /1.0/storage-pools/{name}/volumes/{type}
 // List all storage volumes of a given volume type for a given storage pool.
-func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
+func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 
 	// Get the name of the pool the storage volume is supposed to be
@@ -228,7 +230,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume in a given storage pool.
-func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
+func storagePoolVolumesTypePost(d *Daemon, r *http.Request) daemon.Response {
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
 		return response
@@ -275,7 +277,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) Response {
+func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) daemon.Response {
 	doWork := func() error {
 		return storagePoolVolumeCreateInternal(d.State(), poolName, req)
 	}
@@ -289,11 +291,11 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 		return EmptySyncResponse
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		return doWork()
 	}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -304,7 +306,7 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume of a given volume type in a given storage pool.
-func storagePoolVolumesPost(d *Daemon, r *http.Request) Response {
+func storagePoolVolumesPost(d *Daemon, r *http.Request) daemon.Response {
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
 		return response
@@ -355,7 +357,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) Response {
+func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) daemon.Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -390,7 +392,7 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 		push = true
 	}
 
-	migrationArgs := MigrationSinkArgs{
+	migrationArgs := instance.MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
@@ -409,7 +411,7 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, req.Name)}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		// And finally run the migration.
 		err = sink.DoStorage(op)
 		if err != nil {
@@ -420,14 +422,14 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 		return nil
 	}
 
-	var op *operation
+	var op *operation.Operation
 	if push {
-		op, err = operationCreate(d.cluster, "", operationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operation.OperationCreate(d.cluster, "", operation.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
+		op, err = operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -438,7 +440,7 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
 // Rename a storage volume of a given volume type in a given storage pool.
-func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string) Response {
+func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string) daemon.Response {
 	// Get the name of the storage volume.
 	var volumeName string
 	fields := strings.Split(mux.Vars(r)["name"], "/")
@@ -542,7 +544,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 				return InternalError(err)
 			}
 
-			op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
+			op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -551,7 +553,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		}
 
 		// Pull mode
-		op, err := operationCreate(d.cluster, "", operationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
+		op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -631,11 +633,11 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		return doWork()
 	}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -643,21 +645,21 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	return OperationResponse(op)
 }
 
-func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePost(d, r, "container")
 }
 
-func storagePoolVolumeTypeCustomPost(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeCustomPost(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePost(d, r, "custom")
 }
 
-func storagePoolVolumeTypeImagePost(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeImagePost(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePost(d, r, "image")
 }
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 // Get storage volume of a given volume type on a given storage pool.
-func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string) Response {
+func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string) daemon.Response {
 	project := projectParam(r)
 
 	// Get the name of the storage volume.
@@ -724,20 +726,20 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	return SyncResponseETag(true, volume, etag)
 }
 
-func storagePoolVolumeTypeContainerGet(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeContainerGet(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypeGet(d, r, "container")
 }
 
-func storagePoolVolumeTypeCustomGet(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeCustomGet(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypeGet(d, r, "custom")
 }
 
-func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypeGet(d, r, "image")
 }
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) Response {
+func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) daemon.Response {
 	// Get the name of the storage volume.
 	var volumeName string
 	fields := strings.Split(mux.Vars(r)["name"], "/")
@@ -832,20 +834,20 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	return EmptySyncResponse
 }
 
-func storagePoolVolumeTypeContainerPut(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeContainerPut(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePut(d, r, "container")
 }
 
-func storagePoolVolumeTypeCustomPut(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeCustomPut(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePut(d, r, "custom")
 }
 
-func storagePoolVolumeTypeImagePut(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeImagePut(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePut(d, r, "image")
 }
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName string) Response {
+func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName string) daemon.Response {
 	// Get the name of the storage volume.
 	var volumeName string
 	fields := strings.Split(mux.Vars(r)["name"], "/")
@@ -937,20 +939,20 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	return EmptySyncResponse
 }
 
-func storagePoolVolumeTypeContainerPatch(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeContainerPatch(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePatch(d, r, "container")
 }
 
-func storagePoolVolumeTypeCustomPatch(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeCustomPatch(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePatch(d, r, "custom")
 }
 
-func storagePoolVolumeTypeImagePatch(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeImagePatch(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypePatch(d, r, "image")
 }
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName string) Response {
+func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName string) daemon.Response {
 	project := projectParam(r)
 
 	// Get the name of the storage volume.
@@ -1063,14 +1065,14 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	return EmptySyncResponse
 }
 
-func storagePoolVolumeTypeContainerDelete(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeContainerDelete(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypeDelete(d, r, "container")
 }
 
-func storagePoolVolumeTypeCustomDelete(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeCustomDelete(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypeDelete(d, r, "custom")
 }
 
-func storagePoolVolumeTypeImageDelete(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeImageDelete(d *Daemon, r *http.Request) daemon.Response {
 	return storagePoolVolumeTypeDelete(d, r, "image")
 }
