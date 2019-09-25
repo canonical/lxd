@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/resources"
 )
 
@@ -22,7 +23,7 @@ var storagePoolResourcesCmd = APIEndpoint{
 
 // /1.0/resources
 // Get system resources
-func api10ResourcesGet(d *Daemon, r *http.Request) Response {
+func api10ResourcesGet(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
@@ -40,7 +41,7 @@ func api10ResourcesGet(d *Daemon, r *http.Request) Response {
 
 // /1.0/storage-pools/{name}/resources
 // Get resources for a specific storage pool
-func storagePoolResourcesGet(d *Daemon, r *http.Request) Response {
+func storagePoolResourcesGet(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
