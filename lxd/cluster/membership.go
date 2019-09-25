@@ -757,21 +757,7 @@ func Purge(cluster *db.Cluster, name string) error {
 
 // List the nodes of the cluster.
 func List(state *state.State) ([]api.ClusterMember, error) {
-	addresses := []string{} // Addresses of database nodes
-	err := state.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to fetch current raft nodes")
-		}
-		for _, node := range nodes {
-			addresses = append(addresses, node.Address)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
+	var err error
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
 
@@ -780,6 +766,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 		if err != nil {
 			return err
 		}
+
 		offlineThreshold, err = tx.NodeOfflineThreshold()
 		if err != nil {
 			return err
@@ -797,7 +784,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	for i, node := range nodes {
 		result[i].ServerName = node.Name
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
-		result[i].Database = shared.StringInSlice(node.Address, addresses)
+		result[i].Database = shared.StringInSlice("database", node.Roles)
 		result[i].Roles = node.Roles
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
