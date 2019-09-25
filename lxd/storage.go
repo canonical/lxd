@@ -33,7 +33,9 @@ func init() {
 	device.StorageVolumeUmount = storageVolumeUmount
 	// Expose storageRootFSApplyQuota to the device package as StorageRootFSApplyQuota.
 	device.StorageRootFSApplyQuota = storageRootFSApplyQuota
-
+	// Expose storagePoolVolumeContainerCreateInit to the instance package as StoragePoolVolumeContainerCreateInit.
+	instance.StoragePoolVolumeContainerCreateInit = storagePoolVolumeContainerCreateInit
+	instance.StoragePoolVolumeContainerLoadInit = storagePoolVolumeContainerLoadInit
 }
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
