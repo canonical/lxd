@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -135,12 +136,12 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 			return err
 		}
 
-		sType, err := storageStringToType(pool.Driver)
+		sType, err := instance.StorageStringToType(pool.Driver)
 		if err != nil {
 			return err
 		}
 
-		if sType != storageTypeLvm {
+		if sType != instance.StorageTypeLvm {
 			continue
 		}
 
@@ -258,21 +259,21 @@ func patchStorageApi(name string, d *Daemon) error {
 	lvmVgName := daemonConfig["storage.lvm_vg_name"]
 	zfsPoolName := daemonConfig["storage.zfs_pool_name"]
 	defaultPoolName := "default"
-	preStorageApiStorageType := storageTypeDir
+	preStorageApiStorageType := instance.StorageTypeDir
 
 	if lvmVgName != "" {
-		preStorageApiStorageType = storageTypeLvm
+		preStorageApiStorageType = instance.StorageTypeLvm
 		defaultPoolName = lvmVgName
 	} else if zfsPoolName != "" {
-		preStorageApiStorageType = storageTypeZfs
+		preStorageApiStorageType = instance.StorageTypeZfs
 		defaultPoolName = zfsPoolName
 	} else if d.os.BackingFS == "btrfs" {
-		preStorageApiStorageType = storageTypeBtrfs
+		preStorageApiStorageType = instance.StorageTypeBtrfs
 	} else {
 		// Dir storage pool.
 	}
 
-	defaultStorageTypeName, err := storageTypeToString(preStorageApiStorageType)
+	defaultStorageTypeName, err := instance.StorageTypeToString(preStorageApiStorageType)
 	if err != nil {
 		return err
 	}
@@ -321,13 +322,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	// If any of these are actually called, there's no way back.
 	poolName := defaultPoolName
 	switch preStorageApiStorageType {
-	case storageTypeBtrfs:
+	case instance.StorageTypeBtrfs:
 		err = upgradeFromStorageTypeBtrfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeDir:
+	case instance.StorageTypeDir:
 		err = upgradeFromStorageTypeDir(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeLvm:
+	case instance.StorageTypeLvm:
 		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeZfs:
+	case instance.StorageTypeZfs:
 		// The user is using a zfs dataset. This case needs to be
 		// handled with care:
 
@@ -1150,7 +1151,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 
 				// Load the container from the database.
-				ctStruct, err := instanceLoadByProjectAndName(d.State(), "default", ct)
+				ctStruct, err := instance.InstanceLoadByProjectAndName(d.State(), "default", ct)
 				if err != nil {
 					logger.Errorf("Failed to load LVM container %s: %s", ct, err)
 					return err
@@ -1303,7 +1304,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					}
 
 					// Load the snapshot from the database.
-					csStruct, err := instanceLoadByProjectAndName(d.State(), "default", cs)
+					csStruct, err := instance.InstanceLoadByProjectAndName(d.State(), "default", cs)
 					if err != nil {
 						logger.Errorf("Failed to load LVM container %s: %s", cs, err)
 						return err
@@ -1878,7 +1879,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 	// Make sure all containers and snapshots have a valid disk configuration
 	for _, ct := range allcontainers {
-		c, err := instanceLoadByProjectAndName(d.State(), "default", ct)
+		c, err := instance.InstanceLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			continue
 		}
@@ -1981,7 +1982,7 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 
 	for _, ct := range cts {
 		// Load the container from the database.
-		c, err := instanceLoadByProjectAndName(d.State(), "default", ct)
+		c, err := instance.InstanceLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to open container '%s': %v", ct, err)
 			continue
@@ -1991,12 +1992,12 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 			continue
 		}
 
-		lxcCt, ok := c.(*containerLXC)
+		lxcCt, ok := c.(*instance.ContainerLXC)
 		if !ok {
 			continue
 		}
 
-		err = lxcCt.initLXC(true)
+		err = lxcCt.InitLXC(true)
 		if err != nil {
 			logger.Errorf("Failed to generate LXC config for '%s': %v", ct, err)
 			continue
@@ -2004,7 +2005,7 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 
 		// Generate the LXC config
 		configPath := filepath.Join(lxcCt.LogPath(), "lxc.conf")
-		err = lxcCt.c.SaveConfigFile(configPath)
+		err = lxcCt.SaveLXCConfigFile(configPath)
 		if err != nil {
 			os.Remove(configPath)
 			logger.Errorf("Failed to save LXC config for '%s': %v", ct, err)
@@ -2760,7 +2761,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 		}
 
 		// Load the container from the database.
-		c, err := instanceLoadByProjectAndName(d.State(), "default", ct)
+		c, err := instance.InstanceLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to load container %s: %s", ct, err)
 			return err
@@ -2982,7 +2983,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 
 	for _, ct := range cRegular {
 		// load the container from the database
-		ctStruct, err := instanceLoadByProjectAndName(d.State(), "default", ct)
+		ctStruct, err := instance.InstanceLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			return err
 		}
@@ -3234,17 +3235,17 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 				// Disable the read-only properties
 				if hasBtrfs {
 					path := snapshotsDir.Name()
-					subvols, _ := btrfsSubVolumesGet(path)
+					subvols, _ := driver.BTRFSSubVolumesGet(path)
 					for _, subvol := range subvols {
 						subvol = filepath.Join(path, subvol)
 						newSubvol := filepath.Join(shared.VarPath("storage-pools", poolName, "containers-snapshots", entry), subvol)
 
-						if !btrfsSubVolumeIsRo(subvol) {
+						if !driver.BTRFSSubVolumeIsRo(subvol) {
 							continue
 						}
 
-						btrfsSubVolumeMakeRw(subvol)
-						defer btrfsSubVolumeMakeRo(newSubvol)
+						driver.BTRFSSubVolumeMakeRw(subvol)
+						defer driver.BTRFSSubVolumeMakeRo(newSubvol)
 					}
 				}
 
