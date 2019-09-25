@@ -19,10 +19,12 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -66,7 +68,7 @@ var networkStateCmd = APIEndpoint{
 }
 
 // API endpoints
-func networksGet(d *Daemon, r *http.Request) Response {
+func networksGet(d *Daemon, r *http.Request) daemon.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	ifs, err := networkGetInterfaces(d.cluster)
@@ -95,7 +97,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resultMap)
 }
 
-func networksPost(d *Daemon, r *http.Request) Response {
+func networksPost(d *Daemon, r *http.Request) daemon.Response {
 	networkCreateLock.Lock()
 	defer networkCreateLock.Unlock()
 
@@ -348,7 +350,7 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 	return nil
 }
 
-func networkGet(d *Daemon, r *http.Request) Response {
+func networkGet(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
@@ -454,7 +456,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	return n, nil
 }
 
-func networkDelete(d *Daemon, r *http.Request) Response {
+func networkDelete(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 	state := d.State()
 
@@ -514,7 +516,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func networkPost(d *Daemon, r *http.Request) Response {
+func networkPost(d *Daemon, r *http.Request) daemon.Response {
 	// FIXME: renaming a network is currently not supported in clustering
 	//        mode. The difficulty is that network.Start() depends on the
 	//        network having already been renamed in the database, which is
@@ -575,7 +577,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
 }
 
-func networkPut(d *Daemon, r *http.Request) Response {
+func networkPut(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
@@ -614,7 +616,7 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	return doNetworkUpdate(d, name, dbInfo.Config, req)
 }
 
-func networkPatch(d *Daemon, r *http.Request) Response {
+func networkPatch(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
@@ -665,7 +667,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	return doNetworkUpdate(d, name, dbInfo.Config, req)
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut) Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut) daemon.Response {
 	// Validate the configuration
 	err := networkValidateConfig(name, req.Config)
 	if err != nil {
@@ -693,7 +695,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 	return EmptySyncResponse
 }
 
-func networkLeasesGet(d *Daemon, r *http.Request) Response {
+func networkLeasesGet(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
 
@@ -728,8 +730,8 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 				}
 
 				// Fill in the hwaddr from volatile
-				if inst.Type() == instance.TypeContainer {
-					d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
+				if inst.Type() == instancetype.Container {
+					d, err = inst.(*instance.ContainerLXC).FillNetworkDevice(k, d)
 					if err != nil {
 						continue
 					}
@@ -919,7 +921,7 @@ func networkShutdown(s *state.State) error {
 	return nil
 }
 
-func networkStateGet(d *Daemon, r *http.Request) Response {
+func networkStateGet(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
@@ -1305,7 +1307,7 @@ func (n *network) Start() error {
 		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-rapid-commit")
 	}
 
-	if !debug {
+	if !daemon.Debug {
 		// --quiet options are only supported on >2.67
 		minVer, _ := version.NewDottedVersion("2.67")
 
