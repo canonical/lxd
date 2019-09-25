@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -25,7 +26,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string, xattrs bool) (st
 	}
 
 	rsyncVerbosity := "-q"
-	if debug {
+	if daemon.Debug {
 		rsyncVerbosity = "-vi"
 	}
 
