@@ -13,8 +13,10 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -39,7 +41,7 @@ var profileCmd = APIEndpoint{
 }
 
 /* This is used for both profiles post and profile put */
-func profilesGet(d *Daemon, r *http.Request) Response {
+func profilesGet(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 
 	recursion := util.IsRecursionRequest(r)
@@ -81,7 +83,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-func profilesPost(d *Daemon, r *http.Request) Response {
+func profilesPost(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 	req := api.ProfilesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -101,13 +103,13 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := containerValidConfig(d.os, req.Config, true, false)
+	err := instance.ContainerValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
 
 	// Validate container devices with an empty instanceName to indicate profile validation.
-	err = containerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
+	err = instance.ContainerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -146,7 +148,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
-func profileGet(d *Daemon, r *http.Request) Response {
+func profileGet(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
@@ -188,7 +190,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, resp, etag)
 }
 
-func profilePut(d *Daemon, r *http.Request) Response {
+func profilePut(d *Daemon, r *http.Request) daemon.Response {
 	// Get the project
 	project := projectParam(r)
 
@@ -268,7 +270,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	return SmartError(err)
 }
 
-func profilePatch(d *Daemon, r *http.Request) Response {
+func profilePatch(d *Daemon, r *http.Request) daemon.Response {
 	// Get the project
 	project := projectParam(r)
 
@@ -361,7 +363,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 }
 
 // The handler for the post operation.
-func profilePost(d *Daemon, r *http.Request) Response {
+func profilePost(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
@@ -413,7 +415,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 }
 
 // The handler for the delete operation.
-func profileDelete(d *Daemon, r *http.Request) Response {
+func profileDelete(d *Daemon, r *http.Request) daemon.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
