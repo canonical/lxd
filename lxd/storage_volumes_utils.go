@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -265,7 +266,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 	s := d.State()
 	// update all instances
-	insts, err := instanceLoadAll(s)
+	insts, err := instance.InstanceLoadAll(s)
 	if err != nil {
 		return err
 	}
@@ -397,7 +398,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 	poolName string, volumeName string, volumeTypeName string,
 	runningOnly bool) ([]string, error) {
-	insts, err := instanceLoadAll(s)
+	insts, err := instance.InstanceLoadAll(s)
 	if err != nil {
 		return []string{}, err
 	}
@@ -569,7 +570,7 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	return nil
 }
 
-func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) (storage, error) {
+func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) (instance.Storage, error) {
 	volumeName := vol.Name
 	volumeDescription := vol.Description
 	volumeTypeName := vol.Type
@@ -665,7 +666,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	return nil
 }
 
-func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, vol *api.StorageVolumesPost, snapshotName string) (storage, error) {
+func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, vol *api.StorageVolumesPost, snapshotName string) (instance.Storage, error) {
 	volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
 	if err != nil {
 		return nil, err
@@ -700,7 +701,7 @@ func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, 
 	return storagePoolVolumeSnapshotDBCreateInternal(state, dbArgs)
 }
 
-func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (storage, error) {
+func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (instance.Storage, error) {
 	// Create database entry for new storage volume.
 	err := storagePoolVolumeDBCreate(state, dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, true, dbArgs.Config)
 	if err != nil {
