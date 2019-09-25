@@ -124,3 +124,8 @@ func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 		clusterTarget:        name,
 	}
 }
+
+// IsAgent returns true if the server is a LXD agent.
+func (r *ProtocolLXD) IsAgent() bool {
+	return r.server != nil && r.server.Environment.Server == "lxd-agent"
+}

@@ -779,11 +779,6 @@ func (r *ProtocolLXD) DeleteInstance(name string) (Operation, error) {
 
 // ExecInstance requests that LXD spawns a command inside the instance.
 func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPost, args *InstanceExecArgs) (Operation, error) {
-	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
-	if err != nil {
-		return nil, err
-	}
-
 	if exec.RecordOutput {
 		if !r.HasExtension("container_exec_recording") {
 			return nil, fmt.Errorf("The server is missing the required \"container_exec_recording\" API extension")
@@ -796,8 +791,21 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 		}
 	}
 
+	var uri string
+
+	if r.IsAgent() {
+		uri = "/exec"
+	} else {
+		path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+		if err != nil {
+			return nil, err
+		}
+
+		uri = fmt.Sprintf("%s/%s/exec", path, url.PathEscape(instanceName))
+	}
+
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("%s/%s/exec", path, url.PathEscape(instanceName)), exec, "")
+	op, _, err := r.queryOperation("POST", uri, exec, "")
 	if err != nil {
 		return nil, err
 	}
@@ -927,15 +935,26 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 // GetInstanceFile retrieves the provided path from the instance.
 func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.ReadCloser, *InstanceFileResponse, error) {
-	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
-	if err != nil {
-		return nil, nil, err
-	}
+	var err error
+	var requestURL string
 
-	// Prepare the HTTP request
-	requestURL, err := shared.URLEncode(
-		fmt.Sprintf("%s/1.0%s/%s/files", r.httpHost, path, url.PathEscape(instanceName)),
-		map[string]string{"path": filePath})
+	if r.IsAgent() {
+		requestURL, err = shared.URLEncode(
+			fmt.Sprintf("%s/1.0/files", r.httpHost),
+			map[string]string{"path": filePath})
+	} else {
+		var path string
+
+		path, _, err = r.instanceTypeToPath(api.InstanceTypeAny)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Prepare the HTTP request
+		requestURL, err = shared.URLEncode(
+			fmt.Sprintf("%s/1.0%s/%s/files", r.httpHost, path, url.PathEscape(instanceName)),
+			map[string]string{"path": filePath})
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1005,11 +1024,6 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 
 // CreateInstanceFile tells LXD to create a file in the instance.
 func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, args InstanceFileArgs) error {
-	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
-	if err != nil {
-		return err
-	}
-
 	if args.Type == "directory" {
 		if !r.HasExtension("directory_manipulation") {
 			return fmt.Errorf("The server is missing the required \"directory_manipulation\" API extension")
@@ -1028,10 +1042,21 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 		}
 	}
 
-	// Prepare the HTTP request
-	requestURL := fmt.Sprintf("%s/1.0%s/%s/files?path=%s", r.httpHost, path, url.PathEscape(instanceName), url.QueryEscape(filePath))
+	var requestURL string
 
-	requestURL, err = r.setQueryAttributes(requestURL)
+	if r.IsAgent() {
+		requestURL = fmt.Sprintf("%s/1.0/files?path=%s", r.httpHost, url.QueryEscape(filePath))
+	} else {
+		path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+		if err != nil {
+			return err
+		}
+
+		// Prepare the HTTP request
+		requestURL = fmt.Sprintf("%s/1.0%s/%s/files?path=%s", r.httpHost, path, url.PathEscape(instanceName), url.QueryEscape(filePath))
+	}
+
+	requestURL, err := r.setQueryAttributes(requestURL)
 	if err != nil {
 		return err
 	}
@@ -1524,15 +1549,23 @@ func (r *ProtocolLXD) UpdateInstanceSnapshot(instanceName string, name string, i
 
 // GetInstanceState returns a InstanceState entry for the provided instance name.
 func (r *ProtocolLXD) GetInstanceState(name string) (*api.InstanceState, string, error) {
-	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
-	if err != nil {
-		return nil, "", err
+	var uri string
+
+	if r.IsAgent() {
+		uri = "/state"
+	} else {
+		path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+		if err != nil {
+			return nil, "", err
+		}
+
+		uri = fmt.Sprintf("%s/%s/state", path, url.PathEscape(name))
 	}
 
 	state := api.InstanceState{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("%s/%s/state", path, url.PathEscape(name)), nil, "", &state)
+	etag, err := r.queryStruct("GET", uri, nil, "", &state)
 	if err != nil {
 		return nil, "", err
 	}
