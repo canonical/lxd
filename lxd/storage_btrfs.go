@@ -2335,23 +2335,6 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 	return nil
 }
 
-// isBtrfsSubVolume returns true if the given Path is a btrfs subvolume else
-// false.
-func isBtrfsSubVolume(subvolPath string) bool {
-	fs := unix.Stat_t{}
-	err := unix.Lstat(subvolPath, &fs)
-	if err != nil {
-		return false
-	}
-
-	// Check if BTRFS_FIRST_FREE_OBJECTID
-	if fs.Ino != 256 {
-		return false
-	}
-
-	return true
-}
-
 func isBtrfsFilesystem(path string) bool {
 	_, err := shared.RunCommand("btrfs", "filesystem", "show", path)
 	if err != nil {
@@ -2374,60 +2357,6 @@ func isOnBtrfs(path string) bool {
 	}
 
 	return true
-}
-
-func btrfsSubVolumeIsRo(path string) bool {
-	output, err := shared.RunCommand("btrfs", "property", "get", "-ts", path)
-	if err != nil {
-		return false
-	}
-
-	return strings.HasPrefix(string(output), "ro=true")
-}
-
-func btrfsSubVolumeMakeRo(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
-	return err
-}
-
-func btrfsSubVolumeMakeRw(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
-	return err
-}
-
-func btrfsSubVolumesGet(path string) ([]string, error) {
-	result := []string{}
-
-	if !strings.HasSuffix(path, "/") {
-		path = path + "/"
-	}
-
-	// Unprivileged users can't get to fs internals
-	filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
-		// Skip walk errors
-		if err != nil {
-			return nil
-		}
-
-		// Ignore the base path
-		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
-			return nil
-		}
-
-		// Subvolumes can only be directories
-		if !fi.IsDir() {
-			return nil
-		}
-
-		// Check if a btrfs subvolume
-		if isBtrfsSubVolume(fpath) {
-			result = append(result, strings.TrimPrefix(fpath, path))
-		}
-
-		return nil
-	})
-
-	return result, nil
 }
 
 func (s *storageBtrfs) MigrationType() migration.MigrationFSType {
