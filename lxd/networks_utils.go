@@ -33,6 +33,10 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+func init() {
+	instance.NetworkUpdateStatic = networkUpdateStatic
+}
+
 var forkdnsServersLock sync.Mutex
 
 func networkAutoAttach(cluster *db.Cluster, devName string) error {
