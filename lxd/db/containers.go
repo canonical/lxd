@@ -71,7 +71,7 @@ type Instance struct {
 	Name         string `db:"primary=yes"`
 	Node         string `db:"join=nodes.name"`
 	Type         instance.Type
-	Snapshot     bool
+	Snapshot     bool `db:"ignore"`
 	Architecture int
 	Ephemeral    bool
 	CreationDate time.Time
