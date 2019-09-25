@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -20,11 +21,11 @@ import (
 // and will run once every 24h.
 func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		opRun := func(op *operation) error {
+		opRun := func(op *operation.Operation) error {
 			return expireLogs(ctx, state)
 		}
 
-		op, err := operationCreate(state.Cluster, "", operationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil)
+		op, err := operation.OperationCreate(state.Cluster, "", operation.OperationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start log expiry operation", log.Ctx{"err": err})
 			return
@@ -53,7 +54,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 	var containers []string
 	ch := make(chan struct{})
 	go func() {
-		containers, err = state.Cluster.ContainersNodeList(instance.TypeContainer)
+		containers, err = state.Cluster.ContainersNodeList(instancetype.Container)
 		ch <- struct{}{}
 	}()
 	select {
