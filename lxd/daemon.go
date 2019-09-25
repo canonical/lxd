@@ -472,42 +472,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	}
 }
 
-// have we setup shared mounts?
-var sharedMounted bool
-var sharedMountsLock sync.Mutex
-
-func setupSharedMounts() error {
-	// Check if we already went through this
-	if sharedMounted {
-		return nil
-	}
-
-	// Get a lock to prevent races
-	sharedMountsLock.Lock()
-	defer sharedMountsLock.Unlock()
-
-	// Check if already setup
-	path := shared.VarPath("shmounts")
-	if shared.IsMountPoint(path) {
-		sharedMounted = true
-		return nil
-	}
-
-	// Mount a new tmpfs
-	if err := unix.Mount("tmpfs", path, "tmpfs", 0, "size=100k,mode=0711"); err != nil {
-		return err
-	}
-
-	// Mark as MS_SHARED and MS_REC
-	var flags uintptr = unix.MS_SHARED | unix.MS_REC
-	if err := unix.Mount(path, path, "none", flags, ""); err != nil {
-		return err
-	}
-
-	sharedMounted = true
-	return nil
-}
-
 func (d *Daemon) Init() error {
 	err := d.init()
 
