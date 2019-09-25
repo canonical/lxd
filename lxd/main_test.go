@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 )
@@ -68,7 +69,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	// the next function.
 	poolConfig := map[string]string{}
 
-	mockStorage, _ := storageTypeToString(storageTypeMock)
+	mockStorage, _ := instance.StorageTypeToString(instance.StorageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
 	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.cluster, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
