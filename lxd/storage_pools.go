@@ -12,6 +12,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -41,7 +42,7 @@ var storagePoolCmd = APIEndpoint{
 
 // /1.0/storage-pools
 // List all storage pools.
-func storagePoolsGet(d *Daemon, r *http.Request) Response {
+func storagePoolsGet(d *Daemon, r *http.Request) daemon.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	pools, err := d.cluster.StoragePools()
@@ -80,7 +81,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 
 // /1.0/storage-pools
 // Create a storage pool.
-func storagePoolsPost(d *Daemon, r *http.Request) Response {
+func storagePoolsPost(d *Daemon, r *http.Request) daemon.Response {
 	storagePoolCreateLock.Lock()
 	defer storagePoolCreateLock.Unlock()
 
@@ -269,7 +270,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 
 // /1.0/storage-pools/{name}
 // Get a single storage pool.
-func storagePoolGet(d *Daemon, r *http.Request) Response {
+func storagePoolGet(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
@@ -313,7 +314,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 
 // /1.0/storage-pools/{name}
 // Replace pool properties.
-func storagePoolPut(d *Daemon, r *http.Request) Response {
+func storagePoolPut(d *Daemon, r *http.Request) daemon.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
@@ -388,7 +389,7 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 
 // /1.0/storage-pools/{name}
 // Change pool properties.
-func storagePoolPatch(d *Daemon, r *http.Request) Response {
+func storagePoolPatch(d *Daemon, r *http.Request) daemon.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing network
@@ -510,7 +511,7 @@ func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string)
 
 // /1.0/storage-pools/{name}
 // Delete storage pool.
-func storagePoolDelete(d *Daemon, r *http.Request) Response {
+func storagePoolDelete(d *Daemon, r *http.Request) daemon.Response {
 	poolName := mux.Vars(r)["name"]
 
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
@@ -619,7 +620,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) Response {
+func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) daemon.Response {
 	volumeNames, err := cluster.StoragePoolVolumesGetNames(poolID)
 	if err != nil {
 		return InternalError(err)

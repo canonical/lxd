@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/instance"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath string, mntpoint string, byteSize int64, data interface{}) (func() (bool, error), error) {
+func shrinkVolumeFilesystem(s instance.Storage, volumeType int, fsType string, devPath string, mntpoint string, byteSize int64, data interface{}) (func() (bool, error), error) {
 	var cleanupFunc func() (bool, error)
 	switch fsType {
 	case "xfs":

@@ -9,7 +9,9 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -18,12 +20,12 @@ import (
 )
 
 type rsyncStorageSourceDriver struct {
-	container     Instance
-	snapshots     []Instance
+	container     instance.Instance
+	snapshots     []instance.Instance
 	rsyncFeatures []string
 }
 
-func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error {
+func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation.Operation, bwlimit string, storage instance.Storage, volumeOnly bool) error {
 	ourMount, err := storage.StoragePoolVolumeMount()
 	if err != nil {
 		return err
@@ -67,7 +69,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 	return nil
 }
 
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation.Operation, bwlimit string, containerOnly bool) error {
 	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
 
 	if !containerOnly {
@@ -117,12 +119,12 @@ func (s rsyncStorageSourceDriver) Cleanup() {
 	// noop
 }
 
-func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func rsyncStorageMigrationSource(args instance.MigrationSourceArgs) (instance.MigrationStorageSourceDriver, error) {
 	return rsyncStorageSourceDriver{nil, nil, args.RsyncFeatures}, nil
 }
 
-func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	var snapshots = []Instance{}
+func rsyncRefreshSource(refreshSnapshots []string, args instance.MigrationSourceArgs) (instance.MigrationStorageSourceDriver, error) {
+	var snapshots = []instance.Instance{}
 	if !args.InstanceOnly {
 		allSnapshots, err := args.Instance.Snapshots()
 		if err != nil {
@@ -142,9 +144,9 @@ func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (Mi
 	return rsyncStorageSourceDriver{args.Instance, snapshots, args.RsyncFeatures}, nil
 }
 
-func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func rsyncMigrationSource(args instance.MigrationSourceArgs) (instance.MigrationStorageSourceDriver, error) {
 	var err error
-	var snapshots = []Instance{}
+	var snapshots = []instance.Instance{}
 	if !args.InstanceOnly {
 		snapshots, err = args.Instance.Snapshots()
 		if err != nil {
@@ -176,7 +178,7 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	args := db.ContainerArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Snapshot:     true,
 		Devices:      devices,
 		Ephemeral:    snap.GetEphemeral(),
@@ -197,7 +199,7 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	return args
 }
 
-func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation.Operation, args instance.MigrationSinkArgs) error {
 	err := args.Storage.StoragePoolVolumeCreate()
 	if err != nil {
 		return err
@@ -258,7 +260,7 @@ func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args Migrati
 	return RsyncRecv(path, conn, wrapper, args.RsyncFeatures)
 }
 
-func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func rsyncMigrationSink(conn *websocket.Conn, op *operation.Operation, args instance.MigrationSinkArgs) error {
 	ourStart, err := args.Instance.StorageStart()
 	if err != nil {
 		return err
@@ -286,7 +288,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 		return err
 	}
 
-	isDirBackend := args.Instance.Storage().GetStorageType() == storageTypeDir
+	isDirBackend := args.Instance.Storage().GetStorageType() == instance.StorageTypeDir
 	if isDirBackend {
 		if !args.InstanceOnly {
 			for _, snap := range args.Snapshots {
@@ -321,7 +323,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 				}
 
 				// Try and a load instance
-				s, err := instanceLoadByProjectAndName(args.Instance.DaemonState(),
+				s, err := instance.InstanceLoadByProjectAndName(args.Instance.DaemonState(),
 					args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					// Create the snapshot since it doesn't seem to exist
@@ -336,7 +338,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					return err
 				}
 
-				if args.Instance.Type() == instance.TypeContainer {
+				if args.Instance.Type() == instancetype.Container {
 					c := args.Instance.(container)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
@@ -390,7 +392,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					return err
 				}
 
-				if args.Instance.Type() == instance.TypeContainer {
+				if args.Instance.Type() == instancetype.Container {
 					c := args.Instance.(container)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
@@ -398,7 +400,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					}
 				}
 
-				_, err = instanceLoadByProjectAndName(args.Instance.DaemonState(),
+				_, err = instance.InstanceLoadByProjectAndName(args.Instance.DaemonState(),
 					args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					_, err = containerCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance)
@@ -425,7 +427,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 		}
 	}
 
-	if args.Instance.Type() == instance.TypeContainer {
+	if args.Instance.Type() == instancetype.Container {
 		c := args.Instance.(container)
 		err = resetContainerDiskIdmap(c, args.Idmap)
 		if err != nil {

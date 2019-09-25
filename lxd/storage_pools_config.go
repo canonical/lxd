@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -128,7 +129,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string, oldConfig map[string]string) error {
 	err := func(value string) error {
-		return shared.IsOneOf(value, supportedStoragePoolDrivers)
+		return shared.IsOneOf(value, instance.SupportedStoragePoolDrivers)
 	}(driver)
 	if err != nil {
 		return err

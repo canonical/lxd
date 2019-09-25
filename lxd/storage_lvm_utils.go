@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -256,7 +257,7 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 	return targetLvmVolumePath, nil
 }
 
-func (s *storageLvm) createSnapshotContainer(snapshotContainer Instance, sourceContainer Instance, readonly bool) error {
+func (s *storageLvm) createSnapshotContainer(snapshotContainer instance.Instance, sourceContainer instance.Instance, readonly bool) error {
 	tryUndo := true
 
 	sourceContainerName := sourceContainer.Name()
@@ -303,7 +304,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer Instance, sourceC
 }
 
 // Copy a container on a storage pool that does use a thinpool.
-func (s *storageLvm) copyContainerThinpool(target Instance, source Instance, readonly bool) error {
+func (s *storageLvm) copyContainerThinpool(target instance.Instance, source instance.Instance, readonly bool) error {
 	err := s.createSnapshotContainer(target, source, readonly)
 	if err != nil {
 		logger.Errorf("Error creating snapshot LV for copy: %s", err)
@@ -341,7 +342,7 @@ func (s *storageLvm) copyContainerThinpool(target Instance, source Instance, rea
 	return nil
 }
 
-func (s *storageLvm) copySnapshot(target Instance, source Instance, refresh bool) error {
+func (s *storageLvm) copySnapshot(target instance.Instance, source instance.Instance, refresh bool) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -370,7 +371,7 @@ func (s *storageLvm) copySnapshot(target Instance, source Instance, refresh bool
 }
 
 // Copy a container on a storage pool that does not use a thinpool.
-func (s *storageLvm) copyContainerLv(target Instance, source Instance, readonly bool, refresh bool) error {
+func (s *storageLvm) copyContainerLv(target instance.Instance, source instance.Instance, readonly bool, refresh bool) error {
 	exists, err := storageLVExists(getLvmDevPath(target.Project(), s.getOnDiskPoolName(),
 		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(target.Name())))
 	if err != nil {
@@ -445,7 +446,7 @@ func (s *storageLvm) copyContainerLv(target Instance, source Instance, readonly 
 }
 
 // Copy an lvm container.
-func (s *storageLvm) copyContainer(target Instance, source Instance, refresh bool) error {
+func (s *storageLvm) copyContainer(target instance.Instance, source instance.Instance, refresh bool) error {
 	targetPool, err := target.StoragePool()
 	if err != nil {
 		return err
@@ -483,7 +484,7 @@ func (s *storageLvm) copyContainer(target Instance, source Instance, refresh boo
 	return nil
 }
 
-func (s *storageLvm) containerCreateFromImageLv(c Instance, fp string) error {
+func (s *storageLvm) containerCreateFromImageLv(c instance.Instance, fp string) error {
 	containerName := c.Name()
 
 	err := s.ContainerCreate(c)
@@ -503,7 +504,7 @@ func (s *storageLvm) containerCreateFromImageLv(c Instance, fp string) error {
 
 	imagePath := shared.VarPath("images", fp)
 	containerMntPoint := driver.GetContainerMountPoint(c.Project(), s.pool.Name, containerName)
-	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS, nil)
+	err = unpackImage(imagePath, containerMntPoint, instance.StorageTypeLvm, s.s.OS.RunningInUserNS, nil)
 	if err != nil {
 		logger.Errorf(`Failed to unpack image "%s" into non-thinpool LVM storage volume "%s" for container "%s" on storage pool "%s": %s`, imagePath, containerMntPoint, containerName, s.pool.Name, err)
 		return err
@@ -515,7 +516,7 @@ func (s *storageLvm) containerCreateFromImageLv(c Instance, fp string) error {
 	return nil
 }
 
-func (s *storageLvm) containerCreateFromImageThinLv(c Instance, fp string) error {
+func (s *storageLvm) containerCreateFromImageThinLv(c instance.Instance, fp string) error {
 	poolName := s.getOnDiskPoolName()
 	// Check if the image already exists.
 	imageLvmDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fp)
@@ -721,7 +722,7 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 	results := []string{}
 
-	cNames, err := s.Cluster.ContainersNodeList(instance.TypeContainer)
+	cNames, err := s.Cluster.ContainersNodeList(instancetype.Container)
 	if err != nil {
 		return results, err
 	}

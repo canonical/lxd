@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
 
 type storageShared struct {
-	sType        storageType
+	sType        instance.StorageType
 	sTypeName    string
 	sTypeVersion string
 
@@ -18,7 +19,7 @@ type storageShared struct {
 	volume *api.StorageVolume
 }
 
-func (s *storageShared) GetStorageType() storageType {
+func (s *storageShared) GetStorageType() instance.StorageType {
 	return s.sType
 }
 
