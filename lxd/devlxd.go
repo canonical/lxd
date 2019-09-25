@@ -435,7 +435,9 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 
 			project := "default"
 			if strings.Contains(name, "_") {
-				project = strings.Split(name, "_")[0]
+				fields := strings.SplitN(name, "_", 2)
+				project = fields[0]
+				name = fields[1]
 			}
 
 			inst, err := instanceLoadByProjectAndName(d.State(), project, name)
