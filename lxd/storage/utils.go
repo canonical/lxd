@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -359,4 +360,92 @@ func GetStorageResource(path string) (*api.ResourcesStoragePool, error) {
 	}
 
 	return &res, nil
+}
+
+// ZFSIdmapSetSkipper sets skipper.
+func ZFSIdmapSetSkipper(dir string, absPath string, fi os.FileInfo) bool {
+	strippedPath := absPath
+	if dir != "" {
+		strippedPath = absPath[len(dir):]
+	}
+
+	if fi.IsDir() && strippedPath == "/.zfs/snapshot" {
+		return true
+	}
+
+	return false
+}
+
+// BTRFSSubVolumesGet gets sub volumes.
+func BTRFSSubVolumesGet(path string) ([]string, error) {
+	result := []string{}
+
+	if !strings.HasSuffix(path, "/") {
+		path = path + "/"
+	}
+
+	// Unprivileged users can't get to fs internals
+	filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
+		// Skip walk errors
+		if err != nil {
+			return nil
+		}
+
+		// Ignore the base path
+		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
+			return nil
+		}
+
+		// Subvolumes can only be directories
+		if !fi.IsDir() {
+			return nil
+		}
+
+		// Check if a btrfs subvolume
+		if IsBtrfsSubVolume(fpath) {
+			result = append(result, strings.TrimPrefix(fpath, path))
+		}
+
+		return nil
+	})
+
+	return result, nil
+}
+
+// IsBtrfsSubVolume returns true if the given Path is a btrfs subvolume else false.
+func IsBtrfsSubVolume(subvolPath string) bool {
+	fs := unix.Stat_t{}
+	err := unix.Lstat(subvolPath, &fs)
+	if err != nil {
+		return false
+	}
+
+	// Check if BTRFS_FIRST_FREE_OBJECTID
+	if fs.Ino != 256 {
+		return false
+	}
+
+	return true
+}
+
+// BTRFSSubVolumeIsRo returns whether sub volume is read only.
+func BTRFSSubVolumeIsRo(path string) bool {
+	output, err := shared.RunCommand("btrfs", "property", "get", "-ts", path)
+	if err != nil {
+		return false
+	}
+
+	return strings.HasPrefix(string(output), "ro=true")
+}
+
+// BTRFSSubVolumeMakeRo makes sub volume read only.
+func BTRFSSubVolumeMakeRo(path string) error {
+	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
+	return err
+}
+
+// BTRFSSubVolumeMakeRw makes sub volume read write.
+func BTRFSSubVolumeMakeRw(path string) error {
+	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
+	return err
 }
