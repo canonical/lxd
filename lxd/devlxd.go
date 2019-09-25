@@ -18,8 +18,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -139,7 +141,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
 
-func devlxdEventSend(c container, eventType string, eventMessage interface{}) error {
+func devlxdEventSend(c instance.Instance, eventType string, eventMessage interface{}) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()
@@ -245,7 +247,7 @@ func hoistReq(f func(*Daemon, container, http.ResponseWriter, *http.Request) *de
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
-			util.WriteJSON(w, resp.content, debug)
+			util.WriteJSON(w, resp.content, daemon.Debug)
 		} else if resp.ctype != "websocket" {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			fmt.Fprintf(w, resp.content.(string))
@@ -442,12 +444,12 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 				project = strings.Split(name, "_")[0]
 			}
 
-			inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+			inst, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 			if err != nil {
 				return nil, err
 			}
 
-			if inst.Type() != instance.TypeContainer {
+			if inst.Type() != instancetype.Container {
 				return nil, fmt.Errorf("Instance is not container type")
 			}
 
@@ -480,13 +482,13 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	instances, err := instanceLoadNodeAll(d.State())
+	instances, err := instance.InstanceLoadNodeAll(d.State())
 	if err != nil {
 		return nil, err
 	}
 
 	for _, inst := range instances {
-		if inst.Type() != instance.TypeContainer {
+		if inst.Type() != instancetype.Container {
 			continue
 		}
 
