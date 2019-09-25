@@ -187,7 +187,10 @@ func parseStruct(str *ast.StructType) ([]*Field, error) {
 			return nil, err
 		}
 
-		fields = append(fields, field)
+		// Don't add field if it has been ignored.
+		if field != nil {
+			fields = append(fields, field)
+		}
 	}
 
 	return fields, nil
@@ -198,6 +201,15 @@ func parseField(f *ast.Field) (*Field, error) {
 
 	if !name.IsExported() {
 		//return nil, fmt.Errorf("Unexported field name %q", name.Name)
+	}
+
+	// Ignore fields that are marked with a tag of `db:"ingore"`
+	if f.Tag != nil {
+		tag := f.Tag.Value
+		tagValue := reflect.StructTag(tag[1 : len(tag)-1]).Get("db")
+		if tagValue == "ignore" {
+			return nil, nil
+		}
 	}
 
 	typeName := parseType(f.Type)
