@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -94,7 +95,7 @@ func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
 	return networks, nil
 }
 
-func networkIsInUse(c Instance, name string) bool {
+func networkIsInUse(c instance.Instance, name string) bool {
 	for _, d := range c.ExpandedDevices() {
 		if d["type"] != "nic" {
 			continue
@@ -643,7 +644,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	}
 
 	// Get all the instances
-	insts, err := instanceLoadNodeAll(s)
+	insts, err := instance.InstanceLoadNodeAll(s)
 	if err != nil {
 		return err
 	}
@@ -658,9 +659,9 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			if inst.Type() == instance.TypeContainer {
+			if inst.Type() == instancetype.Container {
 				// Fill in the hwaddr from volatile
-				d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
+				d, err = inst.(*instance.ContainerLXC).FillNetworkDevice(k, d)
 				if err != nil {
 					continue
 				}
