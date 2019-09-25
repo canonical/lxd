@@ -6731,8 +6731,8 @@ func (c *ContainerLXC) ExpandedDevices() config.Devices {
 	return c.expandedDevices
 }
 
-// Id gets container's ID.
-func (c *ContainerLXC) Id() int {
+// ID gets container's ID.
+func (c *ContainerLXC) ID() int {
 	return c.id
 }
 

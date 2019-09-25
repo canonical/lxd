@@ -126,7 +126,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 	listener := events.NewEventListener(c.Project(), conn, strings.Split(typeStr, ","), "", false)
 
 	devlxdEventsLock.Lock()
-	cid := c.Id()
+	cid := c.ID()
 	_, ok := devlxdEventListeners[cid]
 	if !ok {
 		devlxdEventListeners[cid] = map[string]*events.Listener{}
@@ -153,7 +153,7 @@ func devlxdEventSend(c instance.Instance, eventType string, eventMessage interfa
 	}
 
 	devlxdEventsLock.Lock()
-	cid := c.Id()
+	cid := c.ID()
 	listeners, ok := devlxdEventListeners[cid]
 	if !ok {
 		devlxdEventsLock.Unlock()
