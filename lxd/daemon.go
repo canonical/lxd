@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -919,7 +920,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Events
-	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
+	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, events.Forward))
 
 	// Auto-sync images across the cluster (daily)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
