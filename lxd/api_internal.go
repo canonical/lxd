@@ -17,12 +17,14 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -103,7 +105,7 @@ var internalRAFTSnapshotCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: internalRAFTSnapshot},
 }
 
-func internalWaitReady(d *Daemon, r *http.Request) Response {
+func internalWaitReady(d *Daemon, r *http.Request) daemon.Response {
 	select {
 	case <-d.readyChan:
 	default:
@@ -113,24 +115,24 @@ func internalWaitReady(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func internalShutdown(d *Daemon, r *http.Request) Response {
+func internalShutdown(d *Daemon, r *http.Request) daemon.Response {
 	d.shutdownChan <- struct{}{}
 
 	return EmptySyncResponse
 }
 
-func internalContainerOnStart(d *Daemon, r *http.Request) Response {
+func internalContainerOnStart(d *Daemon, r *http.Request) daemon.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		return SmartError(err)
 	}
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.InstanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -144,7 +146,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
+func internalContainerOnStopNS(d *Daemon, r *http.Request) daemon.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		return SmartError(err)
@@ -156,12 +158,12 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
 	}
 	netns := queryParam(r, "netns")
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.InstanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -175,7 +177,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func internalContainerOnStop(d *Daemon, r *http.Request) Response {
+func internalContainerOnStop(d *Daemon, r *http.Request) daemon.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		return SmartError(err)
@@ -186,12 +188,12 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		target = "unknown"
 	}
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.InstanceLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -226,7 +228,7 @@ type internalSQLResult struct {
 }
 
 // Perform a database dump.
-func internalSQLGet(d *Daemon, r *http.Request) Response {
+func internalSQLGet(d *Daemon, r *http.Request) daemon.Response {
 	database := r.FormValue("database")
 
 	if !shared.StringInSlice(database, []string{"local", "global"}) {
@@ -262,7 +264,7 @@ func internalSQLGet(d *Daemon, r *http.Request) Response {
 }
 
 // Execute queries.
-func internalSQLPost(d *Daemon, r *http.Request) Response {
+func internalSQLPost(d *Daemon, r *http.Request) daemon.Response {
 	req := &internalSQLQuery{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -389,13 +391,13 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 	return nil
 }
 
-func slurpBackupFile(path string) (*backupFile, error) {
+func slurpBackupFile(path string) (*instance.BackupFile, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	backup := backupFile{}
+	backup := instance.BackupFile{}
 
 	if err := yaml.Unmarshal(data, &backup); err != nil {
 		return nil, err
@@ -409,7 +411,7 @@ type internalImportPost struct {
 	Force bool   `json:"force" yaml:"force"`
 }
 
-func internalImport(d *Daemon, r *http.Request) Response {
+func internalImport(d *Daemon, r *http.Request) daemon.Response {
 	projectName := projectParam(r)
 
 	req := &internalImportPost{}
@@ -734,7 +736,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		switch backup.Pool.Driver {
 		case "btrfs":
 			snpMntPt := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
-			if !shared.PathExists(snpMntPt) || !isBtrfsSubVolume(snpMntPt) {
+			if !shared.PathExists(snpMntPt) || !driver.IsBtrfsSubVolume(snpMntPt) {
 				if req.Force {
 					continue
 				}
@@ -921,7 +923,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
 		CreationDate: backup.Container.CreatedAt,
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Description:  backup.Container.Description,
 		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
 		Ephemeral:    backup.Container.Ephemeral,
@@ -1027,7 +1029,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			BaseImage:    baseImage,
 			Config:       snap.Config,
 			CreationDate: snap.CreatedAt,
-			Type:         instance.TypeContainer,
+			Type:         instancetype.Container,
 			Snapshot:     true,
 			Devices:      deviceConfig.NewDevices(snap.Devices),
 			Ephemeral:    snap.Ephemeral,
@@ -1056,7 +1058,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func internalGC(d *Daemon, r *http.Request) Response {
+func internalGC(d *Daemon, r *http.Request) daemon.Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
 	runtimeDebug.FreeOSMemory()
@@ -1065,7 +1067,7 @@ func internalGC(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func internalRAFTSnapshot(d *Daemon, r *http.Request) Response {
+func internalRAFTSnapshot(d *Daemon, r *http.Request) daemon.Response {
 	logger.Infof("Started forced RAFT snapshot")
 	err := d.gateway.Snapshot()
 	if err != nil {

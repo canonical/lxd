@@ -11,7 +11,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -35,7 +37,7 @@ var projectCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: AllowAuthenticated},
 }
 
-func projectsGet(d *Daemon, r *http.Request) Response {
+func projectsGet(d *Daemon, r *http.Request) daemon.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	var result interface{}
@@ -86,7 +88,7 @@ func projectsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-func projectsPost(d *Daemon, r *http.Request) Response {
+func projectsPost(d *Daemon, r *http.Request) daemon.Response {
 	// Parse the request
 	project := api.ProjectsPost{}
 
@@ -174,7 +176,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	return nil
 }
 
-func projectGet(d *Daemon, r *http.Request) Response {
+func projectGet(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
@@ -202,7 +204,7 @@ func projectGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, project, etag)
 }
 
-func projectPut(d *Daemon, r *http.Request) Response {
+func projectPut(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
@@ -243,7 +245,7 @@ func projectPut(d *Daemon, r *http.Request) Response {
 	return projectChange(d, project, req)
 }
 
-func projectPatch(d *Daemon, r *http.Request) Response {
+func projectPatch(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
@@ -311,7 +313,7 @@ func projectPatch(d *Daemon, r *http.Request) Response {
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response {
+func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) daemon.Response {
 	// Flag indicating if any feature has changed.
 	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
 
@@ -363,7 +365,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response
 	return EmptySyncResponse
 }
 
-func projectPost(d *Daemon, r *http.Request) Response {
+func projectPost(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Parse the request
@@ -380,7 +382,7 @@ func projectPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Perform the rename
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.ProjectGet(req.Name)
@@ -422,7 +424,7 @@ func projectPost(d *Daemon, r *http.Request) Response {
 		return nil
 	}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -430,7 +432,7 @@ func projectPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func projectDelete(d *Daemon, r *http.Request) Response {
+func projectDelete(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	// Sanity checks

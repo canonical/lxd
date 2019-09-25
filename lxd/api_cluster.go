@@ -18,8 +18,10 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/operation"
 	storagedriver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -68,7 +70,7 @@ var internalClusterPromoteCmd = APIEndpoint{
 }
 
 // Return information about the cluster.
-func clusterGet(d *Daemon, r *http.Request) Response {
+func clusterGet(d *Daemon, r *http.Request) daemon.Response {
 	name := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -169,7 +171,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 // - disable clustering on a node
 //
 // The client is required to be trusted.
-func clusterPut(d *Daemon, r *http.Request) Response {
+func clusterPut(d *Daemon, r *http.Request) daemon.Response {
 	req := api.ClusterPut{}
 
 	// Parse the request
@@ -201,8 +203,8 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 	return clusterPutJoin(d, req)
 }
 
-func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
-	run := func(op *operation) error {
+func clusterPutBootstrap(d *Daemon, req api.ClusterPut) daemon.Response {
+	run := func(op *operation.Operation) error {
 		// The default timeout when non-clustered is one minute, let's
 		// lower it down now that we'll likely have to make requests
 		// over the network.
@@ -250,7 +252,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 		return nil
 	})
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -261,7 +263,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 	return OperationResponse(op)
 }
 
-func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
+func clusterPutJoin(d *Daemon, req api.ClusterPut) daemon.Response {
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
@@ -354,7 +356,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	fingerprint := cert.Fingerprint()
 
 	// Asynchronously join the cluster.
-	run := func(op *operation) error {
+	run := func(op *operation.Operation) error {
 		logger.Debug("Running cluster join operation")
 
 		// If the user has provided a cluster password, setup the trust
@@ -608,7 +610,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -617,7 +619,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 }
 
 // Disable clustering on a node.
-func clusterPutDisable(d *Daemon) Response {
+func clusterPutDisable(d *Daemon) daemon.Response {
 	// Close the cluster database
 	err := d.cluster.Close()
 	if err != nil {
@@ -814,7 +816,7 @@ func clusterAcceptMember(
 	return info, nil
 }
 
-func clusterNodesGet(d *Daemon, r *http.Request) Response {
+func clusterNodesGet(d *Daemon, r *http.Request) daemon.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	nodes, err := cluster.List(d.State())
@@ -837,7 +839,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-func clusterNodeGet(d *Daemon, r *http.Request) Response {
+func clusterNodeGet(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	nodes, err := cluster.List(d.State())
@@ -854,7 +856,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 	return NotFound(fmt.Errorf("Node '%s' not found", name))
 }
 
-func clusterNodePost(d *Daemon, r *http.Request) Response {
+func clusterNodePost(d *Daemon, r *http.Request) daemon.Response {
 	name := mux.Vars(r)["name"]
 
 	req := api.ClusterMemberPost{}
@@ -875,7 +877,7 @@ func clusterNodePost(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-func clusterNodeDelete(d *Daemon, r *http.Request) Response {
+func clusterNodeDelete(d *Daemon, r *http.Request) daemon.Response {
 	force, err := strconv.Atoi(r.FormValue("force"))
 	if err != nil {
 		force = 0
@@ -973,7 +975,7 @@ func tryClusterRebalance(d *Daemon) error {
 	return nil
 }
 
-func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
+func internalClusterPostAccept(d *Daemon, r *http.Request) daemon.Response {
 	req := internalClusterPostAcceptRequest{}
 
 	// Parse the request
@@ -1057,7 +1059,7 @@ type internalRaftNode struct {
 
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
-func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
+func internalClusterPostRebalance(d *Daemon, r *http.Request) daemon.Response {
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -1145,7 +1147,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 }
 
 // Used to promote the local non-database node to be a database one.
-func internalClusterPostPromote(d *Daemon, r *http.Request) Response {
+func internalClusterPostPromote(d *Daemon, r *http.Request) daemon.Response {
 	req := internalClusterPostPromoteRequest{}
 
 	// Parse the request

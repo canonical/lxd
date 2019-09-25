@@ -11,6 +11,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/config"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
@@ -83,7 +84,7 @@ var api10 = []APIEndpoint{
 	storagePoolVolumeTypeImageCmd,
 }
 
-func api10Get(d *Daemon, r *http.Request) Response {
+func api10Get(d *Daemon, r *http.Request) daemon.Response {
 	authMethods := []string{"tls"}
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
@@ -244,7 +245,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, fullSrv, fullSrv.Config)
 }
 
-func api10Put(d *Daemon, r *http.Request) Response {
+func api10Put(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
@@ -292,7 +293,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	return doApi10Update(d, req, false)
 }
 
-func api10Patch(d *Daemon, r *http.Request) Response {
+func api10Patch(d *Daemon, r *http.Request) daemon.Response {
 	// If a target was specified, forward the request to the relevant node.
 	response := ForwardedResponseIfTargetIsRemote(d, r)
 	if response != nil {
@@ -320,7 +321,7 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 	return doApi10Update(d, req, true)
 }
 
-func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
+func doApi10Update(d *Daemon, req api.ServerPut, patch bool) daemon.Response {
 	s := d.State()
 
 	// First deal with config specific to the local daemon
