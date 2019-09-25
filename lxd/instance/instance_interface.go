@@ -1,4 +1,4 @@
-package main
+package instance
 
 import (
 	"io"
@@ -9,7 +9,8 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -28,7 +29,7 @@ type Instance interface {
 	// Snapshots & migration & backups
 	Restore(source Instance, stateful bool) error
 	Snapshots() ([]Instance, error)
-	Backups() ([]backup, error)
+	Backups() ([]Backup, error)
 
 	// Config handling
 	Rename(newName string) error
@@ -77,7 +78,7 @@ type Instance interface {
 	Location() string
 	Project() string
 	Name() string
-	Type() instance.Type
+	Type() instancetype.Type
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
@@ -106,13 +107,13 @@ type Instance interface {
 
 	// Progress reporting
 
-	SetOperation(op *operation)
+	SetOperation(op *operation.Operation)
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
-	Storage() storage
+	Storage() Storage
 	TemplateApply(trigger string) error
 	DaemonState() *state.State
 }
