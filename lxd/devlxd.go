@@ -17,8 +17,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -104,7 +104,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, c contai
 }}
 
 var devlxdEventsLock sync.Mutex
-var devlxdEventListeners map[int]map[string]*eventListener = make(map[int]map[string]*eventListener)
+var devlxdEventListeners map[int]map[string]*events.Listener = make(map[int]map[string]*events.Listener)
 
 var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	typeStr := r.FormValue("type")
@@ -117,26 +117,20 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	listener := eventListener{
-		project:      c.Project(),
-		active:       make(chan bool, 1),
-		connection:   conn,
-		id:           uuid.NewRandom().String(),
-		messageTypes: strings.Split(typeStr, ","),
-	}
+	listener := events.NewEventListener(c.Project(), conn, strings.Split(typeStr, ","), "", false)
 
 	devlxdEventsLock.Lock()
 	cid := c.Id()
 	_, ok := devlxdEventListeners[cid]
 	if !ok {
-		devlxdEventListeners[cid] = map[string]*eventListener{}
+		devlxdEventListeners[cid] = map[string]*events.Listener{}
 	}
-	devlxdEventListeners[cid][listener.id] = &listener
+	devlxdEventListeners[cid][listener.ID()] = listener
 	devlxdEventsLock.Unlock()
 
-	logger.Debugf("New container event listener for '%s': %s", c.Name(), listener.id)
+	logger.Debugf("New container event listener for '%s': %s", c.Name(), listener.ID())
 
-	<-listener.active
+	listener.Wait()
 
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
@@ -161,37 +155,36 @@ func devlxdEventSend(c container, eventType string, eventMessage interface{}) er
 	}
 
 	for _, listener := range listeners {
-		if !shared.StringInSlice(eventType, listener.messageTypes) {
+		if !shared.StringInSlice(eventType, listener.MessageTypes()) {
 			continue
 		}
 
-		go func(listener *eventListener, body []byte) {
+		go func(listener *events.Listener, body []byte) {
 			// Check that the listener still exists
 			if listener == nil {
 				return
 			}
 
 			// Ensure there is only a single even going out at the time
-			listener.lock.Lock()
-			defer listener.lock.Unlock()
+			listener.Lock()
+			defer listener.Unlock()
 
 			// Make sure we're not done already
-			if listener.done {
+			if listener.IsDone() {
 				return
 			}
 
-			err = listener.connection.WriteMessage(websocket.TextMessage, body)
+			err = listener.Connection().WriteMessage(websocket.TextMessage, body)
 			if err != nil {
 				// Remove the listener from the list
 				devlxdEventsLock.Lock()
-				delete(devlxdEventListeners[cid], listener.id)
+				delete(devlxdEventListeners[cid], listener.ID())
 				devlxdEventsLock.Unlock()
 
 				// Disconnect the listener
-				listener.connection.Close()
-				listener.active <- false
-				listener.done = true
-				logger.Debugf("Disconnected container event listener for '%s': %s", c.Name(), listener.id)
+				listener.Connection().Close()
+				listener.Deactivate()
+				logger.Debugf("Disconnected container event listener for '%s': %s", c.Name(), listener.ID())
 			}
 		}(listener, body)
 	}

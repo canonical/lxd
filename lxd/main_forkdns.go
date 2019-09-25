@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/fsnotify.v0"
 
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/dnsutil"
 	"github.com/lxc/lxd/shared/logger"
@@ -442,7 +443,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	log, err := logging.GetLogger("lxd-forkdns", "", false, false, eventsHandler{})
+	log, err := logging.GetLogger("lxd-forkdns", "", false, false, events.NewEventHandler())
 	if err != nil {
 		return err
 	}
