@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
@@ -39,14 +40,16 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	debug = c.flagLogDebug
 	verbose = c.flagLogVerbose
 
+	// Set debug and verbose for the events package
+	events.Init(debug, verbose)
+
 	// Setup logger
 	syslog := ""
 	if c.flagLogSyslog {
 		syslog = "lxd"
 	}
 
-	handler := eventsHandler{}
-	log, err := logging.GetLogger(syslog, c.flagLogFile, c.flagLogVerbose, c.flagLogDebug, handler)
+	log, err := logging.GetLogger(syslog, c.flagLogFile, c.flagLogVerbose, c.flagLogDebug, events.NewEventHandler())
 	if err != nil {
 		return err
 	}

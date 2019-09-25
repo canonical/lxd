@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -154,7 +155,7 @@ func (op *operation) Run() (chan error, error) {
 				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
 
 				_, md, _ := op.Render()
-				eventSend(op.project, "operation", md)
+				events.Send(op.project, "operation", md)
 				return
 			}
 
@@ -167,7 +168,7 @@ func (op *operation) Run() (chan error, error) {
 			op.lock.Lock()
 			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			eventSend(op.project, "operation", md)
+			events.Send(op.project, "operation", md)
 			op.lock.Unlock()
 		}(op, chanRun)
 	}
@@ -175,7 +176,7 @@ func (op *operation) Run() (chan error, error) {
 
 	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend(op.project, "operation", md)
+	events.Send(op.project, "operation", md)
 
 	return chanRun, nil
 }
@@ -207,7 +208,7 @@ func (op *operation) Cancel() (chan error, error) {
 
 				logger.Debugf("Failed to cancel %s operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
-				eventSend(op.project, "operation", md)
+				events.Send(op.project, "operation", md)
 				return
 			}
 
@@ -219,13 +220,13 @@ func (op *operation) Cancel() (chan error, error) {
 
 			logger.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			eventSend(op.project, "operation", md)
+			events.Send(op.project, "operation", md)
 		}(op, oldStatus, chanCancel)
 	}
 
 	logger.Debugf("Cancelling %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend(op.project, "operation", md)
+	events.Send(op.project, "operation", md)
 
 	if op.canceler != nil {
 		err := op.canceler.Cancel()
@@ -244,7 +245,7 @@ func (op *operation) Cancel() (chan error, error) {
 
 	logger.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
-	eventSend(op.project, "operation", md)
+	events.Send(op.project, "operation", md)
 
 	return chanCancel, nil
 }
@@ -383,7 +384,7 @@ func (op *operation) UpdateResources(opResources map[string][]string) error {
 
 	logger.Debugf("Updated resources for %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend(op.project, "operation", md)
+	events.Send(op.project, "operation", md)
 
 	return nil
 }
@@ -409,7 +410,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 
 	logger.Debugf("Updated metadata for %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend(op.project, "operation", md)
+	events.Send(op.project, "operation", md)
 
 	return nil
 }
@@ -472,7 +473,7 @@ func operationCreate(cluster *db.Cluster, project string, opClass operationClass
 
 	logger.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend(op.project, "operation", md)
+	events.Send(op.project, "operation", md)
 
 	return &op, nil
 }
