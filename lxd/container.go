@@ -22,8 +22,9 @@ import (
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -39,7 +40,7 @@ func init() {
 	// Expose instanceLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
 	// This is because container types are defined in the main package and are not importable.
 	device.InstanceLoadNodeAll = func(s *state.State) ([]device.InstanceIdentifier, error) {
-		containers, err := instanceLoadNodeAll(s)
+		containers, err := instance.InstanceLoadNodeAll(s)
 		if err != nil {
 			return nil, err
 		}
@@ -52,10 +53,10 @@ func init() {
 		return identifiers, nil
 	}
 
-	// Expose instanceLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
+	// Expose instance.InstanceLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
 	// This is because container types are defined in the main package and are not importable.
 	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.InstanceIdentifier, error) {
-		container, err := instanceLoadByProjectAndName(s, project, name)
+		container, err := instance.InstanceLoadByProjectAndName(s, project, name)
 		if err != nil {
 			return nil, err
 		}
@@ -82,12 +83,12 @@ func containerValidName(name string) error {
 
 // The container interface
 type container interface {
-	Instance
+	instance.Instance
 
 	/* actionScript here is a script called action.sh in the stateDir, to
 	 * be passed to CRIU as --action-script
 	 */
-	Migrate(args *CriuMigrationArgs) error
+	Migrate(args *instance.CriuMigrationArgs) error
 
 	ConsoleLog(opts lxc.ConsoleLogOptions) (string, error)
 
@@ -131,9 +132,8 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	return c, nil
 }
 
-func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeeker,
-	customPool bool) (storage, error) {
-	var pool storage
+func containerCreateFromBackup(s *state.State, info instance.BackupInfo, data io.ReadSeeker, customPool bool) (instance.Storage, error) {
+	var pool instance.Storage
 	var fixBackupFile = false
 
 	// Get storage pool from index.yaml
@@ -221,7 +221,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 	}
 
 	// Validate the type of the image matches the type of the instance.
-	imgType, err := instance.New(img.Type)
+	imgType, err := instancetype.New(img.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -296,13 +296,13 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 	return c, nil
 }
 
-func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContainer Instance, containerOnly bool, refresh bool) (Instance, error) {
-	var ct Instance
+func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContainer instance.Instance, containerOnly bool, refresh bool) (instance.Instance, error) {
+	var ct instance.Instance
 	var err error
 
 	if refresh {
 		// Load the target container
-		ct, err = instanceLoadByProjectAndName(s, args.Project, args.Name)
+		ct, err = instance.InstanceLoadByProjectAndName(s, args.Project, args.Name)
 		if err != nil {
 			refresh = false
 		}
@@ -331,7 +331,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	}
 
 	csList := []*container{}
-	var snapshots []Instance
+	var snapshots []instance.Instance
 
 	if !containerOnly {
 		if refresh {
@@ -465,8 +465,8 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	return ct, nil
 }
 
-func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInstance Instance) (Instance, error) {
-	if sourceInstance.Type() != instance.TypeContainer {
+func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInstance instance.Instance) (instance.Instance, error) {
+	if sourceInstance.Type() != instancetype.Container {
 		return nil, fmt.Errorf("Instance not container type")
 	}
 
@@ -497,14 +497,14 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInst
 		 * after snapshotting will fail.
 		 */
 
-		criuMigrationArgs := CriuMigrationArgs{
-			cmd:          lxc.MIGRATE_DUMP,
-			stateDir:     stateDir,
-			function:     "snapshot",
-			stop:         false,
-			actionScript: false,
-			dumpDir:      "",
-			preDumpDir:   "",
+		criuMigrationArgs := instance.CriuMigrationArgs{
+			Cmd:          lxc.MIGRATE_DUMP,
+			StateDir:     stateDir,
+			Function:     "snapshot",
+			Stop:         false,
+			ActionScript: false,
+			DumpDir:      "",
+			PreDumpDir:   "",
 		}
 
 		c := sourceInstance.(container)
@@ -538,7 +538,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInst
 		defer sourceInstance.StorageStop()
 	}
 
-	err = writeBackupFile(sourceInstance)
+	err = instance.WriteBackupFile(sourceInstance)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -596,13 +596,13 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate container config
-	err := containerValidConfig(s.OS, args.Config, false, false)
+	err := instance.ContainerValidConfig(s.OS, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate container devices with the supplied container name and devices.
-	err = containerValidDevices(s, s.Cluster, args.Name, args.Devices, false)
+	err = instance.ContainerValidDevices(s, s.Cluster, args.Name, args.Devices, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
@@ -751,7 +751,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	args = db.ContainerToArgs(&container)
 
 	// Setup the container struct and finish creation (storage and idmap)
-	c, err := containerLXCCreate(s, args)
+	c, err := instance.ContainerLXCCreate(s, args)
 	if err != nil {
 		s.Cluster.ContainerRemove(args.Project, args.Name)
 		return nil, errors.Wrap(err, "Create LXC container")
@@ -760,7 +760,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	return c, nil
 }
 
-func containerConfigureInternal(c Instance) error {
+func containerConfigureInternal(c instance.Instance) error {
 	// Find the root device
 	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
@@ -798,7 +798,7 @@ func containerConfigureInternal(c Instance) error {
 		defer c.StorageStop()
 	}
 
-	err = writeBackupFile(c)
+	err = instance.WriteBackupFile(c)
 	if err != nil {
 		return err
 	}
@@ -806,13 +806,13 @@ func containerConfigureInternal(c Instance) error {
 	return nil
 }
 
-func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
+func instanceLoadByProject(s *state.State, project string) ([]instance.Instance, error) {
 	// Get all the containers
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
 			Project: project,
-			Type:    instance.TypeContainer,
+			Type:    instancetype.Container,
 		}
 		var err error
 		cts, err = tx.InstanceList(filter)
@@ -830,7 +830,7 @@ func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
 }
 
 // Load all instances across all projects.
-func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
+func instanceLoadFromAllProjects(s *state.State) ([]instance.Instance, error) {
 	var projects []string
 
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -842,7 +842,7 @@ func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
 		return nil, err
 	}
 
-	instances := []Instance{}
+	instances := []instance.Instance{}
 	for _, project := range projects {
 		projectInstances, err := instanceLoadByProject(s, project)
 		if err != nil {
@@ -855,7 +855,7 @@ func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
 }
 
 // Load all instances of this nodes under the given project.
-func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instance.Type) ([]Instance, error) {
+func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -874,7 +874,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	return instanceLoadAllInternal(cts, s)
 }
 
-func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Instance, error) {
+func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]instance.Instance, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]map[string]api.Profile{}
 	for _, instArgs := range dbInstances {
@@ -904,7 +904,7 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 	}
 
 	// Load the instances structs
-	instances := []Instance{}
+	instances := []instance.Instance{}
 	for _, dbInstance := range dbInstances {
 		// Figure out the instances's profiles
 		cProfiles := []api.Profile{}
@@ -912,9 +912,9 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		if dbInstance.Type == instance.TypeContainer {
+		if dbInstance.Type == instancetype.Container {
 			args := db.ContainerToArgs(&dbInstance)
-			ct, err := containerLXCLoad(s, args, cProfiles)
+			ct, err := instance.ContainerLXCLoad(s, args, cProfiles)
 			if err != nil {
 				return nil, err
 			}
@@ -929,7 +929,7 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 	return instances, nil
 }
 
-func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
+func containerCompareSnapshots(source instance.Instance, target instance.Instance) ([]instance.Instance, []instance.Instance, error) {
 	// Get the source snapshots
 	sourceSnapshots, err := source.Snapshots()
 	if err != nil {
@@ -946,8 +946,8 @@ func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []
 	sourceSnapshotsTime := map[string]time.Time{}
 	targetSnapshotsTime := map[string]time.Time{}
 
-	toDelete := []Instance{}
-	toSync := []Instance{}
+	toDelete := []instance.Instance{}
+	toSync := []instance.Instance{}
 
 	for _, snap := range sourceSnapshots {
 		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
@@ -982,14 +982,14 @@ func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
-		allContainers, err := instanceLoadNodeAll(d.State())
+		allContainers, err := instance.InstanceLoadNodeAll(d.State())
 		if err != nil {
 			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
 			return
 		}
 
 		// Figure out which need snapshotting (if any)
-		instances := []Instance{}
+		instances := []instance.Instance{}
 		for _, c := range allContainers {
 			schedule := c.ExpandedConfig()["snapshots.schedule"]
 
@@ -1035,11 +1035,11 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		opRun := func(op *operation) error {
+		opRun := func(op *operation.Operation) error {
 			return autoCreateContainerSnapshots(ctx, d, instances)
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
+		op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start create snapshot operation", log.Ctx{"err": err})
 			return
@@ -1070,7 +1070,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []Instance) error {
+func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []instance.Instance) error {
 	// Make the snapshots
 	for _, c := range instances {
 		ch := make(chan error)
@@ -1125,14 +1125,14 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []In
 func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
-		allInstances, err := instanceLoadNodeAll(d.State())
+		allInstances, err := instance.InstanceLoadNodeAll(d.State())
 		if err != nil {
 			logger.Error("Failed to load instances for snapshot expiry", log.Ctx{"err": err})
 			return
 		}
 
 		// Figure out which need snapshotting (if any)
-		expiredSnapshots := []Instance{}
+		expiredSnapshots := []instance.Instance{}
 		for _, c := range allInstances {
 			snapshots, err := c.Snapshots()
 			if err != nil {
@@ -1156,11 +1156,11 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		opRun := func(op *operation) error {
+		opRun := func(op *operation.Operation) error {
 			return pruneExpiredContainerSnapshots(ctx, d, expiredSnapshots)
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
+		op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired snapshots operation", log.Ctx{"err": err})
 			return
@@ -1191,7 +1191,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []Instance) error {
+func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
 		err := snapshot.Delete()
@@ -1203,7 +1203,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	return nil
 }
 
-func containerDetermineNextSnapshotName(d *Daemon, c Instance, defaultPattern string) (string, error) {
+func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultPattern string) (string, error) {
 	var err error
 
 	pattern := c.ExpandedConfig()["snapshots.pattern"]
