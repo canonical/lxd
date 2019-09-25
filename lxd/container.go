@@ -541,7 +541,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 			}
 
 			// Restore snapshot creation date
-			err = s.Cluster.ContainerCreationUpdate(cs.Id(), snap.CreationDate())
+			err = s.Cluster.ContainerCreationUpdate(cs.ID(), snap.CreationDate())
 			if err != nil {
 				if !refresh {
 					ct.Delete()

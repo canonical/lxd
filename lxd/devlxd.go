@@ -114,7 +114,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	listener, err := d.devlxdEvents.AddListener(strconv.Itoa(c.Id()), conn, strings.Split(typeStr, ","), "", false)
+	listener, err := d.devlxdEvents.AddListener(strconv.Itoa(c.ID()), conn, strings.Split(typeStr, ","), "", false)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
@@ -132,7 +132,7 @@ func devlxdEventSend(c container, eventType string, eventMessage interface{}) er
 	event["timestamp"] = time.Now()
 	event["metadata"] = eventMessage
 
-	return c.DaemonState().DevlxdEvents.Send(strconv.Itoa(c.Id()), eventType, eventMessage)
+	return c.DaemonState().DevlxdEvents.Send(strconv.Itoa(c.ID()), eventType, eventMessage)
 }
 
 var handlers = []devLxdHandler{

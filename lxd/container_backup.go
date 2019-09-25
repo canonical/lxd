@@ -160,7 +160,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	backup := func(op *operations.Operation) error {
 		args := db.InstanceBackupArgs{
 			Name:             fullName,
-			InstanceID:       c.Id(),
+			InstanceID:       c.ID(),
 			CreationDate:     time.Now(),
 			ExpiryDate:       req.ExpiresAt,
 			InstanceOnly:     instanceOnly,

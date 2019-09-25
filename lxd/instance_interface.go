@@ -74,7 +74,7 @@ type Instance interface {
 	DeviceEventHandler(*device.RunConfig) error
 
 	// Properties
-	Id() int
+	ID() int
 	Location() string
 	Project() string
 	Name() string
