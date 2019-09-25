@@ -17,8 +17,10 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -76,7 +78,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		Metadata:   r.metadata,
 	}
 
-	return util.WriteJSON(w, resp, debug)
+	return util.WriteJSON(w, resp, daemon.Debug)
 }
 
 func (r *syncResponse) String() string {
@@ -87,23 +89,23 @@ func (r *syncResponse) String() string {
 	return "failure"
 }
 
-func SyncResponse(success bool, metadata interface{}) Response {
+func SyncResponse(success bool, metadata interface{}) daemon.Response {
 	return &syncResponse{success: success, metadata: metadata}
 }
 
-func SyncResponseETag(success bool, metadata interface{}, etag interface{}) Response {
+func SyncResponseETag(success bool, metadata interface{}, etag interface{}) daemon.Response {
 	return &syncResponse{success: success, metadata: metadata, etag: etag}
 }
 
-func SyncResponseLocation(success bool, metadata interface{}, location string) Response {
+func SyncResponseLocation(success bool, metadata interface{}, location string) daemon.Response {
 	return &syncResponse{success: success, metadata: metadata, location: location}
 }
 
-func SyncResponseRedirect(address string) Response {
+func SyncResponseRedirect(address string) daemon.Response {
 	return &syncResponse{success: true, location: address, code: http.StatusPermanentRedirect}
 }
 
-func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]string) Response {
+func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]string) daemon.Response {
 	return &syncResponse{success: success, metadata: metadata, headers: headers}
 }
 
@@ -153,7 +155,7 @@ func (r *forwardedResponse) String() string {
 
 // ForwardedResponse takes a request directed to a node and forwards it to
 // another node, writing back the response it gegs.
-func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Response {
+func ForwardedResponse(client lxd.InstanceServer, request *http.Request) daemon.Response {
 	return &forwardedResponse{
 		client:  client,
 		request: request,
@@ -162,7 +164,7 @@ func ForwardedResponse(client lxd.InstanceServer, request *http.Request) Respons
 
 // ForwardedResponseIfTargetIsRemote redirects a request to the request has a
 // targetNode parameter pointing to a node which is not the local one.
-func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Response {
+func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) daemon.Response {
 	targetNode := queryParam(request, "target")
 	if targetNode == "" {
 		return nil
@@ -191,7 +193,7 @@ func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Respons
 // ForwardedResponseIfContainerIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
-func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instance.Type) (Response, error) {
+func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (daemon.Response, error) {
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
@@ -210,7 +212,7 @@ func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, n
 //
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
-func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) Response {
+func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) daemon.Response {
 	if queryParam(r, "target") != "" {
 		return nil
 	}
@@ -335,13 +337,13 @@ func (r *fileResponse) String() string {
 	return fmt.Sprintf("%d files", len(r.files))
 }
 
-func FileResponse(r *http.Request, files []fileResponseEntry, headers map[string]string, removeAfterServe bool) Response {
+func FileResponse(r *http.Request, files []fileResponseEntry, headers map[string]string, removeAfterServe bool) daemon.Response {
 	return &fileResponse{r, files, headers, removeAfterServe}
 }
 
 // Operation response
 type operationResponse struct {
-	op *operation
+	op *operation.Operation
 }
 
 func (r *operationResponse) Render(w http.ResponseWriter) error {
@@ -366,7 +368,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	w.Header().Set("Location", url)
 	w.WriteHeader(202)
 
-	return util.WriteJSON(w, body, debug)
+	return util.WriteJSON(w, body, daemon.Debug)
 }
 
 func (r *operationResponse) String() string {
@@ -378,7 +380,7 @@ func (r *operationResponse) String() string {
 	return md.ID
 }
 
-func OperationResponse(op *operation) Response {
+func OperationResponse(op *operation.Operation) daemon.Response {
 	return &operationResponse{op}
 }
 
@@ -407,7 +409,7 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 	w.Header().Set("Location", url)
 	w.WriteHeader(202)
 
-	return util.WriteJSON(w, body, debug)
+	return util.WriteJSON(w, body, daemon.Debug)
 }
 
 func (r *forwardedOperationResponse) String() string {
@@ -416,7 +418,7 @@ func (r *forwardedOperationResponse) String() string {
 
 // ForwardedOperationResponse creates a response that forwards the metadata of
 // an operation created on another node.
-func ForwardedOperationResponse(project string, op *api.Operation) Response {
+func ForwardedOperationResponse(project string, op *api.Operation) daemon.Response {
 	return &forwardedOperationResponse{
 		op:      op,
 		project: project,
@@ -439,7 +441,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	buf := &bytes.Buffer{}
 	output = buf
 	var captured *bytes.Buffer
-	if debug {
+	if daemon.Debug {
 		captured = &bytes.Buffer{}
 		output = io.MultiWriter(buf, captured)
 	}
@@ -450,7 +452,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 		return err
 	}
 
-	if debug {
+	if daemon.Debug {
 		shared.DebugJson(captured)
 	}
 
@@ -462,7 +464,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	return nil
 }
 
-func NotImplemented(err error) Response {
+func NotImplemented(err error) daemon.Response {
 	message := "not implemented"
 	if err != nil {
 		message = err.Error()
@@ -470,7 +472,7 @@ func NotImplemented(err error) Response {
 	return &errorResponse{http.StatusNotImplemented, message}
 }
 
-func NotFound(err error) Response {
+func NotFound(err error) daemon.Response {
 	message := "not found"
 	if err != nil {
 		message = err.Error()
@@ -478,7 +480,7 @@ func NotFound(err error) Response {
 	return &errorResponse{http.StatusNotFound, message}
 }
 
-func Forbidden(err error) Response {
+func Forbidden(err error) daemon.Response {
 	message := "not authorized"
 	if err != nil {
 		message = err.Error()
@@ -486,7 +488,7 @@ func Forbidden(err error) Response {
 	return &errorResponse{http.StatusForbidden, message}
 }
 
-func Conflict(err error) Response {
+func Conflict(err error) daemon.Response {
 	message := "already exists"
 	if err != nil {
 		message = err.Error()
@@ -494,7 +496,7 @@ func Conflict(err error) Response {
 	return &errorResponse{http.StatusConflict, message}
 }
 
-func Unavailable(err error) Response {
+func Unavailable(err error) daemon.Response {
 	message := "unavailable"
 	if err != nil {
 		message = err.Error()
@@ -502,22 +504,22 @@ func Unavailable(err error) Response {
 	return &errorResponse{http.StatusServiceUnavailable, message}
 }
 
-func BadRequest(err error) Response {
+func BadRequest(err error) daemon.Response {
 	return &errorResponse{http.StatusBadRequest, err.Error()}
 }
 
-func InternalError(err error) Response {
+func InternalError(err error) daemon.Response {
 	return &errorResponse{http.StatusInternalServerError, err.Error()}
 }
 
-func PreconditionFailed(err error) Response {
+func PreconditionFailed(err error) daemon.Response {
 	return &errorResponse{http.StatusPreconditionFailed, err.Error()}
 }
 
 /*
  * SmartError returns the right error message based on err.
  */
-func SmartError(err error) Response {
+func SmartError(err error) daemon.Response {
 	if err == nil {
 		return EmptySyncResponse
 	}
