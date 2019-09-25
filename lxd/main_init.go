@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
@@ -164,7 +165,7 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 	}
 
 	// Check available backends
-	for _, driver := range supportedStoragePoolDrivers {
+	for _, driver := range instance.SupportedStoragePoolDrivers {
 		if poolType == "remote" && !shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
 			continue
 		}

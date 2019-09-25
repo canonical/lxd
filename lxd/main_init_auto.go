@@ -7,13 +7,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
 func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
 	// Sanity checks
-	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, supportedStoragePoolDrivers) {
+	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, instance.SupportedStoragePoolDrivers) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
 

@@ -38,7 +38,7 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	daemon.Verbose = c.flagLogVerbose
 
 	// Set debug and verbose for the events package
-	events.Init(debug, verbose)
+	events.Init(daemon.Debug, daemon.Verbose)
 
 	// Setup logger
 	syslog := ""
