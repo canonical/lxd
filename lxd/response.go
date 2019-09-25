@@ -25,9 +25,8 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-type Response interface {
-	Render(w http.ResponseWriter) error
-	String() string
+func init() {
+	operation.SmartError = SmartError
 }
 
 // Sync response
