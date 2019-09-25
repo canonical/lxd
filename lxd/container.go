@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -681,7 +682,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInst
 		os.RemoveAll(sourceInstance.StatePath())
 	}
 
-	eventSendLifecycle(sourceInstance.Project(), "container-snapshot-created",
+	events.SendLifecycle(sourceInstance.Project(), "container-snapshot-created",
 		fmt.Sprintf("/1.0/containers/%s", sourceInstance.Name()),
 		map[string]interface{}{
 			"snapshot_name": args.Name,

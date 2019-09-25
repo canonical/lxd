@@ -78,6 +78,7 @@ test_static_analysis() {
       golint -set_exit_status lxd/db/query
       golint -set_exit_status lxd/db/schema
       golint -set_exit_status lxd/endpoints
+      golint -set_exit_status lxd/events
       golint -set_exit_status lxd/maas
       #golint -set_exit_status lxd/migration
       golint -set_exit_status lxd/node
