@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/shared"
@@ -68,6 +69,6 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	return nil
 }
 
-func eventsGet(d *Daemon, r *http.Request) Response {
+func eventsGet(d *Daemon, r *http.Request) daemon.Response {
 	return &eventsServe{req: r, d: d}
 }
