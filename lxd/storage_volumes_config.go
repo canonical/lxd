@@ -4,10 +4,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
 )
+
+func init() {
+	instance.StorageVolumeFillDefault = storageVolumeFillDefault
+}
 
 func storageVolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolDriver string) (map[string]string, error) {
 	newConfig := make(map[string]string, len(targetConfig))
