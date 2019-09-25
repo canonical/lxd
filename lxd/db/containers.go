@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device/config"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -70,8 +70,8 @@ type Instance struct {
 	Project      string `db:"primary=yes&join=projects.name"`
 	Name         string `db:"primary=yes"`
 	Node         string `db:"join=nodes.name"`
-	Type         instance.Type
-	Snapshot     bool `db:"ignore"`
+	Snapshot     bool   `db:"ignore"`
+	Type         instancetype.Type
 	Architecture int
 	Ephemeral    bool
 	CreationDate time.Time
@@ -89,7 +89,7 @@ type InstanceFilter struct {
 	Project string
 	Name    string
 	Node    string
-	Type    instance.Type
+	Type    instancetype.Type
 }
 
 // ContainerToArgs is a convenience to convert the new Container db struct into
@@ -127,7 +127,7 @@ type ContainerArgs struct {
 	// Don't set manually
 	ID       int
 	Node     string
-	Type     instance.Type
+	Type     instancetype.Type
 	Snapshot bool
 
 	// Creation only
@@ -168,14 +168,14 @@ SELECT instances.name FROM instances
   JOIN projects ON projects.id = instances.project_id
   WHERE projects.name = ? AND instances.type = ?
 `
-	return query.SelectStrings(c.tx, stmt, project, instance.TypeContainer)
+	return query.SelectStrings(c.tx, stmt, project, instancetype.Container)
 }
 
 // ContainerNodeAddress returns the address of the node hosting the container
 // with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) ContainerNodeAddress(project string, name string, instanceType instance.Type) (string, error) {
+func (c *ClusterTx) ContainerNodeAddress(project string, name string, instanceType instancetype.Type) (string, error) {
 	var stmt string
 
 	args := make([]interface{}, 0, 4) // Expect up to 4 filters.
@@ -186,7 +186,7 @@ func (c *ClusterTx) ContainerNodeAddress(project string, name string, instanceTy
 	args = append(args, project)
 
 	// Instance type filter.
-	if instanceType != instance.TypeAny {
+	if instanceType != instancetype.Any {
 		filters.WriteString(" AND instances.type = ?")
 		args = append(args, instanceType)
 	}
@@ -264,7 +264,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress(project string, instanceType instance.Type) (map[string][]string, error) {
+func (c *ClusterTx) ContainersListByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -278,7 +278,7 @@ func (c *ClusterTx) ContainersListByNodeAddress(project string, instanceType ins
 	args = append(args, project)
 
 	// Instance type filter.
-	if instanceType != instance.TypeAny {
+	if instanceType != instancetype.Any {
 		filters.WriteString(" AND instances.type = ?")
 		args = append(args, instanceType)
 	}
@@ -364,7 +364,7 @@ func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
 
 // ContainersByNodeName returns a map associating each container to the name of
 // its node.
-func (c *ClusterTx) ContainersByNodeName(project string, instanceType instance.Type) (map[string]string, error) {
+func (c *ClusterTx) ContainersByNodeName(project string, instanceType instancetype.Type) (map[string]string, error) {
 	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
@@ -373,7 +373,7 @@ func (c *ClusterTx) ContainersByNodeName(project string, instanceType instance.T
 	args = append(args, project)
 
 	// Instance type filter.
-	if instanceType != instance.TypeAny {
+	if instanceType != instancetype.Any {
 		filters.WriteString(" AND instances.type = ?")
 		args = append(args, instanceType)
 	}
@@ -532,14 +532,14 @@ func (c *ClusterTx) ContainerNodeList() ([]Instance, error) {
 	}
 	filter := InstanceFilter{
 		Node: node,
-		Type: instance.TypeContainer,
+		Type: instancetype.Container,
 	}
 
 	return c.InstanceList(filter)
 }
 
 // ContainerNodeProjectList returns all container objects on the local node within the given project.
-func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instance.Type) ([]Instance, error) {
+func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instancetype.Type) ([]Instance, error) {
 	node, err := c.NodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
@@ -839,7 +839,7 @@ func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
 // use it for new code.
 func (c *Cluster) LegacyContainersList() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
-	inargs := []interface{}{instance.TypeContainer}
+	inargs := []interface{}{instancetype.Container}
 	var container string
 	outfmt := []interface{}{container}
 	result, err := queryScan(c.db, q, inargs, outfmt)
@@ -866,7 +866,7 @@ FROM instances_snapshots
 JOIN instances ON instances.id = instances_snapshots.instance_id
 WHERE type=? ORDER BY instances.name, instances_snapshots.name
 `)
-	inargs := []interface{}{instance.TypeContainer}
+	inargs := []interface{}{instancetype.Container}
 	var container string
 	var snapshot string
 	outfmt := []interface{}{container, snapshot}
@@ -885,7 +885,7 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 
 // ContainersNodeList returns the names of all the containers of the given type
 // running on the local node.
-func (c *Cluster) ContainersNodeList(instanceType instance.Type) ([]string, error) {
+func (c *Cluster) ContainersNodeList(instanceType instancetype.Type) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? AND node_id=? ORDER BY name")
 	inargs := []interface{}{instanceType, c.nodeID}
 	var container string
