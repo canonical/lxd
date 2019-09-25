@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"context"
@@ -15,17 +14,18 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
 // Create a new backup
-func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer Instance) error {
+func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer instance.Instance) error {
 	// Create the database entry
 	err := s.Cluster.ContainerBackupCreate(args)
 	if err != nil {
@@ -37,7 +37,7 @@ func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer I
 	}
 
 	// Get the backup struct
-	b, err := backupLoadByName(s, sourceContainer.Project(), args.Name)
+	b, err := instance.BackupLoadByName(s, sourceContainer.Project(), args.Name)
 	if err != nil {
 		return errors.Wrap(err, "Load backup object")
 	}
@@ -52,9 +52,9 @@ func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer I
 	return nil
 }
 
-func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
+func backupGetInfo(r io.ReadSeeker) (*instance.BackupInfo, error) {
 	var tr *tar.Reader
-	result := backupInfo{}
+	result := instance.BackupInfo{}
 	hasBinaryFormat := false
 	hasIndexFile := false
 
@@ -125,7 +125,7 @@ func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
 // fixBackupStoragePool changes the pool information in the backup.yaml. This
 // is done only if the provided pool doesn't exist. In this case, the pool of
 // the default profile will be used.
-func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) error {
+func backupFixStoragePool(c *db.Cluster, b instance.BackupInfo, useDefaultPool bool) error {
 	var poolName string
 
 	if useDefaultPool {
@@ -216,23 +216,23 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) erro
 	return nil
 }
 
-func backupCreateTarball(s *state.State, path string, backup backup) error {
+func backupCreateTarball(s *state.State, path string, backup instance.Backup) error {
 	// Create the index
-	pool, err := backup.instance.StoragePool()
+	pool, err := backup.Instance.StoragePool()
 	if err != nil {
 		return err
 	}
 
-	indexFile := backupInfo{
-		Name:       backup.instance.Name(),
-		Backend:    backup.instance.Storage().GetStorageTypeName(),
-		Privileged: backup.instance.IsPrivileged(),
+	indexFile := instance.BackupInfo{
+		Name:       backup.Instance.Name(),
+		Backend:    backup.Instance.Storage().GetStorageTypeName(),
+		Privileged: backup.Instance.IsPrivileged(),
 		Pool:       pool,
 		Snapshots:  []string{},
 	}
 
-	if !backup.instanceOnly {
-		snaps, err := backup.instance.Snapshots()
+	if !backup.InstanceOnly {
+		snaps, err := backup.Instance.Snapshots()
 		if err != nil {
 			return err
 		}
@@ -260,7 +260,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 	}
 
 	// Create the target path if needed
-	backupsPath := shared.VarPath("backups", backup.instance.Name())
+	backupsPath := shared.VarPath("backups", backup.Instance.Name())
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -269,7 +269,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 	}
 
 	// Create the tarball
-	backupPath := shared.VarPath("backups", backup.name)
+	backupPath := shared.VarPath("backups", backup.Name)
 	success := false
 	defer func() {
 		if success {
@@ -340,11 +340,11 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 
 func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		opRun := func(op *operation) error {
+		opRun := func(op *operation.Operation) error {
 			return pruneExpiredContainerBackups(ctx, d)
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil)
+		op, err := operation.OperationCreate(d.cluster, "", operation.OperationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired backups operation", log.Ctx{"err": err})
 			return
@@ -384,7 +384,7 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 
 	for _, backup := range backups {
 		containerName, _, _ := shared.ContainerGetParentAndSnapshotName(backup)
-		err := doBackupDelete(d.State(), backup, containerName)
+		err := instance.DoBackupDelete(d.State(), backup, containerName)
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting container backup %s", backup)
 		}
