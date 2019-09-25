@@ -9,15 +9,17 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func containerPatch(d *Daemon, r *http.Request) Response {
+func containerPatch(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -37,7 +39,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return NotFound(err)
 	}

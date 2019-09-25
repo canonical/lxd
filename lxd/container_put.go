@@ -7,8 +7,11 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -20,7 +23,7 @@ import (
  * Update configuration, or, if 'restore:snapshot-name' is present, restore
  * the named snapshot
  */
-func containerPut(d *Daemon, r *http.Request) Response {
+func containerPut(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -40,7 +43,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return NotFound(err)
 	}
@@ -62,11 +65,11 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		architecture = 0
 	}
 
-	var do func(*operation) error
+	var do func(*operation.Operation) error
 	var opType db.OperationType
 	if configRaw.Restore == "" {
 		// Update container configuration
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			args := db.ContainerArgs{
 				Architecture: architecture,
 				Config:       configRaw.Config,
@@ -89,7 +92,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		opType = db.OperationContainerUpdate
 	} else {
 		// Snapshot Restore
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			return containerSnapRestore(d.State(), project, name, configRaw.Restore, configRaw.Stateful)
 		}
 
@@ -99,7 +102,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -113,12 +116,12 @@ func containerSnapRestore(s *state.State, project, name, snap string, stateful b
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	c, err := instanceLoadByProjectAndName(s, project, name)
+	c, err := instance.InstanceLoadByProjectAndName(s, project, name)
 	if err != nil {
 		return err
 	}
 
-	source, err := instanceLoadByProjectAndName(s, project, snap)
+	source, err := instance.InstanceLoadByProjectAndName(s, project, snap)
 	if err != nil {
 		switch err {
 		case db.ErrNoSuchObject:

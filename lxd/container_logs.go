@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -30,7 +31,7 @@ var instanceLogsCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
-func containerLogsGet(d *Daemon, r *http.Request) Response {
+func containerLogsGet(d *Daemon, r *http.Request) daemon.Response {
 	/* Let's explicitly *not* try to do a containerLoadByName here. In some
 	 * cases (e.g. when container creation failed), the container won't
 	 * exist in the DB but it does have some log files on disk.
@@ -89,7 +90,7 @@ func validLogFileName(fname string) bool {
 		strings.HasPrefix(fname, "exec_")
 }
 
-func containerLogGet(d *Daemon, r *http.Request) Response {
+func containerLogGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -125,7 +126,7 @@ func containerLogGet(d *Daemon, r *http.Request) Response {
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
 
-func containerLogDelete(d *Daemon, r *http.Request) Response {
+func containerLogDelete(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)

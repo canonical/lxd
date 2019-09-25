@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var instancesCmd = APIEndpoint{
@@ -141,7 +140,7 @@ var instanceBackupExportCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: containerBackupExportGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
-type containerAutostartList []Instance
+type containerAutostartList []instance.Instance
 
 func (slice containerAutostartList) Len() int {
 	return len(slice)
@@ -166,12 +165,12 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State) error {
 	// Get all the instances
-	result, err := instanceLoadNodeAll(s)
+	result, err := instance.InstanceLoadNodeAll(s)
 	if err != nil {
 		return err
 	}
 
-	instances := []Instance{}
+	instances := []instance.Instance{}
 
 	for _, c := range result {
 		instances = append(instances, c)
@@ -207,7 +206,7 @@ func containersRestart(s *state.State) error {
 	return nil
 }
 
-type containerStopList []Instance
+type containerStopList []instance.Instance
 
 func (slice containerStopList) Len() int {
 	return len(slice)
@@ -264,11 +263,11 @@ func containersShutdown(s *state.State) error {
 	dbAvailable := true
 
 	// Get all the instances
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instance.InstanceLoadNodeAll(s)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
-		instances = []Instance{}
+		instances = []instance.Instance{}
 
 		// List all containers on disk
 		cnames, err := containersOnDisk()
@@ -278,7 +277,7 @@ func containersShutdown(s *state.State) error {
 
 		for project, names := range cnames {
 			for _, name := range names {
-				c, err := containerLXCLoad(s, db.ContainerArgs{
+				c, err := instance.ContainerLXCLoad(s, db.ContainerArgs{
 					Project: project,
 					Name:    name,
 					Config:  make(map[string]string),
@@ -335,7 +334,7 @@ func containersShutdown(s *state.State) error {
 
 			// Stop the instance
 			wg.Add(1)
-			go func(c Instance, lastState string) {
+			go func(c instance.Instance, lastState string) {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
 				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})

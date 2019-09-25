@@ -5,10 +5,13 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operation"
 )
 
-func containerDelete(d *Daemon, r *http.Request) Response {
+func containerDelete(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -25,7 +28,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -34,14 +37,14 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("container is running"))
 	}
 
-	rmct := func(op *operation) error {
+	rmct := func(op *operation.Operation) error {
 		return c.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

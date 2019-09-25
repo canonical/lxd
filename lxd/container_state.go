@@ -8,12 +8,15 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
-func containerState(d *Daemon, r *http.Request) Response {
+func containerState(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -31,7 +34,7 @@ func containerState(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -43,7 +46,7 @@ func containerState(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, state)
 }
 
-func containerStatePut(d *Daemon, r *http.Request) Response {
+func containerStatePut(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -74,17 +77,17 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	// Don't mess with containers while in setup mode
 	<-d.readyChan
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	var opType db.OperationType
-	var do func(*operation) error
+	var do func(*operation.Operation) error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		opType = db.OperationContainerStart
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			c.SetOperation(op)
 			if err = c.Start(raw.Stateful); err != nil {
 				return err
@@ -94,7 +97,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	case shared.Stop:
 		opType = db.OperationContainerStop
 		if raw.Stateful {
-			do = func(op *operation) error {
+			do = func(op *operation.Operation) error {
 				c.SetOperation(op)
 				err := c.Stop(raw.Stateful)
 				if err != nil {
@@ -104,7 +107,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				return nil
 			}
 		} else if raw.Timeout == 0 || raw.Force {
-			do = func(op *operation) error {
+			do = func(op *operation.Operation) error {
 				c.SetOperation(op)
 				err = c.Stop(false)
 				if err != nil {
@@ -114,7 +117,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 				return nil
 			}
 		} else {
-			do = func(op *operation) error {
+			do = func(op *operation.Operation) error {
 				c.SetOperation(op)
 				if c.IsFrozen() {
 					err := c.Unfreeze()
@@ -133,7 +136,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Restart:
 		opType = db.OperationContainerRestart
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			c.SetOperation(op)
 			ephemeral := c.IsEphemeral()
 
@@ -192,7 +195,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 
 		opType = db.OperationContainerFreeze
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			c.SetOperation(op)
 			return c.Freeze()
 		}
@@ -202,7 +205,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 
 		opType = db.OperationContainerUnfreeze
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			c.SetOperation(op)
 			return c.Unfreeze()
 		}
@@ -213,7 +216,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

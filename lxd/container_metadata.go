@@ -13,11 +13,13 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
-func containerMetadataGet(d *Daemon, r *http.Request) Response {
+func containerMetadataGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -36,7 +38,7 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -78,7 +80,7 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, metadata)
 }
 
-func containerMetadataPut(d *Daemon, r *http.Request) Response {
+func containerMetadataPut(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -97,7 +99,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -132,7 +134,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) Response {
 }
 
 // Return a list of templates used in a container or the content of a template
-func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
+func containerMetadataTemplatesGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -151,7 +153,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -226,7 +228,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 }
 
 // Add a container template file
-func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
+func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -245,7 +247,7 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -298,7 +300,7 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 }
 
 // Delete a container template
-func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
+func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -318,7 +320,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -357,7 +359,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 }
 
 // Return the full path of a container template.
-func getContainerTemplatePath(c Instance, filename string) (string, error) {
+func getContainerTemplatePath(c instance.Instance, filename string) (string, error) {
 	if strings.Contains(filename, "/") {
 		return "", fmt.Errorf("Invalid template filename")
 	}

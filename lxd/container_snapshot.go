@@ -12,15 +12,18 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
-func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+func containerSnapshotsGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -59,7 +62,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 			}
 		}
 	} else {
-		c, err := instanceLoadByProjectAndName(d.State(), project, cname)
+		c, err := instance.InstanceLoadByProjectAndName(d.State(), project, cname)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -86,7 +89,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resultMap)
 }
 
-func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
+func containerSnapshotsPost(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -110,7 +113,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -146,7 +149,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	snapshot := func(op *operation) error {
+	snapshot := func(op *operation.Operation) error {
 		args := db.ContainerArgs{
 			Project:      inst.Project(),
 			Architecture: inst.Architecture(),
@@ -161,7 +164,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			ExpiryDate:   expiry,
 		}
 
-		if inst.Type() != instance.TypeContainer {
+		if inst.Type() != instancetype.Container {
 			return fmt.Errorf("Instance is not container type")
 		}
 
@@ -178,7 +181,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -186,7 +189,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
+func containerSnapshotHandler(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -208,7 +211,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	inst, err := instanceLoadByProjectAndName(
+	inst, err := instance.InstanceLoadByProjectAndName(
 		d.State(),
 		project, containerName+
 			shared.SnapshotDelimiter+
@@ -217,7 +220,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance not container type"))
 	}
 
@@ -237,7 +240,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 	}
 }
 
-func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response {
+func snapshotPut(d *Daemon, r *http.Request, sc container, name string) daemon.Response {
 	// Validate the ETag
 	etag := []interface{}{sc.ExpiryDate()}
 	err := util.EtagCheck(r, etag)
@@ -252,12 +255,12 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response
 		return InternalError(err)
 	}
 
-	var do func(op *operation) error
+	var do func(op *operation.Operation) error
 
 	_, err = rj.GetString("expires_at")
 	if err != nil {
 		// Skip updating the snapshot since the requested key wasn't provided
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			return nil
 		}
 	} else {
@@ -274,7 +277,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response
 		}
 
 		// Update container configuration
-		do = func(op *operation) error {
+		do = func(op *operation.Operation) error {
 			args := db.ContainerArgs{
 				Architecture: sc.Architecture(),
 				Config:       sc.LocalConfig(),
@@ -302,7 +305,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, sc.Project(), operationClassTask, opType, resources, nil,
+	op, err := operation.OperationCreate(d.cluster, sc.Project(), operation.OperationClassTask, opType, resources, nil,
 		do, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -311,7 +314,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response
 	return OperationResponse(op)
 }
 
-func snapshotGet(sc container, name string) Response {
+func snapshotGet(sc container, name string) daemon.Response {
 	render, _, err := sc.Render()
 	if err != nil {
 		return SmartError(err)
@@ -320,7 +323,7 @@ func snapshotGet(sc container, name string) Response {
 	return SyncResponse(true, render.(*api.InstanceSnapshot))
 }
 
-func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) Response {
+func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) daemon.Response {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return InternalError(err)
@@ -380,7 +383,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 				return InternalError(err)
 			}
 
-			op, err := operationCreate(d.cluster, sc.Project(), operationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
+			op, err := operation.OperationCreate(d.cluster, sc.Project(), operation.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -389,7 +392,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		}
 
 		// Pull mode
-		op, err := operationCreate(d.cluster, sc.Project(), operationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operation.OperationCreate(d.cluster, sc.Project(), operation.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -415,14 +418,14 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		return Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}
 
-	rename := func(op *operation) error {
+	rename := func(op *operation.Operation) error {
 		return sc.Rename(fullName)
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{containerName}
 
-	op, err := operationCreate(d.cluster, sc.Project(), operationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
+	op, err := operation.OperationCreate(d.cluster, sc.Project(), operation.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -430,15 +433,15 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	return OperationResponse(op)
 }
 
-func snapshotDelete(sc container, name string) Response {
-	remove := func(op *operation) error {
+func snapshotDelete(sc container, name string) daemon.Response {
+	remove := func(op *operation.Operation) error {
 		return sc.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operationCreate(sc.DaemonState().Cluster, sc.Project(), operationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
+	op, err := operation.OperationCreate(sc.DaemonState().Cluster, sc.Project(), operation.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

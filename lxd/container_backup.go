@@ -10,14 +10,17 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
-func containerBackupsGet(d *Daemon, r *http.Request) Response {
+func containerBackupsGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -37,7 +40,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, cname)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -53,7 +56,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 	for _, backup := range backups {
 		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s/backups/%s",
-				version.APIVersion, cname, strings.Split(backup.name, "/")[1])
+				version.APIVersion, cname, strings.Split(backup.Name, "/")[1])
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
@@ -68,7 +71,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resultMap)
 }
 
-func containerBackupsPost(d *Daemon, r *http.Request) Response {
+func containerBackupsPost(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -86,7 +89,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -129,11 +132,11 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 
 		for _, backup := range backups {
 			// Ignore backups not containing base
-			if !strings.HasPrefix(backup.name, base) {
+			if !strings.HasPrefix(backup.Name, base) {
 				continue
 			}
 
-			substr := backup.name[length:]
+			substr := backup.Name[length:]
 			var num int
 			count, err := fmt.Sscanf(substr, "%d", &num)
 			if err != nil || count != 1 {
@@ -155,7 +158,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 	fullName := name + shared.SnapshotDelimiter + req.Name
 	instanceOnly := req.InstanceOnly || req.ContainerOnly
 
-	backup := func(op *operation) error {
+	backup := func(op *operation.Operation) error {
 		args := db.ContainerBackupArgs{
 			Name:             fullName,
 			ContainerID:      c.Id(),
@@ -177,7 +180,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 	resources["containers"] = []string{name}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask,
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask,
 		db.OperationBackupCreate, resources, nil, backup, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -186,7 +189,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerBackupGet(d *Daemon, r *http.Request) Response {
+func containerBackupGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -206,7 +209,7 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, fullName)
+	backup, err := instance.BackupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -214,7 +217,7 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, backup.Render())
 }
 
-func containerBackupPost(d *Daemon, r *http.Request) Response {
+func containerBackupPost(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -245,14 +248,14 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, oldName)
+	backup, err := instance.BackupLoadByName(d.State(), project, oldName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	newName := name + shared.SnapshotDelimiter + req.Name
 
-	rename := func(op *operation) error {
+	rename := func(op *operation.Operation) error {
 		err := backup.Rename(newName)
 		if err != nil {
 			return err
@@ -264,7 +267,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask,
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask,
 		db.OperationBackupRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -273,7 +276,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerBackupDelete(d *Daemon, r *http.Request) Response {
+func containerBackupDelete(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -293,12 +296,12 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, fullName)
+	backup, err := instance.BackupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	remove := func(op *operation) error {
+	remove := func(op *operation.Operation) error {
 		err := backup.Delete()
 		if err != nil {
 			return err
@@ -310,7 +313,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["container"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask,
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassTask,
 		db.OperationBackupRemove, resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -319,7 +322,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerBackupExportGet(d *Daemon, r *http.Request) Response {
+func containerBackupExportGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -339,13 +342,13 @@ func containerBackupExportGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, fullName)
+	backup, err := instance.BackupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	ent := fileResponseEntry{
-		path: shared.VarPath("backups", backup.name),
+		path: shared.VarPath("backups", backup.Name),
 	}
 
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)

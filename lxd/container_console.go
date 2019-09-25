@@ -17,8 +17,11 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operation"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -27,7 +30,7 @@ import (
 
 type consoleWs struct {
 	// instance currently worked on
-	instance Instance
+	instance instance.Instance
 
 	// uid to chown pty to
 	rootUid int64
@@ -70,7 +73,7 @@ func (s *consoleWs) Metadata() interface{} {
 	return shared.Jmap{"fds": fds}
 }
 
-func (s *consoleWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *consoleWs) Connect(op *operation.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -111,7 +114,7 @@ func (s *consoleWs) Connect(op *operation, r *http.Request, w http.ResponseWrite
 	return os.ErrPermission
 }
 
-func (s *consoleWs) Do(op *operation) error {
+func (s *consoleWs) Do(op *operation.Operation) error {
 	<-s.allConnected
 
 	var err error
@@ -254,7 +257,7 @@ func (s *consoleWs) Do(op *operation) error {
 	return finisher(err)
 }
 
-func containerConsolePost(d *Daemon, r *http.Request) Response {
+func containerConsolePost(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -292,7 +295,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 		return ForwardedOperationResponse(project, &opAPI)
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -311,7 +314,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	ws.fds = map[int]string{}
 
 	// If the type of instance is container, setup the root UID/GID for web socket.
-	if inst.Type() == instance.TypeContainer {
+	if inst.Type() == instancetype.Container {
 		c := inst.(container)
 		idmapset, err := c.CurrentIdmap()
 		if err != nil {
@@ -342,7 +345,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{ws.instance.Name()}
 
-	op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationConsoleShow,
+	op, err := operation.OperationCreate(d.cluster, project, operation.OperationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return InternalError(err)
@@ -351,7 +354,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
+func containerConsoleLogGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -373,12 +376,12 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -419,7 +422,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
 
-func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
+func containerConsoleLogDelete(d *Daemon, r *http.Request) daemon.Response {
 	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
 		return BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
@@ -427,12 +430,12 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 

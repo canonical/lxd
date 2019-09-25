@@ -4,9 +4,12 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/instance"
 )
 
-func containerGet(d *Daemon, r *http.Request) Response {
+func containerGet(d *Daemon, r *http.Request) daemon.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return SmartError(err)
@@ -24,7 +27,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.InstanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
