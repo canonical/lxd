@@ -1,4 +1,4 @@
-package instance
+package instancetype
 
 import (
 	"fmt"
@@ -10,28 +10,28 @@ import (
 type Type int
 
 const (
-	// TypeAny represents any type of instance.
-	TypeAny = Type(-1)
+	// Any represents any type of instance.
+	Any = Type(-1)
 
-	// TypeContainer represents a container instance type.
-	TypeContainer = Type(0)
+	// Container represents a container instance type.
+	Container = Type(0)
 
-	// TypeVM represents a virtual-machine instance type.
-	TypeVM = Type(1)
+	// VM represents a virtual-machine instance type.
+	VM = Type(1)
 )
 
 // New validates the supplied string against the allowed types of instance and returns the internal
-// representation of that type. If empty string is supplied then the type returned is TypeContainer.
+// representation of that type. If empty string is supplied then the type returned is Container.
 // If an invalid name is supplied an error will be returned.
 func New(name string) (Type, error) {
-	// If "container" or "" is supplied, return type as TypeContainer.
+	// If "container" or "" is supplied, return type as Container.
 	if api.InstanceType(name) == api.InstanceTypeContainer || name == "" {
-		return TypeContainer, nil
+		return Container, nil
 	}
 
-	// If "virtual-machine" is supplied, return type as TypeVM.
+	// If "virtual-machine" is supplied, return type as VM.
 	if api.InstanceType(name) == api.InstanceTypeVM {
-		return TypeVM, nil
+		return VM, nil
 	}
 
 	return -1, fmt.Errorf("Invalid instance type")
@@ -40,11 +40,11 @@ func New(name string) (Type, error) {
 // String converts the internal representation of instance type to a string used in API requests.
 // Returns empty string if value is not a valid instance type.
 func (instanceType Type) String() string {
-	if instanceType == TypeContainer {
+	if instanceType == Container {
 		return string(api.InstanceTypeContainer)
 	}
 
-	if instanceType == TypeVM {
+	if instanceType == VM {
 		return string(api.InstanceTypeVM)
 	}
 
