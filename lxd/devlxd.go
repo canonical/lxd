@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -216,7 +217,7 @@ func hoistReq(f func(*Daemon, container, http.ResponseWriter, *http.Request) *de
 			return
 		}
 
-		c, err := findContainerForPid(cred.pid, d)
+		c, err := findContainerForPid(cred.PID, d)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -231,7 +232,7 @@ func hoistReq(f func(*Daemon, container, http.ResponseWriter, *http.Request) *de
 			rootUid = int64(uid)
 		}
 
-		if rootUid != cred.uid {
+		if rootUid != cred.UID {
 			http.Error(w, "Access denied for non-root user", 401)
 			return
 		}
@@ -284,16 +285,10 @@ func devLxdAPI(d *Daemon) http.Handler {
  * from our http handlers, since there appears to be no way to pass information
  * around here.
  */
-var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*ucred{}}
-
-type ucred struct {
-	pid int32
-	uid int64
-	gid int64
-}
+var pidMapper = ConnPidMapper{m: map[*net.UnixConn]*ucred.UCred{}}
 
 type ConnPidMapper struct {
-	m     map[*net.UnixConn]*ucred
+	m     map[*net.UnixConn]*ucred.UCred
 	mLock sync.Mutex
 }
 
@@ -301,7 +296,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	unixConn := conn.(*net.UnixConn)
 	switch state {
 	case http.StateNew:
-		cred, err := getCred(unixConn)
+		cred, err := ucred.GetCred(unixConn)
 		if err != nil {
 			logger.Debugf("Error getting ucred for conn %s", err)
 		} else {
@@ -332,51 +327,6 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	default:
 		logger.Debugf("Unknown state for connection %s", state)
 	}
-}
-
-/*
- * I also don't see that golang exports an API to get at the underlying FD, but
- * we need it to get at SO_PEERCRED, so let's grab it.
- */
-func extractUnderlyingFd(unixConnPtr *net.UnixConn) (int, error) {
-	conn := reflect.Indirect(reflect.ValueOf(unixConnPtr))
-
-	netFdPtr := conn.FieldByName("fd")
-	if !netFdPtr.IsValid() {
-		return -1, fmt.Errorf("Unable to extract fd from net.UnixConn")
-	}
-	netFd := reflect.Indirect(netFdPtr)
-
-	fd := netFd.FieldByName("sysfd")
-	if !fd.IsValid() {
-		// Try under the new name
-		pfdPtr := netFd.FieldByName("pfd")
-		if !pfdPtr.IsValid() {
-			return -1, fmt.Errorf("Unable to extract pfd from netFD")
-		}
-		pfd := reflect.Indirect(pfdPtr)
-
-		fd = pfd.FieldByName("Sysfd")
-		if !fd.IsValid() {
-			return -1, fmt.Errorf("Unable to extract Sysfd from poll.FD")
-		}
-	}
-
-	return int(fd.Int()), nil
-}
-
-func getCred(conn *net.UnixConn) (*ucred, error) {
-	fd, err := extractUnderlyingFd(conn)
-	if err != nil {
-		return nil, err
-	}
-
-	uid, gid, pid, err := getUcred(fd)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ucred{pid, int64(uid), int64(gid)}, nil
 }
 
 /*
