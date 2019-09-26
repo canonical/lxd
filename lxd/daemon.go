@@ -37,6 +37,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -73,7 +74,7 @@ type Daemon struct {
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 	gateway   *cluster.Gateway
-	seccomp   *SeccompServer
+	seccomp   *seccomp.Server
 
 	proxy func(req *http.Request) (*url.URL, error)
 
@@ -877,7 +878,9 @@ func (d *Daemon) init() error {
 
 		// Setup seccomp handler
 		if d.os.SeccompListener {
-			seccompServer, err := NewSeccompServer(d, shared.VarPath("seccomp.socket"))
+			seccompServer, err := seccomp.NewSeccompServer(d.State(), shared.VarPath("seccomp.socket"), func(pid int32, state *state.State) (seccomp.Instance, error) {
+				return findContainerForPid(pid, state)
+			})
 			if err != nil {
 				return err
 			}
@@ -1089,6 +1092,10 @@ func (d *Daemon) Stop() error {
 	} else {
 		logger.Debugf(
 			"Not unmounting temporary filesystems (containers are still running)")
+	}
+
+	if d.seccomp != nil {
+		trackError(d.seccomp.Stop())
 	}
 
 	var err error
