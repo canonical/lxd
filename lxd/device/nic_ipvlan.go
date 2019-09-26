@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -18,7 +18,7 @@ func (d *nicIPVLAN) CanHotPlug() (bool, []string) {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicIPVLAN) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 

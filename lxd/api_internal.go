@@ -22,7 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -130,7 +130,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -161,7 +161,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -191,7 +191,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -921,7 +921,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
 		CreationDate: backup.Container.CreatedAt,
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Description:  backup.Container.Description,
 		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
 		Ephemeral:    backup.Container.Ephemeral,
@@ -1027,7 +1027,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			BaseImage:    baseImage,
 			Config:       snap.Config,
 			CreationDate: snap.CreatedAt,
-			Type:         instance.TypeContainer,
+			Type:         instancetype.Container,
 			Snapshot:     true,
 			Devices:      deviceConfig.NewDevices(snap.Devices),
 			Ephemeral:    snap.Ephemeral,

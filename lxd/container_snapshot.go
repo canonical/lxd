@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -161,7 +161,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			ExpiryDate:   expiry,
 		}
 
-		if inst.Type() != instance.TypeContainer {
+		if inst.Type() != instancetype.Container {
 			return fmt.Errorf("Instance is not container type")
 		}
 
@@ -217,7 +217,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance not container type"))
 	}
 

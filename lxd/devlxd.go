@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/events"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -445,7 +445,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 				return nil, err
 			}
 
-			if inst.Type() != instance.TypeContainer {
+			if inst.Type() != instancetype.Container {
 				return nil, fmt.Errorf("Instance is not container type")
 			}
 
@@ -484,7 +484,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	}
 
 	for _, inst := range instances {
-		if inst.Type() != instance.TypeContainer {
+		if inst.Type() != instancetype.Container {
 			continue
 		}
 

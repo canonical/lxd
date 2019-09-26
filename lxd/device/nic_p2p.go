@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -14,7 +14,7 @@ type nicP2P struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicP2P) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
