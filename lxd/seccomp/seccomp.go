@@ -1,7 +1,7 @@
 // +build linux
 // +build cgo
 
-package main
+package seccomp
 
 import (
 	"fmt"
@@ -17,11 +17,14 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+	lxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
@@ -273,14 +276,14 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
-const LxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
-const LxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT
-const LxdSeccompNotifySetxattr = C.LXD_SECCOMP_NOTIFY_SETXATTR
+const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
+const lxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT
+const lxdSeccompNotifySetxattr = C.LXD_SECCOMP_NOTIFY_SETXATTR
 
-const SECCOMP_HEADER = `2
+const seccompHeader = `2
 `
 
-const DEFAULT_SECCOMP_POLICY = `reject_force_umount  # comment this to allow umount -f;  not recommended
+const defaultSeccompPolicy = `reject_force_umount  # comment this to allow umount -f;  not recommended
 [all]
 kexec_load errno 38
 open_by_handle_at errno 38
@@ -289,15 +292,15 @@ finit_module errno 38
 delete_module errno 38
 `
 
-const SECCOMP_NOTIFY_MKNOD = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
+const seccompNotifyMknod = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
 mknod notify [1,24576,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]
 `
-const SECCOMP_NOTIFY_SETXATTR = `setxattr notify [3,1,SCMP_CMP_EQ]
+const seccompNotifySetxattr = `setxattr notify [3,1,SCMP_CMP_EQ]
 `
 
-const COMPAT_BLOCKING_POLICY = `[%s]
+const compatBlockingPolicy = `[%s]
 compat_sys_rt_sigaction errno 38
 stub_x32_rt_sigreturn errno 38
 compat_sys_ioctl errno 38
@@ -334,13 +337,28 @@ compat_sys_io_submit errno 38
 stub_x32_execveat errno 38
 `
 
+// Instance is a seccomp specific instance interface.
+type Instance interface {
+	Name() string
+	Project() string
+	ExpandedConfig() map[string]string
+	IsPrivileged() bool
+	DaemonState() *state.State
+	Architecture() int
+	RootfsPath() string
+	CurrentIdmap() (*idmap.IdmapSet, error)
+	InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error
+}
+
 var seccompPath = shared.VarPath("security", "seccomp")
 
-func SeccompProfilePath(c container) string {
+// ProfilePath returns the seccomp path for the instance.
+func ProfilePath(c Instance) string {
 	return path.Join(seccompPath, c.Name())
 }
 
-func seccompContainerNeedsPolicy(c container) bool {
+// InstanceNeedsPolicy returns whether the instance needs a policy or not.
+func InstanceNeedsPolicy(c Instance) bool {
 	config := c.ExpandedConfig()
 
 	// Check for text keys
@@ -385,7 +403,8 @@ func seccompContainerNeedsPolicy(c container) bool {
 	return false
 }
 
-func seccompContainerNeedsIntercept(c container) (bool, error) {
+// InstanceNeedsIntercept returns whether instance needs intercept.
+func InstanceNeedsIntercept(c Instance) (bool, error) {
 	// No need if privileged
 	if c.IsPrivileged() {
 		return false, nil
@@ -420,7 +439,7 @@ func seccompContainerNeedsIntercept(c container) (bool, error) {
 	return needed, nil
 }
 
-func seccompGetPolicyContent(c container) (string, error) {
+func seccompGetPolicyContent(c Instance) (string, error) {
 	config := c.ExpandedConfig()
 
 	// Full policy override
@@ -430,7 +449,7 @@ func seccompGetPolicyContent(c container) (string, error) {
 	}
 
 	// Policy header
-	policy := SECCOMP_HEADER
+	policy := seccompHeader
 	whitelist := config["security.syscalls.whitelist"]
 	if whitelist != "" {
 		policy += "whitelist\n[all]\n"
@@ -438,25 +457,25 @@ func seccompGetPolicyContent(c container) (string, error) {
 	} else {
 		policy += "blacklist\n"
 
-		default_, ok := config["security.syscalls.blacklist_default"]
-		if !ok || shared.IsTrue(default_) {
-			policy += DEFAULT_SECCOMP_POLICY
+		defaultFlag, ok := config["security.syscalls.blacklist_default"]
+		if !ok || shared.IsTrue(defaultFlag) {
+			policy += defaultSeccompPolicy
 		}
 	}
 
 	// Syscall interception
-	ok, err := seccompContainerNeedsIntercept(c)
+	ok, err := InstanceNeedsIntercept(c)
 	if err != nil {
 		return "", err
 	}
 
 	if ok {
 		if shared.IsTrue(config["security.syscalls.intercept.mknod"]) {
-			policy += SECCOMP_NOTIFY_MKNOD
+			policy += seccompNotifyMknod
 		}
 
 		if shared.IsTrue(config["security.syscalls.intercept.setxattr"]) {
-			policy += SECCOMP_NOTIFY_SETXATTR
+			policy += seccompNotifySetxattr
 		}
 	}
 
@@ -471,7 +490,7 @@ func seccompGetPolicyContent(c container) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		policy += fmt.Sprintf(COMPAT_BLOCKING_POLICY, arch)
+		policy += fmt.Sprintf(compatBlockingPolicy, arch)
 	}
 
 	blacklist := config["security.syscalls.blacklist"]
@@ -482,14 +501,15 @@ func seccompGetPolicyContent(c container) (string, error) {
 	return policy, nil
 }
 
-func SeccompCreateProfile(c container) error {
+// CreateProfile creates a seccomp profile.
+func CreateProfile(c Instance) error {
 	/* Unlike apparmor, there is no way to "cache" profiles, and profiles
 	 * are automatically unloaded when a task dies. Thus, we don't need to
 	 * unload them when a container stops, and we don't have to worry about
 	 * the mtime on the file for any compiler purpose, so let's just write
 	 * out the profile.
 	 */
-	if !seccompContainerNeedsPolicy(c) {
+	if !InstanceNeedsPolicy(c) {
 		return nil
 	}
 
@@ -502,23 +522,26 @@ func SeccompCreateProfile(c container) error {
 		return err
 	}
 
-	return ioutil.WriteFile(SeccompProfilePath(c), []byte(profile), 0600)
+	return ioutil.WriteFile(ProfilePath(c), []byte(profile), 0600)
 }
 
-func SeccompDeleteProfile(c container) {
+// DeleteProfile removes a seccomp profile.
+func DeleteProfile(c Instance) {
 	/* similar to AppArmor, if we've never started this container, the
 	 * delete can fail and that's ok.
 	 */
-	os.Remove(SeccompProfilePath(c))
+	os.Remove(ProfilePath(c))
 }
 
-type SeccompServer struct {
-	d    *Daemon
+// Server defines a seccomp server.
+type Server struct {
+	s    *state.State
 	path string
 	l    net.Listener
 }
 
-type SeccompIovec struct {
+// Iovec defines an iovec to move data between kernel and userspace.
+type Iovec struct {
 	ucred  *ucred.UCred
 	memFd  int
 	procFd int
@@ -529,30 +552,31 @@ type SeccompIovec struct {
 	iov    *C.struct_iovec
 }
 
-func NewSeccompIovec(ucred *ucred.UCred) *SeccompIovec {
-	msg_ptr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
-	msg := (*C.struct_seccomp_notify_proxy_msg)(msg_ptr)
-	C.memset(msg_ptr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
+// NewSeccompIovec creates a new seccomp iovec.
+func NewSeccompIovec(ucred *ucred.UCred) *Iovec {
+	msgPtr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
+	msg := (*C.struct_seccomp_notify_proxy_msg)(msgPtr)
+	C.memset(msgPtr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
 
-	req_ptr := C.malloc(C.sizeof_struct_seccomp_notif)
-	req := (*C.struct_seccomp_notif)(req_ptr)
-	C.memset(req_ptr, 0, C.sizeof_struct_seccomp_notif)
+	regPtr := C.malloc(C.sizeof_struct_seccomp_notif)
+	req := (*C.struct_seccomp_notif)(regPtr)
+	C.memset(regPtr, 0, C.sizeof_struct_seccomp_notif)
 
-	resp_ptr := C.malloc(C.sizeof_struct_seccomp_notif_resp)
-	resp := (*C.struct_seccomp_notif_resp)(resp_ptr)
-	C.memset(resp_ptr, 0, C.sizeof_struct_seccomp_notif_resp)
+	respPtr := C.malloc(C.sizeof_struct_seccomp_notif_resp)
+	resp := (*C.struct_seccomp_notif_resp)(respPtr)
+	C.memset(respPtr, 0, C.sizeof_struct_seccomp_notif_resp)
 
-	cookie_ptr := C.malloc(64 * C.sizeof_char)
-	cookie := (*C.char)(cookie_ptr)
-	C.memset(cookie_ptr, 0, 64*C.sizeof_char)
+	cookiePtr := C.malloc(64 * C.sizeof_char)
+	cookie := (*C.char)(cookiePtr)
+	C.memset(cookiePtr, 0, 64*C.sizeof_char)
 
-	iov_unsafe_ptr := C.malloc(4 * C.sizeof_struct_iovec)
-	iov := (*C.struct_iovec)(iov_unsafe_ptr)
-	C.memset(iov_unsafe_ptr, 0, 4*C.sizeof_struct_iovec)
+	iovUnsafePtr := C.malloc(4 * C.sizeof_struct_iovec)
+	iov := (*C.struct_iovec)(iovUnsafePtr)
+	C.memset(iovUnsafePtr, 0, 4*C.sizeof_struct_iovec)
 
 	C.prepare_seccomp_iovec(iov, msg, req, resp, cookie)
 
-	return &SeccompIovec{
+	return &Iovec{
 		memFd:  -1,
 		procFd: -1,
 		msg:    msg,
@@ -564,7 +588,8 @@ func NewSeccompIovec(ucred *ucred.UCred) *SeccompIovec {
 	}
 }
 
-func (siov *SeccompIovec) PutSeccompIovec() {
+// PutSeccompIovec puts a seccomp iovec.
+func (siov *Iovec) PutSeccompIovec() {
 	if siov.memFd >= 0 {
 		unix.Close(siov.memFd)
 	}
@@ -578,7 +603,8 @@ func (siov *SeccompIovec) PutSeccompIovec() {
 	C.free(unsafe.Pointer(siov.iov))
 }
 
-func (siov *SeccompIovec) ReceiveSeccompIovec(fd int) (uint64, error) {
+// ReceiveSeccompIovec receives a seccomp iovec.
+func (siov *Iovec) ReceiveSeccompIovec(fd int) (uint64, error) {
 	bytes, fds, err := netutils.AbstractUnixReceiveFdData(fd, 2, unsafe.Pointer(siov.iov), 4)
 	if err != nil || err == io.EOF {
 		return 0, err
@@ -594,7 +620,8 @@ func (siov *SeccompIovec) ReceiveSeccompIovec(fd int) (uint64, error) {
 	return bytes, nil
 }
 
-func (siov *SeccompIovec) IsValidSeccompIovec(size uint64) bool {
+// IsValidSeccompIovec checks whether a seccomp iovec is valid.
+func (siov *Iovec) IsValidSeccompIovec(size uint64) bool {
 	if size < uint64(C.SECCOMP_MSG_SIZE_MIN) {
 		logger.Warnf("Disconnected from seccomp socket after incomplete receive")
 		return false
@@ -626,7 +653,8 @@ func (siov *SeccompIovec) IsValidSeccompIovec(size uint64) bool {
 	return true
 }
 
-func (siov *SeccompIovec) SendSeccompIovec(fd int, errno int) error {
+// SendSeccompIovec sends seccomp iovec.
+func (siov *Iovec) SendSeccompIovec(fd int, errno int) error {
 	C.seccomp_notify_update_response(siov.resp, C.int(errno))
 
 	msghdr := C.struct_msghdr{}
@@ -651,7 +679,8 @@ retry:
 	return nil
 }
 
-func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
+// NewSeccompServer creates a new seccomp server.
+func NewSeccompServer(s *state.State, path string, findPID func(pid int32, state *state.State) (Instance, error)) (*Server, error) {
 	ret := C.seccomp_notify_get_sizes(&C.expected_sizes)
 	if ret < 0 {
 		return nil, fmt.Errorf("Failed to query kernel for seccomp notifier sizes")
@@ -678,8 +707,8 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 	}
 
 	// Start the server
-	s := SeccompServer{
-		d:    d,
+	server := Server{
+		s:    s,
 		path: path,
 		l:    l,
 	}
@@ -715,101 +744,103 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 					}
 
 					if siov.IsValidSeccompIovec(bytes) {
-						go s.Handler(int(unixFile.Fd()), siov)
+						go server.handler(int(unixFile.Fd()), siov, findPID)
 					} else {
-						go s.InvalidHandler(int(unixFile.Fd()), siov)
+						go server.InvalidHandler(int(unixFile.Fd()), siov)
 					}
 				}
 			}()
 		}
 	}()
 
-	return &s, nil
+	return &server, nil
 }
 
-func taskIds(pid int) (error, int64, int64, int64, int64) {
+// TaskIDs returns the task IDs for a process.
+func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 	status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
-		return err, -1, -1, -1, -1
+		return -1, -1, -1, -1, err
 	}
 
-	reUid := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
-	reGid := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
-	var gid int64 = -1
-	var uid int64 = -1
-	var fsgid int64 = -1
-	var fsuid int64 = -1
-	uidFound := false
-	gidFound := false
+	reUID := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
+	reGID := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
+	var UID int64 = -1
+	var GID int64 = -1
+	var fsUID int64 = -1
+	var fsGID int64 = -1
+	UIDFound := false
+	GIDFound := false
 	for _, line := range strings.Split(string(status), "\n") {
-		if uidFound && gidFound {
+		if UIDFound && GIDFound {
 			break
 		}
 
-		if !uidFound {
-			m := reUid.FindStringSubmatch(line)
+		if !UIDFound {
+			m := reUID.FindStringSubmatch(line)
 			if m != nil && len(m) > 2 {
 				// effective uid
 				result, err := strconv.ParseInt(m[2], 10, 64)
 				if err != nil {
-					return err, -1, -1, -1, -1
+					return -1, -1, -1, -1, err
 				}
 
-				uid = result
-				uidFound = true
+				UID = result
+				UIDFound = true
 			}
 
 			if m != nil && len(m) > 4 {
 				// fsuid
 				result, err := strconv.ParseInt(m[4], 10, 64)
 				if err != nil {
-					return err, -1, -1, -1, -1
+					return -1, -1, -1, -1, err
 				}
 
-				fsuid = result
+				fsUID = result
 			}
 
 			continue
 		}
 
-		if !gidFound {
-			m := reGid.FindStringSubmatch(line)
+		if !GIDFound {
+			m := reGID.FindStringSubmatch(line)
 			if m != nil && len(m) > 2 {
 				// effective gid
 				result, err := strconv.ParseInt(m[2], 10, 64)
 				if err != nil {
-					return err, -1, -1, -1, -1
+					return -1, -1, -1, -1, err
 				}
 
-				gid = result
-				gidFound = true
+				GID = result
+				GIDFound = true
 			}
 
 			if m != nil && len(m) > 4 {
 				// fsgid
 				result, err := strconv.ParseInt(m[4], 10, 64)
 				if err != nil {
-					return err, -1, -1, -1, -1
+					return -1, -1, -1, -1, err
 				}
 
-				fsgid = result
+				fsGID = result
 			}
 
 			continue
 		}
 	}
 
-	return nil, uid, gid, fsuid, fsgid
+	return UID, GID, fsUID, fsGID, nil
 }
 
-func CallForkmknod(c container, dev config.Device, requestPID int) int {
+// CallForkmknod executes fork mknod.
+func CallForkmknod(c Instance, dev config.Device, requestPID int) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
 		return int(-C.EPERM)
 	}
 
-	err, uid, gid, fsuid, fsgid := taskIds(requestPID)
+	uid, gid, fsuid, fsgid, err := TaskIDs(requestPID)
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -846,12 +877,13 @@ func CallForkmknod(c container, dev config.Device, requestPID int) int {
 
 // InvalidHandler sends a dummy message to LXC. LXC will notice the short write
 // and send a default message to the kernel thereby avoiding a 30s hang.
-func (s *SeccompServer) InvalidHandler(fd int, siov *SeccompIovec) {
+func (s *Server) InvalidHandler(fd int, siov *Iovec) {
 	msghdr := C.struct_msghdr{}
 	C.sendmsg(C.int(fd), &msghdr, C.MSG_NOSIGNAL)
 	siov.PutSeccompIovec()
 }
 
+// MknodArgs arguments for mknod.
 type MknodArgs struct {
 	cMode C.mode_t
 	cDev  C.dev_t
@@ -859,7 +891,7 @@ type MknodArgs struct {
 	path  string
 }
 
-func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *SeccompIovec) int {
+func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 	dev := config.Device{}
 	dev["type"] = "unix-char"
 	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
@@ -883,7 +915,8 @@ func (s *SeccompServer) doDeviceSyscall(c container, args *MknodArgs, siov *Secc
 	return 0
 }
 
-func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int {
+// HandleMknodSyscall handles a mknod syscall.
+func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 	logger.Debug("Handling mknod syscall",
 		log.Ctx{"container": c.Name(),
 			"project":              c.Project(),
@@ -916,7 +949,8 @@ func (s *SeccompServer) HandleMknodSyscall(c container, siov *SeccompIovec) int 
 	return s.doDeviceSyscall(c, &args, siov)
 }
 
-func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) int {
+// HandleMknodatSyscall handles a mknodat syscall.
+func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 	logger.Debug("Handling mknodat syscall",
 		log.Ctx{"container": c.Name(),
 			"project":              c.Project(),
@@ -956,6 +990,7 @@ func (s *SeccompServer) HandleMknodatSyscall(c container, siov *SeccompIovec) in
 	return s.doDeviceSyscall(c, &args, siov)
 }
 
+// SetxattrArgs arguments for setxattr.
 type SetxattrArgs struct {
 	nsuid   int64
 	nsgid   int64
@@ -969,7 +1004,8 @@ type SetxattrArgs struct {
 	flags   C.int
 }
 
-func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) int {
+// HandleSetxattrSyscall handles setxattr syscalls.
+func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	logger.Debug("Handling setxattr syscall",
 		log.Ctx{"container": c.Name(),
 			"project":              c.Project(),
@@ -982,7 +1018,7 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 	args := SetxattrArgs{}
 
 	args.pid = int(siov.req.pid)
-	err, uid, gid, fsuid, fsgid := taskIds(args.pid)
+	uid, gid, fsuid, fsgid, err := TaskIDs(args.pid)
 	if err != nil {
 		return int(-C.EPERM)
 	}
@@ -1057,30 +1093,30 @@ func (s *SeccompServer) HandleSetxattrSyscall(c container, siov *SeccompIovec) i
 	return 0
 }
 
-func (s *SeccompServer) HandleSyscall(c container, siov *SeccompIovec) int {
+func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 	switch int(C.seccomp_notify_get_syscall(siov.req, siov.resp)) {
-	case LxdSeccompNotifyMknod:
+	case lxdSeccompNotifyMknod:
 		return s.HandleMknodSyscall(c, siov)
-	case LxdSeccompNotifyMknodat:
+	case lxdSeccompNotifyMknodat:
 		return s.HandleMknodatSyscall(c, siov)
-	case LxdSeccompNotifySetxattr:
+	case lxdSeccompNotifySetxattr:
 		return s.HandleSetxattrSyscall(c, siov)
 	}
 
 	return int(-C.EINVAL)
 }
 
-func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
+func (s *Server) handler(fd int, siov *Iovec, findPID func(pid int32, state *state.State) (Instance, error)) error {
 	defer siov.PutSeccompIovec()
 
-	c, err := findContainerForPid(int32(siov.msg.monitor_pid), s.d)
+	c, err := findPID(int32(siov.msg.monitor_pid), s.s)
 	if err != nil {
 		siov.SendSeccompIovec(fd, int(-C.EPERM))
 		logger.Errorf("Failed to find container for monitor %d", siov.msg.monitor_pid)
 		return err
 	}
 
-	errno := s.HandleSyscall(c, siov)
+	errno := s.handleSyscall(c, siov)
 
 	err = siov.SendSeccompIovec(fd, errno)
 	if err != nil {
@@ -1090,7 +1126,31 @@ func (s *SeccompServer) Handler(fd int, siov *SeccompIovec) error {
 	return nil
 }
 
-func (s *SeccompServer) Stop() error {
+// Stop stops a seccomp server.
+func (s *Server) Stop() error {
 	os.Remove(s.path)
 	return s.l.Close()
+}
+
+func lxcSupportSeccompNotify(state *state.State) bool {
+	if !state.OS.SeccompListener {
+		return false
+	}
+
+	if !state.OS.LXCFeatures["seccomp_notify"] {
+		return false
+	}
+
+	c, err := lxc.NewContainer("test-seccomp", state.OS.LxcPath)
+	if err != nil {
+		return false
+	}
+
+	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
+	if err != nil {
+		return false
+	}
+
+	c.Release()
+	return true
 }
