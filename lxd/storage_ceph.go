@@ -2521,9 +2521,16 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 		return s.doCrossPoolVolumeCopy(source)
 	}
 
-	snapshots, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, source.Name, storagePoolVolumeTypeNameCustom, s.UserName)
-	if err != nil {
+	rbdSnapshots, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, source.Name, storagePoolVolumeTypeNameCustom, s.UserName)
+	if err != nil && err != db.ErrNoSuchObject {
 		return err
+	}
+
+	snapshots := []string{}
+	for _, name := range rbdSnapshots {
+		if strings.HasPrefix(name, "snapshot_") {
+			snapshots = append(snapshots, name)
+		}
 	}
 
 	if source.VolumeOnly || len(snapshots) == 0 {
@@ -2594,11 +2601,11 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 		for i, snap := range snapshots {
 			prev := ""
 			if i > 0 {
-				_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snapshots[i-1])
+				snapOnlyName := strings.SplitN(snapshots[i-1], "snapshot_", 2)[1]
 				prev = fmt.Sprintf("snapshot_%s", snapOnlyName)
 			}
 
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
+			snapOnlyName := strings.SplitN(snap, "snapshot_", 2)[1]
 			lastSnap = fmt.Sprintf("snapshot_%s", snapOnlyName)
 			sourceVolumeName := fmt.Sprintf(
 				"%s/custom_%s@snapshot_%s",
