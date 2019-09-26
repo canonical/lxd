@@ -197,7 +197,7 @@ func (f *Field) ZeroValue() string {
 	switch f.Type.Name {
 	case "string":
 		return `""`
-	case "int", "instance.Type":
+	case "int", "instancetype.Type":
 		// FIXME: we use -1 since at the moment integer criteria are
 		// required to be positive.
 		return "-1"
@@ -273,7 +273,7 @@ func IsColumnType(name string) bool {
 
 var columnarTypeNames = []string{
 	"bool",
-	"instance.Type",
+	"instancetype.Type",
 	"int",
 	"string",
 	"time.Time",
