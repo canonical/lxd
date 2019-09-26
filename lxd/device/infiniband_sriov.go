@@ -3,7 +3,7 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -15,7 +15,7 @@ type infinibandSRIOV struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *infinibandSRIOV) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 

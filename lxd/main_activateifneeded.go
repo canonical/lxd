@@ -10,7 +10,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -112,7 +112,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 
 	var containers []db.Instance
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.InstanceFilter{Type: instance.TypeContainer}
+		filter := db.InstanceFilter{Type: instancetype.Container}
 		var err error
 		containers, err = tx.InstanceList(filter)
 		return err

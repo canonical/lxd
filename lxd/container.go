@@ -21,7 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/events"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -354,7 +354,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 	}
 
 	// Validate the type of the image matches the type of the instance.
-	imgType, err := instance.New(img.Type)
+	imgType, err := instancetype.New(img.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +599,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 }
 
 func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInstance Instance) (Instance, error) {
-	if sourceInstance.Type() != instance.TypeContainer {
+	if sourceInstance.Type() != instancetype.Container {
 		return nil, fmt.Errorf("Instance not container type")
 	}
 
@@ -1001,7 +1001,7 @@ func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
 			Project: project,
-			Type:    instance.TypeContainer,
+			Type:    instancetype.Container,
 		}
 		var err error
 		cts, err = tx.InstanceList(filter)
@@ -1069,7 +1069,7 @@ func instanceLoadNodeAll(s *state.State) ([]Instance, error) {
 }
 
 // Load all instances of this nodes under the given project.
-func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instance.Type) ([]Instance, error) {
+func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1126,7 +1126,7 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		if dbInstance.Type == instance.TypeContainer {
+		if dbInstance.Type == instancetype.Container {
 			args := db.ContainerToArgs(&dbInstance)
 			ct, err := containerLXCLoad(s, args, cProfiles)
 			if err != nil {

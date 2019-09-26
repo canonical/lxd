@@ -18,7 +18,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -311,7 +311,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	ws.fds = map[int]string{}
 
 	// If the type of instance is container, setup the root UID/GID for web socket.
-	if inst.Type() == instance.TypeContainer {
+	if inst.Type() == instancetype.Container {
 		c := inst.(container)
 		idmapset, err := c.CurrentIdmap()
 		if err != nil {
@@ -378,7 +378,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
@@ -432,7 +432,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if inst.Type() != instance.TypeContainer {
+	if inst.Type() != instancetype.Container {
 		return SmartError(fmt.Errorf("Instance is not container type"))
 	}
 

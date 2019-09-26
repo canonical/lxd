@@ -16,7 +16,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -135,7 +135,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		features:     lxc.FEATURE_MEM_TRACK,
 	}
 
-	if s.instance.Type() != instance.TypeContainer {
+	if s.instance.Type() != instancetype.Container {
 		return false, 0
 	}
 
@@ -251,7 +251,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 
 	final := args.final
 
-	if s.instance.Type() != instance.TypeContainer {
+	if s.instance.Type() != instancetype.Container {
 		return false, fmt.Errorf("Instance not container type")
 	}
 
@@ -339,7 +339,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	if s.instance.Type() != instance.TypeContainer {
+	if s.instance.Type() != instancetype.Container {
 		return fmt.Errorf("Instance not container type")
 	}
 
@@ -776,7 +776,7 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 }
 
 func (c *migrationSink) Do(migrateOp *operation) error {
-	if c.src.instance.Type() != instance.TypeContainer {
+	if c.src.instance.Type() != instancetype.Container {
 		return fmt.Errorf("Instance not container type")
 	}
 
