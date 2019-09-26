@@ -1,10 +1,11 @@
 // +build gc
 
-package main
+package ucred
 
 import "golang.org/x/sys/unix"
 
-func getUcred(fd int) (uint32, uint32, int32, error) {
+// GetUCred returns the file descriptor's ucreds.
+func GetUCred(fd int) (uint32, uint32, int32, error) {
 	cred, err := unix.GetsockoptUcred(fd, unix.SOL_SOCKET, unix.SO_PEERCRED)
 	if err != nil {
 		return 0, 0, -1, err
