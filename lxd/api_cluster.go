@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/response"
 	storagedriver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -68,7 +69,7 @@ var internalClusterPromoteCmd = APIEndpoint{
 }
 
 // Return information about the cluster.
-func clusterGet(d *Daemon, r *http.Request) Response {
+func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -76,7 +77,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 		return err
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// If the name is set to the hard-coded default node name, then
@@ -87,7 +88,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 
 	memberConfig, err := clusterGetMemberConfig(d.cluster)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	cluster := api.Cluster{
@@ -96,7 +97,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 		MemberConfig: memberConfig,
 	}
 
-	return SyncResponseETag(true, cluster, cluster)
+	return response.SyncResponseETag(true, cluster, cluster)
 }
 
 // Fetch information about all node-specific configuration keys set on the
@@ -169,21 +170,21 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 // - disable clustering on a node
 //
 // The client is required to be trusted.
-func clusterPut(d *Daemon, r *http.Request) Response {
+func clusterPut(d *Daemon, r *http.Request) response.Response {
 	req := api.ClusterPut{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.ServerName == "" && req.Enabled {
-		return BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
+		return response.BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
 	}
 	if req.ServerName != "" && !req.Enabled {
-		return BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
+		return response.BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
 	}
 
 	// Disable clustering.
@@ -201,7 +202,7 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 	return clusterPutJoin(d, req)
 }
 
-func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
+func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 	run := func(op *operation) error {
 		// The default timeout when non-clustered is one minute, let's
 		// lower it down now that we'll likely have to make requests
@@ -252,7 +253,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 
 	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Add the cluster flag from the agent
@@ -261,28 +262,28 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 	return OperationResponse(op)
 }
 
-func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
+func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
-		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
+		return response.BadRequest(fmt.Errorf("No target cluster node certificate provided"))
 	}
 
 	clusterAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if clusterAddress != "" {
-		return BadRequest(fmt.Errorf("This server is already clustered"))
+		return response.BadRequest(fmt.Errorf("This server is already clustered"))
 	}
 
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if address == "" {
 		if req.ServerAddress == "" {
-			return BadRequest(fmt.Errorf("No core.https_address config key is set on this node"))
+			return response.BadRequest(fmt.Errorf("No core.https_address config key is set on this node"))
 		}
 
 		// The user has provided a server address, and no networking
@@ -294,7 +295,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		// won't actually update the database config.
 		err = d.endpoints.NetworkUpdateAddress(req.ServerAddress)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		err := d.db.Transaction(func(tx *db.NodeTx) error {
@@ -310,7 +311,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		address = req.ServerAddress
@@ -322,7 +323,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			if !util.IsAddressCovered(req.ServerAddress, address) {
 				err := d.endpoints.ClusterUpdateAddress(req.ServerAddress)
 				if err != nil {
-					return SmartError(err)
+					return response.SmartError(err)
 				}
 				address = req.ServerAddress
 			}
@@ -340,7 +341,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
@@ -610,18 +611,18 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 
 	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
 // Disable clustering on a node.
-func clusterPutDisable(d *Daemon) Response {
+func clusterPutDisable(d *Daemon) response.Response {
 	// Close the cluster database
 	err := d.cluster.Close()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Update our TLS configuration using our original certificate.
@@ -632,25 +633,25 @@ func clusterPutDisable(d *Daemon) Response {
 		}
 		err := os.Remove(path)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 	cert, err := util.LoadCert(d.os.VarDir)
 	if err != nil {
-		return InternalError(errors.Wrap(err, "failed to parse node certificate"))
+		return response.InternalError(errors.Wrap(err, "failed to parse node certificate"))
 	}
 
 	// Reset the cluster database and make it local to this node.
 	d.endpoints.NetworkUpdateCert(cert)
 	err = d.gateway.Reset(cert)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Re-open the cluster database
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	store := d.gateway.NodeStore()
 	d.cluster, err = db.OpenCluster(
@@ -661,7 +662,7 @@ func clusterPutDisable(d *Daemon) Response {
 		dqlitedriver.WithContext(d.gateway.Context()),
 	)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Stop the clustering tasks
@@ -670,7 +671,7 @@ func clusterPutDisable(d *Daemon) Response {
 	// Remove the cluster flag from the agent
 	version.UserAgentFeatures(nil)
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // Initialize storage pools and networks on this node.
@@ -814,12 +815,12 @@ func clusterAcceptMember(
 	return info, nil
 }
 
-func clusterNodesGet(d *Daemon, r *http.Request) Response {
+func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	nodes, err := cluster.List(d.State())
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	var result interface{}
@@ -834,27 +835,27 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 		result = urls
 	}
 
-	return SyncResponse(true, result)
+	return response.SyncResponse(true, result)
 }
 
-func clusterNodeGet(d *Daemon, r *http.Request) Response {
+func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	nodes, err := cluster.List(d.State())
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	for _, node := range nodes {
 		if node.ServerName == name {
-			return SyncResponseETag(true, node, node)
+			return response.SyncResponseETag(true, node, node)
 		}
 	}
 
-	return NotFound(fmt.Errorf("Node '%s' not found", name))
+	return response.NotFound(fmt.Errorf("Node '%s' not found", name))
 }
 
-func clusterNodePost(d *Daemon, r *http.Request) Response {
+func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	req := api.ClusterMemberPost{}
@@ -862,20 +863,20 @@ func clusterNodePost(d *Daemon, r *http.Request) Response {
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.NodeRename(name, req.ServerName)
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func clusterNodeDelete(d *Daemon, r *http.Request) Response {
+func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	force, err := strconv.Atoi(r.FormValue("force"))
 	if err != nil {
 		force = 0
@@ -888,7 +889,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	// make it leave the database cluster, if it's part of it.
 	address, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if force != 1 {
@@ -897,28 +898,28 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		cert := d.endpoints.NetworkCert()
 		client, err := cluster.Connect(address, cert, true)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		networks, err := d.cluster.Networks()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		for _, name := range networks {
 			err := client.DeleteNetwork(name)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 		}
 
 		// Delete all the pools on this node
 		pools, err := d.cluster.StoragePools()
 		if err != nil && err != db.ErrNoSuchObject {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		for _, name := range pools {
 			err := client.DeleteStoragePool(name)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 		}
 	}
@@ -926,7 +927,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	// Remove node from the database
 	err = cluster.Purge(d.cluster, name)
 	if err != nil {
-		return SmartError(errors.Wrap(err, "failed to remove node from database"))
+		return response.SmartError(errors.Wrap(err, "failed to remove node from database"))
 	}
 	// Try to notify the leader.
 	err = tryClusterRebalance(d)
@@ -940,17 +941,17 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		cert := d.endpoints.NetworkCert()
 		client, err := cluster.Connect(address, cert, false)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		put := api.ClusterPut{}
 		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
 		if err != nil {
-			return SmartError(errors.Wrap(err, "failed to cleanup the node"))
+			return response.SmartError(errors.Wrap(err, "failed to cleanup the node"))
 		}
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // This function is used to notify the leader that a node was removed, it will
@@ -973,29 +974,29 @@ func tryClusterRebalance(d *Daemon) error {
 	return nil
 }
 
-func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
+func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	req := internalClusterPostAcceptRequest{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
 	address, err := node.ClusterAddress(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	if address != leader {
 		logger.Debugf("Redirect node accept request to %s", leader)
@@ -1004,23 +1005,23 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 			Path:   "/internal/cluster/accept",
 			Host:   leader,
 		}
-		return SyncResponseRedirect(url.String())
+		return response.SyncResponseRedirect(url.String())
 	}
 
 	// Check that the pools and networks provided by the joining node have
 	// configs that match the cluster ones.
 	err = clusterCheckStoragePoolsMatch(d.cluster, req.StoragePools)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	err = clusterCheckNetworksMatch(d.cluster, req.Networks)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 	accepted := internalClusterPostAcceptResponse{
 		RaftNodes:  make([]internalRaftNode, len(nodes)),
@@ -1030,7 +1031,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 		accepted.RaftNodes[i].ID = node.ID
 		accepted.RaftNodes[i].Address = node.Address
 	}
-	return SyncResponse(true, accepted)
+	return response.SyncResponse(true, accepted)
 }
 
 // A request for the /internal/cluster/accept endpoint.
@@ -1057,16 +1058,16 @@ type internalRaftNode struct {
 
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
-func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
+func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	if localAddress != leader {
 		logger.Debugf("Redirect cluster rebalance request to %s", leader)
@@ -1075,7 +1076,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 			Path:   "/internal/cluster/rebalance",
 			Host:   leader,
 		}
-		return SyncResponseRedirect(url.String())
+		return response.SyncResponseRedirect(url.String())
 	}
 
 	logger.Debugf("Rebalance cluster")
@@ -1083,7 +1084,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 	// Check if we have a spare node to promote.
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if address == "" {
@@ -1100,7 +1101,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 			return nil
 		})
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		hbState := &cluster.APIHeartbeat{}
@@ -1108,7 +1109,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 
 		cert, err := util.LoadCert(d.os.VarDir)
 		if err != nil {
-			return InternalError(errors.Wrap(err, "failed to parse cluster certificate"))
+			return response.InternalError(errors.Wrap(err, "failed to parse cluster certificate"))
 		}
 
 		for _, raftNode := range nodes {
@@ -1119,7 +1120,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 			go cluster.HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
 		}
 
-		return SyncResponse(true, nil)
+		return response.SyncResponse(true, nil)
 	}
 
 	// Tell the node to promote itself.
@@ -1134,29 +1135,29 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(address, cert, false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, nil)
+	return response.SyncResponse(true, nil)
 }
 
 // Used to promote the local non-database node to be a database one.
-func internalClusterPostPromote(d *Daemon, r *http.Request) Response {
+func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 	req := internalClusterPostPromoteRequest{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if len(req.RaftNodes) == 0 {
-		return BadRequest(fmt.Errorf("No raft nodes provided"))
+		return response.BadRequest(fmt.Errorf("No raft nodes provided"))
 	}
 
 	nodes := make([]db.RaftNode, len(req.RaftNodes))
@@ -1166,10 +1167,10 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) Response {
 	}
 	err = cluster.Promote(d.State(), d.gateway, nodes)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, nil)
+	return response.SyncResponse(true, nil)
 }
 
 // A request for the /internal/cluster/promote endpoint.

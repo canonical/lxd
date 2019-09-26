@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -39,15 +40,15 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	return instancetype.Any, nil
 }
 
-func containersGet(d *Daemon, r *http.Request) Response {
+func containersGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
 		if err == nil {
-			return SyncResponse(true, result)
+			return response.SyncResponse(true, result)
 		}
 		if !query.IsRetriableError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		// 100 ms may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
@@ -56,7 +57,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 
 	logger.Debugf("DBERR: containersGet, db is locked")
 	logger.Debugf(logger.GetStack())
-	return InternalError(fmt.Errorf("DB is locked"))
+	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
 func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {

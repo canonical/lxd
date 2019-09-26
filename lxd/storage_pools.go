@@ -13,6 +13,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -41,12 +42,12 @@ var storagePoolCmd = APIEndpoint{
 
 // /1.0/storage-pools
 // List all storage pools.
-func storagePoolsGet(d *Daemon, r *http.Request) Response {
+func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	pools, err := d.cluster.StoragePools()
 	if err != nil && err != db.ErrNoSuchObject {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	resultString := []string{}
@@ -63,7 +64,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 			// Get all users of the storage pool.
 			poolUsedBy, err := storagePoolUsedByGet(d.State(), plID, pool)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 			pl.UsedBy = poolUsedBy
 
@@ -72,15 +73,15 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if !recursion {
-		return SyncResponse(true, resultString)
+		return response.SyncResponse(true, resultString)
 	}
 
-	return SyncResponse(true, resultMap)
+	return response.SyncResponse(true, resultMap)
 }
 
 // /1.0/storage-pools
 // Create a storage pool.
-func storagePoolsPost(d *Daemon, r *http.Request) Response {
+func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	storagePoolCreateLock.Lock()
 	defer storagePoolCreateLock.Unlock()
 
@@ -89,24 +90,24 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks.
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return BadRequest(fmt.Errorf("Storage pool names may not contain slashes"))
+		return response.BadRequest(fmt.Errorf("Storage pool names may not contain slashes"))
 	}
 
 	if req.Driver == "" {
-		return BadRequest(fmt.Errorf("No driver provided"))
+		return response.BadRequest(fmt.Errorf("No driver provided"))
 	}
 
 	url := fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name)
-	response := SyncResponseLocation(true, nil, url)
+	resp := response.SyncResponseLocation(true, nil, url)
 
 	if isClusterNotification(r) {
 		// This is an internal request which triggers the actual
@@ -114,21 +115,21 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		// previously defined.
 		err = storagePoolValidate(req.Name, req.Driver, req.Config)
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 		err = doStoragePoolCreateInternal(
 			d.State(), req.Name, req.Description, req.Driver, req.Config, true)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
-		return response
+		return resp
 	}
 
 	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		count, err := cluster.Count(d.State())
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		if count == 1 {
@@ -143,9 +144,9 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 			err = storagePoolsPostCluster(d, req)
 		}
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
-		return response
+		return resp
 
 	}
 
@@ -154,13 +155,13 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	// storage config are the ones in StoragePoolNodeConfigKeys.
 	for key := range req.Config {
 		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return SmartError(fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
+			return response.SmartError(fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
 		}
 	}
 
 	err = storagePoolValidate(req.Name, req.Driver, req.Config)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -168,12 +169,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
-			return BadRequest(fmt.Errorf("The storage pool already defined on node %s", targetNode))
+			return response.BadRequest(fmt.Errorf("The storage pool already defined on node %s", targetNode))
 		}
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return response
+	return resp
 }
 
 func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
@@ -269,11 +270,11 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 
 // /1.0/storage-pools/{name}
 // Get a single storage pool.
-func storagePoolGet(d *Daemon, r *http.Request) Response {
+func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	response := ForwardedResponseIfTargetIsRemote(d, r)
-	if response != nil {
-		return response
+	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
 	}
 
 	poolName := mux.Vars(r)["name"]
@@ -281,13 +282,13 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	// Get the existing storage pool.
 	poolID, pool, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Get all users of the storage pool.
 	poolUsedBy, err := storagePoolUsedByGet(d.State(), poolID, poolName)
 	if err != nil && err != db.ErrNoSuchObject {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	pool.UsedBy = poolUsedBy
 
@@ -295,7 +296,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// If no target node is specified and the daemon is clustered, we omit
@@ -308,35 +309,35 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 
 	etag := []interface{}{pool.Name, pool.Driver, pool.Config}
 
-	return SyncResponseETag(true, &pool, etag)
+	return response.SyncResponseETag(true, &pool, etag)
 }
 
 // /1.0/storage-pools/{name}
 // Replace pool properties.
-func storagePoolPut(d *Daemon, r *http.Request) Response {
+func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
 	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	req := api.StoragePoolPut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	config := dbInfo.Config
 	if clustered {
 		err := storagePoolValidateClusterConfig(req.Config)
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 		config = storagePoolClusterConfigForEtag(config)
 	}
@@ -346,13 +347,13 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	// Validate the configuration
 	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config, dbInfo.Config)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	config = req.Config
@@ -367,51 +368,51 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 		cert := d.endpoints.NetworkCert()
 		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	withDB := !isClusterNotification(r)
 	err = storagePoolUpdate(d.State(), poolName, req.Description, config, withDB)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // /1.0/storage-pools/{name}
 // Change pool properties.
-func storagePoolPatch(d *Daemon, r *http.Request) Response {
+func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing network
 	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	req := api.StoragePoolPut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	config := dbInfo.Config
 	if clustered {
 		err := storagePoolValidateClusterConfig(req.Config)
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 		config = storagePoolClusterConfigForEtag(config)
 	}
@@ -421,7 +422,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	// Config stacking
@@ -439,7 +440,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 	// Validate the configuration
 	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config, dbInfo.Config)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	config = req.Config
@@ -454,23 +455,23 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 		cert := d.endpoints.NetworkCert()
 		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	withDB := !isClusterNotification(r)
 	err = storagePoolUpdate(d.State(), poolName, req.Description, config, withDB)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // This helper makes sure that, when clustered, we're not changing
@@ -510,12 +511,12 @@ func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string)
 
 // /1.0/storage-pools/{name}
 // Delete storage pool.
-func storagePoolDelete(d *Daemon, r *http.Request) Response {
+func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
 	if err != nil {
-		return NotFound(err)
+		return response.NotFound(err)
 	}
 
 	// If this is not an internal cluster request, check if the storage
@@ -531,19 +532,19 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	// the database.
 	_, pool, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if pool.Status == "Pending" {
 		_, err := d.cluster.StoragePoolDelete(poolName)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	s, err := storagePoolInit(d.State(), poolName)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// If this is a notification for a ceph pool deletion, we don't want to
@@ -555,49 +556,49 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		if shared.PathExists(poolMntPoint) {
 			err := os.RemoveAll(poolMntPoint)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 		}
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	volumeNames, err := d.cluster.StoragePoolVolumesGetNames(poolID)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	for _, volume := range volumeNames {
 		_, imgInfo, err := d.cluster.ImageGet("default", volume, false, false)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
 	err = s.StoragePoolDelete()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// If this is a cluster notification, we're done, any database work
 	// will be done by the node that is originally serving the request.
 	if isClusterNotification(r) {
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	// If we are clustered, also notify all other nodes, if any.
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if clustered {
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		err = notifier(func(client lxd.InstanceServer) error {
 			_, _, err := client.GetServer()
@@ -607,33 +608,33 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 			return client.DeleteStoragePool(poolName)
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	err = dbStoragePoolDeleteAndUpdateCache(d.cluster, poolName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) Response {
+func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) response.Response {
 	volumeNames, err := cluster.StoragePoolVolumesGetNames(poolID)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	if len(volumeNames) > 0 {
 		volumes, err := cluster.StoragePoolVolumesGet("default", poolID, supportedVolumeTypes)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		for _, volume := range volumes {
 			if volume.Type != "image" {
-				return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
+				return response.BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
 			}
 		}
 	}
@@ -641,11 +642,11 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	// Check if the storage pool is still referenced in any profiles.
 	profiles, err := profilesUsingPoolGetNames(cluster, poolName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if len(profiles) > 0 {
-		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
+		return response.BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
 	}
 
 	return nil

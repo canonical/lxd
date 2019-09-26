@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -20,10 +21,10 @@ import (
  * Update configuration, or, if 'restore:snapshot-name' is present, restore
  * the named snapshot
  */
-func containerPut(d *Daemon, r *http.Request) Response {
+func containerPut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -32,29 +33,29 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return NotFound(err)
+		return response.NotFound(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{c.Architecture(), c.LocalConfig(), c.LocalDevices(), c.IsEphemeral(), c.Profiles()}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	configRaw := api.InstancePut{}
 	if err := json.NewDecoder(r.Body).Decode(&configRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	architecture, err := osarch.ArchitectureId(configRaw.Architecture)
@@ -101,7 +102,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 
 	op, err := operationCreate(d.cluster, project, operationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)

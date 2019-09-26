@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -22,7 +23,7 @@ func RestServer(d *Daemon) *http.Server {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		SyncResponse(true, []string{"/1.0"}).Render(w)
+		response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
 	for endpoint, f := range d.gateway.HandlerFuncs(d.NodeRefreshTask) {
@@ -50,7 +51,7 @@ func RestServer(d *Daemon) *http.Server {
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
-		NotFound(nil).Render(w)
+		response.NotFound(nil).Render(w)
 	})
 
 	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
@@ -74,8 +75,8 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return nil
 		})
 		if err != nil {
-			response := SmartError(err)
-			response.Render(rw)
+			resp := response.SmartError(err)
+			resp.Render(rw)
 			return
 		}
 	}
