@@ -36,6 +36,7 @@ import (
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -174,22 +175,22 @@ type APIEndpointAlias struct {
 
 // APIEndpointAction represents an action on an API endpoint.
 type APIEndpointAction struct {
-	Handler        func(d *Daemon, r *http.Request) Response
-	AccessHandler  func(d *Daemon, r *http.Request) Response
+	Handler        func(d *Daemon, r *http.Request) response.Response
+	AccessHandler  func(d *Daemon, r *http.Request) response.Response
 	AllowUntrusted bool
 }
 
 // AllowAuthenticated is a AccessHandler which allows all requests
-func AllowAuthenticated(d *Daemon, r *http.Request) Response {
-	return EmptySyncResponse
+func AllowAuthenticated(d *Daemon, r *http.Request) response.Response {
+	return response.EmptySyncResponse
 }
 
 // AllowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
-func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) Response {
-	return func(d *Daemon, r *http.Request) Response {
+func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
+	return func(d *Daemon, r *http.Request) response.Response {
 		// Shortcut for speed
 		if d.userIsAdmin(r) {
-			return EmptySyncResponse
+			return response.EmptySyncResponse
 		}
 
 		// Get the project
@@ -197,10 +198,10 @@ func AllowProjectPermission(feature string, permission string) func(d *Daemon, r
 
 		// Validate whether the user has the needed permission
 		if !d.userHasPermission(r, project, permission) {
-			return Forbidden(nil)
+			return response.Forbidden(nil)
 		}
 
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 }
 
@@ -302,7 +303,7 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 	m, err := b.Oven.NewMacaroon(
 		ctx, httpbakery.RequestVersion(r), caveats, derr.Ops...)
 	if err != nil {
-		resp := errorResponse{http.StatusInternalServerError, err.Error()}
+		resp := response.ErrorResponse(http.StatusInternalServerError, err.Error())
 		resp.Render(w)
 		return
 	}
@@ -361,7 +362,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		select {
 		case <-d.setupChan:
 		default:
-			response := Unavailable(fmt.Errorf("LXD daemon setup in progress"))
+			response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
 			response.Render(w)
 			return
 		}
@@ -372,7 +373,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// If not a macaroon discharge request, return the error
 			_, ok := err.(*bakery.DischargeRequiredError)
 			if !ok {
-				InternalError(err).Render(w)
+				response.InternalError(err).Render(w)
 				return
 			}
 		}
@@ -382,7 +383,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			// Except for the initial cluster accept request (done over trusted TLS)
 			if !trusted || c.Path != "cluster/accept" || protocol != "tls" {
 				logger.Warn("Rejecting remote internal API request", log.Ctx{"ip": r.RemoteAddr})
-				Forbidden(nil).Render(w)
+				response.Forbidden(nil).Render(w)
 				return
 			}
 		}
@@ -398,7 +399,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return
 		} else {
 			logger.Warn("Rejecting request from untrusted client", log.Ctx{"ip": r.RemoteAddr})
-			Forbidden(nil).Render(w)
+			response.Forbidden(nil).Render(w)
 			return
 		}
 
@@ -408,7 +409,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
 			if _, err := io.Copy(multiW, r.Body); err != nil {
-				InternalError(err).Render(w)
+				response.InternalError(err).Render(w)
 				return
 			}
 
@@ -417,24 +418,24 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Actually process the request
-		var resp Response
-		resp = NotImplemented(nil)
+		var resp response.Response
+		resp = response.NotImplemented(nil)
 
-		handleRequest := func(action APIEndpointAction) Response {
+		handleRequest := func(action APIEndpointAction) response.Response {
 			if action.Handler == nil {
-				return NotImplemented(nil)
+				return response.NotImplemented(nil)
 			}
 
 			if action.AccessHandler != nil {
 				// Defer access control to custom handler
 				resp := action.AccessHandler(d, r)
-				if resp != EmptySyncResponse {
+				if resp != response.EmptySyncResponse {
 					return resp
 				}
 			} else if !action.AllowUntrusted {
 				// Require admin privileges
 				if !d.userIsAdmin(r) {
-					return Forbidden(nil)
+					return response.Forbidden(nil)
 				}
 			}
 
@@ -453,12 +454,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		case "PATCH":
 			resp = handleRequest(c.Patch)
 		default:
-			resp = NotFound(fmt.Errorf("Method '%s' not found", r.Method))
+			resp = response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 		}
 
 		// Handle errors
 		if err := resp.Render(w); err != nil {
-			err := InternalError(err).Render(w)
+			err := response.InternalError(err).Render(w)
 			if err != nil {
 				logger.Errorf("Failed writing error for error, giving up")
 			}

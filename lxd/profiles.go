@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -39,7 +40,7 @@ var profileCmd = APIEndpoint{
 }
 
 /* This is used for both profiles post and profile put */
-func profilesGet(d *Daemon, r *http.Request) Response {
+func profilesGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 
 	recursion := util.IsRecursionRequest(r)
@@ -75,41 +76,41 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		return err
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, result)
+	return response.SyncResponse(true, result)
 }
 
-func profilesPost(d *Daemon, r *http.Request) Response {
+func profilesPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	req := api.ProfilesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
 
 	if shared.StringInSlice(req.Name, []string{".", ".."}) {
-		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
+		return response.BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
 	err := containerValidConfig(d.os, req.Config, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Validate container devices with an empty instanceName to indicate profile validation.
 	err = containerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Update DB entry
@@ -139,14 +140,14 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return err
 	})
 	if err != nil {
-		return SmartError(
+		return response.SmartError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
-func profileGet(d *Daemon, r *http.Request) Response {
+func profileGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
@@ -172,7 +173,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// For backward-compatibility, we strip the "?project" query parameter
@@ -185,10 +186,10 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	}
 
 	etag := []interface{}{resp.Config, resp.Description, resp.Devices}
-	return SyncResponseETag(true, resp, etag)
+	return response.SyncResponseETag(true, resp, etag)
 }
 
-func profilePut(d *Daemon, r *http.Request) Response {
+func profilePut(d *Daemon, r *http.Request) response.Response {
 	// Get the project
 	project := projectParam(r)
 
@@ -202,11 +203,11 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		old := api.ProfilePut{}
 		err := json.NewDecoder(r.Body).Decode(&old)
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 
 		err = doProfileUpdateCluster(d, project, name, old)
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	var id int64
@@ -233,19 +234,19 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := api.ProfilePut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = doProfileUpdate(d, project, name, id, profile, req)
@@ -254,21 +255,21 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		// Notify all other nodes. If a node is down, it will be ignored.
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.UseProject(project).UpdateProfile(name, profile.ProfilePut, "")
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
-	return SmartError(err)
+	return response.SmartError(err)
 }
 
-func profilePatch(d *Daemon, r *http.Request) Response {
+func profilePatch(d *Daemon, r *http.Request) response.Response {
 	// Get the project
 	project := projectParam(r)
 
@@ -299,19 +300,19 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Validate the ETag
 	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
@@ -319,12 +320,12 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 	reqRaw := shared.Jmap{}
 	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	req := api.ProfilePut{}
 	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Get Description
@@ -357,34 +358,34 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return SmartError(doProfileUpdate(d, project, name, id, profile, req))
+	return response.SmartError(doProfileUpdate(d, project, name, id, profile, req))
 }
 
 // The handler for the post operation.
-func profilePost(d *Daemon, r *http.Request) Response {
+func profilePost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	if name == "default" {
-		return Forbidden(errors.New("The 'default' profile cannot be renamed"))
+		return response.Forbidden(errors.New("The 'default' profile cannot be renamed"))
 	}
 
 	req := api.ProfilePost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	if strings.Contains(req.Name, "/") {
-		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
+		return response.BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
 
 	if shared.StringInSlice(req.Name, []string{".", ".."}) {
-		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
+		return response.BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -406,19 +407,19 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return tx.ProfileRename(project, name, req.Name)
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
 // The handler for the delete operation.
-func profileDelete(d *Daemon, r *http.Request) Response {
+func profileDelete(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	if name == "default" {
-		return Forbidden(errors.New("The 'default' profile cannot be deleted"))
+		return response.Forbidden(errors.New("The 'default' profile cannot be deleted"))
 	}
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -442,8 +443,8 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return tx.ProfileDelete(project, name)
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }

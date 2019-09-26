@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -83,7 +84,7 @@ var api10 = []APIEndpoint{
 	storagePoolVolumeTypeImageCmd,
 }
 
-func api10Get(d *Daemon, r *http.Request) Response {
+func api10Get(d *Daemon, r *http.Request) response.Response {
 	authMethods := []string{"tls"}
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
@@ -100,7 +101,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	srv := api.ServerUntrusted{
 		APIExtensions: version.APIExtensions,
@@ -113,34 +114,34 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 	// If untrusted, return now
 	if d.checkTrustedClient(r) != nil {
-		return SyncResponseETag(true, srv, nil)
+		return response.SyncResponseETag(true, srv, nil)
 	}
 
 	// If a target was specified, forward the request to the relevant node.
-	response := ForwardedResponseIfTargetIsRemote(d, r)
-	if response != nil {
-		return response
+	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
 	}
 
 	srv.Auth = "trusted"
 
 	uname, err := shared.Uname()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	addresses, err := util.ListenAddresses(address)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// When clustered, use the node name, otherwise use the hostname.
@@ -151,12 +152,12 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	} else {
 		hostname, err := os.Hostname()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		serverName = hostname
 	}
@@ -166,7 +167,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	if certificate != "" {
 		certificateFingerprint, err = shared.CertFingerprintStr(certificate)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
@@ -175,7 +176,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	for _, architecture := range d.os.Architectures {
 		architectureName, err := osarch.ArchitectureName(architecture)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 		architectures = append(architectures, architectureName)
 	}
@@ -238,22 +239,22 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	fullSrv.Environment = env
 	fullSrv.Config, err = daemonConfigRender(d.State())
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return SyncResponseETag(true, fullSrv, fullSrv.Config)
+	return response.SyncResponseETag(true, fullSrv, fullSrv.Config)
 }
 
-func api10Put(d *Daemon, r *http.Request) Response {
+func api10Put(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	response := ForwardedResponseIfTargetIsRemote(d, r)
-	if response != nil {
-		return response
+	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
 	}
 
 	req := api.ServerPut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// If this is a notification from a cluster node, just run the triggers
@@ -271,56 +272,56 @@ func api10Put(d *Daemon, r *http.Request) Response {
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		err = doApi10UpdateTriggers(d, nil, changed, nil, config)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	err = util.EtagCheck(r, render)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	return doApi10Update(d, req, false)
 }
 
-func api10Patch(d *Daemon, r *http.Request) Response {
+func api10Patch(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	response := ForwardedResponseIfTargetIsRemote(d, r)
-	if response != nil {
-		return response
+	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
 	}
 
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	err = util.EtagCheck(r, render)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := api.ServerPut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Config == nil {
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	return doApi10Update(d, req, true)
 }
 
-func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
+func doApi10Update(d *Daemon, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
 	// First deal with config specific to the local daemon
@@ -336,7 +337,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return InternalError(errors.Wrap(err, "Failed to check for cluster state"))
+		return response.InternalError(errors.Wrap(err, "Failed to check for cluster state"))
 	}
 
 	nodeChanged := map[string]string{}
@@ -382,9 +383,9 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	if err != nil {
 		switch err.(type) {
 		case config.ErrorList:
-			return BadRequest(err)
+			return response.BadRequest(err)
 		default:
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
@@ -403,7 +404,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 
 		if hasCandid && hasRBAC {
-			return BadRequest(fmt.Errorf("RBAC and Candid are mutually exclusive"))
+			return response.BadRequest(fmt.Errorf("RBAC and Candid are mutually exclusive"))
 		}
 	}
 
@@ -426,16 +427,16 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	if err != nil {
 		switch err.(type) {
 		case config.ErrorList:
-			return BadRequest(err)
+			return response.BadRequest(err)
 		default:
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	// Notify the other nodes about changes
 	notifier, err := cluster.NewNotifier(s, d.endpoints.NetworkCert(), cluster.NotifyAlive)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	err = notifier(func(client lxd.InstanceServer) error {
 		server, etag, err := client.GetServer()
@@ -452,15 +453,15 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	})
 	if err != nil {
 		logger.Debugf("Failed to notify other nodes about config change: %v", err)
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = doApi10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *cluster.Config) error {
