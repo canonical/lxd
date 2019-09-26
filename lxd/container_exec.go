@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -341,10 +342,10 @@ func (s *execWs) Do(op *operation) error {
 	return finisher(-1, nil)
 }
 
-func containerExecPost(d *Daemon, r *http.Request) Response {
+func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -353,25 +354,25 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	post := api.InstanceExecPost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if err := json.Unmarshal(buf, &post); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if client != nil {
 		url := fmt.Sprintf("/containers/%s/exec?project=%s", name, project)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		opAPI := op.Get()
@@ -380,15 +381,15 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if !inst.IsRunning() {
-		return BadRequest(fmt.Errorf("Container is not running"))
+		return response.BadRequest(fmt.Errorf("Container is not running"))
 	}
 
 	if inst.IsFrozen() {
-		return BadRequest(fmt.Errorf("Container is frozen"))
+		return response.BadRequest(fmt.Errorf("Container is frozen"))
 	}
 
 	env := map[string]string{}
@@ -443,7 +444,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			c := inst.(container)
 			idmapset, err := c.CurrentIdmap()
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			if idmapset != nil {
@@ -464,7 +465,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 		}
 
@@ -484,7 +485,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		return OperationResponse(op)
@@ -536,7 +537,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)

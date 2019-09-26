@@ -13,39 +13,40 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
-func containerMetadataGet(d *Daemon, r *http.Request) Response {
+func containerMetadataGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	// Load the container
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
 
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if ourStart {
 		defer c.StorageStop()
@@ -53,60 +54,60 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 
 	// If missing, just return empty result
 	if !shared.PathExists(metadataPath) {
-		return SyncResponse(true, api.ImageMetadata{})
+		return response.SyncResponse(true, api.ImageMetadata{})
 	}
 
 	// Read the metadata
 	metadataFile, err := os.Open(metadataPath)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	defer metadataFile.Close()
 
 	data, err := ioutil.ReadAll(metadataFile)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Parse into the API struct
 	metadata := api.ImageMetadata{}
 	err = yaml.Unmarshal(data, &metadata)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, metadata)
+	return response.SyncResponse(true, metadata)
 }
 
-func containerMetadataPut(d *Daemon, r *http.Request) Response {
+func containerMetadataPut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	// Load the container
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	metadataPath := filepath.Join(c.Path(), "metadata.yaml")
 
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if ourStart {
 		defer c.StorageStop()
@@ -115,51 +116,51 @@ func containerMetadataPut(d *Daemon, r *http.Request) Response {
 	// Read the new metadata
 	metadata := api.ImageMetadata{}
 	if err := json.NewDecoder(r.Body).Decode(&metadata); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Write as YAML
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if err := ioutil.WriteFile(metadataPath, data, 0644); err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // Return a list of templates used in a container or the content of a template
-func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
+func containerMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	// Load the container
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if ourStart {
 		defer c.StorageStop()
@@ -170,14 +171,14 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 	if templateName == "" {
 		templates := []string{}
 		if !shared.PathExists(filepath.Join(c.Path(), "templates")) {
-			return SyncResponse(true, templates)
+			return response.SyncResponse(true, templates)
 		}
 
 		// List templates
 		templatesPath := filepath.Join(c.Path(), "templates")
 		filesInfo, err := ioutil.ReadDir(templatesPath)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		for _, info := range filesInfo {
@@ -186,74 +187,74 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 			}
 		}
 
-		return SyncResponse(true, templates)
+		return response.SyncResponse(true, templates)
 	}
 
 	// Check if the template exists
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if !shared.PathExists(templatePath) {
-		return NotFound(fmt.Errorf("Template '%s' not found", templateName))
+		return response.NotFound(fmt.Errorf("Template '%s' not found", templateName))
 	}
 
 	// Create a temporary file with the template content (since the container
 	// storage might not be available when the file is read from FileResponse)
 	template, err := os.Open(templatePath)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	defer template.Close()
 
 	tempfile, err := ioutil.TempFile("", "lxd_template")
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	defer tempfile.Close()
 
 	_, err = io.Copy(tempfile, template)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	files := make([]fileResponseEntry, 1)
-	files[0].identifier = templateName
-	files[0].path = tempfile.Name()
-	files[0].filename = templateName
-	return FileResponse(r, files, nil, true)
+	files := make([]response.FileResponseEntry, 1)
+	files[0].Identifier = templateName
+	files[0].Path = tempfile.Name()
+	files[0].Filename = templateName
+	return response.FileResponse(r, files, nil, true)
 }
 
 // Add a container template file
-func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
+func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	// Load the container
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if ourStart {
 		defer c.StorageStop()
@@ -262,46 +263,46 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
-		return BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(fmt.Errorf("missing path argument"))
 	}
 
 	if !shared.PathExists(filepath.Join(c.Path(), "templates")) {
 		err := os.MkdirAll(filepath.Join(c.Path(), "templates"), 0711)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	// Check if the template already exists
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if r.Method == "POST" && shared.PathExists(templatePath) {
-		return BadRequest(fmt.Errorf("Template already exists"))
+		return response.BadRequest(fmt.Errorf("Template already exists"))
 	}
 
 	// Write the new template
 	template, err := os.OpenFile(templatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	defer template.Close()
 
 	_, err = io.Copy(template, r.Body)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // Delete a container template
-func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
+func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -309,24 +310,24 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	// Load the container
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	if ourStart {
 		defer c.StorageStop()
@@ -335,25 +336,25 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
-		return BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(fmt.Errorf("missing path argument"))
 	}
 
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if !shared.PathExists(templatePath) {
-		return NotFound(fmt.Errorf("Template '%s' not found", templateName))
+		return response.NotFound(fmt.Errorf("Template '%s' not found", templateName))
 	}
 
 	// Delete the template
 	err = os.Remove(templatePath)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // Return the full path of a container template.

@@ -9,56 +9,57 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
-func containerState(d *Daemon, r *http.Request) Response {
+func containerState(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	state, err := c.RenderState()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
-	return SyncResponse(true, state)
+	return response.SyncResponse(true, state)
 }
 
-func containerStatePut(d *Daemon, r *http.Request) Response {
+func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	raw := api.InstanceStatePut{}
@@ -68,7 +69,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	raw.Timeout = -1
 
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Don't mess with containers while in setup mode
@@ -76,7 +77,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	var opType db.OperationType
@@ -188,7 +189,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Freeze:
 		if !d.os.CGroupFreezerController {
-			return BadRequest(fmt.Errorf("This system doesn't support freezing containers"))
+			return response.BadRequest(fmt.Errorf("This system doesn't support freezing containers"))
 		}
 
 		opType = db.OperationContainerFreeze
@@ -198,7 +199,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		}
 	case shared.Unfreeze:
 		if !d.os.CGroupFreezerController {
-			return BadRequest(fmt.Errorf("This system doesn't support unfreezing containers"))
+			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing containers"))
 		}
 
 		opType = db.OperationContainerUnfreeze
@@ -207,7 +208,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			return c.Unfreeze()
 		}
 	default:
-		return BadRequest(fmt.Errorf("unknown action %s", raw.Action))
+		return response.BadRequest(fmt.Errorf("unknown action %s", raw.Action))
 	}
 
 	resources := map[string][]string{}
@@ -215,7 +216,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 
 	op, err := operationCreate(d.cluster, project, operationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)

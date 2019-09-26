@@ -15,6 +15,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -40,7 +41,7 @@ var certificateCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: certificatePut},
 }
 
-func certificatesGet(d *Daemon, r *http.Request) Response {
+func certificatesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	if recursion {
@@ -48,7 +49,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 
 		baseCerts, err := d.cluster.CertificatesGet()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		for _, baseCert := range baseCerts {
 			resp := api.Certificate{}
@@ -62,7 +63,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 			}
 			certResponses = append(certResponses, resp)
 		}
-		return SyncResponse(true, certResponses)
+		return response.SyncResponse(true, certResponses)
 	}
 
 	body := []string{}
@@ -71,7 +72,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 		body = append(body, fingerprint)
 	}
 
-	return SyncResponse(true, body)
+	return response.SyncResponse(true, body)
 }
 
 func readSavedClientCAList(d *Daemon) {
@@ -100,33 +101,33 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func certificatesPost(d *Daemon, r *http.Request) Response {
+func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Parse the request
 	req := api.CertificatesPost{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Access check
 	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	trusted, _, protocol, err := d.Authenticate(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if (!trusted || (protocol == "candid" && !d.userIsAdmin(r))) && util.PasswordCheck(secret, req.Password) != nil {
 		if req.Password != "" {
 			logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		}
-		return Forbidden(nil)
+		return response.Forbidden(nil)
 	}
 
 	if req.Type != "client" {
-		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
 	// Extract the certificate
@@ -135,28 +136,28 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	if req.Certificate != "" {
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 
 		cert, err = x509.ParseCertificate(data)
 		if err != nil {
-			return BadRequest(errors.Wrap(err, "invalid certificate material"))
+			return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
 		}
 		name = req.Name
 	} else if r.TLS != nil {
 		if len(r.TLS.PeerCertificates) < 1 {
-			return BadRequest(fmt.Errorf("No client certificate provided"))
+			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 
 		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		name = remoteHost
 	} else {
-		return BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
+		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
 	fingerprint := shared.CertFingerprint(cert)
@@ -173,10 +174,10 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 			_, ok := d.clientCerts[fingerprint]
 			if !ok {
 				d.clientCerts[fingerprint] = *cert
-				return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
+				return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 			}
 
-			return BadRequest(fmt.Errorf("Certificate already in trust store"))
+			return response.BadRequest(fmt.Errorf("Certificate already in trust store"))
 		}
 
 		// Store the certificate in the cluster database
@@ -189,14 +190,14 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 
 		err = d.cluster.CertSave(&dbCert)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		// Notify other nodes about the new certificate.
 		notifier, err := cluster.NewNotifier(
 			d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		req := api.CertificatesPost{
 			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
@@ -208,24 +209,24 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 			return client.CreateCertificate(req)
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	d.clientCerts[shared.CertFingerprint(cert)] = *cert
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
-func certificateGet(d *Daemon, r *http.Request) Response {
+func certificateGet(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	cert, err := doCertificateGet(d.cluster, fingerprint)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponseETag(true, cert, cert)
+	return response.SyncResponseETag(true, cert, cert)
 }
 
 func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, error) {
@@ -248,46 +249,46 @@ func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, erro
 	return resp, nil
 }
 
-func certificatePut(d *Daemon, r *http.Request) Response {
+func certificatePut(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	fingerprint = oldEntry.Fingerprint
 
 	err = util.EtagCheck(r, oldEntry)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := api.CertificatePut{}
 	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	return doCertificateUpdate(d, fingerprint, req)
 }
 
-func certificatePatch(d *Daemon, r *http.Request) Response {
+func certificatePatch(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	fingerprint = oldEntry.Fingerprint
 
 	err = util.EtagCheck(r, oldEntry)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	req := oldEntry
 	reqRaw := shared.Jmap{}
 	if err := json.NewDecoder(r.Body).Decode(&reqRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Get name
@@ -305,32 +306,32 @@ func certificatePatch(d *Daemon, r *http.Request) Response {
 	return doCertificateUpdate(d, fingerprint, req.Writable())
 }
 
-func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) Response {
+func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) response.Response {
 	if req.Type != "client" {
-		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
+		return response.BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
 	err := d.cluster.CertUpdate(fingerprint, req.Name, 1)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func certificateDelete(d *Daemon, r *http.Request) Response {
+func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
 	certInfo, err := d.cluster.CertificateGet(fingerprint)
 	if err != nil {
-		return NotFound(err)
+		return response.NotFound(err)
 	}
 
 	err = d.cluster.CertDelete(certInfo.Fingerprint)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	readSavedClientCAList(d)
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }

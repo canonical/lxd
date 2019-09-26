@@ -24,6 +24,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -103,51 +104,51 @@ var internalRAFTSnapshotCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: internalRAFTSnapshot},
 }
 
-func internalWaitReady(d *Daemon, r *http.Request) Response {
+func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	select {
 	case <-d.readyChan:
 	default:
-		return Unavailable(fmt.Errorf("LXD daemon not ready yet"))
+		return response.Unavailable(fmt.Errorf("LXD daemon not ready yet"))
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalShutdown(d *Daemon, r *http.Request) Response {
+func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	d.shutdownChan <- struct{}{}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalContainerOnStart(d *Daemon, r *http.Request) Response {
+func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	inst, err := instanceLoadById(d.State(), id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if inst.Type() != instancetype.Container {
-		return SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	c := inst.(container)
 	err = c.OnStart()
 	if err != nil {
 		logger.Error("The start hook failed", log.Ctx{"container": c.Name(), "err": err})
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
+func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	target := queryParam(r, "target")
@@ -158,27 +159,27 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) Response {
 
 	inst, err := instanceLoadById(d.State(), id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if inst.Type() != instancetype.Container {
-		return SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	c := inst.(container)
 	err = c.OnStopNS(target, netns)
 	if err != nil {
 		logger.Error("The stopns hook failed", log.Ctx{"container": c.Name(), "err": err})
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalContainerOnStop(d *Daemon, r *http.Request) Response {
+func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	target := queryParam(r, "target")
@@ -188,21 +189,21 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 
 	inst, err := instanceLoadById(d.State(), id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if inst.Type() != instancetype.Container {
-		return SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	c := inst.(container)
 	err = c.OnStop(target)
 	if err != nil {
 		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 type internalSQLDump struct {
@@ -226,11 +227,11 @@ type internalSQLResult struct {
 }
 
 // Perform a database dump.
-func internalSQLGet(d *Daemon, r *http.Request) Response {
+func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	database := r.FormValue("database")
 
 	if !shared.StringInSlice(database, []string{"local", "global"}) {
-		return BadRequest(fmt.Errorf("Invalid database"))
+		return response.BadRequest(fmt.Errorf("Invalid database"))
 	}
 
 	schemaFormValue := r.FormValue("schema")
@@ -251,31 +252,31 @@ func internalSQLGet(d *Daemon, r *http.Request) Response {
 
 	tx, err := db.Begin()
 	if err != nil {
-		return SmartError(errors.Wrap(err, "failed to start transaction"))
+		return response.SmartError(errors.Wrap(err, "failed to start transaction"))
 	}
 	defer tx.Rollback()
 	dump, err := query.Dump(tx, schema, schemaOnly == 1)
 	if err != nil {
-		return SmartError(errors.Wrapf(err, "failed dump database %s", database))
+		return response.SmartError(errors.Wrapf(err, "failed dump database %s", database))
 	}
-	return SyncResponse(true, internalSQLDump{Text: dump})
+	return response.SyncResponse(true, internalSQLDump{Text: dump})
 }
 
 // Execute queries.
-func internalSQLPost(d *Daemon, r *http.Request) Response {
+func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 	req := &internalSQLQuery{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if !shared.StringInSlice(req.Database, []string{"local", "global"}) {
-		return BadRequest(fmt.Errorf("Invalid database"))
+		return response.BadRequest(fmt.Errorf("Invalid database"))
 	}
 
 	if req.Query == "" {
-		return BadRequest(fmt.Errorf("No query provided"))
+		return response.BadRequest(fmt.Errorf("No query provided"))
 	}
 
 	var db *sql.DB
@@ -289,7 +290,7 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 
 	if req.Query == ".sync" {
 		d.gateway.Sync()
-		return SyncResponse(true, batch)
+		return response.SyncResponse(true, batch)
 	}
 
 	for _, query := range strings.Split(req.Query, ";") {
@@ -303,7 +304,7 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 
 		tx, err := db.Begin()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
@@ -318,13 +319,13 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 			}
 		}
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		batch.Results = append(batch.Results, result)
 	}
 
-	return SyncResponse(true, batch)
+	return response.SyncResponse(true, batch)
 }
 
 func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) error {
@@ -409,32 +410,32 @@ type internalImportPost struct {
 	Force bool   `json:"force" yaml:"force"`
 }
 
-func internalImport(d *Daemon, r *http.Request) Response {
+func internalImport(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
 	req := &internalImportPost{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf(`The name of the container ` +
+		return response.BadRequest(fmt.Errorf(`The name of the container ` +
 			`is required`))
 	}
 
 	storagePoolsPath := shared.VarPath("storage-pools")
 	storagePoolsDir, err := os.Open(storagePoolsPath)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Get a list of all storage pools.
 	storagePoolNames, err := storagePoolsDir.Readdirnames(-1)
 	if err != nil {
 		storagePoolsDir.Close()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	storagePoolsDir.Close()
 
@@ -451,10 +452,10 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Sanity checks.
 	if len(containerMntPoints) > 1 {
-		return BadRequest(fmt.Errorf(`The container "%s" seems to `+
+		return response.BadRequest(fmt.Errorf(`The container "%s" seems to `+
 			`exist on multiple storage pools`, req.Name))
 	} else if len(containerMntPoints) != 1 {
-		return BadRequest(fmt.Errorf(`The container "%s" does not `+
+		return response.BadRequest(fmt.Errorf(`The container "%s" does not `+
 			`seem to exist on any storage pool`, req.Name))
 	}
 
@@ -463,11 +464,11 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	containerMntPoint := containerMntPoints[0]
 	isEmpty, err := shared.PathIsEmpty(containerMntPoint)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	if isEmpty {
-		return BadRequest(fmt.Errorf(`The container's directory "%s" `+
+		return response.BadRequest(fmt.Errorf(`The container's directory "%s" `+
 			`appears to be empty. Please ensure that the `+
 			`container's storage volume is mounted`,
 			containerMntPoint))
@@ -477,7 +478,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	backupYamlPath := filepath.Join(containerMntPoint, "backup.yaml")
 	backup, err := slurpBackupFile(backupYamlPath)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Update snapshot names to include container name (if needed)
@@ -492,13 +493,13 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)
 	if poolErr != nil {
 		if poolErr != db.ErrNoSuchObject {
-			return SmartError(poolErr)
+			return response.SmartError(poolErr)
 		}
 	}
 
 	if backup.Pool == nil {
 		// We don't know what kind of storage type the pool is.
-		return BadRequest(fmt.Errorf(`No storage pool struct in the ` +
+		return response.BadRequest(fmt.Errorf(`No storage pool struct in the ` +
 			`backup file found. The storage pool needs to be ` +
 			`recovered manually`))
 	}
@@ -509,23 +510,23 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			backup.Pool.Driver, backup.Pool.Config)
 		if err != nil {
 			err = errors.Wrap(err, "Create storage pool database entry")
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		poolID, err = d.cluster.StoragePoolGetID(containerPoolName)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	} else {
 		if backup.Pool.Name != containerPoolName {
-			return BadRequest(fmt.Errorf(`The storage pool "%s" `+
+			return response.BadRequest(fmt.Errorf(`The storage pool "%s" `+
 				`the container was detected on does not match `+
 				`the storage pool "%s" specified in the `+
 				`backup file`, containerPoolName, backup.Pool.Name))
 		}
 
 		if backup.Pool.Driver != pool.Driver {
-			return BadRequest(fmt.Errorf(`The storage pool's `+
+			return response.BadRequest(fmt.Errorf(`The storage pool's `+
 				`"%s" driver "%s" conflicts with the driver `+
 				`"%s" recorded in the container's backup file`,
 				containerPoolName, pool.Driver, backup.Pool.Driver))
@@ -535,12 +536,12 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	initPool, err := storagePoolInit(d.State(), backup.Pool.Name)
 	if err != nil {
 		err = errors.Wrap(err, "Initialize storage")
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	ourMount, err := initPool.StoragePoolMount()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	if ourMount {
 		defer initPool.StoragePoolUmount()
@@ -553,7 +554,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	// retrieve on-disk pool name
 	_, _, poolName := initPool.GetContainerPoolInfo()
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Retrieve all snapshots that exist on disk.
@@ -564,24 +565,24 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			snapshotsDirPath := driver.GetSnapshotMountPoint(projectName, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 			onDiskSnapshots, err = snapshotsDir.Readdirnames(-1)
 			if err != nil {
 				snapshotsDir.Close()
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 			snapshotsDir.Close()
 		case "dir":
 			snapshotsDirPath := driver.GetSnapshotMountPoint(projectName, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 			onDiskSnapshots, err = snapshotsDir.Readdirnames(-1)
 			if err != nil {
 				snapshotsDir.Close()
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 			snapshotsDir.Close()
 		case "lvm":
@@ -589,7 +590,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			msg, err := shared.RunCommand("lvs", "-o", "lv_name",
 				onDiskPoolName, "--noheadings")
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			snaps := strings.Fields(msg)
@@ -618,7 +619,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				storagePoolVolumeTypeNameContainer, userName)
 			if err != nil {
 				if err != db.ErrNoSuchObject {
-					return InternalError(err)
+					return response.InternalError(err)
 				}
 			}
 
@@ -634,7 +635,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			snaps, err := zfsPoolListSnapshots(onDiskPoolName,
 				fmt.Sprintf("containers/%s", req.Name))
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			for _, v := range snaps {
@@ -655,7 +656,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				`recorded in the "backup.yaml" file. Pass ` +
 				`"force" to remove them`
 			logger.Errorf(msg)
-			return InternalError(fmt.Errorf(msg))
+			return response.InternalError(fmt.Errorf(msg))
 		}
 	}
 
@@ -680,7 +681,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				`the "backup.yaml" file. Pass "force" to ` +
 				`remove them`
 			logger.Errorf(msg)
-			return InternalError(fmt.Errorf(msg))
+			return response.InternalError(fmt.Errorf(msg))
 		}
 
 		var err error
@@ -738,7 +739,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				if req.Force {
 					continue
 				}
-				return BadRequest(needForce)
+				return response.BadRequest(needForce)
 			}
 		case "dir":
 			snpMntPt := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
@@ -746,7 +747,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				if req.Force {
 					continue
 				}
-				return BadRequest(needForce)
+				return response.BadRequest(needForce)
 			}
 		case "lvm":
 			ctLvmName := containerNameToLVName(snap.Name)
@@ -755,14 +756,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				ctLvmName)
 			exists, err := storageLVExists(ctLvName)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			if !exists {
 				if req.Force {
 					continue
 				}
-				return BadRequest(needForce)
+				return response.BadRequest(needForce)
 			}
 		case "ceph":
 			clusterName := "ceph"
@@ -789,7 +790,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				if req.Force {
 					continue
 				}
-				return BadRequest(needForce)
+				return response.BadRequest(needForce)
 			}
 		case "zfs":
 			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
@@ -802,7 +803,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				if req.Force {
 					continue
 				}
-				return BadRequest(needForce)
+				return response.BadRequest(needForce)
 			}
 		}
 
@@ -814,12 +815,12 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
-			return SmartError(ctVolErr)
+			return response.SmartError(ctVolErr)
 		}
 	}
 	// If a storage volume entry exists only proceed if force was specified.
 	if ctVolErr == nil && !req.Force {
-		return BadRequest(fmt.Errorf(`Storage volume for container `+
+		return response.BadRequest(fmt.Errorf(`Storage volume for container `+
 			`"%s" already exists in the database. Set "force" to `+
 			`overwrite`, req.Name))
 	}
@@ -828,31 +829,31 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	_, containerErr := d.cluster.ContainerID(projectName, req.Name)
 	if containerErr != nil {
 		if containerErr != db.ErrNoSuchObject {
-			return SmartError(containerErr)
+			return response.SmartError(containerErr)
 		}
 	}
 	// If a db entry exists only proceed if force was specified.
 	if containerErr == nil && !req.Force {
-		return BadRequest(fmt.Errorf(`Entry for container "%s" `+
+		return response.BadRequest(fmt.Errorf(`Entry for container "%s" `+
 			`already exists in the database. Set "force" to `+
 			`overwrite`, req.Name))
 	}
 
 	if backup.Volume == nil {
-		return BadRequest(fmt.Errorf(`No storage volume struct in the ` +
+		return response.BadRequest(fmt.Errorf(`No storage volume struct in the ` +
 			`backup file found. The storage volume needs to be ` +
 			`recovered manually`))
 	}
 
 	if ctVolErr == nil {
 		if volume.Name != backup.Volume.Name {
-			return BadRequest(fmt.Errorf(`The name "%s" of the `+
+			return response.BadRequest(fmt.Errorf(`The name "%s" of the `+
 				`storage volume is not identical to the `+
 				`container's name "%s"`, volume.Name, req.Name))
 		}
 
 		if volume.Type != backup.Volume.Type {
-			return BadRequest(fmt.Errorf(`The type "%s" of the `+
+			return response.BadRequest(fmt.Errorf(`The type "%s" of the `+
 				`storage volume is not identical to the `+
 				`container's type "%s"`, volume.Type,
 				backup.Volume.Type))
@@ -863,7 +864,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		err := d.cluster.StoragePoolVolumeDelete("default", req.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
@@ -872,7 +873,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		// force was specified.
 		err := d.cluster.ContainerRemove(projectName, req.Name)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
@@ -885,7 +886,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	// Mark the filesystem as going through an import
 	fd, err := os.Create(filepath.Join(containerMntPoint, ".importing"))
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	fd.Close()
 	defer os.Remove(fd.Name())
@@ -913,7 +914,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
 		Project:      projectName,
@@ -932,7 +933,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	})
 	if err != nil {
 		err = errors.Wrap(err, "Create container")
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	containerPath := driver.ContainerPath(project.Prefix(projectName, req.Name), false)
@@ -943,7 +944,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	err = driver.CreateContainerMountpoint(containerMntPoint, containerPath,
 		isPrivileged)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	for _, snap := range existingSnapshots {
@@ -953,13 +954,13 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		_, snapErr := d.cluster.InstanceSnapshotID(projectName, parts[0], parts[1])
 		if snapErr != nil {
 			if snapErr != db.ErrNoSuchObject {
-				return SmartError(snapErr)
+				return response.SmartError(snapErr)
 			}
 		}
 
 		// If a db entry exists only proceed if force was specified.
 		if snapErr == nil && !req.Force {
-			return BadRequest(fmt.Errorf(`Entry for snapshot "%s" `+
+			return response.BadRequest(fmt.Errorf(`Entry for snapshot "%s" `+
 				`already exists in the database. Set "force" `+
 				`to overwrite`, snap.Name))
 		}
@@ -969,13 +970,13 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			projectName, snap.Name, storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
-				return SmartError(csVolErr)
+				return response.SmartError(csVolErr)
 			}
 		}
 
 		// If a storage volume entry exists only proceed if force was specified.
 		if csVolErr == nil && !req.Force {
-			return BadRequest(fmt.Errorf(`Storage volume for `+
+			return response.BadRequest(fmt.Errorf(`Storage volume for `+
 				`snapshot "%s" already exists in the `+
 				`database. Set "force" to overwrite`, snap.Name))
 		}
@@ -983,7 +984,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		if snapErr == nil {
 			err := d.cluster.ContainerRemove(projectName, snap.Name)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 		}
 
@@ -991,7 +992,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 		}
 
@@ -999,7 +1000,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		arch, err := osarch.ArchitectureId(snap.Architecture)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		// Add root device if missing
@@ -1037,7 +1038,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			Stateful:     snap.Stateful,
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		// Recreate missing mountpoints and symlinks.
@@ -1049,31 +1050,31 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = driver.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalGC(d *Daemon, r *http.Request) Response {
+func internalGC(d *Daemon, r *http.Request) response.Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
 	runtimeDebug.FreeOSMemory()
 	logger.Infof("Completed forced garbage collection run")
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func internalRAFTSnapshot(d *Daemon, r *http.Request) Response {
+func internalRAFTSnapshot(d *Daemon, r *http.Request) response.Response {
 	logger.Infof("Started forced RAFT snapshot")
 	err := d.gateway.Snapshot()
 	if err != nil {
 		logger.Errorf("Failed forced RAFT snapshot: %v", err)
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	logger.Infof("Completed forced RAFT snapshot")
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }

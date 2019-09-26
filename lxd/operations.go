@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -147,7 +148,7 @@ func (op *operation) Run() (chan error, error) {
 			if err != nil {
 				op.lock.Lock()
 				op.status = api.Failure
-				op.err = SmartError(err).String()
+				op.err = response.SmartError(err).String()
 				op.lock.Unlock()
 				op.done()
 				chanRun <- err
@@ -491,7 +492,7 @@ func operationGetInternal(id string) (*operation, error) {
 }
 
 // API functions
-func operationGet(d *Daemon, r *http.Request) Response {
+func operationGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
 	var body *api.Operation
@@ -501,10 +502,10 @@ func operationGet(d *Daemon, r *http.Request) Response {
 	if err == nil {
 		_, body, err = op.Render()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
-		return SyncResponse(true, body)
+		return response.SyncResponse(true, body)
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
@@ -519,24 +520,24 @@ func operationGet(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(address, cert, false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	body, _, err = client.GetOperation(id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, body)
+	return response.SyncResponse(true, body)
 }
 
-func operationDelete(d *Daemon, r *http.Request) Response {
+func operationDelete(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
@@ -549,16 +550,16 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 			}
 
 			if !d.userHasPermission(r, project, op.permission) {
-				return Forbidden(nil)
+				return response.Forbidden(nil)
 			}
 		}
 
 		_, err = op.Cancel()
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
@@ -573,24 +574,24 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(address, cert, false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = client.DeleteOperation(id)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func operationsGet(d *Daemon, r *http.Request) Response {
+func operationsGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
@@ -656,19 +657,19 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 			// Recursive queries
 			body, err := localOperations()
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
-			return SyncResponse(true, body)
+			return response.SyncResponse(true, body)
 		}
 
 		// Normal queries
 		body, err := localOperationURLs()
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return SyncResponse(true, body)
+		return response.SyncResponse(true, body)
 	}
 
 	// Start with local operations
@@ -678,24 +679,24 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 	if recursion {
 		md, err = localOperations()
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	} else {
 		md, err = localOperationURLs()
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
 	// Check if clustered
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Return now if not clustered
 	if !clustered {
-		return SyncResponse(true, md)
+		return response.SyncResponse(true, md)
 	}
 
 	// Get all nodes with running operations in this project.
@@ -711,13 +712,13 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Get local address
 	localAddress, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	cert := d.endpoints.NetworkCert()
@@ -729,13 +730,13 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 		// Connect to the remote server
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		// Get operation data
 		ops, err := client.GetOperations()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		// Merge with existing data
@@ -759,15 +760,15 @@ func operationsGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return SyncResponse(true, md)
+	return response.SyncResponse(true, md)
 }
 
-func operationWaitGet(d *Daemon, r *http.Request) Response {
+func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
 	timeout, err := shared.AtoiEmptyDefault(r.FormValue("timeout"), -1)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// First check if the query is for a local operation from this node
@@ -775,15 +776,15 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 	if err == nil {
 		_, err = op.WaitFinal(timeout)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		_, body, err := op.Render()
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
-		return SyncResponse(true, body)
+		return response.SyncResponse(true, body)
 	}
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
@@ -798,21 +799,21 @@ func operationWaitGet(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(address, cert, false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	_, body, err := client.GetOperationWait(id, timeout)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, body)
+	return response.SyncResponse(true, body)
 }
 
 type operationWebSocket struct {
@@ -858,7 +859,7 @@ func (r *forwardedOperationWebSocket) String() string {
 	return r.id
 }
 
-func operationWebsocketGet(d *Daemon, r *http.Request) Response {
+func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
@@ -870,7 +871,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	secret := r.FormValue("secret")
 	if secret == "" {
-		return BadRequest(fmt.Errorf("missing secret"))
+		return response.BadRequest(fmt.Errorf("missing secret"))
 	}
 
 	var address string
@@ -884,19 +885,19 @@ func operationWebsocketGet(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(address, cert, false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	logger.Debugf("Forward operation websocket from node %s", address)
 	source, err := client.GetOperationWebsocket(id, secret)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	return &forwardedOperationWebSocket{req: r, id: id, source: source}

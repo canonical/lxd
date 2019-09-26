@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -35,7 +36,7 @@ var projectCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: AllowAuthenticated},
 }
 
-func projectsGet(d *Daemon, r *http.Request) Response {
+func projectsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	var result interface{}
@@ -80,13 +81,13 @@ func projectsGet(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SyncResponse(true, result)
+	return response.SyncResponse(true, result)
 }
 
-func projectsPost(d *Daemon, r *http.Request) Response {
+func projectsPost(d *Daemon, r *http.Request) response.Response {
 	// Parse the request
 	project := api.ProjectsPost{}
 
@@ -103,30 +104,30 @@ func projectsPost(d *Daemon, r *http.Request) Response {
 
 	err := json.NewDecoder(r.Body).Decode(&project)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if project.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
 	if strings.Contains(project.Name, "/") {
-		return BadRequest(fmt.Errorf("Project names may not contain slashes"))
+		return response.BadRequest(fmt.Errorf("Project names may not contain slashes"))
 	}
 
 	if project.Name == "*" {
-		return BadRequest(fmt.Errorf("Reserved project name"))
+		return response.BadRequest(fmt.Errorf("Reserved project name"))
 	}
 
 	if shared.StringInSlice(project.Name, []string{".", ".."}) {
-		return BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
+		return response.BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
 	}
 
 	// Validate the configuration
 	err = projectValidateConfig(project.Config)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	var id int64
@@ -146,17 +147,17 @@ func projectsPost(d *Daemon, r *http.Request) Response {
 		return nil
 	})
 	if err != nil {
-		return SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
+		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
 	}
 
 	if d.rbac != nil {
 		err = d.rbac.AddProject(id, project.Name)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
 }
 
 // Create the default profile of a project.
@@ -174,12 +175,12 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	return nil
 }
 
-func projectGet(d *Daemon, r *http.Request) Response {
+func projectGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
 	if !d.userHasPermission(r, name, "view") {
-		return Forbidden(nil)
+		return response.Forbidden(nil)
 	}
 
 	// Get the database entry
@@ -190,7 +191,7 @@ func projectGet(d *Daemon, r *http.Request) Response {
 		return err
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	etag := []interface{}{
@@ -199,15 +200,15 @@ func projectGet(d *Daemon, r *http.Request) Response {
 		project.Config["features.profiles"],
 	}
 
-	return SyncResponseETag(true, project, etag)
+	return response.SyncResponseETag(true, project, etag)
 }
 
-func projectPut(d *Daemon, r *http.Request) Response {
+func projectPut(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
 	if !d.userHasPermission(r, name, "manage-projects") {
-		return Forbidden(nil)
+		return response.Forbidden(nil)
 	}
 
 	// Get the current data
@@ -218,7 +219,7 @@ func projectPut(d *Daemon, r *http.Request) Response {
 		return err
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Validate ETag
@@ -229,7 +230,7 @@ func projectPut(d *Daemon, r *http.Request) Response {
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	// Parse the request
@@ -237,18 +238,18 @@ func projectPut(d *Daemon, r *http.Request) Response {
 
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	return projectChange(d, project, req)
 }
 
-func projectPatch(d *Daemon, r *http.Request) Response {
+func projectPatch(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Check user permissions
 	if !d.userHasPermission(r, name, "manage-projects") {
-		return Forbidden(nil)
+		return response.Forbidden(nil)
 	}
 
 	// Get the current data
@@ -259,7 +260,7 @@ func projectPatch(d *Daemon, r *http.Request) Response {
 		return err
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Validate ETag
@@ -270,12 +271,12 @@ func projectPatch(d *Daemon, r *http.Request) Response {
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
-		return PreconditionFailed(err)
+		return response.PreconditionFailed(err)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
@@ -283,12 +284,12 @@ func projectPatch(d *Daemon, r *http.Request) Response {
 
 	reqRaw := shared.Jmap{}
 	if err := json.NewDecoder(rdr1).Decode(&reqRaw); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	req := api.ProjectPut{}
 	if err := json.NewDecoder(rdr2).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Check what was actually set in the query
@@ -311,23 +312,23 @@ func projectPatch(d *Daemon, r *http.Request) Response {
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response {
+func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
 	// Flag indicating if any feature has changed.
 	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
 
 	// Sanity checks
 	if project.Name == "default" && featuresChanged {
-		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
+		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
 	if !projectIsEmpty(project) && featuresChanged {
-		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
+		return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
 	// Validate the configuration
 	err := projectValidateConfig(req.Config)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Update the database entry
@@ -357,13 +358,13 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response
 	})
 
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
-func projectPost(d *Daemon, r *http.Request) Response {
+func projectPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Parse the request
@@ -371,12 +372,12 @@ func projectPost(d *Daemon, r *http.Request) Response {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Sanity checks
 	if name == "default" {
-		return Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
+		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
 
 	// Perform the rename
@@ -424,18 +425,18 @@ func projectPost(d *Daemon, r *http.Request) Response {
 
 	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
-func projectDelete(d *Daemon, r *http.Request) Response {
+func projectDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Sanity checks
 	if name == "default" {
-		return Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
+		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
 	var id int64
@@ -457,17 +458,17 @@ func projectDelete(d *Daemon, r *http.Request) Response {
 	})
 
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if d.rbac != nil {
 		err = d.rbac.DeleteProject(id)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }
 
 // Check if a project is empty.
