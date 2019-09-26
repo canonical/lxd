@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -217,7 +218,7 @@ func hoistReq(f func(*Daemon, container, http.ResponseWriter, *http.Request) *de
 			return
 		}
 
-		c, err := findContainerForPid(cred.PID, d)
+		c, err := findContainerForPid(cred.PID, d.State())
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -352,7 +353,7 @@ func extractUnderlyingConn(w http.ResponseWriter) *net.UnixConn {
 
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
 
-func findContainerForPid(pid int32, d *Daemon) (container, error) {
+func findContainerForPid(pid int32, s *state.State) (container, error) {
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
 	 * better way to do this. Based on rharper's initial performance
@@ -390,7 +391,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 				name = fields[1]
 			}
 
-			inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+			inst, err := instanceLoadByProjectAndName(s, project, name)
 			if err != nil {
 				return nil, err
 			}
@@ -428,7 +429,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	instances, err := instanceLoadNodeAll(d.State())
+	instances, err := instanceLoadNodeAll(s)
 	if err != nil {
 		return nil, err
 	}

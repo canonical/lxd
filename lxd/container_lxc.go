@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/template"
@@ -1257,15 +1258,15 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup Seccomp if necessary
-	if seccompContainerNeedsPolicy(c) {
-		err = lxcSetConfigItem(cc, "lxc.seccomp.profile", SeccompProfilePath(c))
+	if seccomp.InstanceNeedsPolicy(c) {
+		err = lxcSetConfigItem(cc, "lxc.seccomp.profile", seccomp.ProfilePath(c))
 		if err != nil {
 			return err
 		}
 
 		// Setup notification socket
 		// System requirement errors are handled during policy generation instead of here
-		ok, err := seccompContainerNeedsIntercept(c)
+		ok, err := seccomp.InstanceNeedsIntercept(c)
 		if err == nil && ok {
 			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 			if err != nil {
@@ -2260,7 +2261,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	}
 
 	// Generate the Seccomp profile
-	if err := SeccompCreateProfile(c); err != nil {
+	if err := seccomp.CreateProfile(c); err != nil {
 		return "", postStartHooks, err
 	}
 
@@ -3606,7 +3607,7 @@ func (c *containerLXC) cleanup() {
 
 	// Remove the security profiles
 	AADeleteProfile(c)
-	SeccompDeleteProfile(c)
+	seccomp.DeleteProfile(c)
 
 	// Remove the devices path
 	os.Remove(c.DevicesPath())
@@ -6360,7 +6361,7 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, p
 		return err
 	}
 
-	err, uid, gid, _, _ := taskIds(pid)
+	uid, gid, _, _, err := seccomp.TaskIDs(pid)
 	if err != nil {
 		return err
 	}
