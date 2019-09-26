@@ -19,6 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -518,7 +519,7 @@ type SeccompServer struct {
 }
 
 type SeccompIovec struct {
-	ucred  *ucred
+	ucred  *ucred.UCred
 	memFd  int
 	procFd int
 	msg    *C.struct_seccomp_notify_proxy_msg
@@ -528,7 +529,7 @@ type SeccompIovec struct {
 	iov    *C.struct_iovec
 }
 
-func NewSeccompIovec(ucred *ucred) *SeccompIovec {
+func NewSeccompIovec(ucred *ucred.UCred) *SeccompIovec {
 	msg_ptr := C.malloc(C.sizeof_struct_seccomp_notify_proxy_msg)
 	msg := (*C.struct_seccomp_notify_proxy_msg)(msg_ptr)
 	C.memset(msg_ptr, 0, C.sizeof_struct_seccomp_notify_proxy_msg)
@@ -600,25 +601,25 @@ func (siov *SeccompIovec) IsValidSeccompIovec(size uint64) bool {
 	}
 	if siov.msg.__reserved != 0 {
 		logger.Warnf("Disconnected from seccomp socket after client sent non-zero reserved field: pid=%v",
-			siov.ucred.pid)
+			siov.ucred.PID)
 		return false
 	}
 
 	if siov.msg.sizes.seccomp_notif != C.expected_sizes.seccomp_notif {
 		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif sizes: %d != %d, pid=%v",
-			siov.msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, siov.ucred.pid)
+			siov.msg.sizes.seccomp_notif, C.expected_sizes.seccomp_notif, siov.ucred.PID)
 		return false
 	}
 
 	if siov.msg.sizes.seccomp_notif_resp != C.expected_sizes.seccomp_notif_resp {
 		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_notif_resp sizes: %d != %d, pid=%v",
-			siov.msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, siov.ucred.pid)
+			siov.msg.sizes.seccomp_notif_resp, C.expected_sizes.seccomp_notif_resp, siov.ucred.PID)
 		return false
 	}
 
 	if siov.msg.sizes.seccomp_data != C.expected_sizes.seccomp_data {
 		logger.Warnf("Disconnected from seccomp socket since client uses different seccomp_data sizes: %d != %d, pid=%v",
-			siov.msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, siov.ucred.pid)
+			siov.msg.sizes.seccomp_data, C.expected_sizes.seccomp_data, siov.ucred.PID)
 		return false
 	}
 
@@ -638,13 +639,13 @@ retry:
 			logger.Debugf("Caught EINTR, retrying...")
 			goto retry
 		}
-		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.pid, err)
-		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.pid)
+		logger.Debugf("Disconnected from seccomp socket after failed write for process %v: %s", siov.ucred.PID, err)
+		return fmt.Errorf("Failed to send response to seccomp client %v", siov.ucred.PID)
 	}
 
 	if uint64(bytes) != uint64(C.SECCOMP_MSG_SIZE_MIN) {
-		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", siov.ucred.pid)
-		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.pid)
+		logger.Debugf("Disconnected from seccomp socket after short write: pid=%v", siov.ucred.PID)
+		return fmt.Errorf("Failed to send full response to seccomp client %v", siov.ucred.PID)
 	}
 
 	return nil
@@ -691,13 +692,13 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 			}
 
 			go func() {
-				ucred, err := getCred(c.(*net.UnixConn))
+				ucred, err := ucred.GetCred(c.(*net.UnixConn))
 				if err != nil {
 					logger.Errorf("Unable to get ucred from seccomp socket client: %v", err)
 					return
 				}
 
-				logger.Debugf("Connected to seccomp socket: pid=%v", ucred.pid)
+				logger.Debugf("Connected to seccomp socket: pid=%v", ucred.PID)
 
 				unixFile, err := c.(*net.UnixConn).File()
 				if err != nil {
@@ -708,7 +709,7 @@ func NewSeccompServer(d *Daemon, path string) (*SeccompServer, error) {
 					siov := NewSeccompIovec(ucred)
 					bytes, err := siov.ReceiveSeccompIovec(int(unixFile.Fd()))
 					if err != nil {
-						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.pid, err)
+						logger.Debugf("Disconnected from seccomp socket after failed receive: pid=%v, err=%s", ucred.PID, err)
 						c.Close()
 						return
 					}
