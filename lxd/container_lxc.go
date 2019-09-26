@@ -206,29 +206,6 @@ func lxcParseRawLXC(line string) (string, string, error) {
 	return key, val, nil
 }
 
-func lxcSupportSeccompNotify(state *state.State) bool {
-	if !state.OS.SeccompListener {
-		return false
-	}
-
-	if !state.OS.LXCFeatures["seccomp_notify"] {
-		return false
-	}
-
-	c, err := lxc.NewContainer("test-seccomp", state.OS.LxcPath)
-	if err != nil {
-		return false
-	}
-
-	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
-	if err != nil {
-		return false
-	}
-
-	c.Release()
-	return true
-}
-
 func lxcValidConfig(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
 		key, _, err := lxcParseRawLXC(line)
