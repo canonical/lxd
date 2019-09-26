@@ -1,7 +1,7 @@
 // +build gccgo
 // +build cgo
 
-package main
+package ucred
 
 import (
 	"errors"
@@ -36,7 +36,8 @@ void getucred(int sock, uint *uid, uint *gid, int *pid)
 // #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
-func getUcred(fd int) (uint32, uint32, int32, error) {
+// GetUCred returns the file descriptor's ucreds.
+func GetUCred(fd int) (uint32, uint32, int32, error) {
 	uid := C.uint(0)
 	gid := C.uint(0)
 	pid := C.int(-1)
