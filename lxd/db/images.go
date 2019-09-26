@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -157,10 +157,10 @@ func (c *Cluster) ImageSourceGet(imageID int) (int, api.ImageSource, error) {
 // cached image that matches the given remote details (server, protocol and
 // alias). Return the fingerprint linked to the matching entry, if any.
 func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string, typeName string) (string, error) {
-	imageType := instance.TypeAny
+	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
-		imageType, err = instance.New(typeName)
+		imageType, err = instancetype.New(typeName)
 		if err != nil {
 			return "", err
 		}
@@ -431,7 +431,7 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 	}
 
 	image.Architecture, _ = osarch.ArchitectureName(arch)
-	image.Type = instance.Type(imageType).String()
+	image.Type = instancetype.Type(imageType).String()
 
 	// The upload date is enforced by NOT NULL in the schema, so it can never be nil.
 	image.UploadedAt = *upload
@@ -647,7 +647,7 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 	entry.Name = name
 	entry.Target = fingerprint
 	entry.Description = description
-	entry.Type = instance.Type(imageType).String()
+	entry.Type = instancetype.Type(imageType).String()
 
 	return id, entry, nil
 }
@@ -807,10 +807,10 @@ func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public
 		arch = 0
 	}
 
-	imageType := instance.TypeAny
+	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
-		imageType, err = instance.New(typeName)
+		imageType, err = instancetype.New(typeName)
 		if err != nil {
 			return err
 		}

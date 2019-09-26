@@ -28,7 +28,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
@@ -475,9 +475,9 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		}
 
 		if part.FormName() == "rootfs" {
-			info.Type = instance.TypeContainer.String()
+			info.Type = instancetype.Container.String()
 		} else if part.FormName() == "rootfs.img" {
-			info.Type = instance.TypeVM.String()
+			info.Type = instancetype.VM.String()
 		} else {
 			logger.Error("Invalid multipart image")
 			return nil, fmt.Errorf("Invalid multipart image")
@@ -865,12 +865,12 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 
 		if strings.HasPrefix(hdr.Name, "rootfs/") || strings.HasPrefix(hdr.Name, "./rootfs/") {
 			hasRoot = true
-			imageType = instance.TypeContainer.String()
+			imageType = instancetype.Container.String()
 		}
 
 		if hdr.Name == "rootfs.img" || hdr.Name == "./rootfs.img" {
 			hasRoot = true
-			imageType = instance.TypeVM.String()
+			imageType = instancetype.VM.String()
 		}
 
 		if hasMeta && hasRoot {

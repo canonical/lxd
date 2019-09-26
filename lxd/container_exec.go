@@ -19,7 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -439,7 +439,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
 
-		if inst.Type() == instance.TypeContainer {
+		if inst.Type() == instancetype.Container {
 			c := inst.(container)
 			idmapset, err := c.CurrentIdmap()
 			if err != nil {

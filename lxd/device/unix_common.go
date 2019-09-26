@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -39,7 +39,7 @@ func (d *unixCommon) isRequired() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *unixCommon) validateConfig() error {
-	if d.instance.Type() != instance.TypeContainer {
+	if d.instance.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 

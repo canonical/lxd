@@ -171,18 +171,24 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByProjectAndNameAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNodeAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 			filter.Type,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndNameAndType)
+	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
-			filter.Name,
 			filter.Type,
 		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
@@ -195,12 +201,6 @@ func (c *ClusterTx) InstanceList(filter InstanceFilter) ([]Instance, error) {
 		stmt = c.stmt(instanceObjectsByNodeAndType)
 		args = []interface{}{
 			filter.Node,
-			filter.Type,
-		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(instanceObjectsByProjectAndType)
-		args = []interface{}{
-			filter.Project,
 			filter.Type,
 		}
 	} else if criteria["Type"] != nil {
@@ -671,15 +671,15 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(instanceDevicesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceDevicesRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(instanceDevicesRefByNode)
+		args = []interface{}{
+			filter.Node,
 		}
 	} else {
 		stmt = c.stmt(instanceDevicesRef)
