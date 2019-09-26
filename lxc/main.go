@@ -335,11 +335,20 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		flush := false
 		if runInit {
 			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
+			flush = true
 		}
 
-		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:18.04")+"\n\n")
+		if !shared.StringInSlice(cmd.Name(), []string{"init", "launch"}) {
+			fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:18.04")+"\n")
+			flush = true
+		}
+
+		if flush {
+			fmt.Fprintf(os.Stderr, "\n")
+		}
 	}
 
 	// Set the user agent
