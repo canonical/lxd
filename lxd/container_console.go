@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -254,10 +255,10 @@ func (s *consoleWs) Do(op *operation) error {
 	return finisher(err)
 }
 
-func containerConsolePost(d *Daemon, r *http.Request) Response {
+func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
@@ -266,26 +267,26 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	post := api.InstanceConsolePost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = json.Unmarshal(buf, &post)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if client != nil {
 		url := fmt.Sprintf("/containers/%s/console?project=%s", name, project)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		opAPI := op.Get()
@@ -294,17 +295,17 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 
 	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	err = fmt.Errorf("Container is not running")
 	if !inst.IsRunning() {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	err = fmt.Errorf("Container is frozen")
 	if inst.IsFrozen() {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	ws := &consoleWs{}
@@ -315,7 +316,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 		c := inst.(container)
 		idmapset, err := c.CurrentIdmap()
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		if idmapset != nil {
@@ -329,7 +330,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	for i := -1; i < len(ws.conns)-1; i++ {
 		ws.fds[i], err = shared.RandomCryptoString()
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
@@ -345,51 +346,51 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
-func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
+func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Forward the request if the container is remote.
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
+		return response.BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
 	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if inst.Type() != instancetype.Container {
-		return SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	c := inst.(container)
-	ent := fileResponseEntry{}
+	ent := response.FileResponseEntry{}
 	if !c.IsRunning() {
 		// Hand back the contents of the console ringbuffer logfile.
 		consoleBufferLogPath := c.ConsoleBufferLogPath()
-		ent.path = consoleBufferLogPath
-		ent.filename = consoleBufferLogPath
-		return FileResponse(r, []fileResponseEntry{ent}, nil, false)
+		ent.Path = consoleBufferLogPath
+		ent.Filename = consoleBufferLogPath
+		return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 	}
 
 	// Query the container's console ringbuffer.
@@ -405,23 +406,23 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
 		if !isErrno {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		if errno == unix.ENODATA {
-			return FileResponse(r, []fileResponseEntry{ent}, nil, false)
+			return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 		}
 
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	ent.buffer = []byte(logContents)
-	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
+	ent.Buffer = []byte(logContents)
+	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
 
-func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
+func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-		return BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
+		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
 	name := mux.Vars(r)["name"]
@@ -429,11 +430,11 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 
 	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if inst.Type() != instancetype.Container {
-		return SmartError(fmt.Errorf("Instance is not container type"))
+		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	c := inst.(container)
@@ -459,7 +460,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 
 	if !inst.IsRunning() {
 		consoleLogpath := c.ConsoleBufferLogPath()
-		return SmartError(truncateConsoleLogFile(consoleLogpath))
+		return response.SmartError(truncateConsoleLogFile(consoleLogpath))
 	}
 
 	// Send a ringbuffer request to the container.
@@ -474,15 +475,15 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
 		if !isErrno {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		if errno == unix.ENODATA {
-			return SmartError(nil)
+			return response.SmartError(nil)
 		}
 
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return SmartError(nil)
+	return response.SmartError(nil)
 }

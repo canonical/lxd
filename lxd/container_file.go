@@ -10,34 +10,35 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 )
 
-func containerFileHandler(d *Daemon, r *http.Request) Response {
+func containerFileHandler(d *Daemon, r *http.Request) response.Response {
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
-	if response != nil {
-		return response
+	if resp != nil {
+		return resp
 	}
 
 	c, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	path := r.FormValue("path")
 	if path == "" {
-		return BadRequest(fmt.Errorf("missing path argument"))
+		return response.BadRequest(fmt.Errorf("missing path argument"))
 	}
 
 	switch r.Method {
@@ -48,11 +49,11 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "DELETE":
 		return containerFileDelete(c, path, r)
 	default:
-		return NotFound(fmt.Errorf("Method '%s' not found", r.Method))
+		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
 }
 
-func containerFileGet(c Instance, path string, r *http.Request) Response {
+func containerFileGet(c Instance, path string, r *http.Request) response.Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -62,7 +63,7 @@ func containerFileGet(c Instance, path string, r *http.Request) Response {
 	 */
 	temp, err := ioutil.TempFile("", "lxd_forkgetfile_")
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	defer temp.Close()
 
@@ -70,7 +71,7 @@ func containerFileGet(c Instance, path string, r *http.Request) Response {
 	uid, gid, mode, type_, dirEnts, err := c.FilePull(path, temp.Name())
 	if err != nil {
 		os.Remove(temp.Name())
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	headers := map[string]string{
@@ -82,34 +83,34 @@ func containerFileGet(c Instance, path string, r *http.Request) Response {
 
 	if type_ == "file" || type_ == "symlink" {
 		// Make a file response struct
-		files := make([]fileResponseEntry, 1)
-		files[0].identifier = filepath.Base(path)
-		files[0].path = temp.Name()
-		files[0].filename = filepath.Base(path)
+		files := make([]response.FileResponseEntry, 1)
+		files[0].Identifier = filepath.Base(path)
+		files[0].Path = temp.Name()
+		files[0].Filename = filepath.Base(path)
 
-		return FileResponse(r, files, headers, true)
+		return response.FileResponse(r, files, headers, true)
 	} else if type_ == "directory" {
 		os.Remove(temp.Name())
-		return SyncResponseHeaders(true, dirEnts, headers)
+		return response.SyncResponseHeaders(true, dirEnts, headers)
 	} else {
 		os.Remove(temp.Name())
-		return InternalError(fmt.Errorf("bad file type %s", type_))
+		return response.InternalError(fmt.Errorf("bad file type %s", type_))
 	}
 }
 
-func containerFilePost(c Instance, path string, r *http.Request) Response {
+func containerFilePost(c Instance, path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
 
 	if !shared.StringInSlice(write, []string{"overwrite", "append"}) {
-		return BadRequest(fmt.Errorf("Bad file write mode: %s", write))
+		return response.BadRequest(fmt.Errorf("Bad file write mode: %s", write))
 	}
 
 	if type_ == "file" {
 		// Write file content to a tempfile
 		temp, err := ioutil.TempFile("", "lxd_forkputfile_")
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 		defer func() {
 			temp.Close()
@@ -118,43 +119,43 @@ func containerFilePost(c Instance, path string, r *http.Request) Response {
 
 		_, err = io.Copy(temp, r.Body)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		// Transfer the file into the container
 		err = c.FilePush("file", temp.Name(), path, uid, gid, mode, write)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	} else if type_ == "symlink" {
 		target, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 
 		err = c.FilePush("symlink", string(target), path, uid, gid, mode, write)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	} else if type_ == "directory" {
 		err := c.FilePush("directory", "", path, uid, gid, mode, write)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
-		return EmptySyncResponse
+		return response.EmptySyncResponse
 	} else {
-		return BadRequest(fmt.Errorf("Bad file type: %s", type_))
+		return response.BadRequest(fmt.Errorf("Bad file type: %s", type_))
 	}
 }
 
-func containerFileDelete(c Instance, path string, r *http.Request) Response {
+func containerFileDelete(c Instance, path string, r *http.Request) response.Response {
 	err := c.FileRemove(path)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
-	return EmptySyncResponse
+	return response.EmptySyncResponse
 }

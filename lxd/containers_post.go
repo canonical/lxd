@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -30,7 +31,7 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response {
+func createFromImage(d *Daemon, project string, req *api.InstancesPost) response.Response {
 	var hash string
 	var err error
 
@@ -42,19 +43,19 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 		} else {
 			_, alias, err := d.cluster.ImageAliasGet(project, req.Source.Alias, true)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 
 			hash = alias.Target
 		}
 	} else if req.Source.Properties != nil {
 		if req.Source.Server != "" {
-			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
+			return response.BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
 		hashes, err := d.cluster.ImagesGet(project, false)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		var image *api.Image
@@ -85,17 +86,17 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 		}
 
 		if image == nil {
-			return BadRequest(fmt.Errorf("No matching image could be found"))
+			return response.BadRequest(fmt.Errorf("No matching image could be found"))
 		}
 
 		hash = image.Fingerprint
 	} else {
-		return BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
+		return response.BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	run := func(op *operation) error {
@@ -148,16 +149,16 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) Response
 
 	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, project string, req *api.InstancesPost) Response {
+func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.Response {
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	args := db.ContainerArgs{
@@ -174,7 +175,7 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) Response 
 	if req.Architecture != "" {
 		architecture, err := osarch.ArchitectureId(req.Architecture)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 		args.Architecture = architecture
 	}
@@ -189,16 +190,16 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) Response 
 
 	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Response {
+func createFromMigration(d *Daemon, project string, req *api.InstancesPost) response.Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
+		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
 	var c container
@@ -206,7 +207,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Pre-fill default profile
@@ -216,7 +217,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	// Prepare the container creation request
@@ -237,12 +238,12 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 	// Early profile validation
 	profiles, err := d.cluster.Profiles(project)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	for _, profile := range args.Profiles {
 		if !shared.StringInSlice(profile, profiles) {
-			return BadRequest(fmt.Errorf("Requested profile '%s' doesn't exist", profile))
+			return response.BadRequest(fmt.Errorf("Requested profile '%s' doesn't exist", profile))
 		}
 	}
 
@@ -252,7 +253,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 	}
 
 	if storagePool == "" {
-		return BadRequest(fmt.Errorf("Can't find a storage pool for the container to use"))
+		return response.BadRequest(fmt.Errorf("Can't find a storage pool for the container to use"))
 	}
 
 	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
@@ -289,11 +290,11 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		if err != nil {
 			req.Source.Refresh = false
 		} else if inst.IsRunning() {
-			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
+			return response.BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
 
 		if inst.Type() != instancetype.Container {
-			return BadRequest(fmt.Errorf("Instance type not container"))
+			return response.BadRequest(fmt.Errorf("Instance type not container"))
 		}
 
 		c = inst.(container)
@@ -317,40 +318,40 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		if err != nil {
 			c, err = containerCreateAsEmpty(d, args)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 		} else {
 			// Retrieve the future storage pool
 			cM, err := containerLXCLoad(d.State(), args, nil)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			_, rootDiskDevice, err := shared.GetRootDiskDevice(cM.ExpandedDevices().CloneNative())
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			if rootDiskDevice["pool"] == "" {
-				return BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
+				return response.BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
 			}
 
 			storagePool = rootDiskDevice["pool"]
 
 			ps, err := storagePoolInit(d.State(), storagePool)
 			if err != nil {
-				return InternalError(err)
+				return response.InternalError(err)
 			}
 
 			if ps.MigrationType() == migration.MigrationFSType_RSYNC {
 				c, err = containerCreateFromImage(d, args, req.Source.BaseImage, nil)
 				if err != nil {
-					return InternalError(err)
+					return response.InternalError(err)
 				}
 			} else {
 				c, err = containerCreateAsEmpty(d, args)
 				if err != nil {
-					return InternalError(err)
+					return response.InternalError(err)
 				}
 			}
 		}
@@ -363,7 +364,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 			if !req.Source.Refresh {
 				c.Delete()
 			}
-			return InternalError(fmt.Errorf("Invalid certificate"))
+			return response.InternalError(fmt.Errorf("Invalid certificate"))
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
@@ -371,7 +372,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 			if !req.Source.Refresh {
 				c.Delete()
 			}
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
@@ -380,7 +381,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 		if !req.Source.Refresh {
 			c.Delete()
 		}
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	push := false
@@ -405,7 +406,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 	sink, err := NewMigrationSink(&migrationArgs)
 	if err != nil {
 		c.Delete()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	run := func(op *operation) error {
@@ -437,21 +438,21 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) Resp
 	if push {
 		op, err = operationCreate(d.cluster, project, operationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	} else {
 		op, err = operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 		if err != nil {
-			return InternalError(err)
+			return response.InternalError(err)
 		}
 	}
 
 	return OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response {
+func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.Response {
 	if req.Source.Source == "" {
-		return BadRequest(fmt.Errorf("must specify a source container"))
+		return response.BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
 	sourceProject := req.Source.Project
@@ -462,13 +463,13 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 
 	source, err := instanceLoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// Check if we need to redirect to migration
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	// When clustered, use the node name, otherwise use the hostname.
@@ -479,7 +480,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		if serverName != source.Location() {
@@ -500,7 +501,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 			_, pool, err := d.cluster.StoragePoolGet(sourcePoolName)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch container's pool info")
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 
 			if pool.Driver != "ceph" {
@@ -555,7 +556,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 	if req.Stateful {
 		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(source.Name())
 		if sourceName != req.Name {
-			return BadRequest(fmt.Errorf(`Copying stateful `+
+			return response.BadRequest(fmt.Errorf(`Copying stateful `+
 				`containers requires that source "%s" and `+
 				`target "%s" name be identical`, sourceName,
 				req.Name))
@@ -569,17 +570,17 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 		if err != nil {
 			req.Source.Refresh = false
 		} else if c.IsRunning() {
-			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
+			return response.BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	if dbType != instancetype.Any && dbType != source.Type() {
-		return BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
+		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
 
 	args := db.ContainerArgs{
@@ -610,24 +611,24 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) Response 
 
 	op, err := operationCreate(d.cluster, targetProject, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Response {
+func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
 	// Write the data to a temp file
 	f, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 	defer os.Remove(f.Name())
 
 	_, err = io.Copy(f, data)
 	if err != nil {
 		f.Close()
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	// Parse the backup information
@@ -635,7 +636,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 	bInfo, err := backupGetInfo(f)
 	if err != nil {
 		f.Close()
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 	bInfo.Project = project
 
@@ -695,13 +696,13 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
 	if err != nil {
-		return InternalError(err)
+		return response.InternalError(err)
 	}
 
 	return OperationResponse(op)
 }
 
-func containersPost(d *Daemon, r *http.Request) Response {
+func containersPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	logger.Debugf("Responding to container create")
 
@@ -713,7 +714,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	// Parse the request
 	req := api.InstancesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
+		return response.BadRequest(err)
 	}
 
 	targetNode := queryParam(r, "target")
@@ -729,20 +730,20 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 	}
 
 	if targetNode != "" {
 		address, err := cluster.ResolveTarget(d.cluster, targetNode)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 		if address != "" {
 			cert := d.endpoints.NetworkCert()
 			client, err := cluster.Connect(address, cert, false)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 
 			client = client.UseProject(project)
@@ -751,7 +752,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			logger.Debugf("Forward instance post request to %s", address)
 			op, err := client.CreateInstance(req)
 			if err != nil {
-				return SmartError(err)
+				return response.SmartError(err)
 			}
 
 			opAPI := op.Get()
@@ -762,7 +763,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	// If no storage pool is found, error out.
 	pools, err := d.cluster.StoragePools()
 	if err != nil || len(pools) == 0 {
-		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
+		return response.BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
 	}
 
 	if req.Name == "" {
@@ -773,7 +774,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			return err
 		})
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		i := 0
@@ -785,7 +786,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			}
 
 			if i > 100 {
-				return InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
+				return response.InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
 			}
 		}
 		logger.Debugf("No name provided, creating %s", req.Name)
@@ -802,7 +803,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	if req.InstanceType != "" {
 		conf, err := instanceParseType(req.InstanceType)
 		if err != nil {
-			return BadRequest(err)
+			return response.BadRequest(err)
 		}
 
 		for k, v := range conf {
@@ -813,7 +814,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
+		return response.BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
 	switch req.Source.Type {
@@ -826,11 +827,11 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	case "copy":
 		return createFromCopy(d, project, &req)
 	default:
-		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
+		return response.BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}
 }
 
-func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost) (string, string, string, map[string]string, Response) {
+func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost) (string, string, string, map[string]string, response.Response) {
 	// Grab the container's root device if one is specified
 	storagePool := ""
 	storagePoolProfile := ""
@@ -856,7 +857,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 		for _, pName := range req.Profiles {
 			_, p, err := d.cluster.ProfileGet(project, pName)
 			if err != nil {
-				return "", "", "", nil, SmartError(err)
+				return "", "", "", nil, response.SmartError(err)
 			}
 
 			k, v, _ := shared.GetRootDiskDevice(p.Devices)
@@ -874,9 +875,9 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 		pools, err := d.cluster.StoragePools()
 		if err != nil {
 			if err == db.ErrNoSuchObject {
-				return "", "", "", nil, BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
+				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
 			}
-			return "", "", "", nil, SmartError(err)
+			return "", "", "", nil, response.SmartError(err)
 		}
 
 		if len(pools) == 1 {
@@ -887,7 +888,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, source Instance, project string, req *api.InstancesPost) Response {
+func clusterCopyContainerInternal(d *Daemon, source Instance, project string, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 
 	// Locate the source of the container
@@ -904,17 +905,17 @@ func clusterCopyContainerInternal(d *Daemon, source Instance, project string, re
 		return nil
 	})
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	if nodeAddress == "" {
-		return BadRequest(fmt.Errorf("The container source is currently offline"))
+		return response.BadRequest(fmt.Errorf("The container source is currently offline"))
 	}
 
 	// Connect to the container source
 	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
 	if err != nil {
-		return SmartError(err)
+		return response.SmartError(err)
 	}
 
 	client = client.UseProject(source.Project())
@@ -932,7 +933,7 @@ func clusterCopyContainerInternal(d *Daemon, source Instance, project string, re
 
 		op, err := client.MigrateInstanceSnapshot(cName, sName, pullReq)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		opAPI = op.Get()
@@ -948,7 +949,7 @@ func clusterCopyContainerInternal(d *Daemon, source Instance, project string, re
 
 		op, err := client.MigrateInstance(req.Source.Source, pullReq)
 		if err != nil {
-			return SmartError(err)
+			return response.SmartError(err)
 		}
 
 		opAPI = op.Get()
