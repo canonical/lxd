@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/lxd/ucred"
 )
 
 var testDir string
@@ -103,13 +104,13 @@ func TestCredsSendRecv(t *testing.T) {
 		}
 		defer conn.Close()
 
-		cred, err := getCred(conn)
+		cred, err := ucred.GetCred(conn)
 		if err != nil {
 			t.Log(err)
 			result <- -1
 			return
 		}
-		result <- cred.pid
+		result <- cred.PID
 	}()
 
 	conn, err := connect(fmt.Sprintf("%s/test-devlxd-sock", testDir))
