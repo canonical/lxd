@@ -82,6 +82,7 @@ test_static_analysis() {
       golint -set_exit_status lxd/maas
       #golint -set_exit_status lxd/migration
       golint -set_exit_status lxd/node
+      golint -set_exit_status lxd/response
       golint -set_exit_status lxd/state
       golint -set_exit_status lxd/storage
       golint -set_exit_status lxd/sys
