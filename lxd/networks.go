@@ -22,7 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -728,7 +728,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 				}
 
 				// Fill in the hwaddr from volatile
-				if inst.Type() == instance.TypeContainer {
+				if inst.Type() == instancetype.Container {
 					d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
 					if err != nil {
 						continue

@@ -8,7 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -199,7 +199,7 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	args := db.ContainerArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Snapshot:     true,
 		Devices:      devices,
 		Ephemeral:    snap.GetEphemeral(),
@@ -359,7 +359,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					return err
 				}
 
-				if args.Instance.Type() == instance.TypeContainer {
+				if args.Instance.Type() == instancetype.Container {
 					c := args.Instance.(container)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
@@ -413,7 +413,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					return err
 				}
 
-				if args.Instance.Type() == instance.TypeContainer {
+				if args.Instance.Type() == instancetype.Container {
 					c := args.Instance.(container)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
@@ -448,7 +448,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 		}
 	}
 
-	if args.Instance.Type() == instance.TypeContainer {
+	if args.Instance.Type() == instancetype.Container {
 		c := args.Instance.(container)
 		err = resetContainerDiskIdmap(c, args.Idmap)
 		if err != nil {

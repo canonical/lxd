@@ -13,7 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -497,7 +497,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 						continue
 					}
 
-					if instt.Type() != instance.TypeContainer {
+					if instt.Type() != instancetype.Container {
 						continue
 					}
 

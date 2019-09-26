@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -97,7 +97,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Project:      "default",
 		Name:         "i1",
 		Node:         "none",
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -110,7 +110,7 @@ func TestInstanceSnapshotList_SameNameInDifferentProjects(t *testing.T) {
 		Project:      "p1",
 		Name:         "i1",
 		Node:         "none",
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -32,7 +32,7 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := db.InstanceFilter{Type: instance.TypeContainer}
+	filter := db.InstanceFilter{Type: instancetype.Container}
 	containers, err := tx.InstanceList(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
@@ -74,7 +74,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	filter := db.InstanceFilter{
 		Project: "default",
 		Node:    "node2",
-		Type:    instance.TypeContainer,
+		Type:    instancetype.Container,
 	}
 
 	containers, err := tx.InstanceList(filter)
@@ -119,7 +119,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Project:      "blah",
 		Name:         "c1",
 		Node:         "none",
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -134,7 +134,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Project:      "test",
 		Name:         "c1",
 		Node:         "none",
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -173,7 +173,7 @@ func TestInstanceListExpanded(t *testing.T) {
 		Project:      "default",
 		Name:         "c1",
 		Node:         "none",
-		Type:         instance.TypeContainer,
+		Type:         instancetype.Container,
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
@@ -313,7 +313,7 @@ func TestContainersListByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.ContainersListByNodeAddress("default", instance.TypeContainer)
+	result, err := tx.ContainersListByNodeAddress("default", instancetype.Container)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -337,7 +337,7 @@ func TestContainersByNodeName(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.ContainersByNodeName("default", instance.TypeContainer)
+	result, err := tx.ContainersByNodeName("default", instancetype.Container)
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -398,7 +398,7 @@ func TestContainersNodeList(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	names, err := cluster.ContainersNodeList(instance.TypeContainer)
+	names, err := cluster.ContainersNodeList(instancetype.Container)
 	require.NoError(t, err)
 	assert.Equal(t, names, []string{"c1"})
 }
@@ -450,7 +450,7 @@ func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
 INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
-	_, err := tx.Tx().Exec(stmt, nodeID, name, instance.TypeContainer)
+	_, err := tx.Tx().Exec(stmt, nodeID, name, instancetype.Container)
 	require.NoError(t, err)
 }
 
