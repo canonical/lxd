@@ -916,7 +916,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
+	_, err = containerCreateInternal(d.State(), db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
@@ -1022,7 +1022,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			snap.Devices[rootDevName] = rootDev
 		}
 
-		_, err = containerCreateInternal(d.State(), db.ContainerArgs{
+		_, err = containerCreateInternal(d.State(), db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,

@@ -311,7 +311,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			}
 		}
 
-		args := db.ContainerArgs{
+		args := db.InstanceArgs{
 			Architecture: inst.Architecture(),
 			Description:  inst.Description(),
 			Config:       inst.LocalConfig(),

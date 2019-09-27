@@ -2591,7 +2591,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args M
 
 	if !args.InstanceOnly {
 		for _, snap := range args.Snapshots {
-			ctArgs := snapshotProtobufToContainerArgs(args.Instance.Project(), instanceName, snap)
+			ctArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), instanceName, snap)
 
 			// Ensure that snapshot and parent container have the
 			// same storage pool in their local root disk device.

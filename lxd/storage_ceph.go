@@ -2930,7 +2930,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args Mi
 	recvName := fmt.Sprintf("%s/container_%s", s.OSDPoolName, project.Prefix(args.Instance.Project(), instanceName))
 	for _, snap := range args.Snapshots {
 		curSnapName := snap.GetName()
-		ctArgs := snapshotProtobufToContainerArgs(args.Instance.Project(), instanceName, snap)
+		ctArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), instanceName, snap)
 
 		// Ensure that snapshot and parent container have the same
 		// storage pool in their local root disk device.  If the root

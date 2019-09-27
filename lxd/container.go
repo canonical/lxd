@@ -240,7 +240,7 @@ type container interface {
 }
 
 // Loader functions
-func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error) {
+func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (container, error) {
 	// Create the container
 	c, err := containerCreateInternal(d.State(), args)
 	if err != nil {
@@ -327,7 +327,7 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 	return pool, nil
 }
 
-func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (container, error) {
+func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (container, error) {
 	// Create the snapshot
 	c, err := containerCreateInternal(s, args)
 	if err != nil {
@@ -344,7 +344,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	return c, nil
 }
 
-func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tracker *ioprogress.ProgressTracker) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, tracker *ioprogress.ProgressTracker) (container, error) {
 	s := d.State()
 
 	// Get the image properties
@@ -429,7 +429,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tra
 	return c, nil
 }
 
-func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContainer Instance, containerOnly bool, refresh bool) (Instance, error) {
+func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer Instance, containerOnly bool, refresh bool) (Instance, error) {
 	var ct Instance
 	var err error
 
@@ -517,7 +517,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 			}
 
 			newSnapName := fmt.Sprintf("%s/%s", ct.Name(), fields[1])
-			csArgs := db.ContainerArgs{
+			csArgs := db.InstanceArgs{
 				Architecture: snap.Architecture(),
 				Config:       snap.LocalConfig(),
 				Type:         sourceContainer.Type(),
@@ -598,7 +598,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	return ct, nil
 }
 
-func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInstance Instance) (Instance, error) {
+func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance Instance) (Instance, error) {
 	if sourceInstance.Type() != instancetype.Container {
 		return nil, fmt.Errorf("Instance not container type")
 	}
@@ -691,7 +691,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceInst
 	return c, nil
 }
 
-func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, error) {
+func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, error) {
 	// Set default values
 	if args.Project == "" {
 		args.Project = "default"
@@ -1305,7 +1305,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []In
 				return
 			}
 
-			args := db.ContainerArgs{
+			args := db.InstanceArgs{
 				Architecture: c.Architecture(),
 				Config:       c.LocalConfig(),
 				Type:         c.Type(),

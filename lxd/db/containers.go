@@ -93,9 +93,9 @@ type InstanceFilter struct {
 }
 
 // ContainerToArgs is a convenience to convert the new Container db struct into
-// the legacy ContainerArgs.
-func ContainerToArgs(container *Instance) ContainerArgs {
-	args := ContainerArgs{
+// the legacy InstanceArgs.
+func ContainerToArgs(container *Instance) InstanceArgs {
+	args := InstanceArgs{
 		ID:           container.ID,
 		Project:      container.Project,
 		Name:         container.Name,
