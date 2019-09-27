@@ -31,7 +31,7 @@ var unixHandlers = map[string]UnixSubscription{}
 var unixMutex sync.Mutex
 
 // unixRegisterHandler registers a handler function to be called whenever a Unix device event occurs.
-func unixRegisterHandler(s *state.State, instance InstanceIdentifier, deviceName, path string, handler func(UnixEvent) (*RunConfig, error)) error {
+func unixRegisterHandler(s *state.State, instance Instance, deviceName, path string, handler func(UnixEvent) (*RunConfig, error)) error {
 	if path == "" || handler == nil {
 		return fmt.Errorf("Invalid subscription")
 	}
@@ -58,7 +58,7 @@ func unixRegisterHandler(s *state.State, instance InstanceIdentifier, deviceName
 }
 
 // unixUnregisterHandler removes a registered Unix handler function for a device.
-func unixUnregisterHandler(s *state.State, instance InstanceIdentifier, deviceName string) error {
+func unixUnregisterHandler(s *state.State, instance Instance, deviceName string) error {
 	unixMutex.Lock()
 	defer unixMutex.Unlock()
 

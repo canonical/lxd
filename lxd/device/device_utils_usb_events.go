@@ -33,7 +33,7 @@ var usbHandlers = map[string]func(USBEvent) (*RunConfig, error){}
 var usbMutex sync.Mutex
 
 // usbRegisterHandler registers a handler function to be called whenever a USB device event occurs.
-func usbRegisterHandler(instance InstanceIdentifier, deviceName string, handler func(USBEvent) (*RunConfig, error)) {
+func usbRegisterHandler(instance Instance, deviceName string, handler func(USBEvent) (*RunConfig, error)) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
@@ -43,7 +43,7 @@ func usbRegisterHandler(instance InstanceIdentifier, deviceName string, handler 
 }
 
 // usbUnregisterHandler removes a registered USB handler function for a device.
-func usbUnregisterHandler(instance InstanceIdentifier, deviceName string) {
+func usbUnregisterHandler(instance Instance, deviceName string) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 

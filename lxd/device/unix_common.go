@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
 
 // unixIsOurDeviceType checks that device file type matches what we are expecting in the config.
-func unixIsOurDeviceType(config config.Device, dType string) bool {
+func unixIsOurDeviceType(config deviceConfig.Device, dType string) bool {
 	if config["type"] == "unix-char" && dType == "c" {
 		return true
 	}

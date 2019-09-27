@@ -4,22 +4,22 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 )
 
 // InstanceLoadNodeAll returns all local instance configs.
-var InstanceLoadNodeAll func(s *state.State) ([]InstanceIdentifier, error)
+var InstanceLoadNodeAll func(s *state.State) ([]Instance, error)
 
 // InstanceLoadByProjectAndName returns instance config by project and name.
-var InstanceLoadByProjectAndName func(s *state.State, project, name string) (InstanceIdentifier, error)
+var InstanceLoadByProjectAndName func(s *state.State, project, name string) (Instance, error)
 
 // reservedDevicesMutex used to coordinate access for checking reserved devices.
 var reservedDevicesMutex sync.Mutex
 
 // instanceGetReservedDevices returns a map of host device names that have been used by devices in
 // other instances on the local node. Used for selecting physical and SR-IOV VF devices.
-func instanceGetReservedDevices(s *state.State, m config.Device) (map[string]struct{}, error) {
+func instanceGetReservedDevices(s *state.State, m deviceConfig.Device) (map[string]struct{}, error) {
 	reservedDevicesMutex.Lock()
 	defer reservedDevicesMutex.Unlock()
 

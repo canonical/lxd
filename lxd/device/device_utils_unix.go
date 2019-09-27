@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -23,7 +23,7 @@ const unixDefaultMode = 0660
 // unixDeviceInstanceAttributes returns the UNIX device attributes for an instance device.
 // Uses supplied device config for device properties, and if they haven't been set, falls back to
 // using UnixGetDeviceAttributes() to directly query an existing device file.
-func unixDeviceInstanceAttributes(devicesPath string, prefix string, config config.Device) (string, uint32, uint32, error) {
+func unixDeviceInstanceAttributes(devicesPath string, prefix string, config deviceConfig.Device) (string, uint32, uint32, error) {
 	// Check if we've been passed major and minor numbers already.
 	var err error
 	var dMajor, dMinor uint32
@@ -117,7 +117,7 @@ type UnixDevice struct {
 // unixDeviceSourcePath returns the absolute path for a device on the host.
 // This is based on the "source" property of the device's config, or the "path" property if "source"
 // not define. This uses the shared.HostPath function so works when running in a snap environment.
-func unixDeviceSourcePath(m config.Device) string {
+func unixDeviceSourcePath(m deviceConfig.Device) string {
 	srcPath := m["source"]
 	if srcPath == "" {
 		srcPath = m["path"]
@@ -128,7 +128,7 @@ func unixDeviceSourcePath(m config.Device) string {
 // unixDeviceDestPath returns the absolute path for a device inside an instance.
 // This is based on the "path" property of the device's config, or the "source" property if "path"
 // not defined.
-func unixDeviceDestPath(m config.Device) string {
+func unixDeviceDestPath(m deviceConfig.Device) string {
 	destPath := m["path"]
 	if destPath == "" {
 		destPath = m["source"]
@@ -145,7 +145,7 @@ func unixDeviceDestPath(m config.Device) string {
 // type field then it defaults to created a unix-char device. The ownership of the created device
 // defaults to root (0) but can be specified with the uid and gid fields in the device config map.
 // It returns a UnixDevice containing information about the device created.
-func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath string, prefix string, m config.Device, defaultMode bool) (*UnixDevice, error) {
+func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath string, prefix string, m deviceConfig.Device, defaultMode bool) (*UnixDevice, error) {
 	var err error
 	d := UnixDevice{}
 
@@ -288,7 +288,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 // mount and cgroup rule instructions to have it be attached to the instance. If defaultMode is true
 // or mode is supplied in the device config then the origin device does not need to be accessed for
 // its file mode.
-func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, deviceName string, m config.Device, defaultMode bool, runConf *RunConfig) error {
+func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, defaultMode bool, runConf *RunConfig) error {
 	// Before creating the device, check that another existing device isn't using the same mount
 	// path inside the instance as our device. If we find an existing device with the same mount
 	// path we will skip mounting our device inside the instance. This can happen when multiple
@@ -362,8 +362,8 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 // already know the device's major and minor numbers to avoid unixDeviceSetup() having to stat the
 // device to ascertain these attributes. If defaultMode is true or mode is supplied in the device
 // config then the origin device does not need to be accessed for its file mode.
-func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m config.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *RunConfig) error {
-	configCopy := config.Device{}
+func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *RunConfig) error {
+	configCopy := deviceConfig.Device{}
 	for k, v := range m {
 		configCopy[k] = v
 	}
