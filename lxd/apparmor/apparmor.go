@@ -1,4 +1,4 @@
-package main
+package apparmor
 
 import (
 	"crypto/sha256"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -17,14 +18,14 @@ import (
 )
 
 const (
-	APPARMOR_CMD_LOAD   = "r"
-	APPARMOR_CMD_UNLOAD = "R"
-	APPARMOR_CMD_PARSE  = "Q"
+	cmdLoad   = "r"
+	cmdUnload = "R"
+	cmdParse  = "Q"
 )
 
 var aaPath = shared.VarPath("security", "apparmor")
 
-const AA_PROFILE_BASE = `
+const profileBase = `
   ### Base profile
   capability,
   dbus,
@@ -417,7 +418,7 @@ const AA_PROFILE_BASE = `
   deny /sys/fs?*{,/**} wklx,
 `
 
-const AA_PROFILE_NESTING = `
+const profileNesting = `
   pivot_root,
 
   # Allow sending signals and tracing children namespaces
@@ -444,7 +445,7 @@ const AA_PROFILE_NESTING = `
   mount,
 `
 
-const AA_PROFILE_UNPRIVILEGED = `
+const profileUnprivileged = `
   pivot_root,
 
   # Allow modifying mount propagation
@@ -481,6 +482,15 @@ const AA_PROFILE_UNPRIVILEGED = `
   mount options=(ro,remount) /**,
 `
 
+type instance interface {
+	Project() string
+	Name() string
+	IsNesting() bool
+	DaemonState() *state.State
+	IsPrivileged() bool
+	ExpandedConfig() map[string]string
+}
+
 func mkApparmorName(name string) string {
 	if len(name)+7 >= 253 {
 		hash := sha256.New()
@@ -491,7 +501,8 @@ func mkApparmorName(name string) string {
 	return name
 }
 
-func AANamespace(c container) string {
+// Namespace returns the instance's apparmor namespace.
+func Namespace(c instance) string {
 	/* / is not allowed in apparmor namespace names; let's also trim the
 	 * leading / so it doesn't look like "-var-lib-lxd"
 	 */
@@ -501,23 +512,23 @@ func AANamespace(c container) string {
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
-func AAProfileFull(c container) string {
+// ProfileFull returns the instance's apparmor profile.
+func ProfileFull(c instance) string {
 	lxddir := shared.VarPath("")
 	lxddir = mkApparmorName(lxddir)
 	name := project.Prefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
-func AAProfileShort(c container) string {
+func profileShort(c instance) string {
 	name := project.Prefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s", name)
 }
 
-// getProfileContent generates the apparmor profile template from the given
-// container. This includes the stock lxc includes as well as stuff from
-// raw.apparmor.
-func getAAProfileContent(c container) string {
-	profile := strings.TrimLeft(AA_PROFILE_BASE, "\n")
+// getProfileContent generates the apparmor profile template from the given container.
+// This includes the stock lxc includes as well as stuff from raw.apparmor.
+func getAAProfileContent(c instance) string {
+	profile := strings.TrimLeft(profileBase, "\n")
 
 	// Apply new features
 	if aaParserSupports("unix") {
@@ -567,8 +578,8 @@ func getAAProfileContent(c container) string {
   deny /sys/kernel/security?*{,/**} wklx,
   deny /sys/kernel?*{,/**} wklx,
 `
-		profile += fmt.Sprintf("  change_profile -> \":%s:*\",\n", AANamespace(c))
-		profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
+		profile += fmt.Sprintf("  change_profile -> \":%s:*\",\n", Namespace(c))
+		profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", Namespace(c))
 	} else {
 		profile += "\n  ### Feature: apparmor stacking (not present)\n"
 		profile += "  deny /sys/k*{,/**} wklx,\n"
@@ -577,16 +588,16 @@ func getAAProfileContent(c container) string {
 	if c.IsNesting() {
 		// Apply nesting bits
 		profile += "\n  ### Configuration: nesting\n"
-		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
+		profile += strings.TrimLeft(profileNesting, "\n")
 		if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
-			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
+			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", ProfileFull(c))
 		}
 	}
 
 	if !c.IsPrivileged() || state.OS.RunningInUserNS {
 		// Apply unprivileged bits
 		profile += "\n  ### Configuration: unprivileged containers\n"
-		profile += strings.TrimLeft(AA_PROFILE_UNPRIVILEGED, "\n")
+		profile += strings.TrimLeft(profileUnprivileged, "\n")
 	}
 
 	// Append raw.apparmor
@@ -602,10 +613,10 @@ func getAAProfileContent(c container) string {
 profile "%s" flags=(attach_disconnected,mediate_deleted) {
 %s
 }
-`, AAProfileFull(c), strings.Trim(profile, "\n"))
+`, ProfileFull(c), strings.Trim(profile, "\n"))
 }
 
-func runApparmor(command string, c container) error {
+func runApparmor(command string, c instance) error {
 	state := c.DaemonState()
 	if !state.OS.AppArmorAvailable {
 		return nil
@@ -614,7 +625,7 @@ func runApparmor(command string, c container) error {
 	output, err := shared.RunCommand("apparmor_parser", []string{
 		fmt.Sprintf("-%sWL", command),
 		path.Join(aaPath, "cache"),
-		path.Join(aaPath, "profiles", AAProfileShort(c)),
+		path.Join(aaPath, "profiles", profileShort(c)),
 	}...)
 
 	if err != nil {
@@ -625,7 +636,7 @@ func runApparmor(command string, c container) error {
 	return err
 }
 
-func getAACacheDir() string {
+func getCacheDir() string {
 	basePath := path.Join(aaPath, "cache")
 
 	major, minor, _, err := getAAParserVersion()
@@ -646,7 +657,7 @@ func getAACacheDir() string {
 	return strings.TrimSpace(output)
 }
 
-func mkApparmorNamespace(c container, namespace string) error {
+func mkApparmorNamespace(c instance, namespace string) error {
 	state := c.DaemonState()
 	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
 		return nil
@@ -660,15 +671,14 @@ func mkApparmorNamespace(c container, namespace string) error {
 	return nil
 }
 
-// Ensure that the container's policy is loaded into the kernel so the
-// container can boot.
-func AALoadProfile(c container) error {
+// LoadProfile ensures that the instances's policy is loaded into the kernel so the it can boot.
+func LoadProfile(c instance) error {
 	state := c.DaemonState()
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
-	if err := mkApparmorNamespace(c, AANamespace(c)); err != nil {
+	if err := mkApparmorNamespace(c, Namespace(c)); err != nil {
 		return err
 	}
 
@@ -683,7 +693,7 @@ func AALoadProfile(c container) error {
 	 * version out so that the new changes are reflected and we definitely
 	 * force a recompile.
 	 */
-	profile := path.Join(aaPath, "profiles", AAProfileShort(c))
+	profile := path.Join(aaPath, "profiles", profileShort(c))
 	content, err := ioutil.ReadFile(profile)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -705,39 +715,39 @@ func AALoadProfile(c container) error {
 		}
 	}
 
-	return runApparmor(APPARMOR_CMD_LOAD, c)
+	return runApparmor(cmdLoad, c)
 }
 
-// Ensure that the container's policy namespace is unloaded to free kernel
-// memory. This does not delete the policy from disk or cache.
-func AADestroy(c container) error {
+// Destroy ensures that the instances's policy namespace is unloaded to free kernel memory.
+// This does not delete the policy from disk or cache.
+func Destroy(c instance) error {
 	state := c.DaemonState()
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
 	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
-		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
+		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", Namespace(c))
 		if err := os.Remove(p); err != nil {
 			logger.Error("Error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
 		}
 	}
 
-	return runApparmor(APPARMOR_CMD_UNLOAD, c)
+	return runApparmor(cmdUnload, c)
 }
 
-// Parse the profile without loading it into the kernel.
-func AAParseProfile(c container) error {
+// ParseProfile parses the profile without loading it into the kernel.
+func ParseProfile(c instance) error {
 	state := c.DaemonState()
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
-	return runApparmor(APPARMOR_CMD_PARSE, c)
+	return runApparmor(cmdParse, c)
 }
 
-// Delete the policy from cache/disk.
-func AADeleteProfile(c container) {
+// DeleteProfile removes the policy from cache/disk.
+func DeleteProfile(c instance) {
 	state := c.DaemonState()
 	if !state.OS.AppArmorAdmin {
 		return
@@ -746,8 +756,8 @@ func AADeleteProfile(c container) {
 	/* It's ok if these deletes fail: if the container was never started,
 	 * we'll have never written a profile or cached it.
 	 */
-	os.Remove(path.Join(getAACacheDir(), AAProfileShort(c)))
-	os.Remove(path.Join(aaPath, "profiles", AAProfileShort(c)))
+	os.Remove(path.Join(getCacheDir(), profileShort(c)))
+	os.Remove(path.Join(aaPath, "profiles", profileShort(c)))
 }
 
 func aaParserSupports(feature string) bool {
