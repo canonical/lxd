@@ -16,6 +16,7 @@ var api10Cmd = APIEndpoint{
 
 var api10 = []APIEndpoint{
 	api10Cmd,
+	stateCmd,
 }
 
 func api10Get(r *http.Request) response.Response {
