@@ -146,13 +146,12 @@ type InstanceArgs struct {
 	ExpiryDate   time.Time
 }
 
-// ContainerBackupArgs is a value object holding all db-related details
-// about a backup.
-type ContainerBackupArgs struct {
+// InstanceBackupArgs is a value object holding all db-related details about a backup.
+type InstanceBackupArgs struct {
 	// Don't set manually
 	ID int
 
-	ContainerID      int
+	InstanceID       int
 	Name             string
 	CreationDate     time.Time
 	ExpiryDate       time.Time
