@@ -187,7 +187,7 @@ func doProfileUpdateCluster(d *Daemon, project, name string, old api.ProfilePut)
 }
 
 // Profile update of a single container.
-func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeName string, args db.ContainerArgs) error {
+func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeName string, args db.InstanceArgs) error {
 	if args.Node != "" && args.Node != nodeName {
 		// No-op, this container does not belong to this node.
 		return nil
@@ -211,7 +211,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 	c.expandConfig(profiles)
 	c.expandDevices(profiles)
 
-	return c.Update(db.ContainerArgs{
+	return c.Update(db.InstanceArgs{
 		Architecture: c.Architecture(),
 		Config:       c.LocalConfig(),
 		Description:  c.Description(),
@@ -226,7 +226,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 
 // Query the db for information about containers associated with the given
 // profile.
-func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]db.ContainerArgs, error) {
+func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]db.InstanceArgs, error) {
 	// Query the db for information about containers associated with the
 	// given profile.
 	names, err := cluster.ProfileContainersGet(project, profile)
@@ -234,7 +234,7 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 		return nil, errors.Wrapf(err, "failed to query containers with profile '%s'", profile)
 	}
 
-	containers := []db.ContainerArgs{}
+	containers := []db.InstanceArgs{}
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		for ctProject, ctNames := range names {
 			for _, ctName := range ctNames {

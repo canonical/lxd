@@ -33,8 +33,8 @@ type Instance interface {
 	// Config handling
 	Rename(newName string) error
 
-	// TODO rename db.ContainerArgs to db.InstanceArgs.
-	Update(newConfig db.ContainerArgs, userRequested bool) error
+	// TODO rename db.InstanceArgs to db.InstanceArgs.
+	Update(newConfig db.InstanceArgs, userRequested bool) error
 
 	Delete() error
 	Export(w io.Writer, properties map[string]string) error
