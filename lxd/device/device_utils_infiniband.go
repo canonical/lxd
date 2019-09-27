@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -77,7 +77,7 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 
 	// Add IsSM device if defined.
 	if ibDev.Infiniband.IsSMName != "" {
-		dummyDevice := config.Device{
+		dummyDevice := deviceConfig.Device{
 			"source": fmt.Sprintf("/dev/infiniband/%s", ibDev.Infiniband.IsSMName),
 		}
 
@@ -89,7 +89,7 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 
 	// Add MAD device if defined.
 	if ibDev.Infiniband.MADName != "" {
-		dummyDevice := config.Device{
+		dummyDevice := deviceConfig.Device{
 			"source": fmt.Sprintf("/dev/infiniband/%s", ibDev.Infiniband.MADName),
 		}
 
@@ -101,7 +101,7 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 
 	// Add Verb device if defined.
 	if ibDev.Infiniband.VerbName != "" {
-		dummyDevice := config.Device{
+		dummyDevice := deviceConfig.Device{
 			"source": fmt.Sprintf("/dev/infiniband/%s", ibDev.Infiniband.VerbName),
 		}
 

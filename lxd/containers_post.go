@@ -19,7 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -106,7 +106,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 			Config:      req.Config,
 			Type:        dbType,
 			Description: req.Description,
-			Devices:     config.NewDevices(req.Devices),
+			Devices:     deviceConfig.NewDevices(req.Devices),
 			Ephemeral:   req.Ephemeral,
 			Name:        req.Name,
 			Profiles:    req.Profiles,
@@ -167,7 +167,7 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 		Config:      req.Config,
 		Type:        dbType,
 		Description: req.Description,
-		Devices:     config.NewDevices(req.Devices),
+		Devices:     deviceConfig.NewDevices(req.Devices),
 		Ephemeral:   req.Ephemeral,
 		Name:        req.Name,
 		Profiles:    req.Profiles,
@@ -228,7 +228,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Type:         dbType,
-		Devices:      config.NewDevices(req.Devices),
+		Devices:      deviceConfig.NewDevices(req.Devices),
 		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
@@ -265,7 +265,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		rootDev["path"] = "/"
 		rootDev["pool"] = storagePool
 		if args.Devices == nil {
-			args.Devices = config.Devices{}
+			args.Devices = deviceConfig.Devices{}
 		}
 
 		// Make sure that we do not overwrite a device the user
@@ -591,7 +591,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 		Config:       req.Config,
 		Type:         source.Type(),
 		Description:  req.Description,
-		Devices:      config.NewDevices(req.Devices),
+		Devices:      deviceConfig.NewDevices(req.Devices),
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     req.Profiles,

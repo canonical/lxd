@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 	lxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
@@ -347,7 +347,7 @@ type Instance interface {
 	Architecture() int
 	RootfsPath() string
 	CurrentIdmap() (*idmap.IdmapSet, error)
-	InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error
+	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
 
 var seccompPath = shared.VarPath("security", "seccomp")
@@ -833,7 +833,7 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 }
 
 // CallForkmknod executes fork mknod.
-func CallForkmknod(c Instance, dev config.Device, requestPID int) int {
+func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int) int {
 	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
 	rootPath, err := os.Readlink(rootLink)
 	if err != nil {
@@ -892,7 +892,7 @@ type MknodArgs struct {
 }
 
 func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
-	dev := config.Device{}
+	dev := deviceConfig.Device{}
 	dev["type"] = "unix-char"
 	dev["mode"] = fmt.Sprintf("%#o", args.cMode)
 	dev["major"] = fmt.Sprintf("%d", unix.Major(uint64(args.cDev)))

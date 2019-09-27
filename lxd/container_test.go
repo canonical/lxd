@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -89,8 +89,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		Type:      instancetype.Container,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
-		Devices: config.Devices{
-			"eth0": config.Device{
+		Devices: deviceConfig.Devices{
+			"eth0": deviceConfig.Device{
 				"type":    "nic",
 				"nictype": "bridged",
 				"parent":  "unknownbr0"}},
@@ -119,8 +119,8 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 		Type:      instancetype.Container,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
-		Devices: config.Devices{
-			"eth0": config.Device{
+		Devices: deviceConfig.Devices{
+			"eth0": deviceConfig.Device{
 				"type":    "nic",
 				"nictype": "bridged",
 				"parent":  "unknownbr0"}},
