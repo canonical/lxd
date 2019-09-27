@@ -121,9 +121,8 @@ func ContainerToArgs(container *Instance) ContainerArgs {
 	return args
 }
 
-// ContainerArgs is a value object holding all db-related details about a
-// container.
-type ContainerArgs struct {
+// InstanceArgs is a value object holding all db-related details about an instance.
+type InstanceArgs struct {
 	// Don't set manually
 	ID       int
 	Node     string
