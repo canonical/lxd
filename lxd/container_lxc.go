@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -52,72 +53,6 @@ import (
 
 	log "github.com/lxc/lxd/shared/log15"
 )
-
-// Operation locking
-type lxcContainerOperation struct {
-	action    string
-	chanDone  chan error
-	chanReset chan bool
-	err       error
-	id        int
-	reusable  bool
-}
-
-func (op *lxcContainerOperation) Create(id int, action string, reusable bool) *lxcContainerOperation {
-	op.id = id
-	op.action = action
-	op.reusable = reusable
-	op.chanDone = make(chan error, 0)
-	op.chanReset = make(chan bool, 0)
-
-	go func(op *lxcContainerOperation) {
-		for {
-			select {
-			case <-op.chanReset:
-				continue
-			case <-time.After(time.Second * 30):
-				op.Done(fmt.Errorf("Container %s operation timed out after 30 seconds", op.action))
-				return
-			}
-		}
-	}(op)
-
-	return op
-}
-
-func (op *lxcContainerOperation) Reset() error {
-	if !op.reusable {
-		return fmt.Errorf("Can't reset a non-reusable operation")
-	}
-
-	op.chanReset <- true
-	return nil
-}
-
-func (op *lxcContainerOperation) Wait() error {
-	<-op.chanDone
-
-	return op.err
-}
-
-func (op *lxcContainerOperation) Done(err error) {
-	lxcContainerOperationsLock.Lock()
-	defer lxcContainerOperationsLock.Unlock()
-
-	// Check if already done
-	runningOp, ok := lxcContainerOperations[op.id]
-	if !ok || runningOp != op {
-		return
-	}
-
-	op.err = err
-	close(op.chanDone)
-
-	delete(lxcContainerOperations, op.id)
-}
-
-var lxcContainerOperationsLock sync.Mutex
-var lxcContainerOperations map[int]*lxcContainerOperation = make(map[int]*lxcContainerOperation)
 
 // Helper functions
 func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
@@ -616,56 +551,6 @@ type containerLXC struct {
 
 func (c *containerLXC) Type() instancetype.Type {
 	return c.dbType
-}
-
-func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
-	op, _ := c.getOperation("")
-	if op != nil {
-		if reuse && op.reusable {
-			op.Reset()
-			return op, nil
-		}
-
-		return nil, fmt.Errorf("Container is busy running a %s operation", op.action)
-	}
-
-	lxcContainerOperationsLock.Lock()
-	defer lxcContainerOperationsLock.Unlock()
-
-	op = &lxcContainerOperation{}
-	op.Create(c.id, action, reusable)
-	lxcContainerOperations[c.id] = op
-
-	return lxcContainerOperations[c.id], nil
-}
-
-func (c *containerLXC) getOperation(action string) (*lxcContainerOperation, error) {
-	lxcContainerOperationsLock.Lock()
-	defer lxcContainerOperationsLock.Unlock()
-
-	op := lxcContainerOperations[c.id]
-
-	if op == nil {
-		return nil, fmt.Errorf("No running %s container operation", action)
-	}
-
-	if action != "" && op.action != action {
-		return nil, fmt.Errorf("Container is running a %s operation, not a %s operation", op.action, action)
-	}
-
-	return op, nil
-}
-
-func (c *containerLXC) waitOperation() error {
-	op, _ := c.getOperation("")
-	if op != nil {
-		err := op.Wait()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
@@ -2527,7 +2412,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	op, err := c.createOperation("start", false, false)
+	op, err := operationlock.Create(c.id, "start", false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create container start operation")
 	}
@@ -2553,7 +2438,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	ctxMap = log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
-		"action":    op.action,
+		"action":    op.Action(),
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate,
@@ -2774,7 +2659,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation
-	op, err := c.createOperation("stop", false, true)
+	op, err := operationlock.Create(c.id, "stop", false, true)
 	if err != nil {
 		return err
 	}
@@ -2782,7 +2667,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	ctxMap = log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
-		"action":    op.action,
+		"action":    op.Action(),
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate,
@@ -2908,7 +2793,7 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation
-	op, err := c.createOperation("stop", true, true)
+	op, err := operationlock.Create(c.id, "stop", true, true)
 	if err != nil {
 		return err
 	}
@@ -2984,10 +2869,10 @@ func (c *containerLXC) OnStop(target string) error {
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
 
-	// Get operation
-	op, _ := c.getOperation("")
-	if op != nil && op.action != "stop" {
-		return fmt.Errorf("Container is already running a %s operation", op.action)
+	// Pick up the existing stop operation lock created in Stop() function.
+	op := operationlock.Get(c.id)
+	if op != nil && op.Action() != "stop" {
+		return fmt.Errorf("Container is already running a %s operation", op.Action())
 	}
 
 	// Make sure we can't call go-lxc functions by mistake
@@ -3042,7 +2927,7 @@ func (c *containerLXC) OnStop(target string) error {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}
 
-	go func(c *containerLXC, target string, op *lxcContainerOperation) {
+	go func(c *containerLXC, target string, op *operationlock.InstanceOperation) {
 		c.fromHook = false
 		err = nil
 
