@@ -683,7 +683,7 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 	}
 
 	events.SendLifecycle(sourceInstance.Project(), "container-snapshot-created",
-		fmt.Sprintf("/1.0/containers/%s", sourceInstance.Name()),
+		fmt.Sprintf("/1.0/instances/%s", sourceInstance.Name()),
 		map[string]interface{}{
 			"snapshot_name": args.Name,
 		})
