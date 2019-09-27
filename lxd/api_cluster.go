@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	storagedriver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -203,7 +204,7 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		// The default timeout when non-clustered is one minute, let's
 		// lower it down now that we'll likely have to make requests
 		// over the network.
@@ -251,7 +252,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 		return nil
 	})
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -259,7 +260,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 	// Add the cluster flag from the agent
 	version.UserAgentFeatures([]string{"cluster"})
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
@@ -355,7 +356,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 	fingerprint := cert.Fingerprint()
 
 	// Asynchronously join the cluster.
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		logger.Debug("Running cluster join operation")
 
 		// If the user has provided a cluster password, setup the trust
@@ -609,12 +610,12 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 // Disable clustering on a node.

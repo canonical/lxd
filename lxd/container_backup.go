@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -156,7 +157,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	fullName := name + shared.SnapshotDelimiter + req.Name
 	instanceOnly := req.InstanceOnly || req.ContainerOnly
 
-	backup := func(op *operation) error {
+	backup := func(op *operations.Operation) error {
 		args := db.InstanceBackupArgs{
 			Name:             fullName,
 			InstanceID:       c.Id(),
@@ -178,13 +179,13 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	resources["containers"] = []string{name}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask,
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask,
 		db.OperationBackupCreate, resources, nil, backup, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func containerBackupGet(d *Daemon, r *http.Request) response.Response {
@@ -253,7 +254,7 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 
 	newName := name + shared.SnapshotDelimiter + req.Name
 
-	rename := func(op *operation) error {
+	rename := func(op *operations.Operation) error {
 		err := backup.Rename(newName)
 		if err != nil {
 			return err
@@ -265,13 +266,13 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask,
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask,
 		db.OperationBackupRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
@@ -299,7 +300,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	remove := func(op *operation) error {
+	remove := func(op *operations.Operation) error {
 		err := backup.Delete()
 		if err != nil {
 			return err
@@ -311,13 +312,13 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["container"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask,
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask,
 		db.OperationBackupRemove, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {

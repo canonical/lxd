@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -20,11 +21,11 @@ import (
 // and will run once every 24h.
 func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		opRun := func(op *operation) error {
+		opRun := func(op *operations.Operation) error {
 			return expireLogs(ctx, state)
 		}
 
-		op, err := operationCreate(state.Cluster, "", operationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(state.Cluster, "", operations.OperationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start log expiry operation", log.Ctx{"err": err})
 			return

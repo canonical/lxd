@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -328,7 +329,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	return final, nil
 }
 
-func (s *migrationSourceWs) Do(migrateOp *operation) error {
+func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	<-s.allConnected
 
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
@@ -543,14 +544,14 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 
 			state := s.instance.DaemonState()
-			actionScriptOp, err := operationCreate(
+			actionScriptOp, err := operations.OperationCreate(
 				state.Cluster,
 				s.instance.Project(),
-				operationClassWebsocket,
+				operations.OperationClassWebsocket,
 				db.OperationContainerLiveMigrate,
 				nil,
 				nil,
-				func(op *operation) error {
+				func(op *operations.Operation) error {
 					result := <-restoreSuccess
 					if !result {
 						return fmt.Errorf("restore failed, failing CRIU")
@@ -558,7 +559,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 					return nil
 				},
 				nil,
-				func(op *operation, r *http.Request, w http.ResponseWriter) error {
+				func(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 					secret := r.FormValue("secret")
 					if secret == "" {
 						return fmt.Errorf("missing secret")
@@ -584,7 +585,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret, state.OS.ExecPath)
+			err = writeActionScript(checkpointDir, actionScriptOp.URL(), actionScriptOpSecret, state.OS.ExecPath)
 			if err != nil {
 				os.RemoveAll(checkpointDir)
 				return abort(err)
@@ -775,7 +776,7 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) Do(migrateOp *operation) error {
+func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 	if c.src.instance.Type() != instancetype.Container {
 		return fmt.Errorf("Instance not container type")
 	}

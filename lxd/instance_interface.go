@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -106,7 +107,7 @@ type Instance interface {
 
 	// Progress reporting
 
-	SetOperation(op *operation)
+	SetOperation(op *operations.Operation)
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.

@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -381,7 +382,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Perform the rename
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.ProjectGet(req.Name)
@@ -423,12 +424,12 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func projectDelete(d *Daemon, r *http.Request) response.Response {

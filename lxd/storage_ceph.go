@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -2696,7 +2697,7 @@ func (s *storageCeph) StorageMigrationSource(args MigrationSourceArgs) (Migratio
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageCeph) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageCeph) StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
 }
 
@@ -2881,7 +2882,7 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 	return &driver, nil
 }
 
-func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	// Check that we received a valid root disk device with a pool property
 	// set.
 	parentStoragePool := ""
