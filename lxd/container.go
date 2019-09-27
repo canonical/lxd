@@ -37,31 +37,31 @@ import (
 )
 
 func init() {
-	// Expose instanceLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
+	// Expose instanceLoadNodeAll to the device package converting the response to a slice of Instances.
 	// This is because container types are defined in the main package and are not importable.
-	device.InstanceLoadNodeAll = func(s *state.State) ([]device.InstanceIdentifier, error) {
+	device.InstanceLoadNodeAll = func(s *state.State) ([]device.Instance, error) {
 		containers, err := instanceLoadNodeAll(s)
 		if err != nil {
 			return nil, err
 		}
 
-		identifiers := []device.InstanceIdentifier{}
+		identifiers := []device.Instance{}
 		for _, v := range containers {
-			identifiers = append(identifiers, device.InstanceIdentifier(v))
+			identifiers = append(identifiers, device.Instance(v))
 		}
 
 		return identifiers, nil
 	}
 
-	// Expose instanceLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
+	// Expose instanceLoadByProjectAndName to the device package converting the response to an Instance.
 	// This is because container types are defined in the main package and are not importable.
-	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.InstanceIdentifier, error) {
+	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.Instance, error) {
 		container, err := instanceLoadByProjectAndName(s, project, name)
 		if err != nil {
 			return nil, err
 		}
 
-		return device.InstanceIdentifier(container), nil
+		return device.Instance(container), nil
 	}
 }
 
