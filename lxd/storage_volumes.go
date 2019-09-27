@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -290,16 +291,16 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 		return response.EmptySyncResponse
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		return doWork()
 	}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 
 }
 
@@ -410,7 +411,7 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, req.Name)}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		// And finally run the migration.
 		err = sink.DoStorage(op)
 		if err != nil {
@@ -421,20 +422,20 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 		return nil
 	}
 
-	var op *operation
+	var op *operations.Operation
 	if push {
-		op, err = operationCreate(d.cluster, "", operationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(d.cluster, "", operations.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
@@ -543,21 +544,21 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 				return response.InternalError(err)
 			}
 
-			op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
+			op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
 
-			return OperationResponse(op)
+			return operations.OperationResponse(op)
 		}
 
 		// Pull mode
-		op, err := operationCreate(d.cluster, "", operationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		return OperationResponse(op)
+		return operations.OperationResponse(op)
 	}
 
 	// Check that the name isn't already in use.
@@ -632,16 +633,16 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		return doWork()
 	}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) response.Response {

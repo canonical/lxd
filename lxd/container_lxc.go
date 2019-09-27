@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
@@ -608,7 +609,7 @@ type containerLXC struct {
 	node string
 
 	// Progress tracking
-	op *operation
+	op *operations.Operation
 
 	expiryDate time.Time
 }
@@ -6885,7 +6886,7 @@ func (c *containerLXC) StoragePool() (string, error) {
 }
 
 // Progress tracking
-func (c *containerLXC) SetOperation(op *operation) {
+func (c *containerLXC) SetOperation(op *operations.Operation) {
 	c.op = op
 }
 
@@ -6903,7 +6904,7 @@ func (c *containerLXC) updateProgress(progress string) {
 		return
 	}
 
-	meta := c.op.metadata
+	meta := c.op.Metadata()
 	if meta == nil {
 		meta = make(map[string]interface{})
 	}

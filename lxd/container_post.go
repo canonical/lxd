@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -225,21 +226,21 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
+			op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
 
-			return OperationResponse(op)
+			return operations.OperationResponse(op)
 		}
 
 		// Pull mode
-		op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		return OperationResponse(op)
+		return operations.OperationResponse(op)
 	}
 
 	// Check that the name isn't already in use
@@ -248,19 +249,19 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
 	}
 
-	run := func(*operation) error {
+	run := func(*operations.Operation) error {
 		return inst.Rename(req.Name)
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 // Move a non-ceph container to another cluster node.
@@ -294,7 +295,7 @@ func containerPostClusteringMigrate(d *Daemon, c Instance, oldName, newName, new
 		return response.SmartError(err)
 	}
 
-	run := func(*operation) error {
+	run := func(*operations.Operation) error {
 		// Connect to the source host, i.e. ourselves (the node the container is running on).
 		source, err := cluster.Connect(sourceAddress, cert, false)
 		if err != nil {
@@ -398,17 +399,17 @@ func containerPostClusteringMigrate(d *Daemon, c Instance, oldName, newName, new
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operationCreate(d.cluster, c.Project(), operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, c.Project(), operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
 func containerPostClusteringMigrateWithCeph(d *Daemon, c Instance, project, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
-	run := func(*operation) error {
+	run := func(*operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
 		if c != nil {
@@ -506,12 +507,12 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c Instance, project, oldN
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 // Notification that a container was moved.

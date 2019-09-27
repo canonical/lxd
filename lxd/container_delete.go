@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 )
 
@@ -35,17 +36,17 @@ func containerDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("container is running"))
 	}
 
-	rmct := func(op *operation) error {
+	rmct := func(op *operations.Operation) error {
 		return c.Delete()
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -67,7 +68,7 @@ func (s *execWs) Metadata() interface{} {
 	}
 }
 
-func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -108,7 +109,7 @@ func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) 
 	return os.ErrPermission
 }
 
-func (s *execWs) Do(op *operation) error {
+func (s *execWs) Do(op *operations.Operation) error {
 	<-s.allConnected
 
 	var err error
@@ -376,7 +377,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opAPI := op.Get()
-		return ForwardedOperationResponse(project, &opAPI)
+		return operations.ForwardedOperationResponse(project, &opAPI)
 	}
 
 	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
@@ -483,28 +484,28 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.instance.Name()}
 
-		op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		return OperationResponse(op)
+		return operations.OperationResponse(op)
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		var cmdErr error
 		var cmdResult int
 		metadata := shared.Jmap{}
 
 		if post.RecordOutput {
 			// Prepare stdout and stderr recording
-			stdout, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stdout", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stdout, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stdout", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 			defer stdout.Close()
 
-			stderr, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.id)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stderr, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
@@ -535,10 +536,10 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }

@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -2566,7 +2567,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	poolName := s.getOnDiskPoolName()
 	zfsName := fmt.Sprintf("containers/%s", project.Prefix(args.Instance.Project(), args.Instance.Name()))
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
@@ -3204,7 +3205,7 @@ func (s *storageZfs) StorageMigrationSource(args MigrationSourceArgs) (Migration
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
 }
 

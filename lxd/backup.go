@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"context"
+
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -445,11 +447,11 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 
 func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		opRun := func(op *operation) error {
+		opRun := func(op *operations.Operation) error {
 			return pruneExpiredContainerBackups(ctx, d)
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired backups operation", log.Ctx{"err": err})
 			return

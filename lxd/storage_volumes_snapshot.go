@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -128,7 +129,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	volWritable := storage.GetStoragePoolVolumeWritable()
 	fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
 	req.Name = fullSnapName
-	snapshot := func(op *operation) error {
+	snapshot := func(op *operations.Operation) error {
 		dbArgs := &db.StorageVolumeArgs{
 			Name:        fullSnapName,
 			PoolName:    poolName,
@@ -153,12 +154,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeSnapshotCreate, resources, nil, snapshot, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Response {
@@ -299,7 +300,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.NotFound(err)
 	}
 
-	snapshotRename := func(op *operation) error {
+	snapshotRename := func(op *operations.Operation) error {
 		err = s.StoragePoolVolumeSnapshotRename(req.Name)
 		if err != nil {
 			return err
@@ -311,12 +312,12 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotRename, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotRename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Response {
@@ -434,9 +435,9 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	var do func(*operation) error
+	var do func(*operations.Operation) error
 	var opDescription db.OperationType
-	do = func(op *operation) error {
+	do = func(op *operations.Operation) error {
 		err = storagePoolVolumeSnapshotUpdate(d.State(), poolName, volume.Name, volumeType, req.Description)
 		if err != nil {
 			return err
@@ -449,12 +450,12 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, opDescription, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, opDescription, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
@@ -503,7 +504,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return response.NotFound(err)
 	}
 
-	snapshotDelete := func(op *operation) error {
+	snapshotDelete := func(op *operations.Operation) error {
 		err = s.StoragePoolVolumeSnapshotDelete()
 		if err != nil {
 			return err
@@ -515,10 +516,10 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }

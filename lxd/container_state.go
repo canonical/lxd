@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -81,11 +82,11 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var opType db.OperationType
-	var do func(*operation) error
+	var do func(*operations.Operation) error
 	switch shared.ContainerAction(raw.Action) {
 	case shared.Start:
 		opType = db.OperationContainerStart
-		do = func(op *operation) error {
+		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			if err = c.Start(raw.Stateful); err != nil {
 				return err
@@ -95,7 +96,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	case shared.Stop:
 		opType = db.OperationContainerStop
 		if raw.Stateful {
-			do = func(op *operation) error {
+			do = func(op *operations.Operation) error {
 				c.SetOperation(op)
 				err := c.Stop(raw.Stateful)
 				if err != nil {
@@ -105,7 +106,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 		} else if raw.Timeout == 0 || raw.Force {
-			do = func(op *operation) error {
+			do = func(op *operations.Operation) error {
 				c.SetOperation(op)
 				err = c.Stop(false)
 				if err != nil {
@@ -115,7 +116,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 				return nil
 			}
 		} else {
-			do = func(op *operation) error {
+			do = func(op *operations.Operation) error {
 				c.SetOperation(op)
 				if c.IsFrozen() {
 					err := c.Unfreeze()
@@ -134,7 +135,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 		}
 	case shared.Restart:
 		opType = db.OperationContainerRestart
-		do = func(op *operation) error {
+		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			ephemeral := c.IsEphemeral()
 
@@ -193,7 +194,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opType = db.OperationContainerFreeze
-		do = func(op *operation) error {
+		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			return c.Freeze()
 		}
@@ -203,7 +204,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opType = db.OperationContainerUnfreeze
-		do = func(op *operation) error {
+		do = func(op *operations.Operation) error {
 			c.SetOperation(op)
 			return c.Unfreeze()
 		}
@@ -214,10 +215,10 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }

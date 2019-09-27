@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -63,11 +64,11 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 		architecture = 0
 	}
 
-	var do func(*operation) error
+	var do func(*operations.Operation) error
 	var opType db.OperationType
 	if configRaw.Restore == "" {
 		// Update container configuration
-		do = func(op *operation) error {
+		do = func(op *operations.Operation) error {
 			args := db.InstanceArgs{
 				Architecture: architecture,
 				Config:       configRaw.Config,
@@ -90,7 +91,7 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 		opType = db.OperationContainerUpdate
 	} else {
 		// Snapshot Restore
-		do = func(op *operation) error {
+		do = func(op *operations.Operation) error {
 			return containerSnapRestore(d.State(), project, name, configRaw.Restore, configRaw.Stateful)
 		}
 
@@ -100,12 +101,12 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, opType, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func containerSnapRestore(s *state.State, project, name, snap string, stateful bool) error {

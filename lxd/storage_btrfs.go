@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -2481,7 +2482,7 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 	return sourceDriver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	if s.s.OS.RunningInUserNS {
 		return rsyncMigrationSink(conn, op, args)
 	}
@@ -2961,7 +2962,7 @@ func (s *storageBtrfs) StorageMigrationSource(args MigrationSourceArgs) (Migrati
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
 }
 

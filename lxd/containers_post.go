@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -99,7 +100,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 		return response.BadRequest(err)
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		args := db.InstanceArgs{
 			Project:     project,
 			Config:      req.Config,
@@ -147,12 +148,12 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.Response {
@@ -180,7 +181,7 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 		args.Architecture = architecture
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		_, err := containerCreateAsEmpty(d, args)
 		return err
 	}
@@ -188,12 +189,12 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func createFromMigration(d *Daemon, project string, req *api.InstancesPost) response.Response {
@@ -409,7 +410,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.InternalError(err)
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		// And finally run the migration.
 		err = sink.Do(op)
 		if err != nil {
@@ -434,20 +435,20 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	var op *operation
+	var op *operations.Operation
 	if push {
-		op, err = operationCreate(d.cluster, project, operationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(d.cluster, project, operations.OperationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.Response {
@@ -597,7 +598,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 		Stateful:     req.Stateful,
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 		_, err := containerCreateAsCopy(d.State(), args, source, instanceOnly, req.Source.Refresh)
 		if err != nil {
@@ -609,12 +610,12 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(d.cluster, targetProject, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.cluster, targetProject, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
@@ -645,7 +646,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		bInfo.Pool = pool
 	}
 
-	run := func(op *operation) error {
+	run := func(op *operations.Operation) error {
 		defer f.Close()
 
 		// Dump tarball to storage
@@ -693,13 +694,13 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	resources := map[string][]string{}
 	resources["containers"] = []string{bInfo.Name}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationBackupRestore,
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func containersPost(d *Daemon, r *http.Request) response.Response {
@@ -756,7 +757,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			opAPI := op.Get()
-			return ForwardedOperationResponse(project, &opAPI)
+			return operations.ForwardedOperationResponse(project, &opAPI)
 		}
 	}
 

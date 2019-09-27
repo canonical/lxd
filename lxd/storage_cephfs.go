@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -728,7 +729,7 @@ func (s *storageCephFs) MigrationSource(args MigrationSourceArgs) (MigrationStor
 	return rsyncMigrationSource(args)
 }
 
-func (s *storageCephFs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageCephFs) MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncMigrationSink(conn, op, args)
 }
 
@@ -824,7 +825,7 @@ func (s *storageCephFs) StorageMigrationSource(args MigrationSourceArgs) (Migrat
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageCephFs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageCephFs) StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
 }
 
