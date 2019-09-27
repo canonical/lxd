@@ -167,6 +167,7 @@ var APIExtensions = []string{
 	"instances",
 	"image_types",
 	"resources_disk_sata",
+	"clustering_roles",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

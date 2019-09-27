@@ -80,6 +80,12 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 			return errors.Wrap(err, "failed to update cluster node")
 		}
 
+		// Update our role list.
+		err = tx.NodeAddRole(1, db.ClusterRoleDatabase)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to add database role for the node")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -432,6 +438,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrapf(err, "failed to unmark the node as pending")
 		}
 
+		// Update our role list if needed.
+		if id != "" {
+			err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to add database role for the node")
+			}
+		}
+
 		// Generate partial heartbeat request containing just a raft node list.
 		hbState := &APIHeartbeat{}
 		hbState.Update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
@@ -560,11 +574,11 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Figure out our raft node ID, and an existing target raft node that
 	// we'll contact to add ourselves as member.
-	id := ""
+	id := int64(-1)
 	target := ""
 	for _, node := range nodes {
 		if node.Address == address {
-			id = strconv.Itoa(int(node.ID))
+			id = node.ID
 		} else {
 			target = node.Address
 		}
@@ -572,7 +586,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Sanity check that our address was actually included in the given
 	// list of raft nodes.
-	if id == "" {
+	if id == -1 {
 		return fmt.Errorf("this node is not included in the given list of database nodes")
 	}
 
@@ -625,20 +639,24 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return errors.Wrap(err, "Failed to connect to cluster leader")
 	}
 	defer client.Close()
+
 	err = client.Add(ctx, gateway.raft.info)
 	if err != nil {
 		return errors.Wrap(err, "Failed to join cluster")
 	}
 
-	// Unlock regular access to our cluster database, and make sure our
-	// gateway still works correctly.
+	// Unlock regular access to our cluster database and add the database role.
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		_, err := tx.Nodes()
+		err = tx.NodeAddRole(id, db.ClusterRoleDatabase)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to add database role for the node")
+		}
 		return err
 	})
 	if err != nil {
 		return errors.Wrap(err, "cluster database initialization failed")
 	}
+
 	return nil
 }
 
@@ -757,21 +775,7 @@ func Purge(cluster *db.Cluster, name string) error {
 
 // List the nodes of the cluster.
 func List(state *state.State) ([]api.ClusterMember, error) {
-	addresses := []string{} // Addresses of database nodes
-	err := state.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to fetch current raft nodes")
-		}
-		for _, node := range nodes {
-			addresses = append(addresses, node.Address)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
+	var err error
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
 
@@ -780,6 +784,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 		if err != nil {
 			return err
 		}
+
 		offlineThreshold, err = tx.NodeOfflineThreshold()
 		if err != nil {
 			return err
@@ -797,7 +802,8 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	for i, node := range nodes {
 		result[i].ServerName = node.Name
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
-		result[i].Database = shared.StringInSlice(node.Address, addresses)
+		result[i].Database = shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles)
+		result[i].Roles = node.Roles
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
 			result[i].Message = fmt.Sprintf(

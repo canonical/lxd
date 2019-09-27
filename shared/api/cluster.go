@@ -57,4 +57,7 @@ type ClusterMember struct {
 	Database   bool   `json:"database" yaml:"database"`
 	Status     string `json:"status" yaml:"status"`
 	Message    string `json:"message" yaml:"message"`
+
+	// API extension: clustering_roles
+	Roles []string `json:"roles" yaml:"roles"`
 }
