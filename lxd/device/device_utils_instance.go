@@ -9,10 +9,10 @@ import (
 )
 
 // InstanceLoadNodeAll returns all local instance configs.
-var InstanceLoadNodeAll func(s *state.State) ([]InstanceIdentifier, error)
+var InstanceLoadNodeAll func(s *state.State) ([]Instance, error)
 
 // InstanceLoadByProjectAndName returns instance config by project and name.
-var InstanceLoadByProjectAndName func(s *state.State, project, name string) (InstanceIdentifier, error)
+var InstanceLoadByProjectAndName func(s *state.State, project, name string) (Instance, error)
 
 // reservedDevicesMutex used to coordinate access for checking reserved devices.
 var reservedDevicesMutex sync.Mutex

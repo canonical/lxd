@@ -72,8 +72,8 @@ type Device interface {
 type device interface {
 	Device
 
-	// init stores the InstanceIdentifier, daemon State and Config into device and performs any setup.
-	init(InstanceIdentifier, *state.State, string, config.Device, VolatileGetter, VolatileSetter)
+	// init stores the Instance, daemon State and Config into device and performs any setup.
+	init(Instance, *state.State, string, config.Device, VolatileGetter, VolatileSetter)
 
 	// validateConfig checks Config stored by init() is valid for the instance type.
 	validateConfig() error
@@ -81,7 +81,7 @@ type device interface {
 
 // deviceCommon represents the common struct for all devices.
 type deviceCommon struct {
-	instance    InstanceIdentifier
+	instance    Instance
 	name        string
 	config      config.Device
 	state       *state.State
@@ -89,11 +89,11 @@ type deviceCommon struct {
 	volatileSet func(map[string]string) error
 }
 
-// init stores the InstanceIdentifier, daemon state, device name and config into device.
+// init stores the Instance, daemon state, device name and config into device.
 // It also needs to be provided with volatile get and set functions for the device to allow
 // persistent data to be accessed. This is implemented as part of deviceCommon so that the majority
 // of devices don't need to implement it and can just embed deviceCommon.
-func (d *deviceCommon) init(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
+func (d *deviceCommon) init(instance Instance, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
 	d.instance = instance
 	d.name = name
 	d.config = conf
@@ -132,7 +132,7 @@ func (d *deviceCommon) Remove() error {
 // If the device type is valid, but the other config validation fails then an instantiated device
 // is still returned with the validation error. If an unknown device is requested or the device is
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
-func New(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+func New(instance Instance, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
 	if conf["type"] == "" {
 		return nil, fmt.Errorf("Missing device type for device '%s'", name)
 	}
