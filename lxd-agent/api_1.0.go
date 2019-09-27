@@ -16,6 +16,9 @@ var api10Cmd = APIEndpoint{
 
 var api10 = []APIEndpoint{
 	api10Cmd,
+	operationsCmd,
+	operationCmd,
+	operationWebsocket,
 	stateCmd,
 }
 
