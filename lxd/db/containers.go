@@ -1159,8 +1159,8 @@ func (c *Cluster) ContainerBackupID(name string) (int, error) {
 }
 
 // ContainerGetBackup returns the backup with the given name.
-func (c *Cluster) ContainerGetBackup(project, name string) (ContainerBackupArgs, error) {
-	args := ContainerBackupArgs{}
+func (c *Cluster) ContainerGetBackup(project, name string) (InstanceBackupArgs, error) {
+	args := InstanceBackupArgs{}
 	args.Name = name
 
 	instanceOnlyInt := -1
@@ -1175,7 +1175,7 @@ SELECT instances_backups.id, instances_backups.instance_id,
     WHERE projects.name=? AND instances_backups.name=?
 `
 	arg1 := []interface{}{project, name}
-	arg2 := []interface{}{&args.ID, &args.ContainerID, &args.CreationDate,
+	arg2 := []interface{}{&args.ID, &args.InstanceID, &args.CreationDate,
 		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
@@ -1221,7 +1221,7 @@ WHERE projects.name=? AND instances.name=?`
 }
 
 // ContainerBackupCreate creates a new backup
-func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
+func (c *Cluster) ContainerBackupCreate(args InstanceBackupArgs) error {
 	_, err := c.ContainerBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
@@ -1244,7 +1244,7 @@ func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
 			return err
 		}
 		defer stmt.Close()
-		result, err := stmt.Exec(args.ContainerID, args.Name,
+		result, err := stmt.Exec(args.InstanceID, args.Name,
 			args.CreationDate.Unix(), args.ExpiryDate.Unix(), instanceOnlyInt,
 			optimizedStorageInt)
 		if err != nil {
