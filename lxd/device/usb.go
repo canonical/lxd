@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
@@ -18,7 +18,7 @@ const usbDevPath = "/sys/bus/usb/devices"
 // usbIsOurDevice indicates whether the USB device event qualifies as part of our device.
 // This function is not defined against the usb struct type so that it can be used in event
 // callbacks without needing to keep a reference to the usb device struct.
-func usbIsOurDevice(config config.Device, usb *USBEvent) bool {
+func usbIsOurDevice(config deviceConfig.Device, usb *USBEvent) bool {
 	// Check if event matches criteria for this device, if not return.
 	if (config["vendorid"] != "" && config["vendorid"] != usb.Vendor) || (config["productid"] != "" && config["productid"] != usb.Product) {
 		return false

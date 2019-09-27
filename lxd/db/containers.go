@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/device/config"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
@@ -115,7 +114,7 @@ func ContainerToArgs(container *Instance) InstanceArgs {
 	}
 
 	if args.Devices == nil {
-		args.Devices = config.Devices{}
+		args.Devices = deviceConfig.Devices{}
 	}
 
 	return args
@@ -137,7 +136,7 @@ type InstanceArgs struct {
 	Architecture int
 	Config       map[string]string
 	Description  string
-	Devices      config.Devices
+	Devices      deviceConfig.Devices
 	Ephemeral    bool
 	LastUsedDate time.Time
 	Name         string

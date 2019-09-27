@@ -19,7 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
@@ -37,31 +37,31 @@ import (
 )
 
 func init() {
-	// Expose instanceLoadNodeAll to the device package converting the response to a slice of InstanceIdentifiers.
+	// Expose instanceLoadNodeAll to the device package converting the response to a slice of Instances.
 	// This is because container types are defined in the main package and are not importable.
-	device.InstanceLoadNodeAll = func(s *state.State) ([]device.InstanceIdentifier, error) {
+	device.InstanceLoadNodeAll = func(s *state.State) ([]device.Instance, error) {
 		containers, err := instanceLoadNodeAll(s)
 		if err != nil {
 			return nil, err
 		}
 
-		identifiers := []device.InstanceIdentifier{}
+		identifiers := []device.Instance{}
 		for _, v := range containers {
-			identifiers = append(identifiers, device.InstanceIdentifier(v))
+			identifiers = append(identifiers, device.Instance(v))
 		}
 
 		return identifiers, nil
 	}
 
-	// Expose instanceLoadByProjectAndName to the device package converting the response to an InstanceIdentifier.
+	// Expose instanceLoadByProjectAndName to the device package converting the response to an Instance.
 	// This is because container types are defined in the main package and are not importable.
-	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.InstanceIdentifier, error) {
+	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.Instance, error) {
 		container, err := instanceLoadByProjectAndName(s, project, name)
 		if err != nil {
 			return nil, err
 		}
 
-		return device.InstanceIdentifier(container), nil
+		return device.Instance(container), nil
 	}
 }
 
@@ -176,7 +176,7 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 }
 
 // containerValidDevices validate container device configs.
-func containerValidDevices(state *state.State, cluster *db.Cluster, instanceName string, devices config.Devices, expanded bool) error {
+func containerValidDevices(state *state.State, cluster *db.Cluster, instanceName string, devices deviceConfig.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -233,7 +233,7 @@ type container interface {
 	OnStopNS(target string, netns string) error
 	OnStop(target string) error
 
-	InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error
+	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
@@ -711,7 +711,7 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 	}
 
 	if args.Devices == nil {
-		args.Devices = config.Devices{}
+		args.Devices = deviceConfig.Devices{}
 	}
 
 	if args.Architecture == 0 {

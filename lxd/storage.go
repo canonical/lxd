@@ -895,7 +895,7 @@ func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
 
 // storageVolumeMount initialises a new storage interface and checks the pool and volume are
 // mounted. If they are not then they are mounted.
-func storageVolumeMount(state *state.State, poolName string, volumeName string, volumeTypeName string, instance device.InstanceIdentifier) error {
+func storageVolumeMount(state *state.State, poolName string, volumeName string, volumeTypeName string, instance device.Instance) error {
 	c, ok := instance.(*containerLXC)
 	if !ok {
 		return fmt.Errorf("Received non-LXC container instance")
@@ -933,7 +933,7 @@ func storageVolumeUmount(state *state.State, poolName string, volumeName string,
 
 // storageRootFSApplyQuota applies a quota to an instance if it can, if it cannot then it will
 // return false indicating that the quota needs to be stored in volatile to be applied on next boot.
-func storageRootFSApplyQuota(instance device.InstanceIdentifier, newSizeBytes int64) (bool, error) {
+func storageRootFSApplyQuota(instance device.Instance, newSizeBytes int64) (bool, error) {
 	c, ok := instance.(*containerLXC)
 	if !ok {
 		return false, fmt.Errorf("Received non-LXC container instance")

@@ -3,7 +3,7 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
@@ -95,7 +95,7 @@ func (d *nicP2P) Start() (*RunConfig, error) {
 }
 
 // Update applies configuration changes to a started device.
-func (d *nicP2P) Update(oldDevices config.Devices, isRunning bool) error {
+func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
 
 	if !isRunning {

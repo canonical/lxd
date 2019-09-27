@@ -3,21 +3,21 @@ package device
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 )
 
 // devTypes defines supported top-level device type creation functions.
-var devTypes = map[string]func(config.Device) device{
+var devTypes = map[string]func(deviceConfig.Device) device{
 	"nic":        nicLoadByType,
 	"infiniband": infinibandLoadByType,
-	"proxy":      func(c config.Device) device { return &proxy{} },
-	"gpu":        func(c config.Device) device { return &gpu{} },
-	"usb":        func(c config.Device) device { return &usb{} },
-	"unix-char":  func(c config.Device) device { return &unixCommon{} },
-	"unix-block": func(c config.Device) device { return &unixCommon{} },
-	"disk":       func(c config.Device) device { return &disk{} },
-	"none":       func(c config.Device) device { return &none{} },
+	"proxy":      func(c deviceConfig.Device) device { return &proxy{} },
+	"gpu":        func(c deviceConfig.Device) device { return &gpu{} },
+	"usb":        func(c deviceConfig.Device) device { return &usb{} },
+	"unix-char":  func(c deviceConfig.Device) device { return &unixCommon{} },
+	"unix-block": func(c deviceConfig.Device) device { return &unixCommon{} },
+	"disk":       func(c deviceConfig.Device) device { return &disk{} },
+	"none":       func(c deviceConfig.Device) device { return &none{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD
@@ -53,7 +53,7 @@ type Device interface {
 	// current config and previous devices config supplied as an argument. This called if the
 	// only config fields that have changed are supplied in the list returned from CanHotPlug().
 	// The function also accepts a boolean indicating whether the instance is running or not.
-	Update(oldDevices config.Devices, running bool) error
+	Update(oldDevices deviceConfig.Devices, running bool) error
 
 	// Stop performs any host-side cleanup required when a device is removed from an instance,
 	// either due to unplugging it from a running instance or instance is being shutdown.
@@ -72,8 +72,8 @@ type Device interface {
 type device interface {
 	Device
 
-	// init stores the InstanceIdentifier, daemon State and Config into device and performs any setup.
-	init(InstanceIdentifier, *state.State, string, config.Device, VolatileGetter, VolatileSetter)
+	// init stores the Instance, daemon State and Config into device and performs any setup.
+	init(Instance, *state.State, string, deviceConfig.Device, VolatileGetter, VolatileSetter)
 
 	// validateConfig checks Config stored by init() is valid for the instance type.
 	validateConfig() error
@@ -81,19 +81,19 @@ type device interface {
 
 // deviceCommon represents the common struct for all devices.
 type deviceCommon struct {
-	instance    InstanceIdentifier
+	instance    Instance
 	name        string
-	config      config.Device
+	config      deviceConfig.Device
 	state       *state.State
 	volatileGet func() map[string]string
 	volatileSet func(map[string]string) error
 }
 
-// init stores the InstanceIdentifier, daemon state, device name and config into device.
+// init stores the Instance, daemon state, device name and config into device.
 // It also needs to be provided with volatile get and set functions for the device to allow
 // persistent data to be accessed. This is implemented as part of deviceCommon so that the majority
 // of devices don't need to implement it and can just embed deviceCommon.
-func (d *deviceCommon) init(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
+func (d *deviceCommon) init(instance Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
 	d.instance = instance
 	d.name = name
 	d.config = conf
@@ -119,7 +119,7 @@ func (d *deviceCommon) CanHotPlug() (bool, []string) {
 }
 
 // Update returns an error as most devices do not support live updates without being restarted.
-func (d *deviceCommon) Update(oldDevices config.Devices, isRunning bool) error {
+func (d *deviceCommon) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return fmt.Errorf("Device does not support updates whilst started")
 }
 
@@ -132,7 +132,7 @@ func (d *deviceCommon) Remove() error {
 // If the device type is valid, but the other config validation fails then an instantiated device
 // is still returned with the validation error. If an unknown device is requested or the device is
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
-func New(instance InstanceIdentifier, state *state.State, name string, conf config.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+func New(instance Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
 	if conf["type"] == "" {
 		return nil, fmt.Errorf("Missing device type for device '%s'", name)
 	}
