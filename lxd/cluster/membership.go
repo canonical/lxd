@@ -81,7 +81,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Update our role list.
-		err = tx.NodeAddRole(1, "database")
+		err = tx.NodeAddRole(1, db.ClusterRoleDatabase)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add database role for the node")
 		}
@@ -440,7 +440,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Update our role list if needed.
 		if id != "" {
-			err = tx.NodeAddRole(node.ID, "database")
+			err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to add database role for the node")
 			}
@@ -647,7 +647,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Unlock regular access to our cluster database and add the database role.
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		err = tx.NodeAddRole(id, "database")
+		err = tx.NodeAddRole(id, db.ClusterRoleDatabase)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add database role for the node")
 		}
@@ -802,7 +802,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	for i, node := range nodes {
 		result[i].ServerName = node.Name
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
-		result[i].Database = shared.StringInSlice("database", node.Roles)
+		result[i].Database = shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles)
 		result[i].Roles = node.Roles
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
