@@ -72,6 +72,7 @@ var patches = []patch{
 	{name: "storage_api_rename_container_snapshots_dir_again", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "storage_api_rename_container_snapshots_links_again", run: patchStorageApiUpdateContainerSnapshots},
 	{name: "storage_api_rename_container_snapshots_dir_again_again", run: patchStorageApiRenameContainerSnapshotsDir},
+	{name: "clustering_add_roles", run: patchClusteringAddRoles},
 }
 
 type patch struct {
@@ -3330,6 +3331,53 @@ func patchStorageApiUpdateContainerSnapshots(name string, d *Daemon) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func patchClusteringAddRoles(name string, d *Daemon) error {
+	addresses := []string{}
+	err := d.State().Node.Transaction(func(tx *db.NodeTx) error {
+		nodes, err := tx.RaftNodes()
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch current raft nodes")
+		}
+
+		for _, node := range nodes {
+			addresses = append(addresses, node.Address)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	var nodes []db.NodeInfo
+	err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodes, err = tx.Nodes()
+		if err != nil {
+			return err
+		}
+
+		for _, node := range nodes {
+			if node.Address == "0.0.0.0" {
+				continue
+			}
+
+			if shared.StringInSlice(node.Address, addresses) && !shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
+				err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil

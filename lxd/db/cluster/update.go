@@ -52,6 +52,21 @@ var updates = map[int]schema.Update{
 	15: updateFromV14,
 	16: updateFromV15,
 	17: updateFromV16,
+	18: updateFromV17,
+}
+
+// Add nodes_roles table
+func updateFromV17(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE nodes_roles (
+    node_id INTEGER NOT NULL,
+    role INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    UNIQUE (node_id, role)
+);
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // Add image type column
