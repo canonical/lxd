@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -248,10 +249,10 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
-	MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error
+	MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 
 	StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
-	StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error
+	StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 }
 
 func storageCoreInit(driver string) (storage, error) {
@@ -739,8 +740,8 @@ func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) erro
 	return nil
 }
 
-func progressWrapperRender(op *operation, key string, description string, progressInt int64, speedInt int64) {
-	meta := op.metadata
+func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
+	meta := op.Metadata()
 	if meta == nil {
 		meta = make(map[string]interface{})
 	}
@@ -757,7 +758,7 @@ func progressWrapperRender(op *operation, key string, description string, progre
 }
 
 // StorageProgressReader reports the read progress.
-func StorageProgressReader(op *operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
+func StorageProgressReader(op *operations.Operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
 	return func(reader io.ReadCloser) io.ReadCloser {
 		if op == nil {
 			return reader
@@ -779,7 +780,7 @@ func StorageProgressReader(op *operation, key string, description string) func(i
 }
 
 // StorageProgressWriter reports the write progress.
-func StorageProgressWriter(op *operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
+func StorageProgressWriter(op *operations.Operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
 	return func(writer io.WriteCloser) io.WriteCloser {
 		if op == nil {
 			return writer

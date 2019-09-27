@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -71,7 +72,7 @@ func (s *consoleWs) Metadata() interface{} {
 	return shared.Jmap{"fds": fds}
 }
 
-func (s *consoleWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -112,7 +113,7 @@ func (s *consoleWs) Connect(op *operation, r *http.Request, w http.ResponseWrite
 	return os.ErrPermission
 }
 
-func (s *consoleWs) Do(op *operation) error {
+func (s *consoleWs) Do(op *operations.Operation) error {
 	<-s.allConnected
 
 	var err error
@@ -290,7 +291,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		opAPI := op.Get()
-		return ForwardedOperationResponse(project, &opAPI)
+		return operations.ForwardedOperationResponse(project, &opAPI)
 	}
 
 	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
@@ -343,13 +344,13 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{ws.instance.Name()}
 
-	op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationConsoleShow,
+	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	return OperationResponse(op)
+	return operations.OperationResponse(op)
 }
 
 func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {

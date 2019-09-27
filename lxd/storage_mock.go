@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -211,7 +212,7 @@ func (s *storageMock) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 	return nil, nil
 }
 
-func (s *storageMock) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageMock) MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return nil
 }
 
@@ -231,7 +232,7 @@ func (s *storageMock) StorageMigrationSource(args MigrationSourceArgs) (Migratio
 	return nil, nil
 }
 
-func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return nil
 }
 

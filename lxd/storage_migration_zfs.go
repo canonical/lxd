@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -78,7 +79,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	return err
 }
 
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
+func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operations.Operation, bwlimit string, containerOnly bool) error {
 	if s.instance.IsSnapshot() {
 		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
 		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
@@ -139,7 +140,7 @@ func (s *zfsMigrationSourceDriver) Cleanup() {
 	}
 }
 
-func (s *zfsMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error {
+func (s *zfsMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operations.Operation, bwlimit string, storage storage, volumeOnly bool) error {
 	msg := fmt.Sprintf("Function not implemented")
 	logger.Errorf(msg)
 	return fmt.Errorf(msg)

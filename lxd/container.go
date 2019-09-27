@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -1249,11 +1250,11 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		opRun := func(op *operation) error {
+		opRun := func(op *operations.Operation) error {
 			return autoCreateContainerSnapshots(ctx, d, instances)
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start create snapshot operation", log.Ctx{"err": err})
 			return
@@ -1370,11 +1371,11 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		opRun := func(op *operation) error {
+		opRun := func(op *operations.Operation) error {
 			return pruneExpiredContainerSnapshots(ctx, d, expiredSnapshots)
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired snapshots operation", log.Ctx{"err": err})
 			return

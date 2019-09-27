@@ -10,6 +10,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -23,7 +24,7 @@ type MigrationStorageSourceDriver interface {
 	/* send any bits of the container/snapshots that are possible while the
 	 * container is still running.
 	 */
-	SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error
+	SendWhileRunning(conn *websocket.Conn, op *operations.Operation, bwlimit string, containerOnly bool) error
 
 	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
 	 * do a final rsync) of the fs after the container has been
@@ -37,7 +38,7 @@ type MigrationStorageSourceDriver interface {
 	 */
 	Cleanup()
 
-	SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error
+	SendStorageVolume(conn *websocket.Conn, op *operations.Operation, bwlimit string, storage storage, volumeOnly bool) error
 }
 
 type rsyncStorageSourceDriver struct {
@@ -46,7 +47,7 @@ type rsyncStorageSourceDriver struct {
 	rsyncFeatures []string
 }
 
-func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error {
+func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operations.Operation, bwlimit string, storage storage, volumeOnly bool) error {
 	ourMount, err := storage.StoragePoolVolumeMount()
 	if err != nil {
 		return err
@@ -90,7 +91,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 	return nil
 }
 
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operations.Operation, bwlimit string, containerOnly bool) error {
 	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
 
 	if !containerOnly {
@@ -220,7 +221,7 @@ func snapshotProtobufToInstanceArgs(project string, containerName string, snap *
 	return args
 }
 
-func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func rsyncStorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	err := args.Storage.StoragePoolVolumeCreate()
 	if err != nil {
 		return err
@@ -281,7 +282,7 @@ func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args Migrati
 	return RsyncRecv(path, conn, wrapper, args.RsyncFeatures)
 }
 
-func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	ourStart, err := args.Instance.StorageStart()
 	if err != nil {
 		return err
