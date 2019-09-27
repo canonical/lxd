@@ -981,7 +981,7 @@ func (s *Storage) StoragePoolVolumeSnapshotRename(newName string) error {
 	return nil
 }
 
-func (s *Storage) ContainerCreate(container container) error {
+func (s *Storage) ContainerCreate(container Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver": s.sTypeName,
@@ -1044,7 +1044,7 @@ func (s *Storage) ContainerCreate(container container) error {
 	return container.TemplateApply("create")
 }
 
-func (s *Storage) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *Storage) ContainerCreateFromImage(container Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	var err error
 	ctx := log.Ctx{
 		"driver":      s.sTypeName,
@@ -1125,7 +1125,7 @@ func (s *Storage) ContainerCreateFromImage(container container, fingerprint stri
 	return container.TemplateApply("create")
 }
 
-func (s *Storage) ContainerDelete(c container) error {
+func (s *Storage) ContainerDelete(c Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver":    s.sTypeName,
@@ -1186,7 +1186,7 @@ func (s *Storage) ContainerDelete(c container) error {
 	return nil
 }
 
-func (s *Storage) ContainerRename(c container, newName string) error {
+func (s *Storage) ContainerRename(c Instance, newName string) error {
 	var err error
 	ctx := log.Ctx{
 		"driver":   s.sTypeName,
@@ -1261,7 +1261,7 @@ func (s *Storage) ContainerRename(c container, newName string) error {
 	return nil
 }
 
-func (s *Storage) ContainerMount(c container) (bool, error) {
+func (s *Storage) ContainerMount(c Instance) (bool, error) {
 	var err error
 	ctx := log.Ctx{
 		"driver":    s.sTypeName,
@@ -1291,7 +1291,7 @@ func (s *Storage) ContainerMount(c container) (bool, error) {
 	return ok, nil
 }
 
-func (s *Storage) ContainerUmount(c container, path string) (bool, error) {
+func (s *Storage) ContainerUmount(c Instance, path string) (bool, error) {
 	var err error
 	ctx := log.Ctx{
 		"driver":    s.sTypeName,
@@ -1316,7 +1316,7 @@ func (s *Storage) ContainerUmount(c container, path string) (bool, error) {
 	return ok, nil
 }
 
-func (s *Storage) ContainerCopy(target container, source container, containerOnly bool) error {
+func (s *Storage) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
 	var err error
 	ctx := log.Ctx{
 		"driver": s.sTypeName,
@@ -1360,7 +1360,7 @@ func (s *Storage) ContainerCopy(target container, source container, containerOnl
 		return err
 	}
 
-	var snapshots []container
+	var snapshots []Instance
 
 	if !containerOnly {
 		snapshots, err = source.Snapshots()
@@ -1431,11 +1431,11 @@ func (s *Storage) ContainerCopy(target container, source container, containerOnl
 	return nil
 }
 
-func (s *Storage) ContainerGetUsage(container container) (int64, error) {
+func (s *Storage) ContainerGetUsage(container Instance) (int64, error) {
 	return s.driver.VolumeGetUsage(container.Project(), container.Name(), container.Path())
 }
 
-func (s *Storage) ContainerRefresh(target container, source container, snapshots []container) error {
+func (s *Storage) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver": s.sTypeName,
@@ -1470,8 +1470,8 @@ func (s *Storage) ContainerRefresh(target container, source container, snapshots
 	return nil
 }
 
-func (s *Storage) doCrossPoolContainerCopy(target container, source container, containerOnly bool,
-	refresh bool, refreshSnapshots []container) error {
+func (s *Storage) doCrossPoolContainerCopy(target Instance, source Instance, containerOnly bool,
+	refresh bool, refreshSnapshots []Instance) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1497,7 +1497,7 @@ func (s *Storage) doCrossPoolContainerCopy(target container, source container, c
 		defer srcStorage.StoragePoolUmount()
 	}
 
-	var snapshots []container
+	var snapshots []Instance
 
 	if refresh {
 		snapshots = refreshSnapshots
@@ -1570,7 +1570,7 @@ func (s *Storage) doCrossPoolContainerCopy(target container, source container, c
 	return nil
 }
 
-func (s *Storage) ContainerRestore(targetContainer container, sourceContainer container) error {
+func (s *Storage) ContainerRestore(targetContainer Instance, sourceContainer Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver": s.sTypeName,
@@ -1637,11 +1637,11 @@ func (s *Storage) ContainerRestore(targetContainer container, sourceContainer co
 	return nil
 }
 
-func (s *Storage) ContainerStorageReady(c container) bool {
+func (s *Storage) ContainerStorageReady(c Instance) bool {
 	return s.driver.VolumeReady(c.Project(), c.Name())
 }
 
-func (s *Storage) ContainerSnapshotCreate(target container, source container) error {
+func (s *Storage) ContainerSnapshotCreate(target Instance, source Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver": s.sTypeName,
@@ -1711,7 +1711,7 @@ func (s *Storage) ContainerSnapshotCreate(target container, source container) er
 	return nil
 }
 
-func (s *Storage) ContainerSnapshotCreateEmpty(c container) error {
+func (s *Storage) ContainerSnapshotCreateEmpty(c Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver":   s.sTypeName,
@@ -1762,7 +1762,7 @@ func (s *Storage) ContainerSnapshotCreateEmpty(c container) error {
 	return nil
 }
 
-func (s *Storage) ContainerSnapshotDelete(c container) error {
+func (s *Storage) ContainerSnapshotDelete(c Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver":    s.sTypeName,
@@ -1827,7 +1827,7 @@ func (s *Storage) ContainerSnapshotDelete(c container) error {
 	return nil
 }
 
-func (s *Storage) ContainerSnapshotRename(c container, newName string) error {
+func (s *Storage) ContainerSnapshotRename(c Instance, newName string) error {
 	var err error
 	ctx := log.Ctx{
 		"driver":   s.sTypeName,
@@ -1874,7 +1874,7 @@ func (s *Storage) ContainerSnapshotRename(c container, newName string) error {
 	return nil
 }
 
-func (s *Storage) ContainerSnapshotStart(c container) (bool, error) {
+func (s *Storage) ContainerSnapshotStart(c Instance) (bool, error) {
 	var err error
 	ctx := log.Ctx{
 		"driver":    s.sTypeName,
@@ -1908,7 +1908,7 @@ func (s *Storage) ContainerSnapshotStart(c container) (bool, error) {
 	return ok, nil
 }
 
-func (s *Storage) ContainerSnapshotStop(c container) (bool, error) {
+func (s *Storage) ContainerSnapshotStop(c Instance) (bool, error) {
 	var err error
 	ctx := log.Ctx{
 		"driver":    s.sTypeName,
@@ -2104,7 +2104,7 @@ func (s *Storage) StorageEntitySetQuota(volumeType int, size int64, data interfa
 	return s.driver.VolumeSetQuota(project, subvol, size, s.s.OS.RunningInUserNS, volType)
 }
 
-func (s *Storage) ContainerBackupCreate(backup backup, source container) error {
+func (s *Storage) ContainerBackupCreate(backup backup, source Instance) error {
 	var err error
 	ctx := log.Ctx{
 		"driver": s.sTypeName,
@@ -2138,8 +2138,8 @@ func (s *Storage) ContainerBackupCreate(backup backup, source container) error {
 
 	var snapshots []string
 
-	if !backup.containerOnly {
-		var snaps []container
+	if !backup.instanceOnly {
+		var snaps []Instance
 
 		snaps, err = source.Snapshots()
 		if err != nil {
@@ -2362,7 +2362,7 @@ func (s *Storage) MigrationSource(args MigrationSourceArgs) (MigrationStorageSou
 	return rsyncMigrationSource(args)
 }
 
-func (s *Storage) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *Storage) MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncMigrationSink(conn, op, args)
 }
 
@@ -2370,7 +2370,7 @@ func (s *Storage) StorageMigrationSource(args MigrationSourceArgs) (MigrationSto
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *Storage) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+func (s *Storage) StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 	return rsyncStorageMigrationSink(conn, op, args)
 }
 
@@ -2728,15 +2728,19 @@ func storagePoolInit(s *state.State, poolName string) (storage, error) {
 	return storageInit(s, "default", poolName, "", -1)
 }
 
-func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c container) (storage, error) {
+func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, i Instance) (storage, error) {
 	st, err := storageInit(s, "default", poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	poolVolumePut := st.GetStoragePoolVolumeWritable()
+	c, ok := i.(*containerLXC)
+	if !ok {
+		return st, nil
+	}
 
 	// Check if unmapped
+	poolVolumePut := st.GetStoragePoolVolumeWritable()
 	if shared.IsTrue(poolVolumePut.Config["security.unmapped"]) {
 		// No need to look at containers and maps for unmapped volumes
 		return st, nil
