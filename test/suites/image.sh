@@ -17,7 +17,7 @@ test_image_expiry() {
   fp=$(lxc_remote image info testimage | awk -F: '/^Fingerprint/ { print $2 }' | awk '{ print $1 }')
 
   # Confirm the image is cached
-  [ ! -z "${fp}" ]
+  [ -n "${fp}" ]
   fpbrief=$(echo "${fp}" | cut -c 1-10)
   lxc_remote image list l2: | grep -q "${fpbrief}"
 
