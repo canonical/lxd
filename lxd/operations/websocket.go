@@ -1,0 +1,63 @@
+package operations
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
+)
+
+type operationWebSocket struct {
+	req *http.Request
+	op  *Operation
+}
+
+// OperationWebSocket returns a new websocket operation.
+func OperationWebSocket(req *http.Request, op *Operation) response.Response {
+	return &operationWebSocket{req, op}
+}
+
+func (r *operationWebSocket) Render(w http.ResponseWriter) error {
+	chanErr, err := r.op.Connect(r.req, w)
+	if err != nil {
+		return err
+	}
+
+	err = <-chanErr
+	return err
+}
+
+func (r *operationWebSocket) String() string {
+	_, md, err := r.op.Render()
+	if err != nil {
+		return fmt.Sprintf("error: %s", err)
+	}
+
+	return md.ID
+}
+
+type forwardedOperationWebSocket struct {
+	req    *http.Request
+	id     string
+	source *websocket.Conn // Connection to the node were the operation is running
+}
+
+// ForwardedOperationWebSocket returns a new forwarted websocket operation.
+func ForwardedOperationWebSocket(req *http.Request, id string, source *websocket.Conn) response.Response {
+	return &forwardedOperationWebSocket{req, id, source}
+}
+
+func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
+	target, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
+	if err != nil {
+		return err
+	}
+	<-shared.WebsocketProxy(r.source, target)
+	return nil
+}
+
+func (r *forwardedOperationWebSocket) String() string {
+	return r.id
+}

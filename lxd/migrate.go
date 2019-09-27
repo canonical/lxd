@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -145,7 +146,7 @@ func (s *migrationSourceWs) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")
@@ -317,7 +318,7 @@ func (s *migrationSink) Metadata() interface{} {
 	return secrets
 }
 
-func (s *migrationSink) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
+func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {
 		return fmt.Errorf("missing secret")

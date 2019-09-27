@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -43,6 +44,9 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 
 	// Set debug and verbose for the events package
 	events.Init(debug, verbose)
+
+	// Set debug for the operations package
+	operations.Init(debug)
 
 	// Set debug for the response package
 	response.Init(debug)

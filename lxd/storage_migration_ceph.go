@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -73,7 +74,7 @@ func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 }
 
 func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
-	op *operation, bwlimit string, containerOnly bool) error {
+	op *operations.Operation, bwlimit string, containerOnly bool) error {
 	containerName := s.container.Name()
 	if s.container.IsSnapshot() {
 		// ContainerSnapshotStart() will create the clone that is
@@ -149,7 +150,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	return nil
 }
 
-func (s *rbdMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage, volumeOnly bool) error {
+func (s *rbdMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operations.Operation, bwlimit string, storage storage, volumeOnly bool) error {
 	msg := fmt.Sprintf("Function not implemented")
 	logger.Errorf(msg)
 	return fmt.Errorf(msg)

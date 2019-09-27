@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -32,7 +33,7 @@ func NewStorageMigrationSource(storage storage, volumeOnly bool) (*migrationSour
 	return &ret, nil
 }
 
-func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
+func (s *migrationSourceWs) DoStorage(migrateOp *operations.Operation) error {
 	<-s.allConnected
 
 	// Storage needs to start unconditionally now, since we need to
@@ -223,7 +224,7 @@ func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) DoStorage(migrateOp *operation) error {
+func (c *migrationSink) DoStorage(migrateOp *operations.Operation) error {
 	var err error
 
 	if c.push {

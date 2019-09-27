@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -74,7 +75,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	// returning in case the context expires.
 	_, hasCancellationSupport := interface{}(&http.Request{}).(util.ContextAwareRequest)
 	f := func(ctx context.Context) {
-		opRun := func(op *operation) error {
+		opRun := func(op *operations.Operation) error {
 			if hasCancellationSupport {
 				return instanceRefreshTypes(ctx, d)
 			}
@@ -91,7 +92,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 		}
 
-		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationInstanceTypesUpdate, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationInstanceTypesUpdate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start instance types update operation", log.Ctx{"err": err})
 			return
