@@ -33,7 +33,7 @@ func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 	}
 
 	// Load the instance it belongs to
-	instance, err := instanceLoadById(s, args.ContainerID)
+	instance, err := instanceLoadById(s, args.InstanceID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load container from database")
 	}
@@ -52,7 +52,7 @@ func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 }
 
 // Create a new backup
-func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer Instance) error {
+func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer Instance) error {
 	// Create the database entry
 	err := s.Cluster.ContainerBackupCreate(args)
 	if err != nil {
