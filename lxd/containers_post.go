@@ -100,7 +100,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 	}
 
 	run := func(op *operation) error {
-		args := db.ContainerArgs{
+		args := db.InstanceArgs{
 			Project:     project,
 			Config:      req.Config,
 			Type:        dbType,
@@ -161,7 +161,7 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 		return response.BadRequest(err)
 	}
 
-	args := db.ContainerArgs{
+	args := db.InstanceArgs{
 		Project:     project,
 		Config:      req.Config,
 		Type:        dbType,
@@ -221,7 +221,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	}
 
 	// Prepare the container creation request
-	args := db.ContainerArgs{
+	args := db.InstanceArgs{
 		Project:      project,
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
@@ -583,7 +583,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
 
-	args := db.ContainerArgs{
+	args := db.InstanceArgs{
 		Project:      targetProject,
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,

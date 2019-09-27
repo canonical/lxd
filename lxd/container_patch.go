@@ -120,7 +120,7 @@ func containerPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Update container configuration
-	args := db.ContainerArgs{
+	args := db.InstanceArgs{
 		Architecture: architecture,
 		Config:       req.Config,
 		Description:  req.Description,

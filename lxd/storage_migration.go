@@ -178,7 +178,7 @@ func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDrive
 	return rsyncStorageSourceDriver{args.Instance, snapshots, args.RsyncFeatures}, nil
 }
 
-func snapshotProtobufToContainerArgs(project string, containerName string, snap *migration.Snapshot) db.ContainerArgs {
+func snapshotProtobufToInstanceArgs(project string, containerName string, snap *migration.Snapshot) db.InstanceArgs {
 	config := map[string]string{}
 
 	for _, ent := range snap.LocalConfig {
@@ -196,7 +196,7 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	}
 
 	name := containerName + shared.SnapshotDelimiter + snap.GetName()
-	args := db.ContainerArgs{
+	args := db.InstanceArgs{
 		Architecture: int(snap.GetArchitecture()),
 		Config:       config,
 		Type:         instancetype.Container,
@@ -329,7 +329,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					continue
 				}
 
-				snapArgs := snapshotProtobufToContainerArgs(args.Instance.Project(), args.Instance.Name(), snap)
+				snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
 
 				// Ensure that snapshot and parent container have the
 				// same storage pool in their local root disk device.
@@ -393,7 +393,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					continue
 				}
 
-				snapArgs := snapshotProtobufToContainerArgs(args.Instance.Project(), args.Instance.Name(), snap)
+				snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
 
 				// Ensure that snapshot and parent container have the
 				// same storage pool in their local root disk device.

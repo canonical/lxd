@@ -93,9 +93,9 @@ type InstanceFilter struct {
 }
 
 // ContainerToArgs is a convenience to convert the new Container db struct into
-// the legacy ContainerArgs.
-func ContainerToArgs(container *Instance) ContainerArgs {
-	args := ContainerArgs{
+// the legacy InstanceArgs.
+func ContainerToArgs(container *Instance) InstanceArgs {
+	args := InstanceArgs{
 		ID:           container.ID,
 		Project:      container.Project,
 		Name:         container.Name,
@@ -121,9 +121,8 @@ func ContainerToArgs(container *Instance) ContainerArgs {
 	return args
 }
 
-// ContainerArgs is a value object holding all db-related details about a
-// container.
-type ContainerArgs struct {
+// InstanceArgs is a value object holding all db-related details about an instance.
+type InstanceArgs struct {
 	// Don't set manually
 	ID       int
 	Node     string
@@ -147,13 +146,12 @@ type ContainerArgs struct {
 	ExpiryDate   time.Time
 }
 
-// ContainerBackupArgs is a value object holding all db-related details
-// about a backup.
-type ContainerBackupArgs struct {
+// InstanceBackupArgs is a value object holding all db-related details about a backup.
+type InstanceBackupArgs struct {
 	// Don't set manually
 	ID int
 
-	ContainerID      int
+	InstanceID       int
 	Name             string
 	CreationDate     time.Time
 	ExpiryDate       time.Time
@@ -1161,8 +1159,8 @@ func (c *Cluster) ContainerBackupID(name string) (int, error) {
 }
 
 // ContainerGetBackup returns the backup with the given name.
-func (c *Cluster) ContainerGetBackup(project, name string) (ContainerBackupArgs, error) {
-	args := ContainerBackupArgs{}
+func (c *Cluster) ContainerGetBackup(project, name string) (InstanceBackupArgs, error) {
+	args := InstanceBackupArgs{}
 	args.Name = name
 
 	instanceOnlyInt := -1
@@ -1177,7 +1175,7 @@ SELECT instances_backups.id, instances_backups.instance_id,
     WHERE projects.name=? AND instances_backups.name=?
 `
 	arg1 := []interface{}{project, name}
-	arg2 := []interface{}{&args.ID, &args.ContainerID, &args.CreationDate,
+	arg2 := []interface{}{&args.ID, &args.InstanceID, &args.CreationDate,
 		&args.ExpiryDate, &instanceOnlyInt, &optimizedStorageInt}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
@@ -1223,7 +1221,7 @@ WHERE projects.name=? AND instances.name=?`
 }
 
 // ContainerBackupCreate creates a new backup
-func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
+func (c *Cluster) ContainerBackupCreate(args InstanceBackupArgs) error {
 	_, err := c.ContainerBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
@@ -1246,7 +1244,7 @@ func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
 			return err
 		}
 		defer stmt.Close()
-		result, err := stmt.Exec(args.ContainerID, args.Name,
+		result, err := stmt.Exec(args.InstanceID, args.Name,
 			args.CreationDate.Unix(), args.ExpiryDate.Unix(), instanceOnlyInt,
 			optimizedStorageInt)
 		if err != nil {

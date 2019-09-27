@@ -148,7 +148,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	snapshot := func(op *operation) error {
-		args := db.ContainerArgs{
+		args := db.InstanceArgs{
 			Project:      inst.Project(),
 			Architecture: inst.Architecture(),
 			Config:       inst.LocalConfig(),
@@ -276,7 +276,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) response
 
 		// Update container configuration
 		do = func(op *operation) error {
-			args := db.ContainerArgs{
+			args := db.InstanceArgs{
 				Architecture: sc.Architecture(),
 				Config:       sc.LocalConfig(),
 				Description:  sc.Description(),
