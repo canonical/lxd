@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -326,7 +326,7 @@ func (d *disk) postStart() error {
 }
 
 // Update applies configuration changes to a started device.
-func (d *disk) Update(oldDevices config.Devices, isRunning bool) error {
+func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	if shared.IsRootDiskDevice(d.config) {
 		// Make sure we have a valid root disk device (and only one).
 		expandedDevices := d.instance.ExpandedDevices()

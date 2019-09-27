@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -272,7 +272,7 @@ func NetworkAttachInterface(netName string, devName string) error {
 // in the supplied config to the newly created peer interface. If mtu is not specified, but parent
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
 // Accepts the name of the host side interface as a parameter and returns the peer interface name.
-func networkCreateVethPair(hostName string, m config.Device) (string, error) {
+func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, error) {
 	peerName := NetworkRandomDevName("veth")
 
 	_, err := shared.RunCommand("ip", "link", "add", "dev", hostName, "type", "veth", "peer", "name", peerName)
@@ -324,7 +324,7 @@ func networkCreateVethPair(hostName string, m config.Device) (string, error) {
 }
 
 // networkSetupHostVethDevice configures a nic device's host side veth settings.
-func networkSetupHostVethDevice(device config.Device, oldDevice config.Device, v map[string]string) error {
+func networkSetupHostVethDevice(device deviceConfig.Device, oldDevice deviceConfig.Device, v map[string]string) error {
 	// If not configured, check if volatile data contains the most recently added host_name.
 	if device["host_name"] == "" {
 		device["host_name"] = v["host_name"]
@@ -371,7 +371,7 @@ func networkSetupHostVethDevice(device config.Device, oldDevice config.Device, v
 }
 
 // networkSetVethRoutes applies any static routes configured from the host to the container nic.
-func networkSetVethRoutes(m config.Device) error {
+func networkSetVethRoutes(m deviceConfig.Device) error {
 	// Decide whether the route should point to the veth parent or the bridge parent.
 	routeDev := m["host_name"]
 	if m["nictype"] == "bridged" {
@@ -409,7 +409,7 @@ func networkSetVethRoutes(m config.Device) error {
 
 // networkRemoveVethRoutes removes any routes created for this device on the host that were first added
 // with networkSetVethRoutes(). Expects to be passed the device config from the oldExpandedDevices.
-func networkRemoveVethRoutes(m config.Device) {
+func networkRemoveVethRoutes(m deviceConfig.Device) {
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
 	if m["nictype"] == "bridged" {
@@ -451,7 +451,7 @@ func networkRemoveVethRoutes(m config.Device) {
 }
 
 // networkSetVethLimits applies any network rate limits to the veth device specified in the config.
-func networkSetVethLimits(m config.Device) error {
+func networkSetVethLimits(m deviceConfig.Device) error {
 	var err error
 
 	veth := m["host_name"]

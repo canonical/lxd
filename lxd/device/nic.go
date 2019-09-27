@@ -1,7 +1,7 @@
 package device
 
 import (
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -16,7 +16,7 @@ var nicTypes = map[string]func() device{
 }
 
 // nicLoadByType returns a NIC device instantiated with supplied config.
-func nicLoadByType(c config.Device) device {
+func nicLoadByType(c deviceConfig.Device) device {
 	f := nicTypes[c["nictype"]]
 	if f != nil {
 		return f()

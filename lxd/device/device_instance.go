@@ -1,7 +1,7 @@
 package device
 
 import (
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 )
 
@@ -16,7 +16,7 @@ type Instance interface {
 	RootfsPath() string
 	LogPath() string
 	ExpandedConfig() map[string]string
-	LocalDevices() config.Devices
-	ExpandedDevices() config.Devices
+	LocalDevices() deviceConfig.Devices
+	ExpandedDevices() deviceConfig.Devices
 	DeviceEventHandler(*RunConfig) error
 }

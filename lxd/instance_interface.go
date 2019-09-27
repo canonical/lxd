@@ -8,7 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -84,9 +84,9 @@ type Instance interface {
 	CreationDate() time.Time
 	LastUsedDate() time.Time
 	ExpandedConfig() map[string]string
-	ExpandedDevices() config.Devices
+	ExpandedDevices() deviceConfig.Devices
 	LocalConfig() map[string]string
-	LocalDevices() config.Devices
+	LocalDevices() deviceConfig.Devices
 	Profiles() []string
 	InitPID() int
 	State() string

@@ -19,7 +19,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/eui64"
 
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
@@ -172,7 +172,7 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 }
 
 // Update applies configuration changes to a started device.
-func (d *nicBridged) Update(oldDevices config.Devices, isRunning bool) error {
+func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	oldConfig := oldDevices[d.name]
 
 	// If an IPv6 address has changed, flush all existing IPv6 leases for instance so instance
@@ -351,7 +351,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 }
 
 // setupHostFilters applies any host side network filters.
-func (d *nicBridged) setupHostFilters(oldConfig config.Device) error {
+func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) error {
 	// Remove any old network filters if non-empty oldConfig supplied as part of update.
 	if oldConfig != nil && (shared.IsTrue(oldConfig["security.mac_filtering"]) || shared.IsTrue(oldConfig["security.ipv4_filtering"]) || shared.IsTrue(oldConfig["security.ipv6_filtering"])) {
 		d.removeFilters(oldConfig)
@@ -369,7 +369,7 @@ func (d *nicBridged) setupHostFilters(oldConfig config.Device) error {
 }
 
 // removeFilters removes any network level filters defined for the instance.
-func (d *nicBridged) removeFilters(m config.Device) error {
+func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	if m["hwaddr"] == "" {
 		return fmt.Errorf("Failed to remove network filters for %s: hwaddr not defined", m["name"])
 	}
@@ -475,7 +475,7 @@ func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcp
 }
 
 // generateFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
-func (d *nicBridged) generateFilterEbtablesRules(m config.Device, IPv4 net.IP, IPv6 net.IP) [][]string {
+func (d *nicBridged) generateFilterEbtablesRules(m deviceConfig.Device, IPv4 net.IP, IPv6 net.IP) [][]string {
 	// MAC source filtering rules. Blocks any packet coming from instance with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
@@ -733,7 +733,7 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 }
 
 // generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (d *nicBridged) generateFilterIptablesRules(m config.Device, IPv6 net.IP) (rules [][]string, err error) {
+func (d *nicBridged) generateFilterIptablesRules(m deviceConfig.Device, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(m["hwaddr"])
 	if err != nil {
 		return

@@ -30,7 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
-	"github.com/lxc/lxd/lxd/device/config"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
@@ -589,10 +589,10 @@ type containerLXC struct {
 
 	// Config
 	expandedConfig  map[string]string
-	expandedDevices config.Devices
+	expandedDevices deviceConfig.Devices
 	fromHook        bool
 	localConfig     map[string]string
-	localDevices    config.Devices
+	localDevices    deviceConfig.Devices
 	profiles        []string
 
 	// Cache
@@ -1551,8 +1551,8 @@ func (c *containerLXC) runHooks(hooks []func() error) error {
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (c *containerLXC) deviceLoad(deviceName string, rawConfig config.Device) (device.Device, config.Device, error) {
-	var configCopy config.Device
+func (c *containerLXC) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
+	var configCopy deviceConfig.Device
 	var err error
 
 	// Create copy of config and load some fields from volatile if device is nic or infiniband.
@@ -1573,7 +1573,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig config.Device) (d
 }
 
 // deviceAdd loads a new device and calls its Add() function.
-func (c *containerLXC) deviceAdd(deviceName string, rawConfig config.Device) error {
+func (c *containerLXC) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1585,7 +1585,7 @@ func (c *containerLXC) deviceAdd(deviceName string, rawConfig config.Device) err
 // deviceStart loads a new device and calls its Start() function. After processing the runtime
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the container is running or not.
-func (c *containerLXC) deviceStart(deviceName string, rawConfig config.Device, isRunning bool) (*device.RunConfig, error) {
+func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*device.RunConfig, error) {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1725,7 +1725,7 @@ func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []dev
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (c *containerLXC) deviceUpdate(deviceName string, rawConfig config.Device, oldDevices config.Devices, isRunning bool) error {
+func (c *containerLXC) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1740,7 +1740,7 @@ func (c *containerLXC) deviceUpdate(deviceName string, rawConfig config.Device, 
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (c *containerLXC) deviceStop(deviceName string, rawConfig config.Device, stopHookNetnsPath string) error {
+func (c *containerLXC) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1917,7 +1917,7 @@ func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error 
 }
 
 // deviceRemove loads a new device and calls its Remove() function.
-func (c *containerLXC) deviceRemove(deviceName string, rawConfig config.Device) error {
+func (c *containerLXC) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1965,7 +1965,7 @@ func (c *containerLXC) deviceVolatileSetFunc(devName string) func(save map[strin
 
 // deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
 // that it is removed then added immediately afterwards.
-func (c *containerLXC) deviceResetVolatile(devName string, oldConfig, newConfig config.Device) error {
+func (c *containerLXC) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
@@ -4105,7 +4105,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if args.Devices == nil {
-		args.Devices = config.Devices{}
+		args.Devices = deviceConfig.Devices{}
 	}
 
 	if args.Profiles == nil {
@@ -4188,7 +4188,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
-	oldExpandedDevices := config.Devices{}
+	oldExpandedDevices := deviceConfig.Devices{}
 	err = shared.DeepCopy(&c.expandedDevices, &oldExpandedDevices)
 	if err != nil {
 		return err
@@ -4200,7 +4200,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
-	oldLocalDevices := config.Devices{}
+	oldLocalDevices := deviceConfig.Devices{}
 	err = shared.DeepCopy(&c.localDevices, &oldLocalDevices)
 	if err != nil {
 		return err
@@ -4285,7 +4285,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Diff the devices
-	removeDevices, addDevices, updateDevices, updateDiff := oldExpandedDevices.Update(c.expandedDevices, func(oldDevice config.Device, newDevice config.Device) []string {
+	removeDevices, addDevices, updateDevices, updateDiff := oldExpandedDevices.Update(c.expandedDevices, func(oldDevice deviceConfig.Device, newDevice deviceConfig.Device) []string {
 		// This function needs to return a list of fields that are excluded from differences
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
@@ -4818,7 +4818,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *containerLXC) updateDevices(removeDevices config.Devices, addDevices config.Devices, updateDevices config.Devices, oldExpandedDevices config.Devices) error {
+func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
 	isRunning := c.IsRunning()
 
 	// Remove devices in reverse order to how they were added.
@@ -6352,7 +6352,7 @@ func (c *containerLXC) removeMount(mount string) error {
 	return nil
 }
 
-func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m config.Device, pid int) error {
+func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error {
 	if pid < 0 {
 		return fmt.Errorf("Invalid request PID specified")
 	}
@@ -6439,7 +6439,7 @@ func (c *containerLXC) removeUnixDevices() error {
 
 // fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
-func (c *containerLXC) fillNetworkDevice(name string, m config.Device) (config.Device, error) {
+func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
 	newDevice := m.Clone()
 
 	// Function to try and guess an available name
@@ -6736,7 +6736,7 @@ func (c *containerLXC) ExpandedConfig() map[string]string {
 	return c.expandedConfig
 }
 
-func (c *containerLXC) ExpandedDevices() config.Devices {
+func (c *containerLXC) ExpandedDevices() deviceConfig.Devices {
 	return c.expandedDevices
 }
 
@@ -6758,7 +6758,7 @@ func (c *containerLXC) LocalConfig() map[string]string {
 	return c.localConfig
 }
 
-func (c *containerLXC) LocalDevices() config.Devices {
+func (c *containerLXC) LocalDevices() deviceConfig.Devices {
 	return c.localDevices
 }
 
