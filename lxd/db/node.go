@@ -13,9 +13,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ClusterRole represents the role of a member in a cluster.
+type ClusterRole string
+
+// ClusterRoleDatabase represents the database role in a cluster.
+const ClusterRoleDatabase = ClusterRole("database")
+
 // ClusterRoles maps role ids into human-readable names.
-var ClusterRoles = map[int]string{
-	0: "database",
+var ClusterRoles = map[int]ClusterRole{
+	0: ClusterRoleDatabase,
 }
 
 // NodeInfo holds information about a single LXD instance in a cluster.
@@ -235,7 +241,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			nodeRoles[nodeID] = []string{}
 		}
 
-		roleName := ClusterRoles[role]
+		roleName := string(ClusterRoles[role])
 
 		nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
 	}
@@ -340,7 +346,7 @@ func (c *ClusterTx) NodeUpdate(id int64, name string, address string) error {
 }
 
 // NodeAddRole adds a role to the node.
-func (c *ClusterTx) NodeAddRole(id int64, role string) error {
+func (c *ClusterTx) NodeAddRole(id int64, role ClusterRole) error {
 	// Translate role names to ids
 	roleID := -1
 	for k, v := range ClusterRoles {
