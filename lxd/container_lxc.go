@@ -318,7 +318,7 @@ func lxcStatusCode(state lxc.State) api.StatusCode {
 }
 
 // Loader functions
-func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error) {
+func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error) {
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
@@ -524,7 +524,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	return c, nil
 }
 
-func containerLXCLoad(s *state.State, args db.ContainerArgs, profiles []api.Profile) (container, error) {
+func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (container, error) {
 	// Create the container struct
 	c := containerLXCInstantiate(s, args)
 
@@ -555,7 +555,7 @@ func containerLXCUnload(c *containerLXC) {
 }
 
 // Create a container struct without initializing it.
-func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLXC {
+func containerLXCInstantiate(s *state.State, args db.InstanceArgs) *containerLXC {
 	c := &containerLXC{
 		state:        s,
 		id:           args.ID,
@@ -3479,7 +3479,7 @@ func (c *containerLXC) Restore(sourceContainer Instance, stateful bool) error {
 		ephemeral := c.IsEphemeral()
 		if ephemeral {
 			// Unset ephemeral flag
-			args := db.ContainerArgs{
+			args := db.InstanceArgs{
 				Architecture: c.Architecture(),
 				Config:       c.LocalConfig(),
 				Description:  c.Description(),
@@ -3537,7 +3537,7 @@ func (c *containerLXC) Restore(sourceContainer Instance, stateful bool) error {
 	}
 
 	// Restore the configuration
-	args := db.ContainerArgs{
+	args := db.InstanceArgs{
 		Architecture: sourceContainer.Architecture(),
 		Config:       sourceContainer.LocalConfig(),
 		Description:  sourceContainer.Description(),
@@ -4110,7 +4110,7 @@ func writeBackupFile(c Instance) error {
 	return nil
 }
 
-func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
+func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	// Set sane defaults for unset keys
 	if args.Project == "" {
 		args.Project = "default"

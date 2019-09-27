@@ -68,7 +68,7 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func(op *operation) error {
-			args := db.ContainerArgs{
+			args := db.InstanceArgs{
 				Architecture: architecture,
 				Config:       configRaw.Config,
 				Description:  configRaw.Description,

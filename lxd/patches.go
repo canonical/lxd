@@ -1883,7 +1883,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			continue
 		}
 
-		args := db.ContainerArgs{
+		args := db.InstanceArgs{
 			Architecture: c.Architecture(),
 			Config:       c.LocalConfig(),
 			Description:  c.Description(),
