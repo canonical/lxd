@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-18 14:34+0200\n"
-"PO-Revision-Date: 2019-06-13 16:56+0000\n"
-"Last-Translator: Alonso José Lara Plana <alonso.lara.plana@gmail.com>\n"
+"POT-Creation-Date: 2019-09-29 13:49-0400\n"
+"PO-Revision-Date: 2019-09-06 07:09+0000\n"
+"Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/es/>\n"
 "Language: es\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 3.7-dev\n"
+"X-Generator: Weblate 3.9-dev\n"
 
 #: lxc/storage.go:224
 msgid ""
@@ -368,7 +368,7 @@ msgstr "Expira: %s"
 #: lxc/remote.go:363
 #, fuzzy, c-format
 msgid "Admin password for %s:"
-msgstr "Contraseña admin para %s:"
+msgstr "Contraseña admin para %s: "
 
 #: lxc/alias.go:76 lxc/alias.go:172
 #, c-format
@@ -609,7 +609,7 @@ msgstr "Certificado de la huella digital: %s"
 #: lxc/remote.go:402
 #, fuzzy
 msgid "Client certificate stored at server:"
-msgstr "Certificado del cliente almacenado en el servidor:"
+msgstr "Certificado del cliente almacenado en el servidor: "
 
 #: lxc/version.go:37
 #, c-format
@@ -1425,7 +1425,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:339
+#: lxc/main.go:340
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1546,7 +1546,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:418
+#: lxc/main.go:427
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -2415,7 +2415,7 @@ msgstr ""
 #: lxc/image.go:871
 #, c-format
 msgid "Public: %s"
-msgstr ""
+msgstr "Público: %s"
 
 #: lxc/publish.go:34 lxc/publish.go:35
 msgid "Publish containers as images"
@@ -2469,7 +2469,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 #: lxc/image.go:1260
 #, c-format
 msgid "Refreshing the image: %s"
-msgstr ""
+msgstr "Refrescando la imagen: %s"
 
 #: lxc/remote.go:562
 #, c-format
@@ -3152,7 +3152,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:342
+#: lxc/main.go:345
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 

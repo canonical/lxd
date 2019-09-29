@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-18 14:34+0200\n"
-"PO-Revision-Date: 2019-08-08 18:08+0000\n"
-"Last-Translator: Tiago A. Reul <tiago@reul.space>\n"
+"POT-Creation-Date: 2019-09-29 13:49-0400\n"
+"PO-Revision-Date: 2019-09-06 07:09+0000\n"
+"Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
 "linux-containers/lxd/pt_BR/>\n"
 "Language: pt_BR\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 3.8-dev\n"
+"X-Generator: Weblate 3.9-dev\n"
 
 #: lxc/storage.go:224
 msgid ""
@@ -654,7 +654,7 @@ msgstr "Certificado fingerprint: %s"
 #: lxc/remote.go:402
 #, fuzzy
 msgid "Client certificate stored at server:"
-msgstr "Certificado do cliente armazenado no servidor:"
+msgstr "Certificado do cliente armazenado no servidor: "
 
 #: lxc/version.go:37
 #, c-format
@@ -1476,7 +1476,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:339
+#: lxc/main.go:340
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1596,7 +1596,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:418
+#: lxc/main.go:427
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3199,7 +3199,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:342
+#: lxc/main.go:345
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 
