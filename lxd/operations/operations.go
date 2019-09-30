@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
@@ -104,12 +105,12 @@ type Operation struct {
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
 
-	cluster *db.Cluster
+	state *state.State
 }
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(cluster *db.Cluster, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(state *state.State, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Main attributes
 	op := Operation{}
 	op.project = project
@@ -123,7 +124,7 @@ func OperationCreate(cluster *db.Cluster, project string, opClass operationClass
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
 	op.chanDone = make(chan error)
-	op.cluster = cluster
+	op.state = state
 
 	newMetadata, err := shared.ParseMetadata(opMetadata)
 	if err != nil {
@@ -157,7 +158,7 @@ func OperationCreate(cluster *db.Cluster, project string, opClass operationClass
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		_, err := tx.OperationAdd(project, op.id, opType)
 		return err
 	})
@@ -196,7 +197,7 @@ func (op *Operation) done() {
 		delete(operations, op.id)
 		operationsLock.Unlock()
 
-		err := op.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			return tx.OperationRemove(op.id)
 		})
 		if err != nil {
@@ -398,7 +399,7 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 	// Local server name
 	var err error
 	var serverName string
-	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		serverName, err = tx.NodeName()
 		return err
 	})

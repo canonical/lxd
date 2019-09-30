@@ -1254,7 +1254,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return autoCreateContainerSnapshots(ctx, d, instances)
 		}
 
-		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start create snapshot operation", log.Ctx{"err": err})
 			return
@@ -1375,7 +1375,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return pruneExpiredContainerSnapshots(ctx, d, expiredSnapshots)
 		}
 
-		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired snapshots operation", log.Ctx{"err": err})
 			return
