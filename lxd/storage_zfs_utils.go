@@ -252,11 +252,17 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 	}
 
 	if mountpoint != "none" && shared.IsMountPoint(mountpoint) {
-		err := unix.Unmount(mountpoint, unix.MNT_DETACH)
+		// Make sure the filesystem isn't mounted anymore
+		err := unix.Unmount(mountpoint, 0)
 		if err != nil {
-			logger.Errorf("umount failed: %s", err)
-			return err
+			err := unix.Unmount(mountpoint, unix.MNT_DETACH)
+			if err != nil {
+				return err
+			}
 		}
+
+		// Give a chance for the kernel to notice (workaround for zfs slowness)
+		time.Sleep(1 * time.Second)
 	}
 
 	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
@@ -267,8 +273,7 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 		fmt.Sprintf("%s/%s", pool, path))
 
 	if err != nil {
-		logger.Errorf("zfs destroy failed: %v", err)
-		return errors.Wrap(err, "Failed to destroy ZFS filesystem")
+		return errors.Wrap(err, "Failed to destroy ZFS dataset")
 	}
 
 	return nil

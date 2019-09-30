@@ -863,7 +863,7 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		if !zfsFilesystemEntityExists(poolName, fsImage) {
+		if !zfsFilesystemEntityExists(poolName, fmt.Sprintf("%s@readonly", fsImage)) {
 			imgerr = s.ImageCreate(fingerprint, tracker)
 		}
 
@@ -2322,59 +2322,70 @@ func (s *storageZfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
 
+	// Common variables
 	poolName := s.getOnDiskPoolName()
 	imageMntPoint := driver.GetImageMountPoint(s.pool.Name, fingerprint)
 	fs := fmt.Sprintf("images/%s", fingerprint)
-	revert := true
-	subrevert := true
 
+	// Revert flags
+	revertDB := true
+	revertMountpoint := true
+	revertDataset := true
+
+	// Deal with bad/partial unpacks
+	if zfsFilesystemEntityExists(poolName, fs) {
+		zfsPoolVolumeDestroy(poolName, fmt.Sprintf("%s@readonly", fs))
+		zfsPoolVolumeDestroy(poolName, fs)
+		s.deleteImageDbPoolVolume(fingerprint)
+	}
+
+	// Create the image volume entry
 	err := s.createImageDbPoolVolume(fingerprint)
 	if err != nil {
 		return err
 	}
+
 	defer func() {
-		if !subrevert {
+		if !revertDB {
 			return
 		}
+
 		s.deleteImageDbPoolVolume(fingerprint)
 	}()
 
-	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("deleted/%s", fs)) {
-		if err := zfsPoolVolumeRename(poolName, fmt.Sprintf("deleted/%s", fs), fs, true); err != nil {
-			return err
-		}
-
-		defer func() {
-			if !revert {
-				return
-			}
-			s.ImageDelete(fingerprint)
-		}()
-
-		// In case this is an image from an older lxd instance, wipe the
-		// mountpoint.
-		err = zfsPoolVolumeSet(poolName, fs, "mountpoint", "none")
-		if err != nil {
-			return err
-		}
-
-		revert = false
-		subrevert = false
-
-		return nil
-	}
-
+	// Create mountpoint if missing
 	if !shared.PathExists(imageMntPoint) {
 		err := os.MkdirAll(imageMntPoint, 0700)
 		if err != nil {
 			return err
 		}
+
 		defer func() {
-			if !subrevert {
+			if !revertMountpoint {
 				return
 			}
+
 			os.RemoveAll(imageMntPoint)
 		}()
+	}
+
+	// Check for deleted images
+	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("deleted/%s", fmt.Sprintf("%s@readonly", fs))) {
+		// Restore deleted image
+		err := zfsPoolVolumeRename(poolName, fmt.Sprintf("deleted/%s", fs), fs, true)
+		if err != nil {
+			return err
+		}
+
+		// In case this is an image from an older lxd instance, wipe the mountpoint.
+		err = zfsPoolVolumeSet(poolName, fs, "mountpoint", "none")
+		if err != nil {
+			return err
+		}
+
+		revertDB = false
+		revertMountpoint = false
+		return nil
 	}
 
 	// Create temporary mountpoint directory.
@@ -2387,19 +2398,20 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 
 	imagePath := shared.VarPath("images", fingerprint)
 
-	// Create a new storage volume on the storage pool for the image.
+	// Create a new dataset for the image
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
 		logger.Errorf("Failed to create ZFS dataset \"%s\" on storage pool \"%s\": %s", dataset, s.pool.Name, msg)
 		return err
 	}
-	subrevert = false
+
 	defer func() {
-		if !revert {
+		if !revertDataset {
 			return
 		}
-		s.ImageDelete(fingerprint)
+
+		zfsPoolVolumeDestroy(poolName, fs)
 	}()
 
 	// Set a temporary mountpoint for the image.
@@ -2441,7 +2453,9 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 		return err
 	}
 
-	revert = false
+	revertDB = false
+	revertMountpoint = false
+	revertDataset = false
 
 	logger.Debugf("Created ZFS storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
 	return nil
