@@ -179,7 +179,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	resources["containers"] = []string{name}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask,
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask,
 		db.OperationBackupCreate, resources, nil, backup, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
@@ -266,7 +266,7 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask,
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask,
 		db.OperationBackupRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
@@ -312,7 +312,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["container"] = []string{name}
 
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask,
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask,
 		db.OperationBackupRemove, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)

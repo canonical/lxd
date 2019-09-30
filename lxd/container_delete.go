@@ -43,7 +43,7 @@ func containerDelete(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
