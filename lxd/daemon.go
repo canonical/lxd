@@ -62,6 +62,10 @@ type Daemon struct {
 	readyChan    chan struct{} // Closed when LXD is fully ready
 	shutdownChan chan struct{}
 
+	// Event servers
+	devlxdEvents *events.Server
+	events       *events.Server
+
 	// Tasks registry for long-running background tasks
 	// Keep clustering tasks separate as they cause a lot of CPU wakeups
 	tasks        task.Group
@@ -132,8 +136,13 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 
 // NewDaemon returns a new Daemon object with the given configuration.
 func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
+	lxdEvents := events.NewServer(debug, verbose)
+	devlxdEvents := events.NewServer(debug, verbose)
+
 	return &Daemon{
 		config:       config,
+		devlxdEvents: devlxdEvents,
+		events:       lxdEvents,
 		os:           os,
 		setupChan:    make(chan struct{}),
 		readyChan:    make(chan struct{}),
@@ -333,7 +342,7 @@ func isJSONRequest(r *http.Request) bool {
 
 // State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints)
+	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
@@ -924,7 +933,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
 	// Events
-	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, events.Forward))
+	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.events.Forward))
 
 	// Auto-sync images across the cluster (daily)
 	d.clusterTasks.Add(autoSyncImagesTask(d))

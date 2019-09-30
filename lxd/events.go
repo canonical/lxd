@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -58,9 +57,10 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If this request is an internal one initiated by another node wanting
 	// to watch the events on this node, set the listener to broadcast only
 	// local events.
-	listener := events.NewEventListener(project, c, strings.Split(typeStr, ","), serverName, isClusterNotification(r))
-
-	events.AddListener(listener)
+	listener, err := d.events.AddListener(project, c, strings.Split(typeStr, ","), serverName, isClusterNotification(r))
+	if err != nil {
+		return err
+	}
 
 	logger.Debugf("New event listener: %s", listener.ID())
 
