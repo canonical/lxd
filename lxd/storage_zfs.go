@@ -863,7 +863,7 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		if !zfsFilesystemEntityExists(poolName, fsImage) {
+		if !zfsFilesystemEntityExists(poolName, fmt.Sprintf("%s@readonly", fsImage)) {
 			imgerr = s.ImageCreate(fingerprint, tracker)
 		}
 
@@ -2332,6 +2332,13 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 	revertMountpoint := true
 	revertDataset := true
 
+	// Deal with bad/partial unpacks
+	if zfsFilesystemEntityExists(poolName, fs) {
+		zfsPoolVolumeDestroy(poolName, fmt.Sprintf("%s@readonly", fs))
+		zfsPoolVolumeDestroy(poolName, fs)
+		s.deleteImageDbPoolVolume(fingerprint)
+	}
+
 	// Create the image volume entry
 	err := s.createImageDbPoolVolume(fingerprint)
 	if err != nil {
@@ -2363,7 +2370,7 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 	}
 
 	// Check for deleted images
-	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("deleted/%s", fs)) {
+	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("deleted/%s", fmt.Sprintf("%s@readonly", fs))) {
 		// Restore deleted image
 		err := zfsPoolVolumeRename(poolName, fmt.Sprintf("deleted/%s", fs), fs, true)
 		if err != nil {
