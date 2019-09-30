@@ -125,7 +125,7 @@ Canonical RBAC.
 More details are [available here](security.md).
 
 ## Getting started with LXD
-Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://lxd.readthedocs.org).
+Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://linuxcontainers.org/lxd/docs/master/).
 
 ## Bug reports
 Bug reports can be filed at: <https://github.com/lxc/lxd/issues/new>
