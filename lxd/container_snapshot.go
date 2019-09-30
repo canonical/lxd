@@ -180,7 +180,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -304,7 +304,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) response
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operations.OperationCreate(d.cluster, sc.Project(), operations.OperationClassTask, opType, resources, nil,
+	op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, opType, resources, nil,
 		do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
@@ -382,7 +382,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.cluster, sc.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
+			op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -391,7 +391,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.cluster, sc.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -424,7 +424,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	resources := map[string][]string{}
 	resources["containers"] = []string{containerName}
 
-	op, err := operations.OperationCreate(d.cluster, sc.Project(), operations.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
+	op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -440,7 +440,7 @@ func snapshotDelete(sc container, name string) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operations.OperationCreate(sc.DaemonState().Cluster, sc.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
+	op, err := operations.OperationCreate(sc.DaemonState(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

@@ -252,7 +252,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 		return nil
 	})
 
-	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -610,7 +610,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterJoin, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

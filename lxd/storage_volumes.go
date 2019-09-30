@@ -295,7 +295,7 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 		return doWork()
 	}
 
-	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -424,12 +424,12 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 	var op *operations.Operation
 	if push {
-		op, err = operations.OperationCreate(d.cluster, "", operations.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operations.OperationCreate(d.State(), "", operations.OperationClassWebsocket, db.OperationVolumeCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
 	} else {
-		op, err = operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
+		op, err = operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeCopy, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -544,7 +544,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
+			op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -553,7 +553,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -637,7 +637,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return doWork()
 	}
 
-	op, err := operations.OperationCreate(d.cluster, "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}

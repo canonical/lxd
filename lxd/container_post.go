@@ -226,7 +226,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
+			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -235,7 +235,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -256,7 +256,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -399,7 +399,7 @@ func containerPostClusteringMigrate(d *Daemon, c Instance, oldName, newName, new
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operations.OperationCreate(d.cluster, c.Project(), operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), c.Project(), operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -507,7 +507,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c Instance, project, oldN
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operations.OperationCreate(d.cluster, project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
