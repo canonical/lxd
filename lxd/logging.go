@@ -25,7 +25,7 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 			return expireLogs(ctx, state)
 		}
 
-		op, err := operations.OperationCreate(state.Cluster, "", operations.OperationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil)
+		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start log expiry operation", log.Ctx{"err": err})
 			return
