@@ -42,9 +42,6 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	debug = c.flagLogDebug
 	verbose = c.flagLogVerbose
 
-	// Set debug and verbose for the events package
-	events.Init(debug, verbose)
-
 	// Set debug for the operations package
 	operations.Init(debug)
 
