@@ -12,7 +12,7 @@ type Event struct {
 	Metadata  json.RawMessage `yaml:"metadata" json:"metadata"`
 
 	// API extension: event_location
-	Location string `yaml:"location" json:"location"`
+	Location string `yaml:"location,omitempty" json:"location,omitempty"`
 }
 
 // EventLogging represents a logging type event entry (admin only)
