@@ -267,24 +267,40 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 		stmts: stmts,
 	}
 
-	// Figure out the ID of this node.
 	err = cluster.Transaction(func(tx *ClusterTx) error {
+		// Figure out the ID of this node.
 		nodes, err := tx.Nodes()
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch nodes")
+			return errors.Wrap(err, "Failed to fetch nodes")
 		}
+
+		nodeID := int64(-1)
 		if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
 			// We're not clustered
-			cluster.NodeID(1)
-			return nil
-		}
-		for _, node := range nodes {
-			if node.Address == address {
-				cluster.nodeID = node.ID
-				return nil
+			nodeID = 1
+		} else {
+			for _, node := range nodes {
+				if node.Address == address {
+					nodeID = node.ID
+					break
+				}
 			}
 		}
-		return fmt.Errorf("no node registered with address %s", address)
+
+		if nodeID < 0 {
+			return fmt.Errorf("No node registered with address %s", address)
+		}
+
+		// Set the local node ID
+		cluster.NodeID(nodeID)
+
+		// Delete any operation tied to this node
+		err = tx.OperationFlush(nodeID)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err

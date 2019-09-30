@@ -315,6 +315,16 @@ func (c *ClusterTx) OperationRemove(uuid string) error {
 	return nil
 }
 
+// OperationFlush removes all operations for the given node.
+func (c *ClusterTx) OperationFlush(nodeID int64) error {
+	_, err := c.tx.Exec("DELETE FROM operations WHERE node_id=?", nodeID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Operations returns all operations in the cluster, filtered by the given clause.
 func (c *ClusterTx) operations(where string, args ...interface{}) ([]Operation, error) {
 	operations := []Operation{}
