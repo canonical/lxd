@@ -534,6 +534,9 @@ func (d *Daemon) Init() error {
 }
 
 func (d *Daemon) init() error {
+	// Setup logger
+	events.LoggingServer = d.events
+
 	// Lets check if there's an existing LXD running
 	err := endpoints.CheckAlreadyRunning(d.UnixSocket())
 	if err != nil {

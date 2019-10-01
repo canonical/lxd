@@ -167,7 +167,7 @@ func OperationCreate(state *state.State, project string, opClass operationClass,
 
 	logger.Debugf("New %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "Operation", md)
+	op.state.Events.Send(op.project, "operation", md)
 
 	return &op, nil
 }
@@ -286,7 +286,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 				logger.Debugf("Failed to cancel %s Operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
-				op.state.Events.Send(op.project, "Operation", md)
+				op.state.Events.Send(op.project, "operation", md)
 				return
 			}
 
@@ -298,13 +298,13 @@ func (op *Operation) Cancel() (chan error, error) {
 
 			logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			op.state.Events.Send(op.project, "Operation", md)
+			op.state.Events.Send(op.project, "operation", md)
 		}(op, oldStatus, chanCancel)
 	}
 
 	logger.Debugf("Cancelling %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "Operation", md)
+	op.state.Events.Send(op.project, "operation", md)
 
 	if op.canceler != nil {
 		err := op.canceler.Cancel()
@@ -323,7 +323,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 	logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
-	op.state.Events.Send(op.project, "Operation", md)
+	op.state.Events.Send(op.project, "operation", md)
 
 	return chanCancel, nil
 }
@@ -469,7 +469,7 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 
 	logger.Debugf("Updated resources for %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "Operation", md)
+	op.state.Events.Send(op.project, "operation", md)
 
 	return nil
 }
@@ -497,7 +497,7 @@ func (op *Operation) UpdateMetadata(opMetadata interface{}) error {
 
 	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "Operation", md)
+	op.state.Events.Send(op.project, "operation", md)
 
 	return nil
 }
