@@ -1,6 +1,6 @@
 The following support resources are available to LXD users:
 
- - Official documentation: https://lxd.readthedocs.org/en/latest
+ - Official documentation: https://linuxcontainers.org/lxd/docs/master/
  - Community forum: https://discuss.linuxcontainers.org
  - Various howtos and blog posts: https://linuxcontainers.org/lxd/articles
  - Users mailing-list: https://lists.linuxcontainers.org/listinfo/lxc-users
