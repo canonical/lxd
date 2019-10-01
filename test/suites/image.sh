@@ -21,6 +21,11 @@ test_image_expiry() {
   fpbrief=$(echo "${fp}" | cut -c 1-10)
   lxc_remote image list l2: | grep -q "${fpbrief}"
 
+  # Test modification of image expiry date
+  lxc_remote image info "l2:${fp}" | grep -q "Expires.*never"
+  lxc_remote image show "l2:${fp}" | sed "s/expires_at.*/expires_at: 3000-01-01T00:00:00-00:00/" | lxc_remote image edit "l2:${fp}"
+  lxc_remote image info "l2:${fp}" | grep -q "Expires.*3000"
+
   # Override the upload date
   LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}'" | grep -q "Rows affected: 1"
 
