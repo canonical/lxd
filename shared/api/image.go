@@ -41,6 +41,9 @@ type ImagePut struct {
 	AutoUpdate bool              `json:"auto_update" yaml:"auto_update"`
 	Properties map[string]string `json:"properties" yaml:"properties"`
 	Public     bool              `json:"public" yaml:"public"`
+
+	// API extension: images_expiry
+	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
 }
 
 // Image represents a LXD image
@@ -59,7 +62,6 @@ type Image struct {
 	Type string `json:"type" yaml:"type"`
 
 	CreatedAt  time.Time `json:"created_at" yaml:"created_at"`
-	ExpiresAt  time.Time `json:"expires_at" yaml:"expires_at"`
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
 	UploadedAt time.Time `json:"uploaded_at" yaml:"uploaded_at"`
 }

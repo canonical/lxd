@@ -842,3 +842,6 @@ Extends the disk resource API struct to include:
 ## clustering\_roles
 This adds a new `roles` attribute to cluster entries, exposing a list of
 roles that the member serves in the cluster.
+
+## images\_expiry
+This allows for editing of the expiry date on images.
