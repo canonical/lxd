@@ -300,10 +300,15 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 		MTU, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
 			return "", fmt.Errorf("Invalid MTU specified: %v", err)
-
 		}
 
 		err = NetworkSetDevMTU(peerName, MTU)
+		if err != nil {
+			NetworkRemoveInterface(peerName)
+			return "", fmt.Errorf("Failed to set the MTU: %v", err)
+		}
+
+		err = NetworkSetDevMTU(hostName, MTU)
 		if err != nil {
 			NetworkRemoveInterface(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
@@ -313,7 +318,14 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 		if err != nil {
 			return "", fmt.Errorf("Failed to get the parent MTU: %v", err)
 		}
+
 		err = NetworkSetDevMTU(peerName, parentMTU)
+		if err != nil {
+			NetworkRemoveInterface(peerName)
+			return "", fmt.Errorf("Failed to set the MTU: %v", err)
+		}
+
+		err = NetworkSetDevMTU(hostName, parentMTU)
 		if err != nil {
 			NetworkRemoveInterface(peerName)
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
