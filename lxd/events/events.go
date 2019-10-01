@@ -11,37 +11,33 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-var debug bool
-var verbose bool
+// Server represents an instance of an event server.
+type Server struct {
+	debug   bool
+	verbose bool
 
-var eventsLock sync.Mutex
-var eventListeners map[string]*Listener = make(map[string]*Listener)
-
-// Listener describes an event listener.
-type Listener struct {
-	project      string
-	connection   *websocket.Conn
-	messageTypes []string
-	active       chan bool
-	id           string
-	lock         sync.Mutex
-	done         bool
-	location     string
-
-	// If true, this listener won't get events forwarded from other
-	// nodes. It only used by listeners created internally by LXD nodes
-	// connecting to other LXD nodes to get their local events only.
-	noForward bool
+	listeners map[string]*Listener
+	lock      sync.Mutex
 }
 
-// NewEventListener creates and returns a new event listener.
-func NewEventListener(project string, connection *websocket.Conn, messageTypes []string, location string, noForward bool) *Listener {
-	return &Listener{
-		project:      project,
+// NewServer returns a new event server.
+func NewServer(debug bool, verbose bool) *Server {
+	server := &Server{
+		debug:     debug,
+		verbose:   verbose,
+		listeners: map[string]*Listener{},
+	}
+
+	return server
+}
+
+// AddListener creates and returns a new event listener.
+func (s *Server) AddListener(group string, connection *websocket.Conn, messageTypes []string, location string, noForward bool) (*Listener, error) {
+	listener := &Listener{
+		group:        group,
 		connection:   connection,
 		messageTypes: messageTypes,
 		location:     location,
@@ -49,85 +45,23 @@ func NewEventListener(project string, connection *websocket.Conn, messageTypes [
 		active:       make(chan bool, 1),
 		id:           uuid.NewRandom().String(),
 	}
-}
 
-// MessageTypes returns a list of message types the listener will be notified of.
-func (e *Listener) MessageTypes() []string {
-	return e.messageTypes
-}
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
-// IsDone returns true if the listener is done.
-func (e *Listener) IsDone() bool {
-	return e.done
-}
+	if s.listeners[listener.id] != nil {
+		return nil, fmt.Errorf("A listener with id '%s' already exists", listener.id)
+	}
 
-// Connection returns the underlying websocket connection.
-func (e *Listener) Connection() *websocket.Conn {
-	return e.connection
-}
+	s.listeners[listener.id] = listener
 
-// ID returns the listener ID.
-func (e *Listener) ID() string {
-	return e.id
-}
-
-// Wait waits for a message on its active channel, then returns.
-func (e *Listener) Wait() {
-	<-e.active
-}
-
-// Lock locks the internal mutex.
-func (e *Listener) Lock() {
-	e.lock.Lock()
-}
-
-// Unlock unlocks the internal mutex.
-func (e *Listener) Unlock() {
-	e.lock.Unlock()
-}
-
-// Deactivate deactivates the event listener.
-func (e *Listener) Deactivate() {
-	e.active <- false
-	e.done = true
-}
-
-// Handler describes an event handler.
-type Handler struct {
-}
-
-// NewEventHandler creates and returns a new event handler.
-func NewEventHandler() *Handler {
-	return &Handler{}
-}
-
-// Log sends a new logging event.
-func (h Handler) Log(r *log.Record) error {
-	Send("", "logging", api.EventLogging{
-		Message: r.Msg,
-		Level:   r.Lvl.String(),
-		Context: logContextMap(r.Ctx)})
-	return nil
-}
-
-// Init sets the debug and verbose flags.
-func Init(d bool, v bool) {
-	debug = d
-	verbose = v
-}
-
-// AddListener adds the given listener to the internal list of listeners which
-// are notified when events are broadcasted.
-func AddListener(listener *Listener) {
-	eventsLock.Lock()
-	eventListeners[listener.id] = listener
-	eventsLock.Unlock()
+	return listener, nil
 }
 
 // SendLifecycle broadcasts a lifecycle event.
-func SendLifecycle(project, action, source string,
+func (s *Server) SendLifecycle(group, action, source string,
 	context map[string]interface{}) error {
-	Send(project, "lifecycle", api.EventLifecycle{
+	s.Send(group, "lifecycle", api.EventLifecycle{
 		Action:  action,
 		Source:  source,
 		Context: context})
@@ -135,7 +69,7 @@ func SendLifecycle(project, action, source string,
 }
 
 // Send broadcasts a custom event.
-func Send(project, eventType string, eventMessage interface{}) error {
+func (s *Server) Send(group, eventType string, eventMessage interface{}) error {
 	encodedMessage, err := json.Marshal(eventMessage)
 	if err != nil {
 		return err
@@ -146,11 +80,11 @@ func Send(project, eventType string, eventMessage interface{}) error {
 		Metadata:  encodedMessage,
 	}
 
-	return broadcast(project, event, false)
+	return s.broadcast(group, event, false)
 }
 
 // Forward to the local events dispatcher an event received from another node.
-func Forward(id int64, event api.Event) {
+func (s *Server) Forward(id int64, event api.Event) {
 	if event.Type == "logging" {
 		// Parse the message
 		logEntry := api.EventLogging{}
@@ -159,42 +93,26 @@ func Forward(id int64, event api.Event) {
 			return
 		}
 
-		if !debug && logEntry.Level == "dbug" {
+		if !s.debug && logEntry.Level == "dbug" {
 			return
 		}
 
-		if !debug && !verbose && logEntry.Level == "info" {
+		if !s.debug && !s.verbose && logEntry.Level == "info" {
 			return
 		}
 	}
 
-	err := broadcast("", event, true)
+	err := s.broadcast("", event, true)
 	if err != nil {
 		logger.Warnf("Failed to forward event from node %d: %v", id, err)
 	}
 }
 
-func logContextMap(ctx []interface{}) map[string]string {
-	var key string
-	ctxMap := map[string]string{}
-
-	for _, entry := range ctx {
-		if key == "" {
-			key = entry.(string)
-		} else {
-			ctxMap[key] = fmt.Sprintf("%v", entry)
-			key = ""
-		}
-	}
-
-	return ctxMap
-}
-
-func broadcast(project string, event api.Event, isForward bool) error {
-	eventsLock.Lock()
-	listeners := eventListeners
+func (s *Server) broadcast(group string, event api.Event, isForward bool) error {
+	s.lock.Lock()
+	listeners := s.listeners
 	for _, listener := range listeners {
-		if project != "" && listener.project != "*" && project != listener.project {
+		if group != "" && listener.group != "*" && group != listener.group {
 			continue
 		}
 
@@ -241,9 +159,9 @@ func broadcast(project string, event api.Event, isForward bool) error {
 			err = listener.connection.WriteMessage(websocket.TextMessage, body)
 			if err != nil {
 				// Remove the listener from the list
-				eventsLock.Lock()
-				delete(eventListeners, listener.id)
-				eventsLock.Unlock()
+				s.lock.Lock()
+				delete(s.listeners, listener.id)
+				s.lock.Unlock()
 
 				// Disconnect the listener
 				listener.connection.Close()
@@ -253,7 +171,65 @@ func broadcast(project string, event api.Event, isForward bool) error {
 			}
 		}(listener, event)
 	}
-	eventsLock.Unlock()
+	s.lock.Unlock()
 
 	return nil
+}
+
+// Listener describes an event listener.
+type Listener struct {
+	group        string
+	connection   *websocket.Conn
+	messageTypes []string
+	active       chan bool
+	id           string
+	lock         sync.Mutex
+	done         bool
+	location     string
+
+	// If true, this listener won't get events forwarded from other
+	// nodes. It only used by listeners created internally by LXD nodes
+	// connecting to other LXD nodes to get their local events only.
+	noForward bool
+}
+
+// MessageTypes returns a list of message types the listener will be notified of.
+func (e *Listener) MessageTypes() []string {
+	return e.messageTypes
+}
+
+// IsDone returns true if the listener is done.
+func (e *Listener) IsDone() bool {
+	return e.done
+}
+
+// Connection returns the underlying websocket connection.
+func (e *Listener) Connection() *websocket.Conn {
+	return e.connection
+}
+
+// ID returns the listener ID.
+func (e *Listener) ID() string {
+	return e.id
+}
+
+// Wait waits for a message on its active channel, then returns.
+func (e *Listener) Wait() {
+	<-e.active
+}
+
+// Lock locks the internal mutex.
+func (e *Listener) Lock() {
+	e.lock.Lock()
+}
+
+// Unlock unlocks the internal mutex.
+func (e *Listener) Unlock() {
+	e.lock.Unlock()
+}
+
+// Deactivate deactivates the event listener.
+func (e *Listener) Deactivate() {
+	e.active <- false
+	e.done = true
 }
