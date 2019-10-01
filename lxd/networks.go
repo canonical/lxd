@@ -1050,6 +1050,10 @@ func (n *network) Rename(name string) error {
 }
 
 func (n *network) Start() error {
+	return n.Setup(nil)
+}
+
+func (n *network) Setup(oldConfig map[string]string) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
 		return nil
@@ -2051,7 +2055,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 			n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
 
 			// Reset any change that was made to the bridge
-			n.Start()
+			n.Setup(newConfig)
 		}
 	}()
 
@@ -2131,7 +2135,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 
 	// Restart the network
 	if !userOnly {
-		err = n.Start()
+		err = n.Setup(oldConfig)
 		if err != nil {
 			return err
 		}
