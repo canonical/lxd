@@ -1050,6 +1050,10 @@ func (n *network) Rename(name string) error {
 }
 
 func (n *network) Start() error {
+	return n.Setup(nil)
+}
+
+func (n *network) Setup(oldConfig map[string]string) error {
 	// If we are in mock mode, just no-op.
 	if n.state.OS.MockMode {
 		return nil
@@ -1197,19 +1201,23 @@ func (n *network) Start() error {
 	}
 
 	// Remove any existing IPv4 iptables rules
-	err = iptables.NetworkClear("ipv4", n.name, "")
-	if err != nil {
-		return err
+	if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) || (oldConfig != nil && (oldConfig["ipv4.firewall"] == "" || shared.IsTrue(oldConfig["ipv4.firewall"]))) {
+		err = iptables.NetworkClear("ipv4", n.name, "")
+		if err != nil {
+			return err
+		}
+
+		err = iptables.NetworkClear("ipv4", n.name, "mangle")
+		if err != nil {
+			return err
+		}
 	}
 
-	err = iptables.NetworkClear("ipv4", n.name, "mangle")
-	if err != nil {
-		return err
-	}
-
-	err = iptables.NetworkClear("ipv4", n.name, "nat")
-	if err != nil {
-		return err
+	if shared.IsTrue(n.config["ipv4.nat"]) || (oldConfig != nil && shared.IsTrue(oldConfig["ipv4.nat"])) {
+		err = iptables.NetworkClear("ipv4", n.name, "nat")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Snapshot container specific IPv4 routes (added with boot proto) before removing IPv4 addresses.
@@ -1395,14 +1403,18 @@ func (n *network) Start() error {
 	}
 
 	// Remove any existing IPv6 iptables rules
-	err = iptables.NetworkClear("ipv6", n.name, "")
-	if err != nil {
-		return err
+	if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) || (oldConfig != nil && (oldConfig["ipv6.firewall"] == "" || shared.IsTrue(oldConfig["ipv6.firewall"]))) {
+		err = iptables.NetworkClear("ipv6", n.name, "")
+		if err != nil {
+			return err
+		}
 	}
 
-	err = iptables.NetworkClear("ipv6", n.name, "nat")
-	if err != nil {
-		return err
+	if shared.IsTrue(n.config["ipv6.nat"]) || (oldConfig != nil && shared.IsTrue(oldConfig["ipv6.nat"])) {
+		err = iptables.NetworkClear("ipv6", n.name, "nat")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Snapshot container specific IPv6 routes (added with boot proto) before removing IPv6 addresses.
@@ -1966,33 +1978,41 @@ func (n *network) Stop() error {
 	}
 
 	// Cleanup iptables
-	err := iptables.NetworkClear("ipv4", n.name, "")
-	if err != nil {
-		return err
+	if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
+		err := iptables.NetworkClear("ipv4", n.name, "")
+		if err != nil {
+			return err
+		}
+
+		err = iptables.NetworkClear("ipv4", n.name, "mangle")
+		if err != nil {
+			return err
+		}
 	}
 
-	err = iptables.NetworkClear("ipv4", n.name, "mangle")
-	if err != nil {
-		return err
+	if shared.IsTrue(n.config["ipv4.nat"]) {
+		err := iptables.NetworkClear("ipv4", n.name, "nat")
+		if err != nil {
+			return err
+		}
 	}
 
-	err = iptables.NetworkClear("ipv4", n.name, "nat")
-	if err != nil {
-		return err
+	if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
+		err := iptables.NetworkClear("ipv6", n.name, "")
+		if err != nil {
+			return err
+		}
 	}
 
-	err = iptables.NetworkClear("ipv6", n.name, "")
-	if err != nil {
-		return err
-	}
-
-	err = iptables.NetworkClear("ipv6", n.name, "nat")
-	if err != nil {
-		return err
+	if shared.IsTrue(n.config["ipv6.nat"]) {
+		err := iptables.NetworkClear("ipv6", n.name, "nat")
+		if err != nil {
+			return err
+		}
 	}
 
 	// Kill any existing dnsmasq and forkdns daemon for this network
-	err = dnsmasq.Kill(n.name, false)
+	err := dnsmasq.Kill(n.name, false)
 	if err != nil {
 		return err
 	}
@@ -2051,7 +2071,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 			n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
 
 			// Reset any change that was made to the bridge
-			n.Start()
+			n.Setup(newConfig)
 		}
 	}()
 
@@ -2131,7 +2151,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 
 	// Restart the network
 	if !userOnly {
-		err = n.Start()
+		err = n.Setup(oldConfig)
 		if err != nil {
 			return err
 		}
