@@ -36,24 +36,78 @@ func (b *lxdBackend) Driver() drivers.Driver {
 	return b.driver
 }
 
-func (b *lxdBackend) create(dbPool api.StoragePool, op *operations.Operation) error {
-	return ErrNotImplemented
+func (b *lxdBackend) create(dbPool *api.StoragePool, op *operations.Operation) error {
+	revertPath := true
+
+	// Create the storage path
+	path := shared.VarPath("storage-pools", b.name)
+	err := os.MkdirAll(path, 0711)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	defer func() {
+		if !revertPath {
+			return
+		}
+
+		os.RemoveAll(path)
+	}()
+
+	// Create the low-level storage pool
+	driver, err := drivers.Create(dbPool)
+	if err != nil {
+		return err
+	}
+
+	// Mount the storage pool
+	ourMount, err := driver.Mount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer driver.Unmount()
+	}
+
+	// Create the directory structure
+	err = createStorageStructure(path)
+	if err != nil {
+		return err
+	}
+
+	// Set the driver
+	b.driver = driver
+	revertPath = false
+
+	return nil
 }
 
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
-	return nil, ErrNotImplemented
+	return b.driver.GetResources()
 }
 
 func (b *lxdBackend) Delete(op *operations.Operation) error {
-	return ErrNotImplemented
+	// Delete the low-level storage
+	err := b.driver.Delete(op)
+	if err != nil {
+		return err
+	}
+
+	// Delete the mountpoint
+	path := shared.VarPath("storage-pools", b.name)
+	err = os.Remove(path)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) Mount() (bool, error) {
-	return true, ErrNotImplemented
+	return b.driver.Mount()
 }
 
 func (b *lxdBackend) Unmount() (bool, error) {
-	return true, ErrNotImplemented
+	return b.driver.Unmount()
 }
 
 func (b *lxdBackend) CreateInstance(i Instance, op *operations.Operation) error {
