@@ -986,13 +986,12 @@ func instanceLoadByProjectAndName(s *state.State, project, name string) (Instanc
 	}
 
 	args := db.ContainerToArgs(container)
-
-	c, err := containerLXCLoad(s, args, nil)
+	inst, err := instanceLoad(s, args, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to load container")
 	}
 
-	return c, nil
+	return inst, nil
 }
 
 func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
@@ -1126,21 +1125,34 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		if dbInstance.Type == instancetype.Container {
-			args := db.ContainerToArgs(&dbInstance)
-			ct, err := containerLXCLoad(s, args, cProfiles)
-			if err != nil {
-				return nil, err
-			}
-			instances = append(instances, ct)
-		} else {
-			// TODO add virtual machine load here.
-			continue
+		args := db.ContainerToArgs(&dbInstance)
+		inst, err := instanceLoad(s, args, cProfiles)
+		if err != nil {
+			return nil, err
 		}
 
+		instances = append(instances, inst)
 	}
 
 	return instances, nil
+}
+
+// instanceLoad creates the underlying instance type struct and returns it as an Instance.
+func instanceLoad(s *state.State, args db.InstanceArgs, cProfiles []api.Profile) (Instance, error) {
+	var inst Instance
+	var err error
+
+	if args.Type == instancetype.Container {
+		inst, err = containerLXCLoad(s, args, cProfiles)
+	} else {
+		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return inst, nil
 }
 
 func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
