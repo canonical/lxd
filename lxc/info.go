@@ -450,6 +450,10 @@ func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name
 
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
 
+	if ct.Type == "" {
+		ct.Type = "container"
+	}
+
 	if ct.Ephemeral {
 		fmt.Printf(i18n.G("Type: %s (ephemeral)")+"\n", ct.Type)
 	} else {
