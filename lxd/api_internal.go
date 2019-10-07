@@ -594,7 +594,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 
 			snaps := strings.Fields(msg)
-			prefix := fmt.Sprintf("containers_%s-", req.Name)
+			prefix := fmt.Sprintf("containers_%s-", project.Prefix(projectName, req.Name))
 			for _, v := range snaps {
 				// ignore zombies
 				if strings.HasPrefix(v, prefix) {
@@ -633,7 +633,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		case "zfs":
 			onDiskPoolName := backup.Pool.Config["zfs.pool_name"]
 			snaps, err := zfsPoolListSnapshots(onDiskPoolName,
-				fmt.Sprintf("containers/%s", req.Name))
+				fmt.Sprintf("containers/%s", project.Prefix(projectName, req.Name)))
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -713,7 +713,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			snapName := fmt.Sprintf("snapshot_%s", project.Prefix(projectName, od))
+			snapName := fmt.Sprintf("snapshot_%s", od)
 			ret := cephContainerSnapshotDelete(clusterName,
 				onDiskPoolName, project.Prefix(projectName, req.Name),
 				storagePoolVolumeTypeNameContainer, snapName, userName)
@@ -750,7 +750,8 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(needForce)
 			}
 		case "lvm":
-			ctLvmName := containerNameToLVName(snap.Name)
+			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			ctLvmName := containerNameToLVName(fmt.Sprintf("%s/%s", project.Prefix(projectName, ctName), csName))
 			ctLvName := getLVName(poolName,
 				storagePoolVolumeAPIEndpointContainers,
 				ctLvmName)
@@ -779,7 +780,6 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
 			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 			ctName = project.Prefix(projectName, ctName)
-			csName = project.Prefix(projectName, csName)
 			snapshotName := fmt.Sprintf("snapshot_%s", csName)
 
 			exists := cephRBDSnapshotExists(clusterName,
@@ -797,7 +797,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			snapshotName := fmt.Sprintf("snapshot-%s", csName)
 
 			exists := zfsFilesystemEntityExists(poolName,
-				fmt.Sprintf("containers/%s@%s", ctName,
+				fmt.Sprintf("containers/%s@%s", project.Prefix(projectName, ctName),
 					snapshotName))
 			if !exists {
 				if req.Force {

@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -1617,10 +1618,10 @@ func (s *storageBtrfs) doBtrfsBackup(cur string, prev string, target string) err
 	return err
 }
 
-func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup backup, source Instance) error {
+func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup backup.Backup, source Instance) error {
 	// Handle snapshots
 	finalParent := ""
-	if !backup.instanceOnly {
+	if !backup.InstanceOnly() {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots
@@ -1690,7 +1691,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source Instance) error {
+func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup backup.Backup, source Instance) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
 		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
@@ -1704,7 +1705,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
 	// Handle snapshots
-	if !backup.instanceOnly {
+	if !backup.InstanceOnly() {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots
@@ -1773,46 +1774,26 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 	return nil
 }
 
-func (s *storageBtrfs) ContainerBackupCreate(backup backup, source Instance) error {
-	// Start storage
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
-
-	// Create a temporary path for the backup
-	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpPath)
+func (s *storageBtrfs) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
+	var err error
 
 	// Generate the actual backup
-	if backup.optimizedStorage {
-		err = s.doContainerBackupCreateOptimized(tmpPath, backup, source)
+	if backup.OptimizedStorage() {
+		err = s.doContainerBackupCreateOptimized(path, backup, source)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := s.doContainerBackupCreateVanilla(tmpPath, backup, source)
+		err := s.doContainerBackupCreateVanilla(path, backup, source)
 		if err != nil {
 			return err
 		}
-	}
-
-	// Pack the backup
-	err = backupCreateTarball(s.s, tmpPath, backup)
-	if err != nil {
-		return err
 	}
 
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageBtrfs) doContainerBackupLoadOptimized(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := shared.ContainerGetParentAndSnapshotName(info.Name)
 
 	containerMntPoint := driver.GetContainerMountPoint("default", s.pool.Name, "")
@@ -1910,7 +1891,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageBtrfs) doContainerBackupLoadVanilla(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
 	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
 	if err != nil {
@@ -1965,7 +1946,7 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.Rea
 	return nil
 }
 
-func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageBtrfs) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	logger.Debugf("Loading BTRFS storage volume for backup \"%s\" on storage pool \"%s\"", info.Name, s.pool.Name)
 
 	if info.HasBinaryFormat {

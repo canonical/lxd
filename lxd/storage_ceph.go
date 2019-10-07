@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -1897,50 +1898,23 @@ func (s *storageCeph) ContainerSnapshotCreateEmpty(c Instance) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerBackupCreate(backup backup, source Instance) error {
-	// Start storage
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
-
-	// Create a temporary path for the backup
-	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpPath)
-
+func (s *storageCeph) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
 	// Generate the actual backup
-	if !backup.instanceOnly {
+	if !backup.InstanceOnly() {
 		snapshots, err := source.Snapshots()
 		if err != nil {
 			return err
 		}
 
 		for _, snap := range snapshots {
-			err := s.cephRBDVolumeBackupCreate(tmpPath, backup, snap)
+			err := s.cephRBDVolumeBackupCreate(path, backup, snap)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	err = s.cephRBDVolumeBackupCreate(tmpPath, backup, source)
-	if err != nil {
-		return err
-	}
-
-	// Pack the backup
-	err = backupCreateTarball(s.s, tmpPath, backup)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.cephRBDVolumeBackupCreate(path, backup, source)
 }
 
 // This function recreates an rbd container including its snapshots. It
@@ -1949,7 +1923,7 @@ func (s *storageCeph) ContainerBackupCreate(backup backup, source Instance) erro
 // - for each snapshot dump the contents into the empty storage volume and
 //   after each dump take a snapshot of the rbd storage volume
 // - dump the container contents into the rbd storage volume.
-func (s *storageCeph) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageCeph) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
 	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
 	if err != nil {
