@@ -4,7 +4,9 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 )
 
-var drivers = map[string]func() driver{}
+var drivers = map[string]func() driver{
+	"dir": func() driver { return &dir{} },
+}
 
 // Load returns a Driver for an existing low-level storage pool.
 func Load(state *state.State, driverName string, name string, config map[string]string, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) (Driver, error) {
