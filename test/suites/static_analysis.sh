@@ -72,6 +72,7 @@ test_static_analysis() {
 
       golint -set_exit_status lxd-p2c
 
+      golint -set_exit_status lxd/backup
       golint -set_exit_status lxd/config
       golint -set_exit_status lxd/db
       golint -set_exit_status lxd/db/node
