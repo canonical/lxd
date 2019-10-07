@@ -155,6 +155,9 @@ type ResourcesNetworkCard struct {
 	VendorID  string `json:"vendor_id,omitempty" yaml:"vendor_id,omitempty"`
 	Product   string `json:"product,omitempty" yaml:"product,omitempty"`
 	ProductID string `json:"product_id,omitempty" yaml:"product_id,omitempty"`
+
+	// API extension: resources_network_firmware
+	FirmwareVersion string `json:"firmware_version,omitempty" yaml:"firmware_version,omitempty"`
 }
 
 // ResourcesNetworkCardPort represents a network port on the system
