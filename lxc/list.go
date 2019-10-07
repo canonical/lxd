@@ -620,6 +620,10 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 }
 
 func (c *cmdList) typeColumnData(cInfo api.InstanceFull) string {
+	if cInfo.Type == "" {
+		cInfo.Type = "container"
+	}
+
 	if cInfo.Ephemeral {
 		return fmt.Sprintf("%s (%s)", strings.ToUpper(cInfo.Type), i18n.G("EPHEMERAL"))
 	}
