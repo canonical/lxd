@@ -169,6 +169,7 @@ var APIExtensions = []string{
 	"resources_disk_sata",
 	"clustering_roles",
 	"images_expiry",
+	"resources_network_firmware",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
