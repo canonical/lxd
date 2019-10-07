@@ -362,9 +362,9 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	RBDFilesystem := s.getRBDFilesystem()
 	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume "%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name, s.pool.Name)
 
-	msg, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+	output, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
-		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume "%s" on storage pool "%s": %s`, RBDFilesystem, RBDDevPath, s.volume.Name, s.pool.Name, msg)
+		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, RBDDevPath, s.volume.Name, s.pool.Name, err, output)
 		return err
 	}
 	logger.Debugf(`Created filesystem type "%s" on device path "%s" for RBD storage volume "%s" on storage pool "%s"`, RBDFilesystem, RBDDevPath, s.volume.Name, s.pool.Name)
@@ -2106,10 +2106,9 @@ func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.Progre
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
-		msg, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+		output, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 		if err != nil {
-			logger.Errorf(`Failed to create filesystem "%s" for RBD storage volume for image "%s" on storage pool "%s": %s`, RBDFilesystem, fingerprint,
-				s.pool.Name, msg)
+			logger.Errorf(`Failed to create filesystem "%s" for RBD storage volume for image "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, fingerprint, s.pool.Name, err, output)
 			return err
 		}
 		logger.Debugf(`Created filesystem "%s" for RBD storage volume for image "%s" on storage pool "%s"`, RBDFilesystem, fingerprint, s.pool.Name)
