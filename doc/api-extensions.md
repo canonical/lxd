@@ -845,3 +845,6 @@ roles that the member serves in the cluster.
 
 ## images\_expiry
 This allows for editing of the expiry date on images.
+
+## resources\_network\_firmware
+Adds a FirmwareVersion field to network card entries.
