@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +14,27 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+var baseDirectories = []string{
+	"containers",
+	"containers-snapshots",
+	"custom",
+	"custom-snapshots",
+	"images",
+	"virtual-machines",
+	"virtual-machines-snapshots",
+}
+
+func createStorageStructure(path string) error {
+	for _, name := range baseDirectories {
+		err := os.MkdirAll(filepath.Join(path, name), 0711)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // MkfsOptions represents options for filesystem creation.
 type MkfsOptions struct {
