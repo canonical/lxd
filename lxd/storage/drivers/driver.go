@@ -5,7 +5,11 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-var drivers = map[string]func(name string, path string, config map[string]string) driver{}
+var drivers = map[string]func(name string, path string, config map[string]string) driver{
+	"dir": func(name string, path string, config map[string]string) driver {
+		return &dir{name: name, path: path, config: config}
+	},
+}
 
 // Create performs the initial validation and alteration of the configuration and creates the low-level storage pool, returning a Driver.
 func Create(dbPool *api.StoragePool) (Driver, error) {
