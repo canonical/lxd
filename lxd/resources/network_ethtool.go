@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -90,12 +91,53 @@ type ethtoolCmd struct {
 	reserved      [2]uint32
 }
 
+type ethtoolDrvInfo struct {
+	cmd         uint32
+	driver      [32]byte
+	version     [32]byte
+	fwVersion   [32]byte
+	busInfo     [32]byte
+	reserved1   [32]byte
+	reserved2   [16]byte
+	nStats      uint32
+	testinfoLen uint32
+	eedumpLen   uint32
+	regDumpLen  uint32
+}
+
 type ethtoolValue struct {
 	cmd  uint32
 	data uint32
 }
 
-func ethtoolAddInfo(info *api.ResourcesNetworkCardPort) error {
+func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
+	// Open FD
+	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
+	if err != nil {
+		return errors.Wrap(err, "Failed to open IPPROTO_IP socket")
+	}
+	defer unix.Close(ethtoolFd)
+
+	// Driver info
+	ethDrvInfo := ethtoolDrvInfo{
+		cmd: 0x00000003,
+	}
+	req := ethtoolReq{
+		data: uintptr(unsafe.Pointer(&ethDrvInfo)),
+	}
+	copy(req.name[:], []byte(name))
+
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
+	if errno != 0 {
+		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GDRVINFO")
+	}
+
+	info.FirmwareVersion = string(bytes.Trim(ethDrvInfo.fwVersion[:], "\x00"))
+
+	return nil
+}
+
+func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	if err != nil {
