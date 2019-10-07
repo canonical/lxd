@@ -160,7 +160,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 		output, err := driver.MakeFSType(source, "btrfs", &driver.MkfsOptions{Label: s.pool.Name})
 		if err != nil {
-			return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
+			return fmt.Errorf("Failed to create the BTRFS pool: %v (%s)", err, output)
 		}
 	} else {
 		// Unset size property since it doesn't make sense.
@@ -171,7 +171,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 			if isBlockDev {
 				output, err := driver.MakeFSType(source, "btrfs", &driver.MkfsOptions{Label: s.pool.Name})
 				if err != nil {
-					return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
+					return fmt.Errorf("Failed to create the BTRFS pool: %v (%s)", err, output)
 				}
 			} else {
 				if isBtrfsSubVolume(source) {

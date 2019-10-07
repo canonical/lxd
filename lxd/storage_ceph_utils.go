@@ -1752,9 +1752,9 @@ func (s *storageCeph) doContainerCreate(projectName, name string, privileged boo
 
 	// get filesystem
 	RBDFilesystem := s.getRBDFilesystem()
-	msg, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+	output, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
-		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume for container "%s" on storage pool "%s": %s`, RBDFilesystem, RBDDevPath, name, s.pool.Name, msg)
+		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume for container "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, RBDDevPath, name, s.pool.Name, err, output)
 		return err
 	}
 	logger.Debugf(`Created filesystem type "%s" on device path "%s" for RBD storage volume for container "%s" on storage pool "%s"`, RBDFilesystem, RBDDevPath, name, s.pool.Name)
