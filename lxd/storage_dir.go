@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -1123,23 +1123,7 @@ func (s *storageDir) ContainerSnapshotStop(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageDir) ContainerBackupCreate(backup backup, source Instance) error {
-	// Start storage
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
-
-	// Create a temporary path for the backup
-	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpPath)
-
+func (s *storageDir) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
 		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
@@ -1153,8 +1137,8 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source Instance) error
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
 	// Handle snapshots
-	if !backup.instanceOnly {
-		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
+	if !backup.InstanceOnly() {
+		snapshotsPath := fmt.Sprintf("%s/snapshots", path)
 
 		// Retrieve the snapshots
 		snapshots, err := source.Snapshots()
@@ -1196,22 +1180,12 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source Instance) error
 	}
 
 	// Copy the container
-	containerPath := fmt.Sprintf("%s/container", tmpPath)
-	err = rsync(source.Path(), containerPath, bwlimit)
-	if err != nil {
-		return err
-	}
+	containerPath := fmt.Sprintf("%s/container", path)
 
-	// Pack the backup
-	err = backupCreateTarball(s.s, tmpPath, backup)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return rsync(source.Path(), containerPath, bwlimit)
 }
 
-func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageDir) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err

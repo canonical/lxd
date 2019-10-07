@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -1663,24 +1663,8 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer Instance) er
 	return nil
 }
 
-func (s *storageLvm) ContainerBackupCreate(backup backup, source Instance) error {
+func (s *storageLvm) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
 	poolName := s.getOnDiskPoolName()
-
-	// Start storage
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
-
-	// Create a temporary path for the backup
-	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpPath)
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
@@ -1695,8 +1679,8 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source Instance) error
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
 	// Handle snapshots
-	if !backup.instanceOnly {
-		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
+	if !backup.InstanceOnly() {
+		snapshotsPath := fmt.Sprintf("%s/snapshots", path)
 
 		// Retrieve the snapshots
 		snapshots, err := source.Snapshots()
@@ -1735,7 +1719,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source Instance) error
 	// Make a temporary snapshot of the container
 	sourceLvmDatasetSnapshot := fmt.Sprintf("snapshot-%s", uuid.NewRandom().String())
 	tmpContainerMntPoint := driver.GetContainerMountPoint(source.Project(), s.pool.Name, sourceLvmDatasetSnapshot)
-	err = os.MkdirAll(tmpContainerMntPoint, 0700)
+	err := os.MkdirAll(tmpContainerMntPoint, 0700)
 	if err != nil {
 		return err
 	}
@@ -1757,15 +1741,9 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source Instance) error
 	}
 
 	// Copy the container
-	containerPath := fmt.Sprintf("%s/container", tmpPath)
+	containerPath := fmt.Sprintf("%s/container", path)
 	err = rsync(tmpContainerMntPoint, containerPath, bwlimit)
 	s.umount(source.Project(), sourceLvmDatasetSnapshot, "")
-	if err != nil {
-		return err
-	}
-
-	// Pack the backup
-	err = backupCreateTarball(s.s, tmpPath, backup)
 	if err != nil {
 		return err
 	}
@@ -1773,7 +1751,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source Instance) error
 	return nil
 }
 
-func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageLvm) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	containerPath, err := s.doContainerBackupLoad(info.Project, info.Name, info.Privileged, false)
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -176,11 +177,11 @@ func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer Instance) e
 	return nil
 }
 
-func (s *storageMock) ContainerBackupCreate(backup backup, sourceContainer Instance) error {
+func (s *storageMock) ContainerBackupCreate(path string, backup backup.Backup, sourceContainer Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageMock) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	return nil
 }
 

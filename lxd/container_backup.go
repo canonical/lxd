@@ -10,8 +10,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -55,7 +57,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) response.Response {
 	for _, backup := range backups {
 		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s/backups/%s",
-				version.APIVersion, cname, strings.Split(backup.name, "/")[1])
+				version.APIVersion, cname, strings.Split(backup.Name(), "/")[1])
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
@@ -131,11 +133,11 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 		for _, backup := range backups {
 			// Ignore backups not containing base
-			if !strings.HasPrefix(backup.name, base) {
+			if !strings.HasPrefix(backup.Name(), base) {
 				continue
 			}
 
-			substr := backup.name[length:]
+			substr := backup.Name()[length:]
 			var num int
 			count, err := fmt.Sscanf(substr, "%d", &num)
 			if err != nil || count != 1 {
@@ -209,7 +211,7 @@ func containerBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, fullName)
+	backup, err := backup.LoadByName(d.State(), project, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -248,7 +250,7 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, oldName)
+	backup, err := backup.LoadByName(d.State(), project, oldName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -296,7 +298,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, fullName)
+	backup, err := backup.LoadByName(d.State(), project, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -328,12 +330,12 @@ func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	proj := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, proj, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -342,13 +344,13 @@ func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), project, fullName)
+	backup, err := backup.LoadByName(d.State(), proj, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	ent := response.FileResponseEntry{
-		Path: shared.VarPath("backups", backup.name),
+		Path: shared.VarPath("backups", project.Prefix(proj, backup.Name())),
 	}
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
