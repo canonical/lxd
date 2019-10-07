@@ -191,12 +191,24 @@ func (d *disk) Start() (*RunConfig, error) {
 
 	runConf := RunConfig{}
 
-	err = d.generateLimits(&runConf)
-	if err != nil {
-		return nil, err
-	}
-
 	isReadOnly := shared.IsTrue(d.config["readonly"])
+
+	// Apply cgroups only after all the mounts have been processed
+	runConf.PostHooks = append(runConf.PostHooks, func() error {
+		runConf := RunConfig{}
+
+		err := d.generateLimits(&runConf)
+		if err != nil {
+			return err
+		}
+
+		err = d.instance.DeviceEventHandler(&runConf)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	// Deal with a rootfs.
 	if shared.IsRootDiskDevice(d.config) {
@@ -701,8 +713,8 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		}
 
 		// Set the source path
-		source := shared.HostPath(dev["source"])
-		if source == "" {
+		source := d.getDevicePath()
+		if dev["source"] == "" {
 			source = d.instance.RootfsPath()
 		}
 
