@@ -242,9 +242,13 @@ func networkAddDeviceInfo(devicePath string, pciDB *pcidb.PCIDB, uname unix.Utsn
 				continue
 			}
 
-			ethtoolAddInfo(info)
+			ethtoolAddPortInfo(info)
 
 			card.Ports = append(card.Ports, *info)
+		}
+
+		if len(card.Ports) > 0 {
+			ethtoolAddCardInfo(card.Ports[0].ID, card)
 		}
 	}
 
