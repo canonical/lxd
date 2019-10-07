@@ -6625,7 +6625,8 @@ func (c *containerLXC) ExpandedDevices() deviceConfig.Devices {
 	return c.expandedDevices
 }
 
-func (c *containerLXC) Id() int {
+// ID gets container's ID.
+func (c *containerLXC) ID() int {
 	return c.id
 }
 
