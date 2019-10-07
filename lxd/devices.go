@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -21,8 +22,6 @@ import (
 
 	log "github.com/lxc/lxd/shared/log15"
 )
-
-var deviceSchedRebalance = make(chan []string, 2)
 
 type deviceTaskCPU struct {
 	id    int
@@ -476,7 +475,7 @@ func deviceEventListener(s *state.State) {
 			networkAutoAttach(s.Cluster, e[0])
 		case e := <-chUSB:
 			device.USBRunHandlers(s, &e)
-		case e := <-deviceSchedRebalance:
+		case e := <-cgroup.DeviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
 				continue
@@ -533,15 +532,6 @@ func devicesRegister(s *state.State) {
 	}
 }
 
-func deviceTaskSchedulerTrigger(srcType string, srcName string, srcStatus string) {
-	// Spawn a go routine which then triggers the scheduler
-	select {
-	case deviceSchedRebalance <- []string{srcType, srcName, srcStatus}:
-	default:
-		// Channel is full, drop the event
-	}
-}
-
 func deviceNextInterfaceHWAddr() (string, error) {
 	// Generate a new random MAC address using the usual prefix
 	ret := bytes.Buffer{}
@@ -558,66 +548,4 @@ func deviceNextInterfaceHWAddr() (string, error) {
 	}
 
 	return ret.String(), nil
-}
-
-func deviceParseCPU(cpuAllowance string, cpuPriority string) (string, string, string, error) {
-	var err error
-
-	// Parse priority
-	cpuShares := 0
-	cpuPriorityInt := 10
-	if cpuPriority != "" {
-		cpuPriorityInt, err = strconv.Atoi(cpuPriority)
-		if err != nil {
-			return "", "", "", err
-		}
-	}
-	cpuShares -= 10 - cpuPriorityInt
-
-	// Parse allowance
-	cpuCfsQuota := "-1"
-	cpuCfsPeriod := "100000"
-
-	if cpuAllowance != "" {
-		if strings.HasSuffix(cpuAllowance, "%") {
-			// Percentage based allocation
-			percent, err := strconv.Atoi(strings.TrimSuffix(cpuAllowance, "%"))
-			if err != nil {
-				return "", "", "", err
-			}
-
-			cpuShares += (10 * percent) + 24
-		} else {
-			// Time based allocation
-			fields := strings.SplitN(cpuAllowance, "/", 2)
-			if len(fields) != 2 {
-				return "", "", "", fmt.Errorf("Invalid allowance: %s", cpuAllowance)
-			}
-
-			quota, err := strconv.Atoi(strings.TrimSuffix(fields[0], "ms"))
-			if err != nil {
-				return "", "", "", err
-			}
-
-			period, err := strconv.Atoi(strings.TrimSuffix(fields[1], "ms"))
-			if err != nil {
-				return "", "", "", err
-			}
-
-			// Set limit in ms
-			cpuCfsQuota = fmt.Sprintf("%d", quota*1000)
-			cpuCfsPeriod = fmt.Sprintf("%d", period*1000)
-			cpuShares += 1024
-		}
-	} else {
-		// Default is 100%
-		cpuShares += 1024
-	}
-
-	// Deal with a potential negative score
-	if cpuShares < 0 {
-		cpuShares = 0
-	}
-
-	return fmt.Sprintf("%d", cpuShares), cpuCfsQuota, cpuCfsPeriod, nil
 }

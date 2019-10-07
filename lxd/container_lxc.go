@@ -26,6 +26,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -1326,7 +1327,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
 
 	if (cpuPriority != "" || cpuAllowance != "") && c.state.OS.CGroupCPUController {
-		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(cpuAllowance, cpuPriority)
+		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := cgroup.ParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
 			return err
 		}
@@ -2612,7 +2613,7 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Trigger a rebalance
-	deviceTaskSchedulerTrigger("container", c.name, "started")
+	cgroup.TaskSchedulerTrigger("container", c.name, "started")
 
 	// Apply network priority
 	if c.expandedConfig["limits.network.priority"] != "" {
@@ -2964,7 +2965,7 @@ func (c *containerLXC) OnStop(target string) error {
 		}
 
 		// Trigger a rebalance
-		deviceTaskSchedulerTrigger("container", c.name, "stopped")
+		cgroup.TaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Destroy ephemeral containers
 		if c.ephemeral {
@@ -4126,7 +4127,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 			}
 			c.cConfig = false
 			c.initLXC(true)
-			deviceTaskSchedulerTrigger("container", c.name, "changed")
+			cgroup.TaskSchedulerTrigger("container", c.name, "changed")
 		}
 	}()
 
@@ -4505,7 +4506,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 			} else if key == "limits.cpu" {
 				// Trigger a scheduler re-run
-				deviceTaskSchedulerTrigger("container", c.name, "changed")
+				cgroup.TaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
 				if !c.state.OS.CGroupCPUController {
@@ -4513,7 +4514,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				// Apply new CPU limits
-				cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(c.expandedConfig["limits.cpu.allowance"], c.expandedConfig["limits.cpu.priority"])
+				cpuShares, cpuCfsQuota, cpuCfsPeriod, err := cgroup.ParseCPU(c.expandedConfig["limits.cpu.allowance"], c.expandedConfig["limits.cpu.priority"])
 				if err != nil {
 					return err
 				}
