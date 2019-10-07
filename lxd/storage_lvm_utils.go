@@ -856,8 +856,8 @@ func lvmCreateLv(projectName, vgName string, thinPoolName string, lvName string,
 
 	output, err = driver.MakeFSType(fsPath, lvFsType, nil)
 	if err != nil {
-		logger.Errorf("Filesystem creation failed: %s: %v", output, err)
-		return fmt.Errorf("Error making filesystem on image LV: %s: %v", output, err)
+		logger.Errorf("Filesystem creation failed: %v (%s)", err, output)
+		return fmt.Errorf("Error making filesystem on image LV: %v (%s)", err, output)
 	}
 
 	return nil
