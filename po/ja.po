@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-09-29 13:49-0400\n"
+"POT-Creation-Date: 2019-10-07 17:23+0100\n"
 "PO-Revision-Date: 2019-09-20 11:43+0000\n"
 "Last-Translator: Hiroaki Nakamura <hnakamur@gmail.com>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -428,11 +428,11 @@ msgstr "--all とコンテナ名を両方同時に指定することはできま
 msgid "Brand: %v"
 msgstr "ブランド: %v"
 
-#: lxc/info.go:539 lxc/network.go:785
+#: lxc/info.go:541 lxc/network.go:785
 msgid "Bytes received"
 msgstr "受信バイト数"
 
-#: lxc/info.go:540 lxc/network.go:786
+#: lxc/info.go:542 lxc/network.go:786
 msgid "Bytes sent"
 msgstr "送信バイト数"
 
@@ -449,11 +449,11 @@ msgstr ""
 msgid "CPU (%s):"
 msgstr "CPU (%s):"
 
-#: lxc/info.go:503
+#: lxc/info.go:505
 msgid "CPU usage (in seconds)"
 msgstr "CPU使用量（秒）"
 
-#: lxc/info.go:507
+#: lxc/info.go:509
 msgid "CPU usage:"
 msgstr "CPU使用量:"
 
@@ -992,7 +992,7 @@ msgstr "標準入力を無効にします (/dev/null から読み込みます)"
 msgid "Disk %d:"
 msgstr "ディスク %d:"
 
-#: lxc/info.go:496
+#: lxc/info.go:498
 msgid "Disk usage:"
 msgstr "ディスク使用量:"
 
@@ -1570,7 +1570,7 @@ msgstr "不正なソース %s"
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
 
-#: lxc/info.go:477 lxc/network.go:777
+#: lxc/info.go:479 lxc/network.go:777
 msgid "Ips:"
 msgstr "IPアドレス:"
 
@@ -1879,7 +1879,7 @@ msgstr "バックグラウンド操作の一覧表示、表示、削除を行い
 msgid "Location: %s"
 msgstr "ロケーション: %s"
 
-#: lxc/info.go:596
+#: lxc/info.go:598
 msgid "Log:"
 msgstr "ログ:"
 
@@ -2041,15 +2041,15 @@ msgstr "メンバ %s が削除されました"
 msgid "Member %s renamed to %s"
 msgstr "メンバ名 %s を %s に変更しました"
 
-#: lxc/info.go:514
+#: lxc/info.go:516
 msgid "Memory (current)"
 msgstr "メモリ (現在値)"
 
-#: lxc/info.go:518
+#: lxc/info.go:520
 msgid "Memory (peak)"
 msgstr "メモリ (ピーク)"
 
-#: lxc/info.go:530
+#: lxc/info.go:532
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
@@ -2265,7 +2265,7 @@ msgstr "ネットワーク名 %s を %s に変更しました"
 msgid "Network name"
 msgstr "ネットワーク名:"
 
-#: lxc/info.go:547 lxc/network.go:784
+#: lxc/info.go:549 lxc/network.go:784
 msgid "Network usage:"
 msgstr "ネットワーク使用状況:"
 
@@ -2345,10 +2345,6 @@ msgstr "ターミナルモードを上書きします (auto, interactive, non-in
 msgid "PCI address: %v"
 msgstr "PCI アドレス: %v"
 
-#: lxc/list.go:627
-msgid "PERSISTENT"
-msgstr ""
-
 #: lxc/list.go:425
 msgid "PID"
 msgstr "PID"
@@ -2369,11 +2365,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:541 lxc/network.go:787
+#: lxc/info.go:543 lxc/network.go:787
 msgid "Packets received"
 msgstr "受信パケット"
 
-#: lxc/info.go:542 lxc/network.go:788
+#: lxc/info.go:544 lxc/network.go:788
 msgid "Packets sent"
 msgstr "送信パケット"
 
@@ -2394,7 +2390,7 @@ msgstr "コンテナを一時停止します"
 msgid "Perform an incremental copy"
 msgstr "インクリメンタルコピーを実行します"
 
-#: lxc/info.go:459
+#: lxc/info.go:461
 #, c-format
 msgid "Pid: %d"
 msgstr "Pid: %d"
@@ -2434,7 +2430,7 @@ msgstr "レスポンスをそのまま表示します"
 msgid "Print version number"
 msgstr "バージョン番号を表示します"
 
-#: lxc/info.go:483
+#: lxc/info.go:485
 #, c-format
 msgid "Processes: %d"
 msgstr "プロセス数: %d"
@@ -2492,7 +2488,7 @@ msgstr "移動先のコンテナに適用するプロファイル"
 msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/info.go:457
+#: lxc/info.go:459
 #, c-format
 msgid "Profiles: %s"
 msgstr "プロファイル: %s"
@@ -2699,7 +2695,7 @@ msgstr ""
 msgid "Require user confirmation"
 msgstr "ユーザの確認を要求する"
 
-#: lxc/info.go:480
+#: lxc/info.go:482
 msgid "Resources:"
 msgstr "リソース:"
 
@@ -3060,7 +3056,7 @@ msgstr "サイズ: %s"
 msgid "Snapshot storage volumes"
 msgstr "ストレージボリュームのスナップショットを取得します"
 
-#: lxc/info.go:561
+#: lxc/info.go:563
 msgid "Snapshots:"
 msgstr "スナップショット:"
 
@@ -3165,11 +3161,11 @@ msgstr "サポートするモード: %s"
 msgid "Supported ports: %s"
 msgstr "サポートするポート: %s"
 
-#: lxc/info.go:522
+#: lxc/info.go:524
 msgid "Swap (current)"
 msgstr "Swap (現在値)"
 
-#: lxc/info.go:526
+#: lxc/info.go:528
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
@@ -3365,18 +3361,15 @@ msgstr "イメージを転送中: %s"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
 
-#: lxc/image.go:870 lxc/info.go:245
+#: lxc/image.go:870 lxc/info.go:245 lxc/info.go:456
 #, c-format
 msgid "Type: %s"
 msgstr "タイプ: %s"
 
-#: lxc/info.go:453
-msgid "Type: ephemeral"
+#: lxc/info.go:454
+#, fuzzy, c-format
+msgid "Type: %s (ephemeral)"
 msgstr "タイプ: ephemeral"
-
-#: lxc/info.go:455
-msgid "Type: persistent"
-msgstr "タイプ: persistent"
 
 #: lxc/image.go:976
 msgid "UPLOAD DATE"
@@ -3798,7 +3791,7 @@ msgstr "エラー: %v"
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
-#: lxc/info.go:572
+#: lxc/info.go:574
 #, c-format
 msgid "expires at %s"
 msgstr "%s に失効"
@@ -4520,11 +4513,11 @@ msgstr "使用量"
 msgid "start [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr "start [<remote>:]<container> [[<remote>:]<container>...]"
 
-#: lxc/info.go:576
+#: lxc/info.go:578
 msgid "stateful"
 msgstr "ステートフル"
 
-#: lxc/info.go:578
+#: lxc/info.go:580
 msgid "stateless"
 msgstr "ステートレス"
 
@@ -4544,7 +4537,7 @@ msgstr "switch <remote>"
 msgid "switch [<remote>:] <project>"
 msgstr "switch [<remote>:] <project>"
 
-#: lxc/info.go:568
+#: lxc/info.go:570
 #, c-format
 msgid "taken at %s"
 msgstr "%s に取得しました"
@@ -4613,6 +4606,9 @@ msgstr ""
 #: lxc/image.go:1028
 msgid "yes"
 msgstr ""
+
+#~ msgid "Type: persistent"
+#~ msgstr "タイプ: persistent"
 
 #~ msgid "lxc init ubuntu:16.04 u1"
 #~ msgstr "lxc init ubuntu:16.04 u1"
