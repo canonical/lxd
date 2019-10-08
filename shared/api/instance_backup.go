@@ -11,6 +11,9 @@ type InstanceBackupsPost struct {
 	InstanceOnly     bool      `json:"instance_only" yaml:"instance_only"`
 	ContainerOnly    bool      `json:"container_only" yaml:"container_only"` // Deprecated, use InstanceOnly.
 	OptimizedStorage bool      `json:"optimized_storage" yaml:"optimized_storage"`
+
+	// API extension: backup_compression_algorithm
+	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
 }
 
 // InstanceBackup represents a LXD instance backup.

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-10-07 17:23+0100\n"
+"POT-Creation-Date: 2019-10-08 20:20+0000\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -500,7 +500,7 @@ msgstr "Mise à jour auto. : %s"
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:133
+#: lxc/export.go:136
 #, fuzzy
 msgid "Backup exported successfully!"
 msgstr "Image copiée avec succès !"
@@ -535,11 +535,11 @@ msgstr ""
 msgid "Brand: %v"
 msgstr "Créé : %s"
 
-#: lxc/info.go:541 lxc/network.go:785
+#: lxc/info.go:545 lxc/network.go:785
 msgid "Bytes received"
 msgstr "Octets reçus"
 
-#: lxc/info.go:542 lxc/network.go:786
+#: lxc/info.go:546 lxc/network.go:786
 msgid "Bytes sent"
 msgstr "Octets émis"
 
@@ -556,11 +556,11 @@ msgstr "COMMON NAME"
 msgid "CPU (%s):"
 msgstr "CPU utilisé :"
 
-#: lxc/info.go:505
+#: lxc/info.go:509
 msgid "CPU usage (in seconds)"
 msgstr "CPU utilisé (en secondes)"
 
-#: lxc/info.go:509
+#: lxc/info.go:513
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
 
@@ -960,6 +960,11 @@ msgstr "PILOTE"
 msgid "DRM:"
 msgstr ""
 
+#: lxc/export.go:46
+#, fuzzy
+msgid "Define a compression algorithm: for backup or none"
+msgstr "Définir un algorithme de compression : pour image ou aucun"
+
 #: lxc/publish.go:42
 msgid "Define a compression algorithm: for image or none"
 msgstr "Définir un algorithme de compression : pour image ou aucun"
@@ -1027,7 +1032,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
 #: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:32
-#: lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:32
+#: lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:33
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
 #: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270
 #: lxc/image.go:321 lxc/image.go:446 lxc/image.go:592 lxc/image.go:808
@@ -1132,7 +1137,7 @@ msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 msgid "Disk %d:"
 msgstr "  Disque utilisé :"
 
-#: lxc/info.go:498
+#: lxc/info.go:502
 #, fuzzy
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
@@ -1161,7 +1166,7 @@ msgstr ""
 msgid "Driver: %v (%v)"
 msgstr ""
 
-#: lxc/list.go:624
+#: lxc/list.go:628
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
@@ -1308,17 +1313,17 @@ msgid ""
 "The output target is optional and defaults to the working directory."
 msgstr ""
 
-#: lxc/export.go:31
+#: lxc/export.go:32
 #, fuzzy
 msgid "Export container backups"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/export.go:32
+#: lxc/export.go:33
 #, fuzzy
 msgid "Export containers as backup tarballs."
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/export.go:117
+#: lxc/export.go:120
 #, fuzzy, c-format
 msgid "Exporting the backup: %s"
 msgstr "Import de l'image : %s"
@@ -1698,7 +1703,7 @@ msgstr "Source invalide %s"
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
 
-#: lxc/info.go:479 lxc/network.go:777
+#: lxc/info.go:483 lxc/network.go:777
 msgid "Ips:"
 msgstr "IPs :"
 
@@ -1984,7 +1989,7 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:598
+#: lxc/info.go:602
 msgid "Log:"
 msgstr "Journal : "
 
@@ -2137,15 +2142,15 @@ msgstr "Profil %s supprimé de %s"
 msgid "Member %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/info.go:516
+#: lxc/info.go:520
 msgid "Memory (current)"
 msgstr "Mémoire (courante)"
 
-#: lxc/info.go:520
+#: lxc/info.go:524
 msgid "Memory (peak)"
 msgstr "Mémoire (pointe)"
 
-#: lxc/info.go:532
+#: lxc/info.go:536
 #, fuzzy
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
@@ -2371,7 +2376,7 @@ msgstr "Le réseau %s a été créé"
 msgid "Network name"
 msgstr "Nom du réseau"
 
-#: lxc/info.go:549 lxc/network.go:784
+#: lxc/info.go:553 lxc/network.go:784
 #, fuzzy
 msgid "Network usage:"
 msgstr "  Réseau utilisé :"
@@ -2482,11 +2487,11 @@ msgstr "PROTOCOLE"
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
-#: lxc/info.go:543 lxc/network.go:787
+#: lxc/info.go:547 lxc/network.go:787
 msgid "Packets received"
 msgstr "Paquets reçus"
 
-#: lxc/info.go:544 lxc/network.go:788
+#: lxc/info.go:548 lxc/network.go:788
 msgid "Packets sent"
 msgstr "Paquets émis"
 
@@ -2509,7 +2514,7 @@ msgstr "Création du conteneur"
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/info.go:461
+#: lxc/info.go:465
 #, c-format
 msgid "Pid: %d"
 msgstr "Pid : %d"
@@ -2549,7 +2554,7 @@ msgstr ""
 msgid "Print version number"
 msgstr ""
 
-#: lxc/info.go:485
+#: lxc/info.go:489
 #, c-format
 msgid "Processes: %d"
 msgstr "Processus : %d"
@@ -2608,7 +2613,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Profiles %s applied to %s"
 msgstr "Profils %s appliqués à %s"
 
-#: lxc/info.go:459
+#: lxc/info.go:463
 #, c-format
 msgid "Profiles: %s"
 msgstr "Profils : %s"
@@ -2827,7 +2832,7 @@ msgstr ""
 msgid "Require user confirmation"
 msgstr "Requérir une confirmation de l'utilisateur"
 
-#: lxc/info.go:482
+#: lxc/info.go:486
 msgid "Resources:"
 msgstr "Ressources :"
 
@@ -3181,7 +3186,7 @@ msgstr "État : %s"
 msgid "Snapshot storage volumes"
 msgstr "Copie de l'image : %s"
 
-#: lxc/info.go:563
+#: lxc/info.go:567
 msgid "Snapshots:"
 msgstr "Instantanés :"
 
@@ -3291,11 +3296,11 @@ msgstr ""
 msgid "Supported ports: %s"
 msgstr ""
 
-#: lxc/info.go:524
+#: lxc/info.go:528
 msgid "Swap (current)"
 msgstr "Swap (courant)"
 
-#: lxc/info.go:528
+#: lxc/info.go:532
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
@@ -3480,12 +3485,12 @@ msgstr "Transfert de l'image : %s"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
 
-#: lxc/image.go:870 lxc/info.go:245 lxc/info.go:456
+#: lxc/image.go:870 lxc/info.go:245 lxc/info.go:460
 #, fuzzy, c-format
 msgid "Type: %s"
 msgstr "Expire : %s"
 
-#: lxc/info.go:454
+#: lxc/info.go:458
 #, fuzzy, c-format
 msgid "Type: %s (ephemeral)"
 msgstr "Type : éphémère"
@@ -3568,7 +3573,7 @@ msgstr "Clé de configuration invalide"
 msgid "Uploaded: %s"
 msgstr "Publié : %s"
 
-#: lxc/export.go:44
+#: lxc/export.go:45
 msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
@@ -3621,14 +3626,14 @@ msgstr "Nom : %s"
 msgid "Wait for the operation to complete"
 msgstr ""
 
-#: lxc/export.go:40
+#: lxc/export.go:41
 #, fuzzy
 msgid ""
 "Whether or not to only backup the container (without snapshots), "
 "(deprecated, use instance-only)"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/export.go:42
+#: lxc/export.go:43
 #, fuzzy
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
@@ -3958,12 +3963,12 @@ msgstr "erreur : %v"
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
-#: lxc/info.go:574
+#: lxc/info.go:578
 #, fuzzy, c-format
 msgid "expires at %s"
 msgstr "Expire : %s"
 
-#: lxc/export.go:30
+#: lxc/export.go:31
 #, fuzzy
 msgid ""
 "export [<remote>:]<container> [target] [--container-only] [--optimized-"
@@ -4148,7 +4153,7 @@ msgid ""
 "    Will set the server's trust password to blah."
 msgstr ""
 
-#: lxc/export.go:34
+#: lxc/export.go:35
 msgid ""
 "lxc export u1 backup0.tar.gz\n"
 "    Download a backup tarball of the u1 container."
@@ -4720,11 +4725,11 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/info.go:578
+#: lxc/info.go:582
 msgid "stateful"
 msgstr "à suivi d'état"
 
-#: lxc/info.go:580
+#: lxc/info.go:584
 msgid "stateless"
 msgstr "sans suivi d'état"
 
@@ -4750,7 +4755,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "switch [<remote>:] <project>"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/info.go:570
+#: lxc/info.go:574
 #, c-format
 msgid "taken at %s"
 msgstr "pris à %s"
