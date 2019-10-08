@@ -150,12 +150,13 @@ type InstanceBackupArgs struct {
 	// Don't set manually
 	ID int
 
-	InstanceID       int
-	Name             string
-	CreationDate     time.Time
-	ExpiryDate       time.Time
-	InstanceOnly     bool
-	OptimizedStorage bool
+	InstanceID           int
+	Name                 string
+	CreationDate         time.Time
+	ExpiryDate           time.Time
+	InstanceOnly         bool
+	OptimizedStorage     bool
+	CompressionAlgorithm string
 }
 
 // ContainerNames returns the names of all containers the given project.

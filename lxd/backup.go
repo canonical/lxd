@@ -72,6 +72,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer In
 	}
 
 	// Now create the empty snapshot
+	b.compressionAlgorithm = args.CompressionAlgorithm
 	err = sourceContainer.Storage().ContainerBackupCreate(*b, sourceContainer)
 	if err != nil {
 		s.Cluster.ContainerBackupRemove(args.Name)
@@ -87,12 +88,13 @@ type backup struct {
 	instance Instance
 
 	// Properties
-	id               int
-	name             string
-	creationDate     time.Time
-	expiryDate       time.Time
-	instanceOnly     bool
-	optimizedStorage bool
+	id                   int
+	name                 string
+	creationDate         time.Time
+	expiryDate           time.Time
+	instanceOnly         bool
+	optimizedStorage     bool
+	compressionAlgorithm string
 }
 
 type backupInfo struct {
@@ -397,10 +399,15 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 		return err
 	}
 
-	// Compress it
-	compress, err := cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
-	if err != nil {
-		return err
+	var compress string
+
+	if backup.compressionAlgorithm != "" {
+		compress = backup.compressionAlgorithm
+	} else {
+		compress, err = cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
+		if err != nil {
+			return err
+		}
 	}
 
 	if compress != "none" {
