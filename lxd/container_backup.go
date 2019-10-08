@@ -99,10 +99,10 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	expiry, _ := rj.GetString("expiry")
+	expiry, _ := rj.GetString("expires_at")
 	if expiry == "" {
 		// Disable expiration by setting it to zero time
-		rj["expiry"] = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+		rj["expires_at"] = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 	}
 
 	// Create body with correct expiry
