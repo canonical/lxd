@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-10-07 17:23+0100\n"
+"POT-Creation-Date: 2019-10-08 20:20+0000\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/linux-containers/"
@@ -426,7 +426,7 @@ msgstr ""
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:133
+#: lxc/export.go:136
 msgid "Backup exported successfully!"
 msgstr ""
 
@@ -460,11 +460,11 @@ msgstr ""
 msgid "Brand: %v"
 msgstr ""
 
-#: lxc/info.go:541 lxc/network.go:785
+#: lxc/info.go:545 lxc/network.go:785
 msgid "Bytes received"
 msgstr ""
 
-#: lxc/info.go:542 lxc/network.go:786
+#: lxc/info.go:546 lxc/network.go:786
 msgid "Bytes sent"
 msgstr ""
 
@@ -481,11 +481,11 @@ msgstr ""
 msgid "CPU (%s):"
 msgstr ""
 
-#: lxc/info.go:505
+#: lxc/info.go:509
 msgid "CPU usage (in seconds)"
 msgstr ""
 
-#: lxc/info.go:509
+#: lxc/info.go:513
 msgid "CPU usage:"
 msgstr ""
 
@@ -838,6 +838,10 @@ msgstr ""
 msgid "DRM:"
 msgstr ""
 
+#: lxc/export.go:46
+msgid "Define a compression algorithm: for backup or none"
+msgstr ""
+
 #: lxc/publish.go:42
 msgid "Define a compression algorithm: for image or none"
 msgstr ""
@@ -900,7 +904,7 @@ msgstr ""
 #: lxc/config_template.go:150 lxc/config_template.go:236
 #: lxc/config_template.go:295 lxc/config_trust.go:28 lxc/config_trust.go:57
 #: lxc/config_trust.go:115 lxc/config_trust.go:193 lxc/console.go:32
-#: lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:32
+#: lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:33
 #: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
 #: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270
 #: lxc/image.go:321 lxc/image.go:446 lxc/image.go:592 lxc/image.go:808
@@ -1004,7 +1008,7 @@ msgstr ""
 msgid "Disk %d:"
 msgstr ""
 
-#: lxc/info.go:498
+#: lxc/info.go:502
 msgid "Disk usage:"
 msgstr ""
 
@@ -1029,7 +1033,7 @@ msgstr ""
 msgid "Driver: %v (%v)"
 msgstr ""
 
-#: lxc/list.go:624
+#: lxc/list.go:628
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -1163,15 +1167,15 @@ msgid ""
 "The output target is optional and defaults to the working directory."
 msgstr ""
 
-#: lxc/export.go:31
+#: lxc/export.go:32
 msgid "Export container backups"
 msgstr ""
 
-#: lxc/export.go:32
+#: lxc/export.go:33
 msgid "Export containers as backup tarballs."
 msgstr ""
 
-#: lxc/export.go:117
+#: lxc/export.go:120
 #, c-format
 msgid "Exporting the backup: %s"
 msgstr ""
@@ -1531,7 +1535,7 @@ msgstr ""
 msgid "Invalid target %s"
 msgstr ""
 
-#: lxc/info.go:479 lxc/network.go:777
+#: lxc/info.go:483 lxc/network.go:777
 msgid "Ips:"
 msgstr ""
 
@@ -1752,7 +1756,7 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:598
+#: lxc/info.go:602
 msgid "Log:"
 msgstr ""
 
@@ -1897,15 +1901,15 @@ msgstr ""
 msgid "Member %s renamed to %s"
 msgstr ""
 
-#: lxc/info.go:516
+#: lxc/info.go:520
 msgid "Memory (current)"
 msgstr ""
 
-#: lxc/info.go:520
+#: lxc/info.go:524
 msgid "Memory (peak)"
 msgstr ""
 
-#: lxc/info.go:532
+#: lxc/info.go:536
 msgid "Memory usage:"
 msgstr ""
 
@@ -2114,7 +2118,7 @@ msgstr ""
 msgid "Network name"
 msgstr ""
 
-#: lxc/info.go:549 lxc/network.go:784
+#: lxc/info.go:553 lxc/network.go:784
 msgid "Network usage:"
 msgstr ""
 
@@ -2214,11 +2218,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:543 lxc/network.go:787
+#: lxc/info.go:547 lxc/network.go:787
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:544 lxc/network.go:788
+#: lxc/info.go:548 lxc/network.go:788
 msgid "Packets sent"
 msgstr ""
 
@@ -2239,7 +2243,7 @@ msgstr ""
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/info.go:461
+#: lxc/info.go:465
 #, c-format
 msgid "Pid: %d"
 msgstr ""
@@ -2279,7 +2283,7 @@ msgstr ""
 msgid "Print version number"
 msgstr ""
 
-#: lxc/info.go:485
+#: lxc/info.go:489
 #, c-format
 msgid "Processes: %d"
 msgstr ""
@@ -2337,7 +2341,7 @@ msgstr ""
 msgid "Profiles %s applied to %s"
 msgstr ""
 
-#: lxc/info.go:459
+#: lxc/info.go:463
 #, c-format
 msgid "Profiles: %s"
 msgstr ""
@@ -2543,7 +2547,7 @@ msgstr ""
 msgid "Require user confirmation"
 msgstr ""
 
-#: lxc/info.go:482
+#: lxc/info.go:486
 msgid "Resources:"
 msgstr ""
 
@@ -2869,7 +2873,7 @@ msgstr ""
 msgid "Snapshot storage volumes"
 msgstr ""
 
-#: lxc/info.go:563
+#: lxc/info.go:567
 msgid "Snapshots:"
 msgstr ""
 
@@ -2974,11 +2978,11 @@ msgstr ""
 msgid "Supported ports: %s"
 msgstr ""
 
-#: lxc/info.go:524
+#: lxc/info.go:528
 msgid "Swap (current)"
 msgstr ""
 
-#: lxc/info.go:528
+#: lxc/info.go:532
 msgid "Swap (peak)"
 msgstr ""
 
@@ -3151,12 +3155,12 @@ msgstr ""
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
 
-#: lxc/image.go:870 lxc/info.go:245 lxc/info.go:456
+#: lxc/image.go:870 lxc/info.go:245 lxc/info.go:460
 #, c-format
 msgid "Type: %s"
 msgstr ""
 
-#: lxc/info.go:454
+#: lxc/info.go:458
 #, c-format
 msgid "Type: %s (ephemeral)"
 msgstr ""
@@ -3231,7 +3235,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/export.go:44
+#: lxc/export.go:45
 msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
@@ -3283,13 +3287,13 @@ msgstr ""
 msgid "Wait for the operation to complete"
 msgstr ""
 
-#: lxc/export.go:40
+#: lxc/export.go:41
 msgid ""
 "Whether or not to only backup the container (without snapshots), "
 "(deprecated, use instance-only)"
 msgstr ""
 
-#: lxc/export.go:42
+#: lxc/export.go:43
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr ""
 
@@ -3571,12 +3575,12 @@ msgstr ""
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
-#: lxc/info.go:574
+#: lxc/info.go:578
 #, c-format
 msgid "expires at %s"
 msgstr ""
 
-#: lxc/export.go:30
+#: lxc/export.go:31
 msgid ""
 "export [<remote>:]<container> [target] [--container-only] [--optimized-"
 "storage]"
@@ -3740,7 +3744,7 @@ msgid ""
 "    Will set the server's trust password to blah."
 msgstr ""
 
-#: lxc/export.go:34
+#: lxc/export.go:35
 msgid ""
 "lxc export u1 backup0.tar.gz\n"
 "    Download a backup tarball of the u1 container."
@@ -4173,11 +4177,11 @@ msgstr ""
 msgid "start [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
-#: lxc/info.go:578
+#: lxc/info.go:582
 msgid "stateful"
 msgstr ""
 
-#: lxc/info.go:580
+#: lxc/info.go:584
 msgid "stateless"
 msgstr ""
 
@@ -4197,7 +4201,7 @@ msgstr ""
 msgid "switch [<remote>:] <project>"
 msgstr ""
 
-#: lxc/info.go:570
+#: lxc/info.go:574
 #, c-format
 msgid "taken at %s"
 msgstr ""
