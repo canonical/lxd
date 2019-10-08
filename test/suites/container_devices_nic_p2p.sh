@@ -44,7 +44,13 @@ test_container_devices_nic_p2p() {
 
   # Check profile custom MTU is applied in container on boot.
   if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
-    echo "mtu invalid"
+    echo "container veth mtu invalid"
+    false
+  fi
+
+  # Check profile custom MTU is applied on host-side on boot.
+  if !  grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+    echo "host veth mtu invalid"
     false
   fi
 
@@ -100,7 +106,13 @@ test_container_devices_nic_p2p() {
 
   # Check custom MTU is applied on hot-plug.
   if ! lxc exec "${ctName}" -- grep "1401" /sys/class/net/eth0/mtu ; then
-    echo "mtu invalid"
+    echo "container veth mtu invalid"
+    false
+  fi
+
+  # Check custom MTU is applied on host-side on hot-plug.
+  if !  grep "1401" /sys/class/net/"${vethHostName}p2p"/mtu ; then
+    echo "host veth mtu invalid"
     false
   fi
 
@@ -135,7 +147,13 @@ test_container_devices_nic_p2p() {
 
   # Check profile custom MTU is applied on hot-removal.
   if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
-    echo "mtu invalid"
+    echo "container veth mtu invalid"
+    false
+  fi
+
+  # Check profile custom MTU is applied on host-side on hot-removal.
+  if ! grep "1400" /sys/class/net/"${vethHostName}"/mtu ; then
+    echo "host veth mtu invalid"
     false
   fi
 
