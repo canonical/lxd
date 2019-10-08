@@ -848,3 +848,8 @@ This allows for editing of the expiry date on images.
 
 ## resources\_network\_firmware
 Adds a FirmwareVersion field to network card entries.
+
+## backup\_compression\_algorithm
+This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
+
+Setting this property overrides the server default value (`backups.compression_algorithm`).

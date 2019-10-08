@@ -170,6 +170,7 @@ var APIExtensions = []string{
 	"clustering_roles",
 	"images_expiry",
 	"resources_network_firmware",
+	"backup_compression_algorithm",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
