@@ -1325,7 +1325,9 @@ func (c *Cluster) ContainerBackupsGetExpired() ([]string, error) {
 			return []string{}, err
 		}
 
-		if backupExpiry.IsZero() {
+		// Since zero time causes some issues due to timezones, we check the
+		// unix timestamp instead of IsZero().
+		if backupExpiry.Unix() <= 0 {
 			// Backup doesn't expire
 			continue
 		}
