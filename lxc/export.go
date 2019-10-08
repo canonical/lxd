@@ -20,9 +20,10 @@ import (
 type cmdExport struct {
 	global *cmdGlobal
 
-	flagContainerOnly    bool
-	flagInstanceOnly     bool
-	flagOptimizedStorage bool
+	flagContainerOnly        bool
+	flagInstanceOnly         bool
+	flagOptimizedStorage     bool
+	flagCompressionAlgorithm string
 }
 
 func (c *cmdExport) Command() *cobra.Command {
@@ -42,6 +43,7 @@ func (c *cmdExport) Command() *cobra.Command {
 		i18n.G("Whether or not to only backup the instance (without snapshots)"))
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
 		i18n.G("Use storage driver optimized format (can only be restored on a similar pool)"))
+	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for backup or none")+"``")
 
 	return cmd
 }
@@ -69,11 +71,12 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
 
 	req := api.InstanceBackupsPost{
-		Name:             "",
-		ExpiresAt:        time.Now().Add(24 * time.Hour),
-		ContainerOnly:    instanceOnly,
-		InstanceOnly:     instanceOnly,
-		OptimizedStorage: c.flagOptimizedStorage,
+		Name:                 "",
+		ExpiresAt:            time.Now().Add(24 * time.Hour),
+		ContainerOnly:        instanceOnly,
+		InstanceOnly:         instanceOnly,
+		OptimizedStorage:     c.flagOptimizedStorage,
+		CompressionAlgorithm: c.flagCompressionAlgorithm,
 	}
 
 	op, err := d.CreateInstanceBackup(name, req)
