@@ -159,6 +159,23 @@ test_container_import() {
 }
 
 test_backup_import() {
+  test_backup_import_with_project
+  test_backup_import_with_project foo
+}
+
+test_backup_import_with_project() {
+  if [ "$#" -ne 0 ]; then
+  # Create a project
+    lxc project create foo
+    lxc project switch foo
+
+    deps/import-busybox --project foo --alias testimage
+
+    # Add a root device to the default profile of the project
+    pool="lxdtest-$(basename "${LXD_DIR}")"
+    lxc profile device add default root disk path="/" pool="${pool}"
+  fi
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -257,9 +274,32 @@ test_backup_import() {
   lxc profile device add default root disk path=/ pool="${default_pool}"
 
   lxc storage delete pool_2
+
+  if [ "$#" -ne 0 ]; then
+    lxc image rm testimage
+    lxc project switch default
+    lxc project delete foo
+  fi
 }
 
 test_backup_export() {
+  test_backup_export_with_project
+  test_backup_export_with_project foo
+}
+
+test_backup_export_with_project() {
+  if [ "$#" -ne 0 ]; then
+  # Create a project
+    lxc project create foo
+    lxc project switch foo
+
+    deps/import-busybox --project foo --alias testimage
+
+    # Add a root device to the default profile of the project
+    pool="lxdtest-$(basename "${LXD_DIR}")"
+    lxc profile device add default root disk path="/" pool="${pool}"
+  fi
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -310,6 +350,13 @@ test_backup_export() {
   [ -d "${LXD_DIR}/non-optimized/backup/snapshots/snap0" ]
 
   lxc delete --force c1
+  rm -rf "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
+
+  if [ "$#" -ne 0 ]; then
+    lxc image rm testimage
+    lxc project switch default
+    lxc project delete foo
+  fi
 }
 
 test_backup_rename() {
