@@ -367,14 +367,16 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		// Block public API requests until we're done with basic
-		// initialization tasks, such setting up the cluster database.
-		select {
-		case <-d.setupChan:
-		default:
-			response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
-			response.Render(w)
-			return
+		if !(r.RemoteAddr == "@" && version == "internal") {
+			// Block public API requests until we're done with basic
+			// initialization tasks, such setting up the cluster database.
+			select {
+			case <-d.setupChan:
+			default:
+				response := response.Unavailable(fmt.Errorf("LXD daemon setup in progress"))
+				response.Render(w)
+				return
+			}
 		}
 
 		// Authentication
