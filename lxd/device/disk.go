@@ -32,10 +32,10 @@ type disk struct {
 	deviceCommon
 }
 
-// isRequired indicates whether the device config requires this device to start OK.
-func (d *disk) isRequired() bool {
+// isRequired indicates whether the supplied device config requires this device to start OK.
+func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	// Defaults to required.
-	if (d.config["required"] == "" || shared.IsTrue(d.config["required"])) && !shared.IsTrue(d.config["optional"]) {
+	if (devConfig["required"] == "" || shared.IsTrue(devConfig["required"])) && !shared.IsTrue(devConfig["optional"]) {
 		return true
 	}
 
@@ -124,7 +124,7 @@ func (d *disk) validateConfig() error {
 	// When we want to attach a storage volume created via the storage api the "source" only
 	// contains the name of the storage volume, not the path where it is mounted. So only check
 	// for the existence of "source" when "pool" is empty.
-	if d.config["pool"] == "" && d.config["source"] != "" && d.isRequired() && !shared.PathExists(shared.HostPath(d.config["source"])) {
+	if d.config["pool"] == "" && d.config["source"] != "" && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) {
 		return fmt.Errorf("Missing source '%s' for disk '%s'", d.config["source"], d.name)
 	}
 
@@ -160,11 +160,11 @@ func (d *disk) validateConfig() error {
 	return nil
 }
 
-// getDevicePath returns the absolute path on the host for this device.
-func (d *disk) getDevicePath() string {
-	relativeDestPath := strings.TrimPrefix(d.config["path"], "/")
-	devName := fmt.Sprintf("disk.%s.%s", strings.Replace(d.name, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
-	return filepath.Join(d.instance.DevicesPath(), devName)
+// getDevicePath returns the absolute path on the host for this instance and supplied device config.
+func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) string {
+	relativeDestPath := strings.TrimPrefix(devConfig["path"], "/")
+	devPath := fmt.Sprintf("disk.%s.%s", strings.Replace(devName, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
+	return filepath.Join(d.instance.DevicesPath(), devPath)
 }
 
 // validateEnvironment checks the runtime environment for correctness.
@@ -193,7 +193,7 @@ func (d *disk) Start() (*RunConfig, error) {
 
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 
-	// Apply cgroups only after all the mounts have been processed
+	// Apply cgroups only after all the mounts have been processed.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
 		runConf := RunConfig{}
 
@@ -326,7 +326,7 @@ func (d *disk) Start() (*RunConfig, error) {
 
 // postStart is run after the instance is started.
 func (d *disk) postStart() error {
-	devPath := d.getDevicePath()
+	devPath := d.getDevicePath(d.name, d.config)
 
 	// Unmount the host side.
 	err := unix.Unmount(devPath, unix.MNT_DETACH)
@@ -384,16 +384,18 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 	}
 
-	runConf := RunConfig{}
+	// Only apply IO limits if instance is running.
+	if isRunning {
+		runConf := RunConfig{}
+		err := d.generateLimits(&runConf)
+		if err != nil {
+			return err
+		}
 
-	err := d.generateLimits(&runConf)
-	if err != nil {
-		return err
-	}
-
-	err = d.instance.DeviceEventHandler(&runConf)
-	if err != nil {
-		return err
+		err = d.instance.DeviceEventHandler(&runConf)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -419,24 +421,22 @@ func (d *disk) generateLimits(runConf *RunConfig) error {
 	diskPriority := d.instance.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
 		if d.state.OS.CGroupBlkioWeightController {
-			if diskPriority != "" {
-				priorityInt, err := strconv.Atoi(diskPriority)
-				if err != nil {
-					return err
-				}
-
-				priority := priorityInt * 100
-
-				// Minimum valid value is 10
-				if priority == 0 {
-					priority = 10
-				}
-
-				runConf.CGroups = append(runConf.CGroups, RunConfigItem{
-					Key:   "blkio.weight",
-					Value: fmt.Sprintf("%d", priority),
-				})
+			priorityInt, err := strconv.Atoi(diskPriority)
+			if err != nil {
+				return err
 			}
+
+			priority := priorityInt * 100
+
+			// Minimum valid value is 10
+			if priority == 0 {
+				priority = 10
+			}
+
+			runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+				Key:   "blkio.weight",
+				Value: fmt.Sprintf("%d", priority),
+			})
 		} else {
 			return fmt.Errorf("Cannot apply limits.disk.priority as blkio.weight cgroup controller is missing")
 		}
@@ -501,11 +501,10 @@ func (d *disk) generateLimits(runConf *RunConfig) error {
 // createDevice creates a disk device mount on host.
 func (d *disk) createDevice() (string, error) {
 	// Paths.
-	devPath := d.getDevicePath()
+	devPath := d.getDevicePath(d.name, d.config)
 	srcPath := shared.HostPath(d.config["source"])
 
-	// Check if read-only.
-	isRequired := d.isRequired()
+	isRequired := d.isRequired(d.config)
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
@@ -618,7 +617,7 @@ func (d *disk) Stop() (*RunConfig, error) {
 
 	// Figure out the paths
 	relativeDestPath := strings.TrimPrefix(d.config["path"], "/")
-	devPath := d.getDevicePath()
+	devPath := d.getDevicePath(d.name, d.config)
 
 	// The disk device doesn't exist do nothing.
 	if !shared.PathExists(devPath) {
@@ -644,7 +643,7 @@ func (d *disk) postStop() error {
 
 	}
 
-	devPath := d.getDevicePath()
+	devPath := d.getDevicePath(d.name, d.config)
 
 	// Clean any existing entry.
 	if shared.PathExists(devPath) {
@@ -695,7 +694,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 
 	// Process all the limits
 	blockLimits := map[string][]diskBlockLimit{}
-	for _, dev := range d.instance.ExpandedDevices() {
+	for devName, dev := range d.instance.ExpandedDevices() {
 		if dev["type"] != "disk" {
 			continue
 		}
@@ -713,14 +712,18 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		}
 
 		// Set the source path
-		source := d.getDevicePath()
+		source := d.getDevicePath(devName, dev)
 		if dev["source"] == "" {
 			source = d.instance.RootfsPath()
 		}
 
-		// Don't try to resolve the block device behind a non-existing path
 		if !shared.PathExists(source) {
-			continue
+			// Require that device is mounted before resolving block device if required.
+			if d.isRequired(dev) {
+				return nil, fmt.Errorf("Block device path doesn't exist: %s", source)
+			}
+
+			continue // Do not resolve block device if device isn't mounted.
 		}
 
 		// Get the backing block devices (major:minor)
