@@ -38,19 +38,6 @@ const (
 var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeCustom}
 var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
 
-func storagePoolVolumeTypeNameToType(volumeTypeName string) (int, error) {
-	switch volumeTypeName {
-	case storagePoolVolumeTypeNameContainer:
-		return storagePoolVolumeTypeContainer, nil
-	case storagePoolVolumeTypeNameImage:
-		return storagePoolVolumeTypeImage, nil
-	case storagePoolVolumeTypeNameCustom:
-		return storagePoolVolumeTypeCustom, nil
-	}
-
-	return -1, fmt.Errorf("invalid storage volume type name")
-}
-
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
 	case storagePoolVolumeTypeNameContainer:
@@ -524,51 +511,6 @@ func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeTy
 	return usedBy, nil
 }
 
-func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
-	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
-	if err != nil {
-		return err
-	}
-
-	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := s.Cluster.StoragePoolGet(poolName)
-	if err != nil {
-		return err
-	}
-
-	// Check that a storage volume of the same storage volume type does not
-	// already exist.
-	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeID(volumeName, volumeType, poolID)
-	if volumeID > 0 {
-		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
-	}
-
-	// Make sure that we don't pass a nil to the next function.
-	if volumeConfig == nil {
-		volumeConfig = map[string]string{}
-	}
-
-	// Validate the requested storage volume configuration.
-	err = storageVolumeValidateConfig(poolName, volumeConfig, poolStruct)
-	if err != nil {
-		return err
-	}
-
-	err = storageVolumeFillDefault(poolName, volumeConfig, poolStruct)
-	if err != nil {
-		return err
-	}
-
-	// Create the database entry for the storage volume.
-	_, err = s.Cluster.StoragePoolVolumeCreate("default", volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
-	if err != nil {
-		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
-	}
-
-	return nil
-}
-
 func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) (storage, error) {
 	volumeName := vol.Name
 	volumeDescription := vol.Description
@@ -728,19 +670,4 @@ func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.St
 	}
 
 	return s, nil
-}
-
-// storagePoolVolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
-func storagePoolVolumeSnapshotsGet(s *state.State, pool string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
-	poolID, err := s.Cluster.StoragePoolGetID(pool)
-	if err != nil {
-		return nil, err
-	}
-
-	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(volume, volType, poolID)
-	if err != nil {
-		return nil, err
-	}
-
-	return snapshots, nil
 }
