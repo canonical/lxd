@@ -221,18 +221,18 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 			return
 		}
 
-		// From here on we require that this node is part of the raft cluster.
-		if g.server == nil || g.memoryDial != nil {
-			http.NotFound(w, r)
-			return
-		}
-
 		// Handle database upgrade notifications.
 		if r.Method == "PATCH" {
 			select {
 			case g.upgradeCh <- struct{}{}:
 			default:
 			}
+			return
+		}
+
+		// From here on we require that this node is part of the raft cluster.
+		if g.server == nil || g.memoryDial != nil {
+			http.NotFound(w, r)
 			return
 		}
 
