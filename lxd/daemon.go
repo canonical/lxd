@@ -741,9 +741,11 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
+			d.gateway.Cluster = d.cluster
 			stop, _ := task.Start(cluster.HeartbeatTask(d.gateway))
 			d.gateway.WaitUpgradeNotification()
 			stop(time.Second)
+			d.gateway.Cluster = nil
 
 			d.cluster.Close()
 
