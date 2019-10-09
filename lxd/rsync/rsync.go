@@ -1,4 +1,4 @@
-package main
+package rsync
 
 import (
 	"fmt"
@@ -13,19 +13,20 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// rsyncCopy copies a directory using rsync (with the --devices option).
-func rsyncLocalCopy(source string, dest string, bwlimit string, xattrs bool) (string, error) {
+// LocalCopy copies a directory using rsync (with the --devices option).
+func LocalCopy(source string, dest string, bwlimit string, xattrs bool) (string, error) {
 	err := os.MkdirAll(dest, 0755)
 	if err != nil {
 		return "", err
 	}
 
 	rsyncVerbosity := "-q"
-	if debug {
+	if daemon.Debug {
 		rsyncVerbosity = "-vi"
 	}
 
@@ -73,7 +74,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string, xattrs bool) (st
 	return msg, nil
 }
 
-func rsyncSendSetup(name string, path string, bwlimit string, execPath string, features []string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+func sendSetup(name string, path string, bwlimit string, execPath string, features []string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -177,10 +178,10 @@ func rsyncSendSetup(name string, path string, bwlimit string, execPath string, f
 	return cmd, *conn, stderr, nil
 }
 
-// RsyncSend sets up the sending half of an rsync, to recursively send the
+// Send sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, features []string, bwlimit string, execPath string) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path, bwlimit, execPath, features)
+func Send(name string, path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, features []string, bwlimit string, execPath string) error {
+	cmd, dataSocket, stderr, err := sendSetup(name, path, bwlimit, execPath, features)
 	if err != nil {
 		return err
 	}
@@ -222,10 +223,10 @@ func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(
 	return err
 }
 
-// RsyncRecv sets up the receiving half of the websocket to rsync (the other
-// half set up by RsyncSend), putting the contents in the directory specified
+// Recv sets up the receiving half of the websocket to rsync (the other
+// half set up by rsync.Send), putting the contents in the directory specified
 // by path.
-func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser, features []string) error {
+func Recv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser, features []string) error {
 	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
