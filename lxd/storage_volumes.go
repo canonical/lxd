@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -278,12 +279,32 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) response.Response {
-	doWork := func() error {
-		return storagePoolVolumeCreateInternal(d.State(), poolName, req)
+	var run func(op *operations.Operation) error
+
+	// Check if we can load new storage layer for both target and source pool driver types.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	_, srcPoolErr := storagePools.GetPoolByName(d.State(), req.Source.Pool)
+	if err != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		run = func(op *operations.Operation) error {
+			if req.Source.Name == "" {
+				return pool.CreateCustomVolume(req.Name, req.Description, req.Config, op)
+			}
+
+			return pool.CreateCustomVolumeFromCopy(req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
+		}
+	} else {
+		run = func(op *operations.Operation) error {
+			return storagePoolVolumeCreateInternal(d.State(), poolName, req)
+		}
 	}
 
+	// If no source name supplied then this a volume create operation.
 	if req.Source.Name == "" {
-		err := doWork()
+		err := run(nil)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -291,17 +312,13 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 		return response.EmptySyncResponse
 	}
 
-	run := func(op *operations.Operation) error {
-		return doWork()
-	}
-
+	// Volume copy operations potentially take a long time, so run as an async operation.
 	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	return operations.OperationResponse(op)
-
 }
 
 // /1.0/storage-pools/{name}/volumes/{type}
