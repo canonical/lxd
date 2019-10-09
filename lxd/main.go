@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -14,10 +15,6 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 )
-
-// Global variables
-var debug bool
-var verbose bool
 
 // Initialize the random number generator
 func init() {
@@ -39,14 +36,14 @@ type cmdGlobal struct {
 
 func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Set logging global variables
-	debug = c.flagLogDebug
-	verbose = c.flagLogVerbose
+	daemon.Debug = c.flagLogDebug
+	daemon.Verbose = c.flagLogVerbose
 
 	// Set debug for the operations package
-	operations.Init(debug)
+	operations.Init(daemon.Debug)
 
 	// Set debug for the response package
-	response.Init(debug)
+	response.Init(daemon.Verbose)
 
 	// Setup logger
 	syslog := ""

@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
@@ -874,9 +875,9 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	logLevel := "warn"
-	if debug {
+	if daemon.Debug {
 		logLevel = "trace"
-	} else if verbose {
+	} else if daemon.Verbose {
 		logLevel = "info"
 	}
 
