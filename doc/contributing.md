@@ -1,16 +1,33 @@
 # Contributing
-
-## Pull requests:
-
+## Pull requests
 Changes to this project should be proposed as pull requests on Github
 at: <https://github.com/lxc/lxd>
 
 Proposed changes will then go through code review there and once acked,
 be merged in the main branch.
 
+## Commit structure
+Separate commits should be used for:
+ - API extension (`api: Add XYZ extension`, contains `doc/api-extensions.md` and `shared/version.api.go`)
+ - Documentation (`doc: Update XYZ` for files in `doc/`)
+ - API structure (`shared/api: Add XYZ` for changes to `shared/api/`)
+ - Go client package (`client: Add XYZ` for changes to `client/`)
+ - CLI (`lxc/<command>: Change XYZ` for changes to `lxc/`)
+ - Scripts (`scripts: Update bash completion for XYZ` for changes to `scripts/`)
+ - LXD daemon (`lxd/<package>: Add support for XYZ` for changes to `lxd/`)
+ - Tests (`tests: Add test for XYZ` for changes to `tests/`)
 
-## License and copyright:
+The same kind of pattern extends to the other tools in the LXD code tree
+and depending on complexity, things may be split into even smaller chunks.
 
+When updating strings in the CLI tool (`lxc/`), you may need a commit to update the templates:
+ - make i18n
+ - git commit -a -s -m "i18n: Update translation templates" po/
+
+This structure makes it easier for contributions to be reviewed and also
+greatly simplifies the process of backporting fixes to stable branches.
+
+## License and copyright
 By default, any contribution to this project is made under the Apache
 2.0 license.
 
@@ -18,8 +35,7 @@ The author of a change remains the copyright holder of their code
 (no copyright assignment).
 
 
-## Developer Certificate of Origin:
-
+## Developer Certificate of Origin
 To improve tracking of contributions to this project we use the DCO 1.1
 and use a "sign-off" procedure for all changes going into the branch.
 
