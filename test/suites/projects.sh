@@ -180,11 +180,12 @@ test_projects_snapshots() {
   # Create a container in the project
   lxc init testimage c1
 
-  # Create, rename and delete a snapshot
+  # Create, rename, restore and delete a snapshot
   lxc snapshot c1
   lxc info c1 | grep -q snap0
   lxc config show c1/snap0 | grep -q Busybox
   lxc rename c1/snap0 c1/foo
+  lxc restore c1 foo
   lxc delete c1/foo
 
   # Test copies
