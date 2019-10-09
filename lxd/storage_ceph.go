@@ -422,7 +422,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 		s.volume.Name, s.pool.Name)
 
 	// Delete all snapshots
-	snapshots, err := storagePoolVolumeSnapshotsGet(s.s, s.pool.Name, s.volume.Name, storagePoolVolumeTypeCustom)
+	snapshots, err := driver.VolumeSnapshotsGet(s.s, s.pool.Name, s.volume.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}

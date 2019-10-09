@@ -12,8 +12,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var supportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
-
 func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
 	s, err := storagePoolInit(state, name)
 	if err != nil {

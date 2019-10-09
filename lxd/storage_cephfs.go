@@ -799,7 +799,7 @@ func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) e
 
 	// Copy the snapshots
 	if !source.VolumeOnly {
-		snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+		snapshots, err := driver.VolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}

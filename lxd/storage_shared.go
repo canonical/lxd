@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -61,7 +62,7 @@ func (s *storageShared) SetStoragePoolVolumeWritable(writable *api.StorageVolume
 func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	// Fill in any default volume config.
 	volumeConfig := map[string]string{}
-	err := storageVolumeFillDefault(fingerprint, volumeConfig, s.pool)
+	err := storagePools.VolumeFillDefault(fingerprint, volumeConfig, s.pool)
 	if err != nil {
 		return err
 	}

@@ -902,7 +902,7 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 		return fmt.Errorf("Received non-LXC container instance")
 	}
 
-	volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, _ := driver.VolumeTypeNameToType(volumeTypeName)
 	s, err := storagePoolVolumeAttachInit(state, poolName, volumeName, volumeType, c)
 	if err != nil {
 		return err

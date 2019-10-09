@@ -324,7 +324,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error)
 
 	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = storageVolumeFillDefault(storagePool, volumeConfig, pool)
+	err = driver.VolumeFillDefault(storagePool, volumeConfig, pool)
 	if err != nil {
 		c.Delete()
 		return nil, err
