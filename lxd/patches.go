@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -506,7 +507,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 					return err
 				}
 
-				_, err = rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+				_, err = rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
 				if err != nil {
 					logger.Errorf("Failed to rsync: %v", err)
 					return err
@@ -593,7 +594,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 						return err
 					}
 
-					output, err := rsyncLocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
+					output, err := rsync.LocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
 					if err != nil {
 						logger.Errorf("Failed to rsync: %s: %s", output, err)
 						return err
@@ -797,7 +798,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
-				output, err := rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+				output, err := rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
 				if err != nil {
 					logger.Errorf("Failed to rsync: %s: %s", output, err)
 					return err
@@ -844,7 +845,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
-				output, err := rsyncLocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
+				output, err := rsync.LocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
 				if err != nil {
 					logger.Errorf("Failed to rsync: %s: %s", output, err)
 					return err
@@ -1176,7 +1177,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 
 				// Use rsync to fill the empty volume.
-				output, err := rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+				output, err := rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
 				if err != nil {
 					ctStorage.ContainerDelete(ctStruct)
 					return fmt.Errorf("rsync failed: %s", string(output))
@@ -1330,7 +1331,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					}
 
 					// Use rsync to fill the empty volume.
-					output, err := rsyncLocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
+					output, err := rsync.LocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
 					if err != nil {
 						csStorage.ContainerDelete(csStruct)
 						return fmt.Errorf("rsync failed: %s", string(output))
@@ -3434,7 +3435,7 @@ func patchUpdateFromV11(_ *sql.Tx) error {
 			// containers/<container>/snapshots/<snap0>
 			// to
 			// snapshots/<container>/<snap0>
-			output, err := rsyncLocalCopy(oldPath, newPath, "", true)
+			output, err := rsync.LocalCopy(oldPath, newPath, "", true)
 			if err != nil {
 				logger.Error(
 					"Failed rsync snapshot",

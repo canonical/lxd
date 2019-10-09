@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1048,7 +1049,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target Instance, source Instance,
 	if !containerOnly {
 		for _, snap := range snapshots {
 			srcSnapshotMntPoint := driver.GetSnapshotMountPoint(snap.Project(), sourcePool, snap.Name())
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
+			_, err = rsync.LocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
 			if err != nil {
 				return err
 			}
@@ -1076,7 +1077,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target Instance, source Instance,
 	}
 
 	srcContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
-	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
 	if err != nil {
 		if !refresh {
 			s.StoragePoolVolumeDelete()
