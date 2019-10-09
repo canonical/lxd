@@ -18,10 +18,11 @@ import (
 // nodes which was waiting for this node to be upgraded should re-check if it's
 // okay to move forward.
 func NotifyUpgradeCompleted(state *state.State, cert *shared.CertInfo) error {
-	notifier, err := NewNotifier(state, cert, NotifyAll)
+	notifier, err := NewNotifier(state, cert, NotifyTryAll)
 	if err != nil {
 		return err
 	}
+
 	return notifier(func(client lxd.InstanceServer) error {
 		info, err := client.GetConnectionInfo()
 		if err != nil {

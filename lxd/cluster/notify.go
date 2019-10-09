@@ -24,8 +24,9 @@ type NotifierPolicy int
 
 // Possible notifcation policies.
 const (
-	NotifyAll   NotifierPolicy = iota // Requires that all nodes are up.
-	NotifyAlive                       // Only notifies nodes that are alive
+	NotifyAll    NotifierPolicy = iota // Requires that all nodes are up.
+	NotifyAlive                        // Only notifies nodes that are alive
+	NotifyTryAll                       // Attempt to notify all nodes regardless of state.
 )
 
 // NewNotifier builds a Notifier that can be used to notify other peers using
@@ -57,12 +58,14 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			if node.Address == address || node.Address == "0.0.0.0" {
 				continue // Exclude ourselves
 			}
+
 			if node.IsOffline(offlineThreshold) {
 				switch policy {
 				case NotifyAll:
 					return fmt.Errorf("peer node %s is down", node.Address)
 				case NotifyAlive:
 					continue // Just skip this node
+				case NotifyTryAll:
 				}
 			}
 			peers = append(peers, node.Address)
