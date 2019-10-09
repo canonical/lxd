@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
@@ -188,7 +189,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 
 	moveContent := func(source string, target string) error {
 		// Copy the content
-		_, err := rsyncLocalCopy(source, target, "", false)
+		_, err := rsync.LocalCopy(source, target, "", false)
 		if err != nil {
 			return err
 		}

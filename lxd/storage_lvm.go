@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -823,7 +824,7 @@ func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut,
 			targetVolumeMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, s.volume.Name)
 
 			bwlimit := s.pool.Config["rsync.bwlimit"]
-			output, err := rsyncLocalCopy(sourceVolumeMntPoint, targetVolumeMntPoint, bwlimit, true)
+			output, err := rsync.LocalCopy(sourceVolumeMntPoint, targetVolumeMntPoint, bwlimit, true)
 			if err != nil {
 				return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 			}
@@ -1491,7 +1492,7 @@ func (s *storageLvm) ContainerRestore(target Instance, source Instance) error {
 		defer target.Unfreeze()
 
 		bwlimit := s.pool.Config["rsync.bwlimit"]
-		output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
+		output, err := rsync.LocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 		}
@@ -1683,7 +1684,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source Instance) error
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
+		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
