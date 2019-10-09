@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -534,7 +535,7 @@ func (s *storageCephFs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, 
 
 		// Restore using rsync
 		bwlimit := s.pool.Config["rsync.bwlimit"]
-		output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, false)
+		output, err := rsync.LocalCopy(sourcePath, targetPath, bwlimit, false)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 		}
@@ -984,7 +985,7 @@ func (s *storageCephFs) copyVolume(sourcePool string, source string, target stri
 
 	// Sync data on target
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	_, err := rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, false)
+	_, err := rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, false)
 	if err != nil {
 		logger.Errorf("Failed to rsync into CEPHFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err

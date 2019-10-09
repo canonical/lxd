@@ -29,6 +29,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
@@ -136,8 +137,8 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 
 // NewDaemon returns a new Daemon object with the given configuration.
 func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
-	lxdEvents := events.NewServer(debug, verbose)
-	devlxdEvents := events.NewServer(debug, verbose)
+	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
+	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 
 	return &Daemon{
 		config:       config,
@@ -416,7 +417,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Dump full request JSON when in debug mode
-		if debug && r.Method != "GET" && isJSONRequest(r) {
+		if daemon.Debug && r.Method != "GET" && isJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)

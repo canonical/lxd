@@ -19,6 +19,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
@@ -1314,7 +1315,7 @@ func (n *network) Setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, "--dhcp-rapid-commit")
 	}
 
-	if !debug {
+	if !daemon.Debug {
 		// --quiet options are only supported on >2.67
 		minVer, _ := version.NewDottedVersion("2.67")
 

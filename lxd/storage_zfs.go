@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -1012,7 +1013,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target Instance, source Instance
 		}()
 
 		bwlimit := s.pool.Config["rsync.bwlimit"]
-		output, err := rsyncLocalCopy(sourceContainerPath, targetContainerPath, bwlimit, true)
+		output, err := rsync.LocalCopy(sourceContainerPath, targetContainerPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
@@ -1229,7 +1230,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 	if !containerOnly {
 		for _, snap := range snapshots {
 			srcSnapshotMntPoint := driver.GetSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
+			_, err = rsync.LocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit, true)
 			if err != nil {
 				logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 				return err
@@ -1245,7 +1246,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 	}
 
 	srcContainerMntPoint := driver.GetContainerMountPoint(source.Project(), sourcePool, source.Name())
-	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit, true)
 	if err != nil {
 		logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
@@ -1991,7 +1992,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source Instance) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
+		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
@@ -2856,7 +2857,7 @@ func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSourc
 		for _, snap := range snapshots {
 			srcMountPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
 
-			_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+			_, err = rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 			if err != nil {
 				logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 				return err
@@ -2876,7 +2877,7 @@ func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSourc
 		srcMountPoint = driver.GetStoragePoolVolumeMountPoint(source.Pool, source.Name)
 	}
 
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstMountPoint)
 		logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -3029,7 +3030,7 @@ func (s *storageZfs) copyVolumeWithoutSnapshotsSparse(source *api.StorageVolumeS
 	} else {
 		bwlimit := s.pool.Config["rsync.bwlimit"]
 
-		output, err := rsyncLocalCopy(sourceVolumePath, targetVolumePath, bwlimit, true)
+		output, err := rsync.LocalCopy(sourceVolumePath, targetVolumePath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
