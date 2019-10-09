@@ -741,9 +741,11 @@ func (d *Daemon) init() error {
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
 			// leader.
+			d.gateway.Cluster = d.cluster
 			stop, _ := task.Start(cluster.HeartbeatTask(d.gateway))
 			d.gateway.WaitUpgradeNotification()
 			stop(time.Second)
+			d.gateway.Cluster = nil
 
 			d.cluster.Close()
 
@@ -1372,6 +1374,11 @@ func (d *Daemon) hasNodeListChanged(heartbeatData *cluster.APIHeartbeat) bool {
 // NodeRefreshTask is run each time a fresh node is generated.
 // This can be used to trigger actions when the node list changes.
 func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
+	// Don't process the heartbeat until we're fully online
+	if d.cluster == nil || d.cluster.GetNodeID() == 0 {
+		return
+	}
+
 	// If the max version of the cluster has changed, check whether we need to upgrade.
 	if d.lastNodeList == nil || d.lastNodeList.Version.APIExtensions != heartbeatData.Version.APIExtensions || d.lastNodeList.Version.Schema != heartbeatData.Version.Schema {
 		err := cluster.MaybeUpdate(d.State())
