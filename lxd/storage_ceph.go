@@ -27,10 +27,11 @@ import (
 )
 
 type storageCeph struct {
-	ClusterName string
-	OSDPoolName string
-	UserName    string
-	PGNum       string
+	ClusterName     string
+	OSDPoolName     string
+	OSDDataPoolName string
+	UserName        string
+	PGNum           string
 	storageShared
 }
 
@@ -77,6 +78,11 @@ func (s *storageCeph) StoragePoolInit() error {
 	// set osd pool name
 	if s.pool.Config["ceph.osd.pool_name"] != "" {
 		s.OSDPoolName = s.pool.Config["ceph.osd.pool_name"]
+	}
+
+	// set osd data pool name
+	if s.pool.Config["ceph.osd.data_pool_name"] != "" {
+		s.OSDDataPoolName = s.pool.Config["ceph.osd.data_pool_name"]
 	}
 
 	// set ceph user name
@@ -159,7 +165,7 @@ func (s *storageCeph) StoragePoolCreate() error {
 		}()
 
 		// Create dummy storage volume. Other LXD instances will use this to detect whether this osd pool is already in use by another LXD instance.
-		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, s.OSDPoolName, "lxd", "0", s.UserName)
+		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, s.OSDPoolName, "lxd", "0", s.UserName, s.OSDDataPoolName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, s.pool.Name, s.pool.Name, err)
 			return err
@@ -320,7 +326,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 
 	// create volume
 	err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, s.volume.Name,
-		storagePoolVolumeTypeNameCustom, RBDSize, s.UserName)
+		storagePoolVolumeTypeNameCustom, RBDSize, s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
 		return err
@@ -852,7 +858,7 @@ func (s *storageCeph) ContainerCreateFromImage(container Instance, fingerprint s
 	volumeName := project.Prefix(container.Project(), containerName)
 	err := cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, fingerprint,
 		storagePoolVolumeTypeNameImage, "readonly", s.OSDPoolName,
-		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
+		volumeName, storagePoolVolumeTypeNameContainer, s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		logger.Errorf(`Failed to clone new RBD storage volume for container "%s": %s`, containerName, err)
 		return err
@@ -1164,7 +1170,7 @@ func (s *storageCeph) ContainerCopy(target Instance, source Instance, containerO
 		// create empty dummy volume
 		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
 			project.Prefix(target.Project(), targetContainerName), storagePoolVolumeTypeNameContainer,
-			"0", s.UserName)
+			"0", s.UserName, s.OSDDataPoolName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, targetContainerName, s.pool.Name, err)
 			return err
@@ -1758,7 +1764,7 @@ func (s *storageCeph) ContainerSnapshotStart(c Instance) (bool, error) {
 	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName,
 		containerOnlyName, storagePoolVolumeTypeNameContainer,
 		prefixedSnapOnlyName, s.OSDPoolName, cloneName, "snapshots",
-		s.UserName)
+		s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		logger.Errorf(`Failed to create clone of RBD storage volume for container "%s" on storage pool "%s": %s`, containerName, s.pool.Name, err)
 		return false, err
@@ -2062,7 +2068,7 @@ func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.Progre
 		// create volume
 		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
 			fingerprint, storagePoolVolumeTypeNameImage, RBDSize,
-			s.UserName)
+			s.UserName, s.OSDDataPoolName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume for image "%s" on storage pool "%s": %s`, fingerprint, s.pool.Name, err)
 			return err
@@ -2570,7 +2576,7 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 		// create empty dummy volume
 		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
 			s.volume.Name, storagePoolVolumeTypeNameCustom,
-			"0", s.UserName)
+			"0", s.UserName, s.OSDDataPoolName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
 			return err
@@ -2907,7 +2913,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operati
 	// that's actually correct.
 	instanceName := args.Instance.Name()
 	if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, project.Prefix(args.Instance.Project(), instanceName), storagePoolVolumeTypeNameContainer, s.UserName) {
-		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, project.Prefix(args.Instance.Project(), instanceName), storagePoolVolumeTypeNameContainer, "0", s.UserName)
+		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, project.Prefix(args.Instance.Project(), instanceName), storagePoolVolumeTypeNameContainer, "0", s.UserName, s.OSDDataPoolName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" for cluster "%s" in OSD pool "%s" on storage pool "%s": %s`, instanceName, s.ClusterName, s.OSDPoolName, s.pool.Name, err)
 			return err
