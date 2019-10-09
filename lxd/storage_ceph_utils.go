@@ -73,13 +73,14 @@ func cephOSDPoolDestroy(clusterName string, poolName string, userName string) er
 // library and the kernel module are minimized. Otherwise random panics might
 // occur.
 func cephRBDVolumeCreate(clusterName string, poolName string, volumeName string,
-	volumeType string, size string, userName string) error {
+	volumeType string, size string, userName string, dataPoolName string) error {
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--image-feature", "layering,",
 		"--cluster", clusterName,
 		"--pool", poolName,
+		"--data-pool", dataPoolName,
 		"--size", size,
 		"create",
 		fmt.Sprintf("%s_%s", volumeType, volumeName))
@@ -365,12 +366,13 @@ func cephRBDCloneCreate(sourceClusterName string, sourcePoolName string,
 	sourceVolumeName string, sourceVolumeType string,
 	sourceSnapshotName string, targetPoolName string,
 	targetVolumeName string, targetVolumeType string,
-	userName string) error {
+	userName string, targetDataPoolName string) error {
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", sourceClusterName,
 		"--image-feature", "layering",
+		"--data-pool", targetDataPoolName,
 		"clone",
 		fmt.Sprintf("%s/%s_%s@%s", sourcePoolName, sourceVolumeType,
 			sourceVolumeName, sourceSnapshotName),
@@ -834,7 +836,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target Instance, source Instanc
 	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName,
 		sourceContainerOnlyName, storagePoolVolumeTypeNameContainer,
 		snapshotName, s.OSDPoolName, targetContainerName,
-		storagePoolVolumeTypeNameContainer, s.UserName)
+		storagePoolVolumeTypeNameContainer, s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		logger.Errorf(`Failed to clone new RBD storage volume for container "%s": %s`, targetContainerName, err)
 		return err
@@ -1632,7 +1634,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 
 	// Create a new volume from the snapshot
 	cloneName := uuid.NewRandom().String()
-	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, sourceContainerOnlyName, storagePoolVolumeTypeNameContainer, snapshotName, s.OSDPoolName, cloneName, "backup", s.UserName)
+	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, sourceContainerOnlyName, storagePoolVolumeTypeNameContainer, snapshotName, s.OSDPoolName, cloneName, "backup", s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		return err
 	}
@@ -1715,7 +1717,7 @@ func (s *storageCeph) doContainerCreate(projectName, name string, privileged boo
 
 	// create volume
 	volumeName := project.Prefix(projectName, name)
-	err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, volumeName, storagePoolVolumeTypeNameContainer, RBDSize, s.UserName)
+	err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, volumeName, storagePoolVolumeTypeNameContainer, RBDSize, s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		logger.Errorf(`Failed to create RBD storage volume for container "%s" on storage pool "%s": %s`, name, s.pool.Name, err)
 		return err
@@ -2027,7 +2029,7 @@ func (s *storageCeph) copyVolumeWithoutSnapshotsSparse(source *api.StorageVolume
 	}
 
 	// create new clone
-	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, sourceOnlyName, storagePoolVolumeTypeNameCustom, snapshotOnlyName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
+	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, sourceOnlyName, storagePoolVolumeTypeNameCustom, snapshotOnlyName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName, s.OSDDataPoolName)
 	if err != nil {
 		logger.Errorf("Failed to clone RBD storage volume \"%s\" on storage pool \"%s\": %s", source.Name, source.Pool, err)
 		return err

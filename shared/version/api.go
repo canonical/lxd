@@ -171,6 +171,7 @@ var APIExtensions = []string{
 	"images_expiry",
 	"resources_network_firmware",
 	"backup_compression_algorithm",
+	"ceph_data_pool_name",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

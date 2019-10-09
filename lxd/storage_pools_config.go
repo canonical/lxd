@@ -55,9 +55,10 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"btrfs.mount_options": shared.IsAny,
 
 	// valid drivers: ceph
-	"ceph.cluster_name":    shared.IsAny,
-	"ceph.osd.force_reuse": shared.IsBool,
-	"ceph.osd.pool_name":   shared.IsAny,
+	"ceph.cluster_name":       shared.IsAny,
+	"ceph.osd.force_reuse":    shared.IsBool,
+	"ceph.osd.pool_name":      shared.IsAny,
+	"ceph.osd.data_pool_name": shared.IsAny,
 	"ceph.osd.pg_num": func(value string) error {
 		if value == "" {
 			return nil
