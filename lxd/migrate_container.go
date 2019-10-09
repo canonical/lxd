@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -266,7 +267,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// Send the pre-dump.
 	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
 	state := s.instance.DaemonState()
-	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
+	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
 	}
@@ -680,7 +681,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		 */
 		ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
 		state := s.instance.DaemonState()
-		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
+		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}
@@ -1060,7 +1061,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				for !sync.GetFinalPreDump() {
 					logger.Debugf("About to receive rsync")
 					// Transfer a CRIU pre-dump
-					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, rsyncFeatures)
+					err = rsync.Recv(shared.AddSlash(imagesDir), criuConn, nil, rsyncFeatures)
 					if err != nil {
 						restore <- err
 						return
@@ -1088,7 +1089,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 			}
 
 			// Final CRIU dump
-			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, rsyncFeatures)
+			err = rsync.Recv(shared.AddSlash(imagesDir), criuConn, nil, rsyncFeatures)
 			if err != nil {
 				restore <- err
 				return

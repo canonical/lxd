@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1592,7 +1593,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
+		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
@@ -1934,7 +1935,7 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
 			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
 
-			_, err = rsyncLocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit, true)
+			_, err = rsync.LocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit, true)
 			if err != nil {
 				return err
 			}
@@ -1954,7 +1955,7 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 		srcVolumeMntPoint = driver.GetStoragePoolVolumeMountPoint(source.Pool, source.Name)
 	}
 
-	_, err = rsyncLocalCopy(srcVolumeMntPoint, dstVolumeMntPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcVolumeMntPoint, dstVolumeMntPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstVolumeMntPoint)
 		logger.Errorf("Failed to rsync into RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)

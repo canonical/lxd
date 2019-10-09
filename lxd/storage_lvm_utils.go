@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -426,7 +427,7 @@ func (s *storageLvm) copyContainerLv(target Instance, source Instance, readonly 
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
+	output, err := rsync.LocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
@@ -1034,7 +1035,7 @@ func (s *storageLvm) copyVolumeLv(sourcePool string, source string, target strin
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstMountPoint)
 		logger.Errorf("Failed to rsync into LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)

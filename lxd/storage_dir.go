@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
@@ -413,7 +414,7 @@ func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 
 		// Restore using rsync
 		bwlimit := s.pool.Config["rsync.bwlimit"]
-		output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, true)
+		output, err := rsync.LocalCopy(sourcePath, targetPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 		}
@@ -669,7 +670,7 @@ func (s *storageDir) copyContainer(target Instance, source Instance) error {
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
+	output, err := rsync.LocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
@@ -698,7 +699,7 @@ func (s *storageDir) copySnapshot(target Instance, targetPool string, source Ins
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
+	output, err := rsync.LocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit, true)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
@@ -893,7 +894,7 @@ func (s *storageDir) ContainerRestore(container Instance, sourceContainer Instan
 
 	// Restore using rsync
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, true)
+	output, err := rsync.LocalCopy(sourcePath, targetPath, bwlimit, true)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
@@ -936,7 +937,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer Instance, sourceC
 	}
 
 	rsync := func(snapshotContainer Instance, oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
+		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			s.ContainerDelete(snapshotContainer)
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
@@ -1141,7 +1142,7 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source Instance) error
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
-		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit, true)
+		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
@@ -1473,7 +1474,7 @@ func (s *storageDir) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSn
 
 	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	msg, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit, true)
+	msg, err := rsync.LocalCopy(sourcePath, targetPath, bwlimit, true)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync: %s: %s", string(msg), err)
 	}
@@ -1563,7 +1564,7 @@ func (s *storageDir) copyVolume(sourcePool string, source string, target string)
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstMountPoint)
 		logger.Errorf("Failed to rsync into DIR storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -1584,7 +1585,7 @@ func (s *storageDir) copyVolumeSnapshot(sourcePool string, source string, target
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
+	_, err = rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 	if err != nil {
 		os.RemoveAll(dstMountPoint)
 		logger.Errorf("Failed to rsync into DIR storage volume \"%s\" on storage pool \"%s\": %s", target, s.pool.Name, err)
