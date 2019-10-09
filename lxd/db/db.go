@@ -341,6 +341,11 @@ func (c *Cluster) SetDefaultTimeout(timeout time.Duration) {
 	driver.SetContextTimeout(timeout)
 }
 
+// GetNodeID returns the current nodeID (0 if not set)
+func (c *Cluster) GetNodeID() int64 {
+	return c.nodeID
+}
+
 // Transaction creates a new ClusterTx object and transactionally executes the
 // cluster database interactions invoked by the given function. If the function
 // returns no error, all database changes are committed to the cluster database
