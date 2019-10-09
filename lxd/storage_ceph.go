@@ -1566,7 +1566,7 @@ func (s *storageCeph) ContainerRestore(target Instance, source Instance) error {
 	sourceContainerOnlyName, sourceSnapshotOnlyName, _ := shared.ContainerGetParentAndSnapshotName(sourceName)
 	prefixedSourceSnapOnlyName := fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
 	err = cephRBDVolumeRestore(s.ClusterName, s.OSDPoolName,
-		sourceContainerOnlyName, storagePoolVolumeTypeNameContainer,
+		project.Prefix(source.Project(), sourceContainerOnlyName), storagePoolVolumeTypeNameContainer,
 		prefixedSourceSnapOnlyName, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to restore RBD storage volume for container "%s" from "%s": %s`, targetName, sourceName, err)
