@@ -853,3 +853,9 @@ Adds a FirmwareVersion field to network card entries.
 This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
 
 Setting this property overrides the server default value (`backups.compression_algorithm`).
+
+## ceph\_data\_pool\_name
+This adds support for an optional argument (`ceph.osd.data_pool_name`) when creating
+storage pools using Ceph RBD, when this argument is used the pool will store it's
+actual data in the pool specified with `data_pool_name` while keeping the metadata
+in the pool specified by `pool_name`.

@@ -14,6 +14,7 @@ ceph.cluster\_name              | string    | ceph driver                       
 ceph.osd.force\_reuse           | bool      | ceph driver                       | false                      | storage\_ceph\_force\_osd\_reuse   | Force using an osd storage pool that is already in use by another LXD instance.
 ceph.osd.pg\_num                | string    | ceph driver                       | 32                         | storage\_driver\_ceph              | Number of placement groups for the osd storage pool.
 ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | storage\_driver\_ceph              | Name of the osd storage pool.
+ceph.osd.data\_pool\_name       | string    | ceph driver                       | -                          | storage\_driver\_ceph              | Name of the osd data pool.
 ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | storage\_driver\_ceph              | Whether to use RBD lightweight clones rather than full dataset copies.
 ceph.user.name                  | string    | ceph driver                       | admin                      | storage\_ceph\_user\_name          | The ceph user to use when creating storage pools and volumes.
 cephfs.cluster\_name            | string    | cephfs driver                     | ceph                       | storage\_driver\_cephfs            | Name of the ceph cluster in which to create new storage pools.

@@ -119,7 +119,7 @@ _have lxc && {
       ipv6.routes ipv6.routing raw.dnsmasq"
 
     storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
-      ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name \
+      ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name ceph.osd.data_pool_name \
       ceph.rbd.clone_copy ceph.user.name cephfs.cluster_name cephfs.path \
       cephfs.vg_name lvm.thinpool_name lvm.use_thinpool \
       lvm.vg_name rsync.bwlimit volatile.initial_source \
