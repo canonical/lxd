@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -526,7 +527,7 @@ func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol 
 		}
 
 		driver := s.GetStorageTypeName()
-		newConfig, err := storageVolumePropertiesTranslate(vol.Config, driver)
+		newConfig, err := storagePools.VolumePropertiesTranslate(vol.Config, driver)
 		if err != nil {
 			return nil, err
 		}
@@ -536,7 +537,7 @@ func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol 
 	}
 
 	// Create database entry for new storage volume.
-	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, false, volumeConfig)
+	err := storagePools.VolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, false, volumeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +548,7 @@ func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol 
 		return nil, err
 	}
 
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		state.Cluster.StoragePoolVolumeDelete("default", volumeName, volumeType, poolID)
 		return nil, err
@@ -569,7 +570,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		return err
 	}
 
-	volumeType, err1 := storagePoolVolumeTypeNameToType(vol.Type)
+	volumeType, err1 := storagePools.VolumeTypeNameToType(vol.Type)
 	poolID, _, _ := s.GetContainerPoolInfo()
 	revert := true
 
@@ -583,7 +584,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		err = s.StoragePoolVolumeCreate()
 	} else {
 		if !vol.Source.VolumeOnly {
-			snapshots, err := storagePoolVolumeSnapshotsGet(state, vol.Source.Pool, vol.Source.Name, volumeType)
+			snapshots, err := storagePools.VolumeSnapshotsGet(state, vol.Source.Pool, vol.Source.Name, volumeType)
 			if err != nil {
 				return err
 			}
@@ -609,7 +610,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 }
 
 func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, vol *api.StorageVolumesPost, snapshotName string) (storage, error) {
-	volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
+	volumeType, err := storagePools.VolumeTypeNameToType(vol.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +646,7 @@ func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, 
 
 func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (storage, error) {
 	// Create database entry for new storage volume.
-	err := storagePoolVolumeDBCreate(state, dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, true, dbArgs.Config)
+	err := storagePools.VolumeDBCreate(state, dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, true, dbArgs.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -656,7 +657,7 @@ func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.St
 		return nil, err
 	}
 
-	volumeType, err := storagePoolVolumeTypeNameToType(dbArgs.TypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(dbArgs.TypeName)
 	if err != nil {
 		state.Cluster.StoragePoolVolumeDelete("default", dbArgs.Name, volumeType, poolID)
 		return nil, err

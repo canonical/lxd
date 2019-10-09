@@ -2897,7 +2897,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 
 	if !volumeOnly {
 		// Handle snapshots
-		snapshots, err := storagePoolVolumeSnapshotsGet(s.s, sourcePool, sourceName, storagePoolVolumeTypeCustom)
+		snapshots, err := driver.VolumeSnapshotsGet(s.s, sourcePool, sourceName, storagePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}

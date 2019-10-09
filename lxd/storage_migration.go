@@ -62,7 +62,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 	volume := storage.GetStoragePoolVolume()
 
 	if !volumeOnly {
-		snapshots, err := storagePoolVolumeSnapshotsGet(state, pool.Name, volume.Name, storagePoolVolumeTypeCustom)
+		snapshots, err := driver.VolumeSnapshotsGet(state, pool.Name, volume.Name, storagePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
