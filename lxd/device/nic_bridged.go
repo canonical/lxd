@@ -391,7 +391,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	}
 
 	// Get a current list of rules active on the host.
-	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
+	out, err := shared.RunCommand("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		return fmt.Errorf("Failed to remove network filters for %s: %v", m["name"], err)
 	}
@@ -419,7 +419,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 
 			// If we get this far, then the current host rule matches one of our LXD
 			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommand(fields[0], fields[1:]...)
+			_, err = shared.RunCommand(fields[0], append([]string{"--concurrent"}, fields[1:]...)...)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -579,7 +579,7 @@ func (d *nicBridged) setFilters() (err error) {
 
 	rules := d.generateFilterEbtablesRules(d.config, IPv4, IPv6)
 	for _, rule := range rules {
-		_, err = shared.RunCommand(rule[0], rule[1:]...)
+		_, err = shared.RunCommand(rule[0], append([]string{"--concurrent"}, rule[1:]...)...)
 		if err != nil {
 			return err
 		}
