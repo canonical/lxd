@@ -1,57 +1,28 @@
 package main
 
 import (
-	"archive/tar"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"context"
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
-
-// Load a backup from the database
-func backupLoadByName(s *state.State, project, name string) (*backup, error) {
-	// Get the backup database record
-	args, err := s.Cluster.ContainerGetBackup(project, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "Load backup from database")
-	}
-
-	// Load the instance it belongs to
-	instance, err := instanceLoadById(s, args.InstanceID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Load container from database")
-	}
-
-	// Return the backup struct
-	return &backup{
-		state:            s,
-		instance:         instance,
-		id:               args.ID,
-		name:             name,
-		creationDate:     args.CreationDate,
-		expiryDate:       args.ExpiryDate,
-		instanceOnly:     args.InstanceOnly,
-		optimizedStorage: args.OptimizedStorage,
-	}, nil
-}
 
 // Create a new backup
 func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer Instance) error {
@@ -66,175 +37,43 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer In
 	}
 
 	// Get the backup struct
-	b, err := backupLoadByName(s, sourceContainer.Project(), args.Name)
+	b, err := backup.LoadByName(s, sourceContainer.Project(), args.Name)
 	if err != nil {
 		return errors.Wrap(err, "Load backup object")
 	}
 
+	b.SetCompressionAlgorithm(args.CompressionAlgorithm)
+
+	ourStart, err := sourceContainer.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
+
+	// Create a temporary path for the backup
+	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpPath)
+
 	// Now create the empty snapshot
-	b.compressionAlgorithm = args.CompressionAlgorithm
-	err = sourceContainer.Storage().ContainerBackupCreate(*b, sourceContainer)
+	err = sourceContainer.Storage().ContainerBackupCreate(tmpPath, *b, sourceContainer)
 	if err != nil {
 		s.Cluster.ContainerBackupRemove(args.Name)
 		return errors.Wrap(err, "Backup storage")
 	}
 
-	return nil
-}
-
-// backup represents a container backup
-type backup struct {
-	state    *state.State
-	instance Instance
-
-	// Properties
-	id                   int
-	name                 string
-	creationDate         time.Time
-	expiryDate           time.Time
-	instanceOnly         bool
-	optimizedStorage     bool
-	compressionAlgorithm string
-}
-
-type backupInfo struct {
-	Project         string   `json:"project" yaml:"project"`
-	Name            string   `json:"name" yaml:"name"`
-	Backend         string   `json:"backend" yaml:"backend"`
-	Privileged      bool     `json:"privileged" yaml:"privileged"`
-	Pool            string   `json:"pool" yaml:"pool"`
-	Snapshots       []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
-	HasBinaryFormat bool     `json:"-" yaml:"-"`
-}
-
-// Rename renames a container backup
-func (b *backup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", b.name)
-	newBackupPath := shared.VarPath("backups", newName)
-
-	// Create the new backup path
-	backupsPath := shared.VarPath("backups", b.instance.Name())
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Rename the backup directory
-	err := os.Rename(oldBackupPath, newBackupPath)
-	if err != nil {
-		return err
-	}
-
-	// Check if we can remove the container directory
-	empty, _ := shared.PathIsEmpty(backupsPath)
-	if empty {
-		err := os.Remove(backupsPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Rename the database record
-	err = b.state.Cluster.ContainerBackupRename(b.name, newName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Delete removes an instance backup
-func (b *backup) Delete() error {
-	return doBackupDelete(b.state, b.name, b.instance.Name())
-}
-
-func (b *backup) Render() *api.InstanceBackup {
-	return &api.InstanceBackup{
-		Name:             strings.SplitN(b.name, "/", 2)[1],
-		CreatedAt:        b.creationDate,
-		ExpiresAt:        b.expiryDate,
-		InstanceOnly:     b.instanceOnly,
-		ContainerOnly:    b.instanceOnly,
-		OptimizedStorage: b.optimizedStorage,
-	}
-}
-
-func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
-	var tr *tar.Reader
-	result := backupInfo{}
-	hasBinaryFormat := false
-	hasIndexFile := false
-
-	// Extract
-	r.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
-	if err != nil {
-		return nil, err
-	}
-	r.Seek(0, 0)
-
-	if unpacker == nil {
-		return nil, fmt.Errorf("Unsupported backup compression")
-	}
-
-	if len(unpacker) > 0 {
-		cmd := exec.Command(unpacker[0], unpacker[1:]...)
-		cmd.Stdin = r
-
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, err
-		}
-		defer stdout.Close()
-
-		err = cmd.Start()
-		if err != nil {
-			return nil, err
-		}
-		defer cmd.Wait()
-
-		tr = tar.NewReader(stdout)
-	} else {
-		tr = tar.NewReader(r)
-	}
-
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break // End of archive
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if hdr.Name == "backup/index.yaml" {
-			err = yaml.NewDecoder(tr).Decode(&result)
-			if err != nil {
-				return nil, err
-			}
-
-			hasIndexFile = true
-		}
-
-		if hdr.Name == "backup/container.bin" {
-			hasBinaryFormat = true
-		}
-	}
-
-	if !hasIndexFile {
-		return nil, fmt.Errorf("Backup is missing index.yaml")
-	}
-
-	result.HasBinaryFormat = hasBinaryFormat
-	return &result, nil
+	// Pack the backup
+	return backupCreateTarball(s, tmpPath, *b, sourceContainer)
 }
 
 // fixBackupStoragePool changes the pool information in the backup.yaml. This
 // is done only if the provided pool doesn't exist. In this case, the pool of
 // the default profile will be used.
-func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) error {
+func backupFixStoragePool(c *db.Cluster, b backup.Info, useDefaultPool bool) error {
 	var poolName string
 
 	if useDefaultPool {
@@ -310,13 +149,13 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) erro
 		return nil
 	}
 
-	err = f(shared.VarPath("storage-pools", pool.Name, "containers", b.Name, "backup.yaml"))
+	err = f(shared.VarPath("storage-pools", pool.Name, "containers", project.Prefix(b.Project, b.Name), "backup.yaml"))
 	if err != nil {
 		return err
 	}
 
 	for _, snap := range b.Snapshots {
-		err = f(shared.VarPath("storage-pools", pool.Name, "containers-snapshots", b.Name, snap,
+		err = f(shared.VarPath("storage-pools", pool.Name, "containers-snapshots", project.Prefix(b.Project, b.Name), snap,
 			"backup.yaml"))
 		if err != nil {
 			return err
@@ -325,23 +164,23 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) erro
 	return nil
 }
 
-func backupCreateTarball(s *state.State, path string, backup backup) error {
+func backupCreateTarball(s *state.State, path string, b backup.Backup, c Instance) error {
 	// Create the index
-	pool, err := backup.instance.StoragePool()
+	pool, err := c.StoragePool()
 	if err != nil {
 		return err
 	}
 
-	indexFile := backupInfo{
-		Name:       backup.instance.Name(),
-		Backend:    backup.instance.Storage().GetStorageTypeName(),
-		Privileged: backup.instance.IsPrivileged(),
+	indexFile := backup.Info{
+		Name:       c.Name(),
+		Backend:    c.Storage().GetStorageTypeName(),
+		Privileged: c.IsPrivileged(),
 		Pool:       pool,
 		Snapshots:  []string{},
 	}
 
-	if !backup.instanceOnly {
-		snaps, err := backup.instance.Snapshots()
+	if !b.InstanceOnly() {
+		snaps, err := c.Snapshots()
 		if err != nil {
 			return err
 		}
@@ -369,7 +208,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 	}
 
 	// Create the target path if needed
-	backupsPath := shared.VarPath("backups", backup.instance.Name())
+	backupsPath := shared.VarPath("backups", project.Prefix(c.Project(), c.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -378,7 +217,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 	}
 
 	// Create the tarball
-	backupPath := shared.VarPath("backups", backup.name)
+	backupPath := shared.VarPath("backups", project.Prefix(c.Project(), b.Name()))
 	success := false
 	defer func() {
 		if success {
@@ -401,8 +240,8 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 
 	var compress string
 
-	if backup.compressionAlgorithm != "" {
-		compress = backup.compressionAlgorithm
+	if b.CompressionAlgorithm() != "" {
+		compress = b.CompressionAlgorithm()
 	} else {
 		compress, err = cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
 		if err != nil {
@@ -496,42 +335,16 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 		return errors.Wrap(err, "Unable to retrieve the list of expired container backups")
 	}
 
-	for _, backup := range backups {
-		containerName, _, _ := shared.ContainerGetParentAndSnapshotName(backup)
-		err := doBackupDelete(d.State(), backup, containerName)
+	for _, b := range backups {
+		inst, err := instanceLoadById(d.State(), b.InstanceID)
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting container backup %s", backup)
+			return errors.Wrapf(err, "Error deleting container backup %s", b.Name)
 		}
-	}
 
-	return nil
-}
-
-func doBackupDelete(s *state.State, backupName, containerName string) error {
-	backupPath := shared.VarPath("backups", backupName)
-
-	// Delete the on-disk data
-	if shared.PathExists(backupPath) {
-		err := os.RemoveAll(backupPath)
+		err = backup.DoBackupDelete(d.State(), inst.Project(), b.Name, inst.Name())
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Error deleting container backup %s", b.Name)
 		}
-	}
-
-	// Check if we can remove the container directory
-	backupsPath := shared.VarPath("backups", containerName)
-	empty, _ := shared.PathIsEmpty(backupsPath)
-	if empty {
-		err := os.Remove(backupsPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Remove the database record
-	err := s.Cluster.ContainerBackupRemove(backupName)
-	if err != nil {
-		return err
 	}
 
 	return nil

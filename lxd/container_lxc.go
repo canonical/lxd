@@ -26,6 +26,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
@@ -3289,7 +3290,7 @@ func (c *containerLXC) Snapshots() ([]Instance, error) {
 	return instances, nil
 }
 
-func (c *containerLXC) Backups() ([]backup, error) {
+func (c *containerLXC) Backups() ([]backup.Backup, error) {
 	// Get all the backups
 	backupNames, err := c.state.Cluster.ContainerGetBackups(c.project, c.name)
 	if err != nil {
@@ -3297,9 +3298,9 @@ func (c *containerLXC) Backups() ([]backup, error) {
 	}
 
 	// Build the backup list
-	backups := []backup{}
+	backups := []backup.Backup{}
 	for _, backupName := range backupNames {
-		backup, err := backupLoadByName(c.state, c.project, backupName)
+		backup, err := backup.LoadByName(c.state, c.project, backupName)
 		if err != nil {
 			return nil, err
 		}
@@ -3711,7 +3712,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	for _, backup := range backups {
-		backupName := strings.Split(backup.name, "/")[1]
+		backupName := strings.Split(backup.Name(), "/")[1]
 		newName := fmt.Sprintf("%s/%s", newName, backupName)
 
 		err = backup.Rename(newName)

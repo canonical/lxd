@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -694,11 +695,11 @@ func (s *storageCephFs) ContainerSnapshotStop(container Instance) (bool, error) 
 	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerBackupCreate(backup backup, source Instance) error {
+func (s *storageCephFs) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageCephFs) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
