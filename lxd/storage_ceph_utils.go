@@ -74,16 +74,23 @@ func cephOSDPoolDestroy(clusterName string, poolName string, userName string) er
 // occur.
 func cephRBDVolumeCreate(clusterName string, poolName string, volumeName string,
 	volumeType string, size string, userName string, dataPoolName string) error {
-	_, err := shared.RunCommand(
-		"rbd",
+	cmd := []string{
 		"--id", userName,
 		"--image-feature", "layering,",
 		"--cluster", clusterName,
 		"--pool", poolName,
-		"--data-pool", dataPoolName,
+	}
+
+	if dataPoolName != "" {
+		cmd = append(cmd, "--data-pool", dataPoolName)
+	}
+
+	cmd = append(cmd,
 		"--size", size,
 		"create",
 		fmt.Sprintf("%s_%s", volumeType, volumeName))
+
+	_, err := shared.RunCommand("rbd", cmd...)
 	return err
 }
 
@@ -367,17 +374,24 @@ func cephRBDCloneCreate(sourceClusterName string, sourcePoolName string,
 	sourceSnapshotName string, targetPoolName string,
 	targetVolumeName string, targetVolumeType string,
 	userName string, targetDataPoolName string) error {
-	_, err := shared.RunCommand(
-		"rbd",
+	cmd := []string{
 		"--id", userName,
 		"--cluster", sourceClusterName,
 		"--image-feature", "layering",
-		"--data-pool", targetDataPoolName,
+	}
+
+	if targetDataPoolName != "" {
+		cmd = append(cmd, "--data-pool", targetDataPoolName)
+	}
+
+	cmd = append(cmd,
 		"clone",
 		fmt.Sprintf("%s/%s_%s@%s", sourcePoolName, sourceVolumeType,
 			sourceVolumeName, sourceSnapshotName),
 		fmt.Sprintf("%s/%s_%s", targetPoolName, targetVolumeType,
 			targetVolumeName))
+
+	_, err := shared.RunCommand("rbd", cmd...)
 	if err != nil {
 		return err
 	}
