@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -1840,7 +1841,7 @@ func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer Instance) er
 	return nil
 }
 
-func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup, source Instance) error {
+func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup.Backup, source Instance) error {
 	sourceIsSnapshot := source.IsSnapshot()
 	poolName := s.getOnDiskPoolName()
 
@@ -1888,7 +1889,7 @@ func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup, source
 	return nil
 }
 
-func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup, source Instance, parentSnapshot string) error {
+func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup.Backup, source Instance, parentSnapshot string) error {
 	sourceName := source.Name()
 	snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
@@ -1920,14 +1921,14 @@ func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup, source Inst
 	return zfsSendCmd.Run()
 }
 
-func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup backup, source Instance) error {
+func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup backup.Backup, source Instance) error {
 	// Handle snapshots
 	snapshots, err := source.Snapshots()
 	if err != nil {
 		return err
 	}
 
-	if backup.instanceOnly || len(snapshots) == 0 {
+	if backup.InstanceOnly() || len(snapshots) == 0 {
 		err = s.doContainerOnlyBackup(tmpPath, backup, source)
 	} else {
 		prev := ""
@@ -1989,7 +1990,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source Instance) error {
+func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backup.Backup, source Instance) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
 		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
@@ -2001,10 +2002,10 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	projectName := backup.instance.Project()
+	projectName := source.Project()
 
 	// Handle snapshots
-	if !backup.instanceOnly {
+	if !backup.InstanceOnly() {
 		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
 		// Retrieve the snapshots
@@ -2092,49 +2093,27 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	return nil
 }
 
-func (s *storageZfs) ContainerBackupCreate(backup backup, source Instance) error {
-	// Start storage
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
-
-	// Create a temporary path for the backup
-	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpPath)
-
+func (s *storageZfs) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
 	// Generate the actual backup
-	if backup.optimizedStorage {
-		err = s.doContainerBackupCreateOptimized(tmpPath, backup, source)
+	if backup.OptimizedStorage() {
+		err := s.doContainerBackupCreateOptimized(path, backup, source)
 		if err != nil {
 			return errors.Wrap(err, "Optimized backup")
 		}
 	} else {
-		err = s.doContainerBackupCreateVanilla(tmpPath, backup, source)
+		err := s.doContainerBackupCreateVanilla(path, backup, source)
 		if err != nil {
 			return errors.Wrap(err, "Vanilla backup")
 		}
 	}
 
-	// Pack the backup
-	err = backupCreateTarball(s.s, tmpPath, backup)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageZfs) doContainerBackupLoadOptimized(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := shared.ContainerGetParentAndSnapshotName(info.Name)
 	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, containerName)
-	err := driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(info.Name, false), info.Privileged)
+	err := driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -2233,7 +2212,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 		return err
 	}
 
-	_, err = s.doContainerMount("default", containerName, info.Privileged)
+	_, err = s.doContainerMount(info.Project, containerName, info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -2241,7 +2220,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageZfs) doContainerBackupLoadVanilla(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
 	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
 	if err != nil {
@@ -2303,7 +2282,7 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 	return nil
 }
 
-func (s *storageZfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
+func (s *storageZfs) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	logger.Debugf("Loading ZFS storage volume for backup \"%s\" on storage pool \"%s\"", info.Name, s.pool.Name)
 
 	if info.HasBinaryFormat {

@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -634,7 +635,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 
 	// Parse the backup information
 	f.Seek(0, 0)
-	bInfo, err := backupGetInfo(f)
+	bInfo, err := backup.GetInfo(f)
 	if err != nil {
 		f.Close()
 		return response.BadRequest(err)

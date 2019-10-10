@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -212,8 +213,8 @@ type storage interface {
 	ContainerSnapshotStart(c Instance) (bool, error)
 	ContainerSnapshotStop(c Instance) (bool, error)
 
-	ContainerBackupCreate(backup backup, sourceContainer Instance) error
-	ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error
+	ContainerBackupCreate(path string, backup backup.Backup, sourceContainer Instance) error
+	ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error
 
 	// For use in migrating snapshots.
 	ContainerSnapshotCreateEmpty(c Instance) error

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -29,7 +30,7 @@ type Instance interface {
 	// Snapshots & migration & backups
 	Restore(source Instance, stateful bool) error
 	Snapshots() ([]Instance, error)
-	Backups() ([]backup, error)
+	Backups() ([]backup.Backup, error)
 
 	// Config handling
 	Rename(newName string) error

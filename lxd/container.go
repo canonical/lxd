@@ -16,6 +16,7 @@ import (
 	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
@@ -61,6 +62,17 @@ func init() {
 		}
 
 		return device.Instance(container), nil
+	}
+
+	// Expose instanceLoadById to the backup package converting the response to an Instance.
+	// This is because container types are defined in the main package and are not importable.
+	backup.InstanceLoadByID = func(s *state.State, id int) (backup.Instance, error) {
+		instance, err := instanceLoadById(s, id)
+		if err != nil {
+			return nil, err
+		}
+
+		return backup.Instance(instance), nil
 	}
 }
 
@@ -264,7 +276,7 @@ func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (container, error) 
 	return c, nil
 }
 
-func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeeker,
+func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSeeker,
 	customPool bool) (storage, error) {
 	var pool storage
 	var fixBackupFile = false

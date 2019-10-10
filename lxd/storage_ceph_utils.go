@@ -14,6 +14,7 @@ import (
 	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -1601,7 +1602,7 @@ func (s *storageCeph) cephRBDVolumeDumpToFile(sourceVolumeName string, file stri
 }
 
 // cephRBDVolumeBackupCreate creates a backup of a container or snapshot.
-func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, source Instance) error {
+func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup.Backup, source Instance) error {
 	sourceIsSnapshot := source.IsSnapshot()
 	sourceContainerName := source.Name()
 	sourceContainerOnlyName := project.Prefix(source.Project(), sourceContainerName)
@@ -1623,7 +1624,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 	if sourceIsSnapshot {
 		sourceContainerOnlyName, sourceSnapshotOnlyName, _ = shared.ContainerGetParentAndSnapshotName(sourceContainerName)
 		sourceContainerOnlyName = project.Prefix(source.Project(), sourceContainerOnlyName)
-		snapshotName = fmt.Sprintf("snapshot_%s", project.Prefix(source.Project(), sourceSnapshotOnlyName))
+		snapshotName = fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
 	} else {
 		// This is costly but we need to ensure that all cached data has
 		// been committed to disk. If we don't then the rbd snapshot of

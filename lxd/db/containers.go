@@ -1305,13 +1305,14 @@ func (c *Cluster) ContainerBackupRename(oldName, newName string) error {
 }
 
 // ContainerBackupsGetExpired returns a list of expired container backups.
-func (c *Cluster) ContainerBackupsGetExpired() ([]string, error) {
-	var result []string
+func (c *Cluster) ContainerBackupsGetExpired() ([]InstanceBackupArgs, error) {
+	var result []InstanceBackupArgs
 	var name string
 	var expiryDate string
+	var instanceID int
 
-	q := `SELECT instances_backups.name, instances_backups.expiry_date FROM instances_backups`
-	outfmt := []interface{}{name, expiryDate}
+	q := `SELECT instances_backups.name, instances_backups.expiry_date, instances_backups.instance_id FROM instances_backups`
+	outfmt := []interface{}{name, expiryDate, instanceID}
 	dbResults, err := queryScan(c.db, q, nil, outfmt)
 	if err != nil {
 		return nil, err
@@ -1323,7 +1324,7 @@ func (c *Cluster) ContainerBackupsGetExpired() ([]string, error) {
 		var backupExpiry time.Time
 		err = backupExpiry.UnmarshalText([]byte(timestamp.(string)))
 		if err != nil {
-			return []string{}, err
+			return []InstanceBackupArgs{}, err
 		}
 
 		// Since zero time causes some issues due to timezones, we check the
@@ -1335,7 +1336,11 @@ func (c *Cluster) ContainerBackupsGetExpired() ([]string, error) {
 
 		// Backup has expired
 		if time.Now().Unix()-backupExpiry.Unix() >= 0 {
-			result = append(result, r[0].(string))
+			result = append(result, InstanceBackupArgs{
+				Name:       r[0].(string),
+				InstanceID: r[2].(int),
+				ExpiryDate: backupExpiry,
+			})
 		}
 	}
 
