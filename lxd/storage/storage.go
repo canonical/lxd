@@ -18,6 +18,7 @@ func ContainerPath(name string, isSnapshot bool) string {
 
 // GetStoragePoolMountPoint returns the mountpoint of the given pool.
 // {LXD_DIR}/storage-pools/<pool>
+// Deprecated, use GetPoolMountPoint in storage/drivers package.
 func GetStoragePoolMountPoint(poolName string) string {
 	return shared.VarPath("storage-pools", poolName)
 }
