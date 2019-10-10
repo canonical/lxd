@@ -1026,43 +1026,61 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		}
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
-	switch volumeType {
-	case storagePoolVolumeTypeCustom:
-		var snapshots []db.StorageVolumeArgs
-
-		// Delete storage volume snapshots
-		snapshots, err = d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		for _, snapshot := range snapshots {
-			s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot.Name, volumeType)
-			if err != nil {
-				return response.NotFound(err)
-			}
+		switch volumeType {
+		case storagePoolVolumeTypeCustom:
+			err = pool.DeleteCustomVolume(volumeName, nil)
+		case storagePoolVolumeTypeImage:
+			err = pool.DeleteImage(volumeName, nil)
+		default:
+			return response.BadRequest(fmt.Errorf(`Storage volumes of type "%s" cannot be deleted with the storage api`, volumeTypeName))
+		}
+		if err != nil {
+			return response.SmartError(err)
+		}
+	} else {
+		s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
+		if err != nil {
+			return response.NotFound(err)
+		}
 
-			err = s.StoragePoolVolumeSnapshotDelete()
+		switch volumeType {
+		case storagePoolVolumeTypeCustom:
+			var snapshots []db.StorageVolumeArgs
+
+			// Delete storage volume snapshots
+			snapshots, err = d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
 			if err != nil {
 				return response.SmartError(err)
 			}
-		}
 
-		err = s.StoragePoolVolumeDelete()
-	case storagePoolVolumeTypeImage:
-		err = s.ImageDelete(volumeName)
-	default:
-		return response.BadRequest(fmt.Errorf(`Storage volumes of type "%s" `+
-			`cannot be deleted with the storage api`,
-			volumeTypeName))
-	}
-	if err != nil {
-		return response.SmartError(err)
+			for _, snapshot := range snapshots {
+				s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot.Name, volumeType)
+				if err != nil {
+					return response.NotFound(err)
+				}
+
+				err = s.StoragePoolVolumeSnapshotDelete()
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
+			err = s.StoragePoolVolumeDelete()
+		case storagePoolVolumeTypeImage:
+			err = s.ImageDelete(volumeName)
+		default:
+			return response.BadRequest(fmt.Errorf(`Storage volumes of type "%s" cannot be deleted with the storage api`, volumeTypeName))
+		}
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
