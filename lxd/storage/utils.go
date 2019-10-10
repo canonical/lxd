@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -399,6 +400,20 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 	return -1, fmt.Errorf("invalid storage volume type name")
 }
 
+// VolumeTypeToDBType converts volume type to internal code.
+func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
+	switch volType {
+	case drivers.VolumeTypeContainer:
+		return db.StoragePoolVolumeTypeContainer, nil
+	case drivers.VolumeTypeImage:
+		return db.StoragePoolVolumeTypeImage, nil
+	case drivers.VolumeTypeCustom:
+		return db.StoragePoolVolumeTypeCustom, nil
+	}
+
+	return -1, fmt.Errorf("invalid storage volume type")
+}
+
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
 	// Convert the volume type name to our internal integer representation.
@@ -417,7 +432,7 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 	// already exist.
 	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeID(volumeName, volumeType, poolID)
 	if volumeID > 0 {
-		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
+		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
