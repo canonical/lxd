@@ -53,7 +53,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check MAC filter is present in ebtables.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
-  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter not applied in ebtables"
       false
   fi
@@ -82,7 +82,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
-  if ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+  if ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter still applied in ebtables"
       false
   fi
@@ -101,13 +101,13 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check MAC filter is present in ebtables.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
-  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "mac filter not applied as part of ipv4_filtering in ebtables"
       false
   fi
 
   # Check IPv4 filter is present in ebtables.
-  if ! ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
       echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
       false
   fi
@@ -140,7 +140,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
-  if ebtables -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+  if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
       echo "IP filter still applied as part of ipv4_filtering in ebtables"
       false
   fi
@@ -207,7 +207,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Check MAC filter is present in ebtables.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
-  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC filter not applied as part of ipv6_filtering in ebtables"
       false
   fi
@@ -220,7 +220,7 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Check IPv6 filter is present in ebtables.
-  if ! ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
        echo "IPv6 ebtables filter not applied as part of ipv6_filtering in ebtables"
       false
   fi
@@ -269,7 +269,7 @@ test_container_devices_nic_bridged_filtering() {
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
-  if ebtables -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+  if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
       echo "IP filter still applied as part of ipv6_filtering in ebtables"
       false
   fi
@@ -344,7 +344,7 @@ test_container_devices_nic_bridged_filtering() {
   # Check MAC filter is present in ebtables.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
-  if ! ebtables -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
       echo "MAC ebtables filter not applied as part of ipv6_filtering in ebtables"
       false
   fi
@@ -357,13 +357,13 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Check IPv4 filter is present in ebtables.
-  if ! ebtables -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
       echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
       false
   fi
 
   # Check IPv6 filter is present in ebtables.
-  if ! ebtables -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
        echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
       false
   fi
