@@ -421,6 +421,20 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 	return "", fmt.Errorf("Invalid instance type")
 }
 
+// VolumeTypeToDBType converts volume type to internal code.
+func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
+	switch volType {
+	case drivers.VolumeTypeContainer:
+		return db.StoragePoolVolumeTypeContainer, nil
+	case drivers.VolumeTypeImage:
+		return db.StoragePoolVolumeTypeImage, nil
+	case drivers.VolumeTypeCustom:
+		return db.StoragePoolVolumeTypeCustom, nil
+	}
+
+	return -1, fmt.Errorf("invalid storage volume type")
+}
+
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
 	// Convert the volume type name to our internal integer representation.
