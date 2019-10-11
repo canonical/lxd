@@ -26,7 +26,7 @@ flag will bring a lot of (hopefully) useful info:
 ```bash
 systemctl stop lxd lxd.socket
 lxd --debug --group lxd
- ```
+```
 
 `--group lxd` is needed to grant access to unprivileged users in this
 group.
