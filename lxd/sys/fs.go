@@ -58,8 +58,15 @@ func (s *OS) initDirs() error {
 
 	for _, dir := range dirs {
 		err := os.Mkdir(dir.path, dir.mode)
-		if err != nil && !os.IsExist(err) {
-			return errors.Wrapf(err, "failed to init dir %s", dir.path)
+		if err != nil {
+			if !os.IsExist(err) {
+				return errors.Wrapf(err, "Failed to init dir %s", dir.path)
+			}
+
+			err = os.Chmod(dir.path, dir.mode)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to chmod dir %s", dir.path)
+			}
 		}
 	}
 
