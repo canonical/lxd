@@ -570,6 +570,22 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Bump some kernel limits to avoid issues
+	for _, limit := range []int{unix.RLIMIT_NOFILE} {
+		rLimit := unix.Rlimit{}
+		err := unix.Getrlimit(limit, &rLimit)
+		if err != nil {
+			return err
+		}
+
+		rLimit.Cur = rLimit.Max
+
+		err = unix.Setrlimit(limit, &rLimit)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Look for kernel features
 	logger.Infof("Kernel features:")
 	d.os.NetnsGetifaddrs = CanUseNetnsGetifaddrs()
