@@ -167,14 +167,14 @@ msgid ""
 "###\n"
 "### Each property is represented by a single line:\n"
 "### An example would be:\n"
-"###  description: My custom image"
+"###  description: My custom image\n"
 msgstr ""
 "### Dies ist eine Darstellung der Eigenschaften eines Images in yaml.\n"
 "### Jede Zeile die mit '# beginnt wird ignoriert.\n"
 "###\n"
 "### Pro Eigenschaft wird eine Zeile verwendet:\n"
 "### Zum Beispiel:\n"
-"###  description: Mein eigenes Abbild"
+"###  description: Mein eigenes Abbild\n"
 
 #: lxc/network.go:554
 #, fuzzy
