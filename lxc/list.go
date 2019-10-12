@@ -478,6 +478,9 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			}
 		} else {
 			cc := strings.Split(columnEntry, ":")
+			if cc[0] == "config" && len(cc) > 1 {
+				cc = append(cc[:0], cc[1:]...)
+			}
 			if len(cc) > 3 {
 				return nil, false, fmt.Errorf(i18n.G("Invalid config key column format (too many fields): '%s'"), columnEntry)
 			}
