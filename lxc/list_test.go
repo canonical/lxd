@@ -59,6 +59,7 @@ func TestColumns(t *testing.T) {
 	keys := make([]string, 0, len(shared.KnownContainerConfigKeys))
 	for k := range shared.KnownContainerConfigKeys {
 		keys = append(keys, k)
+		keys = append(keys, "config:"+k)
 	}
 
 	randShorthand := func(buffer *bytes.Buffer) {
