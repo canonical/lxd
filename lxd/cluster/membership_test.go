@@ -150,7 +150,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			cluster.SchemaVersion,
 			len(version.APIExtensions),
 			func(f *membershipFixtures) {},
-			"clustering not enabled",
+			"Clustering isn't enabled",
 		},
 		{
 			"rusp",
@@ -160,7 +160,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			func(f *membershipFixtures) {
 				f.ClusterNode("5.6.7.8:666")
 			},
-			"cluster already has node with name rusp",
+			"The cluster already has a member with name: rusp",
 		},
 		{
 			"buzz",
@@ -170,7 +170,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			func(f *membershipFixtures) {
 				f.ClusterNode("5.6.7.8:666")
 			},
-			"cluster already has node with address 5.6.7.8:666",
+			"The cluster already has a member with address: 5.6.7.8:666",
 		},
 		{
 			"buzz",
@@ -180,7 +180,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			func(f *membershipFixtures) {
 				f.ClusterNode("5.6.7.8:666")
 			},
-			fmt.Sprintf("schema version mismatch: cluster has %d", cluster.SchemaVersion),
+			fmt.Sprintf("The joining server version doesn't (expected %s with DB schema %d)", version.Version, cluster.SchemaVersion-1),
 		},
 		{
 			"buzz",
@@ -190,7 +190,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			func(f *membershipFixtures) {
 				f.ClusterNode("5.6.7.8:666")
 			},
-			fmt.Sprintf("API version mismatch: cluster has %d", len(version.APIExtensions)),
+			fmt.Sprintf("The joining server version doesn't (expected %s with API count %d)", version.Version, len(version.APIExtensions)-1),
 		},
 	}
 	for _, c := range cases {
