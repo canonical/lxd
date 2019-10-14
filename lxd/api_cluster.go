@@ -269,12 +269,12 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
 	}
 
-	clusterAddress, err := node.ClusterAddress(d.db)
+	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if clusterAddress != "" {
+	if clustered {
 		return response.BadRequest(fmt.Errorf("This server is already clustered"))
 	}
 
