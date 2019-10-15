@@ -464,6 +464,7 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
 
 // StorageVolumeConfigKeys config validation for btrfs, ceph, cephfs, dir, lvm, zfs types.
+// Deprecated: these are being moved to the per-storage-driver implementations.
 var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.filesystem": func(value string) ([]string, error) {
 		err := shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
@@ -520,6 +521,13 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 
 // VolumeValidateConfig validations volume config.
 func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
+	// Validate volume config using the new driver interface if supported.
+	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil)
+	if err != drivers.ErrUnknownDriver {
+		return driver.ValidateVolume(config, false)
+	}
+
+	// Otherwise fallback to doing legacy validation.
 	for key, val := range config {
 		// User keys are not validated.
 		if strings.HasPrefix(key, "user.") {
