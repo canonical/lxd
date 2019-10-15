@@ -461,6 +461,7 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 }
 
 // SupportedPoolTypes the types of pools supported.
+// Deprecated: this is being replaced with drivers.SupportedDrivers()
 var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
 
 // StorageVolumeConfigKeys config validation for btrfs, ceph, cephfs, dir, lvm, zfs types.
