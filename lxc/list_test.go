@@ -59,8 +59,12 @@ func TestColumns(t *testing.T) {
 	keys := make([]string, 0, len(shared.KnownContainerConfigKeys))
 	for k := range shared.KnownContainerConfigKeys {
 		keys = append(keys, k)
+		//Test compatibility with 'config:' prefix
 		keys = append(keys, "config:"+k)
 	}
+	//Test with 'devices:'
+	keys = append(keys, "devices:eth0.parent.rand")
+	keys = append(keys, "devices:root.path")
 
 	randShorthand := func(buffer *bytes.Buffer) {
 		buffer.WriteByte(shorthand[rand.Intn(len(shorthand))])
@@ -205,4 +209,7 @@ func TestInvalidColumns(t *testing.T) {
 	run("volatile")
 	run("base_image")
 	run("volatile.image")
+	run("config:")
+	run("config:image")
+	run("devices:eth0")
 }
