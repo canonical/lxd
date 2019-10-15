@@ -548,9 +548,7 @@ func VolumeValidateConfig(name string, config map[string]string, parentPool *api
 
 // VolumeFillDefault fills default settings into a volume config.
 func VolumeFillDefault(name string, config map[string]string, parentPool *api.StoragePool) error {
-	if parentPool.Driver == "dir" {
-		config["size"] = ""
-	} else if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
+	if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
 		if config["block.filesystem"] == "" {
 			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
 		}
@@ -576,7 +574,7 @@ func VolumeFillDefault(name string, config map[string]string, parentPool *api.St
 		if config["size"] == "0" || config["size"] == "" {
 			config["size"] = "10GB"
 		}
-	} else {
+	} else if parentPool.Driver != "dir" {
 		if config["size"] != "" {
 			_, err := units.ParseByteSizeString(config["size"])
 			if err != nil {
