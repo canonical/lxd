@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
 
@@ -170,10 +171,11 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		if err != nil {
 			return err
 		}
+
 		// Add the new node
 		id, err := tx.NodeAdd(name, address)
 		if err != nil {
-			return errors.Wrap(err, "failed to insert new node")
+			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
 
 		// Mark the node as pending, so it will be skipped when
@@ -181,7 +183,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		// notifications.
 		err = tx.NodePending(id, true)
 		if err != nil {
-			return errors.Wrap(err, "failed to mark new node as pending")
+			return errors.Wrap(err, "Failed to mark the new node as pending")
 		}
 
 		return nil
@@ -194,8 +196,9 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	// less than 3 database nodes).
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get raft nodes from the log")
+		return nil, errors.Wrap(err, "Failed to get raft nodes from the log")
 	}
+
 	if len(nodes) < membershipMaxRaftNodes {
 		err = state.Node.Transaction(func(tx *db.NodeTx) error {
 			id, err := tx.RaftNodeAdd(address)
@@ -206,7 +209,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 			return nil
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to insert new node into raft_nodes")
+			return nil, errors.Wrap(err, "Failed to insert new node into raft_nodes")
 		}
 	}
 
@@ -919,24 +922,28 @@ func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
 func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address string, schema int, api int) error {
 	nodes, err := tx.Nodes()
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch current cluster nodes")
+		return errors.Wrap(err, "Failed to fetch current cluster nodes")
 	}
+
 	if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
-		return fmt.Errorf("clustering not enabled")
+		return fmt.Errorf("Clustering isn't enabled")
 	}
 
 	for _, node := range nodes {
 		if node.Name == name {
-			return fmt.Errorf("cluster already has node with name %s", name)
+			return fmt.Errorf("The cluster already has a member with name: %s", name)
 		}
+
 		if node.Address == address {
-			return fmt.Errorf("cluster already has node with address %s", address)
+			return fmt.Errorf("The cluster already has a member with address: %s", address)
 		}
+
 		if node.Schema != schema {
-			return fmt.Errorf("schema version mismatch: cluster has %d", node.Schema)
+			return fmt.Errorf("The joining server version doesn't (expected %s with DB schema %v)", version.Version, schema)
 		}
+
 		if node.APIExtensions != api {
-			return fmt.Errorf("API version mismatch: cluster has %d", node.APIExtensions)
+			return fmt.Errorf("The joining server version doesn't (expected %s with API count %v)", version.Version, api)
 		}
 	}
 
