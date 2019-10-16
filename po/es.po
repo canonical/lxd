@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-10-08 20:20+0000\n"
+"POT-Creation-Date: 2019-10-16 15:00+0000\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -311,7 +311,7 @@ msgstr "ALIASES"
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:419
+#: lxc/list.go:422
 msgid "ARCHITECTURE"
 msgstr "ARQUITECTURA"
 
@@ -449,7 +449,7 @@ msgstr ""
 msgid "Auto update: %s"
 msgstr "Auto actualización: %s"
 
-#: lxc/list.go:431 lxc/list.go:432
+#: lxc/list.go:434 lxc/list.go:435
 msgid "BASE IMAGE"
 msgstr ""
 
@@ -525,7 +525,7 @@ msgstr ""
 msgid "CREATED"
 msgstr "CREADO"
 
-#: lxc/list.go:420
+#: lxc/list.go:423
 msgid "CREATED AT"
 msgstr "CREADO EN"
 
@@ -565,7 +565,7 @@ msgstr "No se peude leer desde stdin: %s"
 msgid "Can't remove the default remote"
 msgstr ""
 
-#: lxc/list.go:438
+#: lxc/list.go:441
 msgid "Can't specify --fast with --columns"
 msgstr ""
 
@@ -574,7 +574,7 @@ msgstr ""
 msgid "Can't specify a different remote for rename"
 msgstr "No se puede especificar un remote diferente para renombrar."
 
-#: lxc/list.go:450
+#: lxc/list.go:453
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
@@ -634,7 +634,7 @@ msgstr "Nombre del Miembro del Cluster"
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:959 lxc/list.go:112
+#: lxc/image.go:959 lxc/list.go:113
 msgid "Columns"
 msgstr "Columnas"
 
@@ -859,7 +859,7 @@ msgstr ""
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:973 lxc/image_alias.go:233 lxc/list.go:421 lxc/network.go:869
+#: lxc/image.go:973 lxc/image_alias.go:233 lxc/list.go:424 lxc/network.go:869
 #: lxc/operation.go:159 lxc/storage.go:558 lxc/storage_volume.go:1119
 msgid "DESCRIPTION"
 msgstr "DESCRIPCIÓN"
@@ -1069,7 +1069,7 @@ msgstr ""
 msgid "Driver: %v (%v)"
 msgstr ""
 
-#: lxc/list.go:628
+#: lxc/list.go:658
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -1123,7 +1123,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:985 lxc/list.go:462
+#: lxc/image.go:985 lxc/list.go:465
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1255,7 +1255,7 @@ msgstr ""
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/list.go:114
+#: lxc/list.go:115
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
@@ -1314,7 +1314,7 @@ msgstr ""
 
 #: lxc/alias.go:101 lxc/cluster.go:69 lxc/config_template.go:238
 #: lxc/config_trust.go:117 lxc/image.go:960 lxc/image_alias.go:154
-#: lxc/list.go:113 lxc/network.go:810 lxc/network.go:893 lxc/operation.go:103
+#: lxc/list.go:114 lxc/network.go:810 lxc/network.go:893 lxc/operation.go:103
 #: lxc/profile.go:580 lxc/project.go:385 lxc/remote.go:458 lxc/storage.go:509
 #: lxc/storage_volume.go:1071
 msgid "Format (csv|json|table|yaml)"
@@ -1417,11 +1417,11 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:417
+#: lxc/list.go:420
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:418
+#: lxc/list.go:421
 msgid "IPV6"
 msgstr ""
 
@@ -1519,12 +1519,12 @@ msgstr ""
 msgid "Invalid certificate"
 msgstr ""
 
-#: lxc/list.go:487
+#: lxc/list.go:497
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:482
+#: lxc/list.go:491
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
@@ -1534,17 +1534,17 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr ""
 
-#: lxc/list.go:505
+#: lxc/list.go:516
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:502
+#: lxc/list.go:513
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:493
+#: lxc/list.go:504
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1587,11 +1587,11 @@ msgstr "Cacheado: %s"
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
-#: lxc/list.go:422
+#: lxc/list.go:425
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/list.go:446 lxc/network.go:943 lxc/operation.go:164
+#: lxc/list.go:449 lxc/network.go:943 lxc/operation.go:164
 #: lxc/storage_volume.go:1123
 msgid "LOCATION"
 msgstr ""
@@ -1716,8 +1716,10 @@ msgid ""
 "  f - Base Image Fingerprint (short)\n"
 "  F - Base Image Fingerprint (long)\n"
 "\n"
-"Custom columns are defined with \"key[:name][:maxWidth]\":\n"
-"  KEY: The (extended) config key to display\n"
+"Custom columns are defined with \"[config:|devices:]key[:name][:"
+"maxWidth]\":\n"
+"  KEY: The (extended) config or devices key to display. If [config:|"
+"devices:] is omitted then it defaults to config key.\n"
 "  NAME: Name to display in the column header.\n"
 "  Defaults to the key if not specified or empty.\n"
 "\n"
@@ -2090,7 +2092,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/cluster.go:125 lxc/list.go:423 lxc/network.go:866 lxc/profile.go:619
+#: lxc/cluster.go:125 lxc/list.go:426 lxc/network.go:866 lxc/profile.go:619
 #: lxc/project.go:448 lxc/remote.go:512 lxc/storage.go:557
 #: lxc/storage_volume.go:1118
 msgid "NAME"
@@ -2241,15 +2243,15 @@ msgstr ""
 msgid "PCI address: %v"
 msgstr ""
 
-#: lxc/list.go:425
+#: lxc/list.go:428
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:424
+#: lxc/list.go:427
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:426 lxc/project.go:450
+#: lxc/list.go:429 lxc/project.go:450
 msgid "PROFILES"
 msgstr ""
 
@@ -2637,7 +2639,7 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:427
+#: lxc/list.go:430
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -2649,7 +2651,7 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:128 lxc/list.go:428 lxc/network.go:873 lxc/storage.go:562
+#: lxc/cluster.go:128 lxc/list.go:431 lxc/network.go:873 lxc/storage.go:562
 msgid "STATE"
 msgstr ""
 
@@ -2661,7 +2663,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:430
+#: lxc/list.go:433
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -3041,7 +3043,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/image.go:977 lxc/image_alias.go:232 lxc/list.go:429 lxc/network.go:867
+#: lxc/image.go:977 lxc/image_alias.go:232 lxc/list.go:432 lxc/network.go:867
 #: lxc/network.go:940 lxc/operation.go:158 lxc/storage_volume.go:1117
 msgid "TYPE"
 msgstr ""
@@ -3231,7 +3233,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:992 lxc/list.go:476
+#: lxc/image.go:992 lxc/list.go:479
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -3850,11 +3852,13 @@ msgstr ""
 
 #: lxc/list.go:103
 msgid ""
-"lxc list -c nFs46,volatile.eth0.hwaddr:MAC\n"
+"lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
+"parent:ETHP\n"
 "  Show containers using the \"NAME\", \"BASE IMAGE\", \"STATE\", \"IPV4\", "
 "\"IPV6\" and \"MAC\" columns.\n"
-"  \"BASE IMAGE\" and \"MAC\" are custom columns generated from container "
-"configuration keys.\n"
+"  \"BASE IMAGE\", \"MAC\" and \"IMAGE OS\" are custom columns generated from "
+"container configuration keys.\n"
+"  \"ETHP\" is a custom column generated from a device key.\n"
 "\n"
 "lxc list -c ns,user.comment:comment\n"
 "  List images with their running state and user comment."
