@@ -92,8 +92,8 @@ Pre-defined column shorthand chars:
   f - Base Image Fingerprint (short)
   F - Base Image Fingerprint (long)
 
-Custom columns are defined with "key[:name][:maxWidth]":
-  KEY: The (extended) config key to display
+Custom columns are defined with "[config:|devices:]key[:name][:maxWidth]":
+  KEY: The (extended) config or devices key to display. If [config:|devices:] is omitted then it defaults to config key.
   NAME: Name to display in the column header.
   Defaults to the key if not specified or empty.
 
@@ -101,9 +101,10 @@ Custom columns are defined with "key[:name][:maxWidth]":
   Defaults to -1 (unlimited). Use 0 to limit to the column header size.`))
 
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc list -c nFs46,volatile.eth0.hwaddr:MAC
+		`lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP
   Show containers using the "NAME", "BASE IMAGE", "STATE", "IPV4", "IPV6" and "MAC" columns.
-  "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
+  "BASE IMAGE", "MAC" and "IMAGE OS" are custom columns generated from container configuration keys.
+  "ETHP" is a custom column generated from a device key.
 
 lxc list -c ns,user.comment:comment
   List images with their running state and user comment.`))
@@ -117,6 +118,8 @@ lxc list -c ns,user.comment:comment
 }
 
 const defaultColumns = "ns46tSL"
+const configColumnType = "config"
+const deviceColumnType = "devices"
 
 // This seems a little excessive.
 func (c *cmdList) dotPrefixMatch(short string, full string) bool {
@@ -478,13 +481,21 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 			}
 		} else {
 			cc := strings.Split(columnEntry, ":")
+			colType := configColumnType
+			if (cc[0] == configColumnType || cc[0] == deviceColumnType) && len(cc) > 1 {
+				colType = cc[0]
+				cc = append(cc[:0], cc[1:]...)
+			}
+
 			if len(cc) > 3 {
 				return nil, false, fmt.Errorf(i18n.G("Invalid config key column format (too many fields): '%s'"), columnEntry)
 			}
 
 			k := cc[0]
-			if _, err := shared.ConfigKeyChecker(k); err != nil {
-				return nil, false, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
+			if colType == configColumnType {
+				if _, err := shared.ConfigKeyChecker(k); err != nil {
+					return nil, false, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
+				}
 			}
 
 			column := column{Name: k}
@@ -510,21 +521,40 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 					maxWidth = int(temp)
 				}
 			}
+			if colType == configColumnType {
+				column.Data = func(cInfo api.InstanceFull) string {
+					v, ok := cInfo.Config[k]
+					if !ok {
+						v, _ = cInfo.ExpandedConfig[k]
+					}
 
-			column.Data = func(cInfo api.InstanceFull) string {
-				v, ok := cInfo.Config[k]
-				if !ok {
-					v, _ = cInfo.ExpandedConfig[k]
+					// Truncate the data according to the max width.  A negative max width
+					// indicates there is no effective limit.
+					if maxWidth > 0 && len(v) > maxWidth {
+						return v[:maxWidth]
+					}
+					return v
 				}
-
-				// Truncate the data according to the max width.  A negative max width
-				// indicates there is no effective limit.
-				if maxWidth > 0 && len(v) > maxWidth {
-					return v[:maxWidth]
-				}
-				return v
 			}
+			if colType == deviceColumnType {
+				column.Data = func(cInfo api.InstanceFull) string {
+					d := strings.Split(k, ".")
+					if len(d) == 1 || len(d) > 2 {
+						return ""
+					}
+					v, ok := cInfo.Devices[d[0]][d[1]]
+					if !ok {
+						v, _ = cInfo.ExpandedDevices[d[0]][d[1]]
+					}
 
+					//// Truncate the data according to the max width.  A negative max width
+					//// indicates there is no effective limit.
+					if maxWidth > 0 && len(v) > maxWidth {
+						return v[:maxWidth]
+					}
+					return v
+				}
+			}
 			columns = append(columns, column)
 
 			if column.NeedsState || column.NeedsSnapshots {
