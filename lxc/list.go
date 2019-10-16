@@ -92,8 +92,8 @@ Pre-defined column shorthand chars:
   f - Base Image Fingerprint (short)
   F - Base Image Fingerprint (long)
 
-Custom columns are defined with "key[:name][:maxWidth]":
-  KEY: The (extended) config key to display
+Custom columns are defined with "[config:|devices:]key[:name][:maxWidth]":
+  KEY: The (extended) config or devices key to display. If [config:|devices:] is omitted then it defaults to config key.
   NAME: Name to display in the column header.
   Defaults to the key if not specified or empty.
 
@@ -101,9 +101,10 @@ Custom columns are defined with "key[:name][:maxWidth]":
   Defaults to -1 (unlimited). Use 0 to limit to the column header size.`))
 
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc list -c nFs46,volatile.eth0.hwaddr:MAC
+		`lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP
   Show containers using the "NAME", "BASE IMAGE", "STATE", "IPV4", "IPV6" and "MAC" columns.
-  "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
+  "BASE IMAGE", "MAC" and "IMAGE OS" are custom columns generated from container configuration keys.
+  "ETHP" is a custom column generated from a device key.
 
 lxc list -c ns,user.comment:comment
   List images with their running state and user comment.`))
