@@ -513,12 +513,19 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	snapshotDelete := func(op *operations.Operation) error {
-		err = s.StoragePoolVolumeSnapshotDelete()
-		if err != nil {
-			return err
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
+		} else {
+			err = s.StoragePoolVolumeSnapshotDelete()
 		}
 
-		return nil
+		return err
 	}
 
 	resources := map[string][]string{}
