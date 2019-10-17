@@ -108,7 +108,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	// Ensure that the snapshot doens't already exist
+	// Ensure that the snapshot doesn't already exist
 	_, _, err = d.cluster.StoragePoolNodeVolumeGetType(fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
@@ -118,37 +118,51 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.Conflict(fmt.Errorf("Snapshot '%s' already in use", req.Name))
 	}
 
-	// Start the storage.
-	ourMount, err := storage.StoragePoolVolumeMount()
-	if err != nil {
-		return response.SmartError(err)
-	}
-	if ourMount {
-		defer storage.StoragePoolVolumeUmount()
-	}
-
-	volWritable := storage.GetStoragePoolVolumeWritable()
-	fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
-	req.Name = fullSnapName
 	snapshot := func(op *operations.Operation) error {
-		dbArgs := &db.StorageVolumeArgs{
-			Name:        fullSnapName,
-			PoolName:    poolName,
-			TypeName:    volumeTypeName,
-			Snapshot:    true,
-			Config:      volWritable.Config,
-			Description: volWritable.Description,
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.CreateCustomVolumeSnapshot(volumeName, req.Name, op)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Start the storage.
+			ourMount, err := storage.StoragePoolVolumeMount()
+			if err != nil {
+				return err
+			}
+			if ourMount {
+				defer storage.StoragePoolVolumeUmount()
+			}
+
+			volWritable := storage.GetStoragePoolVolumeWritable()
+			fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
+			req.Name = fullSnapName
+			dbArgs := &db.StorageVolumeArgs{
+				Name:        fullSnapName,
+				PoolName:    poolName,
+				TypeName:    volumeTypeName,
+				Snapshot:    true,
+				Config:      volWritable.Config,
+				Description: volWritable.Description,
+			}
+
+			err = storage.StoragePoolVolumeSnapshotCreate(&req)
+			if err != nil {
+				return err
+			}
+
+			_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
+			if err != nil {
+				return err
+			}
 		}
 
-		err = storage.StoragePoolVolumeSnapshotCreate(&req)
-		if err != nil {
-			return err
-		}
-
-		_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
-		if err != nil {
-			return err
-		}
 		return nil
 	}
 
