@@ -32,6 +32,8 @@ import (
 )
 
 /*
+#cgo CFLAGS: -std=gnu11 -Wvla -I ../include
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -53,34 +55,7 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifndef SECCOMP_GET_NOTIF_SIZES
-#define SECCOMP_GET_NOTIF_SIZES 3
-#endif
-
-#ifndef SECCOMP_RET_USER_NOTIF
-#define SECCOMP_RET_USER_NOTIF 0x7fc00000U
-
-struct seccomp_notif_sizes {
-	__u16 seccomp_notif;
-	__u16 seccomp_notif_resp;
-	__u16 seccomp_data;
-};
-
-struct seccomp_notif {
-	__u64 id;
-	__u32 pid;
-	__u32 flags;
-	struct seccomp_data data;
-};
-
-struct seccomp_notif_resp {
-	__u64 id;
-	__s64 val;
-	__s32 error;
-	__u32 flags;
-};
-
-#endif // !SECCOMP_RET_USER_NOTIF
+#include "lxd_seccomp.h"
 
 struct seccomp_notif_sizes expected_sizes;
 
@@ -99,8 +74,6 @@ struct seccomp_notify_proxy_msg {
 #define SECCOMP_MSG_SIZE_MIN (SECCOMP_PROXY_MSG_SIZE + SECCOMP_NOTIFY_SIZE + SECCOMP_RESPONSE_SIZE)
 #define SECCOMP_COOKIE_SIZE (64 * sizeof(char))
 #define SECCOMP_MSG_SIZE_MAX (SECCOMP_MSG_SIZE_MIN + SECCOMP_COOKIE_SIZE)
-
-#ifdef SECCOMP_RET_USER_NOTIF
 
 static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
 {
@@ -249,9 +222,10 @@ static int seccomp_notify_get_syscall(struct seccomp_notif *req,
 }
 
 static void seccomp_notify_update_response(struct seccomp_notif_resp *resp,
-					   int new_neg_errno)
+					   int new_neg_errno, uint32_t flags)
 {
 	resp->error = new_neg_errno;
+	resp->flags |= flags;
 }
 
 static void prepare_seccomp_iovec(struct iovec *iov,
@@ -271,9 +245,7 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_base = cookie;
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
-#endif // SECCOMP_RET_USER_NOTIF
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
@@ -654,8 +626,8 @@ func (siov *Iovec) IsValidSeccompIovec(size uint64) bool {
 }
 
 // SendSeccompIovec sends seccomp iovec.
-func (siov *Iovec) SendSeccompIovec(fd int, errno int) error {
-	C.seccomp_notify_update_response(siov.resp, C.int(errno))
+func (siov *Iovec) SendSeccompIovec(fd int, errno int, flags uint32) error {
+	C.seccomp_notify_update_response(siov.resp, C.int(errno), C.uint32_t(flags))
 
 	msghdr := C.struct_msghdr{}
 	msghdr.msg_iov = siov.iov
@@ -917,25 +889,37 @@ func (s *Server) doDeviceSyscall(c Instance, args *MknodArgs, siov *Iovec) int {
 
 // HandleMknodSyscall handles a mknod syscall.
 func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
-	logger.Debug("Handling mknod syscall",
-		log.Ctx{"container": c.Name(),
-			"project":              c.Project(),
-			"syscall_number":       siov.req.data.nr,
-			"audit_architecture":   siov.req.data.arch,
-			"seccomp_notify_id":    siov.req.id,
-			"seccomp_notify_flags": siov.req.flags,
-		})
+	ctx := log.Ctx{"container": c.Name(),
+		"project":              c.Project(),
+		"syscall_number":       siov.req.data.nr,
+		"audit_architecture":   siov.req.data.arch,
+		"seccomp_notify_id":    siov.req.id,
+		"seccomp_notify_flags": siov.req.flags,
+	}
 
-	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1]))
-	if siov.resp.error != 0 {
-		logger.Debugf("Device not allowed")
+	defer logger.Debug("Handling mknod syscall", ctx)
+
+	if C.device_allowed(C.dev_t(siov.req.data.args[2]), C.mode_t(siov.req.data.args[1])) < 0 {
+		ctx["err"] = "Device not allowed"
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(siov.resp.error)
 	}
 
 	cPathBuf := [unix.PathMax]C.char{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
 	if err != nil {
-		logger.Errorf("Failed to read memory for mknod syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed to read memory for mknod syscall: %s", err)
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EPERM)
 	}
 
@@ -951,32 +935,52 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 
 // HandleMknodatSyscall handles a mknodat syscall.
 func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
-	logger.Debug("Handling mknodat syscall",
-		log.Ctx{"container": c.Name(),
-			"project":              c.Project(),
-			"syscall_number":       siov.req.data.nr,
-			"audit_architecture":   siov.req.data.arch,
-			"seccomp_notify_id":    siov.req.id,
-			"seccomp_notify_flags": siov.req.flags,
-		})
+	ctx := log.Ctx{"container": c.Name(),
+		"project":              c.Project(),
+		"syscall_number":       siov.req.data.nr,
+		"audit_architecture":   siov.req.data.arch,
+		"seccomp_notify_id":    siov.req.id,
+		"seccomp_notify_flags": siov.req.flags,
+	}
+
+	defer logger.Debug("Handling mknodat syscall", ctx)
 
 	// Make sure to handle 64bit kernel, 32bit container/userspace, LXD
 	// built on 64bit userspace correctly.
 	if int32(siov.req.data.args[0]) != int32(C.AT_FDCWD) {
-		logger.Debugf("Non AT_FDCWD mknodat calls are not allowed")
+		ctx["err"] = "Non AT_FDCWD mknodat calls are not allowed"
+		logger.Debug("bla", ctx)
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EINVAL)
 	}
 
 	siov.resp.error = C.device_allowed(C.dev_t(siov.req.data.args[3]), C.mode_t(siov.req.data.args[2]))
 	if siov.resp.error != 0 {
-		logger.Debugf("Device not allowed")
+		ctx["err"] = "Device not allowed"
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(siov.resp.error)
 	}
 
 	cPathBuf := [unix.PathMax]C.char{}
 	_, err := C.pread(C.int(siov.memFd), unsafe.Pointer(&cPathBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
 	if err != nil {
-		logger.Errorf("Failed to read memory for mknodat syscall: %s", err)
+		ctx["err"] = "Failed to read memory for mknodat syscall: %s"
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EPERM)
 	}
 
@@ -1006,25 +1010,38 @@ type SetxattrArgs struct {
 
 // HandleSetxattrSyscall handles setxattr syscalls.
 func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
-	logger.Debug("Handling setxattr syscall",
-		log.Ctx{"container": c.Name(),
-			"project":              c.Project(),
-			"syscall_number":       siov.req.data.nr,
-			"audit_architecture":   siov.req.data.arch,
-			"seccomp_notify_id":    siov.req.id,
-			"seccomp_notify_flags": siov.req.flags,
-		})
+	ctx := log.Ctx{"container": c.Name(),
+		"project":              c.Project(),
+		"syscall_number":       siov.req.data.nr,
+		"audit_architecture":   siov.req.data.arch,
+		"seccomp_notify_id":    siov.req.id,
+		"seccomp_notify_flags": siov.req.flags,
+	}
+
+	defer logger.Debug("Handling setxattr syscall", ctx)
 
 	args := SetxattrArgs{}
 
 	args.pid = int(siov.req.pid)
 	uid, gid, fsuid, fsgid, err := TaskIDs(args.pid)
 	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EPERM)
 	}
 
 	idmapset, err := c.CurrentIdmap()
 	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EINVAL)
 	}
 
@@ -1035,7 +1052,13 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	cBuf := [unix.PathMax]C.char{}
 	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[0]))
 	if err != nil {
-		logger.Errorf("Failed to read memory for setxattr syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed to read memory for setxattr syscall: %s", err)
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EPERM)
 	}
 	args.path = C.GoString(&cBuf[0])
@@ -1043,7 +1066,13 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	// const char *name
 	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&cBuf[0]), C.size_t(unix.PathMax), C.off_t(siov.req.data.args[1]))
 	if err != nil {
-		logger.Errorf("Failed to read memory for setxattr syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed to read memory for setxattr syscall: %s", err)
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EPERM)
 	}
 	args.name = C.GoString(&cBuf[0])
@@ -1057,7 +1086,13 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	buf := make([]byte, args.size)
 	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&buf[0]), C.size_t(args.size), C.off_t(siov.req.data.args[2]))
 	if err != nil {
-		logger.Errorf("Failed to read memory for setxattr syscall: %s", err)
+		ctx["err"] = fmt.Sprintf("Failed to read memory for setxattr syscall: %s", err)
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
 		return int(-C.EPERM)
 	}
 	args.value = buf
@@ -1065,6 +1100,10 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	whiteout := 0
 	if string(args.name) == "trusted.overlay.opaque" && string(args.value) == "y" {
 		whiteout = 1
+	} else if s.s.OS.SeccompListenerContinue {
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
 	}
 
 	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
@@ -1106,19 +1145,25 @@ func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 	return int(-C.EINVAL)
 }
 
+const seccompUserNotifFlagContinue uint32 = 0x00000001
+
 func (s *Server) handler(fd int, siov *Iovec, findPID func(pid int32, state *state.State) (Instance, error)) error {
 	defer siov.PutSeccompIovec()
 
 	c, err := findPID(int32(siov.msg.monitor_pid), s.s)
 	if err != nil {
-		siov.SendSeccompIovec(fd, int(-C.EPERM))
+		if s.s.OS.SeccompListenerContinue {
+			siov.SendSeccompIovec(fd, 0, seccompUserNotifFlagContinue)
+		} else {
+			siov.SendSeccompIovec(fd, int(-C.EPERM), 0)
+		}
 		logger.Errorf("Failed to find container for monitor %d", siov.msg.monitor_pid)
 		return err
 	}
 
 	errno := s.handleSyscall(c, siov)
 
-	err = siov.SendSeccompIovec(fd, errno)
+	err = siov.SendSeccompIovec(fd, errno, 0)
 	if err != nil {
 		return err
 	}
