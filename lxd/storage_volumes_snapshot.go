@@ -302,12 +302,19 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	snapshotRename := func(op *operations.Operation) error {
-		err = s.StoragePoolVolumeSnapshotRename(req.Name)
-		if err != nil {
-			return err
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
+		} else {
+			err = s.StoragePoolVolumeSnapshotRename(req.Name)
 		}
 
-		return nil
+		return err
 	}
 
 	resources := map[string][]string{}
