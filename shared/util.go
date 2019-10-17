@@ -483,10 +483,6 @@ func IsSnapshot(name string) bool {
 	return strings.Contains(name, SnapshotDelimiter)
 }
 
-func ExtractSnapshotName(name string) string {
-	return strings.SplitN(name, SnapshotDelimiter, 2)[1]
-}
-
 func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 	// This function is a slightly modified version of MkdirAll from the Go standard library.
 	// https://golang.org/src/os/path.go?s=488:535#L9
