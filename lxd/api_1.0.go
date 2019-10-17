@@ -205,11 +205,12 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	env.KernelFeatures = map[string]string{
-		"netnsid_getifaddrs": fmt.Sprintf("%v", d.os.NetnsGetifaddrs),
-		"uevent_injection":   fmt.Sprintf("%v", d.os.UeventInjection),
-		"unpriv_fscaps":      fmt.Sprintf("%v", d.os.VFS3Fscaps),
-		"seccomp_listener":   fmt.Sprintf("%v", d.os.SeccompListener),
-		"shiftfs":            fmt.Sprintf("%v", d.os.Shiftfs),
+		"netnsid_getifaddrs":        fmt.Sprintf("%v", d.os.NetnsGetifaddrs),
+		"uevent_injection":          fmt.Sprintf("%v", d.os.UeventInjection),
+		"unpriv_fscaps":             fmt.Sprintf("%v", d.os.VFS3Fscaps),
+		"seccomp_listener":          fmt.Sprintf("%v", d.os.SeccompListener),
+		"seccomp_listener_continue": fmt.Sprintf("%v", d.os.SeccompListenerContinue),
+		"shiftfs":                   fmt.Sprintf("%v", d.os.Shiftfs),
 	}
 
 	if d.os.LXCFeatures != nil {

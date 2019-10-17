@@ -67,11 +67,12 @@ type OS struct {
 	CGroupSwapAccounting        bool
 
 	// Kernel features
-	NetnsGetifaddrs bool
-	SeccompListener bool
-	Shiftfs         bool
-	UeventInjection bool
-	VFS3Fscaps      bool
+	NetnsGetifaddrs         bool
+	SeccompListener         bool
+	SeccompListenerContinue bool
+	Shiftfs                 bool
+	UeventInjection         bool
+	VFS3Fscaps              bool
 
 	// LXC features
 	LXCFeatures map[string]bool
