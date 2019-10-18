@@ -647,7 +647,8 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 			}
 
 			for _, snap := range snapshots {
-				_, err := storagePoolVolumeSnapshotCopyInternal(state, poolName, vol, shared.ExtractSnapshotName(snap))
+				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap)
+				_, err := storagePoolVolumeSnapshotCopyInternal(state, poolName, vol, snapName)
 				if err != nil {
 					return err
 				}

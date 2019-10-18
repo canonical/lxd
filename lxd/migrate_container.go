@@ -386,7 +386,8 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		if err == nil {
 			for _, snap := range fullSnaps {
 				snapshots = append(snapshots, snapshotToProtobuf(snap))
-				snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
+				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+				snapshotNames = append(snapshotNames, snapName)
 			}
 		}
 	}
