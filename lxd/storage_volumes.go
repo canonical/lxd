@@ -440,21 +440,13 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
 // Rename a storage volume of a given volume type in a given storage pool.
+// Also supports moving a storage volume between pools.
 func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
 	// Get the name of the storage volume.
-	var volumeName string
-	fields := strings.Split(mux.Vars(r)["name"], "/")
+	volumeName := mux.Vars(r)["name"]
 
-	if len(fields) == 3 && fields[1] == "snapshots" {
-		// Handle volume snapshots
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2])
-	} else if len(fields) > 1 {
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[1])
-	} else if len(fields) > 0 {
-		// Handle volume
-		volumeName = fields[0]
-	} else {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume %s", mux.Vars(r)["name"]))
+	if shared.IsSnapshot(volumeName) {
+		return response.BadRequest(fmt.Errorf("Invalid storage volume %s", volumeName))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be
@@ -474,7 +466,8 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	if strings.Contains(req.Name, "/") {
+	// Check requested new volume name is not a snapshot volume.
+	if shared.IsSnapshot(req.Name) {
 		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
@@ -956,17 +949,10 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	project := projectParam(r)
 
 	// Get the name of the storage volume.
-	var volumeName string
-	fields := strings.Split(mux.Vars(r)["name"], "/")
+	volumeName := mux.Vars(r)["name"]
 
-	if len(fields) == 3 && fields[1] == "snapshots" {
-		// Handle volume snapshots
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2])
-	} else if len(fields) > 0 {
-		// Handle volume
-		volumeName = fields[0]
-	} else {
-		return response.BadRequest(fmt.Errorf("invalid storage volume %s", mux.Vars(r)["name"]))
+	if shared.IsSnapshot(volumeName) {
+		return response.BadRequest(fmt.Errorf("Invalid storage volume %s", volumeName))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be
