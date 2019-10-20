@@ -19,10 +19,11 @@ import (
 )
 
 /*
-#include "../../shared/netutils/netns_getifaddrs.c"
-#include "../../shared/netutils/unixfd.c"
+#cgo CFLAGS: -std=gnu11 -Wvla
+
+#include "unixfd.h"
+#include "netns_getifaddrs.c"
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error) {
