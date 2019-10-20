@@ -609,6 +609,13 @@ func (d *Daemon) init() error {
 		logger.Infof(" - seccomp listener: no")
 	}
 
+	d.os.SeccompListenerContinue = CanUseSeccompListenerContinue()
+	if d.os.SeccompListenerContinue {
+		logger.Infof(" - seccomp listener continue syscalls: yes")
+	} else {
+		logger.Infof(" - seccomp listener continue syscalls: no")
+	}
+
 	/*
 	 * During daemon startup we're the only thread that touches VFS3Fscaps
 	 * so we don't need to bother with atomic.StoreInt32() when touching
