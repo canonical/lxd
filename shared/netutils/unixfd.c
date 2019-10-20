@@ -1,6 +1,9 @@
-// +build none
+// +build linux
+// +build cgo
 
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -17,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
+#include "unixfd.h"
 #include "../../lxd/include/memory_utils.h"
 
 int lxc_abstract_unix_send_fds(int fd, int *sendfds, int num_sendfds,
@@ -56,9 +60,8 @@ int lxc_abstract_unix_send_fds(int fd, int *sendfds, int num_sendfds,
 	return sendmsg(fd, &msg, MSG_NOSIGNAL);
 }
 
-static ssize_t lxc_abstract_unix_recv_fds_iov(int fd, int *recvfds,
-					      int num_recvfds,
-					      struct iovec *iov, size_t iovlen)
+ssize_t lxc_abstract_unix_recv_fds_iov(int fd, int *recvfds, int num_recvfds,
+				       struct iovec *iov, size_t iovlen)
 {
 	__do_free char *cmsgbuf = NULL;
 	ssize_t ret;
@@ -107,7 +110,7 @@ out:
 	return ret;
 }
 
-static ssize_t lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
+ssize_t lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
 				   void *data, size_t size)
 {
 	char buf[1] = {0};
