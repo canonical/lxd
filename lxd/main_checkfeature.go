@@ -5,10 +5,14 @@ import (
 )
 
 /*
+#cgo CFLAGS: -std=gnu11 -Wvla -I ./include -I  ../shared/netutils
+
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/kcmp.h>
 #include <linux/types.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,12 +28,14 @@ import (
 #include <linux/audit.h>
 #include <sys/ptrace.h>
 
-#include "../shared/netutils/netns_getifaddrs.c"
-#include "include/memory_utils.h"
+#include "netns_getifaddrs.c"
+#include "compiler.h"
+#include "lxd_seccomp.h"
+#include "memory_utils.h"
 
 bool netnsid_aware = false;
 bool uevent_aware = false;
-bool seccomp_notify_aware = false;
+int seccomp_notify_aware = 0;
 char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
@@ -130,19 +136,152 @@ void is_uevent_aware()
 	uevent_aware = true;
 }
 
-#ifndef SECCOMP_RET_USER_NOTIF
-#define SECCOMP_RET_USER_NOTIF 0x7fc00000U
-#endif
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#ifdef SECCOMP_GET_ACTION_AVAIL
-#define SECCOMP_GET_ACTION_AVAIL 2
-#endif
+static int user_trap_syscall(int nr, unsigned int flags)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, nr, 0, 1),
+		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_USER_NOTIF),
+		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+	};
 
-void is_seccomp_notify_aware(void)
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+
+	return syscall(__NR_seccomp, SECCOMP_SET_MODE_FILTER, flags, &prog);
+}
+
+// The ifdef can be safely ignored. We don't work on a kernel that old.
+static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
+{
+#ifdef __NR_kcmp
+	return syscall(__NR_kcmp, pid1, pid2, KCMP_FILE, fd1, fd2);
+#else
+	errno = ENOSYS;
+	return -1;
+#endif
+}
+
+__noreturn static void __do_user_notification_continue(void)
+{
+	pid_t pid;
+	int ret;
+	int status, listener;
+	struct seccomp_notif req = {};
+	struct seccomp_notif_resp resp = {};
+	struct pollfd pollfd;
+
+	listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	if (listener < 0)
+		exit(1);
+
+	pid = fork();
+	if (pid < 0)
+		exit(1);
+
+	if (pid == 0) {
+		int dup_fd, pipe_fds[2];
+		pid_t self;
+
+		// Don't bother cleaning up. On child exit all of those
+		// will be closed anyway.
+		ret = pipe(pipe_fds);
+		if (ret < 0)
+			exit(1);
+
+		// O_CLOEXEC doesn't matter as we're in the child and we're
+		// not going to exec.
+		dup_fd = dup(pipe_fds[0]);
+		if (dup_fd < 0)
+			exit(1);
+
+		self = getpid();
+
+		ret = filecmp(self, self, pipe_fds[0], dup_fd);
+		if (ret)
+			exit(2);
+
+		exit(0);
+	}
+
+	pollfd.fd = listener;
+	pollfd.events = POLLIN | POLLOUT;
+
+	ret = poll(&pollfd, 1, 5000);
+	if (ret <= 0)
+		goto cleanup_sigkill;
+
+	if (!(pollfd.revents & POLLIN))
+		goto cleanup_sigkill;
+
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req);
+	if (ret)
+		goto cleanup_sigkill;
+
+	pollfd.fd = listener;
+	pollfd.events = POLLIN | POLLOUT;
+
+	ret = poll(&pollfd, 1, 5000);
+	if (ret <= 0)
+		goto cleanup_sigkill;
+
+	if (!(pollfd.revents & POLLOUT))
+		goto cleanup_sigkill;
+
+	if (req.data.nr != __NR_dup)
+		goto cleanup_sigkill;
+
+	resp.id = req.id;
+	resp.flags |= SECCOMP_USER_NOTIF_FLAG_CONTINUE;
+	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp);
+	resp.error = -EPERM;
+	resp.flags = 0;
+	if (ret) {
+		ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp);
+		goto cleanup_sigkill;
+	}
+
+cleanup_wait:
+	ret = waitpid(pid, &status, 0);
+	if ((ret != pid) || !WIFEXITED(status) || WEXITSTATUS(status))
+		exit(1);
+	exit(0);
+
+cleanup_sigkill:
+	kill(pid, SIGKILL);
+	goto cleanup_wait;
+}
+
+static void is_user_notification_continue_aware(void)
+{
+	int ret, status;
+	pid_t pid;
+
+	pid = fork();
+	if (pid < 0)
+		return;
+
+	if (pid == 0)
+		__do_user_notification_continue();
+
+	ret = waitpid(pid, &status, 0);
+	if ((ret == pid) && WIFEXITED(status) && !WEXITSTATUS(status))
+		seccomp_notify_aware = 2;
+}
+
+static void is_seccomp_notify_aware(void)
 {
 	__u32 action[] = { SECCOMP_RET_USER_NOTIF };
-	seccomp_notify_aware = (syscall(__NR_seccomp, SECCOMP_GET_ACTION_AVAIL,
-					0, &action[0]) == 0);
+
+	if (syscall(__NR_seccomp, SECCOMP_GET_ACTION_AVAIL, 0, &action[0]) == 0) {
+		seccomp_notify_aware = 1;
+		is_user_notification_continue_aware();
+	}
 
 }
 
@@ -164,7 +303,6 @@ static bool is_empty_string(char *s)
 	return (errbuf[0] == '\0');
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 func CanUseNetnsGetifaddrs() bool {
@@ -180,5 +318,9 @@ func CanUseUeventInjection() bool {
 }
 
 func CanUseSeccompListener() bool {
-	return bool(C.seccomp_notify_aware)
+	return bool(C.seccomp_notify_aware > 0)
+}
+
+func CanUseSeccompListenerContinue() bool {
+	return bool(C.seccomp_notify_aware == 2)
 }
