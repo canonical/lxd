@@ -8,7 +8,9 @@ import (
 )
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <errno.h>

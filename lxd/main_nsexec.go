@@ -1,4 +1,6 @@
 /**
+#cgo CFLAGS: -std=gnu11 -Wvla -fvisibility=hidden
+
  * This file is a bit funny. The goal here is to use setns() to manipulate
  * files inside the container, so we don't have to reason about the paths to
  * make sure they don't escape (we can simply rely on the kernel for
@@ -19,7 +21,9 @@
 package main
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -300,5 +304,4 @@ __attribute__((constructor)) void init(void) {
 		checkfeature();
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
