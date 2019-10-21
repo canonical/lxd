@@ -366,9 +366,6 @@ void forkmount() {
 	}
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
-// #cgo LDFLAGS: -llxc
-// #cgo pkg-config: lxc
 import "C"
 
 type cmdForkmount struct {

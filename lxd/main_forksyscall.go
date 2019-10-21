@@ -341,8 +341,6 @@ void forksyscall()
 	_exit(EXIT_SUCCESS);
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
-// #cgo LDFLAGS: -lcap
 import "C"
 
 type cmdForksyscall struct {

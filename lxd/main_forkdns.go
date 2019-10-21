@@ -127,7 +127,6 @@ void forkdns()
 			strerror(errno));
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 type cmdForkDNS struct {
