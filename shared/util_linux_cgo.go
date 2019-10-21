@@ -17,10 +17,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// #cgo LDFLAGS: -lutil -lpthread
 /*
 #ifndef _GNU_SOURCE
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 #endif
 #include <errno.h>
 #include <fcntl.h>
@@ -138,7 +137,8 @@ again:
 	return ret;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
+// #cgo LDFLAGS: -lutil -lpthread
 import "C"
 
 const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN
