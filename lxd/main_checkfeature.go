@@ -5,8 +5,6 @@ import (
 )
 
 /*
-#cgo CFLAGS: -std=gnu11 -Wvla -I ./include -I  ../shared/netutils
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -30,10 +28,10 @@ import (
 #include <linux/audit.h>
 #include <sys/ptrace.h>
 
-#include "netns_getifaddrs.c"
-#include "compiler.h"
-#include "lxd_seccomp.h"
-#include "memory_utils.h"
+#include "../shared/netutils/netns_getifaddrs.c"
+#include "include/compiler.h"
+#include "include/lxd_seccomp.h"
+#include "include/memory_utils.h"
 
 bool netnsid_aware = false;
 bool uevent_aware = false;

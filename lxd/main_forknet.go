@@ -77,7 +77,6 @@ void forknet() {
 		forkdonetdetach(cur);
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 import "github.com/lxc/lxd/shared"
 
