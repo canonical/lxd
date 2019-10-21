@@ -152,6 +152,7 @@ int32_t quota_get_path(char *path) {
 }
 
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 var errNoDevice = fmt.Errorf("Couldn't find backing device for mountpoint")

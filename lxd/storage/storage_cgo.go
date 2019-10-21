@@ -3,8 +3,18 @@
 
 package storage
 
+import (
+	"fmt"
+	"os"
+	"unsafe"
+
+	"github.com/pkg/errors"
+)
+
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #define _FILE_OFFSET_BITS 64
 #include <dirent.h>
 #include <errno.h>
@@ -241,16 +251,8 @@ int unset_autoclear_loop_device(int fd_loop)
 	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
-
-import (
-	"fmt"
-	"os"
-	"unsafe"
-
-	"github.com/pkg/errors"
-)
 
 // LoFlagsAutoclear determines whether the loop device will autodestruct on last
 // close.

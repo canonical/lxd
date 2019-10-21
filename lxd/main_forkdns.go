@@ -21,7 +21,9 @@ import (
 )
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -125,7 +127,6 @@ void forkdns()
 			strerror(errno));
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 type cmdForkDNS struct {

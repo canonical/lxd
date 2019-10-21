@@ -1,7 +1,9 @@
 package main
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <errno.h>
 #include <sched.h>
 #include <stdio.h>
@@ -30,5 +32,5 @@ __attribute__((constructor)) void init(void) {
 	// We're done, jump back to Go
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"

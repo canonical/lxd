@@ -17,7 +17,9 @@ import (
 
 // #cgo LDFLAGS: -lacl
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <byteswap.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -149,8 +151,7 @@ int shiftowner(char *basepath, char *path, int uid, int gid)
 	return 0;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
-// #cgo LDFLAGS: -lcap
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 // ShiftOwner updates uid and gid for a file when entering/exiting a namespace
