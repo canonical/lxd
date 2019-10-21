@@ -16,7 +16,7 @@ ifeq ($(TAG_SQLITE3),)
 endif
 
 	go get -t -v -d ./...
-	CC=$(CC) go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CC=$(CC) go install -a -x -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: client
@@ -124,6 +124,17 @@ endif
 
 	go get -t -v -d ./...
 	CC=$(CC) go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
+	@echo "LXD built successfully"
+
+.PHONY: nocache
+nocache:
+ifeq ($(TAG_SQLITE3),)
+	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	exit 1
+endif
+
+	go get -t -v -d ./...
+	CC=$(CC) go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: check
