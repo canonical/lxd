@@ -274,6 +274,7 @@ LXD doesn't let you directly grow a loop backed btrfs pool, but you can do so wi
 
 ```bash
 sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
+sudo losetup -c <LOOPDEV>
 sudo btrfs filesystem resize max /var/lib/lxd/storage-pools/<POOL>/
 ```
 
