@@ -7,7 +7,9 @@ import (
 /*
 #cgo CFLAGS: -std=gnu11 -Wvla -I ./include -I  ../shared/netutils
 
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/kcmp.h>
