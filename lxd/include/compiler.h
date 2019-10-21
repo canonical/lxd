@@ -59,6 +59,10 @@
 #	define __hot __attribute__((hot))
 #endif
 
+#ifndef __hidden
+#	define __hidden __attribute__((visibility("hidden")))
+#endif
+
 #define __cgfsng_ops
 
 #endif /* __LXC_COMPILER_H */
