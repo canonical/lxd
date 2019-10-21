@@ -129,7 +129,7 @@ endif
 .PHONY: check
 check: default
 	go get -v -x github.com/rogpeppe/godeps
-	go get -v -x github.com/remyoudompheng/go-misc/deadcode
+	go get -v -x github.com/tsenart/deadcode
 	go get -v -x github.com/golang/lint/golint
 	go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
