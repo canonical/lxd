@@ -32,8 +32,6 @@ import (
 )
 
 /*
-#cgo CFLAGS: -std=gnu11 -Wvla -I ../include
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -55,7 +53,7 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "lxd_seccomp.h"
+#include "../include/lxd_seccomp.h"
 
 struct seccomp_notif_sizes expected_sizes;
 
@@ -246,6 +244,7 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD

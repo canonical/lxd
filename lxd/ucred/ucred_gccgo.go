@@ -8,7 +8,9 @@ import (
 )
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -33,7 +35,7 @@ void getucred(int sock, uint *uid, uint *gid, int *pid)
 	return;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 // GetUCred returns the file descriptor's ucreds.

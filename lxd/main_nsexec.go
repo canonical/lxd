@@ -19,7 +19,9 @@
 package main
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -300,5 +302,7 @@ __attribute__((constructor)) void init(void) {
 		checkfeature();
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
+// #cgo pkg-config: lxc
+// #cgo pkg-config: libcap
 import "C"

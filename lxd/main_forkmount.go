@@ -7,7 +7,9 @@ import (
 )
 
 /*
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -364,9 +366,6 @@ void forkmount() {
 	}
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla
-// #cgo LDFLAGS: -llxc
-// #cgo pkg-config: lxc
 import "C"
 
 type cmdForkmount struct {
