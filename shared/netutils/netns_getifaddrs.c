@@ -1,8 +1,6 @@
 // +build none
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <errno.h>
 #include <linux/if.h>
