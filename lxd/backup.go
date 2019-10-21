@@ -239,6 +239,7 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c Instanc
 	}
 
 	var compress string
+	var compressedName string
 
 	if b.CompressionAlgorithm() != "" {
 		compress = b.CompressionAlgorithm()
@@ -256,29 +257,37 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c Instanc
 		}
 		defer infile.Close()
 
-		compressed, err := os.Create(backupPath + ".compressed")
-		if err != nil {
-			return err
-		}
-		compressedName := compressed.Name()
+		compressedName = backupPath + ".compressed"
 
-		defer compressed.Close()
-		defer os.Remove(compressedName)
+		if compress == "squashfs" {
+			err = compressPath(compress, infile, compressedName)
+			if err != nil {
+				return err
+			}
+		} else {
+			compressed, err := os.Create(compressedName)
+			if err != nil {
+				return err
+			}
+			defer compressed.Close()
 
-		err = compressFile(compress, infile, compressed)
-		if err != nil {
-			return err
-		}
+			err = compressFile(compress, infile, compressed)
+			if err != nil {
+				return err
+			}
 
-		err = os.Remove(backupPath)
-		if err != nil {
-			return err
+			err = os.Remove(backupPath)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = os.Rename(compressedName, backupPath)
 		if err != nil {
 			return err
 		}
+
+		os.Remove(compressedName)
 	}
 
 	// Set permissions

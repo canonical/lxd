@@ -137,6 +137,21 @@ func unpackImage(imagefname string, destpath string, sType storageType, runningI
 	return nil
 }
 
+func compressPath(compress string, infile io.Reader, fname string) error {
+	var cmdName string
+	var args []string
+
+	if compress == "squashfs" {
+		cmdName = "tar2sqfs"
+		args = []string{"--compressor", "xz", fname}
+	}
+	
+	cmd := exec.Command(cmdName, args...)
+	cmd.Stdin = infile
+
+	return cmd.Run()
+}
+
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 
