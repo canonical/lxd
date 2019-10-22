@@ -1016,7 +1016,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 
 	switch volumeType {
 	case storagePoolVolumeTypeCustom:
-		var snapshots []string
+		var snapshots []db.StorageVolumeArgs
 
 		// Delete storage volume snapshots
 		snapshots, err = d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
@@ -1025,7 +1025,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		}
 
 		for _, snapshot := range snapshots {
-			s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot, volumeType)
+			s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot.Name, volumeType)
 			if err != nil {
 				return response.NotFound(err)
 			}
