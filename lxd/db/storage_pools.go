@@ -776,7 +776,7 @@ SELECT storage_volumes.name
 
 // StoragePoolVolumeSnapshotsGetType get all snapshots of a storage volume
 // attached to a given storage pool of a given volume type, on the given node.
-// Returns snapshots slice ordered by volume ID (i.e effectively the order they were created).
+// Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	result := []StorageVolumeArgs{}
 	regexp := volumeName + shared.SnapshotDelimiter

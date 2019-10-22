@@ -53,11 +53,11 @@ test_storage_volume_snapshots() {
   ! lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0 || false
 
   lxc stop -f c1
-  lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0
+  lxc storage volume restore "${storage_pool}" "${storage_volume}" foo
 
   lxc start c1
   lxc storage volume detach "${storage_pool}" "${storage_volume}" c1
-  lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0
+  lxc storage volume restore "${storage_pool}" "${storage_volume}" foo
   lxc storage volume attach "${storage_pool}" "${storage_volume}" c1 /mnt
 
   # Validate file
