@@ -244,7 +244,6 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
