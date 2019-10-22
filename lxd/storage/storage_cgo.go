@@ -251,7 +251,6 @@ int unset_autoclear_loop_device(int fd_loop)
 	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 // LoFlagsAutoclear determines whether the loop device will autodestruct on last

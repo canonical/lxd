@@ -128,7 +128,7 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 	netnsid_aware = true;
 }
 
-void is_uevent_aware()
+static void is_uevent_aware(void)
 {
 	if (can_inject_uevent("dummy", 6) < 0)
 		return;
@@ -285,7 +285,7 @@ static void is_seccomp_notify_aware(void)
 
 }
 
-void checkfeature()
+void checkfeature(void)
 {
 	__do_close_prot_errno int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
 

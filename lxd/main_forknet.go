@@ -43,7 +43,8 @@ void forkdonetdetach(char *file) {
 	// Jump back to Go for the rest
 }
 
-void forknet() {
+void forknet(void)
+{
 	char *command = NULL;
 	char *cur = NULL;
 	pid_t pid = 0;

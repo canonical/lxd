@@ -145,7 +145,8 @@ static int inject_uevent(const char *uevent, size_t len)
 	return 0;
 }
 
-void forkuevent() {
+void forkuevent(void)
+{
 	char *uevent = NULL;
 	char *cur = NULL;
 	pid_t pid = 0;

@@ -91,7 +91,7 @@ again:
 #define LISTEN_NEEDS_MNTNS 1U
 #define CONNECT_NEEDS_MNTNS 2U
 
-void forkproxy()
+void forkproxy(void)
 {
 	unsigned int needs_mntns = 0;
 	int connect_pid, listen_pid, log_fd;

@@ -137,8 +137,6 @@ again:
 	return ret;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
-// #cgo LDFLAGS: -lutil -lpthread
 import "C"
 
 const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN
