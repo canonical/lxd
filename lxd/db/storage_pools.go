@@ -776,22 +776,31 @@ SELECT storage_volumes.name
 
 // StoragePoolVolumeSnapshotsGetType get all snapshots of a storage volume
 // attached to a given storage pool of a given volume type, on the given node.
-func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeType int, poolID int64) ([]string, error) {
-	result := []string{}
+// Returns snapshots slice ordered by volume ID (i.e effectively the order they were created).
+func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
+	result := []StorageVolumeArgs{}
 	regexp := volumeName + shared.SnapshotDelimiter
 	length := len(regexp)
 
-	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=? AND snapshot=? AND SUBSTR(name,1,?)=?"
+	// ORDER BY id is important here as the users of this function can expect that the results
+	// will be returned in the order that the snapshots were created. This is specifically used
+	// during migration to ensure that the storage engines can re-create snapshots using the
+	// correct deltas.
+	query := "SELECT name, description FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=? AND snapshot=? AND SUBSTR(name,1,?)=? ORDER BY id"
 	inargs := []interface{}{poolID, c.nodeID, volumeType, true, length, regexp}
-	outfmt := []interface{}{volumeName}
-
+	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
+	outfmt := []interface{}{typeGuide.Name, typeGuide.Description}
 	dbResults, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
 
 	for _, r := range dbResults {
-		result = append(result, r[0].(string))
+		row := StorageVolumeArgs{
+			Name:        r[0].(string),
+			Description: r[1].(string),
+		}
+		result = append(result, row)
 	}
 
 	return result, nil

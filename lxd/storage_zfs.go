@@ -669,7 +669,7 @@ func (s *storageZfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 			return err
 		}
 
-		if volumes[len(volumes)-1] != fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore) {
+		if volumes[len(volumes)-1].Name != fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore) {
 			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new volume instead")
 		}
 
@@ -2834,7 +2834,7 @@ func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSourc
 
 	if !source.VolumeOnly {
 		for _, snap := range snapshots {
-			srcMountPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
+			srcMountPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap.Name)
 
 			_, err = rsync.LocalCopy(srcMountPoint, dstMountPoint, bwlimit, true)
 			if err != nil {

@@ -201,7 +201,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	resultString := []string{}
 	resultMap := []*api.StorageVolumeSnapshot{}
 	for _, volume := range volumes {
-		_, snapshotName, _ := shared.ContainerGetParentAndSnapshotName(volume)
+		_, snapshotName, _ := shared.ContainerGetParentAndSnapshotName(volume.Name)
 
 		if !recursion {
 			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
@@ -210,7 +210,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			}
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, apiEndpoint, volumeName, snapshotName))
 		} else {
-			_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volume, volumeType, poolID)
+			_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volume.Name, volumeType, poolID)
 			if err != nil {
 				continue
 			}

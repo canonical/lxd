@@ -1949,8 +1949,8 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 
 	if !source.VolumeOnly {
 		for _, snap := range snapshots {
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
-			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(source.Pool, snap.Name)
 
 			_, err = rsync.LocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit, true)
 			if err != nil {

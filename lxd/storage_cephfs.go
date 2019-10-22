@@ -805,8 +805,8 @@ func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) e
 		}
 
 		for _, snap := range snapshots {
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
-			err = s.copyVolume(source.Pool, snap, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			err = s.copyVolume(source.Pool, snap.Name, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 			if err != nil {
 				return err
 			}

@@ -428,7 +428,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 	}
 
 	for _, snap := range snapshots {
-		err := s.doPoolVolumeSnapshotDelete(snap)
+		err := s.doPoolVolumeSnapshotDelete(snap.Name)
 		if err != nil {
 			return err
 		}
