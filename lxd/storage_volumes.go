@@ -14,13 +14,13 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var storagePoolVolumesCmd = APIEndpoint{
@@ -166,7 +166,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -505,7 +505,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -676,7 +676,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -754,7 +754,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -813,7 +813,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		}
 	} else {
 		// Validate the configuration
-		err = storageVolumeValidateConfig(volumeName, req.Config, pool)
+		err = storagePools.VolumeValidateConfig(volumeName, req.Config, pool)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -862,7 +862,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -919,7 +919,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	}
 
 	// Validate the configuration
-	err = storageVolumeValidateConfig(volumeName, req.Config, pool)
+	err = storagePools.VolumeValidateConfig(volumeName, req.Config, pool)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -960,7 +960,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}

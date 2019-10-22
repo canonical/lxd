@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -58,7 +59,7 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operations.Operation) error {
 
 		var err error
 
-		snaps, err := storagePoolVolumeSnapshotsGet(state, pool.Name, volume.Name, storagePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeSnapshotsGet(state, pool.Name, volume.Name, storagePoolVolumeTypeCustom)
 		if err == nil {
 			poolID, err := state.Cluster.StoragePoolGetID(pool.Name)
 			if err == nil {

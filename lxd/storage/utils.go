@@ -3,16 +3,40 @@ package storage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 )
+
+var baseDirectories = []string{
+	"containers",
+	"containers-snapshots",
+	"custom",
+	"custom-snapshots",
+	"images",
+	"virtual-machines",
+	"virtual-machines-snapshots",
+}
+
+func createStorageStructure(path string) error {
+	for _, name := range baseDirectories {
+		err := os.MkdirAll(filepath.Join(path, name), 0711)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // MkfsOptions represents options for filesystem creation.
 type MkfsOptions struct {
@@ -359,4 +383,254 @@ func GetStorageResource(path string) (*api.ResourcesStoragePool, error) {
 	}
 
 	return &res, nil
+}
+
+// VolumeTypeNameToType converts a volume type string to internal code.
+func VolumeTypeNameToType(volumeTypeName string) (int, error) {
+	switch volumeTypeName {
+	case db.StoragePoolVolumeTypeNameContainer:
+		return db.StoragePoolVolumeTypeContainer, nil
+	case db.StoragePoolVolumeTypeNameImage:
+		return db.StoragePoolVolumeTypeImage, nil
+	case db.StoragePoolVolumeTypeNameCustom:
+		return db.StoragePoolVolumeTypeCustom, nil
+	}
+
+	return -1, fmt.Errorf("invalid storage volume type name")
+}
+
+// VolumeDBCreate creates a volume in the database.
+func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := VolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return err
+	}
+
+	// Load storage pool the volume will be attached to.
+	poolID, poolStruct, err := s.Cluster.StoragePoolGet(poolName)
+	if err != nil {
+		return err
+	}
+
+	// Check that a storage volume of the same storage volume type does not
+	// already exist.
+	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeID(volumeName, volumeType, poolID)
+	if volumeID > 0 {
+		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
+	}
+
+	// Make sure that we don't pass a nil to the next function.
+	if volumeConfig == nil {
+		volumeConfig = map[string]string{}
+	}
+
+	// Validate the requested storage volume configuration.
+	err = VolumeValidateConfig(poolName, volumeConfig, poolStruct)
+	if err != nil {
+		return err
+	}
+
+	err = VolumeFillDefault(poolName, volumeConfig, poolStruct)
+	if err != nil {
+		return err
+	}
+
+	// Create the database entry for the storage volume.
+	_, err = s.Cluster.StoragePoolVolumeCreate("default", volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
+	if err != nil {
+		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
+	}
+
+	return nil
+}
+
+// SupportedPoolTypes the types of pools supported.
+var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
+
+// StorageVolumeConfigKeys config validation for btrfs, ceph, cephfs, dir, lvm, zfs types.
+var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
+	"block.filesystem": func(value string) ([]string, error) {
+		err := shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"ceph", "lvm"}, nil
+	},
+	"block.mount_options": func(value string) ([]string, error) {
+		return []string{"ceph", "lvm"}, shared.IsAny(value)
+	},
+	"security.shifted": func(value string) ([]string, error) {
+		return SupportedPoolTypes, shared.IsBool(value)
+	},
+	"security.unmapped": func(value string) ([]string, error) {
+		return SupportedPoolTypes, shared.IsBool(value)
+	},
+	"size": func(value string) ([]string, error) {
+		if value == "" {
+			return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
+		}
+
+		_, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
+	},
+	"volatile.idmap.last": func(value string) ([]string, error) {
+		return SupportedPoolTypes, shared.IsAny(value)
+	},
+	"volatile.idmap.next": func(value string) ([]string, error) {
+		return SupportedPoolTypes, shared.IsAny(value)
+	},
+	"zfs.remove_snapshots": func(value string) ([]string, error) {
+		err := shared.IsBool(value)
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"zfs"}, nil
+	},
+	"zfs.use_refquota": func(value string) ([]string, error) {
+		err := shared.IsBool(value)
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"zfs"}, nil
+	},
+}
+
+// VolumeValidateConfig validations volume config.
+func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
+	for key, val := range config {
+		// User keys are not validated.
+		if strings.HasPrefix(key, "user.") {
+			continue
+		}
+
+		// Validate storage volume config keys.
+		validator, ok := StorageVolumeConfigKeys[key]
+		if !ok {
+			return fmt.Errorf("Invalid storage volume configuration key: %s", key)
+		}
+
+		_, err := validator(val)
+		if err != nil {
+			return err
+		}
+
+		if parentPool.Driver != "zfs" || parentPool.Driver == "dir" {
+			if config["zfs.use_refquota"] != "" {
+				return fmt.Errorf("the key volume.zfs.use_refquota cannot be used with non zfs storage volumes")
+			}
+
+			if config["zfs.remove_snapshots"] != "" {
+				return fmt.Errorf("the key volume.zfs.remove_snapshots cannot be used with non zfs storage volumes")
+			}
+		}
+
+		if parentPool.Driver == "dir" {
+			if config["block.mount_options"] != "" {
+				return fmt.Errorf("the key block.mount_options cannot be used with dir storage volumes")
+			}
+
+			if config["block.filesystem"] != "" {
+				return fmt.Errorf("the key block.filesystem cannot be used with dir storage volumes")
+			}
+		}
+	}
+
+	return nil
+}
+
+// VolumeFillDefault fills default settings into a volume config.
+func VolumeFillDefault(name string, config map[string]string, parentPool *api.StoragePool) error {
+	if parentPool.Driver == "dir" {
+		config["size"] = ""
+	} else if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
+		if config["block.filesystem"] == "" {
+			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
+		}
+		if config["block.filesystem"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			config["block.filesystem"] = "ext4"
+		}
+
+		if config["block.mount_options"] == "" {
+			config["block.mount_options"] = parentPool.Config["volume.block.mount_options"]
+		}
+		if config["block.mount_options"] == "" {
+			// Unchangeable volume property: Set unconditionally.
+			config["block.mount_options"] = "discard"
+		}
+
+		// Does the pool request a default size for new storage volumes?
+		if config["size"] == "0" || config["size"] == "" {
+			config["size"] = parentPool.Config["volume.size"]
+		}
+		// Does the user explicitly request a default size for new
+		// storage volumes?
+		if config["size"] == "0" || config["size"] == "" {
+			config["size"] = "10GB"
+		}
+	} else {
+		if config["size"] != "" {
+			_, err := units.ParseByteSizeString(config["size"])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// VolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
+func VolumeSnapshotsGet(s *state.State, pool string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
+	poolID, err := s.Cluster.StoragePoolGetID(pool)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(volume, volType, poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	return snapshots, nil
+}
+
+// VolumePropertiesTranslate validates the supplied volume config and removes any keys that are not
+// suitable for the volume's driver type.
+func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolDriver string) (map[string]string, error) {
+	newConfig := make(map[string]string, len(targetConfig))
+	for key, val := range targetConfig {
+		// User keys are not validated.
+		if strings.HasPrefix(key, "user.") {
+			continue
+		}
+
+		// Validate storage volume config keys.
+		validator, ok := StorageVolumeConfigKeys[key]
+		if !ok {
+			return nil, fmt.Errorf("Invalid storage volume configuration key: %s", key)
+		}
+
+		validStorageDrivers, err := validator(val)
+		if err != nil {
+			return nil, err
+		}
+
+		// Drop invalid keys.
+		if !shared.StringInSlice(targetParentPoolDriver, validStorageDrivers) {
+			continue
+		}
+
+		newConfig[key] = val
+	}
+
+	return newConfig, nil
 }
