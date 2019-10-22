@@ -469,7 +469,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
-			return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
+			return SupportedPoolTypes, nil
 		}
 
 		_, err := units.ParseByteSizeString(value)
@@ -477,7 +477,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 			return nil, err
 		}
 
-		return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
+		return SupportedPoolTypes, nil
 	},
 	"volatile.idmap.last": func(value string) ([]string, error) {
 		return SupportedPoolTypes, shared.IsAny(value)
