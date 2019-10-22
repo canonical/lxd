@@ -2,6 +2,11 @@
 
 package shared
 
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
+// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden -Winit-self
+// #cgo CFLAGS: -Wformat=2 -Wshadow -Wendif-labels -fasynchronous-unwind-tables
+// #cgo CFLAGS: -pipe -Wcast-align --param=ssp-buffer-size=4 -g
+// #cgo CFLAGS: -Werror=implicit-function-declaration
+// #cgo CFLAGS: -Werror=return-type -Wendif-labels -Werror=overflow
+// #cgo CFLAGS: -Wnested-externs -fexceptions
 // #cgo LDFLAGS: -lutil -lpthread
 import "C"

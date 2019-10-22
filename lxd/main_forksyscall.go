@@ -95,7 +95,7 @@ static bool acquire_basic_creds(pid_t pid)
 
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
-static void forkmknod()
+static void forkmknod(void)
 {
 	__do_close_prot_errno int target_dir_fd = -EBADF;
 	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
@@ -235,7 +235,7 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t 
 	return true;
 }
 
-static void forksetxattr()
+static void forksetxattr(void)
 {
 	__do_close_prot_errno int ns_fd = -EBADF, target_fd = -EBADF;
 	int flags = 0;
@@ -316,7 +316,7 @@ static void forksetxattr()
 	}
 }
 
-void forksyscall()
+void forksyscall(void)
 {
 	char *syscall = NULL;
 
