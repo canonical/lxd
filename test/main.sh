@@ -1,4 +1,6 @@
 #!/bin/sh -eu
+sleep 5m
+exit 1
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
