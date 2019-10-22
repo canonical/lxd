@@ -24,7 +24,6 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -739,67 +738,6 @@ func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) erro
 	}
 
 	return nil
-}
-
-func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
-	meta := op.Metadata()
-	if meta == nil {
-		meta = make(map[string]interface{})
-	}
-
-	progress := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(progressInt, 2), units.GetByteSizeString(speedInt, 2))
-	if description != "" {
-		progress = fmt.Sprintf("%s: %s (%s/s)", description, units.GetByteSizeString(progressInt, 2), units.GetByteSizeString(speedInt, 2))
-	}
-
-	if meta[key] != progress {
-		meta[key] = progress
-		op.UpdateMetadata(meta)
-	}
-}
-
-// StorageProgressReader reports the read progress.
-func StorageProgressReader(op *operations.Operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
-	return func(reader io.ReadCloser) io.ReadCloser {
-		if op == nil {
-			return reader
-		}
-
-		progress := func(progressInt int64, speedInt int64) {
-			progressWrapperRender(op, key, description, progressInt, speedInt)
-		}
-
-		readPipe := &ioprogress.ProgressReader{
-			ReadCloser: reader,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: progress,
-			},
-		}
-
-		return readPipe
-	}
-}
-
-// StorageProgressWriter reports the write progress.
-func StorageProgressWriter(op *operations.Operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
-	return func(writer io.WriteCloser) io.WriteCloser {
-		if op == nil {
-			return writer
-		}
-
-		progress := func(progressInt int64, speedInt int64) {
-			progressWrapperRender(op, key, description, progressInt, speedInt)
-		}
-
-		writePipe := &ioprogress.ProgressWriter{
-			WriteCloser: writer,
-			Tracker: &ioprogress.ProgressTracker{
-				Handler: progress,
-			},
-		}
-
-		return writePipe
-	}
 }
 
 func SetupStorageDriver(s *state.State, forceCheck bool) error {

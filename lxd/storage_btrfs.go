@@ -2612,7 +2612,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operations.Operat
 				return err
 			}
 
-			wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
+			wrapper := migration.ProgressWriter(op, "fs_progress", *snap.Name)
 			err = btrfsRecv(*(snap.Name), tmpSnapshotMntPoint, snapshotMntPoint, true, wrapper)
 			if err != nil {
 				return err
@@ -2633,7 +2633,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operations.Operat
 		return err
 	}
 
-	wrapper := StorageProgressWriter(op, "fs_progress", instanceName)
+	wrapper := migration.ProgressWriter(op, "fs_progress", instanceName)
 	containerMntPoint := driver.GetContainerMountPoint(args.Instance.Project(), s.pool.Name, instanceName)
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {

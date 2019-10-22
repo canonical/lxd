@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
@@ -83,7 +84,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	if s.instance.IsSnapshot() {
 		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
 		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
-		wrapper := StorageProgressReader(op, "fs_progress", s.instance.Name())
+		wrapper := migration.ProgressReader(op, "fs_progress", s.instance.Name())
 		return s.send(conn, snapshotName, "", wrapper)
 	}
 
@@ -97,7 +98,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 
 			lastSnap = snap
 
-			wrapper := StorageProgressReader(op, "fs_progress", snap)
+			wrapper := migration.ProgressReader(op, "fs_progress", snap)
 			if err := s.send(conn, snap, prev, wrapper); err != nil {
 				return err
 			}
@@ -109,7 +110,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 		return err
 	}
 
-	wrapper := StorageProgressReader(op, "fs_progress", s.instance.Name())
+	wrapper := migration.ProgressReader(op, "fs_progress", s.instance.Name())
 	if err := s.send(conn, s.runningSnapName, lastSnap, wrapper); err != nil {
 		return err
 	}
