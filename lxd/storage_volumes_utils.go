@@ -647,7 +647,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 			}
 
 			for _, snap := range snapshots {
-				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap)
+				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 				_, err := storagePoolVolumeSnapshotCopyInternal(state, poolName, vol, snapName)
 				if err != nil {
 					return err
@@ -731,7 +731,7 @@ func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.St
 }
 
 // storagePoolVolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
-func storagePoolVolumeSnapshotsGet(s *state.State, pool string, volume string, volType int) ([]string, error) {
+func storagePoolVolumeSnapshotsGet(s *state.State, pool string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
 	poolID, err := s.Cluster.StoragePoolGetID(pool)
 	if err != nil {
 		return nil, err

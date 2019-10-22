@@ -68,10 +68,10 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 		}
 
 		for _, snap := range snapshots {
-			wrapper := StorageProgressReader(op, "fs_progress", snap)
-			path := driver.GetStoragePoolVolumeSnapshotMountPoint(pool.Name, snap)
+			wrapper := StorageProgressReader(op, "fs_progress", snap.Name)
+			path := driver.GetStoragePoolVolumeSnapshotMountPoint(pool.Name, snap.Name)
 			path = shared.AddSlash(path)
-			logger.Debugf("Starting to send storage volume snapshot %s on storage pool %s from %s", snap, pool.Name, path)
+			logger.Debugf("Starting to send storage volume snapshot %s on storage pool %s from %s", snap.Name, pool.Name, path)
 
 			err = rsync.Send(volume.Name, path, conn, wrapper, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
 			if err != nil {

@@ -2231,7 +2231,7 @@ func (s *storageLvm) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	}
 
 	for _, snap := range snapshots {
-		err = s.copyVolumeSnapshot(source.Pool, snap)
+		err = s.copyVolumeSnapshot(source.Pool, snap.Name)
 		if err != nil {
 			return err
 		}
