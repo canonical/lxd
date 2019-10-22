@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1841,7 +1842,42 @@ func (vm *vmQemu) FilePull(srcpath string, dstpath string) (int64, int64, os.Fil
 }
 
 func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
-	return fmt.Errorf("FilePush Not implemented")
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	if err != nil {
+		return err
+	}
+
+	args := lxdClient.InstanceFileArgs{
+		GID:       gid,
+		Mode:      mode,
+		Type:      fileType,
+		UID:       uid,
+		WriteMode: write,
+	}
+
+	if fileType == "file" {
+		f, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		args.Content = f
+	} else if fileType == "symlink" {
+		symlinkTarget, err := os.Readlink(dstPath)
+		if err != nil {
+			return err
+		}
+
+		args.Content = bytes.NewReader([]byte(symlinkTarget))
+	}
+
+	err = agent.CreateInstanceFile("", dstPath, args)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (vm *vmQemu) FileRemove(path string) error {
