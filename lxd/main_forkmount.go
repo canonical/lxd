@@ -129,7 +129,8 @@ void create(char *src, char *dest)
 	}
 }
 
-void do_lxd_forkmount(pid_t pid) {
+static void do_lxd_forkmount(pid_t pid)
+{
 	char *src, *dest, *opts, *shiftfs;
 
 	attach_userns(pid);
@@ -187,7 +188,8 @@ void do_lxd_forkmount(pid_t pid) {
 	_exit(0);
 }
 
-void do_lxd_forkumount(pid_t pid) {
+void do_lxd_forkumount(pid_t pid)
+{
 	int ret;
 	char *path = NULL;
 
@@ -239,7 +241,7 @@ static int lxc_safe_ulong(const char *numstr, unsigned long *converted)
 }
 #endif
 
-void do_lxc_forkmount()
+static void do_lxc_forkmount(void)
 {
 #if VERSION_AT_LEAST(3, 1, 0)
 	int ret;
@@ -285,7 +287,7 @@ void do_lxc_forkmount()
 #endif
 }
 
-void do_lxc_forkumount()
+static void do_lxc_forkumount(void)
 {
 #if VERSION_AT_LEAST(3, 1, 0)
 	int ret;
@@ -321,7 +323,8 @@ void do_lxc_forkumount()
 #endif
 }
 
-void forkmount() {
+void forkmount(void)
+{
 	char *cur = NULL;
 
 	char *command = NULL;

@@ -403,7 +403,8 @@ void forkremovefile(char *rootfs, pid_t pid) {
 	_exit(0);
 }
 
-void forkfile() {
+void forkfile(void)
+{
 	char *command = NULL;
 	char *rootfs = NULL;
 	pid_t pid = 0;
