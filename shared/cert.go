@@ -225,8 +225,18 @@ func FindOrGenCert(certf string, keyf string, certtype bool) error {
 	return nil
 }
 
+// GenCertWithCA will create and populate a certificate file and a key file
+// signed by the provided CA.
+func GenCertWithCA(certf string, keyf string, certtype bool, ca *x509.Certificate) error {
+	return genCert(certf, keyf, certtype, ca)
+}
+
 // GenCert will create and populate a certificate file and a key file
 func GenCert(certf string, keyf string, certtype bool) error {
+	return genCert(certf, keyf, certtype, nil)
+}
+
+func genCert(certf string, keyf string, certtype bool, ca *x509.Certificate) error {
 	/* Create the basenames if needed */
 	dir := path.Dir(certf)
 	err := os.MkdirAll(dir, 0750)
@@ -239,7 +249,7 @@ func GenCert(certf string, keyf string, certtype bool) error {
 		return err
 	}
 
-	certBytes, keyBytes, err := GenerateMemCert(certtype)
+	certBytes, keyBytes, err := generateMemCert(ca, certtype)
 	if err != nil {
 		return err
 	}
@@ -260,9 +270,19 @@ func GenCert(certf string, keyf string, certtype bool) error {
 	return nil
 }
 
+// GenerateMemCertWithCA creates client or server certificate and key pair,
+// signed by the provided ca, returning them as byte arrays in memory.
+func GenerateMemCertWithCA(ca *x509.Certificate, client bool) ([]byte, []byte, error) {
+	return generateMemCert(ca, client)
+}
+
 // GenerateMemCert creates client or server certificate and key pair,
 // returning them as byte arrays in memory.
 func GenerateMemCert(client bool) ([]byte, []byte, error) {
+	return generateMemCert(nil, client)
+}
+
+func generateMemCert(ca *x509.Certificate, client bool) ([]byte, []byte, error) {
 	privk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate key: %v", err)
@@ -327,7 +347,12 @@ func GenerateMemCert(client bool) ([]byte, []byte, error) {
 		}
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privk.PublicKey, privk)
+	parent := ca
+	if parent == nil {
+		parent = &template
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, parent, &privk.PublicKey, privk)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create certificate: %v", err)
 	}
