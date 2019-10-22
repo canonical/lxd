@@ -244,7 +244,6 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 const lxdSeccompNotifyMknod = C.LXD_SECCOMP_NOTIFY_MKNOD
@@ -928,6 +927,7 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 		cPid:  C.pid_t(siov.req.pid),
 		path:  C.GoString(&cPathBuf[0]),
 	}
+	ctx["syscall_args"] = &args
 
 	return s.doDeviceSyscall(c, &args, siov)
 }
@@ -989,6 +989,7 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 		cPid:  C.pid_t(siov.req.pid),
 		path:  C.GoString(&cPathBuf[0]),
 	}
+	ctx["syscall_args"] = &args
 
 	return s.doDeviceSyscall(c, &args, siov)
 }

@@ -53,7 +53,7 @@ again:
 	return 0;
 }
 
-void forkdns()
+void forkdns(void)
 {
 	ssize_t ret;
 	pid_t pid;

@@ -22,7 +22,6 @@ import (
 #include "unixfd.h"
 #include "netns_getifaddrs.c"
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error) {

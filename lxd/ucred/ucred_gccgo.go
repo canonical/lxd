@@ -35,7 +35,6 @@ void getucred(int sock, uint *uid, uint *gid, int *pid)
 	return;
 }
 */
-// #cgo CFLAGS: -std=gnu11 -Wvla -Werror -fvisibility=hidden
 import "C"
 
 // GetUCred returns the file descriptor's ucreds.
