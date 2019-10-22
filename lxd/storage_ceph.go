@@ -2930,7 +2930,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operati
 		}
 		logger.Debugf(`Created empty RBD storage volume for container "%s" on storage pool "%s`, instanceName, s.OSDPoolName)
 
-		wrapper := StorageProgressWriter(op, "fs_progress", curSnapName)
+		wrapper := migration.ProgressWriter(op, "fs_progress", curSnapName)
 		err = s.rbdRecv(conn, recvName, wrapper)
 		if err != nil {
 			logger.Errorf(`Failed to receive RBD storage volume "%s": %s`, curSnapName, err)
@@ -2965,7 +2965,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operati
 	}()
 
 	// receive the container itself
-	wrapper := StorageProgressWriter(op, "fs_progress", instanceName)
+	wrapper := migration.ProgressWriter(op, "fs_progress", instanceName)
 	err := s.rbdRecv(conn, recvName, wrapper)
 	if err != nil {
 		logger.Errorf(`Failed to receive RBD storage volume "%s": %s`, recvName, err)
