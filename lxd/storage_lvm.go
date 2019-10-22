@@ -2221,7 +2221,7 @@ func (s *storageLvm) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 		return nil
 	}
 
-	snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	snapshots, err := driver.VolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}

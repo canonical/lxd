@@ -2827,7 +2827,7 @@ func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSourc
 	dstMountPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 
-	snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	snapshots, err := driver.VolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}

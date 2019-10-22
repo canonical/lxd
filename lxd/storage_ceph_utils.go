@@ -1925,7 +1925,7 @@ func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) err
 		defer srcStorage.StoragePoolUmount()
 	}
 
-	snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	snapshots, err := driver.VolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}
