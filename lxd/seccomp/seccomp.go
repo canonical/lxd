@@ -928,6 +928,7 @@ func (s *Server) HandleMknodSyscall(c Instance, siov *Iovec) int {
 		cPid:  C.pid_t(siov.req.pid),
 		path:  C.GoString(&cPathBuf[0]),
 	}
+	ctx["syscall_args"] = &args
 
 	return s.doDeviceSyscall(c, &args, siov)
 }
@@ -989,6 +990,7 @@ func (s *Server) HandleMknodatSyscall(c Instance, siov *Iovec) int {
 		cPid:  C.pid_t(siov.req.pid),
 		path:  C.GoString(&cPathBuf[0]),
 	}
+	ctx["syscall_args"] = &args
 
 	return s.doDeviceSyscall(c, &args, siov)
 }
