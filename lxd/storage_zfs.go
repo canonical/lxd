@@ -2653,7 +2653,7 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operations.Operatio
 			return err
 		}
 
-		wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
+		wrapper := migration.ProgressWriter(op, "fs_progress", snap.GetName())
 		name := fmt.Sprintf("containers/%s@snapshot-%s", project.Prefix(args.Instance.Project(), args.Instance.Name()), snap.GetName())
 		if err := zfsRecv(name, wrapper); err != nil {
 			return err
@@ -2687,14 +2687,14 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operations.Operatio
 	}()
 
 	/* finally, do the real container */
-	wrapper := StorageProgressWriter(op, "fs_progress", args.Instance.Name())
+	wrapper := migration.ProgressWriter(op, "fs_progress", args.Instance.Name())
 	if err := zfsRecv(zfsName, wrapper); err != nil {
 		return err
 	}
 
 	if args.Live {
 		/* and again for the post-running snapshot if this was a live migration */
-		wrapper := StorageProgressWriter(op, "fs_progress", args.Instance.Name())
+		wrapper := migration.ProgressWriter(op, "fs_progress", args.Instance.Name())
 		if err := zfsRecv(zfsName, wrapper); err != nil {
 			return err
 		}

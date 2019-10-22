@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -98,7 +99,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		}
 		defer btrfsSubVolumesDelete(migrationSendSnapshot)
 
-		wrapper := StorageProgressReader(op, "fs_progress", containerName)
+		wrapper := migration.ProgressReader(op, "fs_progress", containerName)
 		return s.send(conn, migrationSendSnapshot, "", wrapper)
 	}
 
@@ -110,7 +111,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 			}
 
 			snapMntPoint := driver.GetSnapshotMountPoint(snap.Project(), containerPool, snap.Name())
-			wrapper := StorageProgressReader(op, "fs_progress", snap.Name())
+			wrapper := migration.ProgressReader(op, "fs_progress", snap.Name())
 			if err := s.send(conn, snapMntPoint, prev, wrapper); err != nil {
 				return err
 			}
@@ -141,7 +142,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		btrfsParent = s.btrfsSnapshotNames[len(s.btrfsSnapshotNames)-1]
 	}
 
-	wrapper := StorageProgressReader(op, "fs_progress", containerName)
+	wrapper := migration.ProgressReader(op, "fs_progress", containerName)
 	return s.send(conn, migrationSendSnapshot, btrfsParent, wrapper)
 }
 

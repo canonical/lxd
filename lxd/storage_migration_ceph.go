@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
@@ -85,7 +86,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 			s.ceph.OSDPoolName,
 			containerOnlyName,
 			snapOnlyName)
-		wrapper := StorageProgressReader(op, "fs_progress", containerName)
+		wrapper := migration.ProgressReader(op, "fs_progress", containerName)
 
 		err := s.rbdSend(conn, sendName, "", wrapper)
 		if err != nil {
@@ -113,7 +114,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 				project.Prefix(s.container.Project(), containerName),
 				snap)
 
-			wrapper := StorageProgressReader(op, "fs_progress", snap)
+			wrapper := migration.ProgressReader(op, "fs_progress", snap)
 
 			err := s.rbdSend(
 				conn,
@@ -139,7 +140,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 
 	cur := fmt.Sprintf("%s/container_%s@%s", s.ceph.OSDPoolName,
 		project.Prefix(s.container.Project(), containerName), s.runningSnapName)
-	wrapper := StorageProgressReader(op, "fs_progress", containerName)
+	wrapper := migration.ProgressReader(op, "fs_progress", containerName)
 	err = s.rbdSend(conn, cur, lastSnap, wrapper)
 	if err != nil {
 		logger.Errorf(`Failed to send exported diff of RBD storage volume "%s" from snapshot "%s": %s`, s.runningSnapName, lastSnap, err)
