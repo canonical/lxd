@@ -574,18 +574,17 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
 func storagePoolVolumeTypePostMigration(state *state.State, poolName string, volumeName string, req api.StorageVolumePost) response.Response {
-	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, storagePoolVolumeTypeCustom)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	ws, err := NewStorageMigrationSource(s, req.VolumeOnly)
+	ws, err := NewStorageMigrationSource(req.VolumeOnly)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, volumeName)}
+
+	run := func(op *operations.Operation) error {
+		return ws.DoStorage(state, poolName, volumeName, op)
+	}
 
 	if req.Target != nil {
 		// Push mode
@@ -594,7 +593,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, poolName string, vol
 			return response.InternalError(err)
 		}
 
-		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
+		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -603,7 +602,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, poolName string, vol
 	}
 
 	// Pull mode
-	op, err := operations.OperationCreate(state, "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
+	op, err := operations.OperationCreate(state, "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
 	if err != nil {
 		return response.InternalError(err)
 	}
