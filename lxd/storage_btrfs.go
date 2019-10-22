@@ -780,7 +780,7 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 	}
 
 	for _, vol := range volumes {
-		_, snapshotName, _ := shared.ContainerGetParentAndSnapshotName(vol)
+		_, snapshotName, _ := shared.ContainerGetParentAndSnapshotName(vol.Name)
 		oldVolumeName := fmt.Sprintf("%s%s%s", s.volume.Name, shared.SnapshotDelimiter, snapshotName)
 		newVolumeName := fmt.Sprintf("%s%s%s", newName, shared.SnapshotDelimiter, snapshotName)
 
@@ -2903,7 +2903,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 		}
 
 		for _, snap := range snapshots {
-			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, snap)
+			srcSnapshotMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(sourcePool, snap.Name)
 
 			_, err = rsync.LocalCopy(srcSnapshotMntPoint, destVolumeMntPoint, bwlimit, true)
 			if err != nil {
@@ -2912,7 +2912,7 @@ func (s *storageBtrfs) doCrossPoolVolumeCopy(sourcePool string, sourceName strin
 			}
 
 			// create snapshot
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap)
+			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 
 			err = s.doVolumeSnapshotCreate(s.pool.Name, s.volume.Name, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 			if err != nil {

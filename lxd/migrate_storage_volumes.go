@@ -62,14 +62,14 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operations.Operation) error {
 		if err == nil {
 			poolID, err := state.Cluster.StoragePoolGetID(pool.Name)
 			if err == nil {
-				for _, name := range snaps {
-					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetType(name, storagePoolVolumeTypeCustom, poolID)
+				for _, snap := range snaps {
+					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetType(snap.Name, storagePoolVolumeTypeCustom, poolID)
 					if err != nil {
 						continue
 					}
 
 					snapshots = append(snapshots, volumeSnapshotToProtobuf(snapVolume))
-					_, snapName, _ := shared.ContainerGetParentAndSnapshotName(name)
+					_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
 					snapshotNames = append(snapshotNames, snapName)
 				}
 			}
