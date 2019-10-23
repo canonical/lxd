@@ -1214,7 +1214,11 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	if isSnapshot {
 		// Create the storage volume entry
 		vol := api.StorageVolumeSnapshotPost{}
-		_, dstSnapName, dstIsSnap := shared.ContainerGetParentAndSnapshotName(args[2])
+		dstParentName, dstSnapName, dstIsSnap := shared.ContainerGetParentAndSnapshotName(args[2])
+
+		if dstParentName != fields[0] {
+			return fmt.Errorf("Invalid new snapshot name, parent volume must be the same as source")
+		}
 
 		if !dstIsSnap {
 			return fmt.Errorf("Invalid new snapshot name")
