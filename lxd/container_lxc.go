@@ -3245,12 +3245,12 @@ func (c *containerLXC) RenderState() (*api.InstanceState, error) {
 	if c.IsRunning() {
 		pid := c.InitPID()
 		status.CPU = c.cpuState()
-		status.Disk = c.diskState()
 		status.Memory = c.memoryState()
 		status.Network = c.networkState()
 		status.Pid = int64(pid)
 		status.Processes = c.processesState()
 	}
+	status.Disk = c.diskState()
 
 	return &status, nil
 }
