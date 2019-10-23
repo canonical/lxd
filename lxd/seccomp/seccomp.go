@@ -262,6 +262,12 @@ finit_module errno 38
 delete_module errno 38
 `
 
+//          8 == SECCOMP_FILTER_FLAG_NEW_LISTENER
+// 2146435072 == SECCOMP_RET_TRACE
+const seccompNotifyDisallow = `seccomp errno 22 [1,2146435072,SCMP_CMP_MASKED_EQ,2146435072]
+seccomp errno 22 [1,8,SCMP_CMP_MASKED_EQ,8]
+`
+
 const seccompNotifyMknod = `mknod notify [1,8192,SCMP_CMP_MASKED_EQ,61440]
 mknod notify [1,24576,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
@@ -447,6 +453,10 @@ func seccompGetPolicyContent(c Instance) (string, error) {
 		if shared.IsTrue(config["security.syscalls.intercept.setxattr"]) {
 			policy += seccompNotifySetxattr
 		}
+
+		// Prevent the container from overriding our syscall
+		// supervision.
+		policy += seccompNotifyDisallow
 	}
 
 	if whitelist != "" {
