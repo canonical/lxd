@@ -323,6 +323,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 			path := fmt.Sprintf("/storage-pools/%s/volumes/%s", url.PathEscape(pool), url.PathEscape(req.Type))
 			top, _, err := r.queryOperation("POST", path, req, "")
 			if err != nil {
+				errors[serverURL] = err
 				continue
 			}
 
