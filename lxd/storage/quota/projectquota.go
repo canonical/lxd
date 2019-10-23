@@ -74,7 +74,7 @@ int quota_supported(char *dev_path) {
 	return quotactl(QCMD(Q_GETINFO, PRJQUOTA), dev_path, 0, (caddr_t)&dqinfo);
 }
 
-int quota_get_usage(char *dev_path, uint32_t id) {
+int64_t quota_get_usage(char *dev_path, uint32_t id) {
 	struct if_dqblk quota;
 
 	if (quotactl(QCMD(Q_GETQUOTA, PRJQUOTA), dev_path, id, (caddr_t)&quota) < 0) {
@@ -85,7 +85,7 @@ int quota_get_usage(char *dev_path, uint32_t id) {
 }
 
 
-int quota_set(char *dev_path, uint32_t id, int hard_bytes) {
+int quota_set(char *dev_path, uint32_t id, uint64_t hard_bytes) {
 	struct if_dqblk quota;
 	fs_disk_quota_t xfsquota;
 
@@ -266,7 +266,7 @@ func GetProjectUsage(path string, id uint32) (int64, error) {
 
 	size := C.quota_get_usage(cDevPath, C.uint32_t(id))
 	if size < 0 {
-		return -1, fmt.Errorf("Failed to get project consumption for id '%d' on '%s'", id, path)
+		return -1, fmt.Errorf("Failed to get project consumption for id '%d' on '%s'", id, devPath)
 	}
 
 	return int64(size), nil
@@ -284,8 +284,8 @@ func SetProjectQuota(path string, id uint32, bytes int64) error {
 	cDevPath := C.CString(devPath)
 	defer C.free(unsafe.Pointer(cDevPath))
 
-	if C.quota_set(cDevPath, C.uint32_t(id), C.int(bytes/1024)) != 0 {
-		return fmt.Errorf("Failed to set project quota for id '%d' on '%s'", id, path)
+	if C.quota_set(cDevPath, C.uint32_t(id), C.uint64_t(bytes/1024)) != 0 {
+		return fmt.Errorf("Failed to set project quota for id '%d' on '%s'", id, devPath)
 	}
 
 	return nil
