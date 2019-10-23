@@ -266,6 +266,20 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
+	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Check if destination volume exists.
+	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject("default", req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	if err != db.ErrNoSuchObject {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+	}
 
 	switch req.Source.Type {
 	case "":
@@ -362,6 +376,20 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
+	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Check if destination volume exists.
+	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject("default", req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	if err != db.ErrNoSuchObject {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+	}
 
 	switch req.Source.Type {
 	case "":
@@ -540,7 +568,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 			return response.InternalError(err)
 		}
 
-		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
 	}
 
 	// Check if the daemon itself is using it.
