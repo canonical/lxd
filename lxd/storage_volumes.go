@@ -986,23 +986,13 @@ func storagePoolVolumeTypeImagePut(d *Daemon, r *http.Request) response.Response
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
 	// Get the name of the storage volume.
-	var volumeName string
-	fields := strings.Split(mux.Vars(r)["name"], "/")
+	volumeName := mux.Vars(r)["name"]
 
-	if len(fields) == 3 && fields[1] == "snapshots" {
-		// Handle volume snapshots
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2])
-	} else if len(fields) > 1 {
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[1])
-	} else if len(fields) > 0 {
-		// Handle volume
-		volumeName = fields[0]
-	} else {
-		return response.BadRequest(fmt.Errorf("invalid storage volume %s", mux.Vars(r)["name"]))
+	if shared.IsSnapshot(volumeName) {
+		return response.BadRequest(fmt.Errorf("Invalid volume name"))
 	}
 
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
@@ -1010,14 +1000,14 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
-	// Get the ID of the storage pool the storage volume is supposed to be
-	// attached to.
-	poolID, pool, err := d.cluster.StoragePoolGet(poolName)
+	// Get the ID of the storage pool the storage volume is supposed to be attached to.
+	poolID, poolRow, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1033,13 +1023,13 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 	}
 
 	// Get the existing storage volume.
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Validate the ETag
-	etag := []interface{}{volumeName, volume.Type, volume.Config}
+	// Validate the ETag.
+	etag := []interface{}{volumeName, vol.Type, vol.Config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -1055,22 +1045,36 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		req.Config = map[string]string{}
 	}
 
-	for k, v := range volume.Config {
+	// Merge current config with requested changes.
+	for k, v := range vol.Config {
 		_, ok := req.Config[k]
 		if !ok {
 			req.Config[k] = v
 		}
 	}
 
-	// Validate the configuration
-	err = storagePools.VolumeValidateConfig(volumeName, req.Config, pool)
-	if err != nil {
-		return response.BadRequest(err)
-	}
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
-	if err != nil {
-		return response.SmartError(err)
+		err = pool.UpdateCustomVolume(vol.Name, req.Description, req.Config, nil)
+		if err != nil {
+			return response.SmartError(err)
+		}
+	} else {
+		// Validate the configuration.
+		err = storagePools.VolumeValidateConfig(volumeName, req.Config, poolRow)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+
+		err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
