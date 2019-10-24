@@ -37,17 +37,6 @@ static inline bool same_fsinfo(struct stat *s1, struct stat *s2,
 	return ((sfs1->f_type == sfs2->f_type) && (s1->st_dev == s2->st_dev));
 }
 
-static int fstat_fstatfs(int fd, struct stat *s, struct statfs *sfs)
-{
-	if (fstat(fd, s))
-		return -1;
-
-	if (fstatfs(fd, sfs))
-		return -1;
-
-	return 0;
-}
-
 static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 {
 	ssize_t len;
@@ -98,7 +87,7 @@ static bool acquire_basic_creds(pid_t pid)
 static void forkmknod(void)
 {
 	__do_close_prot_errno int target_dir_fd = -EBADF;
-	char *cur = NULL, *target = NULL, *target_dir = NULL, *target_host = NULL;
+	char *target = NULL, *target_dir = NULL;
 	int ret;
 	char path[PATH_MAX];
 	mode_t mode;
@@ -113,7 +102,7 @@ static void forkmknod(void)
 	target = advance_arg(true);
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
-	target_host = advance_arg(true);
+	advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));

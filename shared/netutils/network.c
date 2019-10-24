@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "../../lxd/include/compiler.h"
 #include "../../lxd/include/macro.h"
 
 #ifndef NETNS_RTA
@@ -250,7 +251,7 @@ static int addattr(struct nlmsghdr *n, size_t maxlen, int type,
 	return 0;
 }
 
-static __s32 netns_get_nsid(__s32 netns_fd)
+__unused static __s32 netns_get_nsid(__s32 netns_fd)
 {
 	int fd, ret;
 	ssize_t len;

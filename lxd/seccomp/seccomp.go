@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -814,33 +813,14 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 
 // CallForkmknod executes fork mknod.
 func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int) int {
-	rootLink := fmt.Sprintf("/proc/%d/root", requestPID)
-	rootPath, err := os.Readlink(rootLink)
-	if err != nil {
-		return int(-C.EPERM)
-	}
-
 	uid, gid, fsuid, fsgid, err := TaskIDs(requestPID)
 	if err != nil {
 		return int(-C.EPERM)
 	}
 
-	if !path.IsAbs(dev["path"]) {
-		cwdLink := fmt.Sprintf("/proc/%d/cwd", requestPID)
-		prefixPath, err := os.Readlink(cwdLink)
-		if err != nil {
-			return int(-C.EPERM)
-		}
-
-		prefixPath = strings.TrimPrefix(prefixPath, rootPath)
-		dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, prefixPath, dev["path"])
-	} else {
-		dev["hostpath"] = filepath.Join(c.RootfsPath(), rootPath, dev["path"])
-	}
-
 	_, stderr, err := shared.RunCommandSplit(nil, util.GetExecPath(),
 		"forksyscall", "mknod", dev["pid"], dev["path"],
-		dev["mode_t"], dev["dev_t"], dev["hostpath"],
+		dev["mode_t"], dev["dev_t"],
 		fmt.Sprintf("%d", uid), fmt.Sprintf("%d", gid),
 		fmt.Sprintf("%d", fsuid), fmt.Sprintf("%d", fsgid))
 	if err != nil {

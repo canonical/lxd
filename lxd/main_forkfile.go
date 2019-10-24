@@ -269,7 +269,6 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 	}
 
-out:
 	return ret;
 }
 
@@ -287,7 +286,6 @@ void forkdofile(bool is_put, char *rootfs, pid_t pid) {
 
 	char *source = NULL;
 	char *target = NULL;
-	char *writeMode = NULL;
 	char *type = NULL;
 
 	bool append = false;
