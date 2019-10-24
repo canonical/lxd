@@ -169,6 +169,11 @@ func GetVolumeSnapshotDir(poolName string, volType VolumeType, volName string) (
 	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", volName)), nil
 }
 
+// GetSnapshotVolumeName returns the full volume name for a parent volume and snapshot name.
+func GetSnapshotVolumeName(parentName, snapshotName string) string {
+	return fmt.Sprintf("%s%s%s", parentName, shared.SnapshotDelimiter, snapshotName)
+}
+
 // DeleteParentSnapshotDirIfEmpty removes the parent snapshot directory if it is empty.
 // It accepts the volume name of a snapshot in the form "volume/snap" and the volume path of the
 // snapshot. It will then remove the snapshots directory above "/snap" if it is empty.
