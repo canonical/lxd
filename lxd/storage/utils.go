@@ -523,7 +523,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 // VolumeValidateConfig validations volume config.
 func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
 	// Validate volume config using the new driver interface if supported.
-	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil)
+	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, validateVolumeCommonRules)
 	if err != drivers.ErrUnknownDriver {
 		return driver.ValidateVolume(config, false)
 	}
@@ -655,4 +655,26 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 	}
 
 	return newConfig, nil
+}
+
+// validateVolumeCommonRules returns a map of volume config rules common to all drivers.
+func validateVolumeCommonRules() map[string]func(string) error {
+	return map[string]func(string) error{
+		"security.shifted":    shared.IsBool,
+		"security.unmapped":   shared.IsBool,
+		"volatile.idmap.last": shared.IsAny,
+		"volatile.idmap.next": shared.IsAny,
+		"size": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			_, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+	}
 }
