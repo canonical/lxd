@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "../../lxd/include/compiler.h"
 #include "network.c"
 
 struct netns_ifaddrs {
@@ -460,8 +461,8 @@ static int __rtnl_enumerate(int link_af, int addr_af, __s32 netns_id,
 	return r;
 }
 
-static int netns_getifaddrs(struct netns_ifaddrs **ifap, __s32 netns_id,
-			    bool *netnsid_aware)
+__unused static int netns_getifaddrs(struct netns_ifaddrs **ifap,
+				     __s32 netns_id, bool *netnsid_aware)
 {
 	int r, saved_errno;
 	struct ifaddrs_ctx _ctx;
@@ -482,7 +483,7 @@ static int netns_getifaddrs(struct netns_ifaddrs **ifap, __s32 netns_id,
 }
 
 // Get a pointer to the address structure from a sockaddr.
-static void *get_addr_ptr(struct sockaddr *sockaddr_ptr)
+__unused static void *get_addr_ptr(struct sockaddr *sockaddr_ptr)
 {
 	if (sockaddr_ptr->sa_family == AF_INET)
 		return &((struct sockaddr_in *)sockaddr_ptr)->sin_addr;
@@ -493,7 +494,8 @@ static void *get_addr_ptr(struct sockaddr *sockaddr_ptr)
 	return NULL;
 }
 
-static char *get_packet_address(struct sockaddr *sockaddr_ptr, char *buf, size_t buflen)
+__unused static char *get_packet_address(struct sockaddr *sockaddr_ptr,
+					 char *buf, size_t buflen)
 {
 	char *slider = buf;
 	unsigned char *m = ((struct sockaddr_ll *)sockaddr_ptr)->sll_addr;

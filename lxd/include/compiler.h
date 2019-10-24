@@ -57,6 +57,10 @@
 #	define __hot __attribute__((hot))
 #endif
 
+#ifndef __unused
+#	define __unused __attribute__((unused))
+#endif
+
 #define __cgfsng_ops
 
 #endif /* __LXC_COMPILER_H */
