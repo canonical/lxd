@@ -75,9 +75,15 @@ func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
 	cmd.Short = i18n.G("Add devices to containers or profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add devices to containers or profiles`))
-	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config device add [<remote>:]container1 <device-name> disk source=/share/c1 path=opt
+	if c.config != nil {
+		cmd.Example = cli.FormatSection("", i18n.G(
+			`lxc config device add [<remote>:]container1 <device-name> disk source=/share/c1 path=opt
     Will mount the host's /share/c1 onto /opt in the container.`))
+	} else if c.profile != nil {
+		cmd.Example = cli.FormatSection("", i18n.G(
+			`lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/c1 path=opt
+    Will mount the host's /share/c1 onto /opt in the container.`))
+	}
 
 	cmd.RunE = c.Run
 
@@ -497,11 +503,19 @@ func (c *cmdConfigDeviceSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("set [<remote>:]<container|profile> <device> <key>=<value>...")
 	cmd.Short = i18n.G("Set container device configuration keys")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set container device configuration keys
+	if c.config != nil {
+		cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+			`Set container device configuration keys
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc config device set [<remote>:]<container|profile> <device> <key> <value>`))
+    lxc config device set [<remote>:]<container> <device> <key> <value>`))
+	} else if c.profile != nil {
+		cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+			`Set container device configuration keys
+
+For backward compatibility, a single configuration key may still be set with:
+    lxc profile device set [<remote>:]<profile> <device> <key> <value>`))
+	}
 
 	cmd.RunE = c.Run
 
