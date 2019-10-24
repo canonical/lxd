@@ -1837,8 +1837,40 @@ func (vm *vmQemu) FileExists(path string) error {
 	return fmt.Errorf("FileExists Not implemented")
 }
 
-func (vm *vmQemu) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
-	return 0, 0, 0, "", nil, fmt.Errorf("FilePull Not implemented")
+func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	if err != nil {
+		return 0, 0, 0, "", nil, err
+	}
+
+	content, resp, err := agent.GetInstanceFile("", srcPath)
+	if err != nil {
+		return 0, 0, 0, "", nil, err
+	}
+
+	switch resp.Type {
+	case "file", "symlink":
+		data, err := ioutil.ReadAll(content)
+		if err != nil {
+			return 0, 0, 0, "", nil, err
+		}
+
+		err = ioutil.WriteFile(dstPath, data, os.FileMode(resp.Mode))
+		if err != nil {
+			return 0, 0, 0, "", nil, err
+		}
+
+		err = os.Lchown(dstPath, int(resp.UID), int(resp.GID))
+		if err != nil {
+			return 0, 0, 0, "", nil, err
+		}
+
+		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, nil, nil
+	case "directory":
+		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, resp.Entries, nil
+	}
+
+	return 0, 0, 0, "", nil, fmt.Errorf("bad file type %s", resp.Type)
 }
 
 func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
