@@ -33,10 +33,10 @@ import (
 #include "include/lxd_seccomp.h"
 #include "include/memory_utils.h"
 
-bool netnsid_aware = false;
-bool uevent_aware = false;
-int seccomp_notify_aware = 0;
-char errbuf[4096];
+__ro_after_init bool netnsid_aware = false;
+__ro_after_init bool uevent_aware = false;
+__ro_after_init int seccomp_notify_aware = 0;
+__ro_after_init char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
 
