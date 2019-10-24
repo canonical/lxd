@@ -469,7 +469,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
-			return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
+			return SupportedPoolTypes, nil
 		}
 
 		_, err := units.ParseByteSizeString(value)
@@ -477,7 +477,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 			return nil, err
 		}
 
-		return []string{"btrfs", "ceph", "cephfs", "lvm", "zfs"}, nil
+		return SupportedPoolTypes, nil
 	},
 	"volatile.idmap.last": func(value string) ([]string, error) {
 		return SupportedPoolTypes, shared.IsAny(value)
@@ -548,9 +548,7 @@ func VolumeValidateConfig(name string, config map[string]string, parentPool *api
 
 // VolumeFillDefault fills default settings into a volume config.
 func VolumeFillDefault(name string, config map[string]string, parentPool *api.StoragePool) error {
-	if parentPool.Driver == "dir" {
-		config["size"] = ""
-	} else if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
+	if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
 		if config["block.filesystem"] == "" {
 			config["block.filesystem"] = parentPool.Config["volume.block.filesystem"]
 		}
@@ -576,7 +574,7 @@ func VolumeFillDefault(name string, config map[string]string, parentPool *api.St
 		if config["size"] == "0" || config["size"] == "" {
 			config["size"] = "10GB"
 		}
-	} else {
+	} else if parentPool.Driver != "dir" {
 		if config["size"] != "" {
 			_, err := units.ParseByteSizeString(config["size"])
 			if err != nil {
