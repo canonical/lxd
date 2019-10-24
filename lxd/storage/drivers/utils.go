@@ -143,16 +143,16 @@ func vfsResources(path string) (*api.ResourcesStoragePool, error) {
 	return &res, nil
 }
 
-// GetPoolMountPoint returns the mountpoint of the given pool.
+// GetPoolMountPath returns the mountpoint of the given pool.
 // {LXD_DIR}/storage-pools/<pool>
-func GetPoolMountPoint(poolName string) string {
+func GetPoolMountPath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName)
 }
 
-// GetVolumeMountPoint returns the mount path for a specific volume based on its pool and type and
+// GetVolumeMountPath returns the mount path for a specific volume based on its pool and type and
 // whether it is a snapshot or not.
 // For VolumeTypeImage the volName is the image fingerprint.
-func GetVolumeMountPoint(poolName string, volType VolumeType, volName string) string {
+func GetVolumeMountPath(poolName string, volType VolumeType, volName string) string {
 	if shared.IsSnapshot(volName) {
 		return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", volName))
 	}
