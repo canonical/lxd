@@ -131,7 +131,7 @@ void create(char *src, char *dest)
 
 static void do_lxd_forkmount(pid_t pid)
 {
-	char *src, *dest, *opts, *shiftfs;
+	char *src, *dest, *shiftfs;
 
 	attach_userns(pid);
 
@@ -328,7 +328,6 @@ void forkmount(void)
 	char *cur = NULL;
 
 	char *command = NULL;
-	char *rootfs = NULL;
 	pid_t pid = 0;
 
 	// Get the subcommand

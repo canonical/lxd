@@ -42,11 +42,6 @@ import (
 // This is an adaption from https://codereview.appspot.com/4589049, to be
 // included in the stdlib with the stdlib's license.
 
-static int mygetgrgid_r(int gid, struct group *grp,
-	char *buf, size_t buflen, struct group **result) {
-	return getgrgid_r(gid, grp, buf, buflen, result);
-}
-
 void configure_pty(int fd) {
 	struct termios term_settings;
 	struct winsize win;
