@@ -20,6 +20,9 @@
 #define SECCOMP_GET_NOTIF_SIZES 3
 #endif
 
+// Workaround for kernels with bad definition (using BIT)
+#undef SECCOMP_USER_NOTIF_FLAG_CONTINUE
+
 #ifndef SECCOMP_USER_NOTIF_FLAG_CONTINUE
 #define SECCOMP_USER_NOTIF_FLAG_CONTINUE 0x00000001
 #endif
