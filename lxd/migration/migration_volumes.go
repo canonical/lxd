@@ -96,16 +96,17 @@ func TypesToHeader(types ...Type) MigrationHeader {
 // a Type is returned containing the method and the matching optional features present in both.
 func MatchTypes(offer MigrationHeader, ourTypes []Type) (Type, error) {
 	// Find first matching type.
+	offerFSType := offer.GetFs()
 	for _, ourType := range ourTypes {
-		if *offer.Fs != ourType.FSType {
+		if offerFSType != ourType.FSType {
 			continue // Not a match, try the next one.
 		}
 
 		// We got a match, now extract the relevant offered features.
 		var offeredFeatures []string
-		if *offer.Fs == MigrationFSType_ZFS {
+		if offerFSType == MigrationFSType_ZFS {
 			offeredFeatures = offer.GetZfsFeaturesSlice()
-		} else if *offer.Fs == MigrationFSType_RSYNC {
+		} else if offerFSType == MigrationFSType_RSYNC {
 			offeredFeatures = offer.GetRsyncFeaturesSlice()
 		}
 
@@ -124,8 +125,13 @@ func MatchTypes(offer MigrationHeader, ourTypes []Type) (Type, error) {
 		}, nil
 	}
 
-	// No matching transport type found.
-	return Type{}, fmt.Errorf("No matching migration type found")
+	// No matching transport type found, generate an error with offered type and our types.
+	ourTypeStrings := make([]string, 0, len(ourTypes))
+	for _, ourType := range ourTypes {
+		ourTypeStrings = append(ourTypeStrings, ourType.FSType.String())
+	}
+
+	return Type{}, fmt.Errorf("No matching migration type found. Offered type: %v, our types: %v", offerFSType, ourTypeStrings)
 }
 
 func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
