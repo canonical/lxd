@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -180,53 +180,76 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 
 // Send sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func Send(name string, path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, features []string, bwlimit string, execPath string) error {
-	cmd, dataSocket, stderr, err := sendSetup(name, path, bwlimit, execPath, features)
+func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string) error {
+	cmd, netcatConn, stderr, err := sendSetup(name, path, bwlimit, execPath, features)
 	if err != nil {
 		return err
 	}
 
-	if dataSocket != nil {
-		defer dataSocket.Close()
-	}
-
-	readPipe := io.ReadCloser(dataSocket)
-	if readWrapper != nil {
-		readPipe = readWrapper(dataSocket)
-	}
-
-	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, readPipe, nil, nil)
-
-	chError := make(chan error, 1)
-	go func() {
-		err = cmd.Wait()
-		if err != nil {
-			dataSocket.Close()
-			readPipe.Close()
+	// Setup progress tracker.
+	readNetcatPipe := io.ReadCloser(netcatConn)
+	if tracker != nil {
+		readNetcatPipe = &ioprogress.ProgressReader{
+			ReadCloser: netcatConn,
+			Tracker:    tracker,
 		}
-		chError <- err
+	}
+
+	// Forward from netcat to target.
+	chCopyNetcat := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(conn, readNetcatPipe)
+		chCopyNetcat <- err
+		readNetcatPipe.Close()
+		netcatConn.Close()
+		conn.Close() // sends barrier message.
 	}()
 
+	// Forward from target to netcat.
+	writeNetcatPipe := io.WriteCloser(netcatConn)
+	chCopyTarget := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(writeNetcatPipe, conn)
+		chCopyTarget <- err
+		writeNetcatPipe.Close()
+	}()
+
+	// Wait for rsync to complete.
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
 		cmd.Process.Kill()
+		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
 	}
 
-	err = <-chError
+	err = cmd.Wait()
+	errs := []error{}
+	chCopyNetcatErr := <-chCopyNetcat
+	chCopyTargetErr := <-chCopyTarget
+
 	if err != nil {
-		logger.Errorf("Rsync send failed: %s: %s: %s", path, err, string(output))
+		errs = append(errs, err)
+
+		// Try to get more info about the error.
+		if chCopyNetcatErr != nil {
+			errs = append(errs, chCopyNetcatErr)
+		}
+
+		if chCopyTargetErr != nil {
+			errs = append(errs, chCopyTargetErr)
+		}
 	}
 
-	<-readDone
-	<-writeDone
+	if len(errs) > 0 {
+		return fmt.Errorf("Rsync send failed: %s, %s: %v (%s)", name, path, errs, string(output))
+	}
 
-	return err
+	return nil
 }
 
 // Recv sets up the receiving half of the websocket to rsync (the other
 // half set up by rsync.Send), putting the contents in the directory specified
 // by path.
-func Recv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser, features []string) error {
+func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string) error {
 	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
@@ -244,47 +267,80 @@ func Recv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) i
 
 	cmd := exec.Command("rsync", args...)
 
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-
+	// Forward from rsync to source.
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
+	chCopyRsync := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(conn, stdout)
+		chCopyRsync <- err
+		stdout.Close()
+		conn.Close() // sends barrier message.
+	}()
+
+	// Forward from source to rsync.
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	readSourcePipe := io.ReadCloser(conn)
+	if tracker != nil {
+		readSourcePipe = &ioprogress.ProgressReader{
+			ReadCloser: conn,
+			Tracker:    tracker,
+		}
+	}
+
+	chCopySource := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(stdin, readSourcePipe)
+		chCopySource <- err
+		stdin.Close()
+	}()
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		cmd.Process.Kill()
+		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
+	}
+
+	err = cmd.Start()
+	if err != nil {
 		return err
 	}
 
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	writePipe := io.WriteCloser(stdin)
-	if writeWrapper != nil {
-		writePipe = writeWrapper(stdin)
-	}
-
-	readDone, writeDone := shared.WebsocketMirror(conn, writePipe, stdout, nil, nil)
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
-		return err
+		logger.Errorf("Rsync stderr read failed: %s: %v", path, err)
 	}
 
 	err = cmd.Wait()
+	errs := []error{}
+	chCopyRsyncErr := <-chCopyRsync
+	chCopySourceErr := <-chCopySource
+
 	if err != nil {
-		logger.Errorf("Rsync receive failed: %s: %s: %s", path, err, string(output))
+		errs = append(errs, err)
+
+		// Try to get more info about the error.
+		if chCopyRsyncErr != nil {
+			errs = append(errs, chCopyRsyncErr)
+		}
+
+		if chCopySourceErr != nil {
+			errs = append(errs, chCopySourceErr)
+		}
 	}
 
-	<-readDone
-	<-writeDone
+	if len(errs) > 0 {
+		return fmt.Errorf("Rsync receive failed: %s: %v (%s)", path, errs, string(output))
+	}
 
-	return err
+	return nil
 }
 
 func rsyncFeatureArgs(features []string) []string {
