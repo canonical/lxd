@@ -28,6 +28,7 @@ import (
 
 #include "include/memory_utils.h"
 
+extern void attach_userns(int pid);
 extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
@@ -82,9 +83,60 @@ static bool acquire_basic_creds(pid_t pid)
 	return chdirchroot_in_mntns(cwd_fd, root_fd);
 }
 
+static bool acquire_final_creds(pid_t pid, uid_t uid, gid_t gid, uid_t fsuid, gid_t fsgid)
+{
+	int ret;
+	cap_t caps;
+
+	caps = cap_get_pid(pid);
+	if (!caps) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	ret = prctl(PR_SET_KEEPCAPS, 1);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	ret = setegid(gid);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	setfsgid(fsgid);
+	if (setfsgid(-1) != fsgid) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+
+	ret = seteuid(uid);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	setfsuid(fsuid);
+	if (setfsuid(-1) != fsuid) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	ret = cap_set_proc(caps);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	return true;
+}
+
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
-static void forkmknod(void)
+static void mknod_emulate(void)
 {
 	__do_close_prot_errno int target_dir_fd = -EBADF;
 	char *target = NULL, *target_dir = NULL;
@@ -96,7 +148,6 @@ static void forkmknod(void)
 	uid_t fsuid, uid;
 	gid_t fsgid, gid;
 	struct statfs sfs;
-	cap_t caps;
 
 	pid = atoi(advance_arg(true));
 	target = advance_arg(true);
@@ -121,39 +172,8 @@ static void forkmknod(void)
 		_exit(EXIT_FAILURE);
 	}
 
-	caps = cap_get_pid(pid);
-	if (!caps) {
-		fprintf(stderr, "%d", ENOANO);
+	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
 		_exit(EXIT_FAILURE);
-	}
-
-	ret = prctl(PR_SET_KEEPCAPS, 1);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	ret = setegid(gid);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	setfsgid(fsgid);
-
-	ret = seteuid(uid);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	setfsuid(fsuid);
-
-	ret = cap_set_proc(caps);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
 
 	ret = fstatfs(target_dir_fd, &sfs);
 	if (ret) {
@@ -224,7 +244,7 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t 
 	return true;
 }
 
-static void forksetxattr(void)
+static void setxattr_emulate(void)
 {
 	__do_close_prot_errno int ns_fd = -EBADF, target_fd = -EBADF;
 	int flags = 0;
@@ -305,6 +325,169 @@ static void forksetxattr(void)
 	}
 }
 
+static bool is_dir(const char *path)
+{
+	struct stat statbuf;
+	int ret;
+
+	ret = stat(path, &statbuf);
+	if (ret == 0 && S_ISDIR(statbuf.st_mode))
+		return true;
+
+	return false;
+}
+
+static int make_tmpfile(char *template, bool dir)
+{
+	__do_close_prot_errno int fd = -EBADF;
+
+	if (dir) {
+		if (!mkdtemp(template))
+			return -1;
+
+		return 0;
+	}
+
+	fd = mkstemp(template);
+	if (fd < 0)
+		return -1;
+
+	return 0;
+}
+
+static int preserve_ns(const int pid, const char *ns)
+{
+	int ret;
+// 5 /proc + 21 /int_as_str + 3 /ns + 20 /NS_NAME + 1 \0
+#define __NS_PATH_LEN 50
+	char path[__NS_PATH_LEN];
+
+	// This way we can use this function to also check whether namespaces
+	// are supported by the kernel by passing in the NULL or the empty
+	// string.
+	ret = snprintf(path, __NS_PATH_LEN, "/proc/%d/ns%s%s", pid,
+		       !ns || strcmp(ns, "") == 0 ? "" : "/",
+		       !ns || strcmp(ns, "") == 0 ? "" : ns);
+	if (ret < 0 || (size_t)ret >= __NS_PATH_LEN) {
+		errno = EFBIG;
+		return -1;
+	}
+
+	return open(path, O_RDONLY | O_CLOEXEC);
+}
+
+static void mount_emulate(void)
+{
+	__do_close_prot_errno int mnt_fd = -EBADF;
+	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
+	uid_t uid = -1, fsuid = -1;
+	gid_t gid = -1, fsgid = -1;
+	int ret;
+	pid_t pid = -1;
+	unsigned long flags = 0;
+	const void *data;
+
+	pid = atoi(advance_arg(true));
+	source = advance_arg(true);
+	target = advance_arg(true);
+	fstype = advance_arg(true);
+	flags = atoi(advance_arg(true));
+	shiftfs = advance_arg(true);
+	uid = atoi(advance_arg(true));
+	gid = atoi(advance_arg(true));
+	fsuid = atoi(advance_arg(true));
+	fsgid = atoi(advance_arg(true));
+	data = advance_arg(false);
+
+	mnt_fd = preserve_ns(getpid(), "mnt");
+	if (mnt_fd < 0)
+		_exit(EXIT_FAILURE);
+
+	if (!acquire_basic_creds(pid))
+		_exit(EXIT_FAILURE);
+
+	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
+		_exit(EXIT_FAILURE);
+
+	if (strcmp(shiftfs, "true") == 0) {
+		char template[] = P_tmpdir "/.lxd_tmp_mount_XXXXXX";
+
+		// Create basic mount in container's mount namespace.
+		ret = mount(source, target, fstype, flags, data);
+		if (ret)
+			_exit(EXIT_FAILURE);
+
+		// Mark the mount as shiftable.
+		ret = mount(target, target, "shiftfs", 0, "mark,passthrough=3");
+		if (ret) {
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		// We need to reattach to the old mount namespace, then attach
+		// to the user namespace of the container, and then attach to
+		// the mount namespace again to get the ownership right when
+		// creating our final shiftfs mount.
+		ret = setns(mnt_fd, CLONE_NEWNS);
+		if (ret) {
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		attach_userns(pid);
+		if (!acquire_basic_creds(pid)) {
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid)) {
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		ret = mount(target, target, "shiftfs", 0, "passthrough=3");
+		if (ret) {
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		ret = make_tmpfile(template, is_dir(target));
+		if (ret) {
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		ret = mount(target, template, "none", MS_MOVE | MS_REC, NULL);
+		if (ret) {
+			remove(template);
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			umount2(target, MNT_DETACH);
+			_exit(EXIT_FAILURE);
+		}
+
+		umount2(target, MNT_DETACH);
+		umount2(target, MNT_DETACH);
+
+		ret = mount(template, target, "none", MS_MOVE | MS_REC, NULL);
+		if (ret) {
+			umount2(template, MNT_DETACH);
+			remove(template);
+			_exit(EXIT_FAILURE);
+		}
+		remove(template);
+	} else {
+		if (mount(source, target, fstype, flags, data) < 0)
+			_exit(EXIT_FAILURE);
+	}
+}
+
 void forksyscall(void)
 {
 	char *syscall = NULL;
@@ -321,9 +504,11 @@ void forksyscall(void)
 		_exit(EXIT_SUCCESS);
 
 	if (strcmp(syscall, "mknod") == 0)
-		forkmknod();
+		mknod_emulate();
 	else if (strcmp(syscall, "setxattr") == 0)
-		forksetxattr();
+		setxattr_emulate();
+	else if (strcmp(syscall, "mount") == 0)
+		mount_emulate();
 	else
 		_exit(EXIT_FAILURE);
 
