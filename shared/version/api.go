@@ -172,6 +172,7 @@ var APIExtensions = []string{
 	"resources_network_firmware",
 	"backup_compression_algorithm",
 	"ceph_data_pool_name",
+	"container_syscall_intercept_mount",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

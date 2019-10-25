@@ -859,3 +859,10 @@ This adds support for an optional argument (`ceph.osd.data_pool_name`) when crea
 storage pools using Ceph RBD, when this argument is used the pool will store it's
 actual data in the pool specified with `data_pool_name` while keeping the metadata
 in the pool specified by `pool_name`.
+
+## container\_syscall\_intercept\_mount
+Adds the `security.syscalls.intercept.mount`,
+`security.syscalls.intercept.mount.allowed`, and
+`security.syscalls.intercept.mount.shift` configuration keys to control whether
+and how the mount system call will be interecepted by LXD and processed with
+elevated permissions.
