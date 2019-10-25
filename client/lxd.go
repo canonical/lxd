@@ -61,6 +61,10 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 
 	if r.server != nil && len(r.server.Environment.Addresses) > 0 {
 		for _, addr := range r.server.Environment.Addresses {
+			if strings.HasPrefix(addr, ":") {
+				continue
+			}
+
 			url := fmt.Sprintf("https://%s", addr)
 			if !shared.StringInSlice(url, urls) {
 				urls = append(urls, url)
