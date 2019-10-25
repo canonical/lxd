@@ -188,3 +188,16 @@ func ProgressWriter(op *operations.Operation, key string, description string) fu
 		return writePipe
 	}
 }
+
+// ProgressTracker returns a migration I/O tracker
+func ProgressTracker(op *operations.Operation, key string, description string) *ioprogress.ProgressTracker {
+	progress := func(progressInt int64, speedInt int64) {
+		progressWrapperRender(op, key, description, progressInt, speedInt)
+	}
+
+	tracker := &ioprogress.ProgressTracker{
+		Handler: progress,
+	}
+
+	return tracker
+}
