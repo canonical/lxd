@@ -82,6 +82,57 @@ static bool acquire_basic_creds(pid_t pid)
 	return chdirchroot_in_mntns(cwd_fd, root_fd);
 }
 
+static bool acquire_final_creds(pid_t pid, uid_t uid, gid_t gid, uid_t fsuid, gid_t fsgid)
+{
+	int ret;
+	cap_t caps;
+
+	caps = cap_get_pid(pid);
+	if (!caps) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	ret = prctl(PR_SET_KEEPCAPS, 1);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	ret = setegid(gid);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	setfsgid(fsgid);
+	if (setfsgid(-1) != fsgid) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+
+	ret = seteuid(uid);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	setfsuid(fsuid);
+	if (setfsuid(-1) != fsuid) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	ret = cap_set_proc(caps);
+	if (ret) {
+		fprintf(stderr, "%d", ENOANO);
+		return false;
+	}
+
+	return true;
+}
+
 // Expects command line to be in the form:
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void forkmknod(void)
@@ -96,7 +147,6 @@ static void forkmknod(void)
 	uid_t fsuid, uid;
 	gid_t fsgid, gid;
 	struct statfs sfs;
-	cap_t caps;
 
 	pid = atoi(advance_arg(true));
 	target = advance_arg(true);
@@ -121,39 +171,8 @@ static void forkmknod(void)
 		_exit(EXIT_FAILURE);
 	}
 
-	caps = cap_get_pid(pid);
-	if (!caps) {
-		fprintf(stderr, "%d", ENOANO);
+	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
 		_exit(EXIT_FAILURE);
-	}
-
-	ret = prctl(PR_SET_KEEPCAPS, 1);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	ret = setegid(gid);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	setfsgid(fsgid);
-
-	ret = seteuid(uid);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
-
-	setfsuid(fsuid);
-
-	ret = cap_set_proc(caps);
-	if (ret) {
-		fprintf(stderr, "%d", ENOANO);
-		_exit(EXIT_FAILURE);
-	}
 
 	ret = fstatfs(target_dir_fd, &sfs);
 	if (ret) {
