@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -12,6 +13,28 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+func DecompressInPlace(archive *os.File, args []string) (*os.File, error) {
+	tempfile, err := ioutil.TempFile("", "lxd_backup_")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tempfile.Name())
+
+	_, err = io.Copy(tempfile, archive)
+	if err != nil {
+		tempfile.Close()
+		return nil, err
+	}
+
+	tempfile.Close()
+	archive.Seek(0, 0)
+
+	args = append(args, tempfile.Name())
+	RunCommandWithFds(nil, archive, args[0], args[1:]...)
+
+	return archive, nil
+}
 
 func DetectCompression(fname string) ([]string, string, []string, error) {
 	f, err := os.Open(fname)
@@ -50,7 +73,7 @@ func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) 
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
 		return []string{"-xf"}, ".tar", []string{}, nil
 	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
-		return []string{""}, ".squashfs", nil, nil
+		return []string{"-xf"}, ".squashfs", []string{"sqfs2tar", "--no-skip"}, nil
 	default:
 		return nil, "", nil, fmt.Errorf("Unsupported compression")
 	}

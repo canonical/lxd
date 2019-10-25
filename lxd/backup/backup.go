@@ -38,8 +38,8 @@ type Info struct {
 	HasBinaryFormat bool     `json:"-" yaml:"-"`
 }
 
-// GetInfo extracts backup information from a given ReadSeeker.
-func GetInfo(r io.ReadSeeker) (*Info, error) {
+// GetInfo extracts backup information from a given File.
+func GetInfo(r *os.File) (*Info, error) {
 	var tr *tar.Reader
 	result := Info{}
 	hasBinaryFormat := false
@@ -47,7 +47,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 
 	// Extract
 	r.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	_, ext, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +58,9 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	}
 
 	if len(unpacker) > 0 {
+		if ext == ".squashfs" {
+			unpacker = append(unpacker, r.Name())
+		}
 		cmd := exec.Command(unpacker[0], unpacker[1:]...)
 		cmd.Stdin = r
 

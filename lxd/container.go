@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -276,7 +275,7 @@ func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (container, error) 
 	return c, nil
 }
 
-func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSeeker,
+func containerCreateFromBackup(s *state.State, info backup.Info, data *os.File,
 	customPool bool) (storage, error) {
 	var pool storage
 	var fixBackupFile = false
@@ -316,11 +315,18 @@ func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSee
 	}
 
 	// Find the compression algorithm
-	tarArgs, _, _, err := shared.DetectCompressionFile(data)
+	tarArgs, ext, decompressionArgs, err := shared.DetectCompressionFile(data)
 	if err != nil {
 		return nil, err
 	}
 	data.Seek(0, 0)
+
+	if ext == ".squashfs" {
+		data, err = shared.DecompressInPlace(data, decompressionArgs)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// Unpack tarball
 	err = pool.ContainerBackupLoad(info, data, tarArgs)
