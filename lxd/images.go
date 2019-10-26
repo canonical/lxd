@@ -139,17 +139,48 @@ func unpackImage(imagefname string, destpath string, sType storageType, runningI
 
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
+	var cmd *exec.Cmd
 
-	args := []string{"-c"}
-	if shared.StringInSlice(compress, reproducible) {
-		args = append(args, "-n")
+	if compress == "squashfs" {
+		// 'tar2sqfs' do not support writing to stdout. So write to a temporary
+		//  file first and then replay the compressed content to outfile.
+		tempfile, err := ioutil.TempFile("", "lxd_compress_")
+		if err != nil {
+			return err
+		}
+		defer tempfile.Close()
+		defer os.Remove(tempfile.Name())
+
+		// Prepare 'tar2sqfs' arguments
+		args := []string{"tar2sqfs", "--no-skip", "--force",
+			"--compressor", "xz", tempfile.Name()}
+		cmd = exec.Command(args[0], args[1:]...)
+		cmd.Stdin = infile
+
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+		// Replay the result to outfile
+		tempfile.Seek(0, 0)
+		_, err = io.Copy(outfile, tempfile)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		args := []string{"-c"}
+		if shared.StringInSlice(compress, reproducible) {
+			args = append(args, "-n")
+		}
+
+		cmd := exec.Command(compress, args...)
+		cmd.Stdin = infile
+		cmd.Stdout = outfile
+		cmd.Run()
 	}
 
-	cmd := exec.Command(compress, args...)
-	cmd.Stdin = infile
-	cmd.Stdout = outfile
-
-	return cmd.Run()
+	return nil
 }
 
 /*
