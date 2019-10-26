@@ -321,6 +321,11 @@ func validateCompression(value string) error {
 		return nil
 	}
 
+	// Going to look up tar2sqfs executable binary
+	if value == "squashfs" {
+		value = "tar2sqfs"
+	}
+
 	_, err := exec.LookPath(value)
 	return err
 }
