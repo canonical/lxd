@@ -1093,6 +1093,10 @@ func (n *network) Setup(oldConfig map[string]string) error {
 
 	// IPv6 bridge configuration
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+		if !shared.PathExists("/proc/sys/net/ipv6") {
+			return fmt.Errorf("Network has ipv6.address but kernel IPv6 support is missing")
+		}
+
 		err := device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
 		if err != nil {
 			return err
