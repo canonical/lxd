@@ -152,7 +152,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		defer os.Remove(tempfile.Name())
 
 		// Prepare 'tar2sqfs' arguments
-		args := []string{"tar2sqfs", "--no-skip", "--force",
+		args := []string{"tar2sqfs", "--force",
 			"--compressor", "xz", tempfile.Name()}
 		cmd = exec.Command(args[0], args[1:]...)
 		cmd.Stdin = infile
@@ -839,7 +839,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	defer r.Close()
 
 	// Decompress if needed
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	_, algo, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
 		return nil, "unknown", err
 	}
@@ -851,6 +851,9 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 
 	// Open the tarball
 	if len(unpacker) > 0 {
+		if algo == ".squashfs" {
+			unpacker = append(unpacker, fname)
+		}
 		cmd := exec.Command(unpacker[0], unpacker[1:]...)
 		cmd.Stdin = r
 
