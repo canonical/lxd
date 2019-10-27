@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -47,7 +48,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 
 	// Extract
 	r.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(r)
+	_, algo, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +59,26 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	}
 
 	if len(unpacker) > 0 {
+		if algo == ".squashfs" {
+			// 'sqfs2tar' tool does not support reading from stdin. So
+			// create a temporary file to write the compressed data and
+			// pass it to the tool as program argument
+			tempfile, err := ioutil.TempFile("", "lxd_decompress_")
+			if err != nil {
+				return nil, err
+			}
+			defer os.Remove(tempfile.Name())
+
+			// Write compressed data
+			_, err = io.Copy(tempfile, r)
+			if err != nil {
+				return nil, err
+			}
+
+			tempfile.Close()
+			// Prepare to pass the temporary file as program argument
+			unpacker = append(unpacker, tempfile.Name())
+		}
 		cmd := exec.Command(unpacker[0], unpacker[1:]...)
 		cmd.Stdin = r
 
