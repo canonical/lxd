@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -316,16 +317,58 @@ func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSee
 	}
 
 	// Find the compression algorithm
-	tarArgs, _, _, err := shared.DetectCompressionFile(data)
+	tarArgs, algo, decomArgs, err := shared.DetectCompressionFile(data)
 	if err != nil {
 		return nil, err
 	}
 	data.Seek(0, 0)
 
-	// Unpack tarball
-	err = pool.ContainerBackupLoad(info, data, tarArgs)
-	if err != nil {
-		return nil, err
+	if algo == ".squashfs" {
+		// Create a temporary file. 'sqfs2tar' tool do not support reading
+		// from stdin. So write the compressed data to the temporary file
+		// and pass it as program argument
+		tempfile, err := ioutil.TempFile("", "lxd_decompress_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(tempfile.Name())
+
+		// Write the compressed data
+		_, err = io.Copy(tempfile, data)
+		if err != nil {
+			return nil, err
+		}
+
+		tempfile.Close()
+		// Prepare to pass the temporary file as program argument
+		decomArgs := append(decomArgs, tempfile.Name())
+
+		// Create another temporary file to write the decompressed data
+		tarData, err := ioutil.TempFile("", "lxd_decompress_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(tarData.Name())
+		// Decompress to tarData temporary file
+		err = shared.RunCommandWithFds(nil, tarData,
+			decomArgs[0], decomArgs[1:]...)
+		if err != nil {
+			return nil, err
+		}
+		tarData.Seek(0, 0)
+
+		// Unpack tarball from decompressed temporary file
+		err = pool.ContainerBackupLoad(info, tarData, tarArgs)
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		// Unpack tarball
+		err = pool.ContainerBackupLoad(info, data, tarArgs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if fixBackupFile || customPool {
