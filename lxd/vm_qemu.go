@@ -2116,8 +2116,42 @@ func (vm *vmQemu) Console() (*os.File, error) {
 }
 
 func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error) {
-	return nil, 0, 0, fmt.Errorf("Exec Not implemented")
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	if err != nil {
+		return nil, 0, 0, err
+	}
 
+	post := api.InstanceExecPost{
+		Command:     command,
+		WaitForWS:   wait,
+		Interactive: stdin == stdout,
+		Environment: env,
+		User:        uid,
+		Group:       gid,
+		Cwd:         cwd,
+	}
+
+	args := lxdClient.InstanceExecArgs{
+		Stdin:    stdin,
+		Stdout:   stdout,
+		Stderr:   stderr,
+		DataDone: make(chan bool),
+	}
+
+	op, err := agent.ExecInstance("", post, &args)
+	if err != nil {
+		return nil, -1, -1, err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return nil, -1, -1, err
+	}
+	opAPI := op.Get()
+
+	<-args.DataDone
+
+	return nil, int(opAPI.Metadata["return"].(float64)), -1, nil
 }
 
 func (vm *vmQemu) Render() (interface{}, interface{}, error) {
