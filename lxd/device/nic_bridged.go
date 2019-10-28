@@ -19,6 +19,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/eui64"
 
+	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -265,7 +266,10 @@ func (d *nicBridged) postStop() error {
 	}
 
 	networkRemoveVethRoutes(d.config)
-	d.removeFilters(d.config)
+	err := d.removeFilters(d.config)
+	if err != nil {
+		logger.Errorf("Failed to remove nic filters: %v", err)
+	}
 
 	return nil
 }
@@ -385,9 +389,12 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	IPv4, IPv6, err := d.getDHCPStaticIPs(m["parent"], d.instance.Name())
-	if err != nil {
-		return fmt.Errorf("Failed to remove network filters for %s: %v", m["name"], err)
+	var IPv4, IPv6 dhcpAllocation
+	if shared.PathExists(shared.VarPath("networks", m["parent"], "dnsmasq.hosts") + "/" + d.instance.Name()) {
+		IPv4, IPv6, err = d.getDHCPStaticIPs(m["parent"], d.instance.Name())
+		if err != nil {
+			return fmt.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
+		}
 	}
 
 	// Get a current list of rules active on the host.
@@ -564,10 +571,27 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}
 
-	// Retrieve existing IPs, or allocate new ones if needed.
-	IPv4, IPv6, err := d.allocateFilterIPs()
-	if err != nil {
+	// Check if the parent is managed and load config. If parent is unmanaged continue anyway.
+	var IPv4, IPv6 net.IP
+	_, netInfo, err := d.state.Cluster.NetworkGet(d.config["parent"])
+	if err != nil && err != db.ErrNoSuchObject {
 		return err
+	}
+
+	// If parent bridge is unmanaged check that IP filtering isn't enabled.
+	if err == db.ErrNoSuchObject || netInfo == nil {
+		if shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
+			return fmt.Errorf("IP filtering requires using a managed parent bridge")
+		}
+	}
+
+	// If parent bridge is unmanaged we cannot allocate static IPs.
+	if netInfo != nil {
+		// Retrieve existing IPs, or allocate new ones if needed.
+		IPv4, IPv6, err = d.allocateFilterIPs(netInfo.Config)
+		if err != nil {
+			return err
+		}
 	}
 
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
@@ -601,7 +625,9 @@ func (d *nicBridged) setFilters() (err error) {
 }
 
 // networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
-func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
+// This function only works with LXD managed networks, and as such, requires the managed network's
+// config to be supplied.
+func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net.IP, error) {
 	var IPv4, IPv6 net.IP
 
 	// Check if there is a valid static IPv4 address defined.
@@ -619,13 +645,6 @@ func (d *nicBridged) allocateFilterIPs() (net.IP, net.IP, error) {
 			return nil, nil, fmt.Errorf("Invalid static IPv6 address %s", d.config["ipv6.address"])
 		}
 	}
-
-	_, dbInfo, err := d.state.Cluster.NetworkGet(d.config["parent"])
-	if err != nil {
-		return nil, nil, err
-	}
-
-	netConfig := dbInfo.Config
 
 	// Check the conditions required to dynamically allocated IPs.
 	canIPv4Allocate := netConfig["ipv4.address"] != "" && netConfig["ipv4.address"] != "none" && (netConfig["ipv4.dhcp"] == "" || shared.IsTrue(netConfig["ipv4.dhcp"]))
