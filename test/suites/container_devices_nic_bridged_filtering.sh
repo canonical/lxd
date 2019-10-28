@@ -311,13 +311,6 @@ test_container_devices_nic_bridged_filtering() {
   lxc stop -f "${ctPrefix}A"
   lxc stop -f "${ctPrefix}B"
 
-  # Check we haven't left any NICS lying around.
-  endNicCount=$(find /sys/class/net | wc -l)
-  if [ "$startNicCount" != "$endNicCount" ]; then
-    echo "leftover NICS detected"
-    false
-  fi
-
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
 
@@ -345,7 +338,7 @@ test_container_devices_nic_bridged_filtering() {
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
   ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
   if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
-      echo "MAC ebtables filter not applied as part of ipv6_filtering in ebtables"
+      echo "MAC ebtables filter not applied as part of ip_filtering in ebtables"
       false
   fi
 
@@ -383,8 +376,47 @@ test_container_devices_nic_bridged_filtering() {
     echo "Shouldn't be able to unset IPv6 address with ipv4_filtering enabled and DHCPv6 disabled"
   fi
 
-  # Cleanup.
   lxc delete -f "${ctPrefix}A"
+
+  # Test MAC filtering on unmanaged bridge.
+  ip link add "${brName}2" type bridge
+
+  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc config device add "${ctPrefix}A" eth0 nic \
+    nictype=nic \
+    name=eth0 \
+    nictype=bridged \
+    parent="${brName}2" \
+    security.mac_filtering=true
+  lxc start "${ctPrefix}A"
+
+  # Check MAC filter is present in ebtables.
+  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+  ctAMAC=$(lxc config get "${ctPrefix}A" volatile.eth0.hwaddr)
+  if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-s ! ${ctAMAC} -i ${ctAHost} -j DROP" ; then
+      echo "MAC ebtables filter not applied as part of mac_filtering in ebtables"
+      false
+  fi
+
+  # Stop container and check filters are cleaned up.
+  lxc stop -f "${ctPrefix}A"
+  if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+      echo "MAC filter still applied as part of mac_filtering in ebtables"
+      false
+  fi
+
+
+  lxc delete -f "${ctPrefix}A"
+  ip link delete "${brName}2"
+
+  # Check we haven't left any NICS lying around.
+  endNicCount=$(find /sys/class/net | wc -l)
+  if [ "$startNicCount" != "$endNicCount" ]; then
+    echo "leftover NICS detected"
+    false
+  fi
+
+  # Cleanup.
   lxc network delete "${brName}"
   lxc profile delete "${ctPrefix}"
 }
