@@ -36,6 +36,7 @@ func NewStorageMigrationSource(storage storage, volumeOnly bool) (*migrationSour
 
 func (s *migrationSourceWs) DoStorage(migrateOp *operations.Operation) error {
 	<-s.allConnected
+	defer s.disconnect()
 
 	// Storage needs to start unconditionally now, since we need to
 	// initialize a new storage interface.
@@ -169,7 +170,6 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operations.Operation) error {
 	err = s.recv(&msg)
 	if err != nil {
 		logger.Errorf("Failed to receive storage volume migration control message")
-		s.disconnect()
 		return err
 	}
 
