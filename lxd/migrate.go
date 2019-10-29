@@ -79,6 +79,7 @@ func (c *migrationFields) disconnect() {
 	c.controlLock.Lock()
 	if c.controlConn != nil {
 		c.controlConn.WriteMessage(websocket.CloseMessage, closeMsg)
+		c.controlConn.Close()
 		c.controlConn = nil /* don't close twice */
 	}
 	c.controlLock.Unlock()
