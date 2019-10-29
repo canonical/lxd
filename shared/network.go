@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -361,6 +362,75 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 	}
 	writeDone <- true
 	w.Close()
+}
+
+// WebsocketIO is a wrapper implementing ReadWriteCloser on top of websocket
+type WebsocketIO struct {
+	Conn   *websocket.Conn
+	reader io.Reader
+	mu     sync.Mutex
+}
+
+func (w *WebsocketIO) Read(p []byte) (n int, err error) {
+	for {
+		// First read from this message
+		if w.reader == nil {
+			var mt int
+
+			mt, w.reader, err = w.Conn.NextReader()
+			if err != nil {
+				return -1, err
+			}
+
+			if mt == websocket.CloseMessage {
+				return 0, io.EOF
+			}
+
+			if mt == websocket.TextMessage {
+				return 0, io.EOF
+			}
+		}
+
+		// Perform the read itself
+		n, err := w.reader.Read(p)
+		if err == io.EOF {
+			// At the end of the message, reset reader
+			w.reader = nil
+			return n, nil
+		}
+
+		if err != nil {
+			return -1, err
+		}
+
+		return n, nil
+	}
+}
+
+func (w *WebsocketIO) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	wr, err := w.Conn.NextWriter(websocket.BinaryMessage)
+	if err != nil {
+		return -1, err
+	}
+	defer wr.Close()
+
+	n, err = wr.Write(p)
+	if err != nil {
+		return -1, err
+	}
+
+	return n, nil
+}
+
+// Close sends a control message indicating the stream is finished, but it does not actually close
+// the socket.
+func (w *WebsocketIO) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	// Target expects to get a control message indicating stream is finished.
+	return w.Conn.WriteMessage(websocket.TextMessage, []byte{})
 }
 
 // WebsocketMirror allows mirroring a reader to a websocket and taking the

@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -399,6 +400,20 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 	return -1, fmt.Errorf("invalid storage volume type name")
 }
 
+// VolumeTypeToDBType converts volume type to internal code.
+func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
+	switch volType {
+	case drivers.VolumeTypeContainer:
+		return db.StoragePoolVolumeTypeContainer, nil
+	case drivers.VolumeTypeImage:
+		return db.StoragePoolVolumeTypeImage, nil
+	case drivers.VolumeTypeCustom:
+		return db.StoragePoolVolumeTypeCustom, nil
+	}
+
+	return -1, fmt.Errorf("invalid storage volume type")
+}
+
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
 	// Convert the volume type name to our internal integer representation.
@@ -417,7 +432,7 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 	// already exist.
 	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeID(volumeName, volumeType, poolID)
 	if volumeID > 0 {
-		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
+		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
@@ -446,9 +461,11 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 }
 
 // SupportedPoolTypes the types of pools supported.
+// Deprecated: this is being replaced with drivers.SupportedDrivers()
 var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
 
 // StorageVolumeConfigKeys config validation for btrfs, ceph, cephfs, dir, lvm, zfs types.
+// Deprecated: these are being moved to the per-storage-driver implementations.
 var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.filesystem": func(value string) ([]string, error) {
 		err := shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
@@ -505,6 +522,13 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 
 // VolumeValidateConfig validations volume config.
 func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
+	// Validate volume config using the new driver interface if supported.
+	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, validateVolumeCommonRules)
+	if err != drivers.ErrUnknownDriver {
+		return driver.ValidateVolume(config, false)
+	}
+
+	// Otherwise fallback to doing legacy validation.
 	for key, val := range config {
 		// User keys are not validated.
 		if strings.HasPrefix(key, "user.") {
@@ -631,4 +655,26 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 	}
 
 	return newConfig, nil
+}
+
+// validateVolumeCommonRules returns a map of volume config rules common to all drivers.
+func validateVolumeCommonRules() map[string]func(string) error {
+	return map[string]func(string) error{
+		"security.shifted":    shared.IsBool,
+		"security.unmapped":   shared.IsBool,
+		"volatile.idmap.last": shared.IsAny,
+		"volatile.idmap.next": shared.IsAny,
+		"size": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			_, err := units.ParseByteSizeString(value)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+	}
 }
