@@ -11,7 +11,8 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -52,7 +53,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -69,7 +70,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Validate the name
-	err = driver.ValidName(req.Name)
+	err = storagePools.ValidName(req.Name)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -107,7 +108,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	// Ensure that the snapshot doens't already exist
+	// Ensure that the snapshot doesn't already exist
 	_, _, err = d.cluster.StoragePoolNodeVolumeGetType(fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
@@ -117,37 +118,51 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.Conflict(fmt.Errorf("Snapshot '%s' already in use", req.Name))
 	}
 
-	// Start the storage.
-	ourMount, err := storage.StoragePoolVolumeMount()
-	if err != nil {
-		return response.SmartError(err)
-	}
-	if ourMount {
-		defer storage.StoragePoolVolumeUmount()
-	}
-
-	volWritable := storage.GetStoragePoolVolumeWritable()
-	fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
-	req.Name = fullSnapName
 	snapshot := func(op *operations.Operation) error {
-		dbArgs := &db.StorageVolumeArgs{
-			Name:        fullSnapName,
-			PoolName:    poolName,
-			TypeName:    volumeTypeName,
-			Snapshot:    true,
-			Config:      volWritable.Config,
-			Description: volWritable.Description,
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.CreateCustomVolumeSnapshot(volumeName, req.Name, op)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Start the storage.
+			ourMount, err := storage.StoragePoolVolumeMount()
+			if err != nil {
+				return err
+			}
+			if ourMount {
+				defer storage.StoragePoolVolumeUmount()
+			}
+
+			volWritable := storage.GetStoragePoolVolumeWritable()
+			fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
+			req.Name = fullSnapName
+			dbArgs := &db.StorageVolumeArgs{
+				Name:        fullSnapName,
+				PoolName:    poolName,
+				TypeName:    volumeTypeName,
+				Snapshot:    true,
+				Config:      volWritable.Config,
+				Description: volWritable.Description,
+			}
+
+			err = storage.StoragePoolVolumeSnapshotCreate(&req)
+			if err != nil {
+				return err
+			}
+
+			_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
+			if err != nil {
+				return err
+			}
 		}
 
-		err = storage.StoragePoolVolumeSnapshotCreate(&req)
-		if err != nil {
-			return err
-		}
-
-		_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
-		if err != nil {
-			return err
-		}
 		return nil
 	}
 
@@ -176,7 +191,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	volumeName := mux.Vars(r)["name"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -269,7 +284,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -301,12 +316,19 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	snapshotRename := func(op *operations.Operation) error {
-		err = s.StoragePoolVolumeSnapshotRename(req.Name)
-		if err != nil {
-			return err
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
+		} else {
+			err = s.StoragePoolVolumeSnapshotRename(req.Name)
 		}
 
-		return nil
+		return err
 	}
 
 	resources := map[string][]string{}
@@ -335,7 +357,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -391,7 +413,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -473,7 +495,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	// Convert the volume type name to our internal integer representation.
-	volumeType, err := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -505,12 +527,19 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	snapshotDelete := func(op *operations.Operation) error {
-		err = s.StoragePoolVolumeSnapshotDelete()
-		if err != nil {
-			return err
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
+		} else {
+			err = s.StoragePoolVolumeSnapshotDelete()
 		}
 
-		return nil
+		return err
 	}
 
 	resources := map[string][]string{}

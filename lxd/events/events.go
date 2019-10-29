@@ -1,6 +1,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -213,9 +214,12 @@ func (e *Listener) ID() string {
 	return e.id
 }
 
-// Wait waits for a message on its active channel, then returns.
-func (e *Listener) Wait() {
-	<-e.active
+// Wait waits for a message on its active channel or the context is cancelled, then returns.
+func (e *Listener) Wait(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case <-e.active:
+	}
 }
 
 // Lock locks the internal mutex.

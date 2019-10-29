@@ -14,7 +14,9 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -264,6 +266,20 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
+	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Check if destination volume exists.
+	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject("default", req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	if err != db.ErrNoSuchObject {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+	}
 
 	switch req.Source.Type {
 	case "":
@@ -278,12 +294,32 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) response.Response {
-	doWork := func() error {
-		return storagePoolVolumeCreateInternal(d.State(), poolName, req)
+	var run func(op *operations.Operation) error
+
+	// Check if we can load new storage layer for both target and source pool driver types.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	_, srcPoolErr := storagePools.GetPoolByName(d.State(), req.Source.Pool)
+	if err != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		run = func(op *operations.Operation) error {
+			if req.Source.Name == "" {
+				return pool.CreateCustomVolume(req.Name, req.Description, req.Config, op)
+			}
+
+			return pool.CreateCustomVolumeFromCopy(req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
+		}
+	} else {
+		run = func(op *operations.Operation) error {
+			return storagePoolVolumeCreateInternal(d.State(), poolName, req)
+		}
 	}
 
+	// If no source name supplied then this a volume create operation.
 	if req.Source.Name == "" {
-		err := doWork()
+		err := run(nil)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -291,17 +327,13 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 		return response.EmptySyncResponse
 	}
 
-	run := func(op *operations.Operation) error {
-		return doWork()
-	}
-
+	// Volume copy operations potentially take a long time, so run as an async operation.
 	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	return operations.OperationResponse(op)
-
 }
 
 // /1.0/storage-pools/{name}/volumes/{type}
@@ -344,6 +376,20 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	poolName := mux.Vars(r)["name"]
+	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Check if destination volume exists.
+	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject("default", req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+	if err != db.ErrNoSuchObject {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+	}
 
 	switch req.Source.Type {
 	case "":
@@ -363,12 +409,8 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
-	storage, err := storagePoolVolumeDBCreateInternal(d.State(), poolName, req)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
 	// create new certificate
+	var err error
 	var cert *x509.Certificate
 	if req.Source.Certificate != "" {
 		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
@@ -392,14 +434,16 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 		push = true
 	}
 
+	// Initialise migrationArgs, don't set the Storage property yet, this is done in DoStorage,
+	// to avoid this function relying on the legacy storage layer.
 	migrationArgs := MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
-			NetDial:         shared.RFC3493Dialer},
+			NetDial:         shared.RFC3493Dialer,
+		},
 		Secrets:    req.Source.Websockets,
 		Push:       push,
-		Storage:    storage,
 		VolumeOnly: req.Source.VolumeOnly,
 	}
 
@@ -413,7 +457,7 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 	run := func(op *operations.Operation) error {
 		// And finally run the migration.
-		err = sink.DoStorage(op)
+		err = sink.DoStorage(d.State(), poolName, req, op)
 		if err != nil {
 			logger.Error("Error during migration sink", log.Ctx{"err": err})
 			return fmt.Errorf("Error transferring storage volume: %s", err)
@@ -440,17 +484,16 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
 // Rename a storage volume of a given volume type in a given storage pool.
-// Also supports moving a storage volume between pools.
+// Also supports moving a storage volume between pools and migrating to a different host.
 func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
 
 	if shared.IsSnapshot(volumeName) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume %s", volumeName))
+		return response.BadRequest(fmt.Errorf("Invalid volume name"))
 	}
 
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	req := api.StorageVolumePost{}
@@ -471,15 +514,13 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
-	// We currently only allow to create storage volumes of type
-	// storagePoolVolumeTypeCustom. So check, that nothing else was
-	// requested.
+	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
+	// So check, that nothing else was requested.
 	if volumeTypeName != storagePoolVolumeTypeNameCustom {
 		return response.BadRequest(fmt.Errorf("Renaming storage volumes of type %s is not allowed", volumeTypeName))
 	}
 
-	// Retrieve ID of the storage pool (and check if the storage pool
-	// exists).
+	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	var poolID int64
 	if req.Pool != "" {
 		poolID, err = d.cluster.StoragePoolGetID(req.Pool)
@@ -490,8 +531,8 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.SmartError(err)
 	}
 
-	// We need to restore the body of the request since it has already been
-	// read, and if we forwarded it now no body would be written out.
+	// We need to restore the body of the request since it has already been read, and if we
+	// forwarded it now no body would be written out.
 	buf := bytes.Buffer{}
 	err = json.NewEncoder(&buf).Encode(req)
 	if err != nil {
@@ -515,38 +556,72 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return resp
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, storagePoolVolumeTypeCustom)
-	if err != nil {
-		return response.InternalError(err)
+	// This is a migration request so send back requested secrets.
+	if req.Migration {
+		return storagePoolVolumeTypePostMigration(d.State(), poolName, volumeName, req)
 	}
 
-	// This is a migration request so send back requested secrets
-	if req.Migration {
-		ws, err := NewStorageMigrationSource(s, req.VolumeOnly)
+	// Check that the name isn't already in use.
+	_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(req.Name, volumeType, poolID)
+	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		resources := map[string][]string{}
-		resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, volumeName)}
+		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+	}
 
-		if req.Target != nil {
-			// Push mode
-			err := ws.ConnectStorageTarget(*req.Target)
-			if err != nil {
-				return response.InternalError(err)
-			}
+	// Check if the daemon itself is using it.
+	used, err := daemonStorageUsed(d.State(), poolName, volumeName)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-			op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, ws.DoStorage, nil, nil)
-			if err != nil {
-				return response.InternalError(err)
-			}
+	if used {
+		return response.SmartError(fmt.Errorf("Volume is used by LXD itself and cannot be renamed"))
+	}
 
-			return operations.OperationResponse(op)
+	// Check if a running container is using it.
+	ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volumeName, volumeTypeName, true)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if len(ctsUsingVolume) > 0 {
+		return response.SmartError(fmt.Errorf("Volume is still in use by running containers"))
+	}
+
+	// Detect a rename request.
+	if req.Pool == "" || req.Pool == poolName {
+		return storagePoolVolumeTypePostRename(d, poolName, volumeName, volumeType, req)
+	}
+
+	// Otherwise this is a move request.
+	return storagePoolVolumeTypePostMove(d, poolName, volumeName, volumeType, req)
+}
+
+// storagePoolVolumeTypePostMigration handles volume migration type POST requests.
+func storagePoolVolumeTypePostMigration(state *state.State, poolName string, volumeName string, req api.StorageVolumePost) response.Response {
+	ws, err := NewStorageMigrationSource(req.VolumeOnly)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	resources := map[string][]string{}
+	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, volumeName)}
+
+	run := func(op *operations.Operation) error {
+		return ws.DoStorage(state, poolName, volumeName, op)
+	}
+
+	if req.Target != nil {
+		// Push mode
+		err := ws.ConnectStorageTarget(*req.Target)
+		if err != nil {
+			return response.InternalError(err)
 		}
 
-		// Pull mode
-		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
+		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, db.OperationVolumeMigrate, resources, nil, run, nil, nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -554,80 +629,149 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return operations.OperationResponse(op)
 	}
 
-	// Check that the name isn't already in use.
-	_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(req.Name, storagePoolVolumeTypeCustom, poolID)
-	if err != db.ErrNoSuchObject {
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
+	// Pull mode
+	op, err := operations.OperationCreate(state, "", operations.OperationClassWebsocket, db.OperationVolumeMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
+	if err != nil {
+		return response.InternalError(err)
 	}
 
-	doWork := func() error {
-		// Check if the daemon itself is using it
-		used, err := daemonStorageUsed(d.State(), poolName, volumeName)
-		if err != nil {
-			return err
-		}
+	return operations.OperationResponse(op)
+}
 
-		if used {
-			return fmt.Errorf("Volume is used by LXD itself and cannot be renamed")
-		}
-
-		// Check if a running container is using it
-		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
-		if err != nil {
-			return err
-		}
-
-		if len(ctsUsingVolume) > 0 {
-			return fmt.Errorf("Volume is still in use by running containers")
-		}
-
-		err = storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
-		if err != nil {
-			return err
-		}
-
-		if req.Pool == "" || req.Pool == poolName {
-			err := s.StoragePoolVolumeRename(req.Name)
-			if err != nil {
-				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
-				return err
-			}
-
-		} else {
-			moveReq := api.StorageVolumesPost{}
-			moveReq.Name = req.Name
-			moveReq.Type = "custom"
-			moveReq.Source.Name = volumeName
-			moveReq.Source.Pool = poolName
-			err := storagePoolVolumeCreateInternal(d.State(), req.Pool, &moveReq)
-			if err != nil {
-				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
-				return err
-			}
-			err = s.StoragePoolVolumeDelete()
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
+// storagePoolVolumeTypePostRename handles volume rename type POST requests.
+func storagePoolVolumeTypePostRename(d *Daemon, poolName string, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
+	// Notify users of the volume that it's name is changing.
+	err := storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
-	if req.Pool == "" {
-		err = doWork()
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
+		err = pool.RenameCustomVolume(volumeName, req.Name, nil)
+		if err != nil {
+			// Notify users of the volume that it's name is changing back.
+			storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+			return response.SmartError(err)
+		}
+	} else {
+		s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		err = s.StoragePoolVolumeRename(req.Name)
+		if err != nil {
+			// Notify users of the volume that it's name is changing back.
+			storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+			return response.SmartError(err)
+		}
 	}
 
-	run := func(op *operations.Operation) error {
-		return doWork()
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
+}
+
+// storagePoolVolumeTypePostMove handles volume move type POST requests.
+func storagePoolVolumeTypePostMove(d *Daemon, poolName string, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
+	var run func(op *operations.Operation) error
+
+	// Check if we can load new storage layer for both target and source pool driver types.
+	srcPool, srcPoolErr := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), req.Pool)
+	if err != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		run = func(op *operations.Operation) error {
+			// Notify users of the volume that it's name is changing.
+			err := storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
+			if err != nil {
+				return err
+			}
+
+			// Provide empty description and nil config to instruct
+			// CreateCustomVolumeFromCopy to copy it from source volume.
+			err = pool.CreateCustomVolumeFromCopy(req.Name, "", nil, poolName, volumeName, false, op)
+			if err != nil {
+				// Notify users of the volume that it's name is changing back.
+				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+				return err
+			}
+
+			return srcPool.DeleteCustomVolume(volumeName, op)
+		}
+	} else {
+		// Convert poolName to poolID.
+		poolID, _, err := d.cluster.StoragePoolGet(poolName)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Get the storage volume.
+		_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Get storage volume snapshots.
+		snapshots, err := d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// This is a move request, so copy the volume and then delete the original.
+		moveReq := api.StorageVolumesPost{}
+		moveReq.Name = req.Name
+		moveReq.Type = "custom"
+		moveReq.Config = volume.Config
+		moveReq.Source.Name = volumeName
+		moveReq.Source.Pool = poolName
+
+		run = func(op *operations.Operation) error {
+			// Notify users of the volume that it's name is changing.
+			err := storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
+			if err != nil {
+				return err
+			}
+
+			err = storagePoolVolumeCreateInternal(d.State(), req.Pool, &moveReq)
+			if err != nil {
+				// Notify users of the volume that it's name is changing back.
+				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+				return err
+			}
+
+			// Delete snapshot volumes.
+			for _, snapshot := range snapshots {
+				s, err := storagePoolVolumeInit(d.State(), "default", poolName, snapshot.Name, volumeType)
+				if err != nil {
+					return err
+				}
+
+				err = s.StoragePoolVolumeSnapshotDelete()
+				if err != nil {
+					return err
+				}
+			}
+
+			s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
+			if err != nil {
+				return err
+			}
+
+			err = s.StoragePoolVolumeDelete()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
 	}
 
 	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
@@ -1009,43 +1153,61 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		}
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
-	switch volumeType {
-	case storagePoolVolumeTypeCustom:
-		var snapshots []db.StorageVolumeArgs
-
-		// Delete storage volume snapshots
-		snapshots, err = d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		for _, snapshot := range snapshots {
-			s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot.Name, volumeType)
-			if err != nil {
-				return response.NotFound(err)
-			}
+		switch volumeType {
+		case storagePoolVolumeTypeCustom:
+			err = pool.DeleteCustomVolume(volumeName, nil)
+		case storagePoolVolumeTypeImage:
+			err = pool.DeleteImage(volumeName, nil)
+		default:
+			return response.BadRequest(fmt.Errorf(`Storage volumes of type "%s" cannot be deleted with the storage api`, volumeTypeName))
+		}
+		if err != nil {
+			return response.SmartError(err)
+		}
+	} else {
+		s, err := storagePoolVolumeInit(d.State(), project, poolName, volumeName, volumeType)
+		if err != nil {
+			return response.NotFound(err)
+		}
 
-			err = s.StoragePoolVolumeSnapshotDelete()
+		switch volumeType {
+		case storagePoolVolumeTypeCustom:
+			var snapshots []db.StorageVolumeArgs
+
+			// Delete storage volume snapshots
+			snapshots, err = d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
 			if err != nil {
 				return response.SmartError(err)
 			}
-		}
 
-		err = s.StoragePoolVolumeDelete()
-	case storagePoolVolumeTypeImage:
-		err = s.ImageDelete(volumeName)
-	default:
-		return response.BadRequest(fmt.Errorf(`Storage volumes of type "%s" `+
-			`cannot be deleted with the storage api`,
-			volumeTypeName))
-	}
-	if err != nil {
-		return response.SmartError(err)
+			for _, snapshot := range snapshots {
+				s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot.Name, volumeType)
+				if err != nil {
+					return response.NotFound(err)
+				}
+
+				err = s.StoragePoolVolumeSnapshotDelete()
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
+			err = s.StoragePoolVolumeDelete()
+		case storagePoolVolumeTypeImage:
+			err = s.ImageDelete(volumeName)
+		default:
+			return response.BadRequest(fmt.Errorf(`Storage volumes of type "%s" cannot be deleted with the storage api`, volumeTypeName))
+		}
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.EmptySyncResponse
