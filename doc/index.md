@@ -143,7 +143,7 @@ find and subscribe to those at: <https://lists.linuxcontainers.org>
 
 ### IRC
 If you prefer live discussions, some of us also hang out in
-[#lxcontainers](http://webchat.freenode.net/?channels=#lxcontainers) on irc.freenode.net.
+[#lxcontainers](https://webchat.freenode.net/?channels=#lxcontainers) on irc.freenode.net.
 
 ## FAQ
 #### How to enable LXD server for remote access?
@@ -214,7 +214,7 @@ instead both for performance and reliability reasons.
 
 #### How can I live migrate a container using LXD?
 Live migration requires a tool installed on both hosts called
-[CRIU](http://criu.org), which is available in Ubuntu via:
+[CRIU](https://criu.org), which is available in Ubuntu via:
 
 ```bash
 sudo apt install criu
