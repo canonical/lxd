@@ -173,6 +173,7 @@ var APIExtensions = []string{
 	"backup_compression_algorithm",
 	"ceph_data_pool_name",
 	"container_syscall_intercept_mount",
+	"container_disk_ceph",
 	"compression_squashfs",
 }
 
