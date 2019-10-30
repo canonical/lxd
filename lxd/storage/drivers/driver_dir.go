@@ -120,8 +120,8 @@ func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // ValidateVolume validates the supplied volume config.
-func (d *dir) ValidateVolume(volConfig map[string]string, removeUnknownKeys bool) error {
-	return d.validateVolume(volConfig, nil, removeUnknownKeys)
+func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
+	return d.validateVolume(vol, nil, removeUnknownKeys)
 }
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
