@@ -39,6 +39,10 @@ const (
 var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeCustom}
 var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
 
+func init() {
+	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningContainersWithProfilesGet
+}
+
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
 	case storagePoolVolumeTypeNameContainer:
