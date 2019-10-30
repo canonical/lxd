@@ -154,6 +154,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 			Name:          volName,
 			MigrationType: migrationType,
 			Snapshots:     snapshotNames,
+			TrackProgress: true,
 		}
 
 		err = pool.MigrateCustomVolume(&shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
@@ -360,6 +361,7 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 				Config:        req.Config,
 				Description:   req.Description,
 				MigrationType: respType,
+				TrackProgress: true,
 			}
 
 			// A zero length Snapshots slice indicates volume only migration in
