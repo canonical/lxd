@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/memorypipe"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -273,12 +274,6 @@ func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]
 // CreateCustomVolumeFromCopy creates a custom volume from an existing custom volume.
 // It copies the snapshots from the source volume by default, but can be disabled if requested.
 func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
-	// Default to copying snapshots too, but if VolumeOnly is supplied then we only copy volume.
-	copySnapshots := true
-	if srcVolOnly {
-		copySnapshots = false
-	}
-
 	// Setup the source pool backend instance.
 	var srcPool *lxdBackend
 	if b.name == srcPoolName {
@@ -319,60 +314,75 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 		desc = srcVolRow.Description
 	}
 
-	// Check the supplied config and remove any fields not relevant for destination pool type.
-	err = b.driver.ValidateVolume(config, true)
-	if err != nil {
-		return err
-	}
-
-	// Create slice to record DB volumes created if revert needed later.
-	revertDBVolumes := []string{}
-	defer func() {
-		// Remove any DB volume rows created if we are reverting.
-		for _, volName := range revertDBVolumes {
-			b.state.Cluster.StoragePoolVolumeDelete("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
-		}
-	}()
-
-	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
-	if err != nil {
-		return err
-	}
-
-	revertDBVolumes = append(revertDBVolumes, volName)
-
-	if copySnapshots {
-		// If we are copying snapshots, retrieve a list of snapshots from source volume.
-		snapshots, err := VolumeSnapshotsGet(b.state, srcPoolName, volName, db.StoragePoolVolumeTypeCustom)
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	snapshotNames := []string{}
+	if !srcVolOnly {
+		snapshots, err := VolumeSnapshotsGet(b.state, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
 
-		// Create a database entry and copy the volume for each snapshot.
-		for _, srcSnapshot := range snapshots {
-			// Convert the source snapshot volume name into the new snapshot volume name.
-			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.Name)
-			newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
-
-			// Create database entry for new storage volume.
-			err = VolumeDBCreate(b.state, b.name, newSnapshotName, srcSnapshot.Description, db.StoragePoolVolumeTypeNameCustom, true, config)
-			if err != nil {
-				return err
-			}
-
-			revertDBVolumes = append(revertDBVolumes, newSnapshotName)
+		for _, snapshot := range snapshots {
+			_, snapShotName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.Name)
+			snapshotNames = append(snapshotNames, snapShotName)
 		}
 	}
 
-	srcVol := srcPool.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, srcVolName, nil)
-	targetVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config)
-	err = b.driver.CreateVolumeFromCopy(targetVol, srcVol, copySnapshots, op)
+	// Create in-memory pipe pair to simulate a connection between the sender and receiver.
+	aEnd, bEnd := memorypipe.NewPipePair()
+
+	// Negotiate the migration type to use.
+	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS)
+	offerHeader := migration.TypesToHeader(offeredTypes...)
+	migrationType, err := migration.MatchTypes(offerHeader, b.MigrationTypes(drivers.ContentTypeFS))
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to neogotiate copy migration type: %v", err)
 	}
 
-	revertDBVolumes = nil // Don't revert DB volumes.
+	// Run sender and receiver in separate go routines to prevent deadlocks.
+	aEndErrCh := make(chan error, 1)
+	bEndErrCh := make(chan error, 1)
+	go func() {
+		err := srcPool.MigrateCustomVolume(aEnd, migration.VolumeSourceArgs{
+			Name:          srcVolName,
+			Snapshots:     snapshotNames,
+			MigrationType: migrationType,
+			TrackProgress: true, // Do use a progress tracker on sender.
+		}, op)
+
+		aEndErrCh <- err
+	}()
+
+	go func() {
+		err := b.CreateCustomVolumeFromMigration(bEnd, migration.VolumeTargetArgs{
+			Name:          volName,
+			Description:   desc,
+			Config:        config,
+			Snapshots:     snapshotNames,
+			MigrationType: migrationType,
+			TrackProgress: false, // Do not a progress tracker on receiver.
+
+		}, op)
+
+		bEndErrCh <- err
+	}()
+
+	// Capture errors from the sender and receiver from their result channels.
+	errs := []error{}
+	aEndErr := <-aEndErrCh
+	if aEndErr != nil {
+		errs = append(errs, aEndErr)
+	}
+
+	bEndErr := <-bEndErrCh
+	if bEndErr != nil {
+		errs = append(errs, bEndErr)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("Create custom volume from copy failed: %v", errs)
+	}
+
 	return nil
 }
 
