@@ -416,14 +416,6 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error)
 	}
 
 	if !c.IsSnapshot() {
-		// Update MAAS
-		err = c.maasUpdate(nil)
-		if err != nil {
-			c.Delete()
-			logger.Error("Failed creating container", ctxMap)
-			return nil, err
-		}
-
 		// Add devices to container.
 		for k, m := range c.expandedDevices {
 			err = c.deviceAdd(k, m)
@@ -431,6 +423,14 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error)
 				c.Delete()
 				return nil, errors.Wrapf(err, "Failed to add device '%s'", k)
 			}
+		}
+
+		// Update MAAS (must run after the MAC addresses have been generated).
+		err = c.maasUpdate(nil)
+		if err != nil {
+			c.Delete()
+			logger.Error("Failed creating container", ctxMap)
+			return nil, err
 		}
 	}
 
@@ -4262,7 +4262,13 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		c.idmapset = nil
 	}
 
-	// Update MAAS
+	// Use the device interface to apply update changes.
+	err = c.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
+	if err != nil {
+		return err
+	}
+
+	// Update MAAS (must run after the MAC addresses have been generated).
 	updateMAAS := false
 	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
 		if shared.StringInSlice(key, updateDiff) {
@@ -4276,12 +4282,6 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	// Use the device interface to apply update changes.
-	err = c.updateDevices(removeDevices, addDevices, updateDevices, oldExpandedDevices)
-	if err != nil {
-		return err
 	}
 
 	// Apply the live changes
