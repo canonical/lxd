@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -199,7 +200,11 @@ func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migr
 
 		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
 		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			wrapper := migration.ProgressTracker(op, "fs_progress", snapshot.name)
+			var wrapper *ioprogress.ProgressTracker
+			if volSrcArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+			}
+
 			path := shared.AddSlash(mountPath)
 			return rsync.Send(snapshot.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
 		}, op)
@@ -210,7 +215,11 @@ func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migr
 
 	// Send volume to recipient (ensure local volume is mounted if needed).
 	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		wrapper := migration.ProgressTracker(op, "fs_progress", vol.name)
+		var wrapper *ioprogress.ProgressTracker
+		if volSrcArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+		}
+
 		path := shared.AddSlash(mountPath)
 		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
 	}, op)
@@ -266,7 +275,11 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 		// Receive snapshot from sender (ensure local snapshot volume is mounted if needed).
 		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			wrapper := migration.ProgressTracker(op, "fs_progress", snapshot.name)
+			var wrapper *ioprogress.ProgressTracker
+			if volTargetArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+			}
+
 			path := shared.AddSlash(mountPath)
 			return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 		}, op)
@@ -299,7 +312,11 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	// Receive volume from sender (ensure local volume is mounted if needed).
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		wrapper := migration.ProgressTracker(op, "fs_progress", vol.name)
+		var wrapper *ioprogress.ProgressTracker
+		if volTargetArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+		}
+
 		path := shared.AddSlash(mountPath)
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 	}, op)
