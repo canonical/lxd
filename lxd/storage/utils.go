@@ -28,6 +28,9 @@ var baseDirectories = []string{
 	"virtual-machines-snapshots",
 }
 
+// VolumeUsedByInstancesWithProfiles returns a slice containing the names of instances using a volume.
+var VolumeUsedByInstancesWithProfiles func(s *state.State, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error)
+
 func createStorageStructure(path string) error {
 	for _, name := range baseDirectories {
 		err := os.MkdirAll(filepath.Join(path, name), 0711)
