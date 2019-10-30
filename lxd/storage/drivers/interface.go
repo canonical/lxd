@@ -35,6 +35,7 @@ type Driver interface {
 	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error
 	DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error
 	RenameVolume(volType VolumeType, volName string, newName string, op *operations.Operation) error
+	UpdateVolume(vol Volume, changedConfig map[string]string) error
 
 	// MountVolume mounts a storage volume, returns true if we caused a new mount, false if
 	// already mounted.
@@ -42,7 +43,7 @@ type Driver interface {
 
 	// MountVolumeSnapshot mounts a storage volume snapshot as readonly, returns true if we
 	// caused a new mount, false if already mounted.
-	MountVolumeSnapshot(volType VolumeType, VolName, snapshotName string, op *operations.Operation) (bool, error)
+	MountVolumeSnapshot(volType VolumeType, volName, snapshotName string, op *operations.Operation) (bool, error)
 
 	// UnmountVolume unmounts a storage volume, returns true if unmounted, false if was not
 	// mounted.
