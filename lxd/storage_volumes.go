@@ -876,21 +876,14 @@ func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) response.Response
 }
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
+// This function does allow limited functionality for non-custom volume types, specifically you
+// can modify the volume's description only.
 func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
 	// Get the name of the storage volume.
-	var volumeName string
-	fields := strings.Split(mux.Vars(r)["name"], "/")
+	volumeName := mux.Vars(r)["name"]
 
-	if len(fields) == 3 && fields[1] == "snapshots" {
-		// Handle volume snapshots
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2])
-	} else if len(fields) > 1 {
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[1])
-	} else if len(fields) > 0 {
-		// Handle volume
-		volumeName = fields[0]
-	} else {
-		return response.BadRequest(fmt.Errorf("invalid storage volume %s", mux.Vars(r)["name"]))
+	if shared.IsSnapshot(volumeName) {
+		return response.BadRequest(fmt.Errorf("Invalid volume name"))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be
@@ -907,7 +900,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
-	poolID, pool, err := d.cluster.StoragePoolGet(poolName)
+	poolID, poolRow, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -923,13 +916,13 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the existing storage volume.
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag
-	etag := []interface{}{volumeName, volume.Type, volume.Config}
+	etag := []interface{}{volumeName, vol.Type, vol.Config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -941,30 +934,73 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.BadRequest(err)
 	}
 
-	if req.Restore != "" {
-		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volume.Name, storagePoolVolumeTypeNameCustom, true)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		if len(ctsUsingVolume) != 0 {
-			return response.BadRequest(fmt.Errorf("Cannot restore custom volume used by running containers"))
-		}
-
-		err = storagePoolVolumeRestore(d.State(), poolName, volumeName, volumeType, req.Restore)
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		if volumeType == db.StoragePoolVolumeTypeCustom {
+			// Restore custom volume from snapshot if requested. This should occur first
+			// before applying config changes so that changes are applied to the
+			// restored volume.
+			if req.Restore != "" {
+				err = pool.RestoreCustomVolume(vol.Name, req.Restore, nil)
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
+			// Handle update requests.
+			err = pool.UpdateCustomVolume(vol.Name, req.Description, req.Config, nil)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		} else {
+			// You are only allowed to modify the description for non-custom volumes.
+			// This is a special case because the rootfs devices do not provide a way
+			// to update a non-custom volume's description.
+			if len(req.Config) > 0 {
+				return response.BadRequest(fmt.Errorf("Only description can be modified for volume type %s", volumeTypeName))
+			}
+
+			// There is a bug in the lxc client (lxc/storage_volume.go#L829-L865) which
+			// means that modifying a snapshot's description gets routed here rather
+			// than the dedicated snapshot editing route. So need to handle snapshot
+			// volumes here too.
+			err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, req.Config)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 	} else {
-		// Validate the configuration
-		err = storagePools.VolumeValidateConfig(volumeName, req.Config, pool)
-		if err != nil {
-			return response.BadRequest(err)
-		}
 
-		err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
-		if err != nil {
-			return response.SmartError(err)
+		if req.Restore != "" {
+			ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, vol.Name, storagePoolVolumeTypeNameCustom, true)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			if len(ctsUsingVolume) != 0 {
+				return response.BadRequest(fmt.Errorf("Cannot restore custom volume used by running containers"))
+			}
+
+			err = storagePoolVolumeRestore(d.State(), poolName, volumeName, volumeType, req.Restore)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		} else {
+			// Validate the configuration
+			err = storagePools.VolumeValidateConfig(volumeName, req.Config, poolRow)
+			if err != nil {
+				return response.BadRequest(err)
+			}
+
+			err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
+			if err != nil {
+				return response.SmartError(err)
+			}
 		}
 	}
 
