@@ -70,8 +70,8 @@ func (d *common) validateVolume(volConfig map[string]string, driverRules map[str
 	return nil
 }
 
-// MigrationType returns the type of transfer method used when doing migrations between pools
-// of the same type.
+// MigrationType returns the type of transfer methods to be used when doing migrations between pools
+// in preference order.
 func (d *common) MigrationTypes(contentType ContentType) []migration.Type {
 	if contentType != ContentTypeFS {
 		return nil
