@@ -22,6 +22,7 @@ type VolumeSourceArgs struct {
 	Name          string
 	Snapshots     []string
 	MigrationType Type
+	TrackProgress bool
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
@@ -31,6 +32,7 @@ type VolumeTargetArgs struct {
 	Config        map[string]string
 	Snapshots     []string
 	MigrationType Type
+	TrackProgress bool
 }
 
 // TypesToHeader converts one or more Types to a MigrationHeader. It uses the first type argument
