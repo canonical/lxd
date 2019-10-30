@@ -525,7 +525,9 @@ func VolumeValidateConfig(name string, config map[string]string, parentPool *api
 	// Validate volume config using the new driver interface if supported.
 	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, validateVolumeCommonRules)
 	if err != drivers.ErrUnknownDriver {
-		return driver.ValidateVolume(config, false)
+		// Note: This legacy validation function doesn't have the concept of validating
+		// different volumes types, so the types are hard coded as Custom and FS.
+		return driver.ValidateVolume(drivers.NewVolume(driver, parentPool.Name, drivers.VolumeTypeCustom, drivers.ContentTypeFS, name, config), false)
 	}
 
 	// Otherwise fallback to doing legacy validation.
