@@ -459,6 +459,24 @@ func (d *dir) VolumeSnapshots(volType VolumeType, volName string, op *operations
 	return snapshots, nil
 }
 
+// UpdateVolume applies config changes to the volume.
+func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+	if _, changed := changedConfig["size"]; changed {
+		volID, err := d.getVolID(vol.volType, vol.name)
+		if err != nil {
+			return err
+		}
+
+		// Set the quota if specified in volConfig or pool config.
+		err = d.setQuota(vol.MountPath(), volID, changedConfig["size"])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // RenameVolume renames a volume and its snapshots.
 func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string, op *operations.Operation) error {
 	vol := NewVolume(d, d.name, volType, ContentTypeFS, volName, nil)
