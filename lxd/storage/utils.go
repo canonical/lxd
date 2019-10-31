@@ -526,7 +526,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 // VolumeValidateConfig validations volume config.
 func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
 	// Validate volume config using the new driver interface if supported.
-	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, validateVolumeCommonRules)
+	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, nil, validateVolumeCommonRules)
 	if err != drivers.ErrUnknownDriver {
 		// Note: This legacy validation function doesn't have the concept of validating
 		// different volumes types, so the types are hard coded as Custom and FS.

@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var drivers = map[string]func() driver{
@@ -9,7 +10,7 @@ var drivers = map[string]func() driver{
 }
 
 // Load returns a Driver for an existing low-level storage pool.
-func Load(state *state.State, driverName string, name string, config map[string]string, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) (Driver, error) {
+func Load(state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) (Driver, error) {
 	// Locate the driver loader.
 	driverFunc, ok := drivers[driverName]
 	if !ok {
@@ -17,7 +18,7 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	}
 
 	d := driverFunc()
-	d.init(state, name, config, volIDFunc, commonRulesFunc)
+	d.init(state, name, config, logger, volIDFunc, commonRulesFunc)
 
 	return d, nil
 }
@@ -38,7 +39,7 @@ func SupportedDrivers() []Info {
 	supportedDrivers := []Info{}
 
 	for driverName := range drivers {
-		driver, err := Load(nil, driverName, "", nil, nil, nil)
+		driver, err := Load(nil, driverName, "", nil, nil, nil, nil)
 		if err != nil {
 			continue
 		}
