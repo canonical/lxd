@@ -37,6 +37,7 @@ type Driver interface {
 	DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error
 	RenameVolume(volType VolumeType, volName string, newName string, op *operations.Operation) error
 	UpdateVolume(vol Volume, changedConfig map[string]string) error
+	GetVolumeUsage(volType VolumeType, volName string) (int64, error)
 
 	// MountVolume mounts a storage volume, returns true if we caused a new mount, false if
 	// already mounted.
