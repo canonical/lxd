@@ -153,7 +153,6 @@ static void mknod_emulate(void)
 	target = advance_arg(true);
 	mode = atoi(advance_arg(true));
 	dev = atoi(advance_arg(true));
-	advance_arg(true);
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
@@ -172,8 +171,10 @@ static void mknod_emulate(void)
 		_exit(EXIT_FAILURE);
 	}
 
-	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
+	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid)) {
+		fprintf(stderr, "%d", ENOANO);
 		_exit(EXIT_FAILURE);
+	}
 
 	ret = fstatfs(target_dir_fd, &sfs);
 	if (ret) {
