@@ -30,7 +30,7 @@ type Driver interface {
 	GetResources() (*api.ResourcesStoragePool, error)
 
 	// Volumes.
-	ValidateVolume(volConfig map[string]string, removeUnknownKeys bool) error
+	ValidateVolume(vol Volume, removeUnknownKeys bool) error
 	CreateVolume(vol Volume, filler func(path string) error, op *operations.Operation) error
 	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error
 	DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error
