@@ -174,7 +174,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool
@@ -794,25 +794,32 @@ func storagePoolVolumeTypeImagePost(d *Daemon, r *http.Request) response.Respons
 	return storagePoolVolumeTypePost(d, r, "image")
 }
 
+// storageGetVolumeNameFromURL retrieves the volume name from the URL name segment.
+func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
+	fields := strings.Split(mux.Vars(r)["name"], "/")
+
+	if len(fields) == 3 && fields[1] == "snapshots" {
+		// Handle volume snapshots.
+		return fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2]), nil
+	} else if len(fields) > 1 {
+		return fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[1]), nil
+	} else if len(fields) > 0 {
+		// Handle volume.
+		return fields[0], nil
+	}
+
+	return "", fmt.Errorf("Invalid storage volume %s", mux.Vars(r)["name"])
+}
+
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 // Get storage volume of a given volume type on a given storage pool.
 func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
 	project := projectParam(r)
 
 	// Get the name of the storage volume.
-	var volumeName string
-	fields := strings.Split(mux.Vars(r)["name"], "/")
-
-	if len(fields) == 3 && fields[1] == "snapshots" {
-		// Handle volume snapshots
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[2])
-	} else if len(fields) > 1 {
-		volumeName = fmt.Sprintf("%s%s%s", fields[0], shared.SnapshotDelimiter, fields[1])
-	} else if len(fields) > 0 {
-		// Handle volume
-		volumeName = fields[0]
-	} else {
-		return response.BadRequest(fmt.Errorf("invalid storage volume %s", mux.Vars(r)["name"]))
+	volumeName, err := storageGetVolumeNameFromURL(r)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be
@@ -826,7 +833,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
 	// Get the ID of the storage pool the storage volume is supposed to be
@@ -880,10 +887,9 @@ func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) response.Response
 // can modify the volume's description only.
 func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
-
-	if shared.IsSnapshot(volumeName) {
-		return response.BadRequest(fmt.Errorf("Invalid volume name"))
+	volumeName, err := storageGetVolumeNameFromURL(r)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Get the name of the storage pool the volume is supposed to be
@@ -895,9 +901,10 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
 	poolID, poolRow, err := d.cluster.StoragePoolGet(poolName)
@@ -1150,7 +1157,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
