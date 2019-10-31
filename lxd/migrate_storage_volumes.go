@@ -143,7 +143,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 
 	// Use new storage layer for migration if supported.
 	if pool != nil {
-		migrationType, err := migration.MatchTypes(respHeader, poolMigrationTypes)
+		migrationType, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 		if err != nil {
 			logger.Errorf("Failed to neogotiate migration type: %v", err)
 			s.sendControl(err)
@@ -343,7 +343,7 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 		// Extract the source's migration type and then match it against our pool's
 		// supported types and features. If a match is found the combined features list
 		// will be sent back to requester.
-		respType, err := migration.MatchTypes(offerHeader, pool.MigrationTypes(storageDrivers.ContentTypeFS))
+		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS))
 		if err != nil {
 			return err
 		}
