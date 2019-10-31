@@ -400,7 +400,7 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 		return db.StoragePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("invalid storage volume type name")
+	return -1, fmt.Errorf("Invalid storage volume type name")
 }
 
 // VolumeTypeToDBType converts volume type to internal code.
@@ -414,7 +414,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 		return db.StoragePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("invalid storage volume type")
+	return -1, fmt.Errorf("Invalid storage volume type")
 }
 
 // VolumeDBCreate creates a volume in the database.
