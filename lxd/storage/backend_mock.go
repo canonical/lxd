@@ -98,7 +98,7 @@ func (b *mockBackend) BackupInstance(i Instance, targetPath string, optimized bo
 	return nil
 }
 
-func (b *mockBackend) GetInstanceUsage(i Instance) (uint64, error) {
+func (b *mockBackend) GetInstanceUsage(i Instance) (int64, error) {
 	return 0, nil
 }
 
@@ -178,12 +178,8 @@ func (b *mockBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, a
 	return nil
 }
 
-func (b *mockBackend) GetCustomVolumeUsage(vol api.StorageVolume) (uint64, error) {
+func (b *mockBackend) GetCustomVolumeUsage(volName string) (int64, error) {
 	return 0, nil
-}
-
-func (b *mockBackend) SetCustomVolumeQuota(vol api.StorageVolume, quota uint64) error {
-	return nil
 }
 
 func (b *mockBackend) MountCustomVolume(volName string, op *operations.Operation) (bool, error) {
