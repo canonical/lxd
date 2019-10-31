@@ -340,7 +340,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	// Negotiate the migration type to use.
 	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS)
 	offerHeader := migration.TypesToHeader(offeredTypes...)
-	migrationType, err := migration.MatchTypes(offerHeader, b.MigrationTypes(drivers.ContentTypeFS))
+	migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS))
 	if err != nil {
 		return fmt.Errorf("Failed to neogotiate copy migration type: %v", err)
 	}
