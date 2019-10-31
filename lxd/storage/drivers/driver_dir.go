@@ -549,6 +549,25 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 	return nil
 }
 
+// RestoreVolume restores a volume from a snapshot.
+func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
+	srcPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapshotName))
+	if !shared.PathExists(srcPath) {
+		return fmt.Errorf("Snapshot not found")
+	}
+
+	volPath := vol.MountPath()
+
+	// Restore using rsync.
+	bwlimit := d.config["rsync.bwlimit"]
+	output, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
+	if err != nil {
+		return fmt.Errorf("Failed to rsync volume: %s: %s", string(output), err)
+	}
+
+	return nil
+}
+
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
 // this function will return an error.
 func (d *dir) DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error {
