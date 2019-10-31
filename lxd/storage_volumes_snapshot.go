@@ -473,7 +473,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotUpdate, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotUpdate, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
