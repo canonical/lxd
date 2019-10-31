@@ -96,44 +96,58 @@ func TypesToHeader(types ...Type) MigrationHeader {
 // MatchTypes attempts to find a matching migration transport type between an offered type sent
 // from a remote source and the types supported by a local storage pool. If a match is found then
 // a Type is returned containing the method and the matching optional features present in both.
-func MatchTypes(offer MigrationHeader, ourTypes []Type) (Type, error) {
+// The function also takes a fallback type which is used as an additional offer type preference
+// in case the preferred remote type is not compatible with the local type available.
+// It is expected that both sides of the migration will support the fallback type for the volume's
+// content type that is being migrated.
+func MatchTypes(offer MigrationHeader, fallbackType MigrationFSType, ourTypes []Type) (Type, error) {
+	// Generate an offer types slice from the preferred type supplied from remote and the
+	// fallback type supplied based on the content type of the transfer.
+	offeredFSTypes := []MigrationFSType{offer.GetFs(), fallbackType}
+
 	// Find first matching type.
-	offerFSType := offer.GetFs()
 	for _, ourType := range ourTypes {
-		if offerFSType != ourType.FSType {
-			continue // Not a match, try the next one.
-		}
-
-		// We got a match, now extract the relevant offered features.
-		var offeredFeatures []string
-		if offerFSType == MigrationFSType_ZFS {
-			offeredFeatures = offer.GetZfsFeaturesSlice()
-		} else if offerFSType == MigrationFSType_RSYNC {
-			offeredFeatures = offer.GetRsyncFeaturesSlice()
-		}
-
-		// Find common features in both our type and offered type.
-		commonFeatures := []string{}
-		for _, ourFeature := range ourType.Features {
-			if shared.StringInSlice(ourFeature, offeredFeatures) {
-				commonFeatures = append(commonFeatures, ourFeature)
+		for _, offerFSType := range offeredFSTypes {
+			if offerFSType != ourType.FSType {
+				continue // Not a match, try the next one.
 			}
-		}
 
-		// Return type with combined features.
-		return Type{
-			FSType:   ourType.FSType,
-			Features: commonFeatures,
-		}, nil
+			// We got a match, now extract the relevant offered features.
+			var offeredFeatures []string
+			if offerFSType == MigrationFSType_ZFS {
+				offeredFeatures = offer.GetZfsFeaturesSlice()
+			} else if offerFSType == MigrationFSType_RSYNC {
+				offeredFeatures = offer.GetRsyncFeaturesSlice()
+			}
+
+			// Find common features in both our type and offered type.
+			commonFeatures := []string{}
+			for _, ourFeature := range ourType.Features {
+				if shared.StringInSlice(ourFeature, offeredFeatures) {
+					commonFeatures = append(commonFeatures, ourFeature)
+				}
+			}
+
+			// Return type with combined features.
+			return Type{
+				FSType:   ourType.FSType,
+				Features: commonFeatures,
+			}, nil
+		}
 	}
 
-	// No matching transport type found, generate an error with offered type and our types.
+	// No matching transport type found, generate an error with offered types and our types.
+	offeredTypeStrings := make([]string, 0, len(offeredFSTypes))
+	for _, offerFSType := range offeredFSTypes {
+		offeredTypeStrings = append(offeredTypeStrings, offerFSType.String())
+	}
+
 	ourTypeStrings := make([]string, 0, len(ourTypes))
 	for _, ourType := range ourTypes {
 		ourTypeStrings = append(ourTypeStrings, ourType.FSType.String())
 	}
 
-	return Type{}, fmt.Errorf("No matching migration type found. Offered type: %v, our types: %v", offerFSType, ourTypeStrings)
+	return Type{}, fmt.Errorf("No matching migration type found. Offered types: %v, our types: %v", offeredTypeStrings, ourTypeStrings)
 }
 
 func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
