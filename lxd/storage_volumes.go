@@ -976,9 +976,13 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 			// means that modifying a snapshot's description gets routed here rather
 			// than the dedicated snapshot editing route. So need to handle snapshot
 			// volumes here too.
-			err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, req.Config)
-			if err != nil {
-				return response.SmartError(err)
+
+			// Update the database if description changed.
+			if req.Description != vol.Description {
+				err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, vol.Config)
+				if err != nil {
+					response.SmartError(err)
+				}
 			}
 		}
 	} else {
