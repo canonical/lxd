@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
@@ -515,16 +516,21 @@ func (b *lxdBackend) RenameCustomVolume(volName string, newVolName string, op *o
 	return nil
 }
 
-// UpdateCustomVolume applies the supplied config to the volume.
+// UpdateCustomVolume applies the supplied config to the custom volume.
 func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	if shared.IsSnapshot(volName) {
+		return fmt.Errorf("Volume name cannot be a snapshot")
+	}
+
 	// Validate config.
-	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, newConfig), false)
+	newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, newConfig)
+	err := b.driver.ValidateVolume(newVol, false)
 	if err != nil {
 		return err
 	}
 
 	// Get current config to compare what has changed.
-	_, _, err = b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -533,7 +539,72 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 		return err
 	}
 
-	return ErrNotImplemented
+	// Diff the configurations.
+	changedConfig := make(map[string]string)
+	userOnly := true
+	for key := range curVol.Config {
+		if curVol.Config[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
+		}
+	}
+
+	for key := range newConfig {
+		if curVol.Config[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key]
+		}
+	}
+
+	// Apply config changes if there are any.
+	if len(changedConfig) != 0 {
+		curVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, curVol.Config)
+		if !userOnly {
+			err = b.driver.UpdateVolume(curVol, changedConfig)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Check that security.unmapped and security.shifted aren't set together.
+	if shared.IsTrue(newConfig["security.unmapped"]) && shared.IsTrue(newConfig["security.shifted"]) {
+		return fmt.Errorf("security.unmapped and security.shifted are mutually exclusive")
+	}
+
+	// Confirm that no instances are running when changing shifted state.
+	if newConfig["security.shifted"] != curVol.Config["security.shifted"] {
+		usingVolume, err := VolumeUsedByInstancesWithProfiles(b.state, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
+		if err != nil {
+			return err
+		}
+
+		if len(usingVolume) != 0 {
+			return fmt.Errorf("Cannot modify shifting with running containers using the volume")
+		}
+	}
+
+	// Unset idmap keys if volume is unmapped.
+	if shared.IsTrue(newConfig["security.unmapped"]) {
+		delete(newConfig, "volatile.idmap.last")
+		delete(newConfig, "volatile.idmap.next")
+	}
+
+	// Update the database if something changed.
+	if len(changedConfig) != 0 || newDesc != curVol.Description {
+		err = b.state.Cluster.StoragePoolVolumeUpdate(volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // DeleteCustomVolume removes a custom volume and its snapshots.
@@ -701,6 +772,33 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(volName string, op *operations.O
 
 	// Finally, remove the volume record from the database.
 	err = b.state.Cluster.StoragePoolVolumeDelete("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RestoreCustomVolume restores a custom volume from a snapshot.
+func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op *operations.Operation) error {
+	if shared.IsSnapshot(volName) {
+		return fmt.Errorf("Volume cannot be snapshot")
+	}
+
+	if shared.IsSnapshot(snapshotName) {
+		return fmt.Errorf("Invalid snapshot name")
+	}
+
+	usingVolume, err := VolumeUsedByInstancesWithProfiles(b.state, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
+	if err != nil {
+		return err
+	}
+
+	if len(usingVolume) != 0 {
+		return fmt.Errorf("Cannot restore custom volume used by running instances")
+	}
+
+	err = b.driver.RestoreVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, nil), snapshotName, op)
 	if err != nil {
 		return err
 	}
