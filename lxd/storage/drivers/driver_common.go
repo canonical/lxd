@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type common struct {
@@ -14,14 +15,16 @@ type common struct {
 	getVolID       func(volType VolumeType, volName string) (int64, error)
 	getCommonRules func() map[string]func(string) error
 	state          *state.State
+	logger         logger.Logger
 }
 
-func (d *common) init(state *state.State, name string, config map[string]string, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) {
+func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) {
 	d.name = name
 	d.config = config
 	d.getVolID = volIDFunc
 	d.getCommonRules = commonRulesFunc
 	d.state = state
+	d.logger = logger
 }
 
 // validateVolume validates a volume config against common rules and optional driver specific rules.
