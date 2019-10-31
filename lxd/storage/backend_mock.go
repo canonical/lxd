@@ -8,11 +8,13 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type mockBackend struct {
-	name  string
-	state *state.State
+	name   string
+	state  *state.State
+	logger logger.Logger
 }
 
 func (b *mockBackend) DaemonState() *state.State {

@@ -8,6 +8,9 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // MockBackend controls whether to run the storage logic in mock mode.
@@ -56,11 +59,14 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *o
 		pool := mockBackend{}
 		pool.name = dbPool.Name
 		pool.state = state
+		pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": "mock", "pool": pool.name})
 		return &pool, nil
 	}
 
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+
 	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, volIDFuncMake(state, poolID), validateVolumeCommonRules)
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), validateVolumeCommonRules)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +77,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *o
 	pool.id = poolID
 	pool.name = dbPool.Name
 	pool.state = state
+	pool.logger = logger
 
 	// Create the pool itself on the storage device..
 	err = pool.create(dbPool, op)
@@ -88,6 +95,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 		pool := mockBackend{}
 		pool.name = name
 		pool.state = state
+		pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": "mock", "pool": pool.name})
 		return &pool, nil
 	}
 
@@ -102,8 +110,10 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 		dbPool.Config = map[string]string{}
 	}
 
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+
 	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, volIDFuncMake(state, poolID), validateVolumeCommonRules)
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), validateVolumeCommonRules)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +124,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	pool.id = poolID
 	pool.name = dbPool.Name
 	pool.state = state
+	pool.logger = logger
 
 	return &pool, nil
 }
