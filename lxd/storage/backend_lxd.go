@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -198,8 +199,17 @@ func (b *lxdBackend) BackupInstance(inst Instance, targetPath string, optimized 
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) GetInstanceUsage(i Instance) (uint64, error) {
-	return 0, ErrNotImplemented
+// GetInstanceUsage returns the disk usage of the Instance's root device.
+func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"instance": inst.Name()})
+	logger.Debug("GetInstanceUsage started")
+	defer logger.Debug("GetInstanceUsage finished")
+
+	if inst.Type() == instancetype.Container {
+		return b.driver.GetVolumeUsage(drivers.VolumeTypeContainer, inst.Name())
+	}
+
+	return -1, ErrNotImplemented
 }
 
 func (b *lxdBackend) SetInstanceQuota(inst Instance, quota uint64) error {
@@ -712,13 +722,9 @@ func (b *lxdBackend) DeleteCustomVolume(volName string, op *operations.Operation
 	return nil
 }
 
-func (b *lxdBackend) GetCustomVolumeUsage(vol api.StorageVolume) (uint64, error) {
-	return 0, ErrNotImplemented
-}
-
-// SetCustomVolumeQuota modifies the custom volume's quota.
-func (b *lxdBackend) SetCustomVolumeQuota(vol api.StorageVolume, quota uint64) error {
-	return ErrNotImplemented
+// GetCustomVolumeUsage returns the disk space used by the custom volume.
+func (b *lxdBackend) GetCustomVolumeUsage(volName string) (int64, error) {
+	return b.driver.GetVolumeUsage(drivers.VolumeTypeCustom, volName)
 }
 
 // MountCustomVolume mounts a custom volume.
