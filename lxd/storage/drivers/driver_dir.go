@@ -119,6 +119,31 @@ func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
 	return vfsResources(GetPoolMountPath(d.name))
 }
 
+// GetVolumeUsage returns the disk space used by the volume.
+func (d *dir) GetVolumeUsage(volType VolumeType, volName string) (int64, error) {
+	volPath := GetVolumeMountPath(d.name, volType, volName)
+	ok, err := quota.Supported(volPath)
+	if err != nil || !ok {
+		return -1, fmt.Errorf("The backing filesystem doesn't support quotas")
+	}
+
+	// Get the volume ID for the volume to access quota.
+	volID, err := d.getVolID(volType, volName)
+	if err != nil {
+		return -1, err
+	}
+
+	projectID := d.quotaProjectID(volID)
+
+	// Get project quota used.
+	size, err := quota.GetProjectUsage(volPath, projectID)
+	if err != nil {
+		return -1, err
+	}
+
+	return size, nil
+}
+
 // ValidateVolume validates the supplied volume config.
 func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
