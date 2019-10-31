@@ -28,6 +28,9 @@ var baseDirectories = []string{
 	"virtual-machines-snapshots",
 }
 
+// VolumeUsedByInstancesWithProfiles returns a slice containing the names of instances using a volume.
+var VolumeUsedByInstancesWithProfiles func(s *state.State, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error)
+
 func createStorageStructure(path string) error {
 	for _, name := range baseDirectories {
 		err := os.MkdirAll(filepath.Join(path, name), 0711)
@@ -397,7 +400,7 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 		return db.StoragePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("invalid storage volume type name")
+	return -1, fmt.Errorf("Invalid storage volume type name")
 }
 
 // VolumeTypeToDBType converts volume type to internal code.
@@ -411,7 +414,7 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 		return db.StoragePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("invalid storage volume type")
+	return -1, fmt.Errorf("Invalid storage volume type")
 }
 
 // VolumeDBCreate creates a volume in the database.

@@ -203,3 +203,7 @@ func (b *mockBackend) RenameCustomVolumeSnapshot(volName string, newName string,
 func (b *mockBackend) DeleteCustomVolumeSnapshot(volName string, op *operations.Operation) error {
 	return nil
 }
+
+func (b *mockBackend) RestoreCustomVolume(volName string, snapshotName string, op *operations.Operation) error {
+	return nil
+}

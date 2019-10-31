@@ -85,6 +85,7 @@ type Pool interface {
 	CreateCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error
 	RenameCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error
 	DeleteCustomVolumeSnapshot(volName string, op *operations.Operation) error
+	RestoreCustomVolume(volName string, snapshotName string, op *operations.Operation) error
 
 	// Custom volume migration.
 	MigrationTypes(contentType drivers.ContentType) []migration.Type
