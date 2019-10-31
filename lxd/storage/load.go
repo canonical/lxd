@@ -63,8 +63,10 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *o
 		return &pool, nil
 	}
 
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+
 	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, volIDFuncMake(state, poolID), validateVolumeCommonRules)
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), validateVolumeCommonRules)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +77,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *o
 	pool.id = poolID
 	pool.name = dbPool.Name
 	pool.state = state
-	pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": pool.name})
+	pool.logger = logger
 
 	// Create the pool itself on the storage device..
 	err = pool.create(dbPool, op)
@@ -108,8 +110,10 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 		dbPool.Config = map[string]string{}
 	}
 
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+
 	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, volIDFuncMake(state, poolID), validateVolumeCommonRules)
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), validateVolumeCommonRules)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +124,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	pool.id = poolID
 	pool.name = dbPool.Name
 	pool.state = state
-	pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": pool.name})
+	pool.logger = logger
 
 	return &pool, nil
 }
