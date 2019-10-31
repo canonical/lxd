@@ -398,6 +398,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	return response.SyncResponseETag(true, &snapshot, etag)
 }
 
+// storagePoolVolumeSnapshotTypePut allows a snapshot's description to be changed.
 func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
@@ -420,7 +421,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 
 	// Check that the storage volume type is valid.
 	if volumeType != storagePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
@@ -439,13 +440,13 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(fullSnapshotName, volumeType, poolID)
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(fullSnapshotName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag
-	etag := []interface{}{snapshotName, volume.Description, volume.Config}
+	etag := []interface{}{snapshotName, vol.Description, vol.Config}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -457,22 +458,22 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	var do func(*operations.Operation) error
-	var opDescription db.OperationType
-	do = func(op *operations.Operation) error {
-		err = storagePoolVolumeSnapshotUpdate(d.State(), poolName, volume.Name, volumeType, req.Description)
-		if err != nil {
-			return err
+	do := func(op *operations.Operation) error {
+		// Update the database if description changed.
+		if req.Description != vol.Description {
+			err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, vol.Config)
+			if err != nil {
+				return err
+			}
 		}
 
-		opDescription = db.OperationVolumeSnapshotDelete
 		return nil
 	}
 
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, opDescription, resources, nil, do, nil, nil)
+	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotUpdate, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
