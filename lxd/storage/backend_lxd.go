@@ -247,8 +247,14 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 
 // CreateCustomVolume creates an empty custom volume.
 func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]string, op *operations.Operation) error {
+	// Validate config.
+	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config), false)
+	if err != nil {
+		return err
+	}
+
 	// Create database entry for new storage volume.
-	err := VolumeDBCreate(b.state, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+	err = VolumeDBCreate(b.state, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
 	if err != nil {
 		return err
 	}
@@ -409,7 +415,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	}()
 
 	// Check the supplied config and remove any fields not relevant for destination pool type.
-	err := b.driver.ValidateVolume(args.Config, true)
+	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config), true)
 	if err != nil {
 		return err
 	}
@@ -511,7 +517,8 @@ func (b *lxdBackend) RenameCustomVolume(volName string, newVolName string, op *o
 
 // UpdateCustomVolume applies the supplied config to the volume.
 func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	err := b.driver.ValidateVolume(newConfig, false)
+	// Validate config.
+	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, newConfig), false)
 	if err != nil {
 		return err
 	}
