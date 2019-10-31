@@ -57,6 +57,7 @@ type Driver interface {
 	DeleteVolumeSnapshot(volType VolumeType, volName string, snapshotName string, op *operations.Operation) error
 	RenameVolumeSnapshot(volType VolumeType, volName string, snapshotName string, newSnapshotName string, op *operations.Operation) error
 	VolumeSnapshots(volType VolumeType, volName string, op *operations.Operation) ([]string, error)
+	RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error
 
 	// Migration.
 	MigrationTypes(contentType ContentType) []migration.Type
