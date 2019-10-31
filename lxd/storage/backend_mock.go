@@ -142,7 +142,7 @@ func (b *mockBackend) UnmountInstanceSnapshot(i Instance) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) CreateImage(img api.Image, op *operations.Operation) error {
+func (b *mockBackend) CreateImage(fingerprint string, op *operations.Operation) error {
 	return nil
 }
 
