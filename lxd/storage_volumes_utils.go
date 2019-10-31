@@ -207,28 +207,6 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 	return nil
 }
 
-func storagePoolVolumeSnapshotUpdate(state *state.State, poolName string, volumeName string, volumeType int, newDescription string) error {
-	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
-	if err != nil {
-		return err
-	}
-
-	oldWritable := s.GetStoragePoolVolumeWritable()
-	oldDescription := oldWritable.Description
-
-	poolID, err := state.Cluster.StoragePoolGetID(poolName)
-	if err != nil {
-		return err
-	}
-
-	// Update the database if something changed
-	if newDescription != oldDescription {
-		return state.Cluster.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, newDescription, oldWritable.Config)
-	}
-
-	return nil
-}
-
 func storagePoolVolumeUsedByContainersGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
 	insts, err := instanceLoadByProject(s, project)
 	if err != nil {
