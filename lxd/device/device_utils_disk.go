@@ -1,8 +1,16 @@
 package device
 
 import (
+	"bufio"
 	"fmt"
+	"github.com/lxc/lxd/lxd/db"
+	driver "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/shared/logger"
+	"os"
+	"os/exec"
 	"strings"
+	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -114,6 +122,184 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	if err != nil {
 		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
 	}
+
+	return nil
+}
+
+func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
+	devPath, err := shared.RunCommand(
+		"rbd",
+		"--id", userName,
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"map",
+		fmt.Sprintf("%s_%s", db.StoragePoolVolumeTypeNameCustom, volumeName))
+	if err != nil {
+		return "", err
+	}
+
+	idx := strings.Index(devPath, "/dev/rbd")
+	if idx < 0 {
+		return "", fmt.Errorf("Failed to detect mapped device path")
+	}
+
+	devPath = devPath[idx:]
+	return strings.TrimSpace(devPath), nil
+}
+
+func diskCephRbdUnmap(clusterName string, userName string, poolName string, deviceName string, unmapUntilEINVAL bool) error {
+	unmapImageName := fmt.Sprintf("%s_%s", db.StoragePoolVolumeTypeNameCustom, deviceName)
+
+	busyCount := 0
+
+again:
+	_, err := shared.RunCommand(
+		"rbd",
+		"--id", userName,
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"unmap",
+		unmapImageName)
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 22 {
+					// EINVAL (already unmapped)
+					return nil
+				}
+
+				if waitStatus.ExitStatus() == 16 {
+					// EBUSY (currently in use)
+					busyCount++
+					if busyCount == 10 {
+						return err
+					}
+
+					// Wait a second an try again
+					time.Sleep(time.Second)
+					goto again
+				}
+			}
+		}
+
+		return err
+	}
+
+	if unmapUntilEINVAL {
+		goto again
+	}
+
+	return nil
+}
+
+func cephFsConfig(clusterName string, userName string) ([]string, string, error) {
+	// Parse the CEPH configuration
+	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", clusterName))
+	if err != nil {
+		return nil, "", err
+	}
+
+	cephMon := []string{}
+
+	scan := bufio.NewScanner(cephConf)
+	for scan.Scan() {
+		line := scan.Text()
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "mon_host") {
+			fields := strings.SplitN(line, "=", 2)
+			if len(fields) < 2 {
+				continue
+			}
+
+			servers := strings.Split(fields[1], ",")
+			for _, server := range servers {
+				cephMon = append(cephMon, strings.TrimSpace(server))
+			}
+			break
+		}
+	}
+
+	if len(cephMon) == 0 {
+		return nil, "", fmt.Errorf("Couldn't find a CPEH mon")
+	}
+
+	// Parse the CEPH keyring
+	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", clusterName, userName))
+	if err != nil {
+		return nil, "", err
+	}
+
+	var cephSecret string
+
+	scan = bufio.NewScanner(cephKeyring)
+	for scan.Scan() {
+		line := scan.Text()
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "key") {
+			fields := strings.SplitN(line, "=", 2)
+			if len(fields) < 2 {
+				continue
+			}
+
+			cephSecret = strings.TrimSpace(fields[1])
+			break
+		}
+	}
+
+	if cephSecret == "" {
+		return nil, "", fmt.Errorf("Couldn't find a keyring entry")
+	}
+
+	return cephMon, cephSecret, nil
+}
+
+func diskCephfsMount(clusterName string, userName string, fsName string, path string) error {
+	logger.Debugf("Mounting CEPHFS ")
+	// Parse the namespace / path
+	fields := strings.SplitN(fsName, "/", 2)
+	fsName = fields[0]
+	fsPath := "/"
+	if len(fields) > 1 {
+		fsPath = fields[1]
+	}
+
+	// Get the credentials and host
+	monAddresses, secret, err := cephFsConfig(clusterName, userName)
+	if err != nil {
+		return err
+	}
+
+	// Do the actual mount
+	connected := false
+	for _, monAddress := range monAddresses {
+		uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
+		err = driver.TryMount(uri, path, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", userName, secret, fsName))
+		if err != nil {
+			continue
+		}
+
+		connected = true
+		break
+	}
+
+	if !connected {
+		return err
+	}
+
+	logger.Debugf("Mounted CEPHFS")
 
 	return nil
 }
