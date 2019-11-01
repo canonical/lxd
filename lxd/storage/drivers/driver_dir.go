@@ -174,7 +174,7 @@ func (d *dir) CreateVolume(vol Volume, filler func(path string) error, op *opera
 		return err
 	}
 
-	err = os.MkdirAll(volPath, 0711)
+	err = vol.CreateMountPath()
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		}
 
 		snapPath := snapshot.MountPath()
-		err = os.MkdirAll(snapPath, 0711)
+		err = snapshot.CreateMountPath()
 		if err != nil {
 			return err
 		}
@@ -317,7 +317,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 	volPath := vol.MountPath()
 
 	// Finally the actual volume is sent by sender, so create that last.
-	err = os.MkdirAll(volPath, 0711)
+	err = vol.CreateMountPath()
 	if err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			}
 
 			dstSnapPath := dstSnapshot.MountPath()
-			err = os.MkdirAll(dstSnapPath, 0711)
+			err = dstSnapshot.CreateMountPath()
 			if err != nil {
 				return err
 			}
@@ -416,7 +416,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	}
 
 	volPath := vol.MountPath()
-	err = os.MkdirAll(volPath, 0711)
+	err = vol.CreateMountPath()
 	if err != nil {
 		return err
 	}
@@ -513,6 +513,7 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 		return err
 	}
 
+	// tomp TODO check old snapshots dir is removed.
 	err = os.MkdirAll(snapshotDir, 0711)
 	if err != nil {
 		return err
@@ -761,10 +762,12 @@ func (d *dir) CreateVolumeSnapshot(volType VolumeType, volName string, newSnapsh
 	}
 
 	srcPath := GetVolumeMountPath(d.name, volType, volName)
-	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, newSnapshotName))
+	fullSnapName := GetSnapshotVolumeName(volName, newSnapshotName)
+	snapVol := NewVolume(d, d.name, volType, ContentTypeFS, fullSnapName, nil)
+	snapPath := snapVol.MountPath()
 
 	// Create snapshot directory.
-	err = os.MkdirAll(snapPath, 0711)
+	err = snapVol.CreateMountPath()
 	if err != nil {
 		return err
 	}
