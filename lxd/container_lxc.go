@@ -41,7 +41,8 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -324,7 +325,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error)
 
 	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = driver.VolumeFillDefault(storagePool, volumeConfig, pool)
+	err = storagePools.VolumeFillDefault(storagePool, volumeConfig, pool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -3580,7 +3581,7 @@ func (c *containerLXC) Delete() error {
 		// Delete the container from disk
 		if c.storage != nil && !isImport {
 			_, poolName, _ := c.storage.GetContainerPoolInfo()
-			containerMountPoint := driver.GetContainerMountPoint(c.Project(), poolName, c.Name())
+			containerMountPoint := storagePools.GetContainerMountPoint(c.Project(), poolName, c.Name())
 			if shared.PathExists(c.Path()) ||
 				shared.PathExists(containerMountPoint) {
 				err := c.storage.ContainerDelete(c)
@@ -5904,9 +5905,26 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 			continue
 		}
 
-		usage, err := c.storage.ContainerGetUsage(c)
-		if err != nil {
-			continue
+		var usage int64
+
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(c.state, dev.Config["pool"])
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				logger.Errorf("Error loading storage pool for %s: %v", c.Name(), err)
+				continue
+			}
+
+			usage, err = pool.GetInstanceUsage(c)
+			if err != nil {
+				logger.Errorf("Error getting disk usage for %s: %v", c.Name(), err)
+				continue
+			}
+		} else {
+			usage, err = c.storage.ContainerGetUsage(c)
+			if err != nil {
+				continue
+			}
 		}
 
 		disk[dev.Name] = api.InstanceStateDisk{Usage: usage}
@@ -6718,7 +6736,7 @@ func (c *containerLXC) State() string {
 // Various container paths
 func (c *containerLXC) Path() string {
 	name := project.Prefix(c.Project(), c.Name())
-	return driver.ContainerPath(name, c.IsSnapshot())
+	return storagePools.ContainerPath(name, c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {

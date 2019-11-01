@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -158,87 +159,96 @@ func (b *lxdBackend) Unmount() (bool, error) {
 	return b.driver.Unmount()
 }
 
-func (b *lxdBackend) CreateInstance(i Instance, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) CreateInstanceFromBackup(i Instance, sourcePath string, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromBackup(inst Instance, sourcePath string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) CreateInstanceFromCopy(i Instance, src Instance, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) CreateInstanceFromImage(i Instance, fingerprint string, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) CreateInstanceFromMigration(i Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) RenameInstance(i Instance, newName string, op *operations.Operation) error {
+func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) DeleteInstance(i Instance, op *operations.Operation) error {
+func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) MigrateInstance(i Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
+func (b *lxdBackend) MigrateInstance(inst Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
 	return nil, ErrNotImplemented
 }
 
-func (b *lxdBackend) RefreshInstance(i Instance, src Instance, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) RefreshInstance(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) BackupInstance(i Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) BackupInstance(inst Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) GetInstanceUsage(i Instance) (uint64, error) {
-	return 0, ErrNotImplemented
+// GetInstanceUsage returns the disk usage of the Instance's root device.
+func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"instance": inst.Name()})
+	logger.Debug("GetInstanceUsage started")
+	defer logger.Debug("GetInstanceUsage finished")
+
+	if inst.Type() == instancetype.Container {
+		return b.driver.GetVolumeUsage(drivers.VolumeTypeContainer, inst.Name())
+	}
+
+	return -1, ErrNotImplemented
 }
 
-func (b *lxdBackend) SetInstanceQuota(i Instance, quota uint64) error {
+func (b *lxdBackend) SetInstanceQuota(inst Instance, quota uint64) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) MountInstance(i Instance) (bool, error) {
+func (b *lxdBackend) MountInstance(inst Instance) (bool, error) {
 	return true, ErrNotImplemented
 }
 
-func (b *lxdBackend) UnmountInstance(i Instance) (bool, error) {
+func (b *lxdBackend) UnmountInstance(inst Instance) (bool, error) {
 	return true, ErrNotImplemented
 }
 
-func (b *lxdBackend) GetInstanceDisk(i Instance) (string, string, error) {
+func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, string, error) {
 	return "", "", ErrNotImplemented
 }
 
-func (b *lxdBackend) CreateInstanceSnapshot(i Instance, name string, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) RenameInstanceSnapshot(i Instance, newName string, op *operations.Operation) error {
+func (b *lxdBackend) RenameInstanceSnapshot(inst Instance, newName string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) DeleteInstanceSnapshot(i Instance, op *operations.Operation) error {
+func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) RestoreInstanceSnapshot(i Instance, op *operations.Operation) error {
+func (b *lxdBackend) RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) MountInstanceSnapshot(i Instance) (bool, error) {
+func (b *lxdBackend) MountInstanceSnapshot(inst Instance) (bool, error) {
 	return true, ErrNotImplemented
 }
 
-func (b *lxdBackend) UnmountInstanceSnapshot(i Instance) (bool, error) {
+func (b *lxdBackend) UnmountInstanceSnapshot(inst Instance) (bool, error) {
 	return true, ErrNotImplemented
 }
 
@@ -712,13 +722,9 @@ func (b *lxdBackend) DeleteCustomVolume(volName string, op *operations.Operation
 	return nil
 }
 
-func (b *lxdBackend) GetCustomVolumeUsage(vol api.StorageVolume) (uint64, error) {
-	return 0, ErrNotImplemented
-}
-
-// SetCustomVolumeQuota modifies the custom volume's quota.
-func (b *lxdBackend) SetCustomVolumeQuota(vol api.StorageVolume, quota uint64) error {
-	return ErrNotImplemented
+// GetCustomVolumeUsage returns the disk space used by the custom volume.
+func (b *lxdBackend) GetCustomVolumeUsage(volName string) (int64, error) {
+	return b.driver.GetVolumeUsage(drivers.VolumeTypeCustom, volName)
 }
 
 // MountCustomVolume mounts a custom volume.
