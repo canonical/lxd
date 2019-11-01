@@ -653,100 +653,33 @@ func storagePoolVolumeTypePostRename(d *Daemon, poolName string, volumeName stri
 
 // storagePoolVolumeTypePostMove handles volume move type POST requests.
 func storagePoolVolumeTypePostMove(d *Daemon, poolName string, volumeName string, volumeType int, req api.StorageVolumePost) response.Response {
-	var run func(op *operations.Operation) error
+	srcPool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	// Check if we can load new storage layer for both target and source pool driver types.
-	srcPool, srcPoolErr := storagePools.GetPoolByName(d.State(), poolName)
 	pool, err := storagePools.GetPoolByName(d.State(), req.Pool)
-	if err != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrUnknownDriver {
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	run := func(op *operations.Operation) error {
+		// Notify users of the volume that it's name is changing.
+		err = storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
-		run = func(op *operations.Operation) error {
-			// Notify users of the volume that it's name is changing.
-			err := storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
-			if err != nil {
-				return err
-			}
-
-			// Provide empty description and nil config to instruct
-			// CreateCustomVolumeFromCopy to copy it from source volume.
-			err = pool.CreateCustomVolumeFromCopy(req.Name, "", nil, poolName, volumeName, false, op)
-			if err != nil {
-				// Notify users of the volume that it's name is changing back.
-				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
-				return err
-			}
-
-			return srcPool.DeleteCustomVolume(volumeName, op)
-		}
-	} else {
-		// Convert poolName to poolID.
-		poolID, _, err := d.cluster.StoragePoolGet(poolName)
+		// Provide empty description and nil config to instruct
+		// CreateCustomVolumeFromCopy to copy it from source volume.
+		err = pool.CreateCustomVolumeFromCopy(req.Name, "", nil, poolName, volumeName, false, op)
 		if err != nil {
-			return response.SmartError(err)
+			// Notify users of the volume that it's name is changing back.
+			storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+			return err
 		}
 
-		// Get the storage volume.
-		_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// Get storage volume snapshots.
-		snapshots, err := d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// This is a move request, so copy the volume and then delete the original.
-		moveReq := api.StorageVolumesPost{}
-		moveReq.Name = req.Name
-		moveReq.Type = "custom"
-		moveReq.Config = volume.Config
-		moveReq.Source.Name = volumeName
-		moveReq.Source.Pool = poolName
-
-		run = func(op *operations.Operation) error {
-			// Notify users of the volume that it's name is changing.
-			err := storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
-			if err != nil {
-				return err
-			}
-
-			err = storagePoolVolumeCreateInternal(d.State(), req.Pool, &moveReq)
-			if err != nil {
-				// Notify users of the volume that it's name is changing back.
-				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
-				return err
-			}
-
-			// Delete snapshot volumes.
-			for _, snapshot := range snapshots {
-				s, err := storagePoolVolumeInit(d.State(), "default", poolName, snapshot.Name, volumeType)
-				if err != nil {
-					return err
-				}
-
-				err = s.StoragePoolVolumeSnapshotDelete()
-				if err != nil {
-					return err
-				}
-			}
-
-			s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
-			if err != nil {
-				return err
-			}
-
-			err = s.StoragePoolVolumeDelete()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}
+		return srcPool.DeleteCustomVolume(volumeName, op)
 	}
 
 	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeMove, nil, nil, run, nil, nil)
