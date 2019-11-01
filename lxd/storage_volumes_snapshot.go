@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -447,36 +446,19 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return resp
 	}
 
-	poolID, _, err := d.cluster.StoragePoolGet(poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
+	resp = ForwardedResponseIfVolumeIsRemote(d, r, pool.ID(), fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
 	snapshotDelete := func(op *operations.Operation) error {
-		// Check if we can load new storage layer for pool driver type.
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			err = pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
-		} else {
-			err = s.StoragePoolVolumeSnapshotDelete()
-		}
-
-		return err
+		return pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
 	}
 
 	resources := map[string][]string{}
