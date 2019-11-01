@@ -294,27 +294,17 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) response.Response {
-	var run func(op *operations.Operation) error
-
-	// Check if we can load new storage layer for both target and source pool driver types.
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
-	_, srcPoolErr := storagePools.GetPoolByName(d.State(), req.Source.Pool)
-	if err != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return response.SmartError(err)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	run := func(op *operations.Operation) error {
+		if req.Source.Name == "" {
+			return pool.CreateCustomVolume(req.Name, req.Description, req.Config, op)
 		}
 
-		run = func(op *operations.Operation) error {
-			if req.Source.Name == "" {
-				return pool.CreateCustomVolume(req.Name, req.Description, req.Config, op)
-			}
-
-			return pool.CreateCustomVolumeFromCopy(req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
-		}
-	} else {
-		run = func(op *operations.Operation) error {
-			return storagePoolVolumeCreateInternal(d.State(), poolName, req)
-		}
+		return pool.CreateCustomVolumeFromCopy(req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
 	}
 
 	// If no source name supplied then this a volume create operation.
