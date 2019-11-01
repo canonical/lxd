@@ -43,55 +43,18 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
-	// Check if sending storage pool supports new storage layer.
 	pool, err := storagePools.GetPoolByName(state, poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
-
-		poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS)
-		if len(poolMigrationTypes) < 0 {
-			return fmt.Errorf("No source migration types available")
-		}
-
-		// Convert the pool's migration type options to an offer header to target.
-		offerHeader = migration.TypesToHeader(poolMigrationTypes...)
-	} else {
-		storage, err := storagePoolVolumeInit(state, "default", poolName, volName, storagePoolVolumeTypeCustom)
-		if err != nil {
-			return err
-		}
-		s.storage = storage
-		myType := s.storage.MigrationType()
-		hasFeature := true
-		offerHeader = migration.MigrationHeader{
-			Fs: &myType,
-			RsyncFeatures: &migration.RsyncFeatures{
-				Xattrs:        &hasFeature,
-				Delete:        &hasFeature,
-				Compress:      &hasFeature,
-				Bidirectional: &hasFeature,
-			},
-		}
-
-		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-			offerHeader.ZfsFeatures = &migration.ZfsFeatures{
-				Compress: &hasFeature,
-			}
-		}
-
-		// Storage needs to start unconditionally now, since we need to initialize a new
-		// storage interface.
-		ourMount, err := s.storage.StoragePoolVolumeMount()
-		if err != nil {
-			logger.Errorf("Failed to mount storage volume")
-			return err
-		}
-		if ourMount {
-			defer s.storage.StoragePoolVolumeUmount()
-		}
+	if err != nil {
+		return err
 	}
+
+	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS)
+	if len(poolMigrationTypes) < 0 {
+		return fmt.Errorf("No source migration types available")
+	}
+
+	// Convert the pool's migration type options to an offer header to target.
+	offerHeader = migration.TypesToHeader(poolMigrationTypes...)
 
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
@@ -141,78 +104,24 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 		return err
 	}
 
-	// Use new storage layer for migration if supported.
-	if pool != nil {
-		migrationType, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
-		if err != nil {
-			logger.Errorf("Failed to neogotiate migration type: %v", err)
-			s.sendControl(err)
-			return err
-		}
+	migrationType, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	if err != nil {
+		logger.Errorf("Failed to neogotiate migration type: %v", err)
+		s.sendControl(err)
+		return err
+	}
 
-		volSourceArgs := migration.VolumeSourceArgs{
-			Name:          volName,
-			MigrationType: migrationType,
-			Snapshots:     snapshotNames,
-			TrackProgress: true,
-		}
+	volSourceArgs := migration.VolumeSourceArgs{
+		Name:          volName,
+		MigrationType: migrationType,
+		Snapshots:     snapshotNames,
+		TrackProgress: true,
+	}
 
-		err = pool.MigrateCustomVolume(&shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
-		if err != nil {
-			go s.sendControl(err)
-			return err
-		}
-	} else {
-		// Use legacy storage layer for migration.
-
-		// Get target's rsync options.
-		rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
-		if !shared.StringInSlice("bidirectional", rsyncFeatures) {
-			// If no bi-directional support, assume LXD 3.7 level
-			// NOTE: Do NOT extend this list of arguments
-			rsyncFeatures = []string{"xattrs", "delete", "compress"}
-		}
-
-		// Get target's zfs options.
-		zfsFeatures := respHeader.GetZfsFeaturesSlice()
-
-		// Set source args
-		sourceArgs := MigrationSourceArgs{
-			RsyncFeatures: rsyncFeatures,
-			ZfsFeatures:   zfsFeatures,
-			VolumeOnly:    s.volumeOnly,
-		}
-
-		driver, fsErr := s.storage.StorageMigrationSource(sourceArgs)
-		if fsErr != nil {
-			logger.Errorf("Failed to initialize new storage volume migration driver")
-			s.sendControl(fsErr)
-			return fsErr
-		}
-
-		bwlimit := ""
-
-		if *offerHeader.Fs != *respHeader.Fs {
-			driver, _ = rsyncStorageMigrationSource(sourceArgs)
-
-			// Check if this storage pool has a rate limit set for rsync.
-			poolwritable := s.storage.GetStoragePoolWritable()
-			if poolwritable.Config != nil {
-				bwlimit = poolwritable.Config["rsync.bwlimit"]
-			}
-		}
-
-		abort := func(err error) error {
-			driver.Cleanup()
-			go s.sendControl(err)
-			return err
-		}
-
-		err = driver.SendStorageVolume(s.fsConn, migrateOp, bwlimit, s.storage, s.volumeOnly)
-		if err != nil {
-			logger.Errorf("Failed to send storage volume")
-			return abort(err)
-		}
+	err = pool.MigrateCustomVolume(&shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+	if err != nil {
+		go s.sendControl(err)
+		return err
 	}
 
 	msg := migration.MigrationControl{}
