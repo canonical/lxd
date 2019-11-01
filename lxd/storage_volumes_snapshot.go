@@ -252,36 +252,19 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return resp
 	}
 
-	poolID, _, err := d.cluster.StoragePoolGet(poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
+	resp = ForwardedResponseIfVolumeIsRemote(d, r, pool.ID(), fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
 	snapshotRename := func(op *operations.Operation) error {
-		// Check if we can load new storage layer for pool driver type.
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			err = pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
-		} else {
-			err = s.StoragePoolVolumeSnapshotRename(req.Name)
-		}
-
-		return err
+		return pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
 	}
 
 	resources := map[string][]string{}
