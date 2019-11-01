@@ -34,7 +34,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -628,31 +627,14 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 		return fmt.Errorf("No storage pool specified")
 	}
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(d.State(), storagePool)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
-		err = pool.CreateImage(info.Fingerprint, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Initialize a new storage interface.
-		s, err := storagePoolInit(d.State(), storagePool)
-		if err != nil {
-			return err
-		}
-
-		// Create the storage volume for the image on the requested storage
-		// pool.
-		err = s.ImageCreate(info.Fingerprint, nil)
-		if err != nil {
-			return err
-		}
-
+	err = pool.CreateImage(info.Fingerprint, nil)
+	if err != nil {
+		return err
 	}
 
 	return nil
