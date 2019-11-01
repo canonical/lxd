@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
@@ -415,6 +416,18 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	}
 
 	return -1, fmt.Errorf("Invalid storage volume type")
+}
+
+// InstanceTypeToVolumeType converts instance type to volume type.
+func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, error) {
+	switch instType {
+	case instancetype.Container:
+		return drivers.VolumeTypeContainer, nil
+	case instancetype.VM:
+		return drivers.VolumeTypeVM, nil
+	}
+
+	return "", fmt.Errorf("Invalid instance type")
 }
 
 // VolumeDBCreate creates a volume in the database.
