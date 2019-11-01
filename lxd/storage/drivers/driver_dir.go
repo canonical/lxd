@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -683,6 +684,7 @@ func (d *dir) initQuota(path string, volID int64) error {
 	ok, err := quota.Supported(path)
 	if err != nil || !ok {
 		// Skipping quota as underlying filesystem doesn't suppport project quotas.
+		d.logger.Warn("The backing filesystem doesn't support quotas, skipping quota", log.Ctx{"path": path})
 		return nil
 	}
 
@@ -713,6 +715,7 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 	ok, err := quota.Supported(path)
 	if err != nil || !ok {
 		// Skipping quota as underlying filesystem doesn't suppport project quotas.
+		d.logger.Warn("The backing filesystem doesn't support quotas, skipping quota", log.Ctx{"path": path})
 		return nil
 	}
 
