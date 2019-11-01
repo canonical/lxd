@@ -32,7 +32,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, volTypeID, poolID)
 		if err != nil {
 			if err == db.ErrNoSuchObject {
-				return -1, fmt.Errorf("Volume doesn't exist")
+				return -1, fmt.Errorf("Failed to get volume ID, volume '%s' of type '%s' doesn't exist", volName, volType)
 			}
 
 			return -1, err
