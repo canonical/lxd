@@ -513,7 +513,6 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 		return err
 	}
 
-	// tomp TODO check old snapshots dir is removed.
 	err = os.MkdirAll(snapshotDir, 0711)
 	if err != nil {
 		return err
@@ -571,6 +570,16 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 		oldPath: oldPath,
 		newPath: newPath,
 	})
+
+	// Remove old snapshots directory.
+	oldSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
+	if err != nil {
+		return err
+	}
+	err = os.RemoveAll(oldSnapshotDir)
+	if err != nil {
+		return err
+	}
 
 	revertPaths = nil
 	return nil
