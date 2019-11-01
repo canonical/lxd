@@ -203,6 +203,16 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				disk.WWN = strings.TrimSpace(string(diskWWN))
 			}
 
+			// Try to guess if dealing with CD-ROM
+			if strings.HasPrefix(disk.ID, "sr") && disk.Removable {
+				disk.Type = "cdrom"
+
+				// Most cdrom drives report this as size regardless of media
+				if disk.Size == 0x1fffff*512 {
+					disk.Size = 0
+				}
+			}
+
 			// Look for partitions
 			disk.Partitions = []api.ResourcesStorageDiskPartition{}
 			for _, subEntry := range entries {
