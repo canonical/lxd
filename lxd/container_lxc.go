@@ -42,7 +42,6 @@ import (
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -5907,24 +5906,16 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 
 		var usage int64
 
-		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(c.state, dev.Config["pool"])
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				logger.Errorf("Error loading storage pool for %s: %v", c.Name(), err)
-				continue
-			}
+		if err != nil {
+			logger.Errorf("Error loading storage pool for %s: %v", c.Name(), err)
+			continue
+		}
 
-			usage, err = pool.GetInstanceUsage(c)
-			if err != nil {
-				logger.Errorf("Error getting disk usage for %s: %v", c.Name(), err)
-				continue
-			}
-		} else {
-			usage, err = c.storage.ContainerGetUsage(c)
-			if err != nil {
-				continue
-			}
+		usage, err = pool.GetInstanceUsage(c)
+		if err != nil {
+			logger.Errorf("Error getting disk usage for %s: %v", c.Name(), err)
+			continue
 		}
 
 		disk[dev.Name] = api.InstanceStateDisk{Usage: usage}
