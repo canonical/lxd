@@ -423,7 +423,7 @@ test_basic_usage() {
   lxc profile create unconfined
   lxc profile set unconfined security.privileged true
   lxc init testimage foo2 -p unconfined -s "lxdtest-$(basename "${LXD_DIR}")"
-  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "700" ]
+  [ "$(stat -L -c "%a" "${LXD_DIR}/containers/foo2")" = "100" ]
   lxc delete foo2
   lxc profile delete unconfined
 
