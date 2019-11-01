@@ -1939,7 +1939,7 @@ func (s *storageLvm) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 		}
 
 		imagePath := shared.VarPath("images", fingerprint)
-		err = unpackImage(imagePath, imageMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS, nil)
+		err = driver.ImageUnpack(imagePath, imageMntPoint, true, s.s.OS.RunningInUserNS, nil)
 		if err != nil {
 			return err
 		}

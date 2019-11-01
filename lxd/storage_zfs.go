@@ -2406,7 +2406,7 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 	}
 
 	// Unpack the image into the temporary mountpoint.
-	err = unpackImage(imagePath, tmpImageDir, storageTypeZfs, s.s.OS.RunningInUserNS, nil)
+	err = driver.ImageUnpack(imagePath, tmpImageDir, false, s.s.OS.RunningInUserNS, nil)
 	if err != nil {
 		return err
 	}
