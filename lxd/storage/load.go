@@ -128,3 +128,13 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 
 	return &pool, nil
 }
+
+// GetPoolByInstanceName retrieves the pool from the database using the instance's project and name.
+func GetPoolByInstanceName(s *state.State, projectName, instanceName string) (Pool, error) {
+	poolName, err := s.Cluster.ContainerPool(projectName, instanceName)
+	if err != nil {
+		return nil, err
+	}
+
+	return GetPoolByName(s, poolName)
+}
