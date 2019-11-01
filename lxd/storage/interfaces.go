@@ -19,7 +19,6 @@ type Instance interface {
 	Path() string
 
 	IsRunning() bool
-	Snapshots() ([]Instance, error)
 	TemplateApply(trigger string) error
 }
 
@@ -52,7 +51,7 @@ type Pool interface {
 	RefreshInstance(i Instance, src Instance, snapshots bool, op *operations.Operation) error
 	BackupInstance(i Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
-	GetInstanceUsage(i Instance) (uint64, error)
+	GetInstanceUsage(i Instance) (int64, error)
 	SetInstanceQuota(i Instance, quota uint64) error
 
 	MountInstance(i Instance) (bool, error)
@@ -77,7 +76,7 @@ type Pool interface {
 	UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	RenameCustomVolume(volName string, newVolName string, op *operations.Operation) error
 	DeleteCustomVolume(volName string, op *operations.Operation) error
-	GetCustomVolumeUsage(vol api.StorageVolume) (uint64, error)
+	GetCustomVolumeUsage(volName string) (int64, error)
 	MountCustomVolume(volName string, op *operations.Operation) (bool, error)
 	UnmountCustomVolume(volName string, op *operations.Operation) (bool, error)
 
