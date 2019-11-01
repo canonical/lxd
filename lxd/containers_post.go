@@ -27,7 +27,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -137,12 +136,7 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 			return err
 		}
 
-		metadata := make(map[string]interface{})
-		_, err = containerCreateFromImage(d, args, info.Fingerprint, &ioprogress.ProgressTracker{
-			Handler: func(percent, speed int64) {
-				shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, 0, speed)
-				op.UpdateMetadata(metadata)
-			}})
+		_, err = containerCreateFromImage(d, args, info.Fingerprint, op)
 		return err
 	}
 
