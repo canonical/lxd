@@ -636,31 +636,16 @@ func storagePoolVolumeTypePostRename(d *Daemon, poolName string, volumeName stri
 		return response.SmartError(err)
 	}
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return response.SmartError(err)
-		}
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-		err = pool.RenameCustomVolume(volumeName, req.Name, nil)
-		if err != nil {
-			// Notify users of the volume that it's name is changing back.
-			storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
-			return response.SmartError(err)
-		}
-	} else {
-		s, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		err = s.StoragePoolVolumeRename(req.Name)
-		if err != nil {
-			// Notify users of the volume that it's name is changing back.
-			storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
-			return response.SmartError(err)
-		}
+	err = pool.RenameCustomVolume(volumeName, req.Name, nil)
+	if err != nil {
+		// Notify users of the volume that it's name is changing back.
+		storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+		return response.SmartError(err)
 	}
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
