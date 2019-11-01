@@ -925,8 +925,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
-	// Get the ID of the storage pool the storage volume is supposed to be attached to.
-	poolID, poolRow, err := d.cluster.StoragePoolGet(poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -936,13 +935,13 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		return resp
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = ForwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -972,28 +971,9 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		}
 	}
 
-	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		err = pool.UpdateCustomVolume(vol.Name, req.Description, req.Config, nil)
-		if err != nil {
-			return response.SmartError(err)
-		}
-	} else {
-		// Validate the configuration.
-		err = storagePools.VolumeValidateConfig(volumeName, req.Config, poolRow)
-		if err != nil {
-			return response.BadRequest(err)
-		}
-
-		err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
-		if err != nil {
-			return response.SmartError(err)
-		}
+	err = pool.UpdateCustomVolume(vol.Name, req.Description, req.Config, nil)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	return response.EmptySyncResponse
