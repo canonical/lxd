@@ -500,6 +500,12 @@ func (d *disk) createDevice() (string, error) {
 	isFile := false
 	if d.config["pool"] == "" {
 		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
+		//handle ceph case (anusha)
+		if (d.config['source'] == "cephfs") {
+			//filesystem mount
+						//diskCephfsMount(clusterName string, userName string, fsName string, path string) error
+		}
+
 	} else {
 		// Deal with mounting storage volumes created via the storage api. Extract the name
 		// of the storage volume that we are supposed to attach. We assume that the only
@@ -513,41 +519,51 @@ func (d *disk) createDevice() (string, error) {
 			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path")
 		}
 
-		volumeTypeName := ""
-		volumeName := filepath.Clean(d.config["source"])
-		slash := strings.Index(volumeName, "/")
-		if (slash > 0) && (len(volumeName) > slash) {
-			// Extract volume name.
-			volumeName = d.config["source"][(slash + 1):]
-			// Extract volume type.
-			volumeTypeName = d.config["source"][:slash]
+		if (d.config["source"] == "ceph") {
+			// get pool name, volume name, ceph.user_name, and ceph.cluster_name from d.config and make call to map
+			// after call to map, save the src path it returned in variable src_path
+			// d.volatileSet(map[string]string{"ceph_rbd_src_path": src_path})
+			//diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error)
 		}
+		else {
+			volumeTypeName := ""
+			volumeName := filepath.Clean(d.config["source"])
+			slash := strings.Index(volumeName, "/")
+			if (slash > 0) && (len(volumeName) > slash) {
+				// Extract volume name.
+				volumeName = d.config["source"][(slash + 1):]
+				// Extract volume type.
+				volumeTypeName = d.config["source"][:slash]
+			}
 
-		switch volumeTypeName {
-		case db.StoragePoolVolumeTypeNameContainer:
-			return "", fmt.Errorf("Using container storage volumes is not supported")
-		case "":
-			// We simply received the name of a storage volume.
-			volumeTypeName = db.StoragePoolVolumeTypeNameCustom
-			fallthrough
-		case db.StoragePoolVolumeTypeNameCustom:
-			srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
-		case db.StoragePoolVolumeTypeNameImage:
-			return "", fmt.Errorf("Using image storage volumes is not supported")
-		default:
-			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found", volumeTypeName)
-		}
+			switch volumeTypeName {
+			case db.StoragePoolVolumeTypeNameContainer:
+				return "", fmt.Errorf("Using container storage volumes is not supported")
+			case "":
+				// We simply received the name of a storage volume.
+				volumeTypeName = db.StoragePoolVolumeTypeNameCustom
+				fallthrough
+			case db.StoragePoolVolumeTypeNameCustom:
+				srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
+			case db.StoragePoolVolumeTypeNameImage:
+				return "", fmt.Errorf("Using image storage volumes is not supported")
+			default:
+				return "", fmt.Errorf("Unknown storage type prefix \"%s\" found", volumeTypeName)
+			}
 
-		err := StorageVolumeMount(d.state, d.config["pool"], volumeName, volumeTypeName, d.instance)
-		if err != nil {
-			msg := fmt.Sprintf("Could not mount storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.", volumeName, volumeTypeName, d.config["pool"], err)
-			if !isRequired {
-				// Will fail the PathExists test below.
-				logger.Warn(msg)
-			} else {
-				return "", fmt.Errorf(msg)
+			err := StorageVolumeMount(d.state, d.config["pool"], volumeName, volumeTypeName, d.instance)
+			if err != nil {
+				msg := fmt.Sprintf("Could not mount storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.", volumeName, volumeTypeName, d.config["pool"], err)
+				if !isRequired {
+					// Will fail the PathExists test below.
+					logger.Warn(msg)
+				} else {
+					return "", fmt.Errorf(msg)
+				}
 			}
 		}
+
+
 	}
 
 	// Check if the source exists.
@@ -629,7 +645,12 @@ func (d *disk) postStop() error {
 		if err != nil {
 			return err
 		}
-
+	}
+	if d.config["source"] == "ceph" {
+		//unmap rbd storage from path
+		//get the map with v := d.volatileGet
+		//get the actual path with v[cepth_rbd_src_path]
+		//diskCephRbdUnmap(deviceName string) error
 	}
 
 	devPath := d.getDevicePath(d.name, d.config)
