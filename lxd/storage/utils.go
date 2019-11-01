@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -695,4 +696,31 @@ func validateVolumeCommonRules() map[string]func(string) error {
 			return nil
 		},
 	}
+}
+
+// ImageUnpack unpacks a filesystem image into the destination path.
+func ImageUnpack(imageFile string, destPath string, blockBackend bool, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
+	err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
+	if err != nil {
+		return err
+	}
+
+	rootfsPath := fmt.Sprintf("%s/rootfs", destPath)
+	if shared.PathExists(imageFile + ".rootfs") {
+		err = os.MkdirAll(rootfsPath, 0755)
+		if err != nil {
+			return fmt.Errorf("Error creating rootfs directory")
+		}
+
+		err = shared.Unpack(imageFile+".rootfs", rootfsPath, blockBackend, runningInUserns, tracker)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !shared.PathExists(rootfsPath) {
+		return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+	}
+
+	return nil
 }
