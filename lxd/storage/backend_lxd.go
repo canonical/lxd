@@ -252,7 +252,17 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst Instance) (bool, error) {
 	return true, ErrNotImplemented
 }
 
-func (b *lxdBackend) CreateImage(img api.Image, op *operations.Operation) error {
+// CreateImage creates an optimized volume of the image if supported by the storage pool driver.
+func (b *lxdBackend) CreateImage(fingerprint string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
+	logger.Debug("CreateImage started")
+	defer logger.Debug("CreateImage finished")
+
+	if !b.driver.Info().OptimizedImages {
+		return nil // Nothing to do for drivers that don't support optimized images volumes.
+	}
+
+	// TODO volume creation with a filler function to populate volume/snapshot with image.
 	return ErrNotImplemented
 }
 
