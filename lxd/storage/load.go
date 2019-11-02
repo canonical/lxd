@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
@@ -28,11 +29,21 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 			return -1, err
 		}
 
-		// TODO add project support in the future by splitting the volName by "_".
-		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, volTypeID, poolID)
+		// It is possible for the project name to be encoded into the volume name in the
+		// format <project>_<volume>. However not all volume types currently use this
+		// encoding format, so if there is no underscore in the volume name then we assume
+		// the project is default.
+		project := "default"
+		volParts := strings.SplitN(volName, "_", 2)
+		if len(volParts) > 1 {
+			project = volParts[0]
+			volName = volParts[1]
+		}
+
+		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volName, volTypeID, poolID)
 		if err != nil {
 			if err == db.ErrNoSuchObject {
-				return -1, fmt.Errorf("Volume doesn't exist")
+				return -1, fmt.Errorf("Failed to get volume ID for project '%s', volume '%s', type '%s': Volume doesn't exist", project, volName, volType)
 			}
 
 			return -1, err
@@ -127,4 +138,14 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	pool.logger = logger
 
 	return &pool, nil
+}
+
+// GetPoolByInstanceName retrieves the pool from the database using the instance's project and name.
+func GetPoolByInstanceName(s *state.State, projectName, instanceName string) (Pool, error) {
+	poolName, err := s.Cluster.ContainerPool(projectName, instanceName)
+	if err != nil {
+		return nil, err
+	}
+
+	return GetPoolByName(s, poolName)
 }

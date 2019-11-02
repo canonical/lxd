@@ -1677,7 +1677,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup.Ba
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0700)
+	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return err
 	}

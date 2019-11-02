@@ -2102,7 +2102,7 @@ func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.Progre
 
 		// rsync contents into image
 		imagePath := shared.VarPath("images", fingerprint)
-		err = unpackImage(imagePath, imageMntPoint, storageTypeCeph, s.s.OS.RunningInUserNS, nil)
+		err = driver.ImageUnpack(imagePath, imageMntPoint, true, s.s.OS.RunningInUserNS, nil)
 		if err != nil {
 			logger.Errorf(`Failed to unpack image for RBD storage volume for image "%s" on storage pool "%s": %s`, fingerprint, s.pool.Name, err)
 
@@ -2940,7 +2940,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operati
 
 		snapshotMntPoint := driver.GetSnapshotMountPoint(args.Instance.Project(), s.pool.Name, fmt.Sprintf("%s/%s", instanceName, *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
-			err := os.MkdirAll(snapshotMntPoint, 0700)
+			err := os.MkdirAll(snapshotMntPoint, 0100)
 			if err != nil {
 				return err
 			}

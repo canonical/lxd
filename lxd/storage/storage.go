@@ -55,13 +55,6 @@ func GetStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string
 
 // CreateContainerMountpoint creates the provided container mountpoint and symlink.
 func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
-	var mode os.FileMode
-	if privileged {
-		mode = 0700
-	} else {
-		mode = 0711
-	}
-
 	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)
 	mntPointSymlinkTargetExist := shared.PathExists(mountPoint)
 
@@ -73,7 +66,7 @@ func CreateContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 		}
 	}
 
-	err = os.Chmod(mountPoint, mode)
+	err = os.Chmod(mountPoint, 0100)
 	if err != nil {
 		return err
 	}

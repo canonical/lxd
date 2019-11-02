@@ -1044,11 +1044,7 @@ func (s *storageLvm) ContainerCreateFromImage(container Instance, fingerprint st
 		defer s.ContainerUmount(container, containerPath)
 	}
 
-	if container.IsPrivileged() {
-		err = os.Chmod(containerMntPoint, 0700)
-	} else {
-		err = os.Chmod(containerMntPoint, 0711)
-	}
+	err = os.Chmod(containerMntPoint, 0100)
 	if err != nil {
 		return errors.Wrap(err, "Set mount point permissions")
 	}
@@ -1719,7 +1715,7 @@ func (s *storageLvm) ContainerBackupCreate(path string, backup backup.Backup, so
 	// Make a temporary snapshot of the container
 	sourceLvmDatasetSnapshot := fmt.Sprintf("snapshot-%s", uuid.NewRandom().String())
 	tmpContainerMntPoint := driver.GetContainerMountPoint(source.Project(), s.pool.Name, sourceLvmDatasetSnapshot)
-	err := os.MkdirAll(tmpContainerMntPoint, 0700)
+	err := os.MkdirAll(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return err
 	}
@@ -1939,7 +1935,7 @@ func (s *storageLvm) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 		}
 
 		imagePath := shared.VarPath("images", fingerprint)
-		err = unpackImage(imagePath, imageMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS, nil)
+		err = driver.ImageUnpack(imagePath, imageMntPoint, true, s.s.OS.RunningInUserNS, nil)
 		if err != nil {
 			return err
 		}

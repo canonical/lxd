@@ -11,11 +11,13 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/memorypipe"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -171,8 +173,89 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapsho
 	return ErrNotImplemented
 }
 
+// createInstanceSymlink creates a symlink in the instance directory to the instance's mount path.
+func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) error {
+	symlinkPath := inst.Path()
+	if !shared.PathExists(symlinkPath) {
+		err := os.Symlink(mountPath, symlinkPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath string) error {
+	return func(instanceMountPath string) error {
+		var tracker *ioprogress.ProgressTracker
+		if op != nil { // Not passed when being done as part of pre-migration setup.
+			metadata := make(map[string]interface{})
+			tracker = &ioprogress.ProgressTracker{
+				Handler: func(percent, speed int64) {
+					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
+					op.UpdateMetadata(metadata)
+				}}
+		}
+
+		imagePath := shared.VarPath("images", fingerprint)
+
+		return ImageUnpack(imagePath, instanceMountPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
+	}
+}
+
+// CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
 func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("CreateInstanceFromImage started")
+	defer logger.Debug("CreateInstanceFromImage finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+		b.DeleteInstance(inst, op)
+	}()
+
+	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
+	if !b.driver.Info().OptimizedImages {
+		err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+		if err != nil {
+			return err
+		}
+	} else {
+		if !b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
+			err := b.CreateImage(fingerprint, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		imgVol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
+		err := b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = b.createInstanceSymlink(inst, vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	err = inst.TemplateApply("create")
+	if err != nil {
+		return err
+	}
+
+	revert = false
+	return nil
 }
 
 func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error {
@@ -184,6 +267,10 @@ func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operation
 }
 
 func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("DeleteInstance started")
+	defer logger.Debug("DeleteInstance finished")
+
 	return ErrNotImplemented
 }
 
@@ -201,7 +288,7 @@ func (b *lxdBackend) BackupInstance(inst Instance, targetPath string, optimized 
 
 // GetInstanceUsage returns the disk usage of the Instance's root device.
 func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"instance": inst.Name()})
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("GetInstanceUsage started")
 	defer logger.Debug("GetInstanceUsage finished")
 
@@ -262,8 +349,19 @@ func (b *lxdBackend) CreateImage(fingerprint string, op *operations.Operation) e
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
 
-	// TODO volume creation with a filler function to populate volume/snapshot with image.
-	return ErrNotImplemented
+	// Check if we already have a suitable volume
+	if b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
+		return nil
+	}
+
+	// Create the new image volume
+	vol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
+	err := b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteImage removes an image from the database and underlying storage device if needed.

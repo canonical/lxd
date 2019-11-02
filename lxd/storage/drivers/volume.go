@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
@@ -72,6 +73,28 @@ func (v Volume) IsSnapshot() bool {
 // MountPath returns the path where the volume will be mounted.
 func (v Volume) MountPath() string {
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
+}
+
+// CreateMountPath creates the volume's mount path and sets the correct permission for the type.
+func (v Volume) CreateMountPath() error {
+	volPath := v.MountPath()
+
+	// Create volume's mount path, with any created directories set to 0711.
+	err := os.MkdirAll(volPath, 0711)
+	if err != nil {
+		return err
+	}
+
+	// Set very restrictive mode 0100 for non-custom and non-image volumes.
+	if v.volType != VolumeTypeCustom && v.volType != VolumeTypeImage {
+		// Set mode of actual volume's mount path.
+		err = os.Chmod(volPath, 0100)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // MountTask runs the supplied task after mounting the volume if needed. If the volume was mounted
