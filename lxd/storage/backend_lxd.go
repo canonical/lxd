@@ -186,6 +186,24 @@ func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) erro
 	return nil
 }
 
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath string) error {
+	return func(instanceMountPath string) error {
+		var tracker *ioprogress.ProgressTracker
+		if op != nil { // Not passed when being done as part of pre-migration setup.
+			metadata := make(map[string]interface{})
+			tracker = &ioprogress.ProgressTracker{
+				Handler: func(percent, speed int64) {
+					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
+					op.UpdateMetadata(metadata)
+				}}
+		}
+
+		imagePath := shared.VarPath("images", fingerprint)
+
+		return ImageUnpack(imagePath, instanceMountPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
+	}
+}
+
 // CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
 func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
@@ -205,26 +223,25 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		b.DeleteInstance(inst, op)
 	}()
 
-	filler := func(instanceMountPath string) error {
-		var tracker *ioprogress.ProgressTracker
-		if op != nil { // Not passed when being done as part of pre-migration setup.
-			metadata := make(map[string]interface{})
-			tracker = &ioprogress.ProgressTracker{
-				Handler: func(percent, speed int64) {
-					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
-					op.UpdateMetadata(metadata)
-				}}
+	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
+	if !b.driver.Info().OptimizedImages {
+		err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+		if err != nil {
+			return err
+		}
+	} else {
+		if !b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
+			err := b.CreateImage(fingerprint, op)
+			if err != nil {
+				return err
+			}
 		}
 
-		imagePath := shared.VarPath("images", fingerprint)
-
-		return ImageUnpack(imagePath, instanceMountPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
-	}
-
-	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
-	err = b.driver.CreateVolume(vol, filler, op)
-	if err != nil {
-		return err
+		imgVol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
+		err := b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = b.createInstanceSymlink(inst, vol.MountPath())
@@ -332,8 +349,19 @@ func (b *lxdBackend) CreateImage(fingerprint string, op *operations.Operation) e
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
 
-	// TODO volume creation with a filler function to populate volume/snapshot with image.
-	return ErrNotImplemented
+	// Check if we already have a suitable volume
+	if b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
+		return nil
+	}
+
+	// Create the new image volume
+	vol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
+	err := b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteImage removes an image from the database and underlying storage device if needed.
