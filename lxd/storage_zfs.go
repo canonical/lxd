@@ -1605,7 +1605,7 @@ func (s *storageZfs) doContainerSnapshotCreate(projectName, targetName string, s
 
 	snapshotMntPoint := driver.GetSnapshotMountPoint(projectName, s.pool.Name, snapshotContainerName)
 	if !shared.PathExists(snapshotMntPoint) {
-		err := os.MkdirAll(snapshotMntPoint, 0700)
+		err := os.MkdirAll(snapshotMntPoint, 0100)
 		if err != nil {
 			return err
 		}
@@ -1776,7 +1776,7 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer Instance, newName
 
 	newSnapshotMntPoint := driver.GetSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, newName)
 	if !shared.PathExists(newSnapshotMntPoint) {
-		err := os.MkdirAll(newSnapshotMntPoint, 0700)
+		err := os.MkdirAll(newSnapshotMntPoint, 0100)
 		if err != nil {
 			return err
 		}
@@ -2051,7 +2051,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0700)
+	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return errors.Wrap(err, "Change temporary mount point permissions")
 	}
@@ -2124,7 +2124,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backup.Info, data io.Re
 		return err
 	}
 
-	err = os.Chmod(unpackPath, 0700)
+	err = os.Chmod(unpackPath, 0100)
 	if err != nil {
 		// can't use defer because it needs to run before the mount
 		os.RemoveAll(unpackPath)
@@ -2661,7 +2661,7 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operations.Operatio
 
 		snapshotMntPoint := driver.GetSnapshotMountPoint(args.Instance.Project(), poolName, fmt.Sprintf("%s/%s", args.Instance.Name(), *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
-			err := os.MkdirAll(snapshotMntPoint, 0700)
+			err := os.MkdirAll(snapshotMntPoint, 0100)
 			if err != nil {
 				return err
 			}
