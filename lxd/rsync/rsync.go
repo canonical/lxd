@@ -276,9 +276,9 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	chCopyRsync := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(conn, stdout)
-		chCopyRsync <- err
 		stdout.Close()
 		conn.Close() // sends barrier message.
+		chCopyRsync <- err
 	}()
 
 	// Forward from source to rsync.
@@ -298,8 +298,8 @@ func Recv(path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTrac
 	chCopySource := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(stdin, readSourcePipe)
-		chCopySource <- err
 		stdin.Close()
+		chCopySource <- err
 	}()
 
 	stderr, err := cmd.StderrPipe()
