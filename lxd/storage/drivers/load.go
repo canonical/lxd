@@ -32,6 +32,7 @@ type Info struct {
 	OptimizedImages bool
 	PreservesInodes bool
 	VolumeTypes     []VolumeType
+	BlockBacking    bool
 }
 
 // SupportedDrivers returns a list of supported storage drivers.

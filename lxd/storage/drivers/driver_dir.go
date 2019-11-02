@@ -34,6 +34,7 @@ func (d *dir) Info() Info {
 		Usable:          true,
 		Remote:          false,
 		VolumeTypes:     []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer},
+		BlockBacking:    false,
 	}
 }
 
