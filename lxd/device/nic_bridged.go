@@ -535,7 +535,7 @@ func (d *nicBridged) matchEbtablesRule(activeRule []string, matchRule []string, 
 
 		// Check the match rule field matches the active rule field.
 		// If they don't match, then this isn't one of our rules.
-		if activeRule[i] != matchRule[i] {
+		if strings.Replace(activeRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1) != strings.Replace(matchRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1) {
 			return false
 		}
 	}
