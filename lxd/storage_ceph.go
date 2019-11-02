@@ -2940,7 +2940,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operati
 
 		snapshotMntPoint := driver.GetSnapshotMountPoint(args.Instance.Project(), s.pool.Name, fmt.Sprintf("%s/%s", instanceName, *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
-			err := os.MkdirAll(snapshotMntPoint, 0700)
+			err := os.MkdirAll(snapshotMntPoint, 0100)
 			if err != nil {
 				return err
 			}
