@@ -86,7 +86,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		}
 		defer os.RemoveAll(tmpContainerMntPoint)
 
-		err = os.Chmod(tmpContainerMntPoint, 0700)
+		err = os.Chmod(tmpContainerMntPoint, 0100)
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0700)
+	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, b
 		return err
 	}
 
-	err = os.Chmod(tmpPath, 0700)
+	err = os.Chmod(tmpPath, 0100)
 	if err != nil {
 		return err
 	}

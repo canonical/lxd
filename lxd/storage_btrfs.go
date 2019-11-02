@@ -1669,7 +1669,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0700)
+	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return err
 	}
@@ -1752,7 +1752,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0700)
+	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return err
 	}
@@ -1803,7 +1803,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backup.Info, data io.
 	}
 	defer os.RemoveAll(unpackDir)
 
-	err = os.Chmod(unpackDir, 0700)
+	err = os.Chmod(unpackDir, 0100)
 	if err != nil {
 		return err
 	}
@@ -2008,7 +2008,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string, tracker *ioprogress.Progr
 
 	// Unpack the image in imageMntPoint.
 	imagePath := shared.VarPath("images", fingerprint)
-	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs, s.s.OS.RunningInUserNS, tracker)
+	err = driver.ImageUnpack(imagePath, tmpImageSubvolumeName, false, s.s.OS.RunningInUserNS, tracker)
 	if err != nil {
 		return err
 	}
@@ -2607,7 +2607,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operations.Operat
 			}
 			defer os.RemoveAll(tmpSnapshotMntPoint)
 
-			err = os.Chmod(tmpSnapshotMntPoint, 0700)
+			err = os.Chmod(tmpSnapshotMntPoint, 0100)
 			if err != nil {
 				return err
 			}
@@ -2628,7 +2628,7 @@ func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operations.Operat
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	err = os.Chmod(tmpContainerMntPoint, 0700)
+	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
 		return err
 	}

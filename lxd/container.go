@@ -24,6 +24,8 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -356,7 +358,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (contain
 	return c, nil
 }
 
-func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, tracker *ioprogress.ProgressTracker) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (container, error) {
 	s := d.State()
 
 	// Get the image properties
@@ -424,11 +426,34 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, trac
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
-	// Now create the storage from an image
-	err = c.Storage().ContainerCreateFromImage(c, hash, tracker)
-	if err != nil {
-		c.Delete()
-		return nil, errors.Wrap(err, "Create container from image")
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstanceName(d.State(), c.Project(), c.Name())
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return nil, errors.Wrap(err, "Load instance storage pool")
+		}
+
+		err = pool.CreateInstanceFromImage(c, hash, op)
+		if err != nil {
+			return nil, errors.Wrap(err, "Create instance from image")
+		}
+	} else {
+		metadata := make(map[string]interface{})
+		var tracker *ioprogress.ProgressTracker
+		if op != nil {
+			tracker = &ioprogress.ProgressTracker{
+				Handler: func(percent, speed int64) {
+					shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, 0, speed)
+					op.UpdateMetadata(metadata)
+				}}
+		}
+
+		// Now create the storage from an image
+		err = c.Storage().ContainerCreateFromImage(c, hash, tracker)
+		if err != nil {
+			c.Delete()
+			return nil, errors.Wrap(err, "Create container from image")
+		}
 	}
 
 	// Apply any post-storage configuration

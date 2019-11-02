@@ -107,38 +107,6 @@ var imageAliasCmd = APIEndpoint{
    end for whichever finishes last. */
 var imagePublishLock sync.Mutex
 
-func unpackImage(imagefname string, destpath string, sType storageType, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
-	blockBackend := false
-
-	if sType == storageTypeLvm || sType == storageTypeCeph {
-		blockBackend = true
-	}
-
-	err := shared.Unpack(imagefname, destpath, blockBackend, runningInUserns, tracker)
-	if err != nil {
-		return err
-	}
-
-	rootfsPath := fmt.Sprintf("%s/rootfs", destpath)
-	if shared.PathExists(imagefname + ".rootfs") {
-		err = os.MkdirAll(rootfsPath, 0755)
-		if err != nil {
-			return fmt.Errorf("Error creating rootfs directory")
-		}
-
-		err = shared.Unpack(imagefname+".rootfs", rootfsPath, blockBackend, runningInUserns, tracker)
-		if err != nil {
-			return err
-		}
-	}
-
-	if !shared.PathExists(rootfsPath) {
-		return fmt.Errorf("Image is missing a rootfs: %s", imagefname)
-	}
-
-	return nil
-}
-
 func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 
