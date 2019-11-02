@@ -126,7 +126,7 @@ func (d *dir) GetVolumeUsage(volType VolumeType, volName string) (int64, error) 
 	volPath := GetVolumeMountPath(d.name, volType, volName)
 	ok, err := quota.Supported(volPath)
 	if err != nil || !ok {
-		return -1, fmt.Errorf("The backing filesystem doesn't support quotas")
+		return 0, nil
 	}
 
 	// Get the volume ID for the volume to access quota.
@@ -695,7 +695,6 @@ func (d *dir) initQuota(path string, volID int64) error {
 	ok, err := quota.Supported(path)
 	if err != nil || !ok {
 		// Skipping quota as underlying filesystem doesn't suppport project quotas.
-		d.logger.Warn("The backing filesystem doesn't support quotas, skipping quota", log.Ctx{"path": path})
 		return nil
 	}
 
