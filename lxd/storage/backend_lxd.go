@@ -218,10 +218,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 
 		imagePath := shared.VarPath("images", fingerprint)
 
-		// tomp TODO currently passing false to isBlockBackend argument, which only affects
-		// user hint on how to increase disk space if not enough to unpack image. Ask about
-		// removing this argument entirely.
-		return ImageUnpack(imagePath, instanceMountPath, false, b.state.OS.RunningInUserNS, tracker)
+		return ImageUnpack(imagePath, instanceMountPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
 	}
 
 	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
