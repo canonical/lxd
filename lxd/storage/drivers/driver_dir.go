@@ -663,10 +663,10 @@ func (d *dir) MountVolume(volType VolumeType, volName string, op *operations.Ope
 	return false, nil
 }
 
-// MountVolumeSnapshot simulates mounting a volume snapshot. As dir driver doesn't have volumes to
-// mount it returns false indicating that there is no need to issue an unmount.
+// MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *dir) MountVolumeSnapshot(volType VolumeType, volName, snapshotName string, op *operations.Operation) (bool, error) {
-	return false, nil
+	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
+	return mountReadOnly(snapPath, snapPath)
 }
 
 // UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
@@ -675,10 +675,10 @@ func (d *dir) UnmountVolume(volType VolumeType, volName string, op *operations.O
 	return false, nil
 }
 
-// UnmountVolume simulates unmounting a volume snapshot. As dir driver doesn't have volumes to
-// unmount it returns false indicating the volume was already unmounted.
+// UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 func (d *dir) UnmountVolumeSnapshot(volType VolumeType, volName, snapshotName string, op *operations.Operation) (bool, error) {
-	return false, nil
+	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
+	return forceUnmount(snapPath)
 }
 
 // quotaProjectID generates a project quota ID from a volume ID.
