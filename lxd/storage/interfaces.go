@@ -67,7 +67,7 @@ type Pool interface {
 	UnmountInstanceSnapshot(i Instance) (bool, error)
 
 	// Images.
-	CreateImage(fingerprint string, op *operations.Operation) error
+	EnsureImage(fingerprint string, op *operations.Operation) error
 	DeleteImage(fingerprint string, op *operations.Operation) error
 
 	// Custom volumes.
