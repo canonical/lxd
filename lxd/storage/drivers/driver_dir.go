@@ -644,12 +644,7 @@ func (d *dir) DeleteVolume(volType VolumeType, volName string, op *operations.Op
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
 	// to just in case the top-level directory is left.
-	snapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-	if err != nil {
-		return err
-	}
-
-	err = os.RemoveAll(snapshotDir)
+	err = DeleteParentSnapshotDirIfEmpty(d.name, volType, volName)
 	if err != nil {
 		return err
 	}
@@ -826,6 +821,12 @@ func (d *dir) DeleteVolumeSnapshot(volType VolumeType, volName string, snapshotN
 
 	// Remove the snapshot from the storage device.
 	err = os.RemoveAll(snapPath)
+	if err != nil {
+		return err
+	}
+
+	// Remove the parent snapshot directory if this is the last snapshot being removed.
+	err = DeleteParentSnapshotDirIfEmpty(d.name, volType, volName)
 	if err != nil {
 		return err
 	}
