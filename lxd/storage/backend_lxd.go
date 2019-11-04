@@ -312,12 +312,62 @@ func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operation
 	return ErrNotImplemented
 }
 
+// DeleteInstance removes the Instance's root volume (all snapshots need to be removed first).
 func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("DeleteInstance started")
 	defer logger.Debug("DeleteInstance finished")
 
-	return ErrNotImplemented
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance must not be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+	snapshots, err := b.state.Cluster.ContainerGetSnapshots(inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	// Check all snapshots are already removed.
+	if len(snapshots) > 0 {
+		return fmt.Errorf("Cannot remove an instance volume that has snapshots")
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// Delete the volume from the storage device. Must come after snapshots are removed.
+	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
+	err = b.driver.DeleteVolume(volType, volStorageName, op)
+	if err != nil {
+		return err
+	}
+
+	// Remove symlink.
+	err = b.removeInstanceSymlink(inst)
+	if err != nil {
+		return err
+	}
+
+	// Remove the volume record from the database.
+	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), inst.Name(), volDBType, b.ID())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) MigrateInstance(inst Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
@@ -369,8 +419,46 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst Instance, newName string, op *o
 	return ErrNotImplemented
 }
 
+// DeleteInstanceSnapshot removes the snapshot volume for the supplied snapshot instance.
 func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("DeleteInstanceSnapshot started")
+	defer logger.Debug("DeleteInstanceSnapshot finished")
+
+	parentName, snapName, isSnap := shared.ContainerGetParentAndSnapshotName(inst.Name())
+	if !inst.IsSnapshot() || !isSnap {
+		return fmt.Errorf("Instance must be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	// Get the parent volume name on storage.
+	parentStorageName := project.Prefix(inst.Project(), parentName)
+
+	// Delete the snapshot from the storage device.
+	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	logger.Debug("Deleting instance snapshot volume", log.Ctx{"volName": parentStorageName, "snapshotName": snapName})
+	err = b.driver.DeleteVolumeSnapshot(volType, parentStorageName, snapName, op)
+	if err != nil {
+		return err
+	}
+
+	// Remove the snapshot volume record from the database.
+	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), drivers.GetSnapshotVolumeName(parentName, snapName), volDBType, b.ID())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error {
