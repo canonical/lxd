@@ -177,6 +177,10 @@ func main() {
 	waitreadyCmd := cmdWaitready{global: &globalCmd}
 	app.AddCommand(waitreadyCmd.Command())
 
+	// cluster sub-command
+	clusterCmd := cmdCluster{global: &globalCmd}
+	app.AddCommand(clusterCmd.Command())
+
 	// Run the main command and handle errors
 	err := app.Execute()
 	if err != nil {
