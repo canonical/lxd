@@ -186,6 +186,46 @@ func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) erro
 	return nil
 }
 
+// removeInstanceSymlink removes a symlink in the instance directory to the instance's mount path.
+func (b *lxdBackend) removeInstanceSymlink(inst Instance) error {
+	symlinkPath := inst.Path()
+	if shared.PathExists(symlinkPath) {
+		err := os.Remove(symlinkPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// createInstanceSnapshotSymlink creates a symlink in the snapshot directory to the instance's
+// snapshot path.
+func (b *lxdBackend) createInstanceSnapshotSymlink(inst Instance, mountPath string) error {
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
+	if err != nil {
+		return err
+	}
+
+	if !shared.PathExists(snapshotMntPointSymlink) {
+		err := os.Symlink(snapshotTargetPath, snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // imageFiller returns a function that can be used as a filler function with CreateVolume(). This
 // function will unpack the specified image archive into the specified mount path of the volume.
 func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath string) error {
@@ -272,12 +312,62 @@ func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operation
 	return ErrNotImplemented
 }
 
+// DeleteInstance removes the Instance's root volume (all snapshots need to be removed first).
 func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("DeleteInstance started")
 	defer logger.Debug("DeleteInstance finished")
 
-	return ErrNotImplemented
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance must not be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+	snapshots, err := b.state.Cluster.ContainerGetSnapshots(inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	// Check all snapshots are already removed.
+	if len(snapshots) > 0 {
+		return fmt.Errorf("Cannot remove an instance volume that has snapshots")
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// Delete the volume from the storage device. Must come after snapshots are removed.
+	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
+	err = b.driver.DeleteVolume(volType, volStorageName, op)
+	if err != nil {
+		return err
+	}
+
+	// Remove symlink.
+	err = b.removeInstanceSymlink(inst)
+	if err != nil {
+		return err
+	}
+
+	// Remove the volume record from the database.
+	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), inst.Name(), volDBType, b.ID())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) MigrateInstance(inst Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
@@ -329,8 +419,46 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst Instance, newName string, op *o
 	return ErrNotImplemented
 }
 
+// DeleteInstanceSnapshot removes the snapshot volume for the supplied snapshot instance.
 func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("DeleteInstanceSnapshot started")
+	defer logger.Debug("DeleteInstanceSnapshot finished")
+
+	parentName, snapName, isSnap := shared.ContainerGetParentAndSnapshotName(inst.Name())
+	if !inst.IsSnapshot() || !isSnap {
+		return fmt.Errorf("Instance must be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	// Get the parent volume name on storage.
+	parentStorageName := project.Prefix(inst.Project(), parentName)
+
+	// Delete the snapshot from the storage device.
+	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
+	logger.Debug("Deleting instance snapshot volume", log.Ctx{"volName": parentStorageName, "snapshotName": snapName})
+	err = b.driver.DeleteVolumeSnapshot(volType, parentStorageName, snapName, op)
+	if err != nil {
+		return err
+	}
+
+	// Remove the snapshot volume record from the database.
+	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), drivers.GetSnapshotVolumeName(parentName, snapName), volDBType, b.ID())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error {
@@ -801,22 +929,9 @@ func (b *lxdBackend) DeleteCustomVolume(volName string, op *operations.Operation
 		return err
 	}
 
-	// Remove the database entry and volume from the storage device for each snapshot.
+	// Remove each snapshot.
 	for _, snapshot := range snapshots {
-		// Extract just the snapshot name from the snapshot.
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.Name)
-
-		// Delete the snapshot volume from the storage device.
-		// Must come before Cluster.StoragePoolVolumeDelete otherwise driver won't be able
-		// to get volume ID.
-		err = b.driver.DeleteVolumeSnapshot(drivers.VolumeTypeCustom, volName, snapName, op)
-		if err != nil {
-			return err
-		}
-
-		// Remove the snapshot volume record from the database.
-		// Must come after driver.DeleteVolume so that volume ID is still available.
-		err = b.state.Cluster.StoragePoolVolumeDelete("default", snapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+		err = b.DeleteCustomVolumeSnapshot(snapshot.Name, op)
 		if err != nil {
 			return err
 		}
@@ -962,12 +1077,13 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(volName string, op *operations.O
 	}
 
 	// Delete the snapshot from the storage device.
+	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
 	err := b.driver.DeleteVolumeSnapshot(drivers.VolumeTypeCustom, parentName, snapName, op)
 	if err != nil {
 		return err
 	}
 
-	// Finally, remove the volume record from the database.
+	// Remove the snapshot volume record from the database.
 	err = b.state.Cluster.StoragePoolVolumeDelete("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
