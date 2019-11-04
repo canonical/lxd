@@ -22,9 +22,6 @@ func (xt *XTables) ContainerClear(protocol string, comment string, table string)
 }
 
 // Proxy
-func (xt *XTables) ProxyStop() (*device.RunConfig, error) {
-	return nil, nil
-}
 func (xt *XTables) ProxySetupNAT() {
 
 }
