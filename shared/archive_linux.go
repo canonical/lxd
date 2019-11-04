@@ -50,7 +50,8 @@ func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) 
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
 		return []string{"-xf"}, ".tar", []string{}, nil
 	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
-		return []string{""}, ".squashfs", nil, nil
+		return []string{"-xf"}, ".squashfs",
+			[]string{"sqfs2tar", "--no-skip"}, nil
 	default:
 		return nil, "", nil, fmt.Errorf("Unsupported compression")
 	}
