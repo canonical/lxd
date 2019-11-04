@@ -102,25 +102,46 @@ func (v Volume) CreateMountPath() error {
 func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
 	parentName, snapName, isSnap := shared.ContainerGetParentAndSnapshotName(v.name)
 
+	mountLockID := fmt.Sprintf("mount/%s/%s", v.volType, v.name)
+	umountLockID := fmt.Sprintf("umount/%s/%s", v.volType, v.name)
+
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if isSnap {
+		unlock := lock(mountLockID)
+
 		ourMount, err := v.driver.MountVolumeSnapshot(v.volType, parentName, snapName, op)
 		if err != nil {
+			unlock()
 			return err
 		}
 
+		unlock()
+
 		if ourMount {
-			defer v.driver.UnmountVolumeSnapshot(v.volType, parentName, snapName, op)
+			defer func() {
+				unlock := lock(umountLockID)
+				v.driver.UnmountVolumeSnapshot(v.volType, parentName, snapName, op)
+				unlock()
+			}()
 		}
 	} else {
+		unlock := lock(mountLockID)
+
 		ourMount, err := v.driver.MountVolume(v.volType, v.name, op)
 		if err != nil {
+			unlock()
 			return err
 		}
 
+		unlock()
+
 		if ourMount {
-			defer v.driver.UnmountVolume(v.volType, v.name, op)
+			defer func() {
+				unlock := lock(umountLockID)
+				v.driver.UnmountVolume(v.volType, v.name, op)
+				unlock()
+			}()
 		}
 	}
 
