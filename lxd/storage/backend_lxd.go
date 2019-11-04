@@ -186,6 +186,46 @@ func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) erro
 	return nil
 }
 
+// removeInstanceSymlink removes a symlink in the instance directory to the instance's mount path.
+func (b *lxdBackend) removeInstanceSymlink(inst Instance) error {
+	symlinkPath := inst.Path()
+	if shared.PathExists(symlinkPath) {
+		err := os.Remove(symlinkPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// createInstanceSnapshotSymlink creates a symlink in the snapshot directory to the instance's
+// snapshot path.
+func (b *lxdBackend) createInstanceSnapshotSymlink(inst Instance, mountPath string) error {
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
+	if err != nil {
+		return err
+	}
+
+	if !shared.PathExists(snapshotMntPointSymlink) {
+		err := os.Symlink(snapshotTargetPath, snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // imageFiller returns a function that can be used as a filler function with CreateVolume(). This
 // function will unpack the specified image archive into the specified mount path of the volume.
 func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath string) error {
