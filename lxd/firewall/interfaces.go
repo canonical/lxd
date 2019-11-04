@@ -49,16 +49,17 @@ type Firewall interface {
 	// NOTE: xtables will need to include shared
 	// NOTE: nicBridged may need generate/filter functions for nft
 
-	// Lower-level clear functions
+	// Lower-level functions
 	NetworkClear(protocol string, comment string, table string) error
 	ContainerClear(protocol string, comment string, table string) error
+	VerifyIPv6Module() error
 
 	// Proxy
 	ProxySetupNAT(ipv string, IPAddr string, comment string, connType, address, port string, cPort string) error
 
 	// NIC bridged
 	BridgeRemoveFilters(m deviceConfig.Device, IPv4 net.IP, IPv6 net.IP) error
-	BridgeSetFilters(m deviceConfig.Device) error
+	BridgeSetFilters(m deviceConfig.Device, config map[string]string, IPv4 net.IP, IPv6 net.IP, name string) error
 
 	// Network
 	NetworkSetup(oldConfig map[string]string) error

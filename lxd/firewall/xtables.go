@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"encoding/hex"
 
 	"github.com/lxc/lxd/lxd/iptables"
+	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 )
@@ -23,6 +25,20 @@ func (xt *XTables) NetworkClear(protocol string, comment string, table string) e
 // ContainerClear removes container rules.
 func (xt *XTables) ContainerClear(protocol string, comment string, table string) error {
 	return iptables.ContainerClear(protocol, comment, table)
+}
+func (xt *XTables) VerifyIPv6Module() error {
+	// Check br_netfilter is loaded and enabled for IPv6.
+	sysctlPath := "bridge/bridge-nf-call-ip6tables"
+	sysctlVal, err := device.NetworkSysctlGet(sysctlPath)
+	if err != nil {
+		return fmt.Errorf("Error reading net sysctl %s: %v", sysctlPath, err)
+	}
+
+	if sysctlVal != "1\n" {
+		return fmt.Errorf("security.ipv6_filtering requires br_netfilter and sysctl net.bridge.bridge-nf-call-ip6tables=1")
+	}
+
+	return nil
 }
 
 // Proxy
@@ -86,7 +102,27 @@ func (xt *XTables) BridgeRemoveFilters(m deviceConfig.Device, IPv4 net.IP, IPv6 
 
 	return nil
 }
-func (xt *XTables) BridgeSetFilters(m deviceConfig.Device) error {
+func (xt *XTables) BridgeSetFilters(m deviceConfig.Device, config map[string]string, IPv4 net.IP, IPv6 net.IP, name string) error {
+	rules := generateFilterEbtablesRules(config, IPv4, IPv6)
+	for _, rule := range rules {
+		_, err := shared.RunCommand(rule[0], append([]string{"--concurrent"}, rule[1:]...)...)
+		if err != nil {
+			return err
+		}
+	}
+
+	rules, err := generateFilterIptablesRules(config, IPv6)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules {
+		err = iptables.ContainerPrepend(rule[0], fmt.Sprintf("%s - %s_filtering", name, rule[0]), "filter", rule[1], rule[2:]...)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -132,6 +168,38 @@ func generateFilterEbtablesRules(m deviceConfig.Device, IPv4 net.IP, IPv6 net.IP
 	}
 
 	return rules
+}
+// generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
+func generateFilterIptablesRules(m deviceConfig.Device, IPv6 net.IP) (rules [][]string, err error) {
+	mac, err := net.ParseMAC(m["hwaddr"])
+	if err != nil {
+		return
+	}
+
+	macHex := hex.EncodeToString(mac)
+
+	// These rules below are implemented using ip6tables because the functionality to inspect
+	// the contents of an ICMPv6 packet does not exist in ebtables (unlike for IPv4 ARP).
+	// Additionally, ip6tables doesn't really provide a nice way to do what we need here, so we
+	// have resorted to doing a raw hex comparison of the packet contents at fixed positions.
+	// If these rules are not added then it is possible to hijack traffic for another IP that is
+	// not assigned to the instance by sending a specially crafted gratuitous NDP packet with
+	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
+	// inside the ICMPv6 NDP packet.
+	if shared.IsTrue(m["security.ipv6_filtering"]) && IPv6 != nil {
+		ipv6Hex := hex.EncodeToString(IPv6)
+
+		rules = append(rules,
+			// Prevent Neighbor Advertisement IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
+			[]string{"ipv6", "INPUT", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+			[]string{"ipv6", "FORWARD", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+			// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
+			[]string{"ipv6", "INPUT", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+			[]string{"ipv6", "FORWARD", "-i", m["parent"], "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", m["host_name"], "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+		)
+	}
+
+	return
 }
 
 // matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
