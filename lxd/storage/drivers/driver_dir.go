@@ -724,8 +724,10 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 
 	ok, err := quota.Supported(path)
 	if err != nil || !ok {
-		// Skipping quota as underlying filesystem doesn't suppport project quotas.
-		d.logger.Warn("The backing filesystem doesn't support quotas, skipping quota", log.Ctx{"path": path})
+		if sizeBytes > 0 {
+			// Skipping quota as underlying filesystem doesn't suppport project quotas.
+			d.logger.Warn("The backing filesystem doesn't support quotas, skipping quota", log.Ctx{"path": path})
+		}
 		return nil
 	}
 
