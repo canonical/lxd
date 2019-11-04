@@ -186,6 +186,8 @@ func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) erro
 	return nil
 }
 
+// imageFiller returns a function that can be used as a filler function with CreateVolume(). This
+// function will unpack the specified image archive into the specified mount path of the volume.
 func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath string) error {
 	return func(instanceMountPath string) error {
 		var tracker *ioprogress.ProgressTracker
@@ -224,21 +226,25 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 	}()
 
 	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
+
+	// If the driver doesn't support optimized image volumes then create a new empty volume and
+	// populate it with the contents of the image archive.
 	if !b.driver.Info().OptimizedImages {
 		err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
 		if err != nil {
 			return err
 		}
 	} else {
-		if !b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
-			err := b.CreateImage(fingerprint, op)
-			if err != nil {
-				return err
-			}
+		// If the driver does support optimized images then ensure the optimized image
+		// volume has been created for the archive's fingerprint and then proceed to create
+		// a new volume by copying the optimized image volume.
+		err := b.EnsureImage(fingerprint, op)
+		if err != nil {
+			return err
 		}
 
 		imgVol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
-		err := b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
+		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 		if err != nil {
 			return err
 		}
@@ -339,22 +345,23 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst Instance) (bool, error) {
 	return true, ErrNotImplemented
 }
 
-// CreateImage creates an optimized volume of the image if supported by the storage pool driver.
-func (b *lxdBackend) CreateImage(fingerprint string, op *operations.Operation) error {
+// EnsureImage creates an optimized volume of the image if supported by the storage pool driver and
+// the volume doesn't already exist.
+func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
-	logger.Debug("CreateImage started")
-	defer logger.Debug("CreateImage finished")
+	logger.Debug("EnsureImage started")
+	defer logger.Debug("EnsureImage finished")
 
 	if !b.driver.Info().OptimizedImages {
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
 
-	// Check if we already have a suitable volume
+	// Check if we already have a suitable volume.
 	if b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
 		return nil
 	}
 
-	// Create the new image volume
+	// Create the new image volume.
 	vol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
 	err := b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
 	if err != nil {
