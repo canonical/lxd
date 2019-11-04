@@ -86,12 +86,12 @@ func (xt *XTables) BridgeRemoveFilters(m deviceConfig.Device, IPv4 net.IP, IPv6 
 
 	return nil
 }
-func (xt *XTables) BridgeSetFilters(deviceConfig.Device) error {
+func (xt *XTables) BridgeSetFilters(m deviceConfig.Device) error {
 	return nil
 }
 
 // Network
-func (xt *XTables) NetworkSetup(map[string]string) error {
+func (xt *XTables) NetworkSetup(oldConfig map[string]string) error {
 	return nil
 }
 

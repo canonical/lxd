@@ -1,6 +1,8 @@
 package firewall
 
 import (
+	"net"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
@@ -48,16 +50,16 @@ type Firewall interface {
 	// NOTE: nicBridged may need generate/filter functions for nft
 
 	// Lower-level clear functions
-	NetworkClear(string, string, string) error
-	ContainerClear(string, string, string) error
+	NetworkClear(protocol string, comment string, table string) error
+	ContainerClear(protocol string, comment string, table string) error
 
 	// Proxy
-	ProxySetupNAT()
+	ProxySetupNAT(ipv string, IPAddr string, comment string, connType, address, port string, cPort string) error
 
 	// NIC bridged
-	BridgeRemoveFilters(deviceConfig.Device) error
-	BridgeSetFilters(deviceConfig.Device) error
+	BridgeRemoveFilters(m deviceConfig.Device, IPv4 net.IP, IPv6 net.IP) error
+	BridgeSetFilters(m deviceConfig.Device) error
 
 	// Network
-	NetworkSetup(map[string]string) error
+	NetworkSetup(oldConfig map[string]string) error
 }
