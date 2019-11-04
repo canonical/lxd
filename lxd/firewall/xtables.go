@@ -1,31 +1,33 @@
 package firewall
 
 import (
-	"fmt"
-
-	"github.com/lxc/lxd/lxd/iptables"
+	"github.com/lxc/lxd/lxd/device"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
+// XTables is an implmentation of LXD firewall using {ip, ip6, eb}tables
+type XTables struct {}
+
 // Proxy
-func ProxyStop() (*device.RunConfig, error) {
+func (xt *XTables) proxyStop() (*device.RunConfig, error) {
 	return nil, nil
 }
-func ProxySetupNAT() {
+func (xt *XTables) proxySetupNAT() {
 
 }
 
 // NIC bridged
-func BridgeRemoveFilters(deviceConfig.Device) error {
+func (xt *XTables) bridgeRemoveFilters(deviceConfig.Device) error {
 	return nil
 }
-func BridgeSetFilters(deviceConfig.Device) error {
+func (xt *XTables) bridgeSetFilters(deviceConfig.Device) error {
 	return nil
 }
 
 // Network
-func NetworkSetup(map[string]string) error {
+func (xt *XTables) networkSetup(map[string]string) error {
 	return nil
 }
-func NetworkStop() error {
+func (xt *XTables) networkStop() error {
 	return nil
 }

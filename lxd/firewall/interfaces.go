@@ -49,14 +49,14 @@ type Firewall interface {
 	// NOTE: nicBridged may need generate/filter functions for nft
 
 	// Proxy
-	ProxyStop() (*device.RunConfig, error)
-	ProxySetupNAT()
+	proxyStop() (*device.RunConfig, error)
+	proxySetupNAT()
 
 	// NIC bridged
-	BridgeRemoveFilters(deviceConfig.Device) error
-	BridgeSetFilters(deviceConfig.Device) error
+	bridgeRemoveFilters(deviceConfig.Device) error
+	bridgeSetFilters(deviceConfig.Device) error
 
 	// Network
-	NetworkSetup(map[string]string) error
-	NetworkStop() error
+	networkSetup(map[string]string) error
+	networkStop() error
 }
