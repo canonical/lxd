@@ -1,6 +1,7 @@
 package firewall
 
 import (
+	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
@@ -9,11 +10,15 @@ import (
 type XTables struct {}
 
 // Lower-level clear functions
+
+// NetworkClear removes network rules.
 func (xt *XTables) NetworkClear(protocol string, comment string, table string) error {
-	return nil
+	return iptables.NetworkClear(protocol, comment, table)
 }
+
+// ContainerClear removes container rules.
 func (xt *XTables) ContainerClear(protocol string, comment string, table string) error {
-	return nil
+	return iptables.ContainerClear(protocol, comment, table)
 }
 
 // Proxy
