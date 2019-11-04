@@ -34,10 +34,12 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// encoding format, so if there is no underscore in the volume name then we assume
 		// the project is default.
 		project := "default"
-		volParts := strings.SplitN(volName, "_", 2)
-		if len(volParts) > 1 {
-			project = volParts[0]
-			volName = volParts[1]
+		if volType == drivers.VolumeTypeContainer || volType == drivers.VolumeTypeVM {
+			volParts := strings.SplitN(volName, "_", 2)
+			if len(volParts) > 1 {
+				project = volParts[0]
+				volName = volParts[1]
+			}
 		}
 
 		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volName, volTypeID, poolID)
