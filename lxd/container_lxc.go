@@ -5992,13 +5992,13 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 		pool, err := storagePools.GetPoolByName(c.state, dev.Config["pool"])
 		if err != storageDrivers.ErrUnknownDriver {
 			if err != nil {
-				logger.Errorf("Error loading storage pool for %s: %v", c.Name(), err)
+				logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 				continue
 			}
 
 			usage, err = pool.GetInstanceUsage(c)
 			if err != nil {
-				logger.Errorf("Error getting disk usage for %s: %v", c.Name(), err)
+				logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 				continue
 			}
 		} else {
