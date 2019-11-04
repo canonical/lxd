@@ -19,6 +19,7 @@ type Instance interface {
 	Path() string
 
 	IsRunning() bool
+	IsSnapshot() bool
 	TemplateApply(trigger string) error
 }
 
