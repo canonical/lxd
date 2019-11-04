@@ -801,22 +801,9 @@ func (b *lxdBackend) DeleteCustomVolume(volName string, op *operations.Operation
 		return err
 	}
 
-	// Remove the database entry and volume from the storage device for each snapshot.
+	// Remove each snapshot.
 	for _, snapshot := range snapshots {
-		// Extract just the snapshot name from the snapshot.
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.Name)
-
-		// Delete the snapshot volume from the storage device.
-		// Must come before Cluster.StoragePoolVolumeDelete otherwise driver won't be able
-		// to get volume ID.
-		err = b.driver.DeleteVolumeSnapshot(drivers.VolumeTypeCustom, volName, snapName, op)
-		if err != nil {
-			return err
-		}
-
-		// Remove the snapshot volume record from the database.
-		// Must come after driver.DeleteVolume so that volume ID is still available.
-		err = b.state.Cluster.StoragePoolVolumeDelete("default", snapshot.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+		err = b.DeleteCustomVolumeSnapshot(snapshot.Name, op)
 		if err != nil {
 			return err
 		}
@@ -962,12 +949,13 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(volName string, op *operations.O
 	}
 
 	// Delete the snapshot from the storage device.
+	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
 	err := b.driver.DeleteVolumeSnapshot(drivers.VolumeTypeCustom, parentName, snapName, op)
 	if err != nil {
 		return err
 	}
 
-	// Finally, remove the volume record from the database.
+	// Remove the snapshot volume record from the database.
 	err = b.state.Cluster.StoragePoolVolumeDelete("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
 		return err
