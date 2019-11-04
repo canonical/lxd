@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -175,26 +174,36 @@ func GetSnapshotVolumeName(parentName, snapshotName string) string {
 }
 
 // DeleteParentSnapshotDirIfEmpty removes the parent snapshot directory if it is empty.
-// It accepts the volume name of a snapshot in the form "volume/snap" and the volume path of the
-// snapshot. It will then remove the snapshots directory above "/snap" if it is empty.
-func DeleteParentSnapshotDirIfEmpty(volName string, volPath string) error {
-	_, snapName, isSnap := shared.ContainerGetParentAndSnapshotName(volName)
-	if !isSnap {
-		return fmt.Errorf("Volume is not a snapshot")
-	}
-
-	// Extract just the snapshot name from the volume name and then remove that suffix
-	// from the volume path. This will get us the parent snapshots directory we need.
-	snapshotsPath := strings.TrimSuffix(volPath, snapName)
-	isEmpty, err := shared.PathIsEmpty(snapshotsPath)
+// It accepts the pool name, volume type and parent volume name.
+func DeleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName string) error {
+	snapshotsPath, err := GetVolumeSnapshotDir(poolName, volType, volName)
 	if err != nil {
 		return err
 	}
 
-	if isEmpty {
-		err := os.Remove(snapshotsPath)
+	// If it exists, try to delete it.
+	if shared.PathExists(snapshotsPath) {
+		isEmpty, err := shared.PathIsEmpty(snapshotsPath)
 		if err != nil {
 			return err
+		}
+
+		if isEmpty {
+			err := os.Remove(snapshotsPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// If it no longer exists (may have just removed it), remove symlink.
+	if !shared.PathExists(snapshotsPath) {
+		snapshotSymlink := shared.VarPath("snapshots", volName)
+		if shared.PathExists(snapshotSymlink) {
+			err := os.Remove(snapshotSymlink)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
