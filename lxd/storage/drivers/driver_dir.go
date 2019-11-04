@@ -260,7 +260,6 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
 		return fmt.Errorf("Migration type not supported")
-
 	}
 
 	// Get the volume ID for the new volumes, which is used to set project quota.
@@ -279,45 +278,8 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		}
 	}()
 
-	// Snapshots are sent first by the sender, so create these first.
-	for _, snapName := range volTargetArgs.Snapshots {
-		snapshot, err := vol.NewSnapshot(snapName)
-		if err != nil {
-			return err
-		}
-
-		snapPath := snapshot.MountPath()
-		err = snapshot.CreateMountPath()
-		if err != nil {
-			return err
-		}
-
-		revertPaths = append(revertPaths, snapPath)
-
-		// Initialise the snapshot's quota with the parent volume's ID.
-		err = d.initQuota(snapPath, volID)
-		if err != nil {
-			return err
-		}
-
-		// Receive snapshot from sender (ensure local snapshot volume is mounted if needed).
-		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			var wrapper *ioprogress.ProgressTracker
-			if volTargetArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
-
-			path := shared.AddSlash(mountPath)
-			return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
-		}, op)
-		if err != nil {
-			return err
-		}
-	}
-
+	// Create the main volume path.
 	volPath := vol.MountPath()
-
-	// Finally the actual volume is sent by sender, so create that last.
 	err = vol.CreateMountPath()
 	if err != nil {
 		return err
@@ -325,26 +287,52 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	revertPaths = append(revertPaths, volPath)
 
-	// Initialise the volume's quota using the volume ID.
-	err = d.initQuota(volPath, volID)
-	if err != nil {
-		return err
-	}
-
-	// Set the quota if specified in volConfig or pool config.
-	err = d.setQuota(volPath, volID, vol.config["size"])
-	if err != nil {
-		return err
-	}
-
-	// Receive volume from sender (ensure local volume is mounted if needed).
+	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		path := shared.AddSlash(mountPath)
+
+		// Snapshots are sent first by the sender, so create these first.
+		for _, snapName := range volTargetArgs.Snapshots {
+			// Receive the snapshot
+			var wrapper *ioprogress.ProgressTracker
+			if volTargetArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
+			}
+
+			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			if err != nil {
+				return err
+			}
+
+			// Create the snapshot itself
+			err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
+			if err != nil {
+				return err
+			}
+
+			// Setup the revert
+			snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
+			revertPaths = append(revertPaths, snapPath)
+		}
+
+		// Initialise the volume's quota using the volume ID.
+		err = d.initQuota(volPath, volID)
+		if err != nil {
+			return err
+		}
+
+		// Set the quota if specified in volConfig or pool config.
+		err = d.setQuota(volPath, volID, vol.config["size"])
+		if err != nil {
+			return err
+		}
+
+		// Receive the main volume from sender.
 		var wrapper *ioprogress.ProgressTracker
 		if volTargetArgs.TrackProgress {
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
-		path := shared.AddSlash(mountPath)
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 	}, op)
 	if err != nil {
@@ -379,43 +367,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	}()
 
-	// If copying snapshots is indicated, check the source isn't itself a snapshot.
-	if copySnapshots && !srcVol.IsSnapshot() {
-		srcSnapshots, err := srcVol.Snapshots(op)
-		if err != nil {
-			return err
-		}
-
-		for _, srcSnapshot := range srcSnapshots {
-			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
-			dstSnapshot, err := vol.NewSnapshot(snapName)
-			if err != nil {
-				return err
-			}
-
-			dstSnapPath := dstSnapshot.MountPath()
-			err = dstSnapshot.CreateMountPath()
-			if err != nil {
-				return err
-			}
-
-			revertPaths = append(revertPaths, dstSnapPath)
-
-			// Initialise the snapshot's quota with the parent volume's ID.
-			err = d.initQuota(dstSnapPath, volID)
-			if err != nil {
-				return err
-			}
-
-			err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
-				return dstSnapshot.MountTask(func(dstMountPath string, op *operations.Operation) error {
-					_, err = rsync.LocalCopy(srcMountPath, dstMountPath, bwlimit, true)
-					return err
-				}, op)
-			}, op)
-		}
-	}
-
+	// Create the main volume path.
 	volPath := vol.MountPath()
 	err = vol.CreateMountPath()
 	if err != nil {
@@ -424,22 +376,53 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	revertPaths = append(revertPaths, volPath)
 
-	// Initialise the volume's quota using the volume ID.
-	err = d.initQuota(volPath, volID)
-	if err != nil {
-		return err
-	}
+	// Ensure the volume is mounted.
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// If copying snapshots is indicated, check the source isn't itself a snapshot.
+		if copySnapshots && !srcVol.IsSnapshot() {
+			// Get the list of snapshots from the source.
+			srcSnapshots, err := srcVol.Snapshots(op)
+			if err != nil {
+				return err
+			}
 
-	// Set the quota if specified in volConfig or pool config.
-	err = d.setQuota(volPath, volID, vol.config["size"])
-	if err != nil {
-		return err
-	}
+			for _, srcSnapshot := range srcSnapshots {
+				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
 
-	// Copy source to destination (mounting each volume if needed).
-	err = srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
-		return vol.MountTask(func(dstMountPath string, op *operations.Operation) error {
-			_, err := rsync.LocalCopy(srcMountPath, dstMountPath, bwlimit, true)
+				// Mount the source snapshot
+				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
+					// Copy the snapshot
+					_, err = rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
+					return err
+				}, op)
+
+				// Create the snapshot itself
+				err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
+				if err != nil {
+					return err
+				}
+
+				// Setup the revert
+				snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
+				revertPaths = append(revertPaths, snapPath)
+			}
+		}
+
+		// Initialise the volume's quota using the volume ID.
+		err = d.initQuota(volPath, volID)
+		if err != nil {
+			return err
+		}
+
+		// Set the quota if specified in volConfig or pool config.
+		err = d.setQuota(volPath, volID, vol.config["size"])
+		if err != nil {
+			return err
+		}
+
+		// Copy source to destination (mounting each volume if needed).
+		return srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
+			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
 			return err
 		}, op)
 	}, op)
