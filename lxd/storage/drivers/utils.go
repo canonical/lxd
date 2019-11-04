@@ -59,6 +59,28 @@ func forceUnmount(path string) (bool, error) {
 	}
 }
 
+func mountReadOnly(srcPath string, dstPath string) (bool, error) {
+	// Check if already mounted.
+	if shared.IsMountPoint(dstPath) {
+		return false, nil
+	}
+
+	// Create a mount entry.
+	err := tryMount(srcPath, dstPath, "none", unix.MS_BIND, "")
+	if err != nil {
+		return false, err
+	}
+
+	// Make it read-only.
+	err = tryMount("", dstPath, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
+	if err != nil {
+		forceUnmount(dstPath)
+		return false, err
+	}
+
+	return true, nil
+}
+
 func sameMount(srcPath string, dstPath string) bool {
 	// Get the source vfs path information
 	var srcFsStat unix.Statfs_t
