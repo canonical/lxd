@@ -1,8 +1,9 @@
 package firewall
 
 import (
+	"fmt"
 	"github.com/lxc/lxd/lxd/iptables"
-	"github.com/lxc/lxd/lxd/device"
+	//"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
@@ -22,8 +23,20 @@ func (xt *XTables) ContainerClear(protocol string, comment string, table string)
 }
 
 // Proxy
-func (xt *XTables) ProxySetupNAT() {
+func (xt *XTables) ProxySetupNAT(ipv string, IPAddr string, comment string, connType, address, port string, cPort string) error {
+	if IPAddr != "" {
+		err := iptables.ContainerPrepend(ipv, comment, "nat", "PREROUTING", "-p", connType, "--destination", address, "--dport", port, "-j", "DNAT", "--to-destination", fmt.Sprintf("%s:%s", IPAddr, cPort))
+		if err != nil {
+			return err
+		}
 
+		err = iptables.ContainerPrepend(ipv, comment, "nat", "OUTPUT", "-p", connType, "--destination", address, "--dport", port, "-j", "DNAT", "--to-destination", fmt.Sprintf("%s:%s", IPAddr, cPort))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // NIC bridged
