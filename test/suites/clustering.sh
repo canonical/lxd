@@ -1377,3 +1377,68 @@ test_clustering_dns() {
   ip link delete "${prefix}1"
   ip link delete "${prefix}2"
 }
+
+test_clustering_recover() {
+  # shellcheck disable=2039,2034
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Check the current database nodes
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443"
+
+  # Create a test project, just to insert something in the database.
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
+
+  # Trying to recover a running daemon results in an error.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster recover-from-quorum-loss || false
+
+  # Shutdown both nodes.
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+
+  # Now recover the first node and restart it.
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster recover-from-quorum-loss -q
+  respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
+
+  # The project we had created is still there
+  LXD_DIR="${LXD_ONE_DIR}" lxc project list | grep -q p1
+
+  # The database nodes have been updated
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443" || false
+
+  # Cleanup the dead node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 -q --force
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
