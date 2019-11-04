@@ -8,26 +8,31 @@ import (
 // XTables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type XTables struct {}
 
+// Lower-level clear functions
+func (xt *XTables) NetworkClear(protocol string, comment string, table string) error {
+	return nil
+}
+func (xt *XTables) ContainerClear(protocol string, comment string, table string) error {
+	return nil
+}
+
 // Proxy
-func (xt *XTables) proxyStop() (*device.RunConfig, error) {
+func (xt *XTables) ProxyStop() (*device.RunConfig, error) {
 	return nil, nil
 }
-func (xt *XTables) proxySetupNAT() {
+func (xt *XTables) ProxySetupNAT() {
 
 }
 
 // NIC bridged
-func (xt *XTables) bridgeRemoveFilters(deviceConfig.Device) error {
+func (xt *XTables) BridgeRemoveFilters(deviceConfig.Device) error {
 	return nil
 }
-func (xt *XTables) bridgeSetFilters(deviceConfig.Device) error {
+func (xt *XTables) BridgeSetFilters(deviceConfig.Device) error {
 	return nil
 }
 
 // Network
-func (xt *XTables) networkSetup(map[string]string) error {
-	return nil
-}
-func (xt *XTables) networkStop() error {
+func (xt *XTables) NetworkSetup(map[string]string) error {
 	return nil
 }

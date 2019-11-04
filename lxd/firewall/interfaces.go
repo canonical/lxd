@@ -1,7 +1,6 @@
 package firewall
 
 import (
-	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 )
 
@@ -48,15 +47,17 @@ type Firewall interface {
 	// NOTE: xtables will need to include shared
 	// NOTE: nicBridged may need generate/filter functions for nft
 
+	// Lower-level clear functions
+	NetworkClear(string, string, string) error
+	ContainerClear(string, string, string) error
+
 	// Proxy
-	proxyStop() (*device.RunConfig, error)
-	proxySetupNAT()
+	ProxySetupNAT()
 
 	// NIC bridged
-	bridgeRemoveFilters(deviceConfig.Device) error
-	bridgeSetFilters(deviceConfig.Device) error
+	BridgeRemoveFilters(deviceConfig.Device) error
+	BridgeSetFilters(deviceConfig.Device) error
 
 	// Network
-	networkSetup(map[string]string) error
-	networkStop() error
+	NetworkSetup(map[string]string) error
 }
