@@ -34,6 +34,10 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// encoding format, so if there is no underscore in the volume name then we assume
 		// the project is default.
 		project := "default"
+
+		// Currently only Containers and VMs support project level volumes.
+		// This means that other volume types may have underscores in their names that don't
+		// indicate the project name.
 		if volType == drivers.VolumeTypeContainer || volType == drivers.VolumeTypeVM {
 			volParts := strings.SplitN(volName, "_", 2)
 			if len(volParts) > 1 {

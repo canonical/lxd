@@ -634,7 +634,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 			return err
 		}
 
-		err = pool.CreateImage(info.Fingerprint, nil)
+		err = pool.EnsureImage(info.Fingerprint, nil)
 		if err != nil {
 			return err
 		}
