@@ -187,16 +187,16 @@ func (b *lxdBackend) removeInstanceSymlink(inst Instance) error {
 	return nil
 }
 
-// createInstanceSnapshotSymlink creates a symlink in the snapshot directory to the instance's
-// snapshot path.
-func (b *lxdBackend) createInstanceSnapshotSymlink(inst Instance, mountPath string) error {
+// ensureInstanceSnapshotSymlink creates a symlink in the snapshot directory to the instance's
+// snapshot path if doesn't exist already.
+func (b *lxdBackend) ensureInstanceSnapshotSymlink(inst Instance) error {
 	// Check we can convert the instance to the volume types needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
 	}
 
-	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
 	volStorageName := project.Prefix(inst.Project(), inst.Name())
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
@@ -204,10 +204,41 @@ func (b *lxdBackend) createInstanceSnapshotSymlink(inst Instance, mountPath stri
 		return err
 	}
 
-	if !shared.PathExists(snapshotMntPointSymlink) {
-		err := os.Symlink(snapshotTargetPath, snapshotMntPointSymlink)
+	if !shared.PathExists(snapshotSymlink) {
+		err := os.Symlink(snapshotTargetPath, snapshotSymlink)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// removeInstanceSnapshotSymlinkIfUnused removes the symlink in the snapshot directory to the
+// instance's snapshot path if the snapshot path is missing. It is expected that the driver will
+// remove the instance's snapshot path after the last snapshot is removed or the volume is deleted.
+func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(inst Instance) error {
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
+	if err != nil {
+		return err
+	}
+
+	// If snapshot parent directory doesn't exist, remove symlink.
+	if !shared.PathExists(snapshotTargetPath) {
+		if shared.PathExists(snapshotSymlink) {
+			err := os.Remove(snapshotSymlink)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
