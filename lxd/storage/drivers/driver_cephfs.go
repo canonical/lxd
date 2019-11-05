@@ -592,12 +592,7 @@ func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error
 		return err
 	}
 
-	_, err = shared.RunCommand("setfattr", "-n", "ceph.quota.max_bytes", "-v", fmt.Sprintf("%d", size), GetVolumeMountPath(vol.pool, vol.volType, vol.name))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.SetVolumeQuota(vol.volType, vol.name, fmt.Sprintf("%d", size), nil)
 }
 
 func (d *cephfs) GetVolumeUsage(volType VolumeType, volName string) (int64, error) {
