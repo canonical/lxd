@@ -16,7 +16,6 @@ type Instance interface {
 	Name() string
 	Project() string
 	Type() instancetype.Type
-	Path() string
 
 	IsRunning() bool
 	IsSnapshot() bool
