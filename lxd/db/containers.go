@@ -24,12 +24,21 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e instance objects
-//go:generate mapper stmt -p db -e instance objects-by-Type
+//go:generate mapper stmt -p db -e instance objects-by-Project
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
-//go:generate mapper stmt -p db -e instance objects-by-Node-and-Type
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Node-and-Type
+//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node
+//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node-and-Name
+//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Name
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name-and-Type
+//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name-and-Node
+//go:generate mapper stmt -p db -e instance objects-by-Project-and-Node
+//go:generate mapper stmt -p db -e instance objects-by-Type
+//go:generate mapper stmt -p db -e instance objects-by-Type-and-Name
+//go:generate mapper stmt -p db -e instance objects-by-Type-and-Name-and-Node
+//go:generate mapper stmt -p db -e instance objects-by-Type-and-Node
+//go:generate mapper stmt -p db -e instance objects-by-Node
+//go:generate mapper stmt -p db -e instance objects-by-Node-and-Name
+//go:generate mapper stmt -p db -e instance objects-by-Name
 //go:generate mapper stmt -p db -e instance profiles-ref
 //go:generate mapper stmt -p db -e instance profiles-ref-by-Project
 //go:generate mapper stmt -p db -e instance profiles-ref-by-Node
