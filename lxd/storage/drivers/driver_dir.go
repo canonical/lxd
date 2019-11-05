@@ -269,16 +269,6 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		return err
 	}
 
-	// Create slice of paths created if revert needed later.
-	revertPaths := []string{}
-	defer func() {
-		// Remove any paths created if we are reverting.
-		for _, path := range revertPaths {
-			d.deleteQuota(path, volID)
-			os.RemoveAll(path)
-		}
-	}()
-
 	// Create the main volume path.
 	volPath := vol.MountPath()
 	err = vol.CreateMountPath()
@@ -286,7 +276,20 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		return err
 	}
 
-	revertPaths = append(revertPaths, volPath)
+	// Create slice of snapshots created if revert needed later.
+	revertSnaps := []string{}
+	defer func() {
+		if revertSnaps == nil {
+			return
+		}
+
+		// Remove any paths created if we are reverting.
+		for _, snapName := range revertSnaps {
+			d.DeleteVolumeSnapshot(vol.volType, vol.name, snapName, op)
+		}
+
+		os.RemoveAll(volPath)
+	}()
 
 	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
@@ -312,8 +315,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			}
 
 			// Setup the revert.
-			snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
-			revertPaths = append(revertPaths, snapPath)
+			revertSnaps = append(revertSnaps, snapName)
 		}
 
 		// Initialise the volume's quota using the volume ID.
@@ -340,7 +342,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		return err
 	}
 
-	revertPaths = nil
+	revertSnaps = nil
 	return nil
 }
 
@@ -358,16 +360,6 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		return err
 	}
 
-	// Create slice of paths created if revert needed later.
-	revertPaths := []string{}
-	defer func() {
-		// Remove any paths created if we are reverting.
-		for _, path := range revertPaths {
-			d.deleteQuota(path, volID)
-			os.RemoveAll(path)
-		}
-	}()
-
 	// Create the main volume path.
 	volPath := vol.MountPath()
 	err = vol.CreateMountPath()
@@ -375,7 +367,20 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		return err
 	}
 
-	revertPaths = append(revertPaths, volPath)
+	// Create slice of snapshots created if revert needed later.
+	revertSnaps := []string{}
+	defer func() {
+		if revertSnaps == nil {
+			return
+		}
+
+		// Remove any paths created if we are reverting.
+		for _, snapName := range revertSnaps {
+			d.DeleteVolumeSnapshot(vol.volType, vol.name, snapName, op)
+		}
+
+		os.RemoveAll(volPath)
+	}()
 
 	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
@@ -404,8 +409,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 				}
 
 				// Setup the revert.
-				snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
-				revertPaths = append(revertPaths, snapPath)
+				revertSnaps = append(revertSnaps, snapName)
 			}
 		}
 
@@ -431,7 +435,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		return err
 	}
 
-	revertPaths = nil // Don't revert.
+	revertSnaps = nil // Don't revert.
 	return nil
 }
 
