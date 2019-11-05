@@ -395,8 +395,111 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWrit
 	return ErrNotImplemented
 }
 
+// RenameInstance renames the instance's root volume and any snapshot volumes.
 func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
+	logger.Debug("RenameInstance started")
+	defer logger.Debug("RenameInstance finished")
+
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance cannot be a snapshot")
+	}
+
+	if shared.IsSnapshot(newName) {
+		return fmt.Errorf("New name cannot be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	type volRevert struct {
+		oldName string
+		newName string
+	}
+
+	// Create slice to record DB volumes renamed if revert needed later.
+	revertDBVolumes := []volRevert{}
+	defer func() {
+		// Remove any DB volume rows created if we are reverting.
+		for _, vol := range revertDBVolumes {
+			b.state.Cluster.StoragePoolVolumeRename(inst.Project(), vol.newName, vol.oldName, volDBType, b.ID())
+		}
+	}()
+
+	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+	snapshots, err := b.state.Cluster.ContainerGetSnapshots(inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	// Rename each snapshot DB record to have the new parent volume prefix.
+	for _, srcSnapshot := range snapshots {
+		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot)
+		newSnapVolName := drivers.GetSnapshotVolumeName(newName, snapName)
+		err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), srcSnapshot, newSnapVolName, volDBType, b.ID())
+		if err != nil {
+			return err
+		}
+
+		revertDBVolumes = append(revertDBVolumes, volRevert{
+			newName: newSnapVolName,
+			oldName: srcSnapshot,
+		})
+	}
+
+	// Rename the parent volume DB record.
+	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newName, volDBType, b.ID())
+	if err != nil {
+		return err
+	}
+
+	revertDBVolumes = append(revertDBVolumes, volRevert{
+		newName: newName,
+		oldName: inst.Name(),
+	})
+
+	// Rename the volume and its snapshots on the storage device.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	newVolStorageName := project.Prefix(inst.Project(), newName)
+	err = b.driver.RenameVolume(volType, volStorageName, newVolStorageName, op)
+	if err != nil {
+		return err
+	}
+
+	// Remove old instance symlink and create new one.
+	err = b.removeInstanceSymlink(inst.Type(), inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), newName, drivers.GetVolumeMountPath(b.name, volType, newName))
+	if err != nil {
+		return err
+	}
+
+	// Remove old instance snapshot symlink and create a new one if needed.
+	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) > 0 {
+		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), newName)
+		if err != nil {
+			return err
+		}
+	}
+
+	revertDBVolumes = nil
+	return nil
 }
 
 // DeleteInstance removes the instance's root volume (all snapshots need to be removed first).
