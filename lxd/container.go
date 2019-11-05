@@ -419,6 +419,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (contain
 	return c, nil
 }
 
+// containerCreateFromImage creates an instance from a rootfs image.
 func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (container, error) {
 	s := d.State()
 
