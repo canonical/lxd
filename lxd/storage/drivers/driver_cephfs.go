@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -600,7 +601,17 @@ func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error
 }
 
 func (d *cephfs) GetVolumeUsage(volType VolumeType, volName string) (int64, error) {
-	return -1, nil
+	out, err := shared.RunCommand("getfattr", "-n", "ceph.quota.max_bytes", "--only-values", GetVolumeMountPath(d.name, volType, volName))
+	if err != nil {
+		return -1, err
+	}
+
+	size, err := strconv.ParseInt(out, 10, 64)
+	if err != nil {
+		return -1, err
+	}
+
+	return size, nil
 }
 
 func (d *cephfs) SetVolumeQuota(volType VolumeType, volName, size string, op *operations.Operation) error {
