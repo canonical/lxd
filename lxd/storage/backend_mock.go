@@ -102,7 +102,7 @@ func (b *mockBackend) GetInstanceUsage(i Instance) (int64, error) {
 	return 0, nil
 }
 
-func (b *mockBackend) SetInstanceQuota(i Instance, quota uint64) error {
+func (b *mockBackend) SetInstanceQuota(i Instance, size string, op *operations.Operation) error {
 	return nil
 }
 

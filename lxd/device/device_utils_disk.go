@@ -17,7 +17,7 @@ var StorageVolumeMount func(s *state.State, poolName string, volumeName string, 
 var StorageVolumeUmount func(s *state.State, poolName string, volumeName string, volumeType int) error
 
 // StorageRootFSApplyQuota applies a new quota.
-var StorageRootFSApplyQuota func(instance Instance, newSize int64) (bool, error)
+var StorageRootFSApplyQuota func(s *state.State, instance Instance, size string) error
 
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
