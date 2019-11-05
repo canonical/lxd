@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/spf13/cobra"
 
@@ -127,7 +128,12 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.flagRespWait && resp.Operation != "" {
-		resp, _, err = d.RawQuery("GET", fmt.Sprintf("%s/wait", resp.Operation), "", "")
+		uri, err := url.ParseRequestURI(resp.Operation)
+		if err != nil {
+			return err
+		}
+
+		resp, _, err = d.RawQuery("GET", fmt.Sprintf("%s/wait?%s", uri.Path, uri.RawQuery), "", "")
 		if err != nil {
 			return err
 		}
