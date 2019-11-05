@@ -190,7 +190,7 @@ func (b *lxdBackend) removeInstanceSymlink(inst Instance) error {
 // ensureInstanceSnapshotSymlink creates a symlink in the snapshot directory to the instance's
 // snapshot path if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSnapshotSymlink(inst Instance) error {
-	// Check we can convert the instance to the volume types needed.
+	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(inst Instance) error {
 // instance's snapshot path if the snapshot path is missing. It is expected that the driver will
 // remove the instance's snapshot path after the last snapshot is removed or the volume is deleted.
 func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(inst Instance) error {
-	// Check we can convert the instance to the volume types needed.
+	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
 		return err
@@ -466,9 +466,28 @@ func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
 	return -1, ErrNotImplemented
 }
 
-func (b *lxdBackend) SetInstanceQuota(inst Instance, quota uint64) error {
+// SetInstanceQuota sets the quota on the instance's root device.
+// Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
+// doesn't support resizing whilst the instance is running.
+func (b *lxdBackend) SetInstanceQuota(inst Instance, size string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("SetInstanceQuota started")
+	defer logger.Debug("SetInstanceQuota finished")
 
-	return ErrNotImplemented
+	if inst.IsRunning() && !b.driver.Info().RunningQuotaResize {
+		return ErrRunningQuotaResizeNotSupported
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	return b.driver.SetVolumeQuota(volType, volStorageName, size, op)
 }
 
 // MountInstance mounts the instance's device.
