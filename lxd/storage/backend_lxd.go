@@ -470,12 +470,40 @@ func (b *lxdBackend) SetInstanceQuota(inst Instance, quota uint64) error {
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) MountInstance(inst Instance) (bool, error) {
-	return true, ErrNotImplemented
+// MountInstance mounts the instance's rootfs.
+func (b *lxdBackend) MountInstance(inst Instance, op *operations.Operation) (bool, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("MountInstance started")
+	defer logger.Debug("MountInstance finished")
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return false, err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	return b.driver.MountVolume(volType, volStorageName, op)
 }
 
-func (b *lxdBackend) UnmountInstance(inst Instance) (bool, error) {
-	return true, ErrNotImplemented
+// UnmountInstance unmounts the instance's rootfs.
+func (b *lxdBackend) UnmountInstance(inst Instance, op *operations.Operation) (bool, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("UnmountInstance started")
+	defer logger.Debug("UnmountInstance finished")
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return false, err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	return b.driver.UnmountVolume(volType, volStorageName, op)
 }
 
 func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, string, error) {
@@ -542,12 +570,55 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst Instance, op *operations.Opera
 	return ErrNotImplemented
 }
 
-func (b *lxdBackend) MountInstanceSnapshot(inst Instance) (bool, error) {
-	return true, ErrNotImplemented
+// MountInstanceSnapshot mounts an instance snapshot. It is mounted as read only so that the
+// snapshot cannot be modified.
+func (b *lxdBackend) MountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("MountInstanceSnapshot started")
+	defer logger.Debug("MountInstanceSnapshot finished")
+
+	if !inst.IsSnapshot() {
+		return false, fmt.Errorf("Instance must be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return false, err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// Get the snapshot name.
+	_, snapName, _ := shared.ContainerGetParentAndSnapshotName(inst.Name())
+
+	return b.driver.MountVolumeSnapshot(volType, volStorageName, snapName, op)
 }
 
-func (b *lxdBackend) UnmountInstanceSnapshot(inst Instance) (bool, error) {
-	return true, ErrNotImplemented
+// UnmountInstanceSnapshot unmounts an instance snapshot.
+func (b *lxdBackend) UnmountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("UnmountInstanceSnapshot started")
+	defer logger.Debug("UnmountInstanceSnapshot finished")
+
+	if !inst.IsSnapshot() {
+		return false, fmt.Errorf("Instance must be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return false, err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// Get the snapshot name.
+	_, snapName, _ := shared.ContainerGetParentAndSnapshotName(inst.Name())
+
+	return b.driver.UnmountVolumeSnapshot(volType, volStorageName, snapName, op)
 }
 
 // EnsureImage creates an optimized volume of the image if supported by the storage pool driver and
