@@ -5329,19 +5329,15 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 	return nil
 }
 
-func (c *containerLXC) TemplateApply(trigger string) error {
-	// "create" and "copy" are deferred until next start
-	if shared.StringInSlice(trigger, []string{"create", "copy"}) {
-		// The two events are mutually exclusive so only keep the last one
-		err := c.VolatileSet(map[string]string{"volatile.apply_template": trigger})
-		if err != nil {
-			return errors.Wrap(err, "Failed to set apply_template volatile key")
-		}
-
-		return nil
+// DeferTemplateApply sets volatile key to apply template on next start. Used when instance's
+// volume isn't mounted.
+func (c *containerLXC) DeferTemplateApply(trigger string) error {
+	err := c.VolatileSet(map[string]string{"volatile.apply_template": trigger})
+	if err != nil {
+		return errors.Wrap(err, "Failed to set apply_template volatile key")
 	}
 
-	return c.templateApplyNow(trigger)
+	return nil
 }
 
 func (c *containerLXC) templateApplyNow(trigger string) error {

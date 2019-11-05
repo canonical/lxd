@@ -115,6 +115,6 @@ type Instance interface {
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
 	Storage() storage
-	TemplateApply(trigger string) error
+	DeferTemplateApply(trigger string) error
 	DaemonState() *state.State
 }

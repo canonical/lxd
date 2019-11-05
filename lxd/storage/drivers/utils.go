@@ -183,11 +183,8 @@ func GetVolumeMountPath(poolName string, volType VolumeType, volName string) str
 
 // GetVolumeSnapshotDir gets the snapshot mount directory for the parent volume.
 func GetVolumeSnapshotDir(poolName string, volType VolumeType, volName string) (string, error) {
-	if shared.IsSnapshot(volName) {
-		return "", fmt.Errorf("Volume cannot be a snapshot")
-	}
-
-	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", volName)), nil
+	parent, _, _ := shared.ContainerGetParentAndSnapshotName(volName)
+	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", parent)), nil
 }
 
 // GetSnapshotVolumeName returns the full volume name for a parent volume and snapshot name.
@@ -212,17 +209,6 @@ func DeleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 
 		if isEmpty {
 			err := os.Remove(snapshotsPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// If it no longer exists (may have just removed it), remove symlink.
-	if !shared.PathExists(snapshotsPath) {
-		snapshotSymlink := shared.VarPath("snapshots", volName)
-		if shared.PathExists(snapshotSymlink) {
-			err := os.Remove(snapshotSymlink)
 			if err != nil {
 				return err
 			}

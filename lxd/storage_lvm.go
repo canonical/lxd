@@ -1054,7 +1054,7 @@ func (s *storageLvm) ContainerCreateFromImage(container Instance, fingerprint st
 		return errors.Wrap(err, "Set mount point permissions")
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		logger.Errorf("Error in create template during ContainerCreateFromImage, continuing to unmount: %s", err)
 		return err
