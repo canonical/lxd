@@ -106,11 +106,11 @@ func (b *mockBackend) SetInstanceQuota(i Instance, quota uint64) error {
 	return nil
 }
 
-func (b *mockBackend) MountInstance(i Instance) (bool, error) {
+func (b *mockBackend) MountInstance(i Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) UnmountInstance(i Instance) (bool, error) {
+func (b *mockBackend) UnmountInstance(i Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
@@ -134,11 +134,11 @@ func (b *mockBackend) RestoreInstanceSnapshot(i Instance, op *operations.Operati
 	return nil
 }
 
-func (b *mockBackend) MountInstanceSnapshot(i Instance) (bool, error) {
+func (b *mockBackend) MountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) UnmountInstanceSnapshot(i Instance) (bool, error) {
+func (b *mockBackend) UnmountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
