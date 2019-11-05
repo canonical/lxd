@@ -102,8 +102,8 @@ func (v Volume) CreateMountPath() error {
 func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
 	parentName, snapName, isSnap := shared.ContainerGetParentAndSnapshotName(v.name)
 
-	mountLockID := fmt.Sprintf("mount/%s/%s", v.volType, v.name)
-	umountLockID := fmt.Sprintf("umount/%s/%s", v.volType, v.name)
+	mountLockID := fmt.Sprintf("mount/%s/%s/%s", v.pool, v.volType, v.name)
+	umountLockID := fmt.Sprintf("umount/%s/%s/%s", v.pool, v.volType, v.name)
 
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
