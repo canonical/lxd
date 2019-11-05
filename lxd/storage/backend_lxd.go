@@ -161,18 +161,6 @@ func (b *lxdBackend) Unmount() (bool, error) {
 	return b.driver.Unmount()
 }
 
-func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) error {
-	return ErrNotImplemented
-}
-
-func (b *lxdBackend) CreateInstanceFromBackup(inst Instance, sourcePath string, op *operations.Operation) error {
-	return ErrNotImplemented
-}
-
-func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
-	return ErrNotImplemented
-}
-
 // createInstanceSymlink creates a symlink in the instance directory to the instance's mount path.
 func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) error {
 	symlinkPath := inst.Path()
@@ -224,6 +212,53 @@ func (b *lxdBackend) createInstanceSnapshotSymlink(inst Instance, mountPath stri
 	}
 
 	return nil
+}
+
+// CreateInstance creates an empty instance.
+func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("CreateInstance started")
+	defer logger.Debug("CreateInstance finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+		b.DeleteInstance(inst, op)
+	}()
+
+	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
+	err = b.driver.CreateVolume(vol, nil, op)
+	if err != nil {
+		return err
+	}
+
+	err = b.createInstanceSymlink(inst, vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	err = inst.DeferTemplateApply("create")
+	if err != nil {
+		return err
+	}
+
+	revert = false
+	return nil
+}
+
+func (b *lxdBackend) CreateInstanceFromBackup(inst Instance, sourcePath string, op *operations.Operation) error {
+	return ErrNotImplemented
+}
+
+func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
+	return ErrNotImplemented
 }
 
 // imageFiller returns a function that can be used as a filler function with CreateVolume(). This
@@ -295,7 +330,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		return err
 	}
 
-	err = inst.TemplateApply("create")
+	err = inst.DeferTemplateApply("create")
 	if err != nil {
 		return err
 	}
