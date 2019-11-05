@@ -225,14 +225,14 @@ func (d *disk) Start() (*RunConfig, error) {
 		v := d.volatileGet()
 
 		// Handle previous requests for setting new quotas.
-		if v["volatile.apply_quota"] != "" {
-			applied, err := d.applyQuota(v["volatile.apply_quota"])
+		if v["apply_quota"] != "" {
+			applied, err := d.applyQuota(v["apply_quota"])
 			if err != nil || !applied {
 				return nil, err
 			}
 
 			// Remove volatile apply_quota key if successful.
-			err = d.volatileSet(map[string]string{"volatile.apply_quota": ""})
+			err = d.volatileSet(map[string]string{"apply_quota": ""})
 			if err != nil {
 				return nil, err
 			}
@@ -376,7 +376,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 			if !applied {
 				// Save volatile apply_quota key for next boot if cannot apply now.
-				err = d.volatileSet(map[string]string{"volatile.apply_quota": newRootDiskDeviceSize})
+				err = d.volatileSet(map[string]string{"apply_quota": newRootDiskDeviceSize})
 				if err != nil {
 					return err
 				}

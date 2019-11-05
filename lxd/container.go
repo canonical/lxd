@@ -977,7 +977,7 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 
 func containerConfigureInternal(c Instance) error {
 	// Find the root device
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
+	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
@@ -992,7 +992,7 @@ func containerConfigureInternal(c Instance) error {
 	if rootDiskDevice["size"] != "" {
 		storageTypeName := storage.GetStorageTypeName()
 		if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
-			err = c.VolatileSet(map[string]string{"volatile.apply_quota": rootDiskDevice["size"]})
+			err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
 			if err != nil {
 				return err
 			}
