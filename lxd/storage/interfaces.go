@@ -20,7 +20,7 @@ type Instance interface {
 
 	IsRunning() bool
 	IsSnapshot() bool
-	TemplateApply(trigger string) error
+	DeferTemplateApply(trigger string) error
 }
 
 // Pool represents a LXD storage pool.
