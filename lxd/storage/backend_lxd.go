@@ -161,22 +161,34 @@ func (b *lxdBackend) Unmount() (bool, error) {
 	return b.driver.Unmount()
 }
 
-// createInstanceSymlink creates a symlink in the instance directory to the instance's mount path.
-func (b *lxdBackend) createInstanceSymlink(inst Instance, mountPath string) error {
-	symlinkPath := inst.Path()
-	if !shared.PathExists(symlinkPath) {
-		err := os.Symlink(mountPath, symlinkPath)
+// ensureInstanceSymlink creates a symlink in the instance directory to the instance's mount path
+// if doesn't exist already.
+func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName, instanceName, mountPath string) error {
+	volStorageName := project.Prefix(projectName, instanceName)
+	symlinkPath := ContainerPath(volStorageName, false)
+
+	// Remove any old symlinks left over by previous bugs that may point to a different pool.
+	if shared.PathExists(symlinkPath) {
+		err := os.Remove(symlinkPath)
 		if err != nil {
 			return err
 		}
+	}
+
+	// Create new symlink.
+	err := os.Symlink(mountPath, symlinkPath)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // removeInstanceSymlink removes a symlink in the instance directory to the instance's mount path.
-func (b *lxdBackend) removeInstanceSymlink(inst Instance) error {
-	symlinkPath := inst.Path()
+func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, projectName, instanceName string) error {
+	volStorageName := project.Prefix(projectName, instanceName)
+	symlinkPath := ContainerPath(volStorageName, false)
+
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
@@ -189,26 +201,34 @@ func (b *lxdBackend) removeInstanceSymlink(inst Instance) error {
 
 // ensureInstanceSnapshotSymlink creates a symlink in the snapshot directory to the instance's
 // snapshot path if doesn't exist already.
-func (b *lxdBackend) ensureInstanceSnapshotSymlink(inst Instance) error {
+func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Type, projectName, instanceName string) error {
 	// Check we can convert the instance to the volume type needed.
-	volType, err := InstanceTypeToVolumeType(inst.Type())
+	volType, err := InstanceTypeToVolumeType(instanceType)
 	if err != nil {
 		return err
 	}
 
-	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(instanceName)
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, parentName))
+	volStorageName := project.Prefix(projectName, parentName)
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 	if err != nil {
 		return err
 	}
 
-	if !shared.PathExists(snapshotSymlink) {
-		err := os.Symlink(snapshotTargetPath, snapshotSymlink)
+	// Remove any old symlinks left over by previous bugs that may point to a different pool.
+	if shared.PathExists(snapshotSymlink) {
+		err = os.Remove(snapshotSymlink)
 		if err != nil {
 			return err
 		}
+	}
+
+	// Create new symlink.
+	err = os.Symlink(snapshotTargetPath, snapshotSymlink)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -217,15 +237,16 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(inst Instance) error {
 // removeInstanceSnapshotSymlinkIfUnused removes the symlink in the snapshot directory to the
 // instance's snapshot path if the snapshot path is missing. It is expected that the driver will
 // remove the instance's snapshot path after the last snapshot is removed or the volume is deleted.
-func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(inst Instance) error {
+func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instancetype.Type, projectName, instanceName string) error {
 	// Check we can convert the instance to the volume type needed.
-	volType, err := InstanceTypeToVolumeType(inst.Type())
+	volType, err := InstanceTypeToVolumeType(instanceType)
 	if err != nil {
 		return err
 	}
 
-	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(inst.Project(), inst.Name()))
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(instanceName)
+	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, parentName))
+	volStorageName := project.Prefix(projectName, parentName)
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 	if err != nil {
@@ -270,7 +291,7 @@ func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) err
 		return err
 	}
 
-	err = b.createInstanceSymlink(inst, vol.MountPath())
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
 	if err != nil {
 		return err
 	}
@@ -356,7 +377,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		}
 	}
 
-	err = b.createInstanceSymlink(inst, vol.MountPath())
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
 	if err != nil {
 		return err
 	}
@@ -422,12 +443,12 @@ func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) err
 	}
 
 	// Remove symlinks.
-	err = b.removeInstanceSymlink(inst)
+	err = b.removeInstanceSymlink(inst.Type(), inst.Project(), inst.Name())
 	if err != nil {
 		return err
 	}
 
-	err = b.removeInstanceSnapshotSymlinkIfUnused(inst)
+	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project(), inst.Name())
 	if err != nil {
 		return err
 	}
@@ -453,7 +474,7 @@ func (b *lxdBackend) BackupInstance(inst Instance, targetPath string, optimized 
 	return ErrNotImplemented
 }
 
-// GetInstanceUsage returns the disk usage of the instance's root device.
+// GetInstanceUsage returns the disk usage of the instance's root volume.
 func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("GetInstanceUsage started")
@@ -466,7 +487,7 @@ func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
 	return -1, ErrNotImplemented
 }
 
-// SetInstanceQuota sets the quota on the instance's root device.
+// SetInstanceQuota sets the quota on the instance's root volume.
 // Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
 // doesn't support resizing whilst the instance is running.
 func (b *lxdBackend) SetInstanceQuota(inst Instance, size string, op *operations.Operation) error {
@@ -490,7 +511,7 @@ func (b *lxdBackend) SetInstanceQuota(inst Instance, size string, op *operations
 	return b.driver.SetVolumeQuota(volType, volStorageName, size, op)
 }
 
-// MountInstance mounts the instance's device.
+// MountInstance mounts the instance's root volume.
 func (b *lxdBackend) MountInstance(inst Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstance started")
@@ -508,7 +529,7 @@ func (b *lxdBackend) MountInstance(inst Instance, op *operations.Operation) (boo
 	return b.driver.MountVolume(volType, volStorageName, op)
 }
 
-// UnmountInstance unmounts the instance's device.
+// UnmountInstance unmounts the instance's root volume.
 func (b *lxdBackend) UnmountInstance(inst Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("UnmountInstance started")
@@ -572,7 +593,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operat
 	}
 
 	// Delete symlink if needed.
-	err = b.removeInstanceSnapshotSymlinkIfUnused(inst)
+	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project(), inst.Name())
 	if err != nil {
 		return err
 	}
