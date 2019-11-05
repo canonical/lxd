@@ -18,12 +18,14 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -480,7 +482,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 	poolVolumePut.Config["volatile.idmap.next"] = nextJsonMap
 
 	// get mountpoint of storage volume
-	remapPath := driver.GetStoragePoolVolumeMountPoint(poolName, volumeName)
+	remapPath := storagePools.GetStoragePoolVolumeMountPoint(poolName, volumeName)
 
 	if !nextIdmap.Equals(lastIdmap) {
 		logger.Debugf("Shifting storage volume")
@@ -840,7 +842,7 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 		return fmt.Errorf("Received non-LXC container instance")
 	}
 
-	volumeType, _ := driver.VolumeTypeNameToType(volumeTypeName)
+	volumeType, _ := storagePools.VolumeTypeNameToType(volumeTypeName)
 	s, err := storagePoolVolumeAttachInit(state, poolName, volumeName, volumeType, c)
 	if err != nil {
 		return err
@@ -872,29 +874,42 @@ func storageVolumeUmount(state *state.State, poolName string, volumeName string,
 
 // storageRootFSApplyQuota applies a quota to an instance if it can, if it cannot then it will
 // return false indicating that the quota needs to be stored in volatile to be applied on next boot.
-func storageRootFSApplyQuota(instance device.Instance, newSizeBytes int64) (bool, error) {
-	c, ok := instance.(*containerLXC)
+func storageRootFSApplyQuota(state *state.State, inst device.Instance, size string) error {
+	c, ok := inst.(*containerLXC)
 	if !ok {
-		return false, fmt.Errorf("Received non-LXC container instance")
+		return fmt.Errorf("Received non-LXC container instance")
 	}
 
-	err := c.initStorage()
-	if err != nil {
-		return false, errors.Wrap(err, "Initialize storage")
+	pool, err := storagePools.GetPoolByInstance(state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		err = pool.SetInstanceQuota(c, size, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := c.initStorage()
+		if err != nil {
+			return errors.Wrap(err, "Initialize storage")
+		}
+
+		storageTypeName := c.storage.GetStorageTypeName()
+		storageIsReady := c.storage.ContainerStorageReady(c)
+
+		// If we cannot apply the quota now, then return false as needs to be applied on next boot.
+		if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() || !storageIsReady {
+			return storagePools.ErrRunningQuotaResizeNotSupported
+		}
+
+		newSizeBytes, err := units.ParseByteSizeString(size)
+		if err != nil {
+			return err
+		}
+
+		err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, newSizeBytes, c)
+		if err != nil {
+			return errors.Wrap(err, "Set storage quota")
+		}
 	}
 
-	storageTypeName := c.storage.GetStorageTypeName()
-	storageIsReady := c.storage.ContainerStorageReady(c)
-
-	// If we cannot apply the quota now, then return false as needs to be applied on next boot.
-	if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() || !storageIsReady {
-		return false, nil
-	}
-
-	err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, newSizeBytes, c)
-	if err != nil {
-		return false, errors.Wrap(err, "Set storage quota")
-	}
-
-	return true, nil
+	return nil
 }
