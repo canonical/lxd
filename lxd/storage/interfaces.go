@@ -55,8 +55,8 @@ type Pool interface {
 	GetInstanceUsage(i Instance) (int64, error)
 	SetInstanceQuota(i Instance, quota uint64) error
 
-	MountInstance(i Instance) (bool, error)
-	UnmountInstance(i Instance) (bool, error)
+	MountInstance(i Instance, op *operations.Operation) (bool, error)
+	UnmountInstance(i Instance, op *operations.Operation) (bool, error)
 	GetInstanceDisk(i Instance) (string, string, error)
 
 	// Instance snapshots.
@@ -64,8 +64,8 @@ type Pool interface {
 	RenameInstanceSnapshot(i Instance, newName string, op *operations.Operation) error
 	DeleteInstanceSnapshot(i Instance, op *operations.Operation) error
 	RestoreInstanceSnapshot(i Instance, op *operations.Operation) error
-	MountInstanceSnapshot(i Instance) (bool, error)
-	UnmountInstanceSnapshot(i Instance) (bool, error)
+	MountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error)
+	UnmountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error)
 
 	// Images.
 	EnsureImage(fingerprint string, op *operations.Operation) error
