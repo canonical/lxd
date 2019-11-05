@@ -501,11 +501,47 @@ func (d *disk) createDevice() (string, error) {
 	if d.config["pool"] == "" {
 		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		//handle ceph case (anusha)
-		if (d.config['source'] == "cephfs") {
+		if strings.HasPrefix(d.config["source"], "cephfs") {
 			//filesystem mount
-						//diskCephfsMount(clusterName string, userName string, fsName string, path string) error
+			fields := strings.SplitN(d.config["source"], ":", 2)
+			fsName := fields[1]
+			userName := d.config["ceph.user_name"]
+			clusterName := d.config["ceph.cluster_name"]
+			path := d.config["path"]
+			err := diskCephfsMount(clusterName, userName, fsName, path)
+			if err != nil {
+				msg := fmt.Sprintf("Could not mount Ceph FS: %s.", err)
+				if !isRequired {
+					// Will fail the PathExists test below.
+					logger.Warn(msg)
+				} else {
+					return "", fmt.Errorf(msg)
+				}
+			}
+		} else if strings.HasPrefix(d.config["source"], "ceph") {
+			// get pool name, volume name, ceph.user_name, and ceph.cluster_name from d.config and make call to map
+			// after call to map, save the src path it returned in variable src_path
+			fields := strings.SplitN(d.config["source"], ":", 2)
+			fields = strings.SplitN(fields[1], "/", 2)
+			poolName := fields[0]
+			volumeName := fields[1]
+			userName := d.config["ceph.user_name"]
+			clusterName := d.config["ceph.cluster_name"]
+			src_path, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
+			if err != nil {
+				msg := fmt.Sprintf("Could not mount map Ceph RBD: %s.", err)
+				if !isRequired {
+					// Will fail the PathExists test below.
+					logger.Warn(msg)
+				} else {
+					return "", fmt.Errorf(msg)
+				}
+			}
+			err = d.volatileSet(map[string]string{"ceph_rbd_src_path": src_path})
+			if err != nil {
+				return "", err
+			}
 		}
-
 	} else {
 		// Deal with mounting storage volumes created via the storage api. Extract the name
 		// of the storage volume that we are supposed to attach. We assume that the only
@@ -517,15 +553,7 @@ func (d *disk) createDevice() (string, error) {
 
 		if filepath.IsAbs(d.config["source"]) {
 			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path")
-		}
-
-		if (d.config["source"] == "ceph") {
-			// get pool name, volume name, ceph.user_name, and ceph.cluster_name from d.config and make call to map
-			// after call to map, save the src path it returned in variable src_path
-			// d.volatileSet(map[string]string{"ceph_rbd_src_path": src_path})
-			//diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error)
-		}
-		else {
+		} else {
 			volumeTypeName := ""
 			volumeName := filepath.Clean(d.config["source"])
 			slash := strings.Index(volumeName, "/")
@@ -562,7 +590,6 @@ func (d *disk) createDevice() (string, error) {
 				}
 			}
 		}
-
 
 	}
 
@@ -650,7 +677,11 @@ func (d *disk) postStop() error {
 		//unmap rbd storage from path
 		//get the map with v := d.volatileGet
 		//get the actual path with v[cepth_rbd_src_path]
-		//diskCephRbdUnmap(deviceName string) error
+		v := d.volatileGet()
+		err := diskCephRbdUnmap(v["ceph_rbd_src_path"])
+		if err != nil {
+			return err
+		}
 	}
 
 	devPath := d.getDevicePath(d.name, d.config)

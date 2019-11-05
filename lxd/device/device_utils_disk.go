@@ -147,17 +147,12 @@ func diskCephRbdMap(clusterName string, userName string, poolName string, volume
 	return strings.TrimSpace(devPath), nil
 }
 
-func diskCephRbdUnmap(clusterName string, userName string, poolName string, deviceName string, unmapUntilEINVAL bool) error {
+func diskCephRbdUnmap(deviceName string) error {
 	unmapImageName := fmt.Sprintf("%s_%s", db.StoragePoolVolumeTypeNameCustom, deviceName)
-
 	busyCount := 0
-
 again:
 	_, err := shared.RunCommand(
 		"rbd",
-		"--id", userName,
-		"--cluster", clusterName,
-		"--pool", poolName,
 		"unmap",
 		unmapImageName)
 	if err != nil {
@@ -187,12 +182,7 @@ again:
 
 		return err
 	}
-
-	if unmapUntilEINVAL {
-		goto again
-	}
-
-	return nil
+	goto again
 }
 
 func cephFsConfig(clusterName string, userName string) ([]string, string, error) {
