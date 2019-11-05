@@ -789,7 +789,7 @@ func (s *storageCeph) ContainerCreate(container Instance) error {
 		return err
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		logger.Errorf(`Failed to apply create template for container "%s": %s`, containerName, err)
 		return err
@@ -938,7 +938,7 @@ func (s *storageCeph) ContainerCreateFromImage(container Instance, fingerprint s
 		defer s.ContainerUmount(container, containerPath)
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		logger.Errorf(`Failed to apply create template for container "%s": %s`, containerName, err)
 		return err
@@ -1317,7 +1317,7 @@ func (s *storageCeph) ContainerCopy(target Instance, source Instance, containerO
 		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
-	err = target.TemplateApply("copy")
+	err = target.DeferTemplateApply("copy")
 	if err != nil {
 		logger.Errorf(`Failed to apply copy template for container "%s": %s`, target.Name(), err)
 		return err
