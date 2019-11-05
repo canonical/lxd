@@ -286,7 +286,7 @@ func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (container, error) 
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(c)
+	err = containerConfigureInternal(d.State(), c)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -521,7 +521,7 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(c)
+	err = containerConfigureInternal(d.State(), c)
 	if err != nil {
 		c.Delete()
 		return nil, errors.Wrap(err, "Configure container")
@@ -673,7 +673,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(ct)
+	err = containerConfigureInternal(s, ct)
 	if err != nil {
 		if !refresh {
 			ct.Delete()
@@ -685,7 +685,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	if !containerOnly {
 		for _, cs := range csList {
 			// Apply any post-storage configuration.
-			err = containerConfigureInternal(*cs)
+			err = containerConfigureInternal(s, *cs)
 			if err != nil {
 				if !refresh {
 					ct.Delete()
@@ -994,42 +994,66 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 	return c, nil
 }
 
-func containerConfigureInternal(c Instance) error {
+func containerConfigureInternal(state *state.State, c Instance) error {
 	// Find the root device
 	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
 
-	ourStart, err := c.StorageStart()
-	if err != nil {
-		return err
-	}
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return errors.Wrap(err, "Load instance storage pool")
+		}
 
-	// handle quota: at this point, storage is guaranteed to be ready
-	storage := c.Storage()
-	if rootDiskDevice["size"] != "" {
-		storageTypeName := storage.GetStorageTypeName()
-		if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
-			err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
-			if err != nil {
-				return err
-			}
-		} else {
-			size, err := units.ParseByteSizeString(rootDiskDevice["size"])
-			if err != nil {
-				return err
-			}
+		if rootDiskDevice["size"] != "" {
+			err = pool.SetInstanceQuota(c, rootDiskDevice["size"], nil)
 
-			err = storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
-			if err != nil {
+			// If the storage driver can't set the quota now, store in volatile.
+			if err == storagePools.ErrRunningQuotaResizeNotSupported {
+				err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
+				if err != nil {
+					return err
+				}
+			} else if err != nil {
 				return err
 			}
 		}
-	}
+	} else if c.Type() == instancetype.Container {
+		ourStart, err := c.StorageStart()
+		if err != nil {
+			return err
+		}
 
-	if ourStart {
-		defer c.StorageStop()
+		// handle quota: at this point, storage is guaranteed to be ready
+		storage := c.Storage()
+		if rootDiskDevice["size"] != "" {
+			storageTypeName := storage.GetStorageTypeName()
+			if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
+				err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
+				if err != nil {
+					return err
+				}
+			} else {
+				size, err := units.ParseByteSizeString(rootDiskDevice["size"])
+				if err != nil {
+					return err
+				}
+
+				err = storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if ourStart {
+			defer c.StorageStop()
+		}
+	} else {
+		return fmt.Errorf("Instance type not supported")
 	}
 
 	err = writeBackupFile(c)

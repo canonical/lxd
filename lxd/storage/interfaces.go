@@ -53,7 +53,7 @@ type Pool interface {
 	BackupInstance(i Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
 	GetInstanceUsage(i Instance) (int64, error)
-	SetInstanceQuota(i Instance, quota uint64) error
+	SetInstanceQuota(i Instance, size string, op *operations.Operation) error
 
 	MountInstance(i Instance, op *operations.Operation) (bool, error)
 	UnmountInstance(i Instance, op *operations.Operation) (bool, error)
