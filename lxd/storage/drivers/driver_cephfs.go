@@ -516,18 +516,13 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 		}
 	}()
 
-	// Rename any snapshots of the volume too.
-	snapshots, err := vol.Snapshots(op)
+	// Rename the snapshot directory first.
+	srcSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
 	if err != nil {
 		return err
 	}
 
-	for _, snapshot := range snapshots {
-		srcSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-		if err != nil {
-			return err
-		}
-
+	if shared.PathExists(srcSnapshotDir) {
 		targetSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, newName)
 		if err != nil {
 			return err
@@ -538,16 +533,30 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 			return err
 		}
 
-		sourcePath := GetVolumeMountPath(d.name, volType, newName)
-		targetPath := GetVolumeMountPath(d.name, volType, newName)
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.name)
+		revertPaths = append(revertPaths, volRevert{
+			oldPath: srcSnapshotDir,
+			newPath: targetSnapshotDir,
+		})
+	}
 
+	// Rename any snapshots of the volume too.
+	snapshots, err := vol.Snapshots(op)
+	if err != nil {
+		return err
+	}
+
+	sourcePath := GetVolumeMountPath(d.name, volType, newName)
+	targetPath := GetVolumeMountPath(d.name, volType, newName)
+
+	for _, snapshot := range snapshots {
+		// Figure out the snapshot paths.
+		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.name)
 		oldCephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 		newCephSnapPath := filepath.Join(targetPath, ".snap", snapName)
-
 		oldPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapName))
 		newPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(newName, snapName))
 
+		// Update the symlink.
 		err = os.Symlink(newCephSnapPath, newPath)
 		if err != nil {
 			return err
@@ -557,11 +566,6 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 			oldPath:   oldPath,
 			newPath:   oldCephSnapPath,
 			isSymlink: true,
-		})
-
-		revertPaths = append(revertPaths, volRevert{
-			oldPath: srcSnapshotDir,
-			newPath: targetSnapshotDir,
 		})
 	}
 
