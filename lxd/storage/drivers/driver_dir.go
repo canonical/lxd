@@ -27,14 +27,15 @@ type dir struct {
 // Info returns info about the driver and its environment.
 func (d *dir) Info() Info {
 	return Info{
-		Name:            "dir",
-		Version:         "1",
-		OptimizedImages: false,
-		PreservesInodes: false,
-		Usable:          true,
-		Remote:          false,
-		VolumeTypes:     []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer},
-		BlockBacking:    false,
+		Name:               "dir",
+		Version:            "1",
+		OptimizedImages:    false,
+		PreservesInodes:    false,
+		Usable:             true,
+		Remote:             false,
+		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer},
+		BlockBacking:       false,
+		RunningQuotaResize: true,
 	}
 }
 
@@ -657,6 +658,17 @@ func (d *dir) UnmountVolume(volType VolumeType, volName string, op *operations.O
 func (d *dir) UnmountVolumeSnapshot(volType VolumeType, volName, snapshotName string, op *operations.Operation) (bool, error) {
 	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
 	return forceUnmount(snapPath)
+}
+
+// SetVolumeQuota sets the quota on the volume.
+func (d *dir) SetVolumeQuota(volType VolumeType, volName, size string, op *operations.Operation) error {
+	volPath := GetVolumeMountPath(d.name, volType, volName)
+	volID, err := d.getVolID(volType, volName)
+	if err != nil {
+		return err
+	}
+
+	return d.setQuota(volPath, volID, size)
 }
 
 // quotaProjectID generates a project quota ID from a volume ID.
