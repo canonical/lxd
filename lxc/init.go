@@ -305,6 +305,11 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			return nil, "", err
 		}
 
+		err = op.Wait()
+		if err != nil {
+			return nil, "", err
+		}
+
 		opInfo = op.Get()
 	}
 
