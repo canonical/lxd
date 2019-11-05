@@ -390,8 +390,13 @@ func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) err
 		return err
 	}
 
-	// Remove symlink.
+	// Remove symlinks.
 	err = b.removeInstanceSymlink(inst)
+	if err != nil {
+		return err
+	}
+
+	err = b.removeInstanceSnapshotSymlinkIfUnused(inst)
 	if err != nil {
 		return err
 	}
@@ -483,6 +488,12 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operat
 	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
 	logger.Debug("Deleting instance snapshot volume", log.Ctx{"volName": parentStorageName, "snapshotName": snapName})
 	err = b.driver.DeleteVolumeSnapshot(volType, parentStorageName, snapName, op)
+	if err != nil {
+		return err
+	}
+
+	// Delete symlink if needed.
+	err = b.removeInstanceSnapshotSymlinkIfUnused(inst)
 	if err != nil {
 		return err
 	}
