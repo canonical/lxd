@@ -406,7 +406,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (contain
 func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (container, error) {
 	s := d.State()
 
-	// Get the image properties
+	// Get the image properties.
 	_, img, err := s.Cluster.ImageGet(args.Project, hash, false, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
@@ -428,8 +428,7 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 		return nil, errors.Wrapf(err, "Locate image %s in the cluster", hash)
 	}
 	if nodeAddress != "" {
-		// The image is available from another node, let's try to
-		// import it.
+		// The image is available from another node, let's try to import it.
 		logger.Debugf("Transferring image %s from node %s", hash, nodeAddress)
 		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
 		if err != nil {
@@ -449,14 +448,14 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 		}
 	}
 
-	// Set the "image.*" keys
+	// Set the "image.*" keys.
 	if img.Properties != nil {
 		for k, v := range img.Properties {
 			args.Config[fmt.Sprintf("image.%s", k)] = v
 		}
 	}
 
-	// Set the BaseImage field (regardless of previous value)
+	// Set the BaseImage field (regardless of previous value).
 	args.BaseImage = hash
 
 	// Create the container
@@ -472,8 +471,8 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 	}
 
 	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByInstanceName(d.State(), c.Project(), c.Name())
-	if err != storageDrivers.ErrUnknownDriver {
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
 		if err != nil {
 			return nil, errors.Wrap(err, "Load instance storage pool")
 		}
@@ -482,7 +481,7 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 		if err != nil {
 			return nil, errors.Wrap(err, "Create instance from image")
 		}
-	} else {
+	} else if c.Type() == instancetype.Container {
 		metadata := make(map[string]interface{})
 		var tracker *ioprogress.ProgressTracker
 		if op != nil {
@@ -493,15 +492,17 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 				}}
 		}
 
-		// Now create the storage from an image
+		// Now create the storage from an image.
 		err = c.Storage().ContainerCreateFromImage(c, hash, tracker)
 		if err != nil {
 			c.Delete()
 			return nil, errors.Wrap(err, "Create container from image")
 		}
+	} else {
+		return nil, fmt.Errorf("Instance type not supported")
 	}
 
-	// Apply any post-storage configuration
+	// Apply any post-storage configuration.
 	err = containerConfigureInternal(c)
 	if err != nil {
 		c.Delete()

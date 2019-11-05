@@ -304,13 +304,13 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 				return err
 			}
 
-			// Create the snapshot itself
+			// Create the snapshot itself.
 			err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
 			if err != nil {
 				return err
 			}
 
-			// Setup the revert
+			// Setup the revert.
 			snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
 			revertPaths = append(revertPaths, snapPath)
 		}
@@ -389,20 +389,20 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			for _, srcSnapshot := range srcSnapshots {
 				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
 
-				// Mount the source snapshot
+				// Mount the source snapshot.
 				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
-					// Copy the snapshot
+					// Copy the snapshot.
 					_, err = rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
 					return err
 				}, op)
 
-				// Create the snapshot itself
+				// Create the snapshot itself.
 				err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
 				if err != nil {
 					return err
 				}
 
-				// Setup the revert
+				// Setup the revert.
 				snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
 				revertPaths = append(revertPaths, snapPath)
 			}

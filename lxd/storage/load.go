@@ -60,6 +60,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 }
 
 // CreatePool creates a new storage pool on disk and returns a Pool interface.
+// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *operations.Operation) (Pool, error) {
 	// Sanity checks.
 	if dbPool == nil {
@@ -106,6 +107,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *o
 }
 
 // GetPoolByName retrieves the pool from the database by its name and returns a Pool interface.
+// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 func GetPoolByName(state *state.State, name string) (Pool, error) {
 	// Handle mock requests.
 	if MockBackend {
@@ -146,12 +148,32 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	return &pool, nil
 }
 
-// GetPoolByInstanceName retrieves the pool from the database using the instance's project and name.
-func GetPoolByInstanceName(s *state.State, projectName, instanceName string) (Pool, error) {
-	poolName, err := s.Cluster.ContainerPool(projectName, instanceName)
+// GetPoolByInstance retrieves the pool from the database using the instance's pool.
+// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
+// driver does not support the instance's type then drivers.ErrNotImplemented is returned.
+func GetPoolByInstance(s *state.State, inst Instance) (Pool, error) {
+	poolName, err := s.Cluster.ContainerPool(inst.Project(), inst.Name())
 	if err != nil {
 		return nil, err
 	}
 
-	return GetPoolByName(s, poolName)
+	pool, err := GetPoolByName(s, poolName)
+	if err != nil {
+		return nil, err
+	}
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, supportedType := range pool.Driver().Info().VolumeTypes {
+		if supportedType == volType {
+			return pool, nil
+		}
+	}
+
+	// Return drivers not implemented error for consistency with predefined errors returned by
+	// GetPoolByName (which can return drivers.ErrUnknownDriver).
+	return nil, drivers.ErrNotImplemented
 }
