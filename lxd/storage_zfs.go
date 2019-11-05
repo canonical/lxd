@@ -833,7 +833,7 @@ func (s *storageZfs) ContainerCreate(container Instance) error {
 		defer s.ContainerUmount(container, container.Path())
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		return err
 	}
@@ -908,7 +908,7 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 		return err
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		return err
 	}
@@ -1020,7 +1020,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target Instance, source Instance
 		}
 	}
 
-	err := target.TemplateApply("copy")
+	err := target.DeferTemplateApply("copy")
 	if err != nil {
 		return err
 	}

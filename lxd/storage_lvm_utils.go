@@ -476,7 +476,7 @@ func (s *storageLvm) copyContainer(target Instance, source Instance, refresh boo
 		return err
 	}
 
-	err = target.TemplateApply("copy")
+	err = target.DeferTemplateApply("copy")
 	if err != nil {
 		return err
 	}

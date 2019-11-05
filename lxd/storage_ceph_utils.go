@@ -798,7 +798,7 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target Instance, source Instance)
 		defer target.StorageStop()
 	}
 
-	err = target.TemplateApply("copy")
+	err = target.DeferTemplateApply("copy")
 	if err != nil {
 		logger.Errorf(`Failed to apply copy template for container "%s": %s`, target.Name(), err)
 		return err
@@ -878,7 +878,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target Instance, source Instanc
 		defer target.StorageStop()
 	}
 
-	err = target.TemplateApply("copy")
+	err = target.DeferTemplateApply("copy")
 	if err != nil {
 		logger.Errorf(`Failed to apply copy template for container "%s": %s`, target.Name(), err)
 		return err
