@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -117,10 +116,18 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 
 		if shared.IsSnapshot(sourceName) {
 			// Snapshot rename
-			srcFields := strings.SplitN(sourceName, shared.SnapshotDelimiter, 2)
-			dstFields := strings.SplitN(destName, shared.SnapshotDelimiter, 2)
+			srcParent, srcSnap, _ := shared.ContainerGetParentAndSnapshotName(sourceName)
+			dstParent, dstSnap, dstIsSnap := shared.ContainerGetParentAndSnapshotName(destName)
 
-			op, err := source.RenameInstanceSnapshot(srcFields[0], srcFields[1], api.InstanceSnapshotPost{Name: dstFields[1]})
+			if srcParent != dstParent {
+				return fmt.Errorf("Invalid new snapshot name, parent must be the same as source")
+			}
+
+			if !dstIsSnap {
+				return fmt.Errorf("Invalid new snapshot name")
+			}
+
+			op, err := source.RenameInstanceSnapshot(srcParent, srcSnap, api.InstanceSnapshotPost{Name: dstSnap})
 			if err != nil {
 				return err
 			}
