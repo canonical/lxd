@@ -215,16 +215,5 @@ func DeleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 		}
 	}
 
-	// If it no longer exists (may have just removed it), remove symlink.
-	if !shared.PathExists(snapshotsPath) {
-		snapshotSymlink := shared.VarPath("snapshots", volName)
-		if shared.PathExists(snapshotSymlink) {
-			err := os.Remove(snapshotSymlink)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
