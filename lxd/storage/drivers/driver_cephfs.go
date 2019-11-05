@@ -26,6 +26,7 @@ type cephfs struct {
 }
 
 func (d *cephfs) Info() Info {
+	// Detect and record the version
 	if d.version == "" {
 		msg, err := shared.RunCommand("rbd", "--version")
 		if err != nil {
@@ -36,13 +37,15 @@ func (d *cephfs) Info() Info {
 	}
 
 	return Info{
-		Name:            "cephfs",
-		Version:         d.version,
-		OptimizedImages: false,
-		PreservesInodes: false,
-		Usable:          true,
-		Remote:          false,
-		VolumeTypes:     []VolumeType{VolumeTypeCustom},
+		Name:               "cephfs",
+		Version:            d.version,
+		Usable:             true,
+		Remote:             true,
+		OptimizedImages:    false,
+		PreservesInodes:    false,
+		VolumeTypes:        []VolumeType{VolumeTypeCustom},
+		BlockBacking:       false,
+		RunningQuotaResize: true,
 	}
 }
 
