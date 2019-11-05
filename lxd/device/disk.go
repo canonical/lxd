@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -226,8 +227,8 @@ func (d *disk) Start() (*RunConfig, error) {
 
 		// Handle previous requests for setting new quotas.
 		if v["apply_quota"] != "" {
-			applied, err := d.applyQuota(v["apply_quota"])
-			if err != nil || !applied {
+			err := d.applyQuota(v["apply_quota"])
+			if err != nil {
 				return nil, err
 			}
 
@@ -369,17 +370,15 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 		// Apply disk quota changes.
 		if newRootDiskDeviceSize != oldRootDiskDeviceSize {
-			applied, err := d.applyQuota(newRootDiskDeviceSize)
-			if err != nil {
-				return err
-			}
-
-			if !applied {
+			err := d.applyQuota(newRootDiskDeviceSize)
+			if err == storagePools.ErrRunningQuotaResizeNotSupported {
 				// Save volatile apply_quota key for next boot if cannot apply now.
 				err = d.volatileSet(map[string]string{"apply_quota": newRootDiskDeviceSize})
 				if err != nil {
 					return err
 				}
+			} else if err != nil {
+				return err
 			}
 		}
 	}
@@ -401,18 +400,8 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return nil
 }
 
-func (d *disk) applyQuota(newSize string) (bool, error) {
-	newSizeBytes, err := units.ParseByteSizeString(newSize)
-	if err != nil {
-		return false, err
-	}
-
-	applied, err := StorageRootFSApplyQuota(d.instance, newSizeBytes)
-	if err != nil {
-		return applied, err
-	}
-
-	return applied, nil
+func (d *disk) applyQuota(newSize string) error {
+	return StorageRootFSApplyQuota(d.state, d.instance, newSize)
 }
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
