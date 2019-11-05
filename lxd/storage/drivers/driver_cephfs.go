@@ -331,105 +331,76 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 
 	bwlimit := d.config["rsync.bwlimit"]
 
-	// Create slice of paths created if revert needed later.
-	revertPaths := []string{}
-	defer func() {
-		// Remove any paths created if we are reverting.
-		for _, path := range revertPaths {
-			os.RemoveAll(path)
-		}
-	}()
-
-	if copySnapshots && !srcVol.IsSnapshot() {
-		srcSnapshots, err := srcVol.Snapshots(op)
-		if err != nil {
-			return err
-		}
-
-		for _, srcSnapshot := range srcSnapshots {
-			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
-			dstSnapshot, err := vol.NewSnapshot(snapName)
-			if err != nil {
-				return err
-			}
-
-			dstSnapPath := dstSnapshot.MountPath()
-			err = os.MkdirAll(dstSnapPath, 0711)
-			if err != nil {
-				return err
-			}
-
-			revertPaths = append(revertPaths, dstSnapPath)
-
-			err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
-				return dstSnapshot.MountTask(func(dstMountPath string, op *operations.Operation) error {
-					_, err = rsync.LocalCopy(srcMountPath, dstMountPath, bwlimit, false)
-					if err != nil {
-						return err
-					}
-
-					cephSnapPath := filepath.Join(dstMountPath, ".snap", snapName)
-					err := os.Mkdir(cephSnapPath, 0711)
-					if err != nil {
-						return err
-					}
-
-					// Make the snapshot path a symlink.
-					targetPath := GetVolumeMountPath(d.name, VolumeTypeCustom, GetSnapshotVolumeName(vol.name, snapName))
-					err = os.MkdirAll(filepath.Dir(targetPath), 0711)
-					if err != nil {
-						return err
-					}
-
-					return os.Symlink(cephSnapPath, targetPath)
-				}, op)
-			}, op)
-		}
-	}
-
+	// Create the main volume path.
 	volPath := vol.MountPath()
-	err := os.MkdirAll(volPath, 0711)
+	err := vol.CreateMountPath()
 	if err != nil {
 		return err
 	}
 
-	revertPaths = append(revertPaths, volPath)
+	// Create slice of snapshots created if revert needed later.
+	revertSnaps := []string{}
+	defer func() {
+		if revertSnaps == nil {
+			return
+		}
 
-	// Copy source to destination (mounting each volume if needed).
-	err = srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
-		return vol.MountTask(func(dstMountPath string, op *operations.Operation) error {
-			_, err := rsync.LocalCopy(srcMountPath, dstMountPath, bwlimit, false)
+		// Remove any paths created if we are reverting.
+		for _, snapName := range revertSnaps {
+			d.DeleteVolumeSnapshot(vol.volType, vol.name, snapName, op)
+		}
+
+		os.RemoveAll(volPath)
+	}()
+
+	// Ensure the volume is mounted.
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// If copyring snapshots is indicated, check the source isn't itself a snapshot.
+		if copySnapshots && !srcVol.IsSnapshot() {
+			// Get the list of snapshots from the source.
+			srcSnapshots, err := srcVol.Snapshots(op)
 			if err != nil {
 				return err
 			}
 
-			if vol.IsSnapshot() {
-				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(vol.name)
+			for _, srcSnapshot := range srcSnapshots {
+				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
 
-				cephSnapPath := filepath.Join(dstMountPath, ".snap", snapName)
-				err := os.Mkdir(cephSnapPath, 0711)
+				// Mount the source snapshot.
+				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
+					// Copy the snapshot.
+					_, err = rsync.LocalCopy(srcMountPath, mountPath, bwlimit, false)
+					return err
+				}, op)
+
+				// Create the snapshot itself.
+				err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
 				if err != nil {
 					return err
 				}
 
-				// Make the snapshot path a symlink.
-				targetPath := GetVolumeMountPath(d.name, VolumeTypeCustom, fmt.Sprintf("%s/%s", vol.name, snapName))
-				err = os.MkdirAll(filepath.Dir(targetPath), 0711)
-				if err != nil {
-					return err
-				}
-
-				return os.Symlink(cephSnapPath, targetPath)
+				// Setup the revert.
+				revertSnaps = append(revertSnaps, snapName)
 			}
+		}
 
-			return nil
+		// Apply the volume quota if specified.
+		err = d.SetVolumeQuota(vol.volType, vol.name, vol.config["size"], op)
+		if err != nil {
+			return err
+		}
+
+		// Copy source to destination (mounting each volume if needed).
+		return srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
+			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, false)
+			return err
 		}, op)
 	}, op)
 	if err != nil {
 		return err
 	}
 
-	revertPaths = nil // Don't revert.
+	revertSnaps = nil // Don't revert.
 	return nil
 }
 
@@ -851,15 +822,6 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		return fmt.Errorf("Migration type not supported")
 	}
 
-	// Create slice of paths created if revert needed later.
-	revertPaths := []string{}
-	defer func() {
-		// Remove any paths created if we are reverting.
-		for _, path := range revertPaths {
-			os.RemoveAll(path)
-		}
-	}()
-
 	// Create the main volume path.
 	volPath := vol.MountPath()
 	err := vol.CreateMountPath()
@@ -867,7 +829,20 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		return err
 	}
 
-	revertPaths = append(revertPaths, volPath)
+	// Create slice of snapshots created if revert needed later.
+	revertSnaps := []string{}
+	defer func() {
+		if revertSnaps == nil {
+			return
+		}
+
+		// Remove any paths created if we are reverting.
+		for _, snapName := range revertSnaps {
+			d.DeleteVolumeSnapshot(vol.volType, vol.name, snapName, op)
+		}
+
+		os.RemoveAll(volPath)
+	}()
 
 	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
@@ -893,8 +868,13 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			}
 
 			// Setup the revert.
-			snapPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
-			revertPaths = append(revertPaths, snapPath)
+			revertSnaps = append(revertSnaps, snapName)
+		}
+
+		// Apply the volume quota if specified.
+		err = d.SetVolumeQuota(vol.volType, vol.name, vol.config["size"], op)
+		if err != nil {
+			return err
 		}
 
 		// Receive the main volume from sender.
@@ -909,7 +889,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		return err
 	}
 
-	revertPaths = nil
+	revertSnaps = nil
 	return nil
 }
 
