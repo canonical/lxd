@@ -495,6 +495,7 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 
 		err = pool.CreateInstanceFromImage(c, hash, op)
 		if err != nil {
+			c.Delete()
 			return nil, errors.Wrap(err, "Create instance from image")
 		}
 	} else if c.Type() == instancetype.Container {
