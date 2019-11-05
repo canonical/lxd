@@ -26,7 +26,7 @@ type cephfs struct {
 }
 
 func (d *cephfs) Info() Info {
-	// Detect and record the version
+	// Detect and record the version.
 	if d.version == "" {
 		msg, err := shared.RunCommand("rbd", "--version")
 		if err != nil {
@@ -76,7 +76,7 @@ func (d *cephfs) Create() error {
 
 	d.fsName = d.config["source"]
 
-	// Parse the namespace / path
+	// Parse the namespace / path.
 	fields := strings.SplitN(d.fsName, "/", 2)
 	fsName := fields[0]
 	fsPath := "/"
@@ -84,12 +84,12 @@ func (d *cephfs) Create() error {
 		fsPath = fields[1]
 	}
 
-	// Check that the filesystem exists
+	// Check that the filesystem exists.
 	if !d.fsExists(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"], fsName) {
 		return fmt.Errorf("The requested '%v' CEPHFS doesn't exist", fsName)
 	}
 
-	// Create a temporary mountpoint
+	// Create a temporary mountpoint.
 	mountPath, err := ioutil.TempDir("", "lxd_cephfs_")
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func (d *cephfs) Create() error {
 		return err
 	}
 
-	// Get the credentials and host
+	// Get the credentials and host.
 	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user_name"])
 	if err != nil {
 		return err
@@ -131,13 +131,13 @@ func (d *cephfs) Create() error {
 		return err
 	}
 
-	// Create the path if missing
+	// Create the path if missing.
 	err = os.MkdirAll(filepath.Join(mountPoint, fsPath), 0755)
 	if err != nil {
 		return err
 	}
 
-	// Check that the existing path is empty
+	// Check that the existing path is empty.
 	ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
 	if !ok {
 		return fmt.Errorf("Only empty CEPHFS paths can be used as a LXD storage pool")
@@ -147,7 +147,7 @@ func (d *cephfs) Create() error {
 }
 
 func (d *cephfs) Delete(op *operations.Operation) error {
-	// Parse the namespace / path
+	// Parse the namespace / path.
 	fields := strings.SplitN(d.fsName, "/", 2)
 	fsName := fields[0]
 	fsPath := "/"
@@ -155,7 +155,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		fsPath = fields[1]
 	}
 
-	// Create a temporary mountpoint
+	// Create a temporary mountpoint.
 	mountPath, err := ioutil.TempDir("", "lxd_cephfs_")
 	if err != nil {
 		return err
@@ -173,7 +173,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		return err
 	}
 
-	// Get the credentials and host
+	// Get the credentials and host.
 	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user_name"])
 	if err != nil {
 		return err
@@ -197,7 +197,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	}
 
 	if shared.PathExists(filepath.Join(mountPoint, fsPath)) {
-		// Delete the usual directories
+		// Delete the usual directories.
 		for _, dir := range []string{"custom", "custom-snapshots"} {
 			if shared.PathExists(filepath.Join(mountPoint, fsPath, dir)) {
 				err = os.Remove(filepath.Join(mountPoint, fsPath, dir))
@@ -207,13 +207,13 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 			}
 		}
 
-		// Confirm that the path is now empty
+		// Confirm that the path is now empty.
 		ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
 		if !ok {
 			return fmt.Errorf("Only empty CEPHFS paths can be used as a LXD storage pool")
 		}
 
-		// Delete the path itself
+		// Delete the path itself.
 		if fsPath != "" && fsPath != "/" {
 			err = os.Remove(filepath.Join(mountPoint, fsPath))
 			if err != nil {
@@ -228,7 +228,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		return err
 	}
 
-	// Make sure the existing pool is unmounted
+	// Make sure the existing pool is unmounted.
 	_, err = d.Unmount()
 	if err != nil {
 		return err
@@ -238,7 +238,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 }
 
 func (d *cephfs) Mount() (bool, error) {
-	// Parse the namespace / path
+	// Parse the namespace / path.
 	fields := strings.SplitN(d.fsName, "/", 2)
 	fsName := fields[0]
 	fsPath := "/"
@@ -246,13 +246,13 @@ func (d *cephfs) Mount() (bool, error) {
 		fsPath = fields[1]
 	}
 
-	// Get the credentials and host
+	// Get the credentials and host.
 	monAddresses, secret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user_name"])
 	if err != nil {
 		return false, err
 	}
 
-	// Do the actual mount
+	// Do the actual mount.
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
@@ -373,7 +373,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 						return err
 					}
 
-					// Make the snapshot path a symlink
+					// Make the snapshot path a symlink.
 					targetPath := GetVolumeMountPath(d.name, VolumeTypeCustom, GetSnapshotVolumeName(vol.name, snapName))
 					err = os.MkdirAll(filepath.Dir(targetPath), 0711)
 					if err != nil {
@@ -411,7 +411,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 					return err
 				}
 
-				// Make the snapshot path a symlink
+				// Make the snapshot path a symlink.
 				targetPath := GetVolumeMountPath(d.name, VolumeTypeCustom, fmt.Sprintf("%s/%s", vol.name, snapName))
 				err = os.MkdirAll(filepath.Dir(targetPath), 0711)
 				if err != nil {
@@ -645,7 +645,7 @@ func (d *cephfs) CreateVolumeSnapshot(volType VolumeType, volName string, newSna
 		return fmt.Errorf("Volume type not supported")
 	}
 
-	// Create the snapshot
+	// Create the snapshot.
 	sourcePath := GetVolumeMountPath(d.name, volType, volName)
 	cephSnapPath := filepath.Join(sourcePath, ".snap", newSnapshotName)
 
@@ -674,7 +674,7 @@ func (d *cephfs) DeleteVolumeSnapshot(volType VolumeType, volName string, snapsh
 		return fmt.Errorf("Volume type not supported")
 	}
 
-	// Delete the snapshot itself
+	// Delete the snapshot itself.
 	sourcePath := GetVolumeMountPath(d.name, volType, volName)
 	cephSnapPath := filepath.Join(sourcePath, ".snap", snapshotName)
 
@@ -683,7 +683,7 @@ func (d *cephfs) DeleteVolumeSnapshot(volType VolumeType, volName string, snapsh
 		return err
 	}
 
-	// Remove the symlink
+	// Remove the symlink.
 	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
 	err = os.Remove(snapPath)
 	if err != nil {
@@ -707,7 +707,7 @@ func (d *cephfs) RenameVolumeSnapshot(volType VolumeType, volName string, snapsh
 		return err
 	}
 
-	// Re-generate the snapshot symlink
+	// Re-generate the snapshot symlink.
 	oldPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
 	err = os.Remove(oldPath)
 	if err != nil {
@@ -860,7 +860,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
-			// Receive the snapshot
+			// Receive the snapshot.
 			var wrapper *ioprogress.ProgressTracker
 			if volTargetArgs.TrackProgress {
 				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
@@ -908,7 +908,7 @@ func (d *cephfs) fsExists(clusterName string, userName string, fsName string) bo
 }
 
 func (d *cephfs) getConfig(clusterName string, userName string) ([]string, string, error) {
-	// Parse the CEPH configuration
+	// Parse the CEPH configuration.
 	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", clusterName))
 	if err != nil {
 		return nil, "", err
@@ -943,7 +943,7 @@ func (d *cephfs) getConfig(clusterName string, userName string) ([]string, strin
 		return nil, "", fmt.Errorf("Couldn't find a CPEH mon")
 	}
 
-	// Parse the CEPH keyring
+	// Parse the CEPH keyring.
 	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", clusterName, userName))
 	if err != nil {
 		return nil, "", err
