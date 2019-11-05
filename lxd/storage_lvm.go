@@ -61,6 +61,11 @@ func (s *storageLvm) StorageCoreInit() error {
 		if len(fields) < 2 {
 			continue
 		}
+
+		if !strings.Contains(line, "version:") {
+			continue
+		}
+
 		if idx > 0 {
 			s.sTypeVersion += " / "
 		}

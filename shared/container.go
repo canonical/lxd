@@ -387,6 +387,10 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		if strings.HasSuffix(key, ".spoofcheck") {
 			return IsAny, nil
 		}
+
+		if strings.HasSuffix(key, ".apply_quota") {
+			return IsAny, nil
+		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {
