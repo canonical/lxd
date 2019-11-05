@@ -361,12 +361,12 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	_, body, err := client.GetOperationWait(id, timeout)
+	apiOp, _, err := client.GetOperationWait(id, timeout)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponse(true, body)
+	return response.SyncResponse(true, apiOp)
 }
 
 type operationWebSocket struct {
