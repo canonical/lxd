@@ -658,8 +658,52 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, name string, op *oper
 	return ErrNotImplemented
 }
 
+// RenameInstanceSnapshot renames an instance snapshot.
 func (b *lxdBackend) RenameInstanceSnapshot(inst Instance, newName string, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
+	logger.Debug("RenameInstanceSnapshot started")
+	defer logger.Debug("RenameInstanceSnapshot finished")
+
+	if !inst.IsSnapshot() {
+		return fmt.Errorf("Instance must be a snapshot")
+	}
+
+	if shared.IsSnapshot(newName) {
+		return fmt.Errorf("New name cannot be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	parentName, oldSnapshotName, isSnap := shared.ContainerGetParentAndSnapshotName(inst.Name())
+	if !isSnap {
+		return fmt.Errorf("Volume name must be a snapshot")
+	}
+
+	// Rename storage volume snapshot.
+	volStorageName := project.Prefix(inst.Project(), parentName)
+	err = b.driver.RenameVolumeSnapshot(volType, volStorageName, oldSnapshotName, newName, op)
+	if err != nil {
+		return err
+	}
+
+	newVolName := drivers.GetSnapshotVolumeName(parentName, newName)
+	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newVolName, volDBType, b.ID())
+	if err != nil {
+		// Revert rename.
+		b.driver.RenameVolumeSnapshot(drivers.VolumeTypeCustom, parentName, newName, oldSnapshotName, op)
+		return err
+	}
+
+	return nil
 }
 
 // DeleteInstanceSnapshot removes the snapshot volume for the supplied snapshot instance.
