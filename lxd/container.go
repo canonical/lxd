@@ -254,22 +254,38 @@ type container interface {
 	NextIdmap() (*idmap.IdmapSet, error)
 }
 
-// Loader functions
+// containerCreateAsEmpty creates an empty instance.
 func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (container, error) {
-	// Create the container
+	// Create the container.
 	c, err := containerCreateInternal(d.State(), args)
 	if err != nil {
 		return nil, err
 	}
 
-	// Now create the empty storage
-	err = c.Storage().ContainerCreate(c)
-	if err != nil {
-		c.Delete()
-		return nil, err
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return nil, errors.Wrap(err, "Load instance storage pool")
+		}
+
+		err = pool.CreateInstance(c, nil)
+		if err != nil {
+			c.Delete()
+			return nil, errors.Wrap(err, "Create instance")
+		}
+	} else if c.Type() == instancetype.Container {
+		// Now create the empty storage.
+		err = c.Storage().ContainerCreate(c)
+		if err != nil {
+			c.Delete()
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("Instance type not supported")
 	}
 
-	// Apply any post-storage configuration
+	// Apply any post-storage configuration.
 	err = containerConfigureInternal(c)
 	if err != nil {
 		c.Delete()
@@ -403,6 +419,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (contain
 	return c, nil
 }
 
+// containerCreateFromImage creates an instance from a rootfs image.
 func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (container, error) {
 	s := d.State()
 
@@ -479,6 +496,7 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 
 		err = pool.CreateInstanceFromImage(c, hash, op)
 		if err != nil {
+			c.Delete()
 			return nil, errors.Wrap(err, "Create instance from image")
 		}
 	} else if c.Type() == instancetype.Container {

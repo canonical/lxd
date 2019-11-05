@@ -527,7 +527,7 @@ func (s *storageDir) ContainerCreate(container Instance) error {
 		return err
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		return errors.Wrap(err, "Apply template")
 	}
@@ -577,7 +577,7 @@ func (s *storageDir) ContainerCreateFromImage(container Instance, imageFingerpri
 		return errors.Wrap(err, "Unpack image")
 	}
 
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		return errors.Wrap(err, "Apply template")
 	}
@@ -675,7 +675,7 @@ func (s *storageDir) copyContainer(target Instance, source Instance) error {
 		return fmt.Errorf("Failed to rsync container: %s: %s", string(output), err)
 	}
 
-	err = target.TemplateApply("copy")
+	err = target.DeferTemplateApply("copy")
 	if err != nil {
 		return err
 	}

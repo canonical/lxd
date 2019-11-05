@@ -854,7 +854,7 @@ func (s *storageBtrfs) ContainerCreate(container Instance) error {
 		return err
 	}
 
-	return container.TemplateApply("create")
+	return container.DeferTemplateApply("create")
 }
 
 // And this function is why I started hating on btrfs...
@@ -934,7 +934,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container Instance, fingerprint 
 	}
 
 	logger.Debugf("Created BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
-	err = container.TemplateApply("create")
+	err = container.DeferTemplateApply("create")
 	if err != nil {
 		return errors.Wrap(err, "Failed to apply container template")
 	}
@@ -1014,7 +1014,7 @@ func (s *storageBtrfs) copyContainer(target Instance, source Instance) error {
 		return err
 	}
 
-	err = target.TemplateApply("copy")
+	err = target.DeferTemplateApply("copy")
 	if err != nil {
 		return err
 	}
