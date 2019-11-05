@@ -3736,13 +3736,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	logger.Info("Renaming container", ctxMap)
 
-	// Initialize storage interface for the container.
-	err := c.initStorage()
-	if err != nil {
-		return err
-	}
-
-	// Sanity checks
+	// Sanity checks.
 	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
 		return fmt.Errorf("Invalid container name")
 	}
@@ -3751,18 +3745,126 @@ func (c *containerLXC) Rename(newName string) error {
 		return fmt.Errorf("Renaming of running container not allowed")
 	}
 
-	// Clean things up
+	// Clean things up.
 	c.cleanup()
 
-	// Rename the MAAS entry
-	if !c.IsSnapshot() {
-		err = c.maasRename(newName)
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return errors.Wrap(err, "Load instance storage pool")
+		}
+
+		if c.IsSnapshot() {
+			_, newSnapName, _ := shared.ContainerGetParentAndSnapshotName(newName)
+			err = pool.RenameInstanceSnapshot(c, newSnapName, nil)
+			if err != nil {
+				return errors.Wrap(err, "Rename instance snapshot")
+			}
+		} else {
+			err = pool.RenameInstance(c, newName, nil)
+			if err != nil {
+				return errors.Wrap(err, "Rename instance")
+			}
+		}
+	} else if c.Type() == instancetype.Container {
+		// Initialize storage interface for the container.
+		err = c.initStorage()
 		if err != nil {
 			return err
 		}
+
+		// Rename the storage entry.
+		if c.IsSnapshot() {
+			err := c.storage.ContainerSnapshotRename(c, newName)
+			if err != nil {
+				logger.Error("Failed renaming container", ctxMap)
+				return err
+			}
+		} else {
+			err := c.storage.ContainerRename(c, newName)
+			if err != nil {
+				logger.Error("Failed renaming container", ctxMap)
+				return err
+			}
+		}
+
+		poolID, _, _ := c.storage.GetContainerPoolInfo()
+
+		if !c.IsSnapshot() {
+			// Rename all the snapshot volumes.
+			results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
+			if err != nil {
+				logger.Error("Failed to get container snapshots", ctxMap)
+				return err
+			}
+
+			for _, sname := range results {
+				// Rename the snapshot volume.
+				baseSnapName := filepath.Base(sname)
+				newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
+
+				// Rename storage volume for the snapshot.
+				err = c.state.Cluster.StoragePoolVolumeRename(c.project, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+				if err != nil {
+					logger.Error("Failed renaming storage volume", ctxMap)
+					return err
+				}
+			}
+		}
+
+		// Rename storage volume for the container.
+		err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
+		if err != nil {
+			logger.Error("Failed renaming storage volume", ctxMap)
+			return err
+		}
+
+		// Update the storage volume name in the storage interface.
+		sNew := c.storage.GetStoragePoolVolumeWritable()
+		c.storage.SetStoragePoolVolumeWritable(&sNew)
+	} else {
+		return fmt.Errorf("Instance type not supported")
 	}
 
-	// Rename the logging path
+	if !c.IsSnapshot() {
+		// Rename all the instance snapshot database entries.
+		results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
+		if err != nil {
+			logger.Error("Failed to get container snapshots", ctxMap)
+			return err
+		}
+
+		for _, sname := range results {
+			// Rename the snapshot.
+			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
+			baseSnapName := filepath.Base(sname)
+			err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+				return tx.InstanceSnapshotRename(c.project, oldName, oldSnapName, baseSnapName)
+			})
+			if err != nil {
+				logger.Error("Failed renaming snapshot", ctxMap)
+				return err
+			}
+		}
+	}
+
+	// Rename the instance database entry.
+	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		if c.IsSnapshot() {
+			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
+			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
+			return tx.InstanceSnapshotRename(c.project, oldParts[0], oldParts[1], newParts[1])
+		}
+
+		return tx.InstanceRename(c.project, oldName, newName)
+	})
+	if err != nil {
+		logger.Error("Failed renaming container", ctxMap)
+		return err
+	}
+
+	// Rename the logging path.
 	os.RemoveAll(shared.LogPath(newName))
 	if shared.PathExists(c.LogPath()) {
 		err := os.Rename(c.LogPath(), shared.LogPath(newName))
@@ -3772,22 +3874,15 @@ func (c *containerLXC) Rename(newName string) error {
 		}
 	}
 
-	// Rename the storage entry
-	if c.IsSnapshot() {
-		err := c.storage.ContainerSnapshotRename(c, newName)
+	// Rename the MAAS entry.
+	if !c.IsSnapshot() {
+		err = c.maasRename(newName)
 		if err != nil {
-			logger.Error("Failed renaming container", ctxMap)
-			return err
-		}
-	} else {
-		err := c.storage.ContainerRename(c, newName)
-		if err != nil {
-			logger.Error("Failed renaming container", ctxMap)
 			return err
 		}
 	}
 
-	// Rename the backups
+	// Rename the backups.
 	backups, err := c.Backups()
 	if err != nil {
 		return err
@@ -3803,68 +3898,10 @@ func (c *containerLXC) Rename(newName string) error {
 		}
 	}
 
-	poolID, _, _ := c.storage.GetContainerPoolInfo()
-
-	if !c.IsSnapshot() {
-		// Rename all the snapshots
-		results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
-		if err != nil {
-			logger.Error("Failed to get container snapshots", ctxMap)
-			return err
-		}
-
-		for _, sname := range results {
-			// Rename the snapshot
-			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
-			baseSnapName := filepath.Base(sname)
-			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.InstanceSnapshotRename(c.project, oldName, oldSnapName, baseSnapName)
-			})
-			if err != nil {
-				logger.Error("Failed renaming snapshot", ctxMap)
-				return err
-			}
-
-			// Rename storage volume for the snapshot.
-			err = c.state.Cluster.StoragePoolVolumeRename(c.project, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
-			if err != nil {
-				logger.Error("Failed renaming storage volume", ctxMap)
-				return err
-			}
-		}
-	}
-
-	// Rename the database entry
-	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		if c.IsSnapshot() {
-			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
-			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
-			return tx.InstanceSnapshotRename(c.project, oldParts[0], oldParts[1], newParts[1])
-		} else {
-			return tx.InstanceRename(c.project, oldName, newName)
-		}
-	})
-	if err != nil {
-		logger.Error("Failed renaming container", ctxMap)
-		return err
-	}
-
-	// Rename storage volume for the container.
-	err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
-	if err != nil {
-		logger.Error("Failed renaming storage volume", ctxMap)
-		return err
-	}
-
-	// Set the new name in the struct
+	// Set the new name in the struct.
 	c.name = newName
 
-	// Update the storage volume name in the storage interface.
-	sNew := c.storage.GetStoragePoolVolumeWritable()
-	c.storage.SetStoragePoolVolumeWritable(&sNew)
-
-	// Invalidate the go-lxc cache
+	// Invalidate the go-lxc cache.
 	if c.c != nil {
 		c.c.Release()
 		c.c = nil
@@ -3872,7 +3909,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	c.cConfig = false
 
-	// Update lease files
+	// Update lease files.
 	networkUpdateStatic(c.state, "")
 
 	logger.Info("Renamed container", ctxMap)
