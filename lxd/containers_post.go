@@ -416,7 +416,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
 
-		err = c.TemplateApply("copy")
+		err = c.DeferTemplateApply("copy")
 		if err != nil {
 			if !req.Source.Refresh {
 				c.Delete()
