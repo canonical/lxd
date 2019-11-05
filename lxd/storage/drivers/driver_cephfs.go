@@ -670,18 +670,18 @@ func (d *cephfs) DeleteVolumeSnapshot(volType VolumeType, volName string, snapsh
 		return fmt.Errorf("Volume type not supported")
 	}
 
+	// Delete the snapshot itself
 	sourcePath := GetVolumeMountPath(d.name, volType, volName)
 	cephSnapPath := filepath.Join(sourcePath, ".snap", snapshotName)
 
-	err := os.RemoveAll(cephSnapPath)
+	err := os.Remove(cephSnapPath)
 	if err != nil {
 		return err
 	}
 
-	// Make the snapshot path a symlink
+	// Remove the symlink
 	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
-
-	err = os.RemoveAll(snapPath)
+	err = os.Remove(snapPath)
 	if err != nil {
 		return err
 	}
