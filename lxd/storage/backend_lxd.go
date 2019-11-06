@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -105,7 +106,7 @@ func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *op
 	}
 
 	// Create the directory structure.
-	err = createStorageStructure(path)
+	err = b.createStorageStructure(path)
 	if err != nil {
 		return err
 	}
@@ -1467,6 +1468,19 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 	err = b.driver.RestoreVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, nil), snapshotName, op)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (b *lxdBackend) createStorageStructure(path string) error {
+	for _, volType := range b.driver.Info().VolumeTypes {
+		for _, name := range baseDirectories[volType] {
+			err := os.MkdirAll(filepath.Join(path, name), 0711)
+			if err != nil && !os.IsExist(err) {
+				return err
+			}
+		}
 	}
 
 	return nil

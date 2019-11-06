@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,29 +19,15 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-var baseDirectories = []string{
-	"containers",
-	"containers-snapshots",
-	"custom",
-	"custom-snapshots",
-	"images",
-	"virtual-machines",
-	"virtual-machines-snapshots",
+var baseDirectories = map[drivers.VolumeType][]string{
+	drivers.VolumeTypeContainer: {"containers", "containers-snapshots"},
+	drivers.VolumeTypeCustom:    {"custom", "custom-snapshots"},
+	drivers.VolumeTypeImage:     {"images"},
+	drivers.VolumeTypeVM:        {"virtual-machines", "virtual-machines-snapshots"},
 }
 
 // VolumeUsedByInstancesWithProfiles returns a slice containing the names of instances using a volume.
 var VolumeUsedByInstancesWithProfiles func(s *state.State, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error)
-
-func createStorageStructure(path string) error {
-	for _, name := range baseDirectories {
-		err := os.MkdirAll(filepath.Join(path, name), 0711)
-		if err != nil && !os.IsExist(err) {
-			return err
-		}
-	}
-
-	return nil
-}
 
 // MkfsOptions represents options for filesystem creation.
 type MkfsOptions struct {
