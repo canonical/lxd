@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -57,7 +58,8 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType) []migration
 }
 
 // create creates the storage pool layout on the storage device.
-func (b *lxdBackend) create(dbPool *api.StoragePool, op *operations.Operation) error {
+// localOnly is used for clustering where only a single node should do remote storage setup.
+func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"args": dbPool})
 	logger.Debug("create started")
 	defer logger.Debug("created finished")
@@ -69,6 +71,11 @@ func (b *lxdBackend) create(dbPool *api.StoragePool, op *operations.Operation) e
 	err := os.MkdirAll(path, 0711)
 	if err != nil && !os.IsExist(err) {
 		return err
+	}
+
+	// If dealing with a remote storage pool, we're done now
+	if b.driver.Info().Remote && localOnly {
+		return nil
 	}
 
 	// Undo the storage path create if there is an error.
@@ -99,7 +106,7 @@ func (b *lxdBackend) create(dbPool *api.StoragePool, op *operations.Operation) e
 	}
 
 	// Create the directory structure.
-	err = createStorageStructure(path)
+	err = b.createStorageStructure(path)
 	if err != nil {
 		return err
 	}
@@ -122,20 +129,27 @@ func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 }
 
 // Delete removes the pool.
-func (b *lxdBackend) Delete(op *operations.Operation) error {
+func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, nil)
 	logger.Debug("Delete started")
 	defer logger.Debug("Delete finished")
 
 	// Delete the low-level storage.
-	err := b.driver.Delete(op)
-	if err != nil {
-		return err
+	if !localOnly || !b.driver.Info().Remote {
+		err := b.driver.Delete(op)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := b.driver.Unmount()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the mountpoint.
 	path := shared.VarPath("storage-pools", b.name)
-	err = os.Remove(path)
+	err := os.Remove(path)
 	if err != nil {
 		return err
 	}
@@ -1454,6 +1468,19 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 	err = b.driver.RestoreVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, nil), snapshotName, op)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (b *lxdBackend) createStorageStructure(path string) error {
+	for _, volType := range b.driver.Info().VolumeTypes {
+		for _, name := range baseDirectories[volType] {
+			err := os.MkdirAll(filepath.Join(path, name), 0711)
+			if err != nil && !os.IsExist(err) {
+				return err
+			}
+		}
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/sys/unix"
 
@@ -49,6 +50,12 @@ func (d *dir) Create() error {
 
 	if !shared.PathExists(d.config["source"]) {
 		return fmt.Errorf("Source path '%s' doesn't exist", d.config["source"])
+	}
+
+	// Check that if within LXD_DIR, we're at our expected spot.
+	cleanSource := filepath.Clean(d.config["source"])
+	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
+		return fmt.Errorf("Source path '%s' is within the LXD directory", d.config["source"])
 	}
 
 	// Check that the path is currently empty.
