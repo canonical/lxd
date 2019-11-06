@@ -255,9 +255,9 @@ type container interface {
 }
 
 // containerCreateAsEmpty creates an empty instance.
-func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (container, error) {
+func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
 	// Create the container.
-	c, err := containerCreateInternal(d.State(), args)
+	c, err := instanceCreateInternal(d.State(), args)
 	if err != nil {
 		return nil, err
 	}
@@ -402,9 +402,9 @@ func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSee
 	return pool, nil
 }
 
-func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (container, error) {
+func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (Instance, error) {
 	// Create the snapshot
-	c, err := containerCreateInternal(s, args)
+	c, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +544,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 
 	if !refresh {
 		// Create the container.
-		ct, err = containerCreateInternal(s, args)
+		ct, err = instanceCreateInternal(s, args)
 		if err != nil {
 			return nil, err
 		}
@@ -564,7 +564,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
 
-	csList := []*container{}
+	csList := []*Instance{}
 	var snapshots []Instance
 
 	if !containerOnly {
@@ -632,7 +632,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 			}
 
 			// Create the snapshots.
-			cs, err := containerCreateInternal(s, csArgs)
+			cs, err := instanceCreateInternal(s, csArgs)
 			if err != nil {
 				if !refresh {
 					ct.Delete()
@@ -750,7 +750,7 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 	}
 
 	// Create the snapshot
-	c, err := containerCreateInternal(s, args)
+	c, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
 	}
