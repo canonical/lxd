@@ -419,8 +419,8 @@ func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (Instanc
 	return c, nil
 }
 
-// containerCreateFromImage creates an instance from a rootfs image.
-func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (container, error) {
+// instanceCreateFromImage creates an instance from a rootfs image.
+func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (Instance, error) {
 	s := d.State()
 
 	// Get the image properties.
@@ -475,59 +475,66 @@ func containerCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *
 	// Set the BaseImage field (regardless of previous value).
 	args.BaseImage = hash
 
-	// Create the container
-	c, err := containerCreateInternal(s, args)
+	// Create the instance.
+	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create container")
+		return nil, errors.Wrap(err, "Create instance")
 	}
+
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+
+		inst.Delete()
+	}()
 
 	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
 	if err != nil {
-		c.Delete()
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
 	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
 		if err != nil {
 			return nil, errors.Wrap(err, "Load instance storage pool")
 		}
 
-		err = pool.CreateInstanceFromImage(c, hash, op)
+		err = pool.CreateInstanceFromImage(inst, hash, op)
 		if err != nil {
-			c.Delete()
 			return nil, errors.Wrap(err, "Create instance from image")
 		}
-	} else if c.Type() == instancetype.Container {
+	} else if inst.Type() == instancetype.Container {
 		metadata := make(map[string]interface{})
 		var tracker *ioprogress.ProgressTracker
 		if op != nil {
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
+					// tomp TODO should the container reference here be removed?
 					shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, 0, speed)
 					op.UpdateMetadata(metadata)
 				}}
 		}
 
 		// Now create the storage from an image.
-		err = c.Storage().ContainerCreateFromImage(c, hash, tracker)
+		err = inst.Storage().ContainerCreateFromImage(inst, hash, tracker)
 		if err != nil {
-			c.Delete()
-			return nil, errors.Wrap(err, "Create container from image")
+			return nil, errors.Wrap(err, "Create instance from image")
 		}
 	} else {
 		return nil, fmt.Errorf("Instance type not supported")
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(d.State(), c)
+	err = containerConfigureInternal(d.State(), inst)
 	if err != nil {
-		c.Delete()
-		return nil, errors.Wrap(err, "Configure container")
+		return nil, errors.Wrap(err, "Configure instance")
 	}
 
-	return c, nil
+	revert = false
+	return inst, nil
 }
 
 func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer Instance, containerOnly bool, refresh bool) (Instance, error) {
