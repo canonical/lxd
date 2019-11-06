@@ -1294,12 +1294,14 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 }
 
 // instanceLoad creates the underlying instance type struct and returns it as an Instance.
-func instanceLoad(s *state.State, args db.InstanceArgs, cProfiles []api.Profile) (Instance, error) {
+func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error) {
 	var inst Instance
 	var err error
 
 	if args.Type == instancetype.Container {
-		inst, err = containerLXCLoad(s, args, cProfiles)
+		inst, err = containerLXCLoad(s, args, profiles)
+	} else if args.Type == instancetype.VM {
+		inst, err = vmQemuLoad(s, args, profiles)
 	} else {
 		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
 	}
