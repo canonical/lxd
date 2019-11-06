@@ -8,8 +8,6 @@ test_container_devices_disk() {
   test_container_devices_raw_mount_options
   test_container_devices_disk_ceph
   test_container_devices_disk_cephfs
-  test_container_devices_raw_mount_options
-
   lxc delete -f foo
 }
 
@@ -64,72 +62,6 @@ test_container_devices_disk_shift() {
   lxc stop foo -f
 }
 
-test_container_devices_raw_mount_options() {
-  configure_loop_device loop_file_1 loop_device_1
-  # shellcheck disable=SC2154
-  mkfs.vfat "${loop_device_1}"
-
-  lxc launch testimage foo-priv -c security.privileged=true
-
-  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
-  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ] || false
-  lxc config device remove foo-priv loop_raw_mount_options
-
-  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
-  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
-  lxc config device remove foo-priv loop_raw_mount_options
-
-  lxc stop foo-priv -f
-  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
-  lxc start foo-priv
-
-  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
-  lxc config device remove foo-priv loop_raw_mount_options
-
-  lxc delete -f foo-priv
-  # shellcheck disable=SC2154
-  deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
-}
-
-test_container_devices_disk_ceph() {
-  local LXD_BACKEND
-
-  LXD_BACKEND=$(storage_backend "$LXD_DIR")
-  if ! [ "${LXD_BACKEND}" = "ceph" ]; then
-    return
-  fi
-  RBD_POOL_NAME=lxdtest-$(basename "${LXD_DIR}")-disk
-  ceph osd pool create $RBD_POOL_NAME 1
-  rbd create --pool $RBD_POOL_NAME --size 50MB
-  rbd map --pool $RBD_POOL_NAME --name admin
-  RBD_POOL_PATH="/dev/rbd/${RBD_POOL_NAME}"
-  mkfs.ext4 -m0 $RBD_POOL_PATH
-  rbd unmap $RBD_POOL_PATH
-  lxc launch testimage ceph-disk -c security.privileged=true
-  lxc config device add ceph-disk rbd disk source=ceph:$RBD_POOL_NAME/my-volume ceph.user_name=admin ceph.cluster_name=ceph path=/ceph
-  lxc exec ceph-disk -- stat /ceph/lost+found
-  lxc restart ceph-disk
-  lxc exec cephfs-disk -- stat /cephfs
-  lxc delete -f ceph-disklxc delete -f ceph-disk
-}
-
-test_container_devices_disk_cephfs() {
-  local LXD_BACKEND
-
-  LXD_BACKEND=$(storage_backend "$LXD_DIR")
-  if ! [ "${LXD_BACKEND}" = "ceph" ]|| [ -z "${LXD_CEPH_CEPHFS:-}" ]; then
-    return
-  fi
-#  ceph osd pool create cephfs_data
-#  ceph osd pool create cephfs_metadata
-#  ceph fs new $LXD_CEPH_CEPHFS cephfs_metadata cephfs_data
-  lxc launch testimage ceph-fs -c security.privileged=true
-  lxc config device add ceph-fs fs disk source=cephfs:$LXD_CEPH_CEPHFS/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
-  lxc exec ceph-fs -- stat /cephfs
-  lxc restart ceph-fs
-  lxc exec ceph-fs -- stat /cephfs
-  lxc delete -f ceph-fs
-}
 test_container_devices_raw_mount_options() {
   configure_loop_device loop_file_1 loop_device_1
   # shellcheck disable=SC2154
