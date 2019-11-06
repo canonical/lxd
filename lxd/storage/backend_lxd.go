@@ -178,8 +178,7 @@ func (b *lxdBackend) Unmount() (bool, error) {
 // ensureInstanceSymlink creates a symlink in the instance directory to the instance's mount path
 // if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName, instanceName, mountPath string) error {
-	volStorageName := project.Prefix(projectName, instanceName)
-	symlinkPath := ContainerPath(volStorageName, false)
+	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
 	if shared.PathExists(symlinkPath) {
@@ -200,8 +199,7 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 
 // removeInstanceSymlink removes a symlink in the instance directory to the instance's mount path.
 func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, projectName, instanceName string) error {
-	volStorageName := project.Prefix(projectName, instanceName)
-	symlinkPath := ContainerPath(volStorageName, false)
+	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
@@ -223,7 +221,7 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	}
 
 	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(instanceName)
-	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, parentName))
+	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Prefix(projectName, parentName)
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
@@ -259,7 +257,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 	}
 
 	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(instanceName)
-	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, parentName))
+	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Prefix(projectName, parentName)
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
