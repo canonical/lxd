@@ -157,19 +157,29 @@ func OperationCreate(state *state.State, project string, opClass operationClass,
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.OperationAdd(project, op.id, opType)
-		return err
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to add Operation %s to database", op.id)
+	if op.state != nil {
+		err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			_, err := tx.OperationAdd(project, op.id, opType)
+			return err
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to add Operation %s to database", op.id)
+		}
 	}
 
 	logger.Debugf("New %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "operation", md)
+	op.sendEvent(md)
 
 	return &op, nil
+}
+
+func (op *Operation) sendEvent(eventMessage interface{}) {
+	if op.state == nil {
+		return
+	}
+
+	op.state.Events.Send(op.project, "operation", eventMessage)
 }
 
 func (op *Operation) done() {
@@ -195,6 +205,10 @@ func (op *Operation) done() {
 
 		delete(operations, op.id)
 		operationsLock.Unlock()
+
+		if op.state == nil {
+			return
+		}
 
 		err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			return tx.OperationRemove(op.id)
@@ -231,7 +245,7 @@ func (op *Operation) Run() (chan error, error) {
 				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
 
 				_, md, _ := op.Render()
-				op.state.Events.Send(op.project, "operation", md)
+				op.sendEvent(md)
 				return
 			}
 
@@ -244,7 +258,7 @@ func (op *Operation) Run() (chan error, error) {
 			op.lock.Lock()
 			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			op.state.Events.Send(op.project, "operation", md)
+			op.sendEvent(md)
 			op.lock.Unlock()
 		}(op, chanRun)
 	}
@@ -252,8 +266,7 @@ func (op *Operation) Run() (chan error, error) {
 
 	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "operation", md)
-
+	op.sendEvent(md)
 	return chanRun, nil
 }
 
@@ -286,7 +299,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 				logger.Debugf("Failed to cancel %s Operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
-				op.state.Events.Send(op.project, "operation", md)
+				op.sendEvent(md)
 				return
 			}
 
@@ -298,13 +311,13 @@ func (op *Operation) Cancel() (chan error, error) {
 
 			logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			op.state.Events.Send(op.project, "operation", md)
+			op.sendEvent(md)
 		}(op, oldStatus, chanCancel)
 	}
 
 	logger.Debugf("Cancelling %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "operation", md)
+	op.sendEvent(md)
 
 	if op.canceler != nil {
 		err := op.canceler.Cancel()
@@ -323,7 +336,7 @@ func (op *Operation) Cancel() (chan error, error) {
 
 	logger.Debugf("Cancelled %s Operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
-	op.state.Events.Send(op.project, "operation", md)
+	op.sendEvent(md)
 
 	return chanCancel, nil
 }
@@ -398,12 +411,15 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 	// Local server name
 	var err error
 	var serverName string
-	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.NodeName()
-		return err
-	})
-	if err != nil {
-		return "", nil, err
+
+	if op.state != nil {
+		err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			serverName, err = tx.NodeName()
+			return err
+		})
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
 	return op.url, &api.Operation{
@@ -469,7 +485,7 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 
 	logger.Debugf("Updated resources for %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "operation", md)
+	op.sendEvent(md)
 
 	return nil
 }
@@ -497,7 +513,7 @@ func (op *Operation) UpdateMetadata(opMetadata interface{}) error {
 
 	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	op.state.Events.Send(op.project, "operation", md)
+	op.sendEvent(md)
 
 	return nil
 }
