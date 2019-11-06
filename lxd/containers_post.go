@@ -118,9 +118,16 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 			if err != nil {
 				return err
 			}
+
+			// Detect image type based on instance type requested.
+			imgType := "container"
+			if req.Type == "virtual-machine" {
+				imgType = "virtual-machine"
+			}
+
 			info, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
-				req.Source.Secret, hash, "container", true, autoUpdate, "", true, project)
+				req.Source.Secret, hash, imgType, true, autoUpdate, "", true, project)
 			if err != nil {
 				return err
 			}
@@ -136,11 +143,12 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 			return err
 		}
 
-		_, err = containerCreateFromImage(d, args, info.Fingerprint, op)
+		_, err = instanceCreateFromImage(d, args, info.Fingerprint, op)
 		return err
 	}
 
 	resources := map[string][]string{}
+	// tomp TODO should this be renamed/added to?
 	resources["containers"] = []string{req.Name}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
@@ -198,7 +206,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
-	var c container
+	var c Instance
 
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
@@ -293,7 +301,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 			return response.BadRequest(fmt.Errorf("Instance type not container"))
 		}
 
-		c = inst.(container)
+		c = inst
 	}
 
 	if !req.Source.Refresh {
@@ -340,7 +348,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 			}
 
 			if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-				c, err = containerCreateFromImage(d, args, req.Source.BaseImage, nil)
+				c, err = instanceCreateFromImage(d, args, req.Source.BaseImage, nil)
 				if err != nil {
 					return response.InternalError(err)
 				}
