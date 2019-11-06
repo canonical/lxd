@@ -14,7 +14,8 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -540,34 +541,15 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Check if the pool is pending, if so we just need to delete it from
 	// the database.
-	_, pool, err := d.cluster.StoragePoolGet(poolName)
+	_, dbPool, err := d.cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if pool.Status == "Pending" {
+
+	if dbPool.Status == "Pending" {
 		_, err := d.cluster.StoragePoolDelete(poolName)
 		if err != nil {
 			return response.SmartError(err)
-		}
-		return response.EmptySyncResponse
-	}
-
-	s, err := storagePoolInit(d.State(), poolName)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	// If this is a notification for a ceph pool deletion, we don't want to
-	// actually delete the pool, since that will be done by the node that
-	// notified us. We just need to delete the local mountpoint.
-	if s, ok := s.(*storageCeph); ok && isClusterNotification(r) {
-		// Delete the mountpoint for the storage pool.
-		poolMntPoint := driver.GetStoragePoolMountPoint(s.pool.Name)
-		if shared.PathExists(poolMntPoint) {
-			err := os.RemoveAll(poolMntPoint)
-			if err != nil {
-				return response.SmartError(err)
-			}
 		}
 		return response.EmptySyncResponse
 	}
@@ -577,21 +559,69 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	for _, volume := range volumeNames {
-		_, imgInfo, err := d.cluster.ImageGet("default", volume, false, false)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
+		// Only delete images if locally stored or running on initial member.
+		if !isClusterNotification(r) || !pool.Driver().Info().Remote {
+			for _, volume := range volumeNames {
+				_, imgInfo, err := d.cluster.ImageGet("default", volume, false, false)
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
+				if err != nil {
+					return response.InternalError(err)
+				}
+			}
+		}
+
+		err = pool.Delete(isClusterNotification(r), nil)
 		if err != nil {
 			return response.InternalError(err)
 		}
-	}
+	} else {
+		s, err := storagePoolInit(d.State(), poolName)
+		if err != nil {
+			return response.InternalError(err)
+		}
 
-	err = s.StoragePoolDelete()
-	if err != nil {
-		return response.InternalError(err)
+		// If this is a notification for a ceph pool deletion, we don't want to
+		// actually delete the pool, since that will be done by the node that
+		// notified us. We just need to delete the local mountpoint.
+		if s, ok := s.(*storageCeph); ok && isClusterNotification(r) {
+			// Delete the mountpoint for the storage pool.
+			poolMntPoint := storagePools.GetStoragePoolMountPoint(s.pool.Name)
+			if shared.PathExists(poolMntPoint) {
+				err := os.RemoveAll(poolMntPoint)
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
+			return response.EmptySyncResponse
+		}
+
+		for _, volume := range volumeNames {
+			_, imgInfo, err := d.cluster.ImageGet("default", volume, false, false)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
+			if err != nil {
+				return response.InternalError(err)
+			}
+		}
+
+		err = s.StoragePoolDelete()
+		if err != nil {
+			return response.InternalError(err)
+		}
 	}
 
 	// If this is a cluster notification, we're done, any database work
