@@ -772,17 +772,30 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 
 	}
 
-	for _, pool := range pools {
-		logger.Debugf("Initializing and checking storage pool \"%s\"", pool)
-		s, err := storagePoolInit(s, pool)
-		if err != nil {
-			logger.Errorf("Error initializing storage pool \"%s\": %s, correct functionality of the storage pool cannot be guaranteed", pool, err)
-			continue
-		}
+	for _, poolName := range pools {
+		logger.Debugf("Initializing and checking storage pool \"%s\"", poolName)
 
-		err = s.StoragePoolCheck()
-		if err != nil {
-			return err
+		pool, err := storagePools.GetPoolByName(s, poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			_, err = pool.Mount()
+			if err != nil {
+				return err
+			}
+		} else {
+			s, err := storagePoolInit(s, poolName)
+			if err != nil {
+				logger.Errorf("Error initializing storage pool \"%s\": %s, correct functionality of the storage pool cannot be guaranteed", pool, err)
+				continue
+			}
+
+			err = s.StoragePoolCheck()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
