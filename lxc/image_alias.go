@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -233,7 +234,7 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("DESCRIPTION"),
 	}
 
-	return renderTable(c.flagFormat, header, data, aliases)
+	return utils.RenderTable(c.flagFormat, header, data, aliases)
 }
 
 // Rename

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -565,7 +566,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 	}
 	header = append(header, i18n.G("USED BY"))
 
-	return renderTable(c.flagFormat, header, data, pools)
+	return utils.RenderTable(c.flagFormat, header, data, pools)
 }
 
 // Set

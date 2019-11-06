@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -873,7 +874,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("STATE"))
 	}
 
-	return renderTable(c.flagFormat, header, data, networks)
+	return utils.RenderTable(c.flagFormat, header, data, networks)
 }
 
 // List leases
@@ -943,7 +944,7 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("LOCATION"))
 	}
 
-	return renderTable(c.flagFormat, header, data, leases)
+	return utils.RenderTable(c.flagFormat, header, data, leases)
 }
 
 // Rename

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxc/utils"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -164,7 +165,7 @@ func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("LOCATION"))
 	}
 
-	return renderTable(c.flagFormat, header, data, operations)
+	return utils.RenderTable(c.flagFormat, header, data, operations)
 }
 
 // Show

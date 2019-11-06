@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -175,7 +176,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("EXPIRY DATE"),
 	}
 
-	return renderTable(c.flagFormat, header, data, trust)
+	return utils.RenderTable(c.flagFormat, header, data, trust)
 }
 
 // Remove
