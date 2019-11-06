@@ -42,7 +42,9 @@ func (s *OS) initDirs() error {
 		{s.VarDir, 0711},
 		{filepath.Join(s.VarDir, "backups"), 0700},
 		{s.CacheDir, 0700},
+		// containers is 0711 because liblxc needs to traverse dir to get to each container.
 		{filepath.Join(s.VarDir, "containers"), 0711},
+		{filepath.Join(s.VarDir, "virtual-machines"), 0711},
 		{filepath.Join(s.VarDir, "database"), 0700},
 		{filepath.Join(s.VarDir, "devices"), 0711},
 		{filepath.Join(s.VarDir, "devlxd"), 0755},
@@ -52,7 +54,9 @@ func (s *OS) initDirs() error {
 		{filepath.Join(s.VarDir, "networks"), 0711},
 		{filepath.Join(s.VarDir, "security"), 0700},
 		{filepath.Join(s.VarDir, "shmounts"), 0711},
+		// snapshots is 0700 as liblxc does not need to access this.
 		{filepath.Join(s.VarDir, "snapshots"), 0700},
+		{filepath.Join(s.VarDir, "virtual-machines-snapshots"), 0700},
 		{filepath.Join(s.VarDir, "storage-pools"), 0711},
 	}
 
