@@ -33,7 +33,7 @@ type Pool interface {
 	Driver() drivers.Driver
 
 	GetResources() (*api.ResourcesStoragePool, error)
-	Delete(op *operations.Operation) error
+	Delete(localOnly bool, op *operations.Operation) error
 
 	Mount() (bool, error)
 	Unmount() (bool, error)

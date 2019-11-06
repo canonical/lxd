@@ -46,7 +46,7 @@ func (b *mockBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	return nil, nil
 }
 
-func (b *mockBackend) Delete(op *operations.Operation) error {
+func (b *mockBackend) Delete(localOnly bool, op *operations.Operation) error {
 	return nil
 }
 
