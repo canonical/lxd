@@ -3544,7 +3544,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Get the storage pool name of the instance.
-	poolName, err := c.state.Cluster.ContainerPool(c.Project(), c.Name())
+	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
 	if err != nil {
 		return err
 	}
@@ -4055,7 +4055,12 @@ func writeBackupFile(c Instance) error {
 		return err
 	}
 
-	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
+	dbType := db.StoragePoolVolumeTypeContainer
+	if c.Type() == instancetype.VM {
+		dbType = db.StoragePoolVolumeTypeVM
+	}
+
+	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.Project(), c.Name(), dbType, poolID)
 	if err != nil {
 		return err
 	}
@@ -6897,7 +6902,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := c.state.Cluster.ContainerPool(c.Project(), c.Name())
+	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
 	if err != nil {
 		return "", err
 	}
