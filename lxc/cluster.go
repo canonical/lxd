@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -129,7 +130,7 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("MESSAGE"),
 	}
 
-	return renderTable(c.flagFormat, header, data, members)
+	return utils.RenderTable(c.flagFormat, header, data, members)
 }
 
 // Show
