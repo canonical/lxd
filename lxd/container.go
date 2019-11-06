@@ -799,8 +799,8 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 	return c, nil
 }
 
-func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, error) {
-	// Set default values
+func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
+	// Set default values.
 	if args.Project == "" {
 		args.Project = "default"
 	}
@@ -832,11 +832,11 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 			return nil, err
 		}
 
-		// Unset expiry date since containers don't expire
+		// Unset expiry date since containers don't expire.
 		args.ExpiryDate = time.Time{}
 	}
 
-	// Validate container config
+	// Validate container config.
 	err := containerValidConfig(s.OS, args.Config, false, false)
 	if err != nil {
 		return nil, err
@@ -848,7 +848,7 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
-	// Validate architecture
+	// Validate architecture.
 	_, err = osarch.ArchitectureName(args.Architecture)
 	if err != nil {
 		return nil, err
@@ -858,7 +858,7 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
 	}
 
-	// Validate profiles
+	// Validate profiles.
 	profiles, err := s.Cluster.Profiles(args.Project)
 	if err != nil {
 		return nil, err
@@ -885,15 +885,15 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 		args.LastUsedDate = time.Unix(0, 0).UTC()
 	}
 
-	var container db.Instance
+	var dbInst db.Instance
+
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		node, err := tx.NodeName()
 		if err != nil {
 			return err
 		}
 
-		// TODO: this check should probably be performed by the db
-		// package itself.
+		// TODO: this check should probably be performed by the db package itself.
 		exists, err := tx.ProjectExists(args.Project)
 		if err != nil {
 			return errors.Wrapf(err, "Check if project %q exists", args.Project)
@@ -932,13 +932,13 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 				return errors.Wrap(err, "Fetch created snapshot from the database")
 			}
 
-			container = db.InstanceSnapshotToInstance(instance, s)
+			dbInst = db.InstanceSnapshotToInstance(instance, s)
 
 			return nil
 		}
 
-		// Create the container entry
-		container = db.Instance{
+		// Create the instance entry.
+		dbInst = db.Instance{
 			Project:      args.Project,
 			Name:         args.Name,
 			Node:         node,
@@ -956,28 +956,28 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 			ExpiryDate:   args.ExpiryDate,
 		}
 
-		_, err = tx.InstanceCreate(container)
+		_, err = tx.InstanceCreate(dbInst)
 		if err != nil {
-			return errors.Wrap(err, "Add container info to the database")
+			return errors.Wrap(err, "Add instance info to the database")
 		}
 
-		// Read back the container, to get ID and creation time.
-		c, err := tx.InstanceGet(args.Project, args.Name)
+		// Read back the instance, to get ID and creation time.
+		dbRow, err := tx.InstanceGet(args.Project, args.Name)
 		if err != nil {
-			return errors.Wrap(err, "Fetch created container from the database")
+			return errors.Wrap(err, "Fetch created instance from the database")
 		}
 
-		container = *c
+		dbInst = *dbRow
 
-		if container.ID < 1 {
-			return errors.Wrapf(err, "Unexpected container database ID %d", container.ID)
+		if dbInst.ID < 1 {
+			return errors.Wrapf(err, "Unexpected instance database ID %d", dbInst.ID)
 		}
 
 		return nil
 	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
-			thing := "Container"
+			thing := "Instance"
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"
 			}
@@ -986,19 +986,34 @@ func containerCreateInternal(s *state.State, args db.InstanceArgs) (container, e
 		return nil, err
 	}
 
-	// Wipe any existing log for this container name
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+
+		s.Cluster.InstanceRemove(dbInst.Project, dbInst.Name)
+	}()
+
+	// Wipe any existing log for this instance name.
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args = db.ContainerToArgs(&container)
+	args = db.ContainerToArgs(&dbInst)
 
-	// Setup the container struct and finish creation (storage and idmap)
-	c, err := containerLXCCreate(s, args)
-	if err != nil {
-		s.Cluster.ContainerRemove(args.Project, args.Name)
-		return nil, errors.Wrap(err, "Create LXC container")
+	var inst Instance
+
+	if args.Type == instancetype.Container {
+		inst, err = containerLXCCreate(s, args)
+	} else {
+		return nil, fmt.Errorf("Instance type invalid")
 	}
 
-	return c, nil
+	if err != nil {
+		return nil, errors.Wrap(err, "Create instance")
+	}
+
+	revert = false
+	return inst, nil
 }
 
 func containerConfigureInternal(state *state.State, c Instance) error {
