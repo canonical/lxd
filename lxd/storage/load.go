@@ -61,7 +61,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 
 // CreatePool creates a new storage pool on disk and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *operations.Operation) (Pool, error) {
+func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) (Pool, error) {
 	// Sanity checks.
 	if dbPool == nil {
 		return nil, ErrNilValue
@@ -98,7 +98,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePool, op *o
 	pool.logger = logger
 
 	// Create the pool itself on the storage device..
-	err = pool.create(dbPool, op)
+	err = pool.create(dbPool, localOnly, op)
 	if err != nil {
 		return nil, err
 	}

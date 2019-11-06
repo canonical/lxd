@@ -117,11 +117,17 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(err)
 		}
-		err = doStoragePoolCreateInternal(
-			d.State(), req.Name, req.Description, req.Driver, req.Config, true)
+
+		poolID, err := d.cluster.StoragePoolGetID(req.Name)
+		if err != nil {
+			return response.NotFound(err)
+		}
+
+		err = storagePoolCreateLocal(d.State(), poolID, req, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return resp
 	}
 
@@ -136,8 +142,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			// No targetNode was specified and we're either a single-node
 			// cluster or not clustered at all, so create the storage
 			// pool immediately.
-			err = storagePoolCreateInternal(
-				d.State(), req.Name, req.Description, req.Driver, req.Config)
+			err = storagePoolCreateGlobal(d.State(), req)
 		} else {
 			// No targetNode was specified and we're clustered, so finalize the
 			// config in the db and actually create the pool on all nodes.
@@ -146,8 +151,8 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.InternalError(err)
 		}
-		return resp
 
+		return resp
 	}
 
 	// A targetNode was specified, let's just define the node's storage
@@ -171,6 +176,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		if err == db.ErrAlreadyDefined {
 			return response.BadRequest(fmt.Errorf("The storage pool already defined on node %s", targetNode))
 		}
+
 		return response.SmartError(err)
 	}
 
@@ -189,9 +195,12 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 	// configs and insert the global config.
 	var configs map[string]map[string]string
 	var nodeName string
+	var poolID int64
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+
 		// Check that the pool was defined at all.
-		poolID, err := tx.StoragePoolID(req.Name)
+		poolID, err = tx.StoragePoolID(req.Name)
 		if err != nil {
 			return err
 		}
@@ -223,12 +232,13 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
 	}
+
 	err = storagePoolValidate(req.Name, req.Driver, req.Config)
 	if err != nil {
 		return err
 	}
-	err = doStoragePoolCreateInternal(
-		d.State(), req.Name, req.Description, req.Driver, req.Config, false)
+
+	err = storagePoolCreateLocal(d.State(), poolID, req, false)
 	if err != nil {
 		return err
 	}
