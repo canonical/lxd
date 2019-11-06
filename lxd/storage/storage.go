@@ -3,17 +3,27 @@ package storage
 import (
 	"os"
 
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 )
 
-// ContainerPath returns the directory of a container or snapshot.
-func ContainerPath(name string, isSnapshot bool) string {
-	if isSnapshot {
-		return shared.VarPath("snapshots", name)
+// InstancePath returns the directory of an instance or snapshot.
+func InstancePath(instanceType instancetype.Type, projectName, instanceName string, isSnapshot bool) string {
+	fullName := project.Prefix(projectName, instanceName)
+	if instanceType == instancetype.VM {
+		if isSnapshot {
+			return shared.VarPath("virtual-machines-snapshots", fullName)
+		}
+
+		return shared.VarPath("virtual-machines", fullName)
 	}
 
-	return shared.VarPath("containers", name)
+	if isSnapshot {
+		return shared.VarPath("snapshots", fullName)
+	}
+
+	return shared.VarPath("containers", fullName)
 }
 
 // GetStoragePoolMountPoint returns the mountpoint of the given pool.
