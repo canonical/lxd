@@ -2008,7 +2008,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string, tracker *ioprogress.Progr
 
 	// Unpack the image in imageMntPoint.
 	imagePath := shared.VarPath("images", fingerprint)
-	err = driver.ImageUnpack(imagePath, tmpImageSubvolumeName, false, s.s.OS.RunningInUserNS, tracker)
+	err = driver.ImageUnpack(imagePath, tmpImageSubvolumeName, "", false, s.s.OS.RunningInUserNS, tracker)
 	if err != nil {
 		return err
 	}
