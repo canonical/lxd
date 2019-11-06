@@ -254,31 +254,38 @@ type container interface {
 	NextIdmap() (*idmap.IdmapSet, error)
 }
 
-// containerCreateAsEmpty creates an empty instance.
-func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
-	// Create the container.
-	c, err := instanceCreateInternal(d.State(), args)
+// instanceCreateAsEmpty creates an empty instance.
+func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
+	// Create the instance record.
+	inst, err := instanceCreateInternal(d.State(), args)
 	if err != nil {
 		return nil, err
 	}
 
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+
+		inst.Delete()
+	}()
+
 	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
 		if err != nil {
 			return nil, errors.Wrap(err, "Load instance storage pool")
 		}
 
-		err = pool.CreateInstance(c, nil)
+		err = pool.CreateInstance(inst, nil)
 		if err != nil {
-			c.Delete()
 			return nil, errors.Wrap(err, "Create instance")
 		}
-	} else if c.Type() == instancetype.Container {
+	} else if inst.Type() == instancetype.Container {
 		// Now create the empty storage.
-		err = c.Storage().ContainerCreate(c)
+		err = inst.Storage().ContainerCreate(inst)
 		if err != nil {
-			c.Delete()
 			return nil, err
 		}
 	} else {
@@ -286,13 +293,13 @@ func containerCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(d.State(), c)
+	err = containerConfigureInternal(d.State(), inst)
 	if err != nil {
-		c.Delete()
 		return nil, err
 	}
 
-	return c, nil
+	revert = false
+	return inst, nil
 }
 
 func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSeeker,
