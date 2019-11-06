@@ -1011,6 +1011,8 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, err
 
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCCreate(s, args)
+	} else if args.Type == instancetype.VM {
+		inst, err = vmQemuCreate(s, args)
 	} else {
 		return nil, fmt.Errorf("Instance type invalid")
 	}
