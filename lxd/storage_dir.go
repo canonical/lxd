@@ -573,7 +573,7 @@ func (s *storageDir) ContainerCreateFromImage(container Instance, imageFingerpri
 	}
 
 	imagePath := shared.VarPath("images", imageFingerprint)
-	err = driver.ImageUnpack(imagePath, containerMntPoint, false, s.s.OS.RunningInUserNS, nil)
+	err = driver.ImageUnpack(imagePath, containerMntPoint, "", false, s.s.OS.RunningInUserNS, nil)
 	if err != nil {
 		return errors.Wrap(err, "Unpack image")
 	}
