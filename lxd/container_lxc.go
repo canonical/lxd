@@ -3614,7 +3614,7 @@ func (c *containerLXC) Delete() error {
 		}
 
 		// Remove the database record of the instance or snapshot instance.
-		if err := c.state.Cluster.ContainerRemove(c.Project(), c.Name()); err != nil {
+		if err := c.state.Cluster.InstanceRemove(c.Project(), c.Name()); err != nil {
 			logger.Error("Failed deleting instance entry", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 			return err
 		}
@@ -3689,7 +3689,7 @@ func (c *containerLXC) Delete() error {
 		}
 
 		// Remove the database record
-		if err := c.state.Cluster.ContainerRemove(c.project, c.Name()); err != nil {
+		if err := c.state.Cluster.InstanceRemove(c.project, c.Name()); err != nil {
 			logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 			return err
 		}
