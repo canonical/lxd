@@ -620,8 +620,8 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	return nil
 }
 
-// ContainerRemove removes the container with the given name from the database.
-func (c *Cluster) ContainerRemove(project, name string) error {
+// InstanceRemove removes the instance with the given name from the database.
+func (c *Cluster) InstanceRemove(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
 		return c.Transaction(func(tx *ClusterTx) error {
