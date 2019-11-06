@@ -500,7 +500,6 @@ func (d *disk) createDevice() (string, error) {
 	isFile := false
 	if d.config["pool"] == "" {
 		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
-		//handle ceph case (anusha)
 		if strings.HasPrefix(d.config["source"], "cephfs") {
 			//filesystem mount
 			fields := strings.SplitN(d.config["source"], ":", 2)
@@ -673,7 +672,7 @@ func (d *disk) postStop() error {
 			return err
 		}
 	}
-	if d.config["source"] == "ceph" {
+	if strings.HasPrefix(d.config["source"], "ceph") {
 		//unmap rbd storage from path
 		//get the map with v := d.volatileGet
 		//get the actual path with v[cepth_rbd_src_path]
