@@ -6854,8 +6854,7 @@ func (c *containerLXC) State() string {
 
 // Various container paths
 func (c *containerLXC) Path() string {
-	name := project.Prefix(c.Project(), c.Name())
-	return storagePools.ContainerPath(name, c.IsSnapshot())
+	return storagePools.InstancePath(c.Type(), c.Project(), c.Name(), c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {
