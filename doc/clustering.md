@@ -173,6 +173,50 @@ transition to the Blocked state, until you upgrade the very last
 one. At that point the blocked nodes will notice that there is no
 out-of-date node left and will become operational again.
 
+### Disaster recovery
+
+Every LXD cluster has up to 3 members that serve as database nodes. If you
+permanently lose a majority of the cluster members that are serving as database
+nodes (for example you have a 3-member cluster and you lose 2 members), the
+cluster will become unavailable. However, if at least one database node has
+survived, you will be able to recover the cluster.
+
+In order to check which cluster members are configured as database nodes, log on
+any survived member of your cluster and run the command:
+
+```
+lxd cluster list-database
+```
+
+This will work even if the LXD daemon is not running.
+
+Among the listed members, pick the one that has survived and log into it (if it
+differs from the one you have run the command on).
+
+Now make sure the LXD daemon is not running and then issue the command:
+
+```
+lxd cluster recover-from-quorum-loss
+```
+
+At this point you can restart the LXD daemon and the database should be back
+online.
+
+Note that no information has been deleted from the database, in particular all
+information about the cluster members that you have lost is still there,
+including the metadata about their containers. This can help you with further
+recovery steps in case you need to re-create the lost containers.
+
+In order to permanently delete the cluster members that you have lost, you can
+run the command:
+
+```
+lxc cluster remove <name> --force
+```
+
+Note that this time you have to use the regular ```lxc``` command line tool, not
+```lxd```.
+
 ## Containers
 
 You can launch a container on any node in the cluster from any node in

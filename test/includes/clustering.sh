@@ -265,3 +265,14 @@ EOF
     lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }
+
+respawn_lxd_cluster_member() {
+  # shellcheck disable=2039,2034
+  local LXD_NETNS
+
+  set -e
+  ns="${1}"
+  LXD_DIR="${2}"
+
+  LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+}

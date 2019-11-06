@@ -14,8 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -517,7 +518,7 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("STATIC"),
 	}
 
-	return renderTable(c.flagFormat, header, data, conf.Remotes)
+	return utils.RenderTable(c.flagFormat, header, data, conf.Remotes)
 }
 
 // Rename

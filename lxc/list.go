@@ -10,8 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -333,7 +334,7 @@ func (c *cmdList) showContainers(cts []api.InstanceFull, filters []string, colum
 		headers = append(headers, column.Name)
 	}
 
-	return renderTable(c.flagFormat, headers, data, cts)
+	return utils.RenderTable(c.flagFormat, headers, data, cts)
 }
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
