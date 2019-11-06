@@ -30,6 +30,7 @@ type cmdInit struct {
 	flagType       string
 	flagNoProfiles bool
 	flagEmpty      bool
+	flagVM         bool
 }
 
 func (c *cmdInit) Command() *cobra.Command {
@@ -53,6 +54,7 @@ lxc init ubuntu:16.04 u1 < config.yaml
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty container"))
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create virtual machine"))
 
 	return cmd
 }
@@ -150,7 +152,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 
 	if !c.global.flagQuiet {
 		if name == "" {
-			fmt.Printf(i18n.G("Creating the container") + "\n")
+			fmt.Printf(i18n.G("Creating the instance") + "\n")
 		} else {
 			fmt.Printf(i18n.G("Creating %s")+"\n", name)
 		}
@@ -203,10 +205,17 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		}
 	}
 
-	// Setup container creation request
+	// Decide whether we are creating a container or a virtual machine.
+	instanceDBType := api.InstanceTypeContainer
+	if c.flagVM {
+		instanceDBType = api.InstanceTypeVM
+	}
+
+	// Setup instance creation request
 	req := api.InstancesPost{
 		Name:         name,
 		InstanceType: c.flagType,
+		Type:         instanceDBType,
 	}
 	req.Config = configMap
 	req.Devices = devicesMap
@@ -265,7 +274,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			}
 		}
 
-		// Create the container
+		// Create the instance
 		op, err := d.CreateInstanceFromImage(imgRemote, *imgInfo, req)
 		if err != nil {
 			return nil, "", err
@@ -313,15 +322,19 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		opInfo = op.Get()
 	}
 
-	containers, ok := opInfo.Resources["containers"]
-	if !ok || len(containers) == 0 {
-		return nil, "", fmt.Errorf(i18n.G("Didn't get any affected image, container or snapshot from server"))
+	instances, ok := opInfo.Resources["instances"]
+	if !ok || len(instances) == 0 {
+		// Try using the older "containers" field
+		instances, ok = opInfo.Resources["containers"]
+		if !ok || len(instances) == 0 {
+			return nil, "", fmt.Errorf(i18n.G("Didn't get any affected image, instance or snapshot from server"))
+		}
 	}
 
-	if len(containers) == 1 && name == "" {
-		fields := strings.Split(containers[0], "/")
+	if len(instances) == 1 && name == "" {
+		fields := strings.Split(instances[0], "/")
 		name = fields[len(fields)-1]
-		fmt.Printf(i18n.G("Container name is: %s")+"\n", name)
+		fmt.Printf(i18n.G("Instance name is: %s")+"\n", name)
 	}
 
 	// Validate the network setup
