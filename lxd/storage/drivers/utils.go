@@ -217,3 +217,24 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 
 	return nil
 }
+
+// createSparseFile creates a sparse empty file at specified location with specified size.
+func createSparseFile(filePath string, sizeBytes int64) error {
+	f, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("Failed to open %s: %s", filePath, err)
+	}
+	defer f.Close()
+
+	err = f.Chmod(0600)
+	if err != nil {
+		return fmt.Errorf("Failed to chmod %s: %s", filePath, err)
+	}
+
+	err = f.Truncate(sizeBytes)
+	if err != nil {
+		return fmt.Errorf("Failed to create sparse file %s: %s", filePath, err)
+	}
+
+	return nil
+}
