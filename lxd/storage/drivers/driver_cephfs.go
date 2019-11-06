@@ -22,7 +22,6 @@ import (
 type cephfs struct {
 	common
 
-	fsName  string
 	version string
 }
 
@@ -71,14 +70,14 @@ func (d *cephfs) Create() error {
 		d.config["cephfs.cluster_name"] = "ceph"
 	}
 
-	if d.config["cephfs.user.name"] != "" {
+	if d.config["cephfs.user.name"] == "" {
 		d.config["cephfs.user.name"] = "admin"
 	}
 
-	d.fsName = d.config["source"]
+	d.config["cephfs.path"] = d.config["source"]
 
 	// Parse the namespace / path.
-	fields := strings.SplitN(d.fsName, "/", 2)
+	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
 	fsName := fields[0]
 	fsPath := "/"
 	if len(fields) > 1 {
@@ -110,7 +109,7 @@ func (d *cephfs) Create() error {
 	}
 
 	// Get the credentials and host.
-	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user_name"])
+	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
 	if err != nil {
 		return err
 	}
@@ -118,7 +117,7 @@ func (d *cephfs) Create() error {
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/", monAddress)
-		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user_name"], userSecret, fsName))
+		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
 		if err != nil {
 			continue
 		}
@@ -149,7 +148,7 @@ func (d *cephfs) Create() error {
 
 func (d *cephfs) Delete(op *operations.Operation) error {
 	// Parse the namespace / path.
-	fields := strings.SplitN(d.fsName, "/", 2)
+	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
 	fsName := fields[0]
 	fsPath := "/"
 	if len(fields) > 1 {
@@ -175,7 +174,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	}
 
 	// Get the credentials and host.
-	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user_name"])
+	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
 	if err != nil {
 		return err
 	}
@@ -183,7 +182,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/", monAddress)
-		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user_name"], userSecret, fsName))
+		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
 		if err != nil {
 			continue
 		}
@@ -240,7 +239,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 
 func (d *cephfs) Mount() (bool, error) {
 	// Parse the namespace / path.
-	fields := strings.SplitN(d.fsName, "/", 2)
+	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
 	fsName := fields[0]
 	fsPath := "/"
 	if len(fields) > 1 {
@@ -248,7 +247,7 @@ func (d *cephfs) Mount() (bool, error) {
 	}
 
 	// Get the credentials and host.
-	monAddresses, secret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user_name"])
+	monAddresses, secret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
 	if err != nil {
 		return false, err
 	}
@@ -257,7 +256,7 @@ func (d *cephfs) Mount() (bool, error) {
 	connected := false
 	for _, monAddress := range monAddresses {
 		uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
-		err = tryMount(uri, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user_name"], secret, fsName))
+		err = tryMount(uri, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], secret, fsName))
 		if err != nil {
 			continue
 		}
