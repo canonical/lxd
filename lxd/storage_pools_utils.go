@@ -7,8 +7,10 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -40,7 +42,7 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 		}
 	}()
 
-	changedConfig, userOnly := driver.ConfigDiff(oldConfig, newConfig)
+	changedConfig, userOnly := storagePools.ConfigDiff(oldConfig, newConfig)
 	// Apply config changes if there are any
 	if len(changedConfig) != 0 {
 		newWritable.Description = newDescription
@@ -159,11 +161,11 @@ func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error
 	return usedBy, nil
 }
 
-func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
+func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) (int64, error) {
 	// Check that the storage pool does not already exist.
 	_, err := s.Cluster.StoragePoolGetID(poolName)
 	if err == nil {
-		return fmt.Errorf("The storage pool already exists")
+		return -1, fmt.Errorf("The storage pool already exists")
 	}
 
 	// Make sure that we don't pass a nil to the next function.
@@ -172,27 +174,27 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 	err = storagePoolValidate(poolName, driver, config)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Fill in the defaults
 	err = storagePoolFillDefault(poolName, driver, config)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreateAndUpdateCache(s.Cluster, poolName, poolDescription, driver, config)
+	id, err := dbStoragePoolCreateAndUpdateCache(s.Cluster, poolName, poolDescription, driver, config)
 	if err != nil {
-		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+		return -1, fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
 
-	return nil
+	return id, nil
 }
 
 func storagePoolValidate(poolName string, driverName string, config map[string]string) error {
 	// Check if the storage pool name is valid.
-	err := driver.ValidName(poolName)
+	err := storagePools.ValidName(poolName)
 	if err != nil {
 		return err
 	}
@@ -206,11 +208,13 @@ func storagePoolValidate(poolName string, driverName string, config map[string]s
 	return nil
 }
 
-func storagePoolCreateInternal(state *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
-	err := storagePoolDBCreate(state, poolName, poolDescription, driver, config)
+func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error {
+	// Create the database entry.
+	id, err := storagePoolDBCreate(state, req.Name, req.Description, req.Driver, req.Config)
 	if err != nil {
 		return err
 	}
+
 	// Define a function which reverts everything.  Defer this function
 	// so that it doesn't need to be explicitly called in every failing
 	// return path. Track whether or not we want to undo the changes
@@ -220,40 +224,83 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 		if !tryUndo {
 			return
 		}
-		dbStoragePoolDeleteAndUpdateCache(state.Cluster, poolName)
+
+		dbStoragePoolDeleteAndUpdateCache(state.Cluster, req.Name)
 	}()
-	err = doStoragePoolCreateInternal(state, poolName, poolDescription, driver, config, false)
-	tryUndo = err != nil
-	return err
+
+	err = storagePoolCreateLocal(state, id, req, false)
+	if err != nil {
+		return err
+	}
+
+	tryUndo = false
+	return nil
 }
 
 // This performs all non-db related work needed to create the pool.
-func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription string, driverName string, config map[string]string, isNotification bool) error {
+func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) error {
 	tryUndo := true
-	s, err := storagePoolInit(state, poolName)
-	if err != nil {
-		return err
-	}
 
-	// If this is a clustering notification for a ceph storage, we don't
-	// want this node to actually create the pool, as it's already been
-	// done by the node that triggered this notification. We just need to
-	// create the storage pool directory.
-	if s, ok := s.(*storageCeph); ok && isNotification {
-		volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-		return os.MkdirAll(volumeMntPoint, 0711)
+	// Make a copy of the req for later diff.
+	var updatedConfig map[string]string
+	var updatedReq api.StoragePoolsPost
+	shared.DeepCopy(&req, &updatedReq)
 
-	}
-	err = s.StoragePoolCreate()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if !tryUndo {
-			return
+	// Attempt to create using the new storage pool logic.
+	pool, err := storagePools.CreatePool(state, id, &updatedReq, isNotification, nil)
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return err
 		}
-		s.StoragePoolDelete()
-	}()
+
+		// Mount the pool
+		_, err = pool.Mount()
+		if err != nil {
+			return err
+		}
+
+		// Record the updated config.
+		updatedConfig = updatedReq.Config
+
+		// Setup revert function.
+		defer func() {
+			if !tryUndo {
+				return
+			}
+
+			pool.Delete(isNotification, nil)
+		}()
+	} else {
+		// Load the old storage struct
+		s, err := storagePoolInit(state, req.Name)
+		if err != nil {
+			return err
+		}
+
+		// If this is a clustering notification for a ceph storage, we don't
+		// want this node to actually create the pool, as it's already been
+		// done by the node that triggered this notification. We just need to
+		// create the storage pool directory.
+		if s, ok := s.(*storageCeph); ok && isNotification {
+			volumeMntPoint := storagePools.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+			return os.MkdirAll(volumeMntPoint, 0711)
+		}
+
+		// Create the pool
+		err = s.StoragePoolCreate()
+		if err != nil {
+			return err
+		}
+
+		updatedConfig = s.GetStoragePoolWritable().Config
+
+		defer func() {
+			if !tryUndo {
+				return
+			}
+			s.StoragePoolDelete()
+		}()
+	}
 
 	// In case the storage pool config was changed during the pool creation,
 	// we need to update the database to reflect this change. This can e.g.
@@ -261,13 +308,12 @@ func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription s
 	// to the path the user gave us and update the config in the storage
 	// callback. So diff the config here to see if something like this has
 	// happened.
-	postCreateConfig := s.GetStoragePoolWritable().Config
-	configDiff, _ := driver.ConfigDiff(config, postCreateConfig)
+	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = state.Cluster.StoragePoolUpdate(poolName, poolDescription, postCreateConfig)
+		err = state.Cluster.StoragePoolUpdate(req.Name, req.Description, updatedConfig)
 		if err != nil {
-			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+			return fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
 		}
 	}
 
@@ -277,8 +323,7 @@ func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription s
 	return nil
 }
 
-// Helper around the low-level DB API, which also updates the driver names
-// cache.
+// Helper around the low-level DB API, which also updates the driver names cache.
 func dbStoragePoolCreateAndUpdateCache(db *db.Cluster, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	id, err := db.StoragePoolCreate(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
