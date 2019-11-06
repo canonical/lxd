@@ -238,6 +238,11 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 }
 
 func (d *cephfs) Mount() (bool, error) {
+	// Check if already mounted.
+	if shared.IsMountPoint(GetPoolMountPath(d.name)) {
+		return false, nil
+	}
+
 	// Parse the namespace / path.
 	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
 	fsName := fields[0]
