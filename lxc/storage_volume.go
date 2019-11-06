@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1123,7 +1123,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		header = append(header, i18n.G("LOCATION"))
 	}
 
-	return renderTable(c.flagFormat, header, data, volumes)
+	return utils.RenderTable(c.flagFormat, header, data, volumes)
 }
 
 // Move

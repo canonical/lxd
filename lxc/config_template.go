@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -278,7 +279,7 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("FILENAME"),
 	}
 
-	return renderTable(c.flagFormat, header, data, templates)
+	return utils.RenderTable(c.flagFormat, header, data, templates)
 }
 
 // Show

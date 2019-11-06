@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1216,7 +1216,7 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 		headers = append(headers, column.Name)
 	}
 
-	return renderTable(c.flagFormat, headers, data, rawData)
+	return utils.RenderTable(c.flagFormat, headers, data, rawData)
 }
 
 // Refresh
