@@ -871,7 +871,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	if containerErr == nil {
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := d.cluster.ContainerRemove(projectName, req.Name)
+		err := d.cluster.InstanceRemove(projectName, req.Name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -916,7 +916,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	_, err = containerCreateInternal(d.State(), db.InstanceArgs{
+	_, err = instanceCreateInternal(d.State(), db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
@@ -982,7 +982,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if snapErr == nil {
-			err := d.cluster.ContainerRemove(projectName, snap.Name)
+			err := d.cluster.InstanceRemove(projectName, snap.Name)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1022,7 +1022,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			snap.Devices[rootDevName] = rootDev
 		}
 
-		_, err = containerCreateInternal(d.State(), db.InstanceArgs{
+		_, err = instanceCreateInternal(d.State(), db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,
