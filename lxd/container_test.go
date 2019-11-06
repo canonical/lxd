@@ -165,7 +165,7 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 
 	suite.Req.False(c.IsSnapshot(), "Shouldn't be a snapshot.")
 	suite.Req.Equal(shared.VarPath("containers", "testFoo"), c.Path())
-	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), driver.ContainerPath("testFoo2", false))
+	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), driver.InstancePath(instancetype.Container, "default", "testFoo2", false))
 }
 
 func (suite *containerTestSuite) TestContainer_LogPath() {
