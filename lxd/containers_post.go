@@ -185,7 +185,7 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 	}
 
 	run := func(op *operations.Operation) error {
-		_, err := containerCreateAsEmpty(d, args)
+		_, err := instanceCreateAsEmpty(d, args)
 		return err
 	}
 
@@ -320,7 +320,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		 */
 		_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
 		if err != nil {
-			c, err = containerCreateAsEmpty(d, args)
+			c, err = instanceCreateAsEmpty(d, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -353,7 +353,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 					return response.InternalError(err)
 				}
 			} else {
-				c, err = containerCreateAsEmpty(d, args)
+				c, err = instanceCreateAsEmpty(d, args)
 				if err != nil {
 					return response.InternalError(err)
 				}
