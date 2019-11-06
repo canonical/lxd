@@ -152,7 +152,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotImplemented is returned.
 func GetPoolByInstance(s *state.State, inst Instance) (Pool, error) {
-	poolName, err := s.Cluster.ContainerPool(inst.Project(), inst.Name())
+	poolName, err := s.Cluster.InstancePool(inst.Project(), inst.Name())
 	if err != nil {
 		return nil, err
 	}
