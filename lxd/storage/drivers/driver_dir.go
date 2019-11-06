@@ -33,7 +33,7 @@ func (d *dir) Info() Info {
 		OptimizedImages:    false,
 		PreservesInodes:    false,
 		Remote:             false,
-		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer},
+		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:       false,
 		RunningQuotaResize: true,
 	}
@@ -169,48 +169,94 @@ func (d *dir) HasVolume(volType VolumeType, volName string) bool {
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
-func (d *dir) CreateVolume(vol Volume, filler func(path string) error, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
-	}
-
+func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
 	volPath := vol.MountPath()
-
-	// Get the volume ID for the new volume, which is used to set project quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
+	err := vol.CreateMountPath()
 	if err != nil {
 		return err
 	}
 
-	err = vol.CreateMountPath()
-	if err != nil {
-		return err
+	// Extract specified size from pool or volume config.
+	size := d.config["volume.size"]
+	if vol.config["size"] != "" {
+		size = vol.config["size"]
 	}
 
 	revertPath := true
 	defer func() {
 		if revertPath {
-			d.deleteQuota(volPath, volID)
 			os.RemoveAll(volPath)
 		}
 	}()
 
-	// Initialise the volume's quota using the volume ID.
-	err = d.initQuota(volPath, volID)
-	if err != nil {
-		return err
-	}
-
-	// Set the quota if specified in volConfig or pool config.
-	err = d.setQuota(volPath, volID, vol.config["size"])
-	if err != nil {
-		return err
-	}
-
-	if filler != nil {
-		err = filler(volPath)
+	// Create sparse loopback file if volume is block.
+	rootBlockPath := ""
+	if vol.contentType == ContentTypeBlock {
+		// We expect the filler to copy the VM image into this path.
+		rootBlockPath, _, err = d.GetVolumeDiskPath(vol.volType, vol.name)
 		if err != nil {
 			return err
+		}
+	} else {
+		// Get the volume ID for the new volume, which is used to set project quota.
+		volID, err := d.getVolID(vol.volType, vol.name)
+		if err != nil {
+			return err
+		}
+
+		// Initialise the volume's quota using the volume ID.
+		err = d.initQuota(volPath, volID)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			if revertPath {
+				d.deleteQuota(volPath, volID)
+			}
+		}()
+
+		// Set the quota.
+		err = d.setQuota(volPath, volID, size)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Run the volume filler function if supplied.
+	if filler != nil {
+		err = filler(volPath, rootBlockPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// If we are creating a block volume, resize it to the requested size or 10GB.
+	// We expect the filler function to have copied the qcow2 image to the rootBlockPath.
+	if vol.contentType == ContentTypeBlock {
+		blockSize := size
+		if blockSize == "" {
+			blockSize = "10GB"
+		}
+
+		blockSizeBytes, err := units.ParseByteSizeString(blockSize)
+		if err != nil {
+			return err
+		}
+
+		if shared.PathExists(rootBlockPath) {
+			_, err = shared.RunCommand("qemu-img", "resize", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
+			if err != nil {
+				return fmt.Errorf("Failed resizing disk image %s to size %s: %v", rootBlockPath, blockSize, err)
+			}
+		} else {
+			// If rootBlockPath doesn't exist, then there has been no filler function
+			// supplied to create it from another source. So instead create an empty
+			// volume (use for PXE booting a VM).
+			_, err = shared.RunCommand("qemu-img", "create", "-f", "qcow2", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
+			if err != nil {
+				return fmt.Errorf("Failed creating disk image %s as size %s: %v", rootBlockPath, blockSize, err)
+			}
 		}
 	}
 
