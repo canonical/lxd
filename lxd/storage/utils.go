@@ -381,6 +381,8 @@ func VolumeTypeNameToType(volumeTypeName string) (int, error) {
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
 		return db.StoragePoolVolumeTypeContainer, nil
+	case db.StoragePoolVolumeTypeNameVM:
+		return db.StoragePoolVolumeTypeVM, nil
 	case db.StoragePoolVolumeTypeNameImage:
 		return db.StoragePoolVolumeTypeImage, nil
 	case db.StoragePoolVolumeTypeNameCustom:
@@ -395,6 +397,8 @@ func VolumeTypeToDBType(volType drivers.VolumeType) (int, error) {
 	switch volType {
 	case drivers.VolumeTypeContainer:
 		return db.StoragePoolVolumeTypeContainer, nil
+	case drivers.VolumeTypeVM:
+		return db.StoragePoolVolumeTypeVM, nil
 	case drivers.VolumeTypeImage:
 		return db.StoragePoolVolumeTypeImage, nil
 	case drivers.VolumeTypeCustom:
