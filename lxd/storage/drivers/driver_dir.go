@@ -266,6 +266,10 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 
 // MigrateVolume sends a volume for migration.
 func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
+	if vol.contentType != ContentTypeFS {
+		return fmt.Errorf("Content type not supported")
+	}
+
 	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
 		return fmt.Errorf("Migration type not supported")
 	}
@@ -528,6 +532,10 @@ func (d *dir) VolumeSnapshots(volType VolumeType, volName string, op *operations
 
 // UpdateVolume applies config changes to the volume.
 func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+	if vol.contentType != ContentTypeFS {
+		return fmt.Errorf("Content type not supported")
+	}
+
 	if _, changed := changedConfig["size"]; changed {
 		volID, err := d.getVolID(vol.volType, vol.name)
 		if err != nil {
