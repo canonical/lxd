@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -688,27 +689,77 @@ func validateVolumeCommonRules() map[string]func(string) error {
 }
 
 // ImageUnpack unpacks a filesystem image into the destination path.
-func ImageUnpack(imageFile string, destPath string, blockBackend bool, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
+// There are several formats that images can come in:
+// Container Format A: Separate metadata tarball and root squashfs file.
+// 	- Unpack metadata tarball into mountPath.
+//	- Unpack root squashfs file into mountPath/rootfs.
+// Container Format B: Combined tarball containing metadata files and root squashfs.
+//	- Unpack combined tarball into mountPath.
+// VM Format A: Separate metadata tarball and root qcow2 file.
+// 	- Unpack metadata tarball into mountPath (if file exists, convert to raw, if not just copy).
+//	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
+func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
+	// For all formats, first unpack the metadata (or combined) tarball into destPath.
 	err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
 	if err != nil {
 		return err
 	}
 
-	rootfsPath := fmt.Sprintf("%s/rootfs", destPath)
-	if shared.PathExists(imageFile + ".rootfs") {
-		err = os.MkdirAll(rootfsPath, 0755)
-		if err != nil {
-			return fmt.Errorf("Error creating rootfs directory")
+	imageRootfsFile := imageFile + ".rootfs"
+
+	// If no destBlockFile supplied then this is a container image unpack.
+	if destBlockFile == "" {
+		rootfsPath := filepath.Join(destPath, "rootfs")
+
+		// Check for separate root file.
+		if shared.PathExists(imageRootfsFile) {
+			err = os.MkdirAll(rootfsPath, 0755)
+			if err != nil {
+				return fmt.Errorf("Error creating rootfs directory")
+			}
+
+			err = shared.Unpack(imageRootfsFile, rootfsPath, blockBackend, runningInUserns, tracker)
+			if err != nil {
+				return err
+			}
 		}
 
-		err = shared.Unpack(imageFile+".rootfs", rootfsPath, blockBackend, runningInUserns, tracker)
-		if err != nil {
+		// Check that the container image unpack has resulted in a rootfs dir.
+		if !shared.PathExists(rootfsPath) {
+			return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+		}
+	} else {
+		// If a rootBlockPath is supplied then this is a VM image unpack.
+
+		// VM images require a separate rootfs file.
+		if !shared.PathExists(imageRootfsFile) {
+			return fmt.Errorf("Image is missing a rootfs file: %s", imageRootfsFile)
+		}
+
+		// Check that the rootBlockPath exists and is a file.
+		fileInfo, err := os.Stat(destBlockFile)
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
-	}
 
-	if !shared.PathExists(rootfsPath) {
-		return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
+		// If dest block file doesn't exist, then the expectation is that we will just copy
+		// the qcow2 image to the specified location unmodified.
+		if os.IsNotExist(err) {
+			_, err = shared.RunCommand("cp", imageRootfsFile, destBlockFile)
+			if err != nil {
+				return fmt.Errorf("Failed copying image to %s: %v", destBlockFile, err)
+			}
+		} else if !fileInfo.IsDir() {
+			// If the dest block file exists and not a directory, then convert the
+			// qcow2 format to a raw block device.
+			_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imageRootfsFile, destBlockFile)
+			if err != nil {
+				return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
+			}
+		} else {
+			// If the dest block file exists, and it is a directory, fail.
+			return fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
+		}
 	}
 
 	return nil
