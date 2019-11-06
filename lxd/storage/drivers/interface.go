@@ -33,7 +33,7 @@ type Driver interface {
 
 	// Volumes.
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
-	CreateVolume(vol Volume, filler func(path string) error, op *operations.Operation) error
+	CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error
 	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error
 	DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error
 	RenameVolume(volType VolumeType, volName string, newName string, op *operations.Operation) error
