@@ -308,7 +308,7 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
 }
 
-func (d *cephfs) CreateVolume(vol Volume, filler func(path string) error, op *operations.Operation) error {
+func (d *cephfs) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
 	if vol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
@@ -332,7 +332,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler func(path string) error, op *op
 	}()
 
 	if filler != nil {
-		err = filler(volPath)
+		err = filler(volPath, "")
 		if err != nil {
 			return err
 		}
