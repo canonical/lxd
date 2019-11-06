@@ -374,7 +374,7 @@ func TestContainerPool(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	poolName, err := cluster.ContainerPool("default", "c1")
+	poolName, err := cluster.InstancePool("default", "c1")
 	require.NoError(t, err)
 	assert.Equal(t, "default", poolName)
 }
