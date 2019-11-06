@@ -1053,6 +1053,7 @@ const (
 	StoragePoolVolumeTypeContainer = iota
 	StoragePoolVolumeTypeImage
 	StoragePoolVolumeTypeCustom
+	StoragePoolVolumeTypeVM
 )
 
 // Leave the string type in here! This guarantees that go treats this is as a
@@ -1060,6 +1061,7 @@ const (
 // constants which is not what we want.
 const (
 	StoragePoolVolumeTypeNameContainer string = "container"
+	StoragePoolVolumeTypeNameVM        string = "virtual-machine"
 	StoragePoolVolumeTypeNameImage     string = "image"
 	StoragePoolVolumeTypeNameCustom    string = "custom"
 )
@@ -1081,6 +1083,8 @@ func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {
 	case StoragePoolVolumeTypeContainer:
 		return StoragePoolVolumeTypeNameContainer, nil
+	case StoragePoolVolumeTypeVM:
+		return StoragePoolVolumeTypeNameVM, nil
 	case StoragePoolVolumeTypeImage:
 		return StoragePoolVolumeTypeNameImage, nil
 	case StoragePoolVolumeTypeCustom:
