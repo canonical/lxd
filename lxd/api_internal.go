@@ -698,7 +698,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				onDiskPoolName = poolName
 			}
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			snapPath := driver.ContainerPath(snapName, true)
+			snapPath := driver.InstancePath(instancetype.Container, projectName, snapName, true)
 			err = lvmContainerDeleteInternal(projectName, poolName, req.Name,
 				true, onDiskPoolName, snapPath)
 		case "ceph":
@@ -936,7 +936,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	containerPath := driver.ContainerPath(project.Prefix(projectName, req.Name), false)
+	containerPath := driver.InstancePath(instancetype.Container, projectName, req.Name, false)
 	isPrivileged := false
 	if backup.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
