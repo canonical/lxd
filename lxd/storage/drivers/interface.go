@@ -14,7 +14,8 @@ import (
 type driver interface {
 	Driver
 
-	init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error)
+	init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) error
+	load() error
 }
 
 // Driver represents a low-level storage driver.
