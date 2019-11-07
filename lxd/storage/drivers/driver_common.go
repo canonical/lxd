@@ -18,13 +18,19 @@ type common struct {
 	logger         logger.Logger
 }
 
-func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) {
+func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) error {
 	d.name = name
 	d.config = config
 	d.getVolID = volIDFunc
 	d.getCommonRules = commonRulesFunc
 	d.state = state
 	d.logger = logger
+
+	return d.load()
+}
+
+func (d *common) load() error {
+	return nil
 }
 
 // validateVolume validates a volume config against common rules and optional driver specific rules.
