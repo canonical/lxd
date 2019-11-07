@@ -767,19 +767,13 @@ func (d *dir) deleteQuota(path string, volID int64) error {
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
 func (d *dir) CreateVolumeSnapshot(volType VolumeType, volName string, newSnapshotName string, op *operations.Operation) error {
-	// Get the volume ID for the parent volume, which is used to set project quota on snapshot.
-	volID, err := d.getVolID(volType, volName)
-	if err != nil {
-		return err
-	}
-
 	srcPath := GetVolumeMountPath(d.name, volType, volName)
 	fullSnapName := GetSnapshotVolumeName(volName, newSnapshotName)
 	snapVol := NewVolume(d, d.name, volType, ContentTypeFS, fullSnapName, nil)
 	snapPath := snapVol.MountPath()
 
 	// Create snapshot directory.
-	err = snapVol.CreateMountPath()
+	err := snapVol.CreateMountPath()
 	if err != nil {
 		return err
 	}
@@ -787,16 +781,9 @@ func (d *dir) CreateVolumeSnapshot(volType VolumeType, volName string, newSnapsh
 	revertPath := true
 	defer func() {
 		if revertPath {
-			d.deleteQuota(snapPath, volID)
 			os.RemoveAll(snapPath)
 		}
 	}()
-
-	// Initialise the snapshot's quota with the parent volume's ID.
-	err = d.initQuota(snapPath, volID)
-	if err != nil {
-		return err
-	}
 
 	bwlimit := d.config["rsync.bwlimit"]
 
@@ -813,22 +800,10 @@ func (d *dir) CreateVolumeSnapshot(volType VolumeType, volName string, newSnapsh
 // DeleteVolumeSnapshot removes a snapshot from the storage device. The volName and snapshotName
 // must be bare names and should not be in the format "volume/snapshot".
 func (d *dir) DeleteVolumeSnapshot(volType VolumeType, volName string, snapshotName string, op *operations.Operation) error {
-	// Get the volume ID for the parent volume, which is used to remove project quota.
-	volID, err := d.getVolID(volType, volName)
-	if err != nil {
-		return err
-	}
-
 	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
 
-	// Remove the project quota.
-	err = d.deleteQuota(snapPath, volID)
-	if err != nil {
-		return err
-	}
-
 	// Remove the snapshot from the storage device.
-	err = os.RemoveAll(snapPath)
+	err := os.RemoveAll(snapPath)
 	if err != nil {
 		return err
 	}
