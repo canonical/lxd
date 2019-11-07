@@ -620,7 +620,7 @@ func storagePoolVolumeContainerCreateInit(s *state.State, project string, poolNa
 
 func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := s.Cluster.ContainerPool(project, containerName)
+	poolName, err := s.Cluster.InstancePool(project, containerName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load storage pool for container %q in project %q", containerName, project)
 	}
