@@ -54,6 +54,10 @@ func (d *nicPhysical) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
+	// Lock to avoid issues with containers starting in parallel.
+	networkCreateSharedDeviceLock.Lock()
+	defer networkCreateSharedDeviceLock.Unlock()
+
 	saveData := make(map[string]string)
 
 	// Record the host_name device used for restoration later.

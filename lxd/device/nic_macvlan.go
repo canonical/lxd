@@ -47,6 +47,10 @@ func (d *nicMACVLAN) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
+	// Lock to avoid issues with containers starting in parallel.
+	networkCreateSharedDeviceLock.Lock()
+	defer networkCreateSharedDeviceLock.Unlock()
+
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
