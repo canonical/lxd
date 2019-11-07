@@ -28,7 +28,6 @@ func Load(state *state.State, driverName string, name string, config map[string]
 type Info struct {
 	Name               string
 	Version            string
-	Usable             bool
 	Remote             bool
 	OptimizedImages    bool
 	PreservesInodes    bool

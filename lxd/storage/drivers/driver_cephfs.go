@@ -39,7 +39,6 @@ func (d *cephfs) Info() Info {
 	return Info{
 		Name:               "cephfs",
 		Version:            cephfsVersion,
-		Usable:             true,
 		Remote:             true,
 		OptimizedImages:    false,
 		PreservesInodes:    false,
