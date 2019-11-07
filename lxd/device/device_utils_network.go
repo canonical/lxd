@@ -11,12 +11,16 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
+
+// Instances can be started in parallel, so lock the creation of VLANs.
+var networkCreateSharedDeviceLock sync.Mutex
 
 // NetworkSysctlGet retrieves the value of a sysctl file in /proc/sys/net.
 func NetworkSysctlGet(path string) (string, error) {
