@@ -332,7 +332,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapsho
 
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will unpack the specified image archive into the specified mount path
-// provided, and for VM images, a raw root block path is required to unpack the qcow image into.
+// provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
 func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath, rootBlockPath string) error {
 	return func(mountPath, rootBlockPath string) error {
 		var tracker *ioprogress.ProgressTracker
