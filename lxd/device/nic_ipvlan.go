@@ -113,21 +113,25 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
+	// Lock to avoid issues with containers starting in parallel.
+	networkCreateSharedDeviceLock.Lock()
+	defer networkCreateSharedDeviceLock.Unlock()
+
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
 	parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
-	createdDev, err := NetworkCreateVlanDeviceIfNeeded(d.config["parent"], parentName, d.config["vlan"])
+	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
 	if err != nil {
 		return nil, err
 	}
 
 	// Record whether we created this device or not so it can be removed on stop.
-	saveData["last_state.created"] = fmt.Sprintf("%t", createdDev)
+	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
 	// If we created a VLAN interface, we need to setup the sysctls on that interface.
-	if createdDev {
+	if statusDev == "created" {
 		err := d.setupParentSysctls(parentName)
 		if err != nil {
 			return nil, err
@@ -227,7 +231,7 @@ func (d *nicIPVLAN) postStop() error {
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
 		parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-		err := NetworkRemoveInterface(parentName)
+		err := NetworkRemoveInterfaceIfNeeded(d.state, parentName, d.instance, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			return err
 		}
