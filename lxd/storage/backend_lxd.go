@@ -178,8 +178,7 @@ func (b *lxdBackend) Unmount() (bool, error) {
 // ensureInstanceSymlink creates a symlink in the instance directory to the instance's mount path
 // if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName, instanceName, mountPath string) error {
-	volStorageName := project.Prefix(projectName, instanceName)
-	symlinkPath := ContainerPath(volStorageName, false)
+	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
 	if shared.PathExists(symlinkPath) {
@@ -200,8 +199,7 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 
 // removeInstanceSymlink removes a symlink in the instance directory to the instance's mount path.
 func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, projectName, instanceName string) error {
-	volStorageName := project.Prefix(projectName, instanceName)
-	symlinkPath := ContainerPath(volStorageName, false)
+	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
@@ -223,7 +221,7 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	}
 
 	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(instanceName)
-	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, parentName))
+	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Prefix(projectName, parentName)
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
@@ -259,7 +257,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 	}
 
 	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(instanceName)
-	snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, parentName))
+	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Prefix(projectName, parentName)
 
 	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
@@ -299,7 +297,12 @@ func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) err
 		b.DeleteInstance(inst, op)
 	}()
 
-	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), nil)
 	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
@@ -366,7 +369,12 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		b.DeleteInstance(inst, op)
 	}()
 
-	vol := b.newVolume(volType, drivers.ContentTypeFS, project.Prefix(inst.Project(), inst.Name()), nil)
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), nil)
 
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
@@ -384,7 +392,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 			return err
 		}
 
-		imgVol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
+		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 		if err != nil {
 			return err
@@ -839,9 +847,20 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		return nil
 	}
 
+	// Load image info from database.
+	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if api.InstanceType(image.Type) == api.InstanceTypeVM {
+		contentType = drivers.ContentTypeBlock
+	}
+
 	// Create the new image volume.
-	vol := b.newVolume(drivers.VolumeTypeImage, drivers.ContentTypeFS, fingerprint, nil)
-	err := b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+	vol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+	err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
 	if err != nil {
 		return err
 	}

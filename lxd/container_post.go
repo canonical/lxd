@@ -178,7 +178,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Check if we are migrating a ceph-based container.
-			poolName, err := d.cluster.ContainerPool(project, name)
+			poolName, err := d.cluster.InstancePool(project, name)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch container's pool name")
 				return response.SmartError(err)
@@ -449,7 +449,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c Instance, project, oldN
 				return errors.Wrapf(
 					err, "Move container %s to %s with new name %s", oldName, newNode, newName)
 			}
-			poolName, err = tx.ContainerPool(project, newName)
+			poolName, err = tx.InstancePool(project, newName)
 			if err != nil {
 				return errors.Wrapf(err, "Get the container's storage pool name for %s", newName)
 			}

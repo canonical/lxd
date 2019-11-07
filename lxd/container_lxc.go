@@ -3544,7 +3544,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Get the storage pool name of the instance.
-	poolName, err := c.state.Cluster.ContainerPool(c.Project(), c.Name())
+	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
 	if err != nil {
 		return err
 	}
@@ -3614,7 +3614,7 @@ func (c *containerLXC) Delete() error {
 		}
 
 		// Remove the database record of the instance or snapshot instance.
-		if err := c.state.Cluster.ContainerRemove(c.Project(), c.Name()); err != nil {
+		if err := c.state.Cluster.InstanceRemove(c.Project(), c.Name()); err != nil {
 			logger.Error("Failed deleting instance entry", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 			return err
 		}
@@ -3689,7 +3689,7 @@ func (c *containerLXC) Delete() error {
 		}
 
 		// Remove the database record
-		if err := c.state.Cluster.ContainerRemove(c.project, c.Name()); err != nil {
+		if err := c.state.Cluster.InstanceRemove(c.project, c.Name()); err != nil {
 			logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 			return err
 		}
@@ -4055,7 +4055,12 @@ func writeBackupFile(c Instance) error {
 		return err
 	}
 
-	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
+	dbType := db.StoragePoolVolumeTypeContainer
+	if c.Type() == instancetype.VM {
+		dbType = db.StoragePoolVolumeTypeVM
+	}
+
+	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.Project(), c.Name(), dbType, poolID)
 	if err != nil {
 		return err
 	}
@@ -6849,8 +6854,7 @@ func (c *containerLXC) State() string {
 
 // Various container paths
 func (c *containerLXC) Path() string {
-	name := project.Prefix(c.Project(), c.Name())
-	return storagePools.ContainerPath(name, c.IsSnapshot())
+	return storagePools.InstancePath(c.Type(), c.Project(), c.Name(), c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {
@@ -6897,7 +6901,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := c.state.Cluster.ContainerPool(c.Project(), c.Name())
+	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
 	if err != nil {
 		return "", err
 	}

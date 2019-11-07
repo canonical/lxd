@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -1198,7 +1199,7 @@ func (s *storageDir) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, t
 
 	// Create mountpoints
 	containerMntPoint := driver.GetContainerMountPoint(info.Project, s.pool.Name, info.Name)
-	err = driver.CreateContainerMountpoint(containerMntPoint, driver.ContainerPath(project.Prefix(info.Project, info.Name), false), info.Privileged)
+	err = driver.CreateContainerMountpoint(containerMntPoint, driver.InstancePath(instancetype.Container, info.Project, info.Name, false), info.Privileged)
 	if err != nil {
 		return errors.Wrap(err, "Create container mount point")
 	}
