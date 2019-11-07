@@ -19,26 +19,26 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+var cephfsVersion string
+
 type cephfs struct {
 	common
-
-	version string
 }
 
 func (d *cephfs) Info() Info {
 	// Detect and record the version.
-	if d.version == "" {
+	if cephfsVersion == "" {
 		msg, err := shared.RunCommand("rbd", "--version")
 		if err != nil {
-			d.version = "unknown"
+			cephfsVersion = "unknown"
 		} else {
-			d.version = strings.TrimSpace(msg)
+			cephfsVersion = strings.TrimSpace(msg)
 		}
 	}
 
 	return Info{
 		Name:               "cephfs",
-		Version:            d.version,
+		Version:            cephfsVersion,
 		Usable:             true,
 		Remote:             true,
 		OptimizedImages:    false,
