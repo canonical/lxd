@@ -62,24 +62,24 @@ func (d *nicPhysical) Start() (*RunConfig, error) {
 
 	// Record the host_name device used for restoration later.
 	saveData["host_name"] = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-	createdDev, err := NetworkCreateVlanDeviceIfNeeded(d.config["parent"], saveData["host_name"], d.config["vlan"])
+	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
 	if err != nil {
 		return nil, err
 	}
 
 	// Record whether we created this device or not so it can be removed on stop.
-	saveData["last_state.created"] = fmt.Sprintf("%t", createdDev)
+	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
 	// If we return from this function with an error, ensure we clean up created device.
 	defer func() {
-		if err != nil && createdDev {
+		if err != nil && statusDev == "created" {
 			NetworkRemoveInterface(saveData["host_name"])
 		}
 	}()
 
 	// If we didn't create the device we should track various properties so we can
 	// restore them when the instance is stopped or the device is detached.
-	if createdDev == false {
+	if statusDev == "existing" {
 		err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
 		if err != nil {
 			return nil, err
