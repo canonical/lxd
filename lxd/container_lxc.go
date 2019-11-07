@@ -3567,7 +3567,7 @@ func (c *containerLXC) Delete() error {
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
 			// calling its Delete function.
-			err := containerDeleteSnapshots(c.state, c.Project(), c.Name())
+			err := instanceDeleteSnapshots(c.state, c.Project(), c.Name())
 			if err != nil {
 				logger.Error("Failed to delete instance snapshots", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 				return err
@@ -3636,7 +3636,7 @@ func (c *containerLXC) Delete() error {
 			}
 		} else {
 			// Remove all snapshots
-			err := containerDeleteSnapshots(c.state, c.Project(), c.Name())
+			err := instanceDeleteSnapshots(c.state, c.Project(), c.Name())
 			if err != nil {
 				logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 				return err
