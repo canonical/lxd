@@ -671,9 +671,28 @@ func (b *lxdBackend) UnmountInstance(inst Instance, op *operations.Operation) (b
 	return b.driver.UnmountVolume(volType, volStorageName, op)
 }
 
-// GetInstanceDisk returns the type of disk for an instance and its location.
+// GetInstanceDisk returns the location of the disk and its type.
 func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, string, error) {
-	return "", "", ErrNotImplemented
+	if inst.Type() != instancetype.VM {
+		return "", "", ErrNotImplemented
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return "", "", err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// Get the location of the disk block device.
+	diskPath, diskType, err := b.driver.GetVolumeDiskPath(volType, volStorageName)
+	if err != nil {
+		return "", "", err
+	}
+
+	return diskPath, diskType, nil
 }
 
 func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error {
