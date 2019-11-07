@@ -19,7 +19,10 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	}
 
 	d := driverFunc()
-	d.init(state, name, config, logger, volIDFunc, commonRulesFunc)
+	err := d.init(state, name, config, logger, volIDFunc, commonRulesFunc)
+	if err != nil {
+		return nil, err
+	}
 
 	return d, nil
 }
