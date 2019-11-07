@@ -519,8 +519,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		if op != nil {
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					// tomp TODO should the container reference here be removed?
-					shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, 0, speed)
+					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
 					op.UpdateMetadata(metadata)
 				}}
 		}
