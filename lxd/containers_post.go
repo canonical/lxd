@@ -148,8 +148,8 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 	}
 
 	resources := map[string][]string{}
-	// tomp TODO should this be renamed/added to?
-	resources["containers"] = []string{req.Name}
+	resources["instances"] = []string{req.Name}
+	resources["containers"] = resources["instances"] // Populate old field name.
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
