@@ -347,7 +347,7 @@ func TestContainersByNodeName(t *testing.T) {
 		}, result)
 }
 
-func TestContainerPool(t *testing.T) {
+func TestInstancePool(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
