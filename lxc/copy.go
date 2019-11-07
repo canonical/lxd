@@ -411,15 +411,19 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			return err
 		}
 
-		// Extract the list of affected containers
-		containers, ok := opInfo.Resources["containers"]
-		if !ok || len(containers) != 1 {
-			return fmt.Errorf(i18n.G("Failed to get the new container name"))
+		// Extract the list of affected instances
+		instances, ok := opInfo.Resources["instances"]
+		if !ok || len(instances) != 1 {
+			// Extract the list of affected instances using old "containers" field
+			instances, ok = opInfo.Resources["containers"]
+			if !ok || len(instances) != 1 {
+				return fmt.Errorf(i18n.G("Failed to get the new instance name"))
+			}
 		}
 
-		// Extract the name of the container
-		fields := strings.Split(containers[0], "/")
-		fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
+		// Extract the name of the instance
+		fields := strings.Split(instances[0], "/")
+		fmt.Printf(i18n.G("Instance name is: %s")+"\n", fields[len(fields)-1])
 	}
 
 	// Start the container if needed
