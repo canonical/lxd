@@ -167,6 +167,11 @@ func (d *dir) HasVolume(volType VolumeType, volName string) bool {
 	return false
 }
 
+// GetVolumeDiskPath returns the location and file format of a disk volume.
+func (d *dir) GetVolumeDiskPath(volType VolumeType, volName string) (string, string, error) {
+	return filepath.Join(GetVolumeMountPath(d.name, volType, volName), "root.img"), "qcow2", nil
+}
+
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
 func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
