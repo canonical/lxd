@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -155,31 +156,78 @@ func NetworkRemoveInterface(nic string) error {
 	return err
 }
 
+// NetworkRemoveInterfaceIfNeeded removes a network interface by name but only if no other instance is using it.
+func NetworkRemoveInterfaceIfNeeded(state *state.State, nic string, current Instance, parent string, vlanID string) error {
+	// Check if it's used by another instance.
+	instances, err := InstanceLoadNodeAll(state)
+	if err != nil {
+		return err
+	}
+
+	for _, inst := range instances {
+		if inst.Name() == current.Name() && inst.Project() == current.Project() {
+			continue
+		}
+
+		for devName, dev := range inst.ExpandedDevices() {
+			if dev["type"] != "nic" || dev["vlan"] != vlanID || dev["parent"] != parent {
+				continue
+			}
+
+			// Check if another running instance created the device, if so, don't touch it.
+			if shared.IsTrue(inst.ExpandedConfig()[fmt.Sprintf("volatile.%s.last_state.created", devName)]) {
+				return nil
+			}
+		}
+	}
+
+	return NetworkRemoveInterface(nic)
+}
+
 // NetworkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
-func NetworkCreateVlanDeviceIfNeeded(parent string, vlanDevice string, vlanID string) (bool, error) {
+func NetworkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevice string, vlanID string) (string, error) {
 	if vlanID != "" {
 		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vlanDevice)) {
 			// Bring the parent interface up so we can add a vlan to it.
 			_, err := shared.RunCommand("ip", "link", "set", "dev", parent, "up")
 			if err != nil {
-				return false, fmt.Errorf("Failed to bring up parent %s: %v", parent, err)
+				return "", fmt.Errorf("Failed to bring up parent %s: %v", parent, err)
 			}
 
 			// Add VLAN interface on top of parent.
 			_, err = shared.RunCommand("ip", "link", "add", "link", parent, "name", vlanDevice, "up", "type", "vlan", "id", vlanID)
 			if err != nil {
-				return false, err
+				return "", err
 			}
 
-			// Attempt to disable IPv6 router advertisement acceptance
+			// Attempt to disable IPv6 router advertisement acceptance.
 			NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", vlanDevice), "0")
 
-			// We created a new vlan interface, return true
-			return true, nil
+			// We created a new vlan interface, return true.
+			return "created", nil
+		}
+
+		// Check if it was created for another running instance.
+		instances, err := InstanceLoadNodeAll(state)
+		if err != nil {
+			return "", err
+		}
+
+		for _, inst := range instances {
+			for devName, dev := range inst.ExpandedDevices() {
+				if dev["type"] != "nic" || dev["vlan"] != vlanID || dev["parent"] != parent {
+					continue
+				}
+
+				// Check if another running instance created the device, if so, mark it as created.
+				if shared.IsTrue(inst.ExpandedConfig()[fmt.Sprintf("volatile.%s.last_state.created", devName)]) {
+					return "reused", nil
+				}
+			}
 		}
 	}
 
-	return false, nil
+	return "existing", nil
 }
 
 // networkSnapshotPhysicalNic records properties of the NIC to volatile so they can be restored later.
