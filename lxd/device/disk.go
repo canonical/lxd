@@ -45,7 +45,7 @@ func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.instance.Type() != instancetype.Container && d.instance.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
@@ -191,6 +191,14 @@ func (d *disk) Start() (*RunConfig, error) {
 	}
 
 	runConf := RunConfig{}
+
+	if d.instance.Type() == instancetype.VM {
+		if shared.IsRootDiskDevice(d.config) {
+			return &runConf, nil
+		}
+
+		return nil, fmt.Errorf("Non-root disks not supported for VMs")
+	}
 
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 
@@ -340,6 +348,14 @@ func (d *disk) postStart() error {
 
 // Update applies configuration changes to a started device.
 func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
+	if d.instance.Type() == instancetype.VM {
+		if shared.IsRootDiskDevice(d.config) {
+			return nil
+		}
+
+		return fmt.Errorf("Non-root disks not supported for VMs")
+	}
+
 	if shared.IsRootDiskDevice(d.config) {
 		// Make sure we have a valid root disk device (and only one).
 		expandedDevices := d.instance.ExpandedDevices()
@@ -600,6 +616,14 @@ func (d *disk) createDevice() (string, error) {
 
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*RunConfig, error) {
+	if d.instance.Type() == instancetype.VM {
+		if shared.IsRootDiskDevice(d.config) {
+			return &RunConfig{}, nil
+		}
+
+		return nil, fmt.Errorf("Non-root disks not supported for VMs")
+	}
+
 	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
