@@ -31,17 +31,17 @@ func fileHandler(r *http.Request) response.Response {
 
 	switch r.Method {
 	case "GET":
-		return containerFileGet(path, r)
+		return fileGet(path, r)
 	case "POST":
-		return containerFilePost(path, r)
+		return filePost(path, r)
 	case "DELETE":
-		return containerFileDelete(path, r)
+		return fileDelete(path, r)
 	default:
 		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
 }
 
-func containerFileGet(path string, r *http.Request) response.Response {
+func fileGet(path string, r *http.Request) response.Response {
 	uid, gid, mode, fType, dirEnts, err := getFileInfo(path)
 	if err != nil {
 		return response.SmartError(err)
@@ -99,7 +99,7 @@ func containerFileGet(path string, r *http.Request) response.Response {
 	return response.InternalError(fmt.Errorf("bad file type %s", fType))
 }
 
-func containerFilePost(path string, r *http.Request) response.Response {
+func filePost(path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, fType, write := shared.ParseLXDFileHeaders(r.Header)
 
@@ -152,7 +152,7 @@ func containerFilePost(path string, r *http.Request) response.Response {
 	return response.BadRequest(fmt.Errorf("Bad file type: %s", fType))
 }
 
-func containerFileDelete(path string, r *http.Request) response.Response {
+func fileDelete(path string, r *http.Request) response.Response {
 	err := os.Remove(path)
 	if err != nil {
 		return response.SmartError(err)
