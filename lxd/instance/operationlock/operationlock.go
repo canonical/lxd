@@ -7,7 +7,7 @@ import (
 )
 
 var instanceOperationsLock sync.Mutex
-var instanceOperations map[int]*InstanceOperation = make(map[int]*InstanceOperation)
+var instanceOperations = make(map[int]*InstanceOperation)
 
 // InstanceOperation operation locking.
 type InstanceOperation struct {
