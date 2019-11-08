@@ -210,6 +210,8 @@ func mynames() ([]string, error) {
 	return ret, nil
 }
 
+// FindOrGenCert generates a keypair if needed.
+// The type argument is false for server, true for client.
 func FindOrGenCert(certf string, keyf string, certtype bool) error {
 	if PathExists(certf) && PathExists(keyf) {
 		return nil
