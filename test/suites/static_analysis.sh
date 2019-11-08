@@ -67,6 +67,8 @@ test_static_analysis() {
       golint -set_exit_status lxc/config/
       golint -set_exit_status lxc/utils/
 
+      golint -set_exit_status lxd-agent
+
       golint -set_exit_status lxd-benchmark
       golint -set_exit_status lxd-benchmark/benchmark
 
