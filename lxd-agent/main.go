@@ -34,12 +34,12 @@ func main() {
 		log.Fatalln(errors.Wrap(err, "Failed to read client certificate"))
 	}
 
-	tlsConfig, err := ServerTLSConfig()
+	tlsConfig, err := serverTLSConfig()
 	if err != nil {
 		log.Fatalln(errors.Wrap(err, "Failed to get TLS config"))
 	}
 
-	httpServer := RestServer(tlsConfig)
+	httpServer := restServer(tlsConfig)
 
 	log.Println(httpServer.ServeTLS(networkTLSListener(l, tlsConfig), tlsServerCertFile, tlsServerKeyFile))
 }

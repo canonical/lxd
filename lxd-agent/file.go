@@ -42,7 +42,7 @@ func fileHandler(r *http.Request) response.Response {
 }
 
 func containerFileGet(path string, r *http.Request) response.Response {
-	uid, gid, mode, type_, dirEnts, err := getFileInfo(path)
+	uid, gid, mode, fType, dirEnts, err := getFileInfo(path)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -51,10 +51,10 @@ func containerFileGet(path string, r *http.Request) response.Response {
 		"X-LXD-uid":  fmt.Sprintf("%d", uid),
 		"X-LXD-gid":  fmt.Sprintf("%d", gid),
 		"X-LXD-mode": fmt.Sprintf("%04o", mode),
-		"X-LXD-type": type_,
+		"X-LXD-type": fType,
 	}
 
-	if type_ == "file" || type_ == "symlink" {
+	if fType == "file" || fType == "symlink" {
 		// Make a file response struct
 		files := make([]response.FileResponseEntry, 1)
 		files[0].Identifier = filepath.Base(path)
@@ -65,7 +65,7 @@ func containerFileGet(path string, r *http.Request) response.Response {
 		}
 		defer f.Close()
 
-		if type_ == "file" {
+		if fType == "file" {
 			src, err := os.Open(path)
 			if err != nil {
 				return response.SmartError(err)
@@ -92,22 +92,22 @@ func containerFileGet(path string, r *http.Request) response.Response {
 		files[0].Filename = filepath.Base(path)
 
 		return response.FileResponse(r, files, headers, true)
-	} else if type_ == "directory" {
+	} else if fType == "directory" {
 		return response.SyncResponseHeaders(true, dirEnts, headers)
 	}
 
-	return response.InternalError(fmt.Errorf("bad file type %s", type_))
+	return response.InternalError(fmt.Errorf("bad file type %s", fType))
 }
 
 func containerFilePost(path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
-	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, fType, write := shared.ParseLXDFileHeaders(r.Header)
 
 	if !shared.StringInSlice(write, []string{"overwrite", "append"}) {
 		return response.BadRequest(fmt.Errorf("Bad file write mode: %s", write))
 	}
 
-	if type_ == "file" {
+	if fType == "file" {
 		// Write file content to a tempfile
 		temp, err := ioutil.TempFile("", "lxd_forkputfile_")
 		if err != nil {
@@ -130,7 +130,7 @@ func containerFilePost(path string, r *http.Request) response.Response {
 		}
 
 		return response.EmptySyncResponse
-	} else if type_ == "symlink" {
+	} else if fType == "symlink" {
 		target, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			return response.InternalError(err)
@@ -141,7 +141,7 @@ func containerFilePost(path string, r *http.Request) response.Response {
 			return response.InternalError(err)
 		}
 		return response.EmptySyncResponse
-	} else if type_ == "directory" {
+	} else if fType == "directory" {
 		err := filePush("directory", "", path, uid, gid, mode, write)
 		if err != nil {
 			return response.InternalError(err)
@@ -149,7 +149,7 @@ func containerFilePost(path string, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	return response.BadRequest(fmt.Errorf("Bad file type: %s", type_))
+	return response.BadRequest(fmt.Errorf("Bad file type: %s", fType))
 }
 
 func containerFileDelete(path string, r *http.Request) response.Response {
@@ -179,11 +179,11 @@ func getFileInfo(path string) (int64, int64, os.FileMode, string, []string, erro
 		return -1, -1, 0, "", nil, err
 	}
 
-	var type_ string
+	var fType string
 	var dirEnts []string
 
 	if fi.Mode().IsDir() {
-		type_ = "directory"
+		fType = "directory"
 
 		f, err := os.Open(path)
 		if err != nil {
@@ -197,18 +197,18 @@ func getFileInfo(path string) (int64, int64, os.FileMode, string, []string, erro
 
 	} else {
 		if fi.Mode()&os.ModeSymlink != 0 {
-			type_ = "symlink"
+			fType = "symlink"
 		} else {
-			type_ = "file"
+			fType = "file"
 		}
 	}
 
 	// 0xFFF = 0b7777
-	return int64(stat.Uid), int64(stat.Gid), fi.Mode() & 0xFFF, type_, dirEnts, nil
+	return int64(stat.Uid), int64(stat.Gid), fi.Mode() & 0xFFF, fType, dirEnts, nil
 }
 
-func filePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
-	switch type_ {
+func filePush(fType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
+	switch fType {
 	case "file":
 		if !shared.PathExists(dstpath) {
 			if uid == -1 {
@@ -301,5 +301,5 @@ func filePush(type_ string, srcpath string, dstpath string, uid int64, gid int64
 		return nil
 	}
 
-	return fmt.Errorf("Bad file type: %s", type_)
+	return fmt.Errorf("Bad file type: %s", fType)
 }

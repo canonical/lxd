@@ -16,7 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func RestServer(tlsConfig *tls.Config) *http.Server {
+func restServer(tlsConfig *tls.Config) *http.Server {
 	mux := mux.NewRouter()
 	mux.StrictSlash(false)
 

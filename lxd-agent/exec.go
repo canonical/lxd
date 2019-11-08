@@ -119,8 +119,8 @@ type execWs struct {
 	command []string
 	env     map[string]string
 
-	rootUid          int64
-	rootGid          int64
+	rootUID          int64
+	rootGID          int64
 	conns            map[int]*websocket.Conn
 	connsLock        sync.Mutex
 	allConnected     chan bool
@@ -207,7 +207,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
+		ptys[0], ttys[0], err = shared.OpenPty(s.rootUID, s.rootGID)
 		if err != nil {
 			return err
 		}
