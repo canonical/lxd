@@ -5845,7 +5845,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	return nil
 }
 
-func (c *containerLXC) Console(terminal *os.File) *exec.Cmd {
+func (c *containerLXC) Console() (*os.File, error) {
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkconsole",
@@ -5855,13 +5855,34 @@ func (c *containerLXC) Console(terminal *os.File) *exec.Cmd {
 		"tty=0",
 		"escape=-1"}
 
+	idmapset, err := c.CurrentIdmap()
+	if err != nil {
+		return nil, err
+	}
+
+	var rootUID, rootGID int64
+	if idmapset != nil {
+		rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
+	}
+
+	master, slave, err := shared.OpenPty(rootUID, rootGID)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := exec.Cmd{}
 	cmd.Path = c.state.OS.ExecPath
 	cmd.Args = args
-	cmd.Stdin = terminal
-	cmd.Stdout = terminal
-	cmd.Stderr = terminal
-	return &cmd
+	cmd.Stdin = slave
+	cmd.Stdout = slave
+	cmd.Stderr = slave
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	return master, nil
 }
 
 func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
