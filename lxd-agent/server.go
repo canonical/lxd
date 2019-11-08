@@ -16,7 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func restServer(tlsConfig *tls.Config) *http.Server {
+func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool) *http.Server {
 	mux := mux.NewRouter()
 	mux.StrictSlash(false)
 
@@ -26,13 +26,13 @@ func restServer(tlsConfig *tls.Config) *http.Server {
 	})
 
 	for _, c := range api10 {
-		createCmd(mux, "1.0", c)
+		createCmd(mux, "1.0", c, cert, debug)
 	}
 
 	return &http.Server{Handler: mux, TLSConfig: tlsConfig}
 }
 
-func createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
+func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, debug bool) {
 	var uri string
 	if c.Path == "" {
 		uri = fmt.Sprintf("/%s", version)
@@ -43,14 +43,14 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	route := restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		if !authenticate(r) {
+		if !authenticate(r, cert) {
 			log.Println("Not authorized")
 			response.InternalError(fmt.Errorf("Not authorized")).Render(w)
 			return
 		}
 
 		// Dump full request JSON when in debug mode
-		if debug && r.Method != "GET" && util.IsJSONRequest(r) {
+		if r.Method != "GET" && util.IsJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
@@ -107,7 +107,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 	}
 }
 
-func authenticate(r *http.Request) bool {
+func authenticate(r *http.Request, cert *x509.Certificate) bool {
 	clientCerts := map[string]x509.Certificate{"0": *cert}
 
 	for _, cert := range r.TLS.PeerCertificates {

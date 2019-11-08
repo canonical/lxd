@@ -15,12 +15,10 @@ var tlsClientCertFile = filepath.Join("/", "media", "lxd_config", "server.crt")
 var tlsServerCertFile = filepath.Join("/", "media", "lxd_config", "agent.crt")
 var tlsServerKeyFile = filepath.Join("/", "media", "lxd_config", "agent.key")
 
-var debug bool
-
-// cert is the only client certificate which is authorized.
-var cert *x509.Certificate
-
 func main() {
+	var debug bool
+	var cert *x509.Certificate
+
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.Parse()
 
@@ -39,7 +37,7 @@ func main() {
 		log.Fatalln(errors.Wrap(err, "Failed to get TLS config"))
 	}
 
-	httpServer := restServer(tlsConfig)
+	httpServer := restServer(tlsConfig, cert, debug)
 
 	log.Println(httpServer.ServeTLS(networkTLSListener(l, tlsConfig), tlsServerCertFile, tlsServerKeyFile))
 }
