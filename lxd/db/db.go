@@ -1,3 +1,5 @@
+// +build linux,cgo,!agent
+
 package db
 
 import (
@@ -16,20 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-)
-
-var (
-	// ErrAlreadyDefined hapens when the given entry already exists,
-	// for example a container.
-	ErrAlreadyDefined = fmt.Errorf("The container/snapshot already exists")
-
-	// ErrNoSuchObject is in the case of joins (and probably other) queries,
-	// we don't get back sql.ErrNoRows when no rows are returned, even though we do
-	// on selects without joins. Instead, you can use this error to
-	// propagate up and generate proper 404s to the client when something
-	// isn't found so we don't abuse sql.ErrNoRows any more than we
-	// already do.
-	ErrNoSuchObject = fmt.Errorf("No such object")
 )
 
 // Node mediates access to LXD's data stored in the node-local SQLite database.
