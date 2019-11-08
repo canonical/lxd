@@ -6,10 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -25,17 +23,12 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type consoleWs struct {
 	// instance currently worked on
 	instance Instance
-
-	// uid to chown pty to
-	rootUid int64
-
-	// gid to chown pty to
-	rootGid int64
 
 	// websocket connections to bridge pty fds to
 	conns map[int]*websocket.Conn
@@ -114,35 +107,37 @@ func (s *consoleWs) Connect(op *operations.Operation, r *http.Request, w http.Re
 }
 
 func (s *consoleWs) Do(op *operations.Operation) error {
+	defer logger.Debug("Console websocket finished")
 	<-s.allConnected
 
-	var err error
-	master := &os.File{}
-	slave := &os.File{}
-	master, slave, err = shared.OpenPty(s.rootUid, s.rootGid)
+	// Get console from instance.
+	console, err := s.instance.Console()
 	if err != nil {
 		return err
 	}
+	defer console.Close()
 
+	// Switch the console file descriptor into raw mode.
+	oldttystate, err := termios.MakeRaw(int(console.Fd()))
+	if err != nil {
+		return err
+	}
+	defer termios.Restore(int(console.Fd()), oldttystate)
+
+	// Detect size of window and set it into console.
 	if s.width > 0 && s.height > 0 {
-		shared.SetSize(int(master.Fd()), s.width, s.height)
+		shared.SetSize(int(console.Fd()), s.width, s.height)
 	}
 
-	controlExit := make(chan bool)
-	var wgEOF sync.WaitGroup
+	consoleDoneCh := make(chan struct{})
 
-	consolePidChan := make(chan int)
-	wgEOF.Add(1)
+	// Wait for control socket to connect and then read messages from the remote side in a loop.
 	go func() {
-		select {
-		case <-s.controlConnected:
-			break
-
-		case <-controlExit:
+		defer logger.Debugf("Console control websocket finished")
+		res := <-s.controlConnected
+		if !res {
 			return
 		}
-
-		consolePid := <-consolePidChan
 
 		for {
 			s.connsLock.Lock()
@@ -152,12 +147,7 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 			_, r, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader %s", err)
-				err := unix.Kill(consolePid, unix.SIGTERM)
-				if err != nil {
-					logger.Debugf("Failed to send SIGTERM to pid %d", consolePid)
-				} else {
-					logger.Debugf("Sent SIGTERM to pid %d", consolePid)
-				}
+				close(consoleDoneCh)
 				return
 			}
 
@@ -188,7 +178,7 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 					continue
 				}
 
-				err = shared.SetSize(int(master.Fd()), winchWidth, winchHeight)
+				err = shared.SetSize(int(console.Fd()), winchWidth, winchHeight)
 				if err != nil {
 					logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 					continue
@@ -199,69 +189,51 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 		}
 	}()
 
+	// Mirror the console and websocket.
+	mirrorDoneCh := make(chan struct{})
 	go func() {
+		defer logger.Debugf("Finished mirroring websocket to console")
 		s.connsLock.Lock()
 		conn := s.conns[0]
 		s.connsLock.Unlock()
 
-		logger.Debugf("Starting to mirror websocket")
-		readDone, writeDone := shared.WebsocketConsoleMirror(conn, master, master)
+		logger.Debugf("Starting mirroring websocket")
+		readDone, writeDone := shared.WebsocketConsoleMirror(conn, console, console)
 
 		<-readDone
-		logger.Debugf("Finished to read websocket")
+		logger.Debugf("Finished mirroring console to websocket")
 		<-writeDone
-		logger.Debugf("Finished to write websocket")
-		logger.Debugf("Finished to mirror websocket")
-
 		conn.Close()
-		wgEOF.Done()
+		close(mirrorDoneCh)
 	}()
 
-	finisher := func(cmdErr error) error {
-		slave.Close()
-
-		s.connsLock.Lock()
-		conn := s.conns[-1]
-		s.connsLock.Unlock()
-
-		if conn == nil {
-			controlExit <- true
-		}
-
-		wgEOF.Wait()
-
-		master.Close()
-
-		return cmdErr
+	// Wait until either the console or the websocket is done.
+	select {
+	case <-mirrorDoneCh:
+	case <-consoleDoneCh:
 	}
 
-	consCmd := s.instance.Console(slave)
-	if consCmd == nil {
-		return fmt.Errorf("Failed to start console")
-	}
+	// Write a reset escape sequence to the console to cancel any ongoing reads to the handle
+	// and then close it. This ordering is important, close the console before closing the
+	// websocket to ensure console doesn't get stuck reading.
+	console.Write([]byte("\x1bc"))
+	console.Close()
 
-	err = consCmd.Start()
-	if err != nil {
-		return err
-	}
+	// Get the console websocket and close it.
+	s.connsLock.Lock()
+	consolConn := s.conns[0]
+	s.connsLock.Unlock()
+	consolConn.Close()
 
-	consolePidChan <- consCmd.Process.Pid
-	err = consCmd.Wait()
-	if err == nil {
-		return finisher(nil)
-	}
+	// Get the control websocket and close it.
+	s.connsLock.Lock()
+	ctrlConn := s.conns[-1]
+	s.connsLock.Unlock()
+	ctrlConn.Close()
 
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		status, _ := exitErr.Sys().(syscall.WaitStatus)
-		// If we received SIGTERM someone told us to detach from the
-		// console.
-		if status.Signaled() && status.Signal() == unix.SIGTERM {
-			return finisher(nil)
-		}
-	}
-
-	return finisher(err)
+	// Indicate to the control socket go routine to end if not already.
+	close(s.controlConnected)
+	return nil
 }
 
 func containerConsolePost(d *Daemon, r *http.Request) response.Response {
@@ -319,20 +291,6 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 
 	ws := &consoleWs{}
 	ws.fds = map[int]string{}
-
-	// If the type of instance is container, setup the root UID/GID for web socket.
-	if inst.Type() == instancetype.Container {
-		c := inst.(container)
-		idmapset, err := c.CurrentIdmap()
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		if idmapset != nil {
-			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
-		}
-	}
-
 	ws.conns = map[int]*websocket.Conn{}
 	ws.conns[-1] = nil
 	ws.conns[0] = nil
@@ -350,7 +308,8 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	ws.height = post.Height
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{ws.instance.Name()}
+	resources["instances"] = []string{ws.instance.Name()}
+	resources["containers"] = resources["instances"] // Old field name.
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
