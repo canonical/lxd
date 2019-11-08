@@ -330,17 +330,6 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 	return
 }
 
-func isJSONRequest(r *http.Request) bool {
-	for k, vs := range r.Header {
-		if strings.ToLower(k) == "content-type" &&
-			len(vs) == 1 && strings.ToLower(vs[0]) == "application/json" {
-			return true
-		}
-	}
-
-	return false
-}
-
 // State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
 	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents)
@@ -417,7 +406,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		}
 
 		// Dump full request JSON when in debug mode
-		if daemon.Debug && r.Method != "GET" && isJSONRequest(r) {
+		if daemon.Debug && r.Method != "GET" && util.IsJSONRequest(r) {
 			newBody := &bytes.Buffer{}
 			captured := &bytes.Buffer{}
 			multiW := io.MultiWriter(newBody, captured)
