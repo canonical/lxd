@@ -4,16 +4,11 @@ import (
 	"crypto/x509"
 	"flag"
 	"log"
-	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
-
-var tlsClientCertFile = filepath.Join("/", "media", "lxd_config", "server.crt")
-var tlsServerCertFile = filepath.Join("/", "media", "lxd_config", "agent.crt")
-var tlsServerKeyFile = filepath.Join("/", "media", "lxd_config", "agent.key")
 
 func main() {
 	var debug bool
@@ -27,7 +22,7 @@ func main() {
 		log.Fatalln(errors.Wrap(err, "Failed to listen on vsock"))
 	}
 
-	cert, err = shared.ReadCert(tlsClientCertFile)
+	cert, err = shared.ReadCert("server.crt")
 	if err != nil {
 		log.Fatalln(errors.Wrap(err, "Failed to read client certificate"))
 	}
@@ -39,5 +34,5 @@ func main() {
 
 	httpServer := restServer(tlsConfig, cert, debug)
 
-	log.Println(httpServer.ServeTLS(networkTLSListener(l, tlsConfig), tlsServerCertFile, tlsServerKeyFile))
+	log.Println(httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key"))
 }
