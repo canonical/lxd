@@ -1,38 +1,43 @@
 package main
 
 import (
-	"crypto/x509"
-	"flag"
-	"log"
+	"os"
 
-	"github.com/lxc/lxd/lxd/vsock"
-	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
+	"github.com/lxc/lxd/shared/version"
 )
 
+type cmdGlobal struct {
+	flagVersion bool
+	flagHelp    bool
+
+	flagLogDebug bool
+}
+
 func main() {
-	var debug bool
-	var cert *x509.Certificate
+	// agent command (main)
+	agentCmd := cmdAgent{}
+	app := agentCmd.Command()
+	app.SilenceUsage = true
 
-	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
-	flag.Parse()
+	// Workaround for main command
+	app.Args = cobra.ArbitraryArgs
 
-	l, err := vsock.Listen(8443)
+	// Global flags
+	globalCmd := cmdGlobal{}
+	agentCmd.global = &globalCmd
+	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagLogDebug, "debug", "d", false, "Show all debug messages")
+
+	// Version handling
+	app.SetVersionTemplate("{{.Version}}\n")
+	app.Version = version.Version
+
+	// Run the main command and handle errors
+	err := app.Execute()
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to listen on vsock"))
+		os.Exit(1)
 	}
-
-	cert, err = shared.ReadCert("server.crt")
-	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to read client certificate"))
-	}
-
-	tlsConfig, err := serverTLSConfig()
-	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to get TLS config"))
-	}
-
-	httpServer := restServer(tlsConfig, cert, debug)
-
-	log.Println(httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key"))
 }
