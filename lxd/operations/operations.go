@@ -21,7 +21,7 @@ import (
 var debug bool
 
 var operationsLock sync.Mutex
-var operations map[string]*Operation = make(map[string]*Operation)
+var operations = make(map[string]*Operation)
 
 type operationClass int
 
