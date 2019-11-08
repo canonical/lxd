@@ -49,16 +49,11 @@ type Instance interface {
 	// File handling
 	FileExists(path string) error
 	FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error)
-	FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
+	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
 	FileRemove(path string) error
 
 	// Console - Allocate and run a console tty.
-	//
-	// terminal  - Bidirectional file descriptor.
-	//
-	// This function will not return until the console has been exited by
-	// the user.
-	Console(terminal *os.File) *exec.Cmd
+	Console() (*os.File, error)
 	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error)
 
 	// Status
