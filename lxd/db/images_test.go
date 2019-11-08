@@ -1,3 +1,5 @@
+// +build linux,cgo,!agent
+
 package db_test
 
 import (
