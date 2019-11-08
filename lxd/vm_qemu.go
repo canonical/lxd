@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,11 +14,11 @@ import (
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
-	"github.com/linuxkit/virtsock/pkg/vsock"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -33,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -54,6 +54,11 @@ func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (I
 	}
 
 	err = vm.expandDevices(profiles)
+	if err != nil {
+		return nil, err
+	}
+
+	err = vm.initAgentClient()
 	if err != nil {
 		return nil, err
 	}
@@ -259,6 +264,55 @@ type vmQemu struct {
 	op *operations.Operation
 
 	expiryDate time.Time
+
+	agentClient *http.Client
+}
+
+func (vm *vmQemu) initAgentClient() error {
+	agentCertFile, _, err := vm.generateAgentCert()
+	if err != nil {
+		return err
+	}
+
+	agentCert, err := ioutil.ReadFile(agentCertFile)
+	if err != nil {
+		return err
+	}
+
+	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
+	clientCertFile := shared.VarPath("server.crt")
+	clientKeyFile := shared.VarPath("server.key")
+
+	clientCert, err := ioutil.ReadFile(clientCertFile)
+	if err != nil {
+		return err
+	}
+
+	clientKey, err := ioutil.ReadFile(clientKeyFile)
+	if err != nil {
+		return err
+	}
+
+	vm.agentClient, err = vsock.HTTPClient(vm.vsockID(), string(clientCert), string(clientKey), string(agentCert))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateAgentCert creates the necessary server key and certificate if needed.
+func (vm *vmQemu) generateAgentCert() (agentCertFile string, agentKeyFile string, err error) {
+	agentCertFile = filepath.Join(vm.Path(), "agent.crt")
+	agentKeyFile = filepath.Join(vm.Path(), "agent.key")
+
+	// Create server certificate.
+	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, true)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (vm *vmQemu) Freeze() error {
@@ -660,9 +714,7 @@ WantedBy=multi-user.target
 	}
 
 	// Check if we have both agent.crt and agent.key and if not generate a new set.
-	agentCertFile := filepath.Join(vm.Path(), "agent.cert")
-	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, true)
+	agentCertFile, agentKeyFile, err := vm.generateAgentCert()
 	if err != nil {
 		return "", err
 	}
@@ -1967,7 +2019,9 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 	pid, _ := vm.pid()
 
 	status, err := vm.agentGetState()
-	if err == nil {
+	if err != nil {
+		logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+	} else {
 		status.Pid = int64(pid)
 		status.Status = statusCode.String()
 		status.StatusCode = statusCode
@@ -1987,34 +2041,23 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 // agentGetState connects to the agent inside of the VM and does
 // an API call to get the current state.
 func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
-	var status api.InstanceState
-
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
 		return nil, err
 	}
 
-	client := http.Client{
-		Transport: &http.Transport{
-			Dial: func(network, addr string) (net.Conn, error) {
-				return vsock.Dial(uint32(vm.vsockID()), 8443)
-			},
-		},
-	}
-
-	resp, err := client.Get("http://vm.socket/state")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	err = json.NewDecoder(resp.Body).Decode(&status)
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
 	if err != nil {
 		return nil, err
 	}
 
-	return &status, nil
+	status, _, err := agent.GetInstanceState("")
+	if err != nil {
+		return nil, err
+	}
+
+	return status, nil
 }
 
 func (vm *vmQemu) IsRunning() bool {
