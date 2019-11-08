@@ -13,13 +13,14 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/sys/unix"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/netutils"
-	"golang.org/x/sys/unix"
 )
 
 var execCmd = APIEndpoint{
