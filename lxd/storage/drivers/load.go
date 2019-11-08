@@ -19,7 +19,10 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	}
 
 	d := driverFunc()
-	d.init(state, name, config, logger, volIDFunc, commonRulesFunc)
+	err := d.init(state, name, config, logger, volIDFunc, commonRulesFunc)
+	if err != nil {
+		return nil, err
+	}
 
 	return d, nil
 }
@@ -28,7 +31,6 @@ func Load(state *state.State, driverName string, name string, config map[string]
 type Info struct {
 	Name               string
 	Version            string
-	Usable             bool
 	Remote             bool
 	OptimizedImages    bool
 	PreservesInodes    bool

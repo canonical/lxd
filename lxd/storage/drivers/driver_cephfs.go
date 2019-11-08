@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,27 +20,44 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+var cephfsVersion string
+var cephfsLoaded bool
+
 type cephfs struct {
 	common
-
-	version string
 }
 
-func (d *cephfs) Info() Info {
-	// Detect and record the version.
-	if d.version == "" {
-		msg, err := shared.RunCommand("rbd", "--version")
+func (d *cephfs) load() error {
+	if cephfsLoaded {
+		return nil
+	}
+
+	// Validate the required binaries.
+	for _, tool := range []string{"ceph", "rdb"} {
+		_, err := exec.LookPath(tool)
 		if err != nil {
-			d.version = "unknown"
-		} else {
-			d.version = strings.TrimSpace(msg)
+			return fmt.Errorf("Required tool '%s' is missing", tool)
 		}
 	}
 
+	// Detect and record the version.
+	if cephfsVersion == "" {
+		out, err := shared.RunCommand("rbd", "--version")
+		if err != nil {
+			return err
+		}
+
+		cephfsVersion = strings.TrimSpace(out)
+	}
+
+	cephfsLoaded = true
+	return nil
+}
+
+func (d *cephfs) Info() Info {
 	return Info{
 		Name:               "cephfs",
-		Version:            d.version,
-		Usable:             true,
+		Version:            cephfsVersion,
 		Remote:             true,
 		OptimizedImages:    false,
 		PreservesInodes:    false,
