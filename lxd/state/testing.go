@@ -1,3 +1,5 @@
+// +build linux,cgo,!agent
+
 package state
 
 import (

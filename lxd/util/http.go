@@ -269,3 +269,15 @@ func GetListeners(start int) []net.Listener {
 // stdout and stderr), so this constant should always be the value passed to
 // GetListeners, except for unit tests.
 const SystemdListenFDsStart = 3
+
+// IsJSONRequest returns true if the content type of the HTTP request is JSON.
+func IsJSONRequest(r *http.Request) bool {
+	for k, vs := range r.Header {
+		if strings.ToLower(k) == "content-type" &&
+			len(vs) == 1 && strings.ToLower(vs[0]) == "application/json" {
+			return true
+		}
+	}
+
+	return false
+}
