@@ -67,6 +67,39 @@ func ConnectLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 	return httpsLXD(url, args)
 }
 
+// ConnectLXDHTTP lets you connect to a VM agent over a VM socket.
+func ConnectLXDHTTP(vsockID int, args *ConnectionArgs, client *http.Client) (InstanceServer, error) {
+	logger.Debugf("Connecting to a VM agent over a VM socket")
+
+	// Use empty args if not specified
+	if args == nil {
+		args = &ConnectionArgs{}
+	}
+
+	// Initialize the client struct
+	server := ProtocolLXD{
+		httpHost:      "https://custom.socket",
+		httpProtocol:  "custom",
+		httpUserAgent: args.UserAgent,
+	}
+
+	// Setup the HTTP client
+	server.http = client
+
+	// Test the connection and seed the server information
+	if !args.SkipGetServer {
+		serverStatus, _, err := server.GetServer()
+		if err != nil {
+			return nil, err
+		}
+
+		// Record the server certificate
+		server.httpCertificate = serverStatus.Environment.Certificate
+	}
+
+	return &server, nil
+}
+
 // ConnectLXDUnix lets you connect to a remote LXD daemon over a local unix socket.
 //
 // If the path argument is empty, then $LXD_SOCKET will be used, if
