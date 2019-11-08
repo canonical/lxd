@@ -33,13 +33,14 @@ type Driver interface {
 
 	// Volumes.
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
-	CreateVolume(vol Volume, filler func(path string) error, op *operations.Operation) error
+	CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error
 	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error
 	DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error
 	RenameVolume(volType VolumeType, volName string, newName string, op *operations.Operation) error
 	UpdateVolume(vol Volume, changedConfig map[string]string) error
 	GetVolumeUsage(volType VolumeType, volName string) (int64, error)
 	SetVolumeQuota(volType VolumeType, volName, size string, op *operations.Operation) error
+	GetVolumeDiskPath(volType VolumeType, volName string) (string, string, error)
 
 	// MountVolume mounts a storage volume, returns true if we caused a new mount, false if
 	// already mounted.

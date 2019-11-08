@@ -187,7 +187,7 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 `
 
 	arg1 := []interface{}{server, protocolInt, alias}
-	if imageType > 0 {
+	if imageType != instancetype.Any {
 		q += "AND images.type=?\n"
 		arg1 = []interface{}{server, protocolInt, alias, imageType}
 	}

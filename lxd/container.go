@@ -443,7 +443,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	}
 
 	if imgType != args.Type {
-		return nil, fmt.Errorf("Requested image doesn't match instance type")
+		return nil, fmt.Errorf("Requested image's type '%s' doesn't match instance type '%s'", imgType, args.Type)
 	}
 
 	// Check if the image is available locally or it's on another node.
@@ -519,8 +519,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		if op != nil {
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
-					// tomp TODO should the container reference here be removed?
-					shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, 0, speed)
+					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
 					op.UpdateMetadata(metadata)
 				}}
 		}
@@ -1011,6 +1010,8 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, err
 
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCCreate(s, args)
+	} else if args.Type == instancetype.VM {
+		inst, err = vmQemuCreate(s, args)
 	} else {
 		return nil, fmt.Errorf("Instance type invalid")
 	}
@@ -1292,12 +1293,14 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 }
 
 // instanceLoad creates the underlying instance type struct and returns it as an Instance.
-func instanceLoad(s *state.State, args db.InstanceArgs, cProfiles []api.Profile) (Instance, error) {
+func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error) {
 	var inst Instance
 	var err error
 
 	if args.Type == instancetype.Container {
-		inst, err = containerLXCLoad(s, args, cProfiles)
+		inst, err = containerLXCLoad(s, args, profiles)
+	} else if args.Type == instancetype.VM {
+		inst, err = vmQemuLoad(s, args, profiles)
 	} else {
 		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
 	}

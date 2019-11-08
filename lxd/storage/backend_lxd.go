@@ -330,10 +330,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapsho
 	return ErrNotImplemented
 }
 
-// imageFiller returns a function that can be used as a filler function with CreateVolume(). This
-// function will unpack the specified image archive into the specified mount path of the volume.
-func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath string) error {
-	return func(instanceMountPath string) error {
+// imageFiller returns a function that can be used as a filler function with CreateVolume().
+// The function returned will unpack the specified image archive into the specified mount path
+// provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(mountPath, rootBlockPath string) error {
+	return func(mountPath, rootBlockPath string) error {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
 			metadata := make(map[string]interface{})
@@ -343,10 +344,8 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 					op.UpdateMetadata(metadata)
 				}}
 		}
-
-		imagePath := shared.VarPath("images", fingerprint)
-
-		return ImageUnpack(imagePath, instanceMountPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
+		imageFile := shared.VarPath("images", fingerprint)
+		return ImageUnpack(imageFile, mountPath, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
 	}
 }
 
@@ -672,8 +671,28 @@ func (b *lxdBackend) UnmountInstance(inst Instance, op *operations.Operation) (b
 	return b.driver.UnmountVolume(volType, volStorageName, op)
 }
 
+// GetInstanceDisk returns the location of the disk and its type.
 func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, string, error) {
-	return "", "", ErrNotImplemented
+	if inst.Type() != instancetype.VM {
+		return "", "", ErrNotImplemented
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return "", "", err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// Get the location of the disk block device.
+	diskPath, diskType, err := b.driver.GetVolumeDiskPath(volType, volStorageName)
+	if err != nil {
+		return "", "", err
+	}
+
+	return diskPath, diskType, nil
 }
 
 func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error {

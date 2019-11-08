@@ -145,12 +145,12 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	// Configure the terminal
 	cfd := int(os.Stdin.Fd())
 
-	var oldttystate *termios.State
-	oldttystate, err = termios.MakeRaw(cfd)
+	var oldTTYstate *termios.State
+	oldTTYstate, err = termios.MakeRaw(cfd)
 	if err != nil {
 		return err
 	}
-	defer termios.Restore(cfd, oldttystate)
+	defer termios.Restore(cfd, oldTTYstate)
 
 	handler := c.controlSocketHandler
 
