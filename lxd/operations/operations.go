@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pborman/uuid"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
@@ -14,8 +16,6 @@ import (
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 )
 
 var debug bool
@@ -157,14 +157,9 @@ func OperationCreate(state *state.State, project string, opClass operationClass,
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	if op.state != nil {
-		err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			_, err := tx.OperationAdd(project, op.id, opType)
-			return err
-		})
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to add Operation %s to database", op.id)
-		}
+	err = registerDBOperation(&op, opType)
+	if err != nil {
+		return nil, err
 	}
 
 	logger.Debugf("New %s Operation: %s", op.class.String(), op.id)
@@ -172,14 +167,6 @@ func OperationCreate(state *state.State, project string, opClass operationClass,
 	op.sendEvent(md)
 
 	return &op, nil
-}
-
-func (op *Operation) sendEvent(eventMessage interface{}) {
-	if op.state == nil {
-		return
-	}
-
-	op.state.Events.Send(op.project, "operation", eventMessage)
 }
 
 func (op *Operation) done() {
@@ -210,9 +197,7 @@ func (op *Operation) done() {
 			return
 		}
 
-		err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.OperationRemove(op.id)
-		})
+		err := removeDBOperation(op)
 		if err != nil {
 			logger.Warnf("Failed to delete operation %s: %s", op.id, err)
 		}
@@ -410,16 +395,9 @@ func (op *Operation) Render() (string, *api.Operation, error) {
 
 	// Local server name
 	var err error
-	var serverName string
-
-	if op.state != nil {
-		err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			serverName, err = tx.NodeName()
-			return err
-		})
-		if err != nil {
-			return "", nil, err
-		}
+	serverName, err := getServerName(op)
+	if err != nil {
+		return "", nil, err
 	}
 
 	return op.url, &api.Operation{
