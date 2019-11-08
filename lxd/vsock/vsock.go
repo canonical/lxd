@@ -8,18 +8,20 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func vsockHTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, insecureSkipVerify bool) (*http.Client, error) {
+// HTTPClient provides an HTTP client for using over vsock.
+func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServerCert string) (*http.Client, error) {
 	client := &http.Client{}
 
-	// Get the TLS configuration
-	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
+	// Get the TLS configuration.
+	// tomp TODO remove insecure skip verify.
+	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, "", tlsServerCert, true)
 	if err != nil {
 		return nil, err
 	}
 
 	client.Transport = &http.Transport{
 		TLSClientConfig: tlsConfig,
-		// Setup a VM socket dialer
+		// Setup a VM socket dialer.
 		Dial: func(network, addr string) (net.Conn, error) {
 			conn, err := dial(uint32(vsockID), 8443)
 			if err != nil {
@@ -28,7 +30,7 @@ func vsockHTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tls
 
 			tlsConn := tls.Client(conn, tlsConfig)
 
-			// Validate the connection
+			// Validate the connection.
 			err = tlsConn.Handshake()
 			if err != nil {
 				conn.Close()
@@ -40,9 +42,9 @@ func vsockHTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tls
 		DisableKeepAlives: true,
 	}
 
-	// Setup redirect policy
+	// Setup redirect policy.
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		// Replicate the headers
+		// Replicate the headers.
 		req.Header = via[len(via)-1].Header
 
 		return nil
