@@ -443,7 +443,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	}
 
 	if imgType != args.Type {
-		return nil, fmt.Errorf("Requested image doesn't match instance type")
+		return nil, fmt.Errorf("Requested image's type '%s' doesn't match instance type '%s'", imgType, args.Type)
 	}
 
 	// Check if the image is available locally or it's on another node.
