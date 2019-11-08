@@ -17,6 +17,7 @@ endif
 
 	go get -t -v -d ./...
 	CC=$(CC) go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
 	@echo "LXD built successfully"
 
 .PHONY: client
