@@ -49,6 +49,16 @@ var storagePoolVolumeTypeContainerCmd = APIEndpoint{
 	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut},
 }
 
+var storagePoolVolumeTypeVMCmd = APIEndpoint{
+	Path: "storage-pools/{pool}/volumes/virtual-machine/{name:.*}",
+
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeVMDelete},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeVMGet, AccessHandler: AllowAuthenticated},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeVMPatch},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeVMPost},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeVMPut},
+}
+
 var storagePoolVolumeTypeCustomCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/custom/{name}",
 
@@ -122,6 +132,8 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 		if apiEndpoint == storagePoolVolumeAPIEndpointContainers {
 			apiEndpoint = "container"
+		} else if apiEndpoint == storagePoolVolumeAPIEndpointVMs {
+			apiEndpoint = "virtual-machine"
 		} else if apiEndpoint == storagePoolVolumeAPIEndpointImages {
 			apiEndpoint = "image"
 		}
@@ -202,6 +214,8 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 
 			if apiEndpoint == storagePoolVolumeAPIEndpointContainers {
 				apiEndpoint = "container"
+			} else if apiEndpoint == storagePoolVolumeAPIEndpointVMs {
+				apiEndpoint = "virtual-machine"
 			} else if apiEndpoint == storagePoolVolumeAPIEndpointImages {
 				apiEndpoint = "image"
 			}
@@ -786,6 +800,10 @@ func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) response.Res
 	return storagePoolVolumeTypePost(d, r, "container")
 }
 
+func storagePoolVolumeTypeVMPost(d *Daemon, r *http.Request) response.Response {
+	return storagePoolVolumeTypePost(d, r, "virtual-machine")
+}
+
 func storagePoolVolumeTypeCustomPost(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypePost(d, r, "custom")
 }
@@ -872,6 +890,10 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 
 func storagePoolVolumeTypeContainerGet(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypeGet(d, r, "container")
+}
+
+func storagePoolVolumeTypeVMGet(d *Daemon, r *http.Request) response.Response {
+	return storagePoolVolumeTypeGet(d, r, "virtual-machine")
 }
 
 func storagePoolVolumeTypeCustomGet(d *Daemon, r *http.Request) response.Response {
@@ -1022,6 +1044,10 @@ func storagePoolVolumeTypeContainerPut(d *Daemon, r *http.Request) response.Resp
 	return storagePoolVolumeTypePut(d, r, "container")
 }
 
+func storagePoolVolumeTypeVMPut(d *Daemon, r *http.Request) response.Response {
+	return storagePoolVolumeTypePut(d, r, "virtual-machine")
+}
+
 func storagePoolVolumeTypeCustomPut(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypePut(d, r, "custom")
 }
@@ -1129,6 +1155,10 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 
 func storagePoolVolumeTypeContainerPatch(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypePatch(d, r, "container")
+}
+
+func storagePoolVolumeTypeVMPatch(d *Daemon, r *http.Request) response.Response {
+	return storagePoolVolumeTypePatch(d, r, "virtual-machine")
 }
 
 func storagePoolVolumeTypeCustomPatch(d *Daemon, r *http.Request) response.Response {
@@ -1266,6 +1296,10 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 
 func storagePoolVolumeTypeContainerDelete(d *Daemon, r *http.Request) response.Response {
 	return storagePoolVolumeTypeDelete(d, r, "container")
+}
+
+func storagePoolVolumeTypeVMDelete(d *Daemon, r *http.Request) response.Response {
+	return storagePoolVolumeTypeDelete(d, r, "virtual-machine")
 }
 
 func storagePoolVolumeTypeCustomDelete(d *Daemon, r *http.Request) response.Response {
