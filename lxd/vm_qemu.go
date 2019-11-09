@@ -270,31 +270,13 @@ type vmQemu struct {
 }
 
 func (vm *vmQemu) initAgentClient() error {
-	agentCertFile, _, err := vm.generateAgentCert()
-	if err != nil {
-		return err
-	}
-
-	agentCert, err := ioutil.ReadFile(agentCertFile)
-	if err != nil {
-		return err
-	}
-
 	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
-	clientCertFile := shared.VarPath("server.crt")
-	clientKeyFile := shared.VarPath("server.key")
-
-	clientCert, err := ioutil.ReadFile(clientCertFile)
+	agentCert, _, clientCert, clientKey, err := vm.generateAgentCert()
 	if err != nil {
 		return err
 	}
 
-	clientKey, err := ioutil.ReadFile(clientKeyFile)
-	if err != nil {
-		return err
-	}
-
-	vm.agentClient, err = vsock.HTTPClient(vm.vsockID(), string(clientCert), string(clientKey), string(agentCert))
+	vm.agentClient, err = vsock.HTTPClient(vm.vsockID(), clientCert, clientKey, agentCert)
 	if err != nil {
 		return err
 	}
@@ -303,17 +285,46 @@ func (vm *vmQemu) initAgentClient() error {
 }
 
 // generateAgentCert creates the necessary server key and certificate if needed.
-func (vm *vmQemu) generateAgentCert() (agentCertFile string, agentKeyFile string, err error) {
-	agentCertFile = filepath.Join(vm.Path(), "agent.crt")
-	agentKeyFile = filepath.Join(vm.Path(), "agent.key")
+func (vm *vmQemu) generateAgentCert() (string, string, string, string, error) {
+	agentCertFile := filepath.Join(vm.Path(), "agent.crt")
+	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
+	clientCertFile := filepath.Join(vm.Path(), "agent-client.crt")
+	clientKeyFile := filepath.Join(vm.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, true)
+	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false)
 	if err != nil {
-		return
+		return "", "", "", "", err
 	}
 
-	return
+	// Create client certificate.
+	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	// Read all the files
+	agentCert, err := ioutil.ReadFile(agentCertFile)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	agentKey, err := ioutil.ReadFile(agentKeyFile)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	clientCert, err := ioutil.ReadFile(clientCertFile)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	clientKey, err := ioutil.ReadFile(clientKeyFile)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	return string(agentCert), string(agentKey), string(clientCert), string(clientKey), nil
 }
 
 func (vm *vmQemu) Freeze() error {
@@ -709,38 +720,23 @@ WantedBy=multi-user.target
 		return "", err
 	}
 
-	// Copy the LXD's server.crt file for use with the lxd-agent.
-	serverCrt, err := ioutil.ReadFile(shared.VarPath("server.crt"))
-	if err != nil {
-		return "", err
-	}
-	err = ioutil.WriteFile(configDrivePath+"/server.crt", serverCrt, 0400)
+	// Get the certificates.
+	agentCert, agentKey, clientCert, _, err := vm.generateAgentCert()
 	if err != nil {
 		return "", err
 	}
 
-	// Check if we have both agent.crt and agent.key and if not generate a new set.
-	agentCertFile, agentKeyFile, err := vm.generateAgentCert()
+	err = ioutil.WriteFile(configDrivePath+"/server.crt", []byte(clientCert), 0400)
 	if err != nil {
 		return "", err
 	}
 
-	// Copy the VM's LXD agent.crt file for use with the lxd-agent.
-	agentCrt, err := ioutil.ReadFile(agentCertFile)
-	if err != nil {
-		return "", err
-	}
-	err = ioutil.WriteFile(configDrivePath+"/agent.crt", agentCrt, 0400)
+	err = ioutil.WriteFile(configDrivePath+"/agent.crt", []byte(agentCert), 0400)
 	if err != nil {
 		return "", err
 	}
 
-	// Copy the VM's LXD agent.crt file for use with the lxd-agent.
-	agentKey, err := ioutil.ReadFile(agentKeyFile)
-	if err != nil {
-		return "", err
-	}
-	err = ioutil.WriteFile(configDrivePath+"/agent.key", agentKey, 0400)
+	err = ioutil.WriteFile(configDrivePath+"/agent.key", []byte(agentKey), 0400)
 	if err != nil {
 		return "", err
 	}
