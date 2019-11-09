@@ -5,8 +5,20 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/mdlayher/vsock"
+
 	"github.com/lxc/lxd/shared"
 )
+
+// Dial connects to a remote vsock.
+func Dial(cid, port uint32) (net.Conn, error) {
+	return vsock.Dial(cid, port)
+}
+
+// Listen listens for a connection.
+func Listen(port uint32) (net.Listener, error) {
+	return vsock.Listen(port)
+}
 
 // HTTPClient provides an HTTP client for using over vsock.
 func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServerCert string) (*http.Client, error) {
@@ -22,7 +34,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 		TLSClientConfig: tlsConfig,
 		// Setup a VM socket dialer.
 		Dial: func(network, addr string) (net.Conn, error) {
-			conn, err := dial(uint32(vsockID), 8443)
+			conn, err := Dial(uint32(vsockID), 8443)
 			if err != nil {
 				return nil, err
 			}
