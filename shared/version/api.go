@@ -175,6 +175,7 @@ var APIExtensions = []string{
 	"container_syscall_intercept_mount",
 	"container_disk_ceph",
 	"compression_squashfs",
+	"container_raw_mount",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

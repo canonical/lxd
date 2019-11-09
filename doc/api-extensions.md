@@ -871,3 +871,6 @@ elevated permissions.
 This allows for existing a CEPH RDB or FS to be directly connected to a LXD container.
 ## compression_squashfs
 Adds support for importing/exporting of images/backups using SquashFS file system format.
+
+## container\_raw\_mount
+This adds support for passing in raw mount options for disk devices. 
