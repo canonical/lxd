@@ -68,7 +68,7 @@ func ConnectLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 }
 
 // ConnectLXDHTTP lets you connect to a VM agent over a VM socket.
-func ConnectLXDHTTP(vsockID int, args *ConnectionArgs, client *http.Client) (InstanceServer, error) {
+func ConnectLXDHTTP(args *ConnectionArgs, client *http.Client) (InstanceServer, error) {
 	logger.Debugf("Connecting to a VM agent over a VM socket")
 
 	// Use empty args if not specified
