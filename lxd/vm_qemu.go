@@ -676,9 +676,12 @@ local-hostname: %s
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
 After=media-lxd_config.mount
+
 [Service]
 Type=simple
+WorkingDirectory=/media/lxd_config/
 ExecStart=/media/lxd_config/lxd-agent
+
 [Install]
 WantedBy=multi-user.target
 `
@@ -691,10 +694,12 @@ WantedBy=multi-user.target
 	lxdConfigDriveMountUnit := `[Unit]
 Description = LXD - config drive
 Before=local-fs.target
+
 [Mount]
 Where=/media/lxd_config
 What=/dev/disk/by-label/cidata
 Type=iso9660
+
 [Install]
 WantedBy=multi-user.target
 `
