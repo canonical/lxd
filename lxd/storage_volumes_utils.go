@@ -17,12 +17,14 @@ import (
 //      extracted to its own package. We should eventually clean this up.
 const (
 	storagePoolVolumeTypeContainer = db.StoragePoolVolumeTypeContainer
+	storagePoolVolumeTypeVM        = db.StoragePoolVolumeTypeVM
 	storagePoolVolumeTypeImage     = db.StoragePoolVolumeTypeImage
 	storagePoolVolumeTypeCustom    = db.StoragePoolVolumeTypeCustom
 )
 
 const (
 	storagePoolVolumeTypeNameContainer = db.StoragePoolVolumeTypeNameContainer
+	storagePoolVolumeTypeNameVM        = db.StoragePoolVolumeTypeNameVM
 	storagePoolVolumeTypeNameImage     = db.StoragePoolVolumeTypeNameImage
 	storagePoolVolumeTypeNameCustom    = db.StoragePoolVolumeTypeNameCustom
 )
@@ -32,11 +34,12 @@ const (
 // constants which is not what we want.
 const (
 	storagePoolVolumeAPIEndpointContainers string = "containers"
+	storagePoolVolumeAPIEndpointVMs        string = "virtual-machines"
 	storagePoolVolumeAPIEndpointImages     string = "images"
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeCustom}
+var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeVM, storagePoolVolumeTypeCustom}
 var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
 
 func init() {
@@ -47,6 +50,8 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 	switch volumeTypeName {
 	case storagePoolVolumeTypeNameContainer:
 		return storagePoolVolumeAPIEndpointContainers, nil
+	case storagePoolVolumeTypeNameVM:
+		return storagePoolVolumeAPIEndpointVMs, nil
 	case storagePoolVolumeTypeNameImage:
 		return storagePoolVolumeAPIEndpointImages, nil
 	case storagePoolVolumeTypeNameCustom:
@@ -60,6 +65,8 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
 		return storagePoolVolumeAPIEndpointContainers, nil
+	case storagePoolVolumeTypeVM:
+		return storagePoolVolumeAPIEndpointVMs, nil
 	case storagePoolVolumeTypeImage:
 		return storagePoolVolumeAPIEndpointImages, nil
 	case storagePoolVolumeTypeCustom:
