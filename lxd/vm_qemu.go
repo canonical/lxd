@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,11 +15,11 @@ import (
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
-	"github.com/linuxkit/virtsock/pkg/vsock"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -54,6 +55,11 @@ func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (I
 	}
 
 	err = vm.expandDevices(profiles)
+	if err != nil {
+		return nil, err
+	}
+
+	err = vm.initAgentClient()
 	if err != nil {
 		return nil, err
 	}
@@ -259,6 +265,55 @@ type vmQemu struct {
 	op *operations.Operation
 
 	expiryDate time.Time
+
+	agentClient *http.Client
+}
+
+func (vm *vmQemu) initAgentClient() error {
+	agentCertFile, _, err := vm.generateAgentCert()
+	if err != nil {
+		return err
+	}
+
+	agentCert, err := ioutil.ReadFile(agentCertFile)
+	if err != nil {
+		return err
+	}
+
+	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
+	clientCertFile := shared.VarPath("server.crt")
+	clientKeyFile := shared.VarPath("server.key")
+
+	clientCert, err := ioutil.ReadFile(clientCertFile)
+	if err != nil {
+		return err
+	}
+
+	clientKey, err := ioutil.ReadFile(clientKeyFile)
+	if err != nil {
+		return err
+	}
+
+	vm.agentClient, err = vsock.HTTPClient(vm.vsockID(), string(clientCert), string(clientKey), string(agentCert))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateAgentCert creates the necessary server key and certificate if needed.
+func (vm *vmQemu) generateAgentCert() (agentCertFile string, agentKeyFile string, err error) {
+	agentCertFile = filepath.Join(vm.Path(), "agent.crt")
+	agentKeyFile = filepath.Join(vm.Path(), "agent.key")
+
+	// Create server certificate.
+	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, true)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (vm *vmQemu) Freeze() error {
@@ -660,9 +715,7 @@ WantedBy=multi-user.target
 	}
 
 	// Check if we have both agent.crt and agent.key and if not generate a new set.
-	agentCertFile := filepath.Join(vm.Path(), "agent.cert")
-	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
-	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, true)
+	agentCertFile, agentKeyFile, err := vm.generateAgentCert()
 	if err != nil {
 		return "", err
 	}
@@ -1784,12 +1837,79 @@ func (vm *vmQemu) FileExists(path string) error {
 	return fmt.Errorf("FileExists Not implemented")
 }
 
-func (vm *vmQemu) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
-	return 0, 0, 0, "", nil, fmt.Errorf("FilePull Not implemented")
+func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	if err != nil {
+		return 0, 0, 0, "", nil, err
+	}
+
+	content, resp, err := agent.GetInstanceFile("", srcPath)
+	if err != nil {
+		return 0, 0, 0, "", nil, err
+	}
+
+	switch resp.Type {
+	case "file", "symlink":
+		data, err := ioutil.ReadAll(content)
+		if err != nil {
+			return 0, 0, 0, "", nil, err
+		}
+
+		err = ioutil.WriteFile(dstPath, data, os.FileMode(resp.Mode))
+		if err != nil {
+			return 0, 0, 0, "", nil, err
+		}
+
+		err = os.Lchown(dstPath, int(resp.UID), int(resp.GID))
+		if err != nil {
+			return 0, 0, 0, "", nil, err
+		}
+
+		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, nil, nil
+	case "directory":
+		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, resp.Entries, nil
+	}
+
+	return 0, 0, 0, "", nil, fmt.Errorf("bad file type %s", resp.Type)
 }
 
 func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
-	return fmt.Errorf("FilePush Not implemented")
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	if err != nil {
+		return err
+	}
+
+	args := lxdClient.InstanceFileArgs{
+		GID:       gid,
+		Mode:      mode,
+		Type:      fileType,
+		UID:       uid,
+		WriteMode: write,
+	}
+
+	if fileType == "file" {
+		f, err := os.Open(srcPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		args.Content = f
+	} else if fileType == "symlink" {
+		symlinkTarget, err := os.Readlink(dstPath)
+		if err != nil {
+			return err
+		}
+
+		args.Content = bytes.NewReader([]byte(symlinkTarget))
+	}
+
+	err = agent.CreateInstanceFile("", dstPath, args)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (vm *vmQemu) FileRemove(path string) error {
@@ -1967,7 +2087,9 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 	pid, _ := vm.pid()
 
 	status, err := vm.agentGetState()
-	if err == nil {
+	if err != nil {
+		logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+	} else {
 		status.Pid = int64(pid)
 		status.Status = statusCode.String()
 		status.StatusCode = statusCode
@@ -1987,34 +2109,23 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 // agentGetState connects to the agent inside of the VM and does
 // an API call to get the current state.
 func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
-	var status api.InstanceState
-
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
 		return nil, err
 	}
 
-	client := http.Client{
-		Transport: &http.Transport{
-			Dial: func(network, addr string) (net.Conn, error) {
-				return vsock.Dial(uint32(vm.vsockID()), 8443)
-			},
-		},
-	}
-
-	resp, err := client.Get("http://vm.socket/state")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	err = json.NewDecoder(resp.Body).Decode(&status)
+	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
 	if err != nil {
 		return nil, err
 	}
 
-	return &status, nil
+	status, _, err := agent.GetInstanceState("")
+	if err != nil {
+		return nil, err
+	}
+
+	return status, nil
 }
 
 func (vm *vmQemu) IsRunning() bool {
