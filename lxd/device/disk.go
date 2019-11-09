@@ -62,19 +62,20 @@ func (d *disk) validateConfig() error {
 	}
 
 	rules := map[string]func(string) error{
-		"path":         shared.IsNotEmpty,
-		"required":     shared.IsBool,
-		"optional":     shared.IsBool, // "optional" is deprecated, replaced by "required".
-		"readonly":     shared.IsBool,
-		"recursive":    shared.IsBool,
-		"shift":        shared.IsBool,
-		"source":       shared.IsAny,
-		"limits.read":  shared.IsAny,
-		"limits.write": shared.IsAny,
-		"limits.max":   shared.IsAny,
-		"size":         shared.IsAny,
-		"pool":         shared.IsAny,
-		"propagation":  validatePropagation,
+		"path":              shared.IsNotEmpty,
+		"required":          shared.IsBool,
+		"optional":          shared.IsBool, // "optional" is deprecated, replaced by "required".
+		"readonly":          shared.IsBool,
+		"recursive":         shared.IsBool,
+		"shift":             shared.IsBool,
+		"source":            shared.IsAny,
+		"limits.read":       shared.IsAny,
+		"limits.write":      shared.IsAny,
+		"limits.max":        shared.IsAny,
+		"size":              shared.IsAny,
+		"pool":              shared.IsAny,
+		"propagation":       validatePropagation,
+		"raw.mount.options": shared.IsAny,
 	}
 
 	err := d.config.Validate(rules)
@@ -606,7 +607,7 @@ func (d *disk) createDevice() (string, error) {
 	}
 
 	// Mount the fs.
-	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"])
+	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], d.config["raw.mount.options"])
 	if err != nil {
 		return "", err
 	}

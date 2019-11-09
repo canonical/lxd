@@ -273,7 +273,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		}
 		f.Close()
 
-		err = DiskMount(srcPath, devPath, false, false, "")
+		err = DiskMount(srcPath, devPath, false, false, "", "")
 		if err != nil {
 			return nil, err
 		}
