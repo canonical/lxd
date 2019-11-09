@@ -481,20 +481,21 @@ if the source is a block device, a regular mount.
 
 The following properties exist:
 
-Key             | Type      | Default           | Required  | Description
-:--             | :--       | :--               | :--       | :--
-limits.read     | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.write    | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.max      | string    | -                 | no        | Same as modifying both limits.read and limits.write
-path            | string    | -                 | yes       | Path inside the container where the disk will be mounted
-source          | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
-required        | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
-readonly        | boolean   | false             | no        | Controls whether to make the mount read-only
-size            | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/).
-recursive       | boolean   | false             | no        | Whether or not to recursively mount the source path
-pool            | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
-propagation     | string    | -                 | no        | Controls how a bind-mount is shared between the container and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
-shift           | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the container
+Key              | Type      | Default           | Required  | Description
+:--              | :--       | :--               | :--       | :--
+limits.read      | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.write     | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.max       | string    | -                 | no        | Same as modifying both limits.read and limits.write
+path             | string    | -                 | yes       | Path inside the container where the disk will be mounted
+source           | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
+required         | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
+readonly         | boolean   | false             | no        | Controls whether to make the mount read-only
+size             | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/).
+recursive        | boolean   | false             | no        | Whether or not to recursively mount the source path
+pool             | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
+propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the container and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
+shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the container
+raw.mount.options| string    | -                 | no        | Filesystem specific mount options 
 
 If multiple disks, backed by the same block device, have I/O limits set,
 the average of the limits will be used.
