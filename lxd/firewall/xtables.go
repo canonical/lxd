@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 	"encoding/hex"
+	"io/ioutil"
+	"os"
 
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/device"
@@ -133,6 +135,243 @@ func (xt *XTables) InstanceNicBridgedSetFilters(m deviceConfig.Device, config ma
 
 // Network
 func (xt *XTables) NetworkSetup(oldConfig map[string]string) error {
+	return nil
+}
+func (xt *XTables) NetworkSetupConfigIPv4Firewall(name string, config map[string]string) error {
+	// Configure IPv4 firewall (includes fan)
+	if config["bridge.mode"] == "fan" || !shared.StringInSlice(config["ipv4.address"], []string{"", "none"}) {
+		if (config["ipv4.dhcp"] == "" || shared.IsTrue(config["ipv4.dhcp"])) && (config["ipv4.firewall"] == "" || shared.IsTrue(config["ipv4.firewall"])) {
+			// Setup basic iptables overrides for DHCP/DNS
+			rules := [][]string{
+				{"ipv4", name, "", "INPUT", "-i", name, "-p", "udp", "--dport", "67", "-j", "ACCEPT"},
+				{"ipv4", name, "", "INPUT", "-i", name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+				{"ipv4", name, "", "INPUT", "-i", name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
+				{"ipv4", name, "", "OUTPUT", "-o", name, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
+				{"ipv4", name, "", "OUTPUT", "-o", name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
+				{"ipv4", name, "", "OUTPUT", "-o", name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+
+			for _, rule := range rules {
+				err := iptables.NetworkPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Attempt a workaround for broken DHCP clients
+		if config["ipv4.firewall"] == "" || shared.IsTrue(config["ipv4.firewall"]) {
+			iptables.NetworkPrepend("ipv4", name, "mangle", "POSTROUTING", "-o", name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
+		}
+
+		// Allow forwarding
+		if config["bridge.mode"] == "fan" || config["ipv4.routing"] == "" || shared.IsTrue(config["ipv4.routing"]) {
+			err := device.NetworkSysctlSet("ipv4/ip_forward", "1")
+			if err != nil {
+				return err
+			}
+
+			if config["ipv4.firewall"] == "" || shared.IsTrue(config["ipv4.firewall"]) {
+				err = iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-i", name, "-j", "ACCEPT")
+				if err != nil {
+					return err
+				}
+
+				err = iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-o", name, "-j", "ACCEPT")
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			if config["ipv4.firewall"] == "" || shared.IsTrue(config["ipv4.firewall"]) {
+				err := iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-i", name, "-j", "REJECT")
+				if err != nil {
+					return err
+				}
+
+				err = iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-o", name, "-j", "REJECT")
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+func NetworkSetupAllowIPv4Forwarding(name string, config map[string]string) error {
+	// Allow forwarding
+	if config["bridge.mode"] == "fan" || config["ipv4.routing"] == "" || shared.IsTrue(config["ipv4.routing"]) {
+		err := device.NetworkSysctlSet("ipv4/ip_forward", "1")
+		if err != nil {
+			return err
+		}
+
+		if config["ipv4.firewall"] == "" || shared.IsTrue(config["ipv4.firewall"]) {
+			err = iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-i", name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+
+			err = iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-o", name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		if config["ipv4.firewall"] == "" || shared.IsTrue(config["ipv4.firewall"]) {
+			err := iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-i", name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+
+			err = iptables.NetworkPrepend("ipv4", name, "", "FORWARD", "-o", name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+func NetworkSetupConfigIPv4NAT(name string, config map[string]string, subnet net.IPNet) error {
+	// Configure NAT
+	if shared.IsTrue(config["ipv4.nat"]) {
+		//If a SNAT source address is specified, use that, otherwise default to using MASQUERADE mode.
+		args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+		if config["ipv4.nat.address"] != "" {
+			args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", config["ipv4.nat.address"]}
+		}
+
+		if config["ipv4.nat.order"] == "after" {
+			err := iptables.NetworkAppend("ipv4", name, "nat", "POSTROUTING", args...)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := iptables.NetworkPrepend("ipv4", name, "nat", "POSTROUTING", args...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+func NetworkSetupConfigIPv6Firewall(name string) error {
+	// Setup basic iptables overrides for DHCP/DNS
+	rules := [][]string{
+		{"ipv6", name, "", "INPUT", "-i", name, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
+		{"ipv6", name, "", "INPUT", "-i", name, "-p", "udp", "--dport", "53", "-j", "ACCEPT"},
+		{"ipv6", name, "", "INPUT", "-i", name, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"},
+		{"ipv6", name, "", "OUTPUT", "-o", name, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
+		{"ipv6", name, "", "OUTPUT", "-o", name, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
+		{"ipv6", name, "", "OUTPUT", "-o", name, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+
+	for _, rule := range rules {
+		err := iptables.NetworkPrepend(rule[0], rule[1], rule[2], rule[3], rule[4:]...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func NetworkSetupAllowIPv6Forwarding(name string, config map[string]string) error {
+	// Allow forwarding
+	if config["ipv6.routing"] == "" || shared.IsTrue(config["ipv6.routing"]) {
+		// Get a list of proc entries
+		entries, err := ioutil.ReadDir("/proc/sys/net/ipv6/conf/")
+		if err != nil {
+			return err
+		}
+
+		// First set accept_ra to 2 for everything
+		for _, entry := range entries {
+			content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/accept_ra", entry.Name()))
+			if err == nil && string(content) != "1\n" {
+				continue
+			}
+
+			err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+
+		// Then set forwarding for all of them
+		for _, entry := range entries {
+			err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+
+		if config["ipv6.firewall"] == "" || shared.IsTrue(config["ipv6.firewall"]) {
+			err = iptables.NetworkPrepend("ipv6", name, "", "FORWARD", "-i", name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+
+			err = iptables.NetworkPrepend("ipv6", name, "", "FORWARD", "-o", name, "-j", "ACCEPT")
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		if config["ipv6.firewall"] == "" || shared.IsTrue(config["ipv6.firewall"]) {
+			err := iptables.NetworkPrepend("ipv6", name, "", "FORWARD", "-i", name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+
+			err = iptables.NetworkPrepend("ipv6", name, "", "FORWARD", "-o", name, "-j", "REJECT")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+func NetworkSetupConfigIPv6NAT(name string, config map[string]string, subnet net.IPNet) error {
+	// Configure NAT
+	if shared.IsTrue(config["ipv6.nat"]) {
+		args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+		if config["ipv6.nat.address"] != "" {
+			args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", config["ipv6.nat.address"]}
+		}
+
+		if config["ipv6.nat.order"] == "after" {
+			err := iptables.NetworkAppend("ipv6", name, "nat", "POSTROUTING", args...)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := iptables.NetworkPrepend("ipv6", name, "nat", "POSTROUTING", args...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+func NetworkSetupConfigTunnelNAT(name string, config map[string]string, overlaySubnet net.IPNet) error {
+	// Configure NAT
+	if config["ipv4.nat"] == "" || shared.IsTrue(config["ipv4.nat"]) {
+		if config["ipv4.nat.order"] == "after" {
+			err := iptables.NetworkAppend("ipv4", name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
+			if err != nil {
+				return err
+			}
+		} else {
+			err := iptables.NetworkPrepend("ipv4", name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
