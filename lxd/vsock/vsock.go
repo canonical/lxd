@@ -13,8 +13,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 	client := &http.Client{}
 
 	// Get the TLS configuration.
-	// tomp TODO remove insecure skip verify.
-	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, "", tlsServerCert, true)
+	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, "", tlsServerCert, false)
 	if err != nil {
 		return nil, err
 	}
