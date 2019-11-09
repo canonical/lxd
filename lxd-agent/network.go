@@ -56,7 +56,7 @@ func (l *networkListener) Accept() (net.Conn, error) {
 	return tls.Server(c, l.config), nil
 }
 
-func ServerTLSConfig() (*tls.Config, error) {
+func serverTLSConfig() (*tls.Config, error) {
 	certInfo, err := shared.KeyPairAndCA(filepath.Join("/", "media", "lxd_config"), "agent", shared.CertServer)
 	if err != nil {
 		return nil, err

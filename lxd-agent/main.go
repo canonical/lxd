@@ -1,45 +1,43 @@
 package main
 
 import (
-	"crypto/x509"
-	"flag"
-	"log"
-	"path/filepath"
+	"os"
 
-	"github.com/lxc/lxd/lxd/vsock"
-	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
+	"github.com/lxc/lxd/shared/version"
 )
 
-var tlsClientCertFile = filepath.Join("/", "media", "lxd_config", "server.crt")
-var tlsServerCertFile = filepath.Join("/", "media", "lxd_config", "agent.crt")
-var tlsServerKeyFile = filepath.Join("/", "media", "lxd_config", "agent.key")
+type cmdGlobal struct {
+	flagVersion bool
+	flagHelp    bool
 
-var debug bool
-
-// cert is the only client certificate which is authorized.
-var cert *x509.Certificate
+	flagLogDebug bool
+}
 
 func main() {
-	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
-	flag.Parse()
+	// agent command (main)
+	agentCmd := cmdAgent{}
+	app := agentCmd.Command()
+	app.SilenceUsage = true
 
-	l, err := vsock.Listen(8443)
+	// Workaround for main command
+	app.Args = cobra.ArbitraryArgs
+
+	// Global flags
+	globalCmd := cmdGlobal{}
+	agentCmd.global = &globalCmd
+	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagLogDebug, "debug", "d", false, "Show all debug messages")
+
+	// Version handling
+	app.SetVersionTemplate("{{.Version}}\n")
+	app.Version = version.Version
+
+	// Run the main command and handle errors
+	err := app.Execute()
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to listen on vsock"))
+		os.Exit(1)
 	}
-
-	cert, err = shared.ReadCert(tlsClientCertFile)
-	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to read client certificate"))
-	}
-
-	tlsConfig, err := ServerTLSConfig()
-	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to get TLS config"))
-	}
-
-	httpServer := RestServer(tlsConfig)
-
-	log.Println(httpServer.ServeTLS(networkTLSListener(l, tlsConfig), tlsServerCertFile, tlsServerKeyFile))
 }
