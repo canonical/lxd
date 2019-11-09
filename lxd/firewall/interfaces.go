@@ -55,11 +55,11 @@ type Firewall interface {
 	VerifyIPv6Module() error
 
 	// Proxy
-	ProxySetupNAT(ipv string, IPAddr string, comment string, connType, address, port string, cPort string) error
+	InstanceProxySetupNAT(protocol string, ipAddr net.IP, comment string, connType, address, port string, cPort string) error
 
 	// NIC bridged
-	BridgeRemoveFilters(m deviceConfig.Device, IPv4 net.IP, IPv6 net.IP) error
-	BridgeSetFilters(m deviceConfig.Device, config map[string]string, IPv4 net.IP, IPv6 net.IP, name string) error
+	InstanceNicBridgedRemoveFilters(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP) error
+	InstanceNicBridgedSetFilters(m deviceConfig.Device, config map[string]string, ipv4 net.IP, ipv6 net.IP, name string) error
 
 	// Network
 	NetworkSetup(oldConfig map[string]string) error
