@@ -109,7 +109,7 @@ func (c *cmdStorageVolume) parseVolume(defaultType string, name string) (string,
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return fields[0], defaultType
-	} else if len(fields) == 2 && !shared.StringInSlice(fields[0], []string{"custom", "image", "container"}) {
+	} else if len(fields) == 2 && !shared.StringInSlice(fields[0], []string{"custom", "image", "container", "virtual-machine"}) {
 		return name, defaultType
 	}
 
