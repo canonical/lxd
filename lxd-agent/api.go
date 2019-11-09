@@ -17,12 +17,6 @@ type APIEndpoint struct {
 	Patch  APIEndpointAction
 }
 
-// APIEndpointAlias represents an alias URL of and APIEndpoint in our API.
-type APIEndpointAlias struct {
-	Name string // Name for this alias.
-	Path string // Path pattern for this alias.
-}
-
 // APIEndpointAction represents an action on an API endpoint.
 type APIEndpointAction struct {
 	Handler func(r *http.Request) response.Response
