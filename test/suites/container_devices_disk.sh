@@ -5,6 +5,7 @@ test_container_devices_disk() {
   lxc launch testimage foo
 
   test_container_devices_disk_shift
+  test_container_devices_raw_mount_options
 
   lxc delete -f foo
 }
@@ -59,35 +60,33 @@ test_container_devices_disk_shift() {
   lxc storage volume delete "${POOL}" foo-shift
   lxc stop foo -f
 }
-#- Add a new "test_container_devices_disk_ceph" function
-#- Get storage backend with: lxd_backend=$(storage_backend "$LXD_DIR")
-#- If lxd_backend isn't ceph, return from the function
-#- If it is ceph, then create a temporary rbd pool name, something like "lxdtest-$(basename "${LXD_DIR}")-disk" would do the trick
-#- Create a pool with "ceph osd pool create $RBD_POOL_NAME 1"
-#- Create the rbd volume with "rbd create --pool $RBD_POOL_NAME blah 50MB"
-#- Map the rbd volume with "rbd map --pool $RBD_POOL_NAME blah"
-#- Create a filesystem on it with "mkfs.ext4"
-#- Unmap the volume with "rbd unmap /dev/rbdX"
-#- Create a privileged container (easiest) with "lxc launch testimage ceph-disk -c security.privileged=true"
-#- Attach the volume to the container with "lxc config device add ceph-disk rbd disk source=ceph:$RBD_POOL_NAME/blah ceph.user_name=admin ceph.cluster_name=ceph path=/ceph"
-#- Confirm that it's visible in the container with something like "lxc exec ceph-disk -- stat /ceph/lost+found"
-#- Restart the container to validate it works on startup "lxc restart ceph-disk"
-#- Confirm that it's visible in the container with something like "lxc exec cephfs-disk -- stat /cephfs"
-#- Delete the container "lxc delete -f ceph-disk"
-#- Add a new "test_container_devices_disk_cephfs" function
-#- Get storage backend with: lxd_backend=$(storage_backend "$LXD_DIR")
-#- If lxd_backend isn't ceph, return from the function
-#- If LXD_CEPH_CEPHFS is empty, return from the function
-#- Create a privileged container (easiest) with "lxc launch testimage ceph-fs -c security.privileged=true"
-#- Attach the volume to the container with "lxc config device add ceph-fs fs disk source=cephfs:$LXD_CEPH_CEPHFS/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs"
-#- Confirm that it's visible in the container with something like "lxc exec cephfs-disk -- stat /cephfs"
-#- Restart the container to validate it works on startup "lxc restart cephfs-disk"
-#- Confirm that it's visible in the container with something like "lxc exec cephfs-disk -- stat /cephfs"
-#- Delete the container "lxc delete -f cephfs-disk"
-#- Add both functions to test_container_devices_disk
 
-test_container_devices_disk_ceph() {
-  local LXD_BACKEND
+test_container_devices_raw_mount_options() {
+  configure_loop_device loop_file_1 loop_device_1
+  # shellcheck disable=SC2154
+  mkfs.vfat "${loop_device_1}"
+
+  lxc launch testimage foo-priv -c security.privileged=true
+
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ] || false
+  lxc config device remove foo-priv loop_raw_mount_options
+
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  lxc config device remove foo-priv loop_raw_mount_options
+
+  lxc stop foo-priv -f
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
+  lxc start foo-priv
+
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  lxc config device remove foo-priv loop_raw_mount_options
+
+  lxc delete -f foo-priv
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
+}
 
   LXD_BACKEND=$(storage_backend "$LXD_DIR")
   if ! [ "${LXD_BACKEND}" = "ceph" ]; then
