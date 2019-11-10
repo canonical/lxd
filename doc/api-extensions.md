@@ -867,5 +867,5 @@ Adds the `security.syscalls.intercept.mount`,
 and how the mount system call will be interecepted by LXD and processed with
 elevated permissions.
 
-## compression_squashfs
+## compression\_squashfs
 Adds support for importing/exporting of images/backups using SquashFS file system format.
