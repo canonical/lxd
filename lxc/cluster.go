@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 type cmdCluster struct {
@@ -48,6 +50,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	// Enable
 	clusterEnableCmd := cmdClusterEnable{global: c.global, cluster: c}
 	cmd.AddCommand(clusterEnableCmd.Command())
+
+	// Edit
+	clusterEditCmd := cmdClusterEdit{global: c.global, cluster: c}
+	cmd.AddCommand(clusterEditCmd.Command())
 
 	return cmd
 }
@@ -400,5 +406,116 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println(i18n.G("Clustering enabled"))
+	return nil
+}
+
+// Edit
+type cmdClusterEdit struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("edit [<remote>:]<cluster member>")
+	cmd.Short = i18n.G("Edit cluster member configurations as YAML")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Edit cluster member configurations as YAML`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc cluster edit <cluster member> < member.yaml
+    Update a cluster member using the content of member.yaml`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a yaml representation of the cluster member.
+### Any line starting with a '# will be ignored.`)
+}
+
+func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing cluster member name"))
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		newdata := api.ClusterMemberPut{}
+		err = yaml.Unmarshal(contents, &newdata)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateClusterMember(resource.name, newdata, "")
+	}
+
+	// Extract the current value
+	member, etag, err := resource.server.GetClusterMember(resource.name)
+	if err != nil {
+		return err
+	}
+
+	memberWritable := member.Writable()
+
+	data, err := yaml.Marshal(&memberWritable)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor
+		newdata := api.ClusterMemberPut{}
+		err = yaml.Unmarshal(content, &newdata)
+		if err == nil {
+			err = resource.server.UpdateClusterMember(resource.name, newdata, etag)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		break
+	}
+
 	return nil
 }
