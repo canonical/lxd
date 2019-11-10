@@ -620,7 +620,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		var err error
 		address, err = tx.NodeAddress()
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch the address of this node")
+			return errors.Wrap(err, "Failed to fetch the address of this cluster member")
 		}
 		return nil
 	})
@@ -630,7 +630,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Sanity check that we actually have an address.
 	if address == "" {
-		return fmt.Errorf("node is not exposed on the network")
+		return fmt.Errorf("Cluster member is not exposed on the network")
 	}
 
 	// Figure out our node identity.
@@ -644,7 +644,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// Sanity check that our address was actually included in the given
 	// list of raft nodes.
 	if info == nil {
-		return fmt.Errorf("this node is not included in the given list of database nodes")
+		return fmt.Errorf("This node is not included in the given list of database nodes")
 	}
 
 	// Replace our local list of raft nodes with the given one (which
@@ -652,7 +652,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
 		err = tx.RaftNodesReplace(nodes)
 		if err != nil {
-			return errors.Wrap(err, "failed to set raft nodes")
+			return errors.Wrap(err, "Failed to set raft nodes")
 		}
 
 		return nil
@@ -681,7 +681,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// other database code to run while we're reconfiguring raft.
 	err = state.Cluster.EnterExclusive()
 	if err != nil {
-		return errors.Wrap(err, "failed to acquire cluster database lock")
+		return errors.Wrap(err, "Failed to acquire cluster database lock")
 	}
 	transactor = state.Cluster.ExitExclusive
 
@@ -689,7 +689,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// somehow leftover).
 	err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 	if err != nil {
-		return errors.Wrap(err, "failed to remove existing raft data")
+		return errors.Wrap(err, "Failed to remove existing raft data")
 	}
 
 	// Re-initialize the gateway. This will create a new raft factory an
@@ -736,7 +736,7 @@ assign:
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "cluster database initialization failed")
+		return errors.Wrap(err, "Cluster database initialization failed")
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
