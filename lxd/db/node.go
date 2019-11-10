@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 // ClusterRole represents the role of a member in a cluster.
@@ -374,6 +375,45 @@ func (c *ClusterTx) NodeAddRole(id int64, role ClusterRole) error {
 	_, err := c.tx.Exec("INSERT INTO nodes_roles (node_id, role) VALUES (?, ?)", id, roleID)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// NodeUpdateRoles changes the list of roles on a member.
+func (c *ClusterTx) NodeUpdateRoles(id int64, roles []ClusterRole) error {
+	getRoleID := func(role ClusterRole) (int, error) {
+		for k, v := range ClusterRoles {
+			if v == role {
+				return k, nil
+			}
+		}
+
+		return -1, fmt.Errorf("Invalid cluster role '%s'", role)
+	}
+
+	// Translate role names to ids
+	roleIDs := []int{}
+	for _, role := range roles {
+		roleID, err := getRoleID(role)
+		if err != nil {
+			return err
+		}
+
+		roleIDs = append(roleIDs, roleID)
+	}
+
+	// Update the database record
+	_, err := c.tx.Exec("DELETE FROM nodes_roles WHERE node_id=?", id)
+	if err != nil {
+		return err
+	}
+
+	for _, roleID := range roleIDs {
+		_, err := c.tx.Exec("INSERT INTO nodes_roles (node_id, role) VALUES (?, ?)", id, roleID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

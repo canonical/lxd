@@ -48,6 +48,8 @@ var clusterNodeCmd = APIEndpoint{
 
 	Delete: APIEndpointAction{Handler: clusterNodeDelete},
 	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: AllowAuthenticated},
+	Patch:  APIEndpointAction{Handler: clusterNodePatch},
+	Put:    APIEndpointAction{Handler: clusterNodePut},
 	Post:   APIEndpointAction{Handler: clusterNodePost},
 }
 
@@ -853,11 +855,78 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 
 	for _, node := range nodes {
 		if node.ServerName == name {
-			return response.SyncResponseETag(true, node, node)
+			return response.SyncResponseETag(true, node, node.Roles)
 		}
 	}
 
 	return response.NotFound(fmt.Errorf("Member '%s' not found", name))
+}
+
+func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
+	// Right now, Patch does the same as Put.
+	return clusterNodePut(d, r)
+}
+
+func clusterNodePut(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
+	// Find the requested one.
+	var current db.NodeInfo
+	var err error
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		current, err = tx.NodeByName(name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Validate the request is fine
+	err = util.EtagCheck(r, current.Roles)
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	// Parse the request
+	req := api.ClusterMemberPut{}
+
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Validate the request
+	if shared.StringInSlice(string(db.ClusterRoleDatabase), current.Roles) && !shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+		return response.BadRequest(fmt.Errorf("The '%s' role cannot be dropped at this time", db.ClusterRoleDatabase))
+	}
+
+	if !shared.StringInSlice(string(db.ClusterRoleDatabase), current.Roles) && shared.StringInSlice(string(db.ClusterRoleDatabase), req.Roles) {
+		return response.BadRequest(fmt.Errorf("The '%s' role cannot be added at this time", db.ClusterRoleDatabase))
+	}
+
+	// Update the database
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbRoles := []db.ClusterRole{}
+		for _, role := range req.Roles {
+			dbRoles = append(dbRoles, db.ClusterRole(role))
+		}
+
+		err := tx.NodeUpdateRoles(current.ID, dbRoles)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.EmptySyncResponse
 }
 
 func clusterNodePost(d *Daemon, r *http.Request) response.Response {
