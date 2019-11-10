@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-11-07 16:23+0000\n"
+"POT-Creation-Date: 2019-11-10 18:28-0500\n"
 "PO-Revision-Date: 2017-02-14 08:00+0000\n"
 "Last-Translator: Simos Xenitellis <simos.65@gmail.com>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -48,6 +48,12 @@ msgid ""
 "### used_by: []\n"
 "### config:\n"
 "###   size: \"61203283968\""
+msgstr ""
+
+#: lxc/cluster.go:434
+msgid ""
+"### This is a yaml representation of the cluster member.\n"
+"### Any line starting with a '# will be ignored."
 msgstr ""
 
 #: lxc/config.go:103
@@ -555,7 +561,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr ""
 
-#: lxc/cluster.go:402
+#: lxc/cluster.go:408
 msgid "Clustering enabled"
 msgstr ""
 
@@ -587,9 +593,10 @@ msgstr ""
 msgid "Config key/value to apply to the target container"
 msgstr ""
 
-#: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:143
-#: lxc/image.go:414 lxc/network.go:640 lxc/profile.go:498 lxc/project.go:304
-#: lxc/storage.go:303 lxc/storage_volume.go:917 lxc/storage_volume.go:947
+#: lxc/cluster.go:503 lxc/config.go:270 lxc/config.go:343
+#: lxc/config_metadata.go:143 lxc/image.go:414 lxc/network.go:640
+#: lxc/profile.go:498 lxc/project.go:304 lxc/storage.go:303
+#: lxc/storage_volume.go:917 lxc/storage_volume.go:947
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -775,7 +782,7 @@ msgstr ""
 msgid "Current number of VFs: %d"
 msgstr ""
 
-#: lxc/cluster.go:128
+#: lxc/cluster.go:134
 msgid "DATABASE"
 msgstr ""
 
@@ -846,53 +853,54 @@ msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
-#: lxc/alias.go:195 lxc/cluster.go:29 lxc/cluster.go:68 lxc/cluster.go:146
-#: lxc/cluster.go:196 lxc/cluster.go:246 lxc/cluster.go:331 lxc/config.go:31
-#: lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:580
-#: lxc/config.go:699 lxc/config_device.go:24 lxc/config_device.go:76
-#: lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327
-#: lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513
-#: lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:28
-#: lxc/config_metadata.go:53 lxc/config_metadata.go:175
-#: lxc/config_template.go:29 lxc/config_template.go:66
-#: lxc/config_template.go:109 lxc/config_template.go:151
-#: lxc/config_template.go:237 lxc/config_template.go:296 lxc/config_trust.go:29
-#: lxc/config_trust.go:58 lxc/config_trust.go:116 lxc/config_trust.go:194
-#: lxc/console.go:32 lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41
-#: lxc/export.go:33 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154
-#: lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:128
-#: lxc/image.go:270 lxc/image.go:321 lxc/image.go:446 lxc/image.go:592
-#: lxc/image.go:808 lxc/image.go:934 lxc/image.go:1232 lxc/image.go:1311
-#: lxc/image_alias.go:25 lxc/image_alias.go:58 lxc/image_alias.go:105
-#: lxc/image_alias.go:150 lxc/image_alias.go:252 lxc/import.go:28
-#: lxc/info.go:32 lxc/init.go:40 lxc/launch.go:23 lxc/list.go:44 lxc/main.go:50
-#: lxc/manpage.go:19 lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:32
-#: lxc/network.go:108 lxc/network.go:181 lxc/network.go:254 lxc/network.go:326
-#: lxc/network.go:376 lxc/network.go:461 lxc/network.go:546 lxc/network.go:669
-#: lxc/network.go:727 lxc/network.go:807 lxc/network.go:892 lxc/network.go:961
-#: lxc/network.go:1011 lxc/network.go:1081 lxc/network.go:1143
-#: lxc/operation.go:24 lxc/operation.go:53 lxc/operation.go:102
-#: lxc/operation.go:181 lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164
-#: lxc/profile.go:244 lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404
-#: lxc/profile.go:528 lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712
-#: lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29
-#: lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334
-#: lxc/project.go:384 lxc/project.go:469 lxc/project.go:524 lxc/project.go:584
-#: lxc/project.go:613 lxc/project.go:666 lxc/publish.go:35 lxc/query.go:31
-#: lxc/remote.go:34 lxc/remote.go:85 lxc/remote.go:419 lxc/remote.go:455
-#: lxc/remote.go:535 lxc/remote.go:597 lxc/remote.go:647 lxc/remote.go:685
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33
-#: lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333
-#: lxc/storage.go:388 lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651
-#: lxc/storage.go:735 lxc/storage_volume.go:32 lxc/storage_volume.go:139
-#: lxc/storage_volume.go:218 lxc/storage_volume.go:301
-#: lxc/storage_volume.go:462 lxc/storage_volume.go:539
-#: lxc/storage_volume.go:615 lxc/storage_volume.go:697
-#: lxc/storage_volume.go:778 lxc/storage_volume.go:978
-#: lxc/storage_volume.go:1069 lxc/storage_volume.go:1142
-#: lxc/storage_volume.go:1173 lxc/storage_volume.go:1286
-#: lxc/storage_volume.go:1362 lxc/storage_volume.go:1461
-#: lxc/storage_volume.go:1492 lxc/storage_volume.go:1563 lxc/version.go:22
+#: lxc/alias.go:195 lxc/cluster.go:31 lxc/cluster.go:74 lxc/cluster.go:152
+#: lxc/cluster.go:202 lxc/cluster.go:252 lxc/cluster.go:337 lxc/cluster.go:422
+#: lxc/config.go:31 lxc/config.go:90 lxc/config.go:373 lxc/config.go:454
+#: lxc/config.go:580 lxc/config.go:699 lxc/config_device.go:24
+#: lxc/config_device.go:76 lxc/config_device.go:188 lxc/config_device.go:261
+#: lxc/config_device.go:327 lxc/config_device.go:416 lxc/config_device.go:507
+#: lxc/config_device.go:513 lxc/config_device.go:613 lxc/config_device.go:681
+#: lxc/config_metadata.go:28 lxc/config_metadata.go:53
+#: lxc/config_metadata.go:175 lxc/config_template.go:29
+#: lxc/config_template.go:66 lxc/config_template.go:109
+#: lxc/config_template.go:151 lxc/config_template.go:237
+#: lxc/config_template.go:296 lxc/config_trust.go:29 lxc/config_trust.go:58
+#: lxc/config_trust.go:116 lxc/config_trust.go:194 lxc/console.go:32
+#: lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41 lxc/export.go:33
+#: lxc/file.go:72 lxc/file.go:105 lxc/file.go:154 lxc/file.go:217
+#: lxc/file.go:407 lxc/image.go:38 lxc/image.go:128 lxc/image.go:270
+#: lxc/image.go:321 lxc/image.go:446 lxc/image.go:592 lxc/image.go:808
+#: lxc/image.go:934 lxc/image.go:1232 lxc/image.go:1311 lxc/image_alias.go:25
+#: lxc/image_alias.go:58 lxc/image_alias.go:105 lxc/image_alias.go:150
+#: lxc/image_alias.go:252 lxc/import.go:28 lxc/info.go:32 lxc/init.go:40
+#: lxc/launch.go:23 lxc/list.go:44 lxc/main.go:50 lxc/manpage.go:19
+#: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:32 lxc/network.go:108
+#: lxc/network.go:181 lxc/network.go:254 lxc/network.go:326 lxc/network.go:376
+#: lxc/network.go:461 lxc/network.go:546 lxc/network.go:669 lxc/network.go:727
+#: lxc/network.go:807 lxc/network.go:892 lxc/network.go:961 lxc/network.go:1011
+#: lxc/network.go:1081 lxc/network.go:1143 lxc/operation.go:24
+#: lxc/operation.go:53 lxc/operation.go:102 lxc/operation.go:181
+#: lxc/profile.go:29 lxc/profile.go:101 lxc/profile.go:164 lxc/profile.go:244
+#: lxc/profile.go:300 lxc/profile.go:354 lxc/profile.go:404 lxc/profile.go:528
+#: lxc/profile.go:577 lxc/profile.go:636 lxc/profile.go:712 lxc/profile.go:762
+#: lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29 lxc/project.go:86
+#: lxc/project.go:151 lxc/project.go:214 lxc/project.go:334 lxc/project.go:384
+#: lxc/project.go:469 lxc/project.go:524 lxc/project.go:584 lxc/project.go:613
+#: lxc/project.go:666 lxc/publish.go:35 lxc/query.go:31 lxc/remote.go:34
+#: lxc/remote.go:85 lxc/remote.go:419 lxc/remote.go:455 lxc/remote.go:535
+#: lxc/remote.go:597 lxc/remote.go:647 lxc/remote.go:685 lxc/rename.go:21
+#: lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33 lxc/storage.go:89
+#: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
+#: lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651 lxc/storage.go:735
+#: lxc/storage_volume.go:32 lxc/storage_volume.go:139 lxc/storage_volume.go:218
+#: lxc/storage_volume.go:301 lxc/storage_volume.go:462
+#: lxc/storage_volume.go:539 lxc/storage_volume.go:615
+#: lxc/storage_volume.go:697 lxc/storage_volume.go:778
+#: lxc/storage_volume.go:978 lxc/storage_volume.go:1069
+#: lxc/storage_volume.go:1142 lxc/storage_volume.go:1173
+#: lxc/storage_volume.go:1286 lxc/storage_volume.go:1362
+#: lxc/storage_volume.go:1461 lxc/storage_volume.go:1492
+#: lxc/storage_volume.go:1563 lxc/version.go:22
 msgid "Description"
 msgstr ""
 
@@ -977,7 +985,7 @@ msgstr "  Χρήση CPU:"
 msgid "Disks:"
 msgstr "  Χρήση CPU:"
 
-#: lxc/cluster.go:251
+#: lxc/cluster.go:257
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
@@ -1002,6 +1010,10 @@ msgstr ""
 msgid ""
 "Early server side processing of file tranfer requests cannot be canceled "
 "(interrupt two more times to force)"
+msgstr ""
+
+#: lxc/cluster.go:421 lxc/cluster.go:422
+msgid "Edit cluster member configurations as YAML"
 msgstr ""
 
 #: lxc/config_template.go:150 lxc/config_template.go:151
@@ -1049,11 +1061,11 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
-#: lxc/cluster.go:330
+#: lxc/cluster.go:336
 msgid "Enable clustering on a single non-clustered LXD instance"
 msgstr ""
 
-#: lxc/cluster.go:331
+#: lxc/cluster.go:337
 msgid ""
 "Enable clustering on a single non-clustered LXD instance\n"
 "\n"
@@ -1191,7 +1203,7 @@ msgstr ""
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/cluster.go:250
+#: lxc/cluster.go:256
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
@@ -1207,7 +1219,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/cluster.go:258
+#: lxc/cluster.go:264
 #, c-format
 msgid ""
 "Forcefully removing a server from the cluster should only be done as a last\n"
@@ -1231,7 +1243,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:102 lxc/cluster.go:70 lxc/config_template.go:239
+#: lxc/alias.go:102 lxc/cluster.go:76 lxc/config_template.go:239
 #: lxc/config_trust.go:118 lxc/image.go:960 lxc/image_alias.go:155
 #: lxc/list.go:115 lxc/network.go:811 lxc/network.go:894 lxc/operation.go:104
 #: lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:459 lxc/storage.go:510
@@ -1523,7 +1535,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/cluster.go:104
+#: lxc/cluster.go:110
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
@@ -1554,7 +1566,7 @@ msgstr ""
 msgid "List aliases"
 msgstr ""
 
-#: lxc/cluster.go:67 lxc/cluster.go:68
+#: lxc/cluster.go:73 lxc/cluster.go:74
 msgid "List all the cluster members"
 msgstr ""
 
@@ -1742,7 +1754,7 @@ msgstr ""
 msgid "MANAGED"
 msgstr ""
 
-#: lxc/cluster.go:130
+#: lxc/cluster.go:136
 msgid "MESSAGE"
 msgstr ""
 
@@ -1763,7 +1775,7 @@ msgstr ""
 msgid "Manage and attach containers to networks"
 msgstr ""
 
-#: lxc/cluster.go:28 lxc/cluster.go:29
+#: lxc/cluster.go:30 lxc/cluster.go:31
 msgid "Manage cluster members"
 msgstr ""
 
@@ -1855,12 +1867,12 @@ msgstr ""
 msgid "Maximum number of VFs: %d"
 msgstr ""
 
-#: lxc/cluster.go:313
+#: lxc/cluster.go:319
 #, c-format
 msgid "Member %s removed"
 msgstr ""
 
-#: lxc/cluster.go:226
+#: lxc/cluster.go:232
 #, c-format
 msgid "Member %s renamed to %s"
 msgstr ""
@@ -1893,6 +1905,10 @@ msgstr ""
 
 #: lxc/monitor.go:48
 msgid "Minimum level for log messages"
+msgstr ""
+
+#: lxc/cluster.go:455
+msgid "Missing cluster member name"
 msgstr ""
 
 #: lxc/config_metadata.go:101 lxc/config_metadata.go:199
@@ -2013,7 +2029,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/cluster.go:126 lxc/list.go:427 lxc/network.go:867 lxc/profile.go:620
+#: lxc/cluster.go:132 lxc/list.go:427 lxc/network.go:867 lxc/profile.go:620
 #: lxc/project.go:449 lxc/remote.go:513 lxc/storage.go:558
 #: lxc/storage_volume.go:1118
 msgid "NAME"
@@ -2224,8 +2240,8 @@ msgstr ""
 msgid "Ports:"
 msgstr ""
 
-#: lxc/network.go:641 lxc/profile.go:499 lxc/project.go:305 lxc/storage.go:304
-#: lxc/storage_volume.go:918 lxc/storage_volume.go:948
+#: lxc/cluster.go:504 lxc/network.go:641 lxc/profile.go:499 lxc/project.go:305
+#: lxc/storage.go:304 lxc/storage_volume.go:918 lxc/storage_volume.go:948
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -2439,7 +2455,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/cluster.go:245 lxc/cluster.go:246
+#: lxc/cluster.go:251 lxc/cluster.go:252
 msgid "Remove a member from the cluster"
 msgstr ""
 
@@ -2463,7 +2479,7 @@ msgstr ""
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster.go:195 lxc/cluster.go:196
+#: lxc/cluster.go:201 lxc/cluster.go:202
 msgid "Rename a cluster member"
 msgstr ""
 
@@ -2573,7 +2589,7 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:129 lxc/list.go:432 lxc/network.go:874 lxc/storage.go:563
+#: lxc/cluster.go:135 lxc/list.go:432 lxc/network.go:874 lxc/storage.go:563
 msgid "STATE"
 msgstr ""
 
@@ -2754,7 +2770,7 @@ msgstr ""
 msgid "Show content of container file templates"
 msgstr ""
 
-#: lxc/cluster.go:145 lxc/cluster.go:146
+#: lxc/cluster.go:151 lxc/cluster.go:152
 msgid "Show details of a cluster member"
 msgstr ""
 
@@ -3144,7 +3160,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/remote.go:514
+#: lxc/cluster.go:133 lxc/remote.go:514
 msgid "URL"
 msgstr ""
 
@@ -3224,7 +3240,7 @@ msgstr ""
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/cluster.go:277 lxc/delete.go:47
+#: lxc/cluster.go:283 lxc/delete.go:47
 msgid "User aborted delete operation"
 msgstr ""
 
@@ -3351,7 +3367,7 @@ msgid ""
 "name>]"
 msgstr ""
 
-#: lxc/cluster.go:27
+#: lxc/cluster.go:29
 msgid "cluster"
 msgstr ""
 
@@ -3493,6 +3509,10 @@ msgstr ""
 msgid "driver"
 msgstr ""
 
+#: lxc/cluster.go:420
+msgid "edit [<remote>:]<cluster member>"
+msgstr ""
+
 #: lxc/config_metadata.go:51
 msgid "edit [<remote>:]<container>"
 msgstr ""
@@ -3533,7 +3553,7 @@ msgstr ""
 msgid "edit [<remote>:][<container>[/<snapshot>]]"
 msgstr ""
 
-#: lxc/cluster.go:329
+#: lxc/cluster.go:335
 msgid "enable [<remote>:] <name>"
 msgstr ""
 
@@ -3647,7 +3667,7 @@ msgstr ""
 msgid "list"
 msgstr ""
 
-#: lxc/cluster.go:65 lxc/config_trust.go:113 lxc/network.go:804
+#: lxc/cluster.go:71 lxc/config_trust.go:113 lxc/network.go:804
 #: lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:505
 msgid "list [<remote>:]"
 msgstr ""
@@ -3692,6 +3712,12 @@ msgstr ""
 msgid ""
 "lxc alias rename list my-list\n"
 "    Rename existing alias \"list\" to \"my-list\"."
+msgstr ""
+
+#: lxc/cluster.go:424
+msgid ""
+"lxc cluster edit <cluster member> < member.yaml\n"
+"    Update a cluster member using the content of member.yaml"
 msgstr ""
 
 #: lxc/config_device.go:79
@@ -4011,7 +4037,7 @@ msgstr ""
 msgid "remove [<remote>:]<container|profile> <name>..."
 msgstr ""
 
-#: lxc/cluster.go:243
+#: lxc/cluster.go:249
 msgid "remove [<remote>:]<member>"
 msgstr ""
 
@@ -4031,7 +4057,7 @@ msgstr ""
 msgid "rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]"
 msgstr ""
 
-#: lxc/cluster.go:193
+#: lxc/cluster.go:199
 msgid "rename [<remote>:]<member> <new-name>"
 msgstr ""
 
@@ -4113,7 +4139,7 @@ msgstr ""
 msgid "show [<remote>:]<image>"
 msgstr ""
 
-#: lxc/cluster.go:144
+#: lxc/cluster.go:150
 msgid "show [<remote>:]<member>"
 msgstr ""
 
@@ -4250,7 +4276,7 @@ msgstr ""
 msgid "y"
 msgstr ""
 
-#: lxc/cluster.go:276 lxc/delete.go:46 lxc/image.go:849 lxc/image.go:854
+#: lxc/cluster.go:282 lxc/delete.go:46 lxc/image.go:849 lxc/image.go:854
 #: lxc/image.go:1028
 msgid "yes"
 msgstr ""
