@@ -21,9 +21,13 @@ type ClusterRole string
 // ClusterRoleDatabase represents the database role in a cluster.
 const ClusterRoleDatabase = ClusterRole("database")
 
+// ClusterRoleEventhub represents the database role in a cluster.
+const ClusterRoleEventhub = ClusterRole("eventhub")
+
 // ClusterRoles maps role ids into human-readable names.
 var ClusterRoles = map[int]ClusterRole{
 	0: ClusterRoleDatabase,
+	1: ClusterRoleEventhub,
 }
 
 // NodeInfo holds information about a single LXD instance in a cluster.
