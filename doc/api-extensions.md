@@ -869,3 +869,8 @@ elevated permissions.
 
 ## compression\_squashfs
 Adds support for importing/exporting of images/backups using SquashFS file system format.
+
+## clustering\_eventhub
+This introduces the optional `eventhub` role to allow a number of LXD
+cluster members to handle relaying of events instead of the previous
+broadcast approach.
