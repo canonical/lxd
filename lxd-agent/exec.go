@@ -235,7 +235,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[2]
 	}
 
-	controlExit := make(chan bool)
+	controlExit := make(chan bool, 1)
 	attachedChildIsBorn := make(chan int)
 	attachedChildIsDead := make(chan bool, 1)
 	var wgEOF sync.WaitGroup
