@@ -244,6 +244,7 @@ LXD supports different kind of network devices:
  - [ipvlan](#nictype-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
  - [p2p](#nictype-p2p): Creates a virtual device pair, putting one side in the container and leaving the other side on the host.
  - [sriov](#nictype-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the container.
+ - [routed](#nictype-routed): Creates a virtual device pair to connect the host to the container and sets up static routes and proxy ARP/NDP entries to allow the container to join the network of a designated parent interface.
 
 Different network interface types have different additional properties.
 
@@ -379,6 +380,56 @@ vlan                    | integer   | -                 | no        | network\_v
 maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
 maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
 
+#### nictype: routed
+
+This NIC type is similar in operation to IPVLAN, in that it allows a container to join an external network without needing to configure a bridge and shares the host's MAC address.
+
+However it differs from IPVLAN because it does not need IPVLAN support in the kernel and the host and container can communicate with each other.
+
+It will also respect netfilter rules on the host and will use the host's routing table to route packets which can be useful if the host is connected to multiple networks.
+
+IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before container is started.
+
+It sets up a veth pair between host and container and then configures the following link-local gateway IPs on the host end which are then set as the default gateways in the container:
+
+  169.254.0.1
+  fe80::1
+
+It then configures static routes on the host pointing to the container's veth interface for all of the container's IPs.
+
+This nic can operate with and without a `parent` network interface set.
+
+With the `parent` network interface set proxy ARP/NDP entries of the container's IPs are added to the parent interface allowing the container to join the parent interface's network at layer 2.
+
+For DNS, the nameservers need to be configured inside the container, as these will not automatically be set.
+
+It requires the following sysctls to be set:
+
+If using IPv4 addresses:
+
+```
+net.ipv4.conf.<parent>.forwarding=1
+```
+
+If using IPv6 addresses:
+
+```
+net.ipv6.conf.<parent>.forwarding=1
+net.ipv6.conf.<parent>.proxy_ndp=1
+```
+
+Device configuration properties:
+
+Key                     | Type      | Default           | Required  | API extension                          | Description
+:--                     | :--       | :--               | :--       | :--                                    | :--
+parent                  | string    | -                 | no        | -                                      | The name of the host device to join the container to
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
+ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to container
+ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to container
+vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
+
 #### bridged, macvlan or ipvlan for connection to physical network
 The `bridged`, `macvlan` and `ipvlan` interface types can both be used to connect
 to an existing physical network.
@@ -495,7 +546,7 @@ recursive        | boolean   | false             | no        | Whether or not to
 pool             | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
 propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the container and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
 shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the container
-raw.mount.options| string    | -                 | no        | Filesystem specific mount options 
+raw.mount.options| string    | -                 | no        | Filesystem specific mount options
 
 If multiple disks, backed by the same block device, have I/O limits set,
 the average of the limits will be used.
