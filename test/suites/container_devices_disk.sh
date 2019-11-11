@@ -5,6 +5,7 @@ test_container_devices_disk() {
   lxc launch testimage foo
 
   test_container_devices_disk_shift
+  test_container_devices_raw_mount_options
 
   lxc delete -f foo
 }
@@ -58,4 +59,31 @@ test_container_devices_disk_shift() {
   lxc config device remove foo shifted
   lxc storage volume delete "${POOL}" foo-shift
   lxc stop foo -f
+}
+
+test_container_devices_raw_mount_options() {
+  configure_loop_device loop_file_1 loop_device_1
+  # shellcheck disable=SC2154
+  mkfs.vfat "${loop_device_1}"
+
+  lxc launch testimage foo-priv -c security.privileged=true
+
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "0:0" ] || false
+  lxc config device remove foo-priv loop_raw_mount_options
+
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  lxc config device remove foo-priv loop_raw_mount_options
+
+  lxc stop foo-priv -f
+  lxc config device add foo-priv loop_raw_mount_options disk source="${loop_device_1}" path=/mnt raw.mount.options=uid=123,gid=456
+  lxc start foo-priv
+
+  [ "$(lxc exec foo-priv -- stat /mnt -c '%u:%g')" = "123:456" ] || false
+  lxc config device remove foo-priv loop_raw_mount_options
+
+  lxc delete -f foo-priv
+  # shellcheck disable=SC2154
+  deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
 }

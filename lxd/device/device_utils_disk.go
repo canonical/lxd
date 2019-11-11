@@ -48,7 +48,7 @@ func IsBlockdev(path string) bool {
 }
 
 // DiskMount mounts a disk device.
-func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, propagation string) error {
+func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, propagation string, rawMountOptions string) error {
 	var err error
 
 	// Prepare the mount flags
@@ -95,7 +95,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Mount the filesystem
-	err = unix.Mount(srcPath, dstPath, fstype, uintptr(flags), "")
+	err = unix.Mount(srcPath, dstPath, fstype, uintptr(flags), rawMountOptions)
 	if err != nil {
 		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
 	}
