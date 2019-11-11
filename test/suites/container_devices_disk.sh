@@ -5,6 +5,8 @@ test_container_devices_disk() {
   lxc launch testimage foo
 
   test_container_devices_disk_shift
+  test_container_devices_disk_ceph
+  test_container_devices_disk_cephfs
   test_container_devices_raw_mount_options
 
   lxc delete -f foo
@@ -88,6 +90,8 @@ test_container_devices_raw_mount_options() {
   deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
 }
 
+test_container_devices_disk_ceph() {
+  local LXD_BACKEND
   LXD_BACKEND=$(storage_backend "$LXD_DIR")
   if ! [ "${LXD_BACKEND}" = "ceph" ]; then
     return
