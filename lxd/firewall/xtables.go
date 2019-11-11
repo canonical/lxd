@@ -14,10 +14,12 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+
 // XTables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type XTables struct {}
 
-// Lower-level clear functions
+
+// Lower-level Functions
 
 // NetworkClear removes network rules.
 func (xt *XTables) NetworkClear(protocol string, comment string, table string) error {
@@ -28,6 +30,8 @@ func (xt *XTables) NetworkClear(protocol string, comment string, table string) e
 func (xt *XTables) ContainerClear(protocol string, comment string, table string) error {
 	return iptables.ContainerClear(protocol, comment, table)
 }
+
+// VerifyIPv6Module checks to see if the ipv6 kernel module is present.
 func (xt *XTables) VerifyIPv6Module() error {
 	// Check br_netfilter is loaded and enabled for IPv6.
 	sysctlPath := "bridge/bridge-nf-call-ip6tables"
@@ -43,7 +47,10 @@ func (xt *XTables) VerifyIPv6Module() error {
 	return nil
 }
 
-// Proxy
+
+// Proxy Functions
+
+// ProxySetupNAT creates a default NAT setup.
 func (xt *XTables) ProxySetupNAT(protocol string, ipAddr net.IP, comment string, connType, address, port string, cPort string) error {
 	toDest := fmt.Sprintf("%s:%s", ipAddr, cPort)
 	if protocol == "ipv6" {
@@ -65,7 +72,10 @@ func (xt *XTables) ProxySetupNAT(protocol string, ipAddr net.IP, comment string,
 	return nil
 }
 
-// NIC bridged
+
+// NIC Bridged Functions
+
+// Removes any non-standard rules from the nic instance.
 func (xt *XTables) InstanceNicBridgedRemoveFilters(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP) error {
 	// Get a current list of rules active on the host.
 	out, err := shared.RunCommand("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
@@ -109,6 +119,8 @@ func (xt *XTables) InstanceNicBridgedRemoveFilters(m deviceConfig.Device, ipv4 n
 
 	return nil
 }
+
+// Sets the nic rules to standard filtering.
 func (xt *XTables) InstanceNicBridgedSetFilters(m deviceConfig.Device, config map[string]string, ipv4 net.IP, ipv6 net.IP, name string) error {
 	rules := generateFilterEbtablesRules(config, ipv4, ipv6)
 	for _, rule := range rules {
@@ -133,10 +145,10 @@ func (xt *XTables) InstanceNicBridgedSetFilters(m deviceConfig.Device, config ma
 	return nil
 }
 
-// Network
-func (xt *XTables) NetworkSetup(oldConfig map[string]string) error {
-	return nil
-}
+
+// Network Functions
+
+// Sets up standard IPv4 Firewall.
 func (xt *XTables) NetworkSetupConfigIPv4Firewall(name string, config map[string]string) error {
 	// Configure IPv4 firewall (includes fan)
 	if config["bridge.mode"] == "fan" || !shared.StringInSlice(config["ipv4.address"], []string{"", "none"}) {
@@ -198,6 +210,8 @@ func (xt *XTables) NetworkSetupConfigIPv4Firewall(name string, config map[string
 
 	return nil
 }
+
+// Sets up IPv4 Forwarding.
 func NetworkSetupAllowIPv4Forwarding(name string, config map[string]string) error {
 	// Allow forwarding
 	if config["bridge.mode"] == "fan" || config["ipv4.routing"] == "" || shared.IsTrue(config["ipv4.routing"]) {
@@ -233,6 +247,8 @@ func NetworkSetupAllowIPv4Forwarding(name string, config map[string]string) erro
 
 	return nil
 }
+
+// Sets up IPv4 NAT.
 func NetworkSetupConfigIPv4NAT(name string, config map[string]string, subnet net.IPNet) error {
 	// Configure NAT
 	if shared.IsTrue(config["ipv4.nat"]) {
@@ -257,6 +273,8 @@ func NetworkSetupConfigIPv4NAT(name string, config map[string]string, subnet net
 
 	return nil
 }
+
+// Sets up IPv6 Firewall.
 func NetworkSetupConfigIPv6Firewall(name string) error {
 	// Setup basic iptables overrides for DHCP/DNS
 	rules := [][]string{
@@ -276,6 +294,8 @@ func NetworkSetupConfigIPv6Firewall(name string) error {
 
 	return nil
 }
+
+// Sets up IPv6 Forwarding.
 func NetworkSetupAllowIPv6Forwarding(name string, config map[string]string) error {
 	// Allow forwarding
 	if config["ipv6.routing"] == "" || shared.IsTrue(config["ipv6.routing"]) {
@@ -333,6 +353,8 @@ func NetworkSetupAllowIPv6Forwarding(name string, config map[string]string) erro
 
 	return nil
 }
+
+// Sets up IPv6 NAT.
 func NetworkSetupConfigIPv6NAT(name string, config map[string]string, subnet net.IPNet) error {
 	// Configure NAT
 	if shared.IsTrue(config["ipv6.nat"]) {
@@ -356,6 +378,8 @@ func NetworkSetupConfigIPv6NAT(name string, config map[string]string, subnet net
 
 	return nil
 }
+
+// Sets up NAT tunneling.
 func NetworkSetupConfigTunnelNAT(name string, config map[string]string, overlaySubnet net.IPNet) error {
 	// Configure NAT
 	if config["ipv4.nat"] == "" || shared.IsTrue(config["ipv4.nat"]) {
@@ -374,6 +398,9 @@ func NetworkSetupConfigTunnelNAT(name string, config map[string]string, overlayS
 
 	return nil
 }
+
+
+// Helper Functions
 
 // generateFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
 func generateFilterEbtablesRules(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP) [][]string {
@@ -413,6 +440,7 @@ func generateFilterEbtablesRules(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP
 
 	return rules
 }
+
 // generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
 func generateFilterIptablesRules(m deviceConfig.Device, ipv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(m["hwaddr"])
