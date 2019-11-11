@@ -123,8 +123,8 @@ test_container_devices_disk_cephfs() {
 #  ceph fs new $LXD_CEPH_CEPHFS cephfs_metadata cephfs_data
   lxc launch testimage ceph-fs -c security.privileged=true
   lxc config device add ceph-fs fs disk source=cephfs:$LXD_CEPH_CEPHFS/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
-  lxc exec cephfs-disk -- stat /cephfs
-  lxc restart cephfs-disk
-  lxc exec cephfs-disk -- stat /cephfs
-  lxc delete -f cephfs-disk
+  lxc exec ceph-fs -- stat /cephfs
+  lxc restart ceph-fs
+  lxc exec ceph-fs -- stat /cephfs
+  lxc delete -f ceph-fs
 }
