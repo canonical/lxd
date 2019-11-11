@@ -871,4 +871,7 @@ elevated permissions.
 Adds support for importing/exporting of images/backups using SquashFS file system format.
 
 ## container\_raw\_mount
-This adds support for passing in raw mount options for disk devices. 
+This adds support for passing in raw mount options for disk devices.
+
+## container\_nic\_routed
+This introduces the `routed` "nic" device type.
