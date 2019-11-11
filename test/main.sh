@@ -197,6 +197,7 @@ run_test test_container_devices_nic_physical "container devices - nic - physical
 run_test test_container_devices_nic_macvlan "container devices - nic - macvlan"
 run_test test_container_devices_nic_ipvlan "container devices - nic - ipvlan"
 run_test test_container_devices_nic_sriov "container devices - nic - sriov"
+run_test test_container_devices_nic_routed "container devices - nic - routed"
 run_test test_container_devices_infiniband_physical "container devices - infiniband - physical"
 run_test test_container_devices_infiniband_sriov "container devices - infiniband - sriov"
 run_test test_container_devices_proxy "container devices - proxy"
