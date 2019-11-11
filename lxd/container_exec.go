@@ -322,22 +322,25 @@ func (s *execWs) Do(op *operations.Operation) error {
 		attachedChildIsBorn <- attachedPid
 	}
 
-	err = cmd.Wait()
-	if err == nil {
-		return finisher(0, nil)
-	}
+	if cmd != nil {
+		err = cmd.Wait()
+		if err == nil {
+			return finisher(0, nil)
+		}
 
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		status, ok := exitErr.Sys().(syscall.WaitStatus)
+		exitErr, ok := err.(*exec.ExitError)
 		if ok {
-			return finisher(status.ExitStatus(), nil)
+			status, ok := exitErr.Sys().(syscall.WaitStatus)
+			if ok {
+				return finisher(status.ExitStatus(), nil)
+			}
+
+			if status.Signaled() {
+				// 128 + n == Fatal error signal "n"
+				return finisher(128+int(status.Signal()), nil)
+			}
 		}
 
-		if status.Signaled() {
-			// 128 + n == Fatal error signal "n"
-			return finisher(128+int(status.Signal()), nil)
-		}
 	}
 
 	return finisher(-1, nil)
