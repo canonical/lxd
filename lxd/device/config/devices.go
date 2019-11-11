@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // Device represents a LXD container device
@@ -44,6 +45,10 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 		}
 
 		if k == "nictype" && (device["type"] == "nic" || device["type"] == "infiniband") {
+			continue
+		}
+
+		if (k == "ceph.cluster_name" || k == "ceph.user_name") && (strings.HasPrefix(device["source"], "ceph")) {
 			continue
 		}
 
