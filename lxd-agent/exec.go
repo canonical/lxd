@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -20,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 )
 
@@ -263,7 +263,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if err != nil {
-					log.Printf("Got error getting next reader %s", err)
+					logger.Debugf("Got error getting next reader %s", err)
 					er, ok := err.(*websocket.CloseError)
 					if !ok {
 						break
@@ -276,50 +276,50 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// If an abnormal closure occurred, kill the attached process.
 					err := unix.Kill(attachedChildPid, unix.SIGKILL)
 					if err != nil {
-						log.Printf("Failed to send SIGKILL to pid %d\n", attachedChildPid)
+						logger.Errorf("Failed to send SIGKILL to pid %d\n", attachedChildPid)
 					} else {
-						log.Printf("Sent SIGKILL to pid %d\n", attachedChildPid)
+						logger.Infof("Sent SIGKILL to pid %d\n", attachedChildPid)
 					}
 					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					log.Printf("Failed to read message %s\n", err)
+					logger.Errorf("Failed to read message %s\n", err)
 					break
 				}
 
 				command := api.ContainerExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					log.Printf("Failed to unmarshal control socket command: %s\n", err)
+					logger.Errorf("Failed to unmarshal control socket command: %s\n", err)
 					continue
 				}
 
 				if command.Command == "window-resize" {
 					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						log.Printf("Unable to extract window width: %s\n", err)
+						logger.Errorf("Unable to extract window width: %s\n", err)
 						continue
 					}
 
 					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
-						log.Printf("Unable to extract window height: %s\n", err)
+						logger.Errorf("Unable to extract window height: %s\n", err)
 						continue
 					}
 
 					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						log.Printf("Failed to set window size to: %dx%d\n", winchWidth, winchHeight)
+						logger.Errorf("Failed to set window size to: %dx%d\n", winchWidth, winchHeight)
 						continue
 					}
 				} else if command.Command == "signal" {
 					if err := unix.Kill(attachedChildPid, unix.Signal(command.Signal)); err != nil {
-						log.Printf("Failed forwarding signal '%d' to PID %d\n", command.Signal, attachedChildPid)
+						logger.Errorf("Failed forwarding signal '%d' to PID %d\n", command.Signal, attachedChildPid)
 						continue
 					}
-					log.Printf("Forwarded signal '%d' to PID %d\n", command.Signal, attachedChildPid)
+					logger.Errorf("Forwarded signal '%d' to PID %d\n", command.Signal, attachedChildPid)
 				}
 			}
 		}()
@@ -329,17 +329,16 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			log.Println("Starting to mirror websocket")
+			logger.Info("Starting to mirror websocket")
 			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
-			log.Println("Finished to mirror websocket")
+			logger.Info("Finished to mirror websocket")
 
 			conn.Close()
 			wgEOF.Done()
 		}()
-
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
