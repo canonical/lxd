@@ -45,6 +45,7 @@ import (
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -1176,6 +1177,57 @@ type MountArgs struct {
 	shift  bool
 }
 
+var mountFlagsToOptMap = map[C.ulong]string{
+	C.MS_BIND:            "bind",
+	C.ulong(0):           "defaults",
+	C.MS_LAZYTIME:        "lazytime",
+	C.MS_MANDLOCK:        "mand",
+	C.MS_NOATIME:         "noatime",
+	C.MS_NODEV:           "nodev",
+	C.MS_NODIRATIME:      "nodiratime",
+	C.MS_NOEXEC:          "noexec",
+	C.MS_NOSUID:          "nosuid",
+	C.MS_REMOUNT:         "remount",
+	C.MS_RDONLY:          "ro",
+	C.MS_STRICTATIME:     "strictatime",
+	C.MS_SYNCHRONOUS:     "sync",
+	C.MS_REC | C.MS_BIND: "rbind",
+}
+
+func mountFlagsToOpts(flags C.ulong) string {
+	var currentBit C.ulong = 0
+	opts := ""
+	var msRec C.ulong = (flags & C.MS_REC)
+
+	flags = (flags &^ C.MS_REC)
+	for currentBit < (4*8 - 1) {
+		var flag C.ulong = (1 << currentBit)
+
+		currentBit++
+
+		if (flags & flag) == 0 {
+			continue
+		}
+
+		if (flag == C.MS_BIND) && msRec == C.MS_REC {
+			flag |= msRec
+		}
+		optOrArg := mountFlagsToOptMap[flag]
+
+		if optOrArg == "" {
+			continue
+		}
+
+		if opts == "" {
+			opts = fmt.Sprintf("%s", optOrArg)
+		} else {
+			opts = fmt.Sprintf("%s,%s", opts, optOrArg)
+		}
+	}
+
+	return opts
+}
+
 // HandleMountSyscall handles mount syscalls.
 func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
@@ -1252,7 +1304,8 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		args.data = C.GoString(&cBuf[0])
 	}
 
-	if !s.MountSyscallValid(c, &args) {
+	ok, fuseBinary := s.MountSyscallValid(c, &args)
+	if !ok {
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
 		return 0
@@ -1265,20 +1318,51 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
-		"forksyscall",
-		"mount",
-		fmt.Sprintf("%d", args.pid),
-		fmt.Sprintf("%s", args.source),
-		fmt.Sprintf("%s", args.target),
-		fmt.Sprintf("%s", args.fstype),
-		fmt.Sprintf("%d", args.flags),
-		fmt.Sprintf("%t", args.shift),
-		fmt.Sprintf("%d", nsuid),
-		fmt.Sprintf("%d", nsgid),
-		fmt.Sprintf("%d", nsfsuid),
-		fmt.Sprintf("%d", nsfsgid),
-		fmt.Sprintf("%s", args.data))
+	if fuseBinary != "" {
+		addOpts := mountFlagsToOpts(C.ulong(args.flags))
+
+		fuseSource := fmt.Sprintf("%s#%s", fuseBinary, args.source)
+		fuseOpts := ""
+		if args.data != "" && addOpts != "" {
+			fuseOpts = fmt.Sprintf("%s,%s", args.data, addOpts)
+		} else if args.data != "" {
+			fuseOpts = args.data
+		} else if addOpts != "" {
+			fuseOpts = addOpts
+		}
+
+		ctx["fuse_source"] = fuseSource
+		ctx["fuse_target"] = args.target
+		ctx["fuse_opts"] = fuseOpts
+		_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
+			"forksyscall",
+			"mount",
+			fmt.Sprintf("%d", args.pid),
+			fmt.Sprintf("%d", 1),
+			fmt.Sprintf("%d", nsuid),
+			fmt.Sprintf("%d", nsgid),
+			fmt.Sprintf("%d", nsfsuid),
+			fmt.Sprintf("%d", nsfsgid),
+			fmt.Sprintf("%s", fuseSource),
+			fmt.Sprintf("%s", args.target),
+			fmt.Sprintf("%s", fuseOpts))
+	} else {
+		_, _, err = shared.RunCommandSplit(nil, util.GetExecPath(),
+			"forksyscall",
+			"mount",
+			fmt.Sprintf("%d", args.pid),
+			fmt.Sprintf("%d", 0),
+			fmt.Sprintf("%s", args.source),
+			fmt.Sprintf("%s", args.target),
+			fmt.Sprintf("%s", args.fstype),
+			fmt.Sprintf("%d", args.flags),
+			fmt.Sprintf("%t", args.shift),
+			fmt.Sprintf("%d", nsuid),
+			fmt.Sprintf("%d", nsgid),
+			fmt.Sprintf("%d", nsfsuid),
+			fmt.Sprintf("%d", nsfsgid),
+			fmt.Sprintf("%s", args.data))
+	}
 	if err != nil {
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -1390,16 +1474,54 @@ func MountSyscallFilter(config map[string]string) []string {
 	return fs
 }
 
-// MountSyscallValid checks whether this is a mount syscall we intercept.
-func (s *Server) MountSyscallValid(c Instance, args *MountArgs) bool {
-	fsList := MountSyscallFilter(c.ExpandedConfig())
-	for _, fs := range fsList {
-		if fs == args.fstype {
-			return true
+// SyscallInterceptMountFilter creates a new mount syscall interception filter
+func SyscallInterceptMountFilter(config map[string]string) (map[string]string, error) {
+	if !shared.IsTrue(config["security.syscalls.intercept.mount"]) {
+		return map[string]string{}, nil
+
+	}
+
+	fsMap := map[string]string{}
+	fsFused := strings.Split(config["security.syscalls.intercept.mount.fuse"], ",")
+	if len(fsFused) > 0 && fsFused[0] != "" {
+		for _, ent := range fsFused {
+			fsfuse := strings.Split(ent, "=")
+			if len(fsfuse) != 2 {
+				return map[string]string{}, fmt.Errorf("security.syscalls.intercept.mount.fuse is not of the form 'filesystem=fuse-binary': %s", ent)
+			}
+
+			// fsfuse[0] == filesystems that are ok to mount
+			// fsfuse[1] == fuse binary to use to mount filesystemstype
+			fsMap[fsfuse[0]] = fsfuse[1]
 		}
 	}
 
-	return false
+	fsAllowed := strings.Split(config["security.syscalls.intercept.mount.allowed"], ",")
+	if len(fsAllowed) > 0 && fsAllowed[0] != "" {
+		for _, allowedfs := range fsAllowed {
+			if fsMap[allowedfs] != "" {
+				return map[string]string{}, fmt.Errorf("Filesystem %s cannot appear in security.syscalls.intercept.mount.allowed and security.syscalls.intercept.mount.fuse", allowedfs)
+			}
+
+			fsMap[allowedfs] = ""
+		}
+	}
+
+	return fsMap, nil
+}
+
+// MountSyscallValid checks whether this is a mount syscall we intercept.
+func (s *Server) MountSyscallValid(c Instance, args *MountArgs) (bool, string) {
+	fsMap, err := SyscallInterceptMountFilter(c.ExpandedConfig())
+	if err != nil {
+		return false, ""
+	}
+
+	if fuse, ok := fsMap[args.fstype]; ok {
+		return true, fuse
+	}
+
+	return false, ""
 }
 
 // MountSyscallShift checks whether this mount syscall needs shiftfs.
