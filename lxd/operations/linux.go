@@ -55,9 +55,9 @@ func getServerName(op *Operation) (string, error) {
 }
 
 func (op *Operation) sendEvent(eventMessage interface{}) {
-	if op.state == nil {
+	if op.events == nil {
 		return
 	}
 
-	op.state.Events.Send(op.project, "operation", eventMessage)
+	op.events.Send(op.project, "operation", eventMessage)
 }

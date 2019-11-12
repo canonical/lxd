@@ -33,5 +33,9 @@ func getServerName(op *Operation) (string, error) {
 }
 
 func (op *Operation) sendEvent(eventMessage interface{}) {
-	return
+	if op.events == nil {
+		return
+	}
+
+	op.events.Send(op.project, "operation", eventMessage)
 }
