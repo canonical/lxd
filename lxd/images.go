@@ -2020,12 +2020,24 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 		MetaFile:   io.WriteSeeker(metaFile),
 		RootfsFile: io.WriteSeeker(rootfsFile),
 	}
+
 	getResp, err := client.GetImageFile(fingerprint, getReq)
 	if err != nil {
 		return err
 	}
-	metaFile.Close()
-	rootfsFile.Close()
+
+	// Truncate down to size
+	if getResp.RootfsSize > 0 {
+		err = rootfsFile.Truncate(getResp.RootfsSize)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = metaFile.Truncate(getResp.MetaSize)
+	if err != nil {
+		return err
+	}
 
 	if getResp.RootfsSize == 0 {
 		// This is a unified image.
