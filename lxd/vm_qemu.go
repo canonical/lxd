@@ -429,15 +429,12 @@ func (vm *vmQemu) Start(stateful bool) error {
 	}
 
 	// Generate an empty nvram file.
-	nvramFile, err := os.OpenFile(vm.getNvramPath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0640)
-	if err != nil {
-		return err
+	if !shared.PathExists(vm.getNvramPath()) {
+		err = shared.FileCopy("/usr/share/OVMF/OVMF_VARS.ms.fd", vm.getNvramPath())
+		if err != nil {
+			return err
+		}
 	}
-	err = nvramFile.Truncate(131072)
-	if err != nil {
-		return err
-	}
-	nvramFile.Close()
 
 	tapDev := map[string]string{}
 
@@ -619,7 +616,7 @@ func (vm *vmQemu) getMonitorPath() string {
 }
 
 func (vm *vmQemu) getNvramPath() string {
-	return vm.DevicesPath() + "/qemu.nvram"
+	return vm.Path() + "/qemu.nvram"
 }
 
 func (vm *vmQemu) generateConfigDrive() (string, error) {
