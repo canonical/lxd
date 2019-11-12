@@ -22,7 +22,8 @@ import (
 
 // ProtocolLXD represents a LXD API server
 type ProtocolLXD struct {
-	server *api.Server
+	server      *api.Server
+	chConnected chan struct{}
 
 	eventListeners     []*EventListener
 	eventListenersLock sync.Mutex
@@ -40,6 +41,13 @@ type ProtocolLXD struct {
 
 	clusterTarget string
 	project       string
+}
+
+// Disconnect gets rid of any background goroutines
+func (r *ProtocolLXD) Disconnect() {
+	if r.chConnected != nil {
+		close(r.chConnected)
+	}
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server

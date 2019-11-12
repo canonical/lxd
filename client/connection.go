@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
+
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
 )
 
 // ConnectionArgs represents a set of common connection properties
@@ -81,6 +82,7 @@ func ConnectLXDHTTP(args *ConnectionArgs, client *http.Client) (InstanceServer, 
 		httpHost:      "https://custom.socket",
 		httpProtocol:  "custom",
 		httpUserAgent: args.UserAgent,
+		chConnected:   make(chan struct{}, 1),
 	}
 
 	// Setup the HTTP client
@@ -119,6 +121,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 		httpUnixPath:  path,
 		httpProtocol:  "unix",
 		httpUserAgent: args.UserAgent,
+		chConnected:   make(chan struct{}, 1),
 	}
 
 	// Determine the socket path
@@ -216,7 +219,9 @@ func httpsLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 		httpProtocol:     "https",
 		httpUserAgent:    args.UserAgent,
 		bakeryInteractor: args.AuthInteractor,
+		chConnected:      make(chan struct{}, 1),
 	}
+
 	if args.AuthType == "candid" {
 		server.RequireAuthenticated(true)
 	}
