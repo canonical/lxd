@@ -400,7 +400,6 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
-	pidFile := vm.DevicesPath() + "/qemu.pid"
 	configISOPath, err := vm.generateConfigDrive()
 	if err != nil {
 		return err
@@ -472,7 +471,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return err
 	}
 
-	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", pidFile)
+	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", vm.pidFilePath())
 	if err != nil {
 		return err
 	}
@@ -612,15 +611,15 @@ func (vm *vmQemu) runHooks(hooks []func() error) error {
 }
 
 func (vm *vmQemu) getMonitorPath() string {
-	return vm.DevicesPath() + "/qemu.monitor"
+	return filepath.Join(vm.LogPath(), "qemu.monitor")
 }
 
 func (vm *vmQemu) getNvramPath() string {
-	return vm.Path() + "/qemu.nvram"
+	return filepath.Join(vm.Path(), "qemu.nvram")
 }
 
 func (vm *vmQemu) generateConfigDrive() (string, error) {
-	configDrivePath := vm.Path() + "/config"
+	configDrivePath := filepath.Join(vm.Path(), "config")
 
 	// Create config drive dir.
 	err := os.MkdirAll(configDrivePath, 0100)
@@ -742,7 +741,7 @@ WantedBy=multi-user.target
 	// as this is what cloud-init uses to detect, mount the drive and run the cloud-init
 	// templates on first boot. The vendor-data template then modifies the system so that the
 	// config drive is mounted and the agent is started on subsequent boots.
-	isoPath := vm.Path() + "/config.iso"
+	isoPath := filepath.Join(vm.Path(), "config.iso")
 	_, err = shared.RunCommand("mkisofs", "-R", "-V", "cidata", "-o", isoPath, configDrivePath)
 	if err != nil {
 		return "", err
@@ -1032,7 +1031,7 @@ bootindex = "2""
 }
 
 func (vm *vmQemu) pidFilePath() string {
-	return vm.DevicesPath() + "/qemu.pid"
+	return filepath.Join(vm.LogPath(), "qemu.pid")
 }
 
 func (vm *vmQemu) pid() (int, error) {
