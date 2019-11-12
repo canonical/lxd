@@ -30,7 +30,7 @@ var execCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: execPost},
 }
 
-func execPost(r *http.Request) response.Response {
+func execPost(d *Daemon, r *http.Request) response.Response {
 	post := api.ContainerExecPost{}
 
 	buf, err := ioutil.ReadAll(r.Body)
