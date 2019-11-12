@@ -1990,6 +1990,7 @@ func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.Fil
 	if err != nil {
 		return 0, 0, 0, "", nil, err
 	}
+	defer agent.Disconnect()
 
 	content, resp, err := agent.GetInstanceFile("", srcPath)
 	if err != nil {
@@ -2026,6 +2027,7 @@ func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid 
 	if err != nil {
 		return err
 	}
+	defer agent.Disconnect()
 
 	args := lxdClient.InstanceFileArgs{
 		GID:       gid,
@@ -2120,6 +2122,7 @@ func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, 
 	if err != nil {
 		return nil, 0, 0, err
 	}
+	defer agent.Disconnect()
 
 	post := api.InstanceExecPost{
 		Command:     command,
@@ -2303,6 +2306,7 @@ func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer agent.Disconnect()
 
 	status, _, err := agent.GetInstanceState("")
 	if err != nil {
