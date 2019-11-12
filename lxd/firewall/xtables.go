@@ -22,13 +22,13 @@ type XTables struct {}
 // Lower-level Functions
 
 // NetworkClear removes network rules.
-func (xt *XTables) NetworkClear(protocol string, comment string, table string) error {
-	return iptables.NetworkClear(protocol, comment, table)
+func (xt *XTables) NetworkClear(name string, protocol string, table string) error {
+	return iptables.NetworkClear(protocol, name, table)
 }
 
-// ContainerClear removes container rules.
-func (xt *XTables) ContainerClear(protocol string, comment string, table string) error {
-	return iptables.ContainerClear(protocol, comment, table)
+// Removes rules all rules for the given instance.
+func (xt *XTables) InstanceClear(inst Instance, protocol string, table string) error {
+	return iptables.ContainerClear(protocol, fmt.Sprintf("%s (%s)", inst.Name(), inst.Project()), table)
 }
 
 // VerifyIPv6Module checks to see if the ipv6 kernel module is present.

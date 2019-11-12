@@ -10,8 +10,8 @@ import (
 // Firewall represents an LXD firewall.
 type Firewall interface {
 	// Lower-level Functions
-	NetworkClear(protocol string, comment string, table string) error
-	ContainerClear(protocol string, comment string, table string) error
+	NetworkClear(name string, protocol string, table string) error
+	InstanceClear(inst Instance, protocol string, table string) error
 	VerifyIPv6Module() error
 
 	// Proxy Functions
