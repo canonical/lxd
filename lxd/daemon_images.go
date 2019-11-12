@@ -461,6 +461,19 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 			return nil, err
 		}
 
+		// Truncate down to size
+		if resp.RootfsSize > 0 {
+			err = destRootfs.Truncate(resp.RootfsSize)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		err = dest.Truncate(resp.MetaSize)
+		if err != nil {
+			return nil, err
+		}
+
 		// Deal with unified images
 		if resp.RootfsSize == 0 {
 			err := os.Remove(destName + ".rootfs")
