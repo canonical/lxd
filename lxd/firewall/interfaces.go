@@ -21,7 +21,7 @@ type Firewall interface {
 	InstanceNicBridgedRemoveFilters(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP) error
 	InstanceNicBridgedSetFilters(m deviceConfig.Device, config map[string]string, ipv4 net.IP, ipv6 net.IP, name string) error
 
-	// Network FunctionsFunctions
+	// Network Functions
 	NetworkSetupConfigIPv4Firewall(name string, config map[string]string) error
 	NetworkSetupAllowIPv4Forwarding(name string, config map[string]string) error
 	NetworkSetupConfigIPv4NAT(name string, config map[string]string, subnet net.IPNet) error
