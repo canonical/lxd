@@ -528,6 +528,19 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Truncate down to size
+	if resp.RootfsSize > 0 {
+		err = destRootfs.Truncate(resp.RootfsSize)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = dest.Truncate(resp.MetaSize)
+	if err != nil {
+		return err
+	}
+
 	// Cleanup
 	if resp.RootfsSize == 0 {
 		err := os.Remove(targetRootfs)
