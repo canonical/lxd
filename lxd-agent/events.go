@@ -63,6 +63,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// order to detect when the client connection is closed. This should be fine as for the
 	// events route there is no expectation to read any useful data from the client.
 	go func() {
+		defer logger.Debugf("Event listener client disconnected: %s", listener.ID())
 		for {
 			_, _, err := c.NextReader()
 			if err != nil {
