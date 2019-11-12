@@ -52,6 +52,7 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 		for {
 			select {
 			case <-time.After(time.Minute):
+			case <-r.chConnected:
 			case <-stopCh:
 				break
 			}
