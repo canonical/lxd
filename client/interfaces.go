@@ -34,6 +34,7 @@ type RemoteOperation interface {
 type Server interface {
 	GetConnectionInfo() (info *ConnectionInfo, err error)
 	GetHTTPClient() (client *http.Client, err error)
+	Disconnect()
 }
 
 // The ImageServer type represents a read-only image server.

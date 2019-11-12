@@ -17,6 +17,11 @@ type ProtocolSimpleStreams struct {
 	httpCertificate string
 }
 
+// Disconnect is a no-op for simplestreams
+func (r *ProtocolSimpleStreams) Disconnect() {
+	return
+}
+
 // GetConnectionInfo returns the basic connection information used to interact with the server
 func (r *ProtocolSimpleStreams) GetConnectionInfo() (*ConnectionInfo, error) {
 	info := ConnectionInfo{}
