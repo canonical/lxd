@@ -28,9 +28,6 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 		return &listener, nil
 	}
 
-	// Initialize the list if needed
-	r.eventListeners = []*EventListener{}
-
 	// Setup a new connection with LXD
 	url, err := r.setQueryAttributes("/events")
 	if err != nil {
@@ -42,8 +39,8 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 		return nil, err
 	}
 
-	// Add the listener
-	r.eventListeners = append(r.eventListeners, &listener)
+	// Initialize the event listener list if we were able to connect to the events websocket.
+	r.eventListeners = []*EventListener{&listener}
 
 	// Spawn a watcher that will close the websocket connection after all
 	// listeners are gone.
