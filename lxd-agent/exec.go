@@ -419,6 +419,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
+	if s.interactive {
+		attachedChildIsBorn <- cmd.Process.Pid
+	}
+
 	err = cmd.Wait()
 	if err == nil {
 		return finisher(0, nil)
