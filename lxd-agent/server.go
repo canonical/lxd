@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool) *http.Server {
+func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Daemon) *http.Server {
 	mux := mux.NewRouter()
 	mux.StrictSlash(false)
 
@@ -27,13 +27,13 @@ func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool) *http
 	})
 
 	for _, c := range api10 {
-		createCmd(mux, "1.0", c, cert, debug)
+		createCmd(mux, "1.0", c, cert, debug, d)
 	}
 
 	return &http.Server{Handler: mux, TLSConfig: tlsConfig}
 }
 
-func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, debug bool) {
+func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Certificate, debug bool, d *Daemon) {
 	var uri string
 	if c.Path == "" {
 		uri = fmt.Sprintf("/%s", version)
@@ -73,7 +73,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 				return response.NotImplemented(nil)
 			}
 
-			return action.Handler(r)
+			return action.Handler(d, r)
 		}
 
 		switch r.Method {

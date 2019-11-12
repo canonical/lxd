@@ -21,11 +21,11 @@ var stateCmd = APIEndpoint{
 	Put: APIEndpointAction{Handler: statePut},
 }
 
-func stateGet(r *http.Request) response.Response {
+func stateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, renderState())
 }
 
-func statePut(r *http.Request) response.Response {
+func statePut(d *Daemon, r *http.Request) response.Response {
 	return response.NotImplemented(nil)
 }
 
