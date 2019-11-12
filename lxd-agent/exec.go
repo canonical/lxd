@@ -113,6 +113,9 @@ func execPost(r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
+	// Link the operation to the agent's event server.
+	op.SetEventServer(d.events)
+
 	return operations.OperationResponse(op)
 }
 
