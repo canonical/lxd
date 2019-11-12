@@ -24,6 +24,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
@@ -166,6 +167,11 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 
 	if whitelist && (blacklist || blacklistDefault || blacklistCompat) {
 		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
+	}
+
+	_, err := seccomp.SyscallInterceptMountFilter(config)
+	if err != nil {
+		return err
 	}
 
 	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && sysOS.IdmapSet == nil {

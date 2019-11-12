@@ -300,6 +300,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"security.syscalls.intercept.mknod":         IsBool,
 	"security.syscalls.intercept.mount":         IsBool,
 	"security.syscalls.intercept.mount.allowed": IsAny,
+	"security.syscalls.intercept.mount.fuse":    IsAny,
 	"security.syscalls.intercept.mount.shift":   IsBool,
 	"security.syscalls.intercept.setxattr":      IsBool,
 	"security.syscalls.whitelist":               IsAny,
