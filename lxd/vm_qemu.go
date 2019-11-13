@@ -427,9 +427,14 @@ func (vm *vmQemu) Start(stateful bool) error {
 		vm.VolatileSet(map[string]string{"volatile.vm.uuid": vmUUID})
 	}
 
-	// Generate an empty nvram file.
+	// Copy OVMF firmware to nvram file.
 	if !shared.PathExists(vm.getNvramPath()) {
-		err = shared.FileCopy("/usr/share/OVMF/OVMF_VARS.ms.fd", vm.getNvramPath())
+		srcOvmfFile := "/usr/share/OVMF/OVMF_VARS.ms.fd"
+		if !shared.PathExists(srcOvmfFile) {
+			return fmt.Errorf("Required secure boot EFI firmware file missing: %s", srcOvmfFile)
+		}
+
+		err = shared.FileCopy(srcOvmfFile, vm.getNvramPath())
 		if err != nil {
 			return err
 		}
@@ -619,7 +624,7 @@ func (vm *vmQemu) getNvramPath() string {
 }
 
 func (vm *vmQemu) generateConfigDrive() (string, error) {
-	configDrivePath := filepath.Join(vm.Path(), "config")
+	configDrivePath := filepath.Join(vm.Path(), "configdrv")
 
 	// Create config drive dir.
 	err := os.MkdirAll(configDrivePath, 0100)
@@ -640,7 +645,7 @@ runcmd:
 		logger.Warnf("lxd-agent not found, skipping its inclusion in the VM config drive: %v", err)
 	} else {
 		// Install agent into config drive dir if found.
-		_, err = shared.RunCommand("cp", path, configDrivePath+"/lxd-agent")
+		err = shared.FileCopy(path, configDrivePath+"/lxd-agent")
 		if err != nil {
 			return "", err
 		}
@@ -746,6 +751,9 @@ WantedBy=multi-user.target
 	if err != nil {
 		return "", err
 	}
+
+	// Remove the config drive folder.
+	os.RemoveAll(configDrivePath)
 
 	return isoPath, nil
 }
