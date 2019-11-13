@@ -24,5 +24,5 @@ func (c *Config) GenerateClientCertificate() error {
 	certf := c.ConfigPath("client.crt")
 	keyf := c.ConfigPath("client.key")
 
-	return shared.FindOrGenCert(certf, keyf, true)
+	return shared.FindOrGenCert(certf, keyf, true, false)
 }
