@@ -400,7 +400,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
-	configISOPath, err := vm.generateConfigDrive()
+	err = vm.generateConfigShare()
 	if err != nil {
 		return err
 	}
@@ -465,7 +465,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		}
 	}
 
-	confFile, err := vm.generateQemuConfigFile(configISOPath, tapDev)
+	confFile, err := vm.generateQemuConfigFile(tapDev)
 	if err != nil {
 		return err
 	}
@@ -623,143 +623,152 @@ func (vm *vmQemu) getNvramPath() string {
 	return filepath.Join(vm.Path(), "qemu.nvram")
 }
 
-func (vm *vmQemu) generateConfigDrive() (string, error) {
-	configDrivePath := filepath.Join(vm.Path(), "configdrv")
+func (vm *vmQemu) generateConfigShare() error {
+	configDrivePath := filepath.Join(vm.Path(), "config")
 
 	// Create config drive dir.
-	err := os.MkdirAll(configDrivePath, 0100)
+	os.RemoveAll(configDrivePath)
+	err := os.MkdirAll(configDrivePath, 0500)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	// Add config drive mount instructions to cloud init.
-	vendorData := `#cloud-config
-runcmd:
- - "mkdir /media/lxd_config"
- - "mount -o ro -t iso9660 /dev/disk/by-label/cidata /media/lxd_config"
- - "cp /media/lxd_config/media-lxd_config.mount /etc/systemd/system/"
- - "systemctl enable media-lxd_config.mount"`
+	// Generate the cloud-init config.
+	err = os.MkdirAll(filepath.Join(configDrivePath, "cloud-init"), 0500)
+	if err != nil {
+		return err
+	}
 
+	if vm.ExpandedConfig()["user.user-data"] != "" {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "user-data"), []byte(vm.ExpandedConfig()["user.user-data"]), 0400)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "user-data"), []byte("#cloud-config\n"), 0400)
+		if err != nil {
+			return err
+		}
+	}
+
+	if vm.ExpandedConfig()["user.vendor-data"] != "" {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "vendor-data"), []byte(vm.ExpandedConfig()["user.vendor-data"]), 0400)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "vendor-data"), []byte("#cloud-config\n"), 0400)
+		if err != nil {
+			return err
+		}
+	}
+
+	if vm.ExpandedConfig()["user.network-config"] != "" {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "network-config"), []byte(vm.ExpandedConfig()["user.network-config"]), 0400)
+		if err != nil {
+			return err
+		}
+	} else {
+		os.Remove(filepath.Join(configDrivePath, "cloud-init", "network-config"))
+	}
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "meta-data"), []byte(fmt.Sprintf("instance-id: %s\nlocal-hostname: %s\n%s\n", vm.Name(), vm.Name(), vm.ExpandedConfig()["user.meta-data"])), 0400)
+	if err != nil {
+		return err
+	}
+
+	// Add the VM agent.
 	path, err := exec.LookPath("lxd-agent")
 	if err != nil {
 		logger.Warnf("lxd-agent not found, skipping its inclusion in the VM config drive: %v", err)
 	} else {
 		// Install agent into config drive dir if found.
-		err = shared.FileCopy(path, configDrivePath+"/lxd-agent")
+		err = shared.FileCopy(path, filepath.Join(configDrivePath, "lxd-agent"))
 		if err != nil {
-			return "", err
+			return err
 		}
 
-		os.Chmod(configDrivePath+"/lxd-agent", 0700)
+		err = os.Chmod(filepath.Join(configDrivePath, "lxd-agent"), 0500)
+		if err != nil {
+			return err
+		}
 
-		// Add agent install and startup config to cloud init.
-		vendorData += `
- - "cp /media/lxd_config/lxd-agent.service /etc/systemd/system/"
- - "systemctl enable lxd-agent.service"
- - "systemctl start lxd-agent"`
+		err = os.Chown(filepath.Join(configDrivePath, "lxd-agent"), 0, 0)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = ioutil.WriteFile(configDrivePath+"/vendor-data", []byte(vendorData), 0400)
+	agentCert, agentKey, clientCert, _, err := vm.generateAgentCert()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	userData := vm.expandedConfig["user.user-data"]
-
-	// Use an empty user-data file if no custom user-data supplied.
-	if userData == "" {
-		userData = "#cloud-config"
-	}
-
-	err = ioutil.WriteFile(configDrivePath+"/user-data", []byte(userData), 0400)
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "server.crt"), []byte(clientCert), 0400)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	metaData := fmt.Sprintf(`instance-id: %s
-local-hostname: %s
-`, vm.Name(), vm.Name())
-
-	err = ioutil.WriteFile(configDrivePath+"/meta-data", []byte(metaData), 0400)
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "agent.crt"), []byte(agentCert), 0400)
 	if err != nil {
-		return "", err
+		return err
+	}
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "agent.key"), []byte(agentKey), 0400)
+	if err != nil {
+		return err
+	}
+
+	// Systemd units.
+	err = os.MkdirAll(filepath.Join(configDrivePath, "systemd"), 0500)
+	if err != nil {
+		return err
 	}
 
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
-After=media-lxd_config.mount
+After=run-lxd_config.mount
+Before=cloud-init-local.service
 
 [Service]
 Type=simple
-WorkingDirectory=/media/lxd_config/
-ExecStart=/media/lxd_config/lxd-agent
+WorkingDirectory=/run/lxd_config/
+ExecStart=/run/lxd_config/lxd-agent
 
 [Install]
 WantedBy=multi-user.target
 `
 
-	err = ioutil.WriteFile(configDrivePath+"/lxd-agent.service", []byte(lxdAgentServiceUnit), 0400)
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent.service"), []byte(lxdAgentServiceUnit), 0400)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	lxdConfigDriveMountUnit := `[Unit]
+	lxdConfigShareMountUnit := `[Unit]
+[Unit]
 Description = LXD - config drive
 Before=local-fs.target
+ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 
 [Mount]
-Where=/media/lxd_config
-What=/dev/disk/by-label/cidata
-Type=iso9660
+Where=/run/lxd_config
+What=config
+Type=9p
 
 [Install]
 WantedBy=multi-user.target
 `
 
-	err = ioutil.WriteFile(configDrivePath+"/media-lxd_config.mount", []byte(lxdConfigDriveMountUnit), 0400)
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "run-lxd_config.mount"), []byte(lxdConfigShareMountUnit), 0400)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	// Get the certificates.
-	agentCert, agentKey, clientCert, _, err := vm.generateAgentCert()
-	if err != nil {
-		return "", err
-	}
-
-	err = ioutil.WriteFile(configDrivePath+"/server.crt", []byte(clientCert), 0400)
-	if err != nil {
-		return "", err
-	}
-
-	err = ioutil.WriteFile(configDrivePath+"/agent.crt", []byte(agentCert), 0400)
-	if err != nil {
-		return "", err
-	}
-
-	err = ioutil.WriteFile(configDrivePath+"/agent.key", []byte(agentKey), 0400)
-	if err != nil {
-		return "", err
-	}
-
-	// Finally convert the config drive dir into an ISO file. The cidata label is important
-	// as this is what cloud-init uses to detect, mount the drive and run the cloud-init
-	// templates on first boot. The vendor-data template then modifies the system so that the
-	// config drive is mounted and the agent is started on subsequent boots.
-	isoPath := filepath.Join(vm.Path(), "config.iso")
-	_, err = shared.RunCommand("mkisofs", "-R", "-V", "cidata", "-o", isoPath, configDrivePath)
-	if err != nil {
-		return "", err
-	}
-
-	// Remove the config drive folder.
-	os.RemoveAll(configDrivePath)
-
-	return isoPath, nil
+	return nil
 }
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
-func (vm *vmQemu) generateQemuConfigFile(configISOPath string, tapDev map[string]string) (string, error) {
+func (vm *vmQemu) generateQemuConfigFile(tapDev map[string]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
@@ -862,7 +871,7 @@ backend = "pty"
 	vm.addFirmwareConfig(sb)
 	vm.addVsockConfig(sb)
 	vm.addMonitorConfig(sb)
-	vm.addConfDriveConfig(sb, configISOPath)
+	vm.addConfDriveConfig(sb)
 	vm.addNetConfig(sb, tapDev)
 
 	// Write the config file to disk.
@@ -904,6 +913,7 @@ port = "0x13"
 chassis = "4"
 bus = "pcie.0"
 addr = "0x2.0x3"
+
 [device]
 driver = "vhost-vsock-pci"
 guest-cid = "%d"
@@ -948,6 +958,7 @@ backend = "socket"
 path = "%s"
 server = "on"
 wait = "off"
+
 [mon]
 chardev = "monitor"
 mode = "control"
@@ -967,6 +978,7 @@ if = "pflash"
 format = "raw"
 unit = "0"
 readonly = "on"
+
 [drive]
 file = "%s"
 if = "pflash"
@@ -996,6 +1008,7 @@ format = "%s"
 if = "none"
 cache = "none"
 aio = "native"
+
 [device "dev-lxd_root"]
 driver = "scsi-hd"
 bus = "qemu_scsi.0"
@@ -1009,24 +1022,20 @@ bootindex = "1"
 	return nil
 }
 
-func (vm *vmQemu) addConfDriveConfig(sb *strings.Builder, configISOPath string) {
+func (vm *vmQemu) addConfDriveConfig(sb *strings.Builder) {
 	sb.WriteString(fmt.Sprintf(`
-# Config drive (set to last lun)
-[drive "qemu_config"]
-file = "%s"
-format = "raw"
-if = "none"
-cache = "none"
-aio = "native"
+# Config drive
+[fsdev "qemu_config"]
+fsdriver = "local"
+security_model = "none"
 readonly = "on"
+path = "%s"
+
 [device "dev-qemu_config"]
-driver = "scsi-hd"
-bus = "qemu_scsi.0"
-channel = "0"
-scsi-id = "1"
-lun = "1"
-drive = "qemu_config"
-`, configISOPath))
+driver = "virtio-9p-pci"
+fsdev = "qemu_config"
+mount_tag = "config"
+`, filepath.Join(vm.Path(), "config")))
 
 	return
 }
@@ -1039,12 +1048,14 @@ type = "tap"
 ifname = "%s"
 script = "no"
 downscript = "no"
+
 [device "qemu_pcie5"]
 driver = "pcie-root-port"
 port = "0x11"
 chassis = "5"
 bus = "pcie.0"
 addr = "0x2.0x4"
+
 [device "dev-lxd_eth0"]
 driver = "virtio-net-pci"
 netdev = "lxd_eth0"
