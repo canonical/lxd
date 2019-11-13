@@ -292,13 +292,13 @@ func (vm *vmQemu) generateAgentCert() (string, string, string, string, error) {
 	clientKeyFile := filepath.Join(vm.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false)
+	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
 	// Create client certificate.
-	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true)
+	err = shared.FindOrGenCert(clientCertFile, clientKeyFile, true, false)
 	if err != nil {
 		return "", "", "", "", err
 	}
