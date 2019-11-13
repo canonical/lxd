@@ -78,6 +78,8 @@ func (d *disk) validateConfig() error {
 		"pool":              shared.IsAny,
 		"propagation":       validatePropagation,
 		"raw.mount.options": shared.IsAny,
+		"ceph.cluster_name": shared.IsAny,
+		"ceph.user_name":    shared.IsAny,
 	}
 
 	// VMs can have a special cloud-init config drive attached with no path.
@@ -114,6 +116,10 @@ func (d *disk) validateConfig() error {
 		return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths")
 	}
 
+	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
+		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source: %s", d.config["source"])
+	}
+
 	// Check no other devices also have the same path as us. Use LocalDevices for this check so
 	// that we can check before the config is expanded or when a profile is being checked.
 	// Don't take into account the device names, only count active devices that point to the
@@ -133,7 +139,8 @@ func (d *disk) validateConfig() error {
 	// When we want to attach a storage volume created via the storage api the "source" only
 	// contains the name of the storage volume, not the path where it is mounted. So only check
 	// for the existence of "source" when "pool" is empty.
-	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) {
+	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) &&
+		!strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
 		return fmt.Errorf("Missing source '%s' for disk '%s'", d.config["source"], d.name)
 	}
 
@@ -549,9 +556,66 @@ func (d *disk) createDevice() (string, error) {
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
+	mntOptions := d.config["raw.mount.options"]
+	fsName := "none"
+
 	isFile := false
 	if d.config["pool"] == "" {
 		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
+		if strings.HasPrefix(d.config["source"], "cephfs:") {
+			isFile = false
+			//filesystem mount
+			userName := d.config["ceph.user_name"]
+			if userName == "" {
+				userName = "admin"
+			}
+			clusterName := d.config["ceph.cluster_name"]
+			if clusterName == "" {
+				clusterName = "ceph"
+			}
+			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, fsName)
+			if fsErr != nil {
+				return "", fsErr
+			}
+			if mntOptions == "" {
+				mntOptions = fsOptions
+			} else {
+				mntOptions += "," + fsOptions
+			}
+			srcPath = mntSrcPath
+			fsName = "ceph"
+		} else if strings.HasPrefix(d.config["source"], "ceph:") {
+			isFile = false
+			// get pool name, volume name, ceph.user_name, and ceph.cluster_name from d.config and make call to map
+			// after call to map, save the src path it returned in variable src_path
+			fields := strings.SplitN(d.config["source"], ":", 2)
+			fields = strings.SplitN(fields[1], "/", 2)
+			poolName := fields[0]
+			volumeName := fields[1]
+			userName := d.config["ceph.user_name"]
+			if userName == "" {
+				userName = "admin"
+			}
+			clusterName := d.config["ceph.cluster_name"]
+			if clusterName == "" {
+				clusterName = "ceph"
+			}
+			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
+			if err != nil {
+				msg := fmt.Sprintf("Could not mount map Ceph RBD: %s.", err)
+				if !isRequired {
+					// Will fail the PathExists test below.
+					logger.Warn(msg)
+				} else {
+					return "", fmt.Errorf(msg)
+				}
+			}
+			err = d.volatileSet(map[string]string{"ceph_rbd_src_path": rbdPath})
+			if err != nil {
+				return "", err
+			}
+			srcPath = rbdPath
+		}
 	} else {
 		// Deal with mounting storage volumes created via the storage api. Extract the name
 		// of the storage volume that we are supposed to attach. We assume that the only
@@ -642,7 +706,7 @@ func (d *disk) createDevice() (string, error) {
 	}
 
 	// Mount the fs.
-	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], d.config["raw.mount.options"])
+	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
 		return "", err
 	}
@@ -703,6 +767,14 @@ func (d *disk) postStop() error {
 
 		// Remove the host side.
 		err := os.Remove(devPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	if strings.HasPrefix(d.config["source"], "ceph:") {
+		v := d.volatileGet()
+		err := diskCephRbdUnmap(v["ceph_rbd_src_path"])
 		if err != nil {
 			return err
 		}
