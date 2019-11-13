@@ -176,6 +176,7 @@ var APIExtensions = []string{
 	"compression_squashfs",
 	"container_raw_mount",
 	"container_nic_routed",
+	"container_syscall_intercept_mount_fuse",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

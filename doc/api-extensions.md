@@ -875,3 +875,8 @@ This adds support for passing in raw mount options for disk devices.
 
 ## container\_nic\_routed
 This introduces the `routed` "nic" device type.
+
+## container\_syscall\_intercept\_mount\_fuse
+Adds the `security.syscalls.intercept.mount.fuse` key. It can be used to
+redirect filesystem mounts to their fuse implementation. To this end, set e.g.
+`security.syscalls.intercept.mount.fuse=ext4=fuse2fs`.

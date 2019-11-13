@@ -23,6 +23,7 @@ import (
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
+#include <sys/wait.h>
 #include <sys/xattr.h>
 #include <unistd.h>
 
@@ -381,6 +382,7 @@ static void mount_emulate(void)
 {
 	__do_close_prot_errno int mnt_fd = -EBADF;
 	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
+	bool use_fuse;
 	uid_t uid = -1, fsuid = -1;
 	gid_t gid = -1, fsgid = -1;
 	int ret;
@@ -389,20 +391,27 @@ static void mount_emulate(void)
 	const void *data;
 
 	pid = atoi(advance_arg(true));
-	source = advance_arg(true);
-	target = advance_arg(true);
-	fstype = advance_arg(true);
-	flags = atoi(advance_arg(true));
-	shiftfs = advance_arg(true);
+	use_fuse = (atoi(advance_arg(true)) == 1);
+	if (!use_fuse) {
+		source = advance_arg(true);
+		target = advance_arg(true);
+		fstype = advance_arg(true);
+		flags = atoi(advance_arg(true));
+		shiftfs = advance_arg(true);
+	}
 	uid = atoi(advance_arg(true));
 	gid = atoi(advance_arg(true));
 	fsuid = atoi(advance_arg(true));
 	fsgid = atoi(advance_arg(true));
-	data = advance_arg(false);
+	if (!use_fuse)
+		data = advance_arg(false);
 
 	mnt_fd = preserve_ns(getpid(), "mnt");
 	if (mnt_fd < 0)
 		_exit(EXIT_FAILURE);
+
+	if (use_fuse)
+		attach_userns(pid);
 
 	if (!acquire_basic_creds(pid))
 		_exit(EXIT_FAILURE);
@@ -410,7 +419,32 @@ static void mount_emulate(void)
 	if (!acquire_final_creds(pid, uid, gid, fsuid, fsgid))
 		_exit(EXIT_FAILURE);
 
-	if (strcmp(shiftfs, "true") == 0) {
+	if (use_fuse) {
+		int status;
+		pid_t pid_fuse;
+
+		pid_fuse = fork();
+		if (pid_fuse < 0)
+			_exit(EXIT_FAILURE);
+
+		if (pid_fuse == 0) {
+			const char *fuse_source, *fuse_target, *fuse_opts;
+
+			fuse_source = advance_arg(true);
+			fuse_target = advance_arg(true);
+			fuse_opts = advance_arg(true);
+
+			if (strcmp(fuse_opts, "") == 0)
+				execlp("mount.fuse", "mount.fuse", fuse_source, fuse_target, (char *) NULL);
+			else
+				execlp("mount.fuse", "mount.fuse", fuse_source, fuse_target, "-o", fuse_opts, (char *) NULL);
+			_exit(EXIT_FAILURE);
+		}
+
+		ret = waitpid(pid_fuse, &status, 0);
+		if ((ret != pid_fuse) || !WIFEXITED(status) || WEXITSTATUS(status))
+			_exit(EXIT_FAILURE);
+	} else if (strcmp(shiftfs, "true") == 0) {
 		char template[] = P_tmpdir "/.lxd_tmp_mount_XXXXXX";
 
 		// Create basic mount in container's mount namespace.
@@ -525,12 +559,12 @@ type cmdForksyscall struct {
 func (c *cmdForksyscall) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forksyscall <syscall> <PID> <path> <mode> <dev>"
+	cmd.Use = "forksyscall <syscall> <PID> [...]"
 	cmd.Short = "Perform syscall operations"
 	cmd.Long = `Description:
   Perform syscall operations
 
-  This set of internal commands are used for all seccom-based container syscall
+  This set of internal commands is used for all seccomp-based container syscall
   operations.
 `
 	cmd.RunE = c.Run

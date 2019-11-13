@@ -96,8 +96,9 @@ _have lxc && {
       security.syscalls.blacklist_compat security.syscalls.blacklist_default \
       security.syscalls.intercept.mknod security.syscalls.intercept.mount \
       security.syscalls.intercept.mount.allowed \
+      security.syscalls.intercept.mount.fuse \
       security.syscalls.intercept.setxattr \
-      security.syscall.intercept.mount.shift \
+      security.syscalls.intercept.mount.shift \
       snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
       snapshots.expiry \
       volatile.apply_quota volatile.apply_template volatile.base_image \
