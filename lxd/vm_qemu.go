@@ -777,6 +777,14 @@ value = "1"
 [boot-opts]
 strict = "on"
 
+# LXD serial identifier
+[device]
+driver = "virtio-serial"
+
+[device]
+driver = "virtserialport"
+name = "org.linuxcontainers.lxd"
+
 # PCIe root
 [device "qemu_pcie1"]
 driver = "pcie-root-port"
