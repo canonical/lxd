@@ -169,7 +169,7 @@ func (d *dir) HasVolume(volType VolumeType, volName string) bool {
 
 // GetVolumeDiskPath returns the location and file format of a disk volume.
 func (d *dir) GetVolumeDiskPath(volType VolumeType, volName string) (string, string, error) {
-	return filepath.Join(GetVolumeMountPath(d.name, volType, volName), "root.img"), "qcow2", nil
+	return filepath.Join(GetVolumeMountPath(d.name, volType, volName), "root.img"), "raw", nil
 }
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -237,7 +237,7 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 	}
 
 	// If we are creating a block volume, resize it to the requested size or 10GB.
-	// We expect the filler function to have copied the qcow2 image to the rootBlockPath.
+	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
 		blockSize := size
 		if blockSize == "" {
@@ -250,7 +250,7 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 		}
 
 		if shared.PathExists(rootBlockPath) {
-			_, err = shared.RunCommand("qemu-img", "resize", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
+			_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
 			if err != nil {
 				return fmt.Errorf("Failed resizing disk image %s to size %s: %v", rootBlockPath, blockSize, err)
 			}
@@ -258,7 +258,7 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 			// If rootBlockPath doesn't exist, then there has been no filler function
 			// supplied to create it from another source. So instead create an empty
 			// volume (use for PXE booting a VM).
-			_, err = shared.RunCommand("qemu-img", "create", "-f", "qcow2", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
+			_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
 			if err != nil {
 				return fmt.Errorf("Failed creating disk image %s as size %s: %v", rootBlockPath, blockSize, err)
 			}
