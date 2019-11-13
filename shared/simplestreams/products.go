@@ -43,16 +43,17 @@ type ProductVersion struct {
 
 // ProductVersionItem represents a file/item of a particular ProductVersion
 type ProductVersionItem struct {
-	LXDHashSha256DiskImg  string `json:"combined_disk1-img_sha256,omitempty"`
-	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256,omitempty"`
-	LXDHashSha256         string `json:"combined_sha256,omitempty"`
-	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256,omitempty"`
-	FileType              string `json:"ftype"`
-	HashMd5               string `json:"md5,omitempty"`
-	Path                  string `json:"path"`
-	HashSha256            string `json:"sha256,omitempty"`
-	Size                  int64  `json:"size"`
-	DeltaBase             string `json:"delta_base,omitempty"`
+	LXDHashSha256DiskImg    string `json:"combined_disk1-img_sha256,omitempty"`
+	LXDHashSha256DiskKvmImg string `json:"combined_disk-kvm-img_sha256,omitempty"`
+	LXDHashSha256RootXz     string `json:"combined_rootxz_sha256,omitempty"`
+	LXDHashSha256           string `json:"combined_sha256,omitempty"`
+	LXDHashSha256SquashFs   string `json:"combined_squashfs_sha256,omitempty"`
+	FileType                string `json:"ftype"`
+	HashMd5                 string `json:"md5,omitempty"`
+	Path                    string `json:"path"`
+	HashSha256              string `json:"sha256,omitempty"`
+	Size                    int64  `json:"size"`
+	DeltaBase               string `json:"delta_base,omitempty"`
 }
 
 // ToLXD converts the products data into a list of LXD images and associated downloadable files
@@ -109,6 +110,8 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 						}
 					} else if root.FileType == "squashfs" {
 						fingerprint = meta.LXDHashSha256SquashFs
+					} else if root.FileType == "disk-kvm.img" {
+						fingerprint = meta.LXDHashSha256DiskKvmImg
 					} else if root.FileType == "disk1.img" {
 						fingerprint = meta.LXDHashSha256DiskImg
 					}
@@ -162,7 +165,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 
 				if root != nil {
 					image.Properties["type"] = root.FileType
-					if root.FileType == "disk1.img" {
+					if root.FileType == "disk1.img" || root.FileType == "disk-kvm.img" {
 						image.Type = "virtual-machine"
 					}
 				} else {
@@ -254,7 +257,7 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 				if item.FileType == "lxd.tar.xz" {
 					// Locate the root files
 					for _, subItem := range version.Items {
-						if shared.StringInSlice(subItem.FileType, []string{"disk1.img", "root.tar.xz", "squashfs"}) {
+						if shared.StringInSlice(subItem.FileType, []string{"disk1.img", "disk-kvm.img", "root.tar.xz", "squashfs"}) {
 							err := addImage(&item, &subItem)
 							if err != nil {
 								continue
