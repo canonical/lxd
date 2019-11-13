@@ -471,7 +471,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return err
 	}
 
-	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", vm.pidFilePath())
+	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-smbios", "type=1,product=LXD", "-nodefaults", "-readconfig", confFile, "-pidfile", vm.pidFilePath())
 	if err != nil {
 		return err
 	}
