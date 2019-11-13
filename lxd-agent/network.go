@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"net"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -57,7 +56,7 @@ func (l *networkListener) Accept() (net.Conn, error) {
 }
 
 func serverTLSConfig() (*tls.Config, error) {
-	certInfo, err := shared.KeyPairAndCA(filepath.Join("/", "media", "lxd_config"), "agent", shared.CertServer)
+	certInfo, err := shared.KeyPairAndCA(".", "agent", shared.CertServer, false)
 	if err != nil {
 		return nil, err
 	}
