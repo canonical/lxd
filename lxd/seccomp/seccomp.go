@@ -361,6 +361,7 @@ type Instance interface {
 	Architecture() int
 	RootfsPath() string
 	CurrentIdmap() (*idmap.IdmapSet, error)
+	DiskIdmap() (*idmap.IdmapSet, error)
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
 
@@ -1527,7 +1528,14 @@ func (s *Server) MountSyscallValid(c Instance, args *MountArgs) (bool, string) {
 // MountSyscallShift checks whether this mount syscall needs shiftfs.
 func (s *Server) MountSyscallShift(c Instance) bool {
 	if shared.IsTrue(c.ExpandedConfig()["security.syscalls.intercept.mount.shift"]) {
-		return true
+		diskIdmap, err := c.DiskIdmap()
+		if err != nil {
+			return false
+		}
+
+		if diskIdmap == nil && c.DaemonState().OS.Shiftfs {
+			return true
+		}
 	}
 
 	return false
