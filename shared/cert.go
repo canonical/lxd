@@ -42,13 +42,13 @@ import (
 //
 // If a CA certificate is found, it will be returned as well as second return
 // value (otherwise it will be nil).
-func KeyPairAndCA(dir, prefix string, kind CertKind) (*CertInfo, error) {
+func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, error) {
 	certFilename := filepath.Join(dir, prefix+".crt")
 	keyFilename := filepath.Join(dir, prefix+".key")
 
 	// Ensure that the certificate exists, or create a new one if it does
 	// not.
-	err := FindOrGenCert(certFilename, keyFilename, kind == CertClient)
+	err := FindOrGenCert(certFilename, keyFilename, kind == CertClient, addHosts)
 	if err != nil {
 		return nil, err
 	}
@@ -212,14 +212,14 @@ func mynames() ([]string, error) {
 
 // FindOrGenCert generates a keypair if needed.
 // The type argument is false for server, true for client.
-func FindOrGenCert(certf string, keyf string, certtype bool) error {
+func FindOrGenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 	if PathExists(certf) && PathExists(keyf) {
 		return nil
 	}
 
 	/* If neither stat succeeded, then this is our first run and we
 	 * need to generate cert and privkey */
-	err := GenCert(certf, keyf, certtype)
+	err := GenCert(certf, keyf, certtype, addHosts)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func FindOrGenCert(certf string, keyf string, certtype bool) error {
 }
 
 // GenCert will create and populate a certificate file and a key file
-func GenCert(certf string, keyf string, certtype bool) error {
+func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 	/* Create the basenames if needed */
 	dir := path.Dir(certf)
 	err := os.MkdirAll(dir, 0750)
@@ -241,7 +241,7 @@ func GenCert(certf string, keyf string, certtype bool) error {
 		return err
 	}
 
-	certBytes, keyBytes, err := GenerateMemCert(certtype)
+	certBytes, keyBytes, err := GenerateMemCert(certtype, addHosts)
 	if err != nil {
 		return err
 	}
@@ -264,15 +264,10 @@ func GenCert(certf string, keyf string, certtype bool) error {
 
 // GenerateMemCert creates client or server certificate and key pair,
 // returning them as byte arrays in memory.
-func GenerateMemCert(client bool) ([]byte, []byte, error) {
+func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 	privk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate key: %v", err)
-	}
-
-	hosts, err := mynames()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to get my hostname: %v", err)
 	}
 
 	validFrom := time.Now()
@@ -319,14 +314,23 @@ func GenerateMemCert(client bool) ([]byte, []byte, error) {
 		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
-	for _, h := range hosts {
-		if ip, _, err := net.ParseCIDR(h); err == nil {
-			if !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() {
-				template.IPAddresses = append(template.IPAddresses, ip)
-			}
-		} else {
-			template.DNSNames = append(template.DNSNames, h)
+	if addHosts {
+		hosts, err := mynames()
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed to get my hostname: %v", err)
 		}
+
+		for _, h := range hosts {
+			if ip, _, err := net.ParseCIDR(h); err == nil {
+				if !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() {
+					template.IPAddresses = append(template.IPAddresses, ip)
+				}
+			} else {
+				template.DNSNames = append(template.DNSNames, h)
+			}
+		}
+	} else if !client {
+		template.DNSNames = []string{"unspecified"}
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privk.PublicKey, privk)
