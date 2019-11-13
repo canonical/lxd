@@ -82,7 +82,7 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 func connectTarget(url string) (lxd.ContainerServer, error) {
 	// Generate a new client certificate for this
 	fmt.Println("Generating a temporary client certificate. This may take a minute...")
-	clientCrt, clientKey, err := shared.GenerateMemCert(true)
+	clientCrt, clientKey, err := shared.GenerateMemCert(true, false)
 	if err != nil {
 		return nil, err
 	}
