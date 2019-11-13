@@ -27,7 +27,6 @@ func (d *nicIPVLAN) validateConfig() error {
 		"name",
 		"mtu",
 		"hwaddr",
-		"host_name",
 		"vlan",
 	}
 
