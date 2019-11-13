@@ -165,6 +165,7 @@ func (xt *XTables) NetworkSetupAllowForwarding(protocol string, name string, sho
 
 	return err
 }
+
 // Configure NAT
 func (xt *XTables) NetworkSetupNAT(protocol string, name string, is_after bool, args ...string) error {
 	if is_after {
@@ -201,6 +202,7 @@ func (xt *XTables) NetworkSetupIPv4DNSOverrides(name string) error {
 
 	return nil
 }
+
 // Attempt a workaround for broken DHCP clients
 func (xt *XTables) NetworkSetupIPv4DHCPWorkaround(name string) error {
 	return iptables.NetworkPrepend("ipv4", name, "mangle", "POSTROUTING", "-o", name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
