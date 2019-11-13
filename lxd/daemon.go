@@ -635,6 +635,7 @@ func (d *Daemon) init() error {
 		"network_l2proxy",
 		"network_gateway_device_route",
 		"network_phys_macvlan_mtu",
+		"network_veth_router",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = lxc.HasApiExtension(extension)
