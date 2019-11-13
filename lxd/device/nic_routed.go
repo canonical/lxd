@@ -8,25 +8,30 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-type nicIPVLAN struct {
+const nicRoutedIPv4GW = "169.254.0.1"
+const nicRoutedIPv6GW = "fe80::1"
+
+type nicRouted struct {
 	deviceCommon
 }
 
-func (d *nicIPVLAN) CanHotPlug() (bool, []string) {
+func (d *nicRouted) CanHotPlug() (bool, []string) {
 	return false, []string{}
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *nicIPVLAN) validateConfig() error {
+func (d *nicRouted) validateConfig() error {
 	if d.instance.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
-	requiredFields := []string{"parent"}
+	requiredFields := []string{}
 	optionalFields := []string{
 		"name",
+		"parent",
 		"mtu",
 		"hwaddr",
+		"host_name",
 		"vlan",
 	}
 
@@ -55,41 +60,45 @@ func (d *nicIPVLAN) validateConfig() error {
 }
 
 // validateEnvironment checks the runtime environment for correctness.
-func (d *nicIPVLAN) validateEnvironment() error {
+func (d *nicRouted) validateEnvironment() error {
 	if d.config["name"] == "" {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
+	if d.config["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["parent"])) {
 		return fmt.Errorf("Parent device '%s' doesn't exist", d.config["parent"])
 	}
 
-	extensions := d.state.OS.LXCFeatures
-	if !extensions["network_ipvlan"] || !extensions["network_l2proxy"] || !extensions["network_gateway_device_route"] {
-		return fmt.Errorf("Requires liblxc has following API extensions: network_ipvlan, network_l2proxy, network_gateway_device_route")
+	if d.config["parent"] == "" && d.config["vlan"] != "" {
+		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
 	}
 
-	if d.config["ipv4.address"] != "" {
-		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
+	extensions := d.state.OS.LXCFeatures
+	if !extensions["network_veth_router"] || !extensions["network_l2proxy"] {
+		return fmt.Errorf("Requires liblxc has following API extensions: network_veth_router, network_l2proxy")
+	}
+
+	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
+	if d.config["parent"] != "" && d.config["ipv4.address"] != "" {
 		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", d.config["parent"])
 		sysctlVal, err := NetworkSysctlGet(ipv4FwdPath)
 		if err != nil || sysctlVal != "1\n" {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv4.conf.%s.forwarding=1", d.config["parent"])
+			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", d.config["parent"])
 		}
 	}
 
-	if d.config["ipv6.address"] != "" {
-		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
+	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
+	if d.config["parent"] != "" && d.config["ipv6.address"] != "" {
 		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", d.config["parent"])
 		sysctlVal, err := NetworkSysctlGet(ipv6FwdPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.forwarding=1", d.config["parent"])
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", d.config["parent"])
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("ipv6/conf/%s/proxy_ndp", d.config["parent"])
@@ -98,15 +107,15 @@ func (d *nicIPVLAN) validateEnvironment() error {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
 		if sysctlVal != "1\n" {
-			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", d.config["parent"])
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", d.config["parent"])
 		}
 	}
 
 	return nil
 }
 
-// Start is run when the instance is starting up (IPVLAN doesn't support hot plugging).
-func (d *nicIPVLAN) Start() (*RunConfig, error) {
+// Start is run when the instance is starting up (Routed mode doesn't support hot plugging).
+func (d *nicRouted) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -119,23 +128,32 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
-	parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+	parentName := ""
+	if d.config["parent"] != "" {
+		parentName = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
-	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
-	if err != nil {
-		return nil, err
-	}
-
-	// Record whether we created this device or not so it can be removed on stop.
-	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
-
-	// If we created a VLAN interface, we need to setup the sysctls on that interface.
-	if statusDev == "created" {
-		err := d.setupParentSysctls(parentName)
+		statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
 		if err != nil {
 			return nil, err
 		}
+
+		// Record whether we created this device or not so it can be removed on stop.
+		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+
+		// If we created a VLAN interface, we need to setup the sysctls on that interface.
+		if statusDev == "created" {
+			err := d.setupParentSysctls(parentName)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
+
+	hostName := d.config["host_name"]
+	if hostName == "" {
+		hostName = NetworkRandomDevName("veth")
+	}
+	saveData["host_name"] = hostName
 
 	err = d.volatileSet(saveData)
 	if err != nil {
@@ -145,12 +163,19 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 	runConf := RunConfig{}
 	nic := []RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
-		{Key: "type", Value: "ipvlan"},
+		{Key: "type", Value: "veth"},
 		{Key: "flags", Value: "up"},
-		{Key: "ipvlan.mode", Value: "l3s"},
-		{Key: "ipvlan.isolation", Value: "bridge"},
-		{Key: "l2proxy", Value: "1"},
-		{Key: "link", Value: parentName},
+		{Key: "veth.mode", Value: "router"},
+		{Key: "veth.pair", Value: saveData["host_name"]},
+	}
+
+	// If there is a designated parent interface, activate the layer2 proxy mode to advertise
+	// the instance's IPs over that interface using proxy APR/NDP.
+	if parentName != "" {
+		nic = append(nic,
+			RunConfigItem{Key: "l2proxy", Value: "1"},
+			RunConfigItem{Key: "link", Value: parentName},
+		)
 	}
 
 	if d.config["mtu"] != "" {
@@ -163,7 +188,8 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 			nic = append(nic, RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
 		}
 
-		nic = append(nic, RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
+		// Use a fixed link-local address as the next-hop default gateway.
+		nic = append(nic, RunConfigItem{Key: "ipv4.gateway", Value: nicRoutedIPv4GW})
 	}
 
 	if d.config["ipv6.address"] != "" {
@@ -172,19 +198,21 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 			nic = append(nic, RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
 		}
 
-		nic = append(nic, RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
+		// Use a fixed link-local address as the next-hop default gateway.
+		nic = append(nic, RunConfigItem{Key: "ipv6.gateway", Value: nicRoutedIPv6GW})
 	}
 
 	runConf.NetworkInterface = nic
+	runConf.PostHooks = append(runConf.PostHooks, d.postStart)
 	return &runConf, nil
 }
 
 // setupParentSysctls configures the required sysctls on the parent to allow l2proxy to work.
 // Because of our policy not to modify sysctls on existing interfaces, this should only be called
 // if we created the parent interface.
-func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
+func (d *nicRouted) setupParentSysctls(parentName string) error {
 	if d.config["ipv4.address"] != "" {
-		// Set necessary sysctls for use with l2proxy parent in IPVLAN l3s mode.
+		// Set necessary sysctls for use with l2proxy parent in routed mode.
 		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", parentName)
 		err := NetworkSysctlSet(ipv4FwdPath, "1")
 		if err != nil {
@@ -193,7 +221,7 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 	}
 
 	if d.config["ipv6.address"] != "" {
-		// Set necessary sysctls use with l2proxy parent in IPVLAN l3s mode.
+		// Set necessary sysctls use with l2proxy parent in routed mode.
 		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", parentName)
 		err := NetworkSysctlSet(ipv6FwdPath, "1")
 		if err != nil {
@@ -210,8 +238,35 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 	return nil
 }
 
+// postStart is run after the instance is started.
+func (d *nicRouted) postStart() error {
+	v := d.volatileGet()
+
+	// If host_name is defined (and it should be), then we add the dummy link-local gateway IPs
+	// to the host end of the veth pair. This ensures that liveness detection of the gateways
+	// inside the instance work and ensure that traffic doesn't periodically halt whilst ARP/NDP
+	// is re-detected.
+	if v["host_name"] != "" {
+		if d.config["ipv4.address"] != "" {
+			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", nicRoutedIPv4GW), "dev", v["host_name"])
+			if err != nil {
+				return err
+			}
+		}
+
+		if d.config["ipv6.address"] != "" {
+			_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", nicRoutedIPv6GW), "dev", v["host_name"])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // Stop is run when the device is removed from the instance.
-func (d *nicIPVLAN) Stop() (*RunConfig, error) {
+func (d *nicRouted) Stop() (*RunConfig, error) {
 	runConf := RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
@@ -220,9 +275,10 @@ func (d *nicIPVLAN) Stop() (*RunConfig, error) {
 }
 
 // postStop is run after the device is removed from the instance.
-func (d *nicIPVLAN) postStop() error {
+func (d *nicRouted) postStop() error {
 	defer d.volatileSet(map[string]string{
 		"last_state.created": "",
+		"host_name":          "",
 	})
 
 	v := d.volatileGet()

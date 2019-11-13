@@ -11,6 +11,7 @@ var nicTypes = map[string]func() device{
 	"ipvlan":   func() device { return &nicIPVLAN{} },
 	"p2p":      func() device { return &nicP2P{} },
 	"bridged":  func() device { return &nicBridged{} },
+	"routed":   func() device { return &nicRouted{} },
 	"macvlan":  func() device { return &nicMACVLAN{} },
 	"sriov":    func() device { return &nicSRIOV{} },
 }
