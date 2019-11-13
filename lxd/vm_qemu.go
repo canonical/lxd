@@ -763,17 +763,29 @@ type = "q35"
 accel = "kvm"
 usb = "off"
 graphics = "off"
+
 [global]
 driver = "ICH9-LPC"
 property = "disable_s3"
 value = "1"
+
 [global]
 driver = "ICH9-LPC"
 property = "disable_s4"
 value = "1"
+
 [boot-opts]
 strict = "on"
-# SCSI root
+
+# LXD serial identifier
+[device]
+driver = "virtio-serial"
+
+[device]
+driver = "virtserialport"
+name = "org.linuxcontainers.lxd"
+
+# PCIe root
 [device "qemu_pcie1"]
 driver = "pcie-root-port"
 port = "0x10"
@@ -781,10 +793,12 @@ chassis = "1"
 bus = "pcie.0"
 multifunction = "on"
 addr = "0x2"
+
 [device "qemu_scsi"]
 driver = "virtio-scsi-pci"
 bus = "qemu_pcie1"
 addr = "0x0"
+
 # Balloon driver
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
@@ -792,25 +806,30 @@ port = "0x12"
 chassis = "2"
 bus = "pcie.0"
 addr = "0x2.0x1"
+
 [device "qemu_ballon"]
 driver = "virtio-balloon-pci"
 bus = "qemu_pcie2"
 addr = "0x0"
+
 # Random number generator
 [object "qemu_rng"]
 qom-type = "rng-random"
 filename = "/dev/urandom"
+
 [device "qemu_pcie3"]
 driver = "pcie-root-port"
 port = "0x13"
 chassis = "3"
 bus = "pcie.0"
 addr = "0x2.0x2"
+
 [device "dev-qemu_rng"]
 driver = "virtio-rng-pci"
 rng = "qemu_rng"
 bus = "qemu_pcie3"
 addr = "0x0"
+
 # Console
 [chardev "console"]
 backend = "pty"
