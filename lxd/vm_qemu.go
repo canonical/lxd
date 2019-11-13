@@ -39,6 +39,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -2132,6 +2133,15 @@ func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, 
 		User:        uid,
 		Group:       gid,
 		Cwd:         cwd,
+	}
+
+	if post.Interactive {
+		// Set console to raw.
+		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
+		if err != nil {
+			return nil, -1, -1, err
+		}
+		defer termios.Restore(int(stdin.Fd()), oldttystate)
 	}
 
 	args := lxdClient.InstanceExecArgs{
