@@ -49,7 +49,7 @@ func (xt *XTables) VerifyIPv6Module() error {
 // Proxy Functions
 
 // ProxySetupNAT creates a default NAT setup.
-func (xt *XTables) ProxySetupNAT(protocol string, ipAddr net.IP, comment string, connType, address, port string, cPort string) error {
+func (xt *XTables) InstanceProxySetupNAT(protocol string, ipAddr net.IP, comment string, connType, address, port string, cPort string) error {
 	toDest := fmt.Sprintf("%s:%s", ipAddr, cPort)
 	if protocol == "ipv6" {
 		toDest = fmt.Sprintf("[%s]:%s", ipAddr, cPort)
@@ -119,8 +119,8 @@ func (xt *XTables) InstanceNicBridgedRemoveFilters(m deviceConfig.Device, ipv4 n
 }
 
 // Sets the nic rules to standard filtering.
-func (xt *XTables) InstanceNicBridgedSetFilters(m deviceConfig.Device, config map[string]string, ipv4 net.IP, ipv6 net.IP, name string) error {
-	rules := generateFilterEbtablesRules(config, ipv4, ipv6)
+func (xt *XTables) InstanceNicBridgedSetFilters(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP, name string) error {
+	rules := generateFilterEbtablesRules(m, ipv4, ipv6)
 	for _, rule := range rules {
 		_, err := shared.RunCommand(rule[0], append([]string{"--concurrent"}, rule[1:]...)...)
 		if err != nil {
@@ -128,7 +128,7 @@ func (xt *XTables) InstanceNicBridgedSetFilters(m deviceConfig.Device, config ma
 		}
 	}
 
-	rules, err := generateFilterIptablesRules(config, ipv6)
+	rules, err := generateFilterIptablesRules(m, ipv6)
 	if err != nil {
 		return err
 	}

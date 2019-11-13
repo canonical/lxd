@@ -20,7 +20,7 @@ type Firewall interface {
 
 	// NIC Bridged Functions
 	InstanceNicBridgedRemoveFilters(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP) error
-	InstanceNicBridgedSetFilters(m deviceConfig.Device, config map[string]string, ipv4 net.IP, ipv6 net.IP, name string) error
+	InstanceNicBridgedSetFilters(m deviceConfig.Device, ipv4 net.IP, ipv6 net.IP, name string) error
 
 	// Network Functions
 	NetworkSetupAllowForwarding(protocol string, name string, should_accept bool) error
