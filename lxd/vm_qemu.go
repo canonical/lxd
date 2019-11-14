@@ -721,12 +721,14 @@ func (vm *vmQemu) generateConfigShare() error {
 
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
-After=run-lxd_config.mount
-Before=cloud-init-local.service
+ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
+Requires=lxd-agent-9p.service
+After=lxd-agent-9p.service
+Before=cloud-init.target
 
 [Service]
 Type=simple
-WorkingDirectory=/run/lxd_config/
+WorkingDirectory=/run/lxd_config
 ExecStart=/run/lxd_config/lxd-agent
 
 [Install]
@@ -739,28 +741,27 @@ WantedBy=multi-user.target
 	}
 
 	lxdConfigShareMountUnit := `[Unit]
-[Unit]
-Description = LXD - config drive
-Before=local-fs.target
+Description=LXD - agent - 9p mount
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 
-[Mount]
-Where=/run/lxd_config
-What=config
-Type=9p
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/sbin/modprobe 9pnet_virtio
+ExecStartPre=/bin/mkdir -p /run/lxd_config
+ExecStart=/bin/mount -t 9p config /run/lxd_config
 
 [Install]
 WantedBy=multi-user.target
 `
 
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "run-lxd_config.mount"), []byte(lxdConfigShareMountUnit), 0400)
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "systemd", "lxd-agent-9p.service"), []byte(lxdConfigShareMountUnit), 0400)
 	if err != nil {
 		return err
 	}
 
 	// Install script for manual installs.
 	lxdConfigShareInstall := `#!/bin/sh
-set -eux
 if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
     echo "This script must be run from within the 9p mount"
     exit 1
@@ -772,13 +773,13 @@ if [ ! -e "/lib/systemd/system" ]; then
 fi
 
 cp systemd/lxd-agent.service /lib/systemd/system/
-cp systemd/run-lxd_config.mount /lib/systemd/system/
+cp systemd/lxd-agent-9p.service /lib/systemd/system/
 systemctl daemon-reload
-systemctl enable run-lxd_config.mount lxd-agent.service
+systemctl enable lxd-agent.service lxd-agent-9p.service
 
-mkdir -p /run/lxd_config
-mount -o bind . /run/lxd_config
-systemctl start run-lxd_config.mount lxd-agent.service
+echo ""
+echo "LXD agent has been installed, reboot to confirm setup."
+echo "To start it now, unmount this filesystem and run: systemctl start lxd-agent-9p lxd-agent"
 `
 
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
