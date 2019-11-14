@@ -427,11 +427,12 @@ func (vm *vmQemu) Start(stateful bool) error {
 		vm.VolatileSet(map[string]string{"volatile.vm.uuid": vmUUID})
 	}
 
-	// Copy OVMF firmware to nvram file.
+	// Copy OVMF settings firmware to nvram file.
+	// This firmware file can be modified by the VM so it must be copied from the defaults.
 	if !shared.PathExists(vm.getNvramPath()) {
 		srcOvmfFile := "/usr/share/OVMF/OVMF_VARS.ms.fd"
 		if !shared.PathExists(srcOvmfFile) {
-			return fmt.Errorf("Required secure boot EFI firmware file missing: %s", srcOvmfFile)
+			return fmt.Errorf("Required secure boot EFI firmware settings file missing: %s", srcOvmfFile)
 		}
 
 		err = shared.FileCopy(srcOvmfFile, vm.getNvramPath())
@@ -440,7 +441,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		}
 	}
 
-	tapDev := map[string]string{}
+	devConfs := make([]*device.RunConfig, 0, len(vm.expandedDevices))
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dev := range vm.expandedDevices.Sorted() {
@@ -454,18 +455,10 @@ func (vm *vmQemu) Start(stateful bool) error {
 			continue
 		}
 
-		if len(runConf.NetworkInterface) > 0 {
-			for _, nicItem := range runConf.NetworkInterface {
-				if nicItem.Key == "link" {
-					tapDev["tap"] = nicItem.Value
-					tapDev["hwaddr"] = vm.localConfig[fmt.Sprintf("volatile.%s.hwaddr", dev.Name)]
-				}
-			}
-
-		}
+		devConfs = append(devConfs, runConf)
 	}
 
-	confFile, err := vm.generateQemuConfigFile(tapDev)
+	confFile, err := vm.generateQemuConfigFile(devConfs)
 	if err != nil {
 		return err
 	}
@@ -796,7 +789,7 @@ systemctl start run-lxd_config.mount lxd-agent.service
 }
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
-func (vm *vmQemu) generateQemuConfigFile(tapDev map[string]string) (string, error) {
+func (vm *vmQemu) generateQemuConfigFile(devConfs []*device.RunConfig) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
@@ -886,11 +879,6 @@ backend = "pty"
 		return "", err
 	}
 
-	err = vm.addRootDriveConfig(sb)
-	if err != nil {
-		return "", err
-	}
-
 	err = vm.addCPUConfig(sb)
 	if err != nil {
 		return "", err
@@ -900,13 +888,39 @@ backend = "pty"
 	vm.addVsockConfig(sb)
 	vm.addMonitorConfig(sb)
 	vm.addConfDriveConfig(sb)
-	vm.addNetConfig(sb, tapDev)
+
+	for _, runConf := range devConfs {
+		// Add root drive device.
+		if runConf.RootFS.Path != "" {
+			err = vm.addRootDriveConfig(sb)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		// Add drive devices.
+		if len(runConf.Mounts) > 0 {
+			driveIndex := 0
+			for _, drive := range runConf.Mounts {
+				// Increment so index starts at 1, as root drive uses index 0.
+				driveIndex++
+
+				vm.addDriveConfig(sb, driveIndex, drive)
+			}
+		}
+
+		// Add network device.
+		if len(runConf.NetworkInterface) > 0 {
+			vm.addNetDevConfig(sb, runConf.NetworkInterface)
+		}
+	}
 
 	// Write the config file to disk.
 	configPath := filepath.Join(vm.LogPath(), "qemu.conf")
 	return configPath, ioutil.WriteFile(configPath, []byte(sb.String()), 0640)
 }
 
+// addMemoryConfig adds the qemu config required for setting the size of the VM's memory.
 func (vm *vmQemu) addMemoryConfig(sb *strings.Builder) error {
 	// Configure memory limit.
 	memSize := vm.expandedConfig["limits.memory"]
@@ -930,6 +944,7 @@ size = "%dK"
 	return nil
 }
 
+// addVsockConfig adds the qemu config required for setting up the host->VM vsock socket.
 func (vm *vmQemu) addVsockConfig(sb *strings.Builder) {
 	vsockID := vm.vsockID()
 
@@ -952,6 +967,7 @@ addr = "0x0"
 	return
 }
 
+// addCPUConfig adds the qemu config required for setting the number of virtualised CPUs.
 func (vm *vmQemu) addCPUConfig(sb *strings.Builder) error {
 	// Configure CPU limit. TODO add control of sockets, cores and threads.
 	cpus := vm.expandedConfig["limits.cpu"]
@@ -976,6 +992,7 @@ cpus = "%d"
 	return nil
 }
 
+// addMonitorConfig adds the qemu config required for setting up the host side VM monitor device.
 func (vm *vmQemu) addMonitorConfig(sb *strings.Builder) {
 	monitorPath := vm.getMonitorPath()
 
@@ -995,11 +1012,12 @@ mode = "control"
 	return
 }
 
+// addFirmwareConfig adds the qemu config required for adding a secure boot compatible EFI firmware.
 func (vm *vmQemu) addFirmwareConfig(sb *strings.Builder) {
 	nvramPath := vm.getNvramPath()
 
 	sb.WriteString(fmt.Sprintf(`
-# Firmware
+# Firmware (read only)
 [drive]
 file = "/usr/share/OVMF/OVMF_CODE.fd"
 if = "pflash"
@@ -1007,6 +1025,7 @@ format = "raw"
 unit = "0"
 readonly = "on"
 
+# Firmware settings (writable)
 [drive]
 file = "%s"
 if = "pflash"
@@ -1017,6 +1036,27 @@ unit = "1"
 	return
 }
 
+// addConfDriveConfig adds the qemu config required for adding the config drive.
+func (vm *vmQemu) addConfDriveConfig(sb *strings.Builder) {
+	// Devices use "qemu_" prefix indicating that this is a internally named device.
+	sb.WriteString(fmt.Sprintf(`
+# Config drive
+[fsdev "qemu_config"]
+fsdriver = "local"
+security_model = "none"
+readonly = "on"
+path = "%s"
+
+[device "dev-qemu_config"]
+driver = "virtio-9p-pci"
+fsdev = "qemu_config"
+mount_tag = "config"
+`, filepath.Join(vm.Path(), "config")))
+
+	return
+}
+
+// addRootDriveConfig adds the qemu config required for adding the root drive.
 func (vm *vmQemu) addRootDriveConfig(sb *strings.Builder) error {
 	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
 	if err != nil {
@@ -1028,6 +1068,7 @@ func (vm *vmQemu) addRootDriveConfig(sb *strings.Builder) error {
 		return err
 	}
 
+	// Devices use "lxd_" prefix indicating that this is a user named device.
 	sb.WriteString(fmt.Sprintf(`
 # Root drive ("root" device)
 [drive "lxd_root"]
@@ -1050,28 +1091,49 @@ bootindex = "1"
 	return nil
 }
 
-func (vm *vmQemu) addConfDriveConfig(sb *strings.Builder) {
-	sb.WriteString(fmt.Sprintf(`
-# Config drive
-[fsdev "qemu_config"]
-fsdriver = "local"
-security_model = "none"
-readonly = "on"
-path = "%s"
+// addDriveConfig adds the qemu config required for adding a supplementary drive.
+func (vm *vmQemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf device.MountEntryItem) {
+	driveName := fmt.Sprintf(driveConf.TargetPath)
 
-[device "dev-qemu_config"]
-driver = "virtio-9p-pci"
-fsdev = "qemu_config"
-mount_tag = "config"
-`, filepath.Join(vm.Path(), "config")))
+	// Devices use "lxd_" prefix indicating that this is a user named device.
+	sb.WriteString(fmt.Sprintf(`
+# %s drive
+[drive "lxd_%s"]
+file = "%s"
+format = "raw"
+if = "none"
+cache = "none"
+aio = "native"
+
+[device "dev-lxd_%s"]
+driver = "scsi-hd"
+bus = "qemu_scsi.0"
+channel = "0"
+scsi-id = "%d"
+lun = "1"
+drive = "lxd_%s"
+`, driveName, driveName, driveConf.DevPath, driveName, driveIndex, driveName))
 
 	return
 }
 
-func (vm *vmQemu) addNetConfig(sb *strings.Builder, tapDev map[string]string) {
+// addNetDevConfig adds the qemu config required for adding a network device.
+func (vm *vmQemu) addNetDevConfig(sb *strings.Builder, nicConfig []device.RunConfigItem) {
+	var devName, devTap, devHwaddr string
+	for _, nicItem := range nicConfig {
+		if nicItem.Key == "name" {
+			devName = nicItem.Value
+		} else if nicItem.Key == "link" {
+			devTap = nicItem.Value
+		} else if nicItem.Key == "hwaddr" {
+			devHwaddr = nicItem.Value
+		}
+	}
+
+	// Devices use "lxd_" prefix indicating that this is a user named device.
 	sb.WriteString(fmt.Sprintf(`
-# Network card ("eth0" device)
-[netdev "lxd_eth0"]
+# Network card ("%s" device)
+[netdev "lxd_%s"]
 type = "tap"
 ifname = "%s"
 script = "no"
@@ -1091,15 +1153,17 @@ mac = "%s"
 bus = "qemu_pcie5"
 addr = "0x0"
 bootindex = "2""
-`, tapDev["tap"], tapDev["hwaddr"]))
+`, devName, devName, devTap, devHwaddr))
 
 	return
 }
 
+// pidFilePath returns the path where the qemu process should write its PID.
 func (vm *vmQemu) pidFilePath() string {
 	return filepath.Join(vm.LogPath(), "qemu.pid")
 }
 
+// pid gets the PID of the running qemu process.
 func (vm *vmQemu) pid() (int, error) {
 	pidStr, err := ioutil.ReadFile(vm.pidFilePath())
 	if os.IsNotExist(err) {
@@ -1118,6 +1182,7 @@ func (vm *vmQemu) pid() (int, error) {
 	return pid, nil
 }
 
+// Stop stops the VM.
 func (vm *vmQemu) Stop(stateful bool) error {
 	if stateful {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
