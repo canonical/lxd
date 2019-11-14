@@ -22,6 +22,9 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// Special disk "source" value used for generating a VM cloud-init config ISO.
+const diskSourceCloudInit = "cloud-init:config"
+
 type diskBlockLimit struct {
 	readBps   int64
 	readIops  int64
@@ -62,7 +65,6 @@ func (d *disk) validateConfig() error {
 	}
 
 	rules := map[string]func(string) error{
-		"path":              shared.IsNotEmpty,
 		"required":          shared.IsBool,
 		"optional":          shared.IsBool, // "optional" is deprecated, replaced by "required".
 		"readonly":          shared.IsBool,
@@ -76,6 +78,11 @@ func (d *disk) validateConfig() error {
 		"pool":              shared.IsAny,
 		"propagation":       validatePropagation,
 		"raw.mount.options": shared.IsAny,
+	}
+
+	// VMs can have a special cloud-init config drive attached with no path.
+	if d.instance.Type() != instancetype.VM || d.config["source"] != diskSourceCloudInit {
+		rules["path"] = shared.IsNotEmpty
 	}
 
 	err := d.config.Validate(rules)
@@ -126,7 +133,7 @@ func (d *disk) validateConfig() error {
 	// When we want to attach a storage volume created via the storage api the "source" only
 	// contains the name of the storage volume, not the path where it is mounted. So only check
 	// for the existence of "source" when "pool" is empty.
-	if d.config["pool"] == "" && d.config["source"] != "" && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) {
+	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) {
 		return fmt.Errorf("Missing source '%s' for disk '%s'", d.config["source"], d.name)
 	}
 
@@ -344,10 +351,15 @@ func (d *disk) startVM() (*RunConfig, error) {
 	}
 
 	// This is a virtual disk source that can be attached to a VM to provide cloud-init config.
-	if d.config["source"] == "cloud-init:config" {
+	if d.config["source"] == diskSourceCloudInit {
+		isoPath, err := d.generateVMConfigDrive()
+		if err != nil {
+			return nil, err
+		}
+
 		runConf.Mounts = []MountEntryItem{
 			{
-				DevPath:    "foo", // Path to generated iso file.
+				DevPath:    isoPath,
 				TargetPath: d.name,
 			},
 		}
@@ -1034,4 +1046,66 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 	}
 
 	return devices, nil
+}
+
+// generateVMConfigDrive generates an ISO containing the cloud init config for a VM.
+// Returns the path to the ISO.
+func (d *disk) generateVMConfigDrive() (string, error) {
+	scratchDir := filepath.Join(d.instance.DevicesPath(), strings.Replace(d.name, "/", "-", -1))
+
+	// Create config drive dir.
+	err := os.MkdirAll(scratchDir, 0100)
+	if err != nil {
+		return "", err
+	}
+
+	instanceConfig := d.instance.ExpandedConfig()
+
+	// Use an empty user-data file if no custom vendor-data supplied.
+	vendorData := instanceConfig["user.vendor-data"]
+	if vendorData == "" {
+		vendorData = "#cloud-config"
+	}
+
+	err = ioutil.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
+	if err != nil {
+		return "", err
+	}
+
+	// Use an empty user-data file if no custom user-data supplied.
+	userData := instanceConfig["user.user-data"]
+	if userData == "" {
+		userData = "#cloud-config"
+	}
+
+	err = ioutil.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
+	if err != nil {
+		return "", err
+	}
+
+	// Append any custom meta-data to our predefined meta-data config.
+	metaData := fmt.Sprintf(`instance-id: %s
+local-hostname: %s
+%s
+`, d.instance.Name(), d.instance.Name(), instanceConfig["user.meta-data"])
+
+	err = ioutil.WriteFile(filepath.Join(scratchDir, "meta-data"), []byte(metaData), 0400)
+	if err != nil {
+		return "", err
+	}
+
+	// Finally convert the config drive dir into an ISO file. The cidata label is important
+	// as this is what cloud-init uses to detect, mount the drive and run the cloud-init
+	// templates on first boot. The vendor-data template then modifies the system so that the
+	// config drive is mounted and the agent is started on subsequent boots.
+	isoPath := filepath.Join(d.instance.Path(), "config.iso")
+	_, err = shared.RunCommand("mkisofs", "-R", "-V", "cidata", "-o", isoPath, scratchDir)
+	if err != nil {
+		return "", err
+	}
+
+	// Remove the config drive folder.
+	os.RemoveAll(scratchDir)
+
+	return isoPath, nil
 }
