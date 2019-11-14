@@ -163,7 +163,7 @@ func (d *gpu) Start() (*RunConfig, error) {
 			}
 
 			for _, dev := range nvidiaDevices {
-				prefix := unixDeviceJoinPath("unix", d.name)
+				prefix := deviceJoinPath("unix", d.name)
 				if UnixDeviceExists(d.instance.DevicesPath(), prefix, dev.path) {
 					continue
 				}
