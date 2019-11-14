@@ -416,6 +416,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
 
 	err = cmd.Start()
 	if err != nil {
