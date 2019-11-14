@@ -172,7 +172,7 @@ func (d *disk) validateConfig() error {
 // getDevicePath returns the absolute path on the host for this instance and supplied device config.
 func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) string {
 	relativeDestPath := strings.TrimPrefix(devConfig["path"], "/")
-	devPath := fmt.Sprintf("disk.%s.%s", strings.Replace(devName, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
+	devPath := deviceNameEncode(deviceJoinPath("disk", devName, relativeDestPath))
 	return filepath.Join(d.instance.DevicesPath(), devPath)
 }
 
@@ -1051,7 +1051,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 // generateVMConfigDrive generates an ISO containing the cloud init config for a VM.
 // Returns the path to the ISO.
 func (d *disk) generateVMConfigDrive() (string, error) {
-	scratchDir := filepath.Join(d.instance.DevicesPath(), strings.Replace(d.name, "/", "-", -1))
+	scratchDir := filepath.Join(d.instance.DevicesPath(), deviceNameEncode(d.name))
 
 	// Create config drive dir.
 	err := os.MkdirAll(scratchDir, 0100)
