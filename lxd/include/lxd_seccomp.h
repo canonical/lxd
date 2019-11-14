@@ -8,7 +8,7 @@
 #include <linux/filter.h>
 #include <linux/types.h>
 
-#ifdef SECCOMP_GET_ACTION_AVAIL
+#ifndef SECCOMP_GET_ACTION_AVAIL
 #define SECCOMP_GET_ACTION_AVAIL 2
 #endif
 
