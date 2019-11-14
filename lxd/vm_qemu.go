@@ -2512,6 +2512,8 @@ func (vm *vmQemu) DaemonState() *state.State {
 // fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
 func (vm *vmQemu) fillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+	var err error
+
 	newDevice := m.Clone()
 	updateKey := func(key string, value string) error {
 		tx, err := vm.state.Cluster.Begin()
@@ -2539,7 +2541,7 @@ func (vm *vmQemu) fillNetworkDevice(name string, m deviceConfig.Device) (deviceC
 		volatileHwaddr := vm.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address
-			volatileHwaddr, err := deviceNextInterfaceHWAddr()
+			volatileHwaddr, err = deviceNextInterfaceHWAddr()
 			if err != nil {
 				return nil, err
 			}

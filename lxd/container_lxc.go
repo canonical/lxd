@@ -6485,6 +6485,7 @@ func (c *containerLXC) removeUnixDevices() error {
 // fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
 func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+	var err error
 	newDevice := m.Clone()
 
 	// Function to try and guess an available name
@@ -6578,7 +6579,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (de
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address
-			volatileHwaddr, err := deviceNextInterfaceHWAddr()
+			volatileHwaddr, err = deviceNextInterfaceHWAddr()
 			if err != nil {
 				return nil, err
 			}
