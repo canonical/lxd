@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -107,8 +108,9 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Validate container devices with an empty instanceName to indicate profile validation.
-	err = containerValidDevices(d.State(), d.cluster, "", deviceConfig.NewDevices(req.Devices), false)
+	// Validate instance devices with an empty instanceName to indicate profile validation.
+	// At this point we don't know the instance type, so just use Container type for validation.
+	err = instanceValidDevices(d.State(), d.cluster, instancetype.Container, "", deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return response.BadRequest(err)
 	}
