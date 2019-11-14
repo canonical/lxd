@@ -665,6 +665,7 @@ func (vm *vmQemu) generateConfigShare() error {
 		os.Remove(filepath.Join(configDrivePath, "cloud-init", "network-config"))
 	}
 
+	// Append any user.meta-data to our predefined meta-data config.
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "meta-data"), []byte(fmt.Sprintf("instance-id: %s\nlocal-hostname: %s\n%s\n", vm.Name(), vm.Name(), vm.ExpandedConfig()["user.meta-data"])), 0400)
 	if err != nil {
 		return err
