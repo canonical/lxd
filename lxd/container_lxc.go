@@ -295,7 +295,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error)
 		return nil, err
 	}
 
-	err = containerValidDevices(s, s.Cluster, c.Name(), c.expandedDevices, true)
+	err = instanceValidDevices(s, s.Cluster, c.Type(), c.Name(), c.expandedDevices, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -4130,7 +4130,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices without using expanded devices validation (expensive checks disabled).
-	err = containerValidDevices(c.state, c.state.Cluster, c.Name(), args.Devices, false)
+	err = instanceValidDevices(c.state, c.state.Cluster, c.Type(), c.Name(), args.Devices, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid devices")
 	}
@@ -4321,7 +4321,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Do full expanded validation of the devices diff.
-	err = containerValidDevices(c.state, c.state.Cluster, c.Name(), c.expandedDevices, true)
+	err = instanceValidDevices(c.state, c.state.Cluster, c.Type(), c.Name(), c.expandedDevices, true)
 	if err != nil {
 		return errors.Wrap(err, "Invalid expanded devices")
 	}
@@ -6485,6 +6485,7 @@ func (c *containerLXC) removeUnixDevices() error {
 // fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
 func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+	var err error
 	newDevice := m.Clone()
 
 	// Function to try and guess an available name
@@ -6578,7 +6579,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (de
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address
-			volatileHwaddr, err := deviceNextInterfaceHWAddr()
+			volatileHwaddr, err = deviceNextInterfaceHWAddr()
 			if err != nil {
 				return nil, err
 			}
