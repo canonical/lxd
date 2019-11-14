@@ -49,6 +49,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 			env[k] = v
 		}
 	}
+
 	// Set default value for PATH
 	_, ok := env["PATH"]
 	if !ok {
@@ -74,6 +75,14 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	_, ok = env["LANG"]
 	if !ok {
 		env["LANG"] = "C.UTF-8"
+	}
+
+	// Set the default working directory
+	if post.Cwd == "" {
+		post.Cwd = env["HOME"]
+		if post.Cwd == "" {
+			post.Cwd = "/"
+		}
 	}
 
 	ws := &execWs{}
@@ -211,7 +220,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPty(s.rootUID, s.rootGID)
+		ptys[0], ttys[0], err = shared.OpenPty(int64(s.uid), int64(s.gid))
 		if err != nil {
 			return err
 		}
@@ -417,8 +426,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: s.uid,
+			Gid: s.gid,
+		},
 		Setsid: true,
 	}
+
+	cmd.Dir = s.cwd
 
 	err = cmd.Start()
 	if err != nil {
