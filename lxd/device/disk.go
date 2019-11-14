@@ -154,7 +154,7 @@ func (d *disk) validateConfig() error {
 				return fmt.Errorf("Check if volume is available: %v", err)
 			}
 			if !isAvailable {
-				return fmt.Errorf("Storage volume %q is already attached to a container on a different node", d.config["source"])
+				return fmt.Errorf("Storage volume %q is already attached to an instance on a different node", d.config["source"])
 			}
 		}
 	}
@@ -184,23 +184,23 @@ func (d *disk) CanHotPlug() (bool, []string) {
 	return true, []string{"limits.max", "limits.read", "limits.write", "size"}
 }
 
-// Start is run when the device is added to the container.
+// Start is run when the device is added to the instance.
 func (d *disk) Start() (*RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
-
 	if d.instance.Type() == instancetype.VM {
-		if shared.IsRootDiskDevice(d.config) {
-			return &runConf, nil
-		}
-
-		return nil, fmt.Errorf("Non-root disks not supported for VMs")
+		return d.startVM()
 	}
 
+	return d.startContainer()
+}
+
+// startVM starts the disk device for a container instance.
+func (d *disk) startContainer() (*RunConfig, error) {
+	runConf := RunConfig{}
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 
 	// Apply cgroups only after all the mounts have been processed.
@@ -332,6 +332,29 @@ func (d *disk) Start() (*RunConfig, error) {
 	}
 
 	return &runConf, nil
+}
+
+// startVM starts the disk device for a virtual machine instance.
+func (d *disk) startVM() (*RunConfig, error) {
+	runConf := RunConfig{}
+
+	if shared.IsRootDiskDevice(d.config) {
+		runConf.RootFS.Path = d.config["path"]
+		return &runConf, nil
+	}
+
+	// This is a virtual disk source that can be attached to a VM to provide cloud-init config.
+	if d.config["source"] == "cloud-init:config" {
+		runConf.Mounts = []MountEntryItem{
+			{
+				DevPath:    "foo", // Path to generated iso file.
+				TargetPath: d.name,
+			},
+		}
+		return &runConf, nil
+	}
+
+	return nil, fmt.Errorf("Disk type not supported for VMs")
 }
 
 // postStart is run after the instance is started.
