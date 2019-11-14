@@ -764,6 +764,34 @@ WantedBy=multi-user.target
 		return err
 	}
 
+	// Install script for manual installs.
+	lxdConfigShareInstall := `#!/bin/sh
+set -eux
+if [ ! -e "systemd" ] || [ ! -e "lxd-agent" ]; then
+    echo "This script must be run from within the 9p mount"
+    exit 1
+fi
+
+if [ ! -e "/lib/systemd/system" ]; then
+    echo "This script only works on systemd systems"
+    exit 1
+fi
+
+cp systemd/lxd-agent.service /lib/systemd/system/
+cp systemd/run-lxd_config.mount /lib/systemd/system/
+systemctl daemon-reload
+systemctl enable run-lxd_config.mount lxd-agent.service
+
+mkdir -p /run/lxd_config
+mount -o bind . /run/lxd_config
+systemctl start run-lxd_config.mount lxd-agent.service
+`
+
+	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
