@@ -410,8 +410,14 @@ static void mount_emulate(void)
 	if (mnt_fd < 0)
 		_exit(EXIT_FAILURE);
 
-	if (use_fuse)
+	if (use_fuse) {
 		attach_userns(pid);
+
+		// Attach to pid namespace so that if we spawn a fuse daemon
+		// it'll belong to the correct pid namespace and dies with the
+		// container.
+		dosetns(pid, "pid");
+	}
 
 	if (!acquire_basic_creds(pid))
 		_exit(EXIT_FAILURE);

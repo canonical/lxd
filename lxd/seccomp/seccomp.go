@@ -1178,6 +1178,13 @@ type MountArgs struct {
 	shift  bool
 }
 
+const knownFlags C.ulong = C.MS_BIND | C.MS_LAZYTIME | C.MS_MANDLOCK |
+	C.MS_NOATIME | C.MS_NODEV | C.MS_NODIRATIME |
+	C.MS_NOEXEC | C.MS_NOSUID | C.MS_REMOUNT |
+	C.MS_RDONLY | C.MS_STRICTATIME |
+	C.MS_SYNCHRONOUS | C.MS_BIND
+const knownFlagsRecursive C.ulong = knownFlags | C.MS_REC
+
 var mountFlagsToOptMap = map[C.ulong]string{
 	C.MS_BIND:            "bind",
 	C.ulong(0):           "defaults",
@@ -1320,7 +1327,11 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	}
 
 	if fuseBinary != "" {
-		addOpts := mountFlagsToOpts(C.ulong(args.flags))
+		// Record ignored flags for debugging purposes
+		flags := C.ulong(args.flags)
+		ctx["fuse_ignored_flags"] = fmt.Sprintf("%x", (flags &^ (knownFlagsRecursive | C.MS_MGC_MSK)))
+
+		addOpts := mountFlagsToOpts(flags)
 
 		fuseSource := fmt.Sprintf("%s#%s", fuseBinary, args.source)
 		fuseOpts := ""
