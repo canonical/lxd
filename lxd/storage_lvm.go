@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -397,7 +398,7 @@ func (s *storageLvm) StoragePoolDelete() error {
 	if s.loopInfo != nil {
 		// Set LO_FLAGS_AUTOCLEAR before we remove the loop file
 		// otherwise we will get EBADF.
-		err = driver.SetAutoclearOnLoopDev(int(s.loopInfo.Fd()))
+		err = drivers.SetAutoclearOnLoopDev(int(s.loopInfo.Fd()))
 		if err != nil {
 			logger.Warnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s, manual cleanup needed", err)
 		}
@@ -469,12 +470,12 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
 		// Try to prepare new loop device.
-		loopF, loopErr := driver.PrepareLoopDev(source, 0)
+		loopF, loopErr := drivers.PrepareLoopDev(source, 0)
 		if loopErr != nil {
 			return false, loopErr
 		}
 		// Make sure that LO_FLAGS_AUTOCLEAR is unset.
-		loopErr = driver.UnsetAutoclearOnLoopDev(int(loopF.Fd()))
+		loopErr = drivers.UnsetAutoclearOnLoopDev(int(loopF.Fd()))
 		if loopErr != nil {
 			return false, loopErr
 		}
