@@ -56,7 +56,7 @@ type Pool interface {
 
 	MountInstance(i Instance, op *operations.Operation) (bool, error)
 	UnmountInstance(i Instance, op *operations.Operation) (bool, error)
-	GetInstanceDisk(i Instance) (string, string, error)
+	GetInstanceDisk(i Instance) (string, error)
 
 	// Instance snapshots.
 	CreateInstanceSnapshot(i Instance, name string, op *operations.Operation) error
