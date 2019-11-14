@@ -995,7 +995,7 @@ func (vm *vmQemu) addRootDriveConfig(sb *strings.Builder) error {
 		return err
 	}
 
-	rootDrivePath, rootDriveType, err := pool.GetInstanceDisk(vm)
+	rootDrivePath, err := pool.GetInstanceDisk(vm)
 	if err != nil {
 		return err
 	}
@@ -1003,7 +1003,7 @@ func (vm *vmQemu) addRootDriveConfig(sb *strings.Builder) error {
 	sb.WriteString(fmt.Sprintf(`
 # Root drive ("root" device)
 [drive "lxd_root"]
-file = "%s"
+file = "raw"
 format = "%s"
 if = "none"
 cache = "none"
@@ -1017,7 +1017,7 @@ scsi-id = "0"
 lun = "1"
 drive = "lxd_root"
 bootindex = "1"
-`, rootDrivePath, rootDriveType))
+`, rootDrivePath))
 
 	return nil
 }
