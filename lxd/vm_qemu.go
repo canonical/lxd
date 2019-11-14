@@ -2214,15 +2214,17 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 	statusCode := vm.statusCode()
 	pid, _ := vm.pid()
 
-	status, err := vm.agentGetState()
-	if err != nil {
-		logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
-	} else {
-		status.Pid = int64(pid)
-		status.Status = statusCode.String()
-		status.StatusCode = statusCode
+	if statusCode == api.Running {
+		status, err := vm.agentGetState()
+		if err != nil {
+			logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+		} else {
+			status.Pid = int64(pid)
+			status.Status = statusCode.String()
+			status.StatusCode = statusCode
 
-		return status, nil
+			return status, nil
+		}
 	}
 
 	// At least return the Status and StatusCode if we couldn't get any
