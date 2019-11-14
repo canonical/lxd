@@ -742,16 +742,8 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 			return err
 		}
 
-		// If dest block file doesn't exist, then the expectation is that we will just copy
-		// the qcow2 image to the specified location unmodified.
-		if os.IsNotExist(err) {
-			_, err = shared.RunCommand("cp", imageRootfsFile, destBlockFile)
-			if err != nil {
-				return fmt.Errorf("Failed copying image to %s: %v", destBlockFile, err)
-			}
-		} else if !fileInfo.IsDir() {
-			// If the dest block file exists and not a directory, then convert the
-			// qcow2 format to a raw block device.
+		if os.IsNotExist(err) || !fileInfo.IsDir() {
+			// Convert the qcow2 format to a raw block device.
 			_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imageRootfsFile, destBlockFile)
 			if err != nil {
 				return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
