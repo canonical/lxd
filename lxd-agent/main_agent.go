@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -31,6 +33,35 @@ func (c *cmdAgent) Command() *cobra.Command {
 }
 
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
+	// Setup cloud-init
+	if shared.PathExists("/etc/cloud") && !shared.PathExists("/var/lib/cloud/seed/nocloud-net") {
+		err := os.MkdirAll("/var/lib/cloud/seed/nocloud-net/", 0700)
+		if err != nil {
+			return err
+		}
+
+		for _, fName := range []string{"meta-data", "user-data", "vendor-data", "network-config"} {
+			if !shared.PathExists(filepath.Join("cloud-init", fName)) {
+				continue
+			}
+
+			err := shared.FileCopy(filepath.Join("cloud-init", fName), filepath.Join("/var/lib/cloud/seed/nocloud-net", fName))
+			if err != nil {
+				return err
+			}
+		}
+
+		if shared.PathExists("/run/cloud-init") {
+			err = os.RemoveAll("/run/cloud-init")
+			if err != nil {
+				return err
+			}
+		}
+
+		shared.RunCommand("systemctl", "daemon-reload")
+		shared.RunCommand("systemctl", "start", "cloud-init.target")
+	}
+
 	// Setup the listener.
 	l, err := vsock.Listen(8443)
 	if err != nil {
