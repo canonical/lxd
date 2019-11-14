@@ -114,8 +114,8 @@ func (b *mockBackend) UnmountInstance(i Instance, op *operations.Operation) (boo
 	return true, nil
 }
 
-func (b *mockBackend) GetInstanceDisk(i Instance) (string, string, error) {
-	return "", "", nil
+func (b *mockBackend) GetInstanceDisk(i Instance) (string, error) {
+	return "", nil
 }
 
 func (b *mockBackend) CreateInstanceSnapshot(i Instance, name string, op *operations.Operation) error {

@@ -308,9 +308,9 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
 }
 
-// GetVolumeDiskPath returns the location of a root disk block device and its type.
-func (d *cephfs) GetVolumeDiskPath(volType VolumeType, volName string) (string, string, error) {
-	return "", "", ErrNotImplemented
+// GetVolumeDiskPath returns the location of a root disk block device.
+func (d *cephfs) GetVolumeDiskPath(volType VolumeType, volName string) (string, error) {
+	return "", ErrNotImplemented
 }
 
 func (d *cephfs) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
