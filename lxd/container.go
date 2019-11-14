@@ -195,28 +195,49 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	return nil
 }
 
-// containerValidDevices validate container device configs.
-func containerValidDevices(state *state.State, cluster *db.Cluster, instanceName string, devices deviceConfig.Devices, expanded bool) error {
+// instanceValidDevices validate instance device configs.
+func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, instanceName string, devices deviceConfig.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
 	}
 
-	// Create a temporary containerLXC struct to use as an Instance in device validation.
+	// Create a temporary Instance for use in device validation.
 	// Populate it's name, localDevices and expandedDevices properties based on the mode of
 	// validation occurring. In non-expanded validation expensive checks should be avoided.
-	instance := &containerLXC{
-		name:         instanceName,
-		localDevices: devices.Clone(), // Prevent devices from modifying their config.
-	}
+	var inst Instance
 
-	if expanded {
-		instance.expandedDevices = instance.localDevices // Avoid another clone.
+	if instanceType == instancetype.Container {
+		c := &containerLXC{
+			dbType:       instancetype.Container,
+			name:         instanceName,
+			localDevices: devices.Clone(), // Prevent devices from modifying their config.
+		}
+
+		if expanded {
+			c.expandedDevices = c.localDevices // Avoid another clone.
+		}
+
+		inst = c
+	} else if instanceType == instancetype.VM {
+		vm := &vmQemu{
+			dbType:       instancetype.VM,
+			name:         instanceName,
+			localDevices: devices.Clone(), // Prevent devices from modifying their config.
+		}
+
+		if expanded {
+			vm.expandedDevices = vm.localDevices // Avoid another clone.
+		}
+
+		inst = vm
+	} else {
+		return fmt.Errorf("Invalid instance type")
 	}
 
 	// Check each device individually using the device package.
 	for name, config := range devices {
-		_, err := device.New(instance, state, name, config, nil, nil)
+		_, err := device.New(inst, state, name, config, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -855,7 +876,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, err
 	}
 
 	// Validate container devices with the supplied container name and devices.
-	err = containerValidDevices(s, s.Cluster, args.Name, args.Devices, false)
+	err = instanceValidDevices(s, s.Cluster, args.Type, args.Name, args.Devices, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}

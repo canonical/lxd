@@ -177,6 +177,12 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 		{Key: "link", Value: peerName},
 	}
 
+	if d.instance.Type() == instancetype.VM {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+		)
+	}
+
 	return &runConf, nil
 }
 

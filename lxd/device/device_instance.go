@@ -12,6 +12,7 @@ type Instance interface {
 	Name() string
 	Type() instancetype.Type
 	Project() string
+	Path() string
 	DevicesPath() string
 	RootfsPath() string
 	LogPath() string

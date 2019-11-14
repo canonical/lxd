@@ -237,7 +237,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 
 	destPath := unixDeviceDestPath(m)
 	relativeDestPath := strings.TrimPrefix(destPath, "/")
-	devName := unixDeviceEncode(unixDeviceJoinPath(prefix, relativeDestPath))
+	devName := deviceNameEncode(deviceJoinPath(prefix, relativeDestPath))
 	devPath := filepath.Join(devicesPath, devName)
 
 	// Create the new entry.
@@ -296,7 +296,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 
 	// Convert the requested dest path inside the instance to an encoded relative one.
 	ourDestPath := unixDeviceDestPath(m)
-	ourEncRelDestFile := unixDeviceEncode(strings.TrimPrefix(ourDestPath, "/"))
+	ourEncRelDestFile := deviceNameEncode(strings.TrimPrefix(ourDestPath, "/"))
 
 	// Load all existing host devices.
 	dents, err := ioutil.ReadDir(devicesPath)
@@ -328,7 +328,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 	}
 
 	// Create the device on the host.
-	ourPrefix := unixDeviceJoinPath(typePrefix, deviceName)
+	ourPrefix := deviceJoinPath(typePrefix, deviceName)
 	d, err := UnixDeviceCreate(s, nil, devicesPath, ourPrefix, m, defaultMode)
 	if err != nil {
 		return err
@@ -381,29 +381,10 @@ func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix strin
 // UnixDeviceExists checks if the unix device already exists in devices path.
 func UnixDeviceExists(devicesPath string, prefix string, path string) bool {
 	relativeDestPath := strings.TrimPrefix(path, "/")
-	devName := fmt.Sprintf("%s.%s", unixDeviceEncode(prefix), unixDeviceEncode(relativeDestPath))
+	devName := fmt.Sprintf("%s.%s", deviceNameEncode(prefix), deviceNameEncode(relativeDestPath))
 	devPath := filepath.Join(devicesPath, devName)
 
 	return shared.PathExists(devPath)
-}
-
-// unixDeviceEncode encodes a string to be used as part of a file name in the LXD devices path.
-// The encoding scheme replaces "-" with "--" and then "/" with "-".
-func unixDeviceEncode(text string) string {
-	return strings.Replace(strings.Replace(text, "-", "--", -1), "/", "-", -1)
-}
-
-// unixDeviceDecode decodes a string used in the LXD devices path back to its original form.
-// The decoding scheme converts "-" back to "/" and "--" back to "-".
-func unixDeviceDecode(text string) string {
-	// This converts "--" to the null character "\0" first, to allow remaining "-" chars to be
-	// converted back to "/" before making a final pass to convert "\0" back to original "-".
-	return strings.Replace(strings.Replace(strings.Replace(text, "--", "\000", -1), "-", "/", -1), "\000", "-", -1)
-}
-
-// unixDeviceJoinPath joins together prefix and text delimited by a "." for device path generation.
-func unixDeviceJoinPath(parts ...string) string {
-	return strings.Join(parts, ".")
 }
 
 // unixRemoveDevice identifies all files related to the supplied typePrefix and deviceName and then
@@ -425,9 +406,9 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 	var ourPrefix string
 	// If a prefix override has been supplied, use that for filtering the devices to remove.
 	if optPrefix != "" {
-		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName, optPrefix))
+		ourPrefix = deviceNameEncode(deviceJoinPath(typePrefix, deviceName, optPrefix))
 	} else {
-		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+		ourPrefix = deviceNameEncode(deviceJoinPath(typePrefix, deviceName))
 	}
 
 	ourDevs := []string{}
@@ -489,7 +470,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 
 		// Append this device to the mount rules (these will be unmounted).
 		runConf.Mounts = append(runConf.Mounts, MountEntryItem{
-			TargetPath: unixDeviceDecode(ourEncRelDestFile),
+			TargetPath: deviceNameDecode(ourEncRelDestFile),
 		})
 
 		absDevPath := filepath.Join(devicesPath, ourDev)
@@ -515,9 +496,9 @@ func unixDeviceDeleteFiles(s *state.State, devicesPath string, typePrefix string
 	var ourPrefix string
 	// If a prefix override has been supplied, use that for filtering the devices to remove.
 	if optPrefix != "" {
-		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName, optPrefix))
+		ourPrefix = deviceNameEncode(deviceJoinPath(typePrefix, deviceName, optPrefix))
 	} else {
-		ourPrefix = unixDeviceEncode(unixDeviceJoinPath(typePrefix, deviceName))
+		ourPrefix = deviceNameEncode(deviceJoinPath(typePrefix, deviceName))
 	}
 
 	// Load all devices.

@@ -88,9 +88,9 @@ func (d *unixCommon) Register() error {
 		}
 
 		// Derive the host side path for the instance device file.
-		ourPrefix := unixDeviceJoinPath("unix", deviceName)
+		ourPrefix := deviceJoinPath("unix", deviceName)
 		relativeDestPath := strings.TrimPrefix(unixDeviceDestPath(deviceConfig), "/")
-		devName := unixDeviceEncode(unixDeviceJoinPath(ourPrefix, relativeDestPath))
+		devName := deviceNameEncode(deviceJoinPath(ourPrefix, relativeDestPath))
 		devPath := filepath.Join(devicesPath, devName)
 
 		runConf := RunConfig{}
