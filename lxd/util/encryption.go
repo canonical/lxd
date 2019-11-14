@@ -47,10 +47,12 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 	if shared.PathExists(filepath.Join(dir, "cluster.crt")) {
 		prefix = "cluster"
 	}
-	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer)
+
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load TLS certificate")
 	}
+
 	return cert, nil
 }
 
