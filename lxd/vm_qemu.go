@@ -1072,8 +1072,8 @@ func (vm *vmQemu) addRootDriveConfig(sb *strings.Builder) error {
 	sb.WriteString(fmt.Sprintf(`
 # Root drive ("root" device)
 [drive "lxd_root"]
-file = "raw"
-format = "%s"
+file = "%s"
+format = "raw"
 if = "none"
 cache = "none"
 aio = "native"
