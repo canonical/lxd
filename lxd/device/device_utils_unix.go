@@ -381,29 +381,10 @@ func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix strin
 // UnixDeviceExists checks if the unix device already exists in devices path.
 func UnixDeviceExists(devicesPath string, prefix string, path string) bool {
 	relativeDestPath := strings.TrimPrefix(path, "/")
-	devName := fmt.Sprintf("%s.%s", unixDeviceEncode(prefix), unixDeviceEncode(relativeDestPath))
+	devName := fmt.Sprintf("%s.%s", deviceNameEncode(prefix), deviceNameEncode(relativeDestPath))
 	devPath := filepath.Join(devicesPath, devName)
 
 	return shared.PathExists(devPath)
-}
-
-// unixDeviceEncode encodes a string to be used as part of a file name in the LXD devices path.
-// The encoding scheme replaces "-" with "--" and then "/" with "-".
-func unixDeviceEncode(text string) string {
-	return strings.Replace(strings.Replace(text, "-", "--", -1), "/", "-", -1)
-}
-
-// unixDeviceDecode decodes a string used in the LXD devices path back to its original form.
-// The decoding scheme converts "-" back to "/" and "--" back to "-".
-func unixDeviceDecode(text string) string {
-	// This converts "--" to the null character "\0" first, to allow remaining "-" chars to be
-	// converted back to "/" before making a final pass to convert "\0" back to original "-".
-	return strings.Replace(strings.Replace(strings.Replace(text, "--", "\000", -1), "-", "/", -1), "\000", "-", -1)
-}
-
-// unixDeviceJoinPath joins together prefix and text delimited by a "." for device path generation.
-func unixDeviceJoinPath(parts ...string) string {
-	return strings.Join(parts, ".")
 }
 
 // unixRemoveDevice identifies all files related to the supplied typePrefix and deviceName and then
