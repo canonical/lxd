@@ -1834,7 +1834,25 @@ func (vm *vmQemu) Delete() error {
 	// Attempt to initialize storage interface for the instance.
 	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
 	if err != nil {
-		logger.Error("Failed to init storage pool", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+		logger.Warn("Failed to init storage pool", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+
+		// Remove the volume record from the database. This deletion would
+		// normally be handled by DeleteInstance() but since the storage driver
+		// (new storage) is not implemented, we need to do it here manually.
+		poolName, err := vm.StoragePool()
+		if err != nil {
+			return err
+		}
+
+		poolID, err := vm.state.Cluster.StoragePoolGetID(poolName)
+		if err != nil {
+			return err
+		}
+
+		err = vm.state.Cluster.StoragePoolVolumeDelete(vm.Project(), vm.Name(), db.StoragePoolVolumeTypeVM, poolID)
+		if err != nil {
+			return err
+		}
 	}
 
 	if pool != nil {
