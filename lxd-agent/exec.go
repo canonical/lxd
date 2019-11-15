@@ -255,7 +255,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
+			logger.Debugf("Interactive child process handler waiting")
+			defer logger.Debugf("Interactive child process handler finished")
 			attachedChildPid := <-attachedChildIsBorn
+
 			select {
 			case <-s.controlConnected:
 				break
@@ -264,6 +267,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
+			logger.Debugf("Interactive child process handler started for child PID %d", attachedChildPid)
 			for {
 				s.connsLock.Lock()
 				conn := s.conns[-1]
@@ -275,7 +279,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if err != nil {
-					logger.Debugf("Got error getting next reader %s", err)
+					logger.Debugf("Got error getting next reader for child PID %d: %v", attachedChildPid, err)
 					er, ok := err.(*websocket.CloseError)
 					if !ok {
 						break
