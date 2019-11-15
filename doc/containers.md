@@ -531,6 +531,18 @@ Disk entries are essentially mountpoints inside the container. They can
 either be a bind-mount of an existing file or directory on the host, or
 if the source is a block device, a regular mount.
 
+LXD supports the following additional source types:
+- [Ceph-rbd]: Mount from existing ceph RBD device that is externally managed. LXD can use ceph to manage an internal file system for the container, but in the event that a user has a previously existing ceph RBD that they would like use for this container, they can use this command.
+Example command
+```
+lxc config device add <container> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username>  path=/ceph
+```
+- [Ceph-fs]: Mount from existing ceph FS device that is externally managed. LXD can use ceph to manage an internal file system for the container, but in the event that a user has a previously existing ceph file sys that they would like use for this container, they can use this command.
+Example command. 
+```
+lxc config device add <container> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username>  path=/cephfs
+```
+
 The following properties exist:
 
 Key              | Type      | Default           | Required  | Description
@@ -548,9 +560,8 @@ pool             | string    | -                 | no        | The storage pool 
 propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the container and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
 shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the container
 raw.mount.options| string    | -                 | no        | Filesystem specific mount options
-
-If multiple disks, backed by the same block device, have I/O limits set,
-the average of the limits will be used.
+ceph.user_name   | string    | admin             | no        | If source is ceph or cephfs then ceph username must be specified by user for proper mount 
+ceph.cluster_name | string   | admin             | no        | If source is ceph or cephfs then ceph cluster_name must be specified by user for proper mount 
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
