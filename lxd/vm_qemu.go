@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
+	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -26,6 +27,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
@@ -2118,16 +2120,60 @@ func (vm *vmQemu) Console() (*os.File, error) {
 	return console, nil
 }
 
-func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error) {
+func (vm *vmQemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
+	logger.Debugf("Forwarding signal to lxd-agent: %s", sig)
+
+	w, err := control.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return err
+	}
+
+	msg := api.InstanceExecControl{}
+	msg.Command = "signal"
+	msg.Signal = int(sig)
+
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(buf)
+
+	w.Close()
+	return err
+}
+
+func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
+	var instCmd *VMQemuCmd
+
+	// Because this function will exit before the remote command has finished, we create a
+	// cleanup function that will be passed to the instance function if successfully started to
+	// perform any cleanup needed when finished.
+	cleanupFuncs := []func(){}
+	cleanupFunc := func() {
+		for _, f := range cleanupFuncs {
+			f()
+		}
+	}
+
+	defer func() {
+		// If no instance command has been been created it means something went wrong
+		// starting the remote command, so we should cleanup as this function ends.
+		// If the instance command is non-nil then we let the instance command itself run
+		// the cleanup functions when it is done.
+		if instCmd == nil {
+			cleanupFunc()
+		}
+	}()
+
 	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, err
 	}
-	defer agent.Disconnect()
+	cleanupFuncs = append(cleanupFuncs, agent.Disconnect)
 
 	post := api.InstanceExecPost{
 		Command:     command,
-		WaitForWS:   wait,
+		WaitForWS:   true,
 		Interactive: stdin == stdout,
 		Environment: env,
 		User:        uid,
@@ -2139,32 +2185,57 @@ func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, 
 		// Set console to raw.
 		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
 		if err != nil {
-			return nil, -1, -1, err
+			return nil, err
 		}
-		defer termios.Restore(int(stdin.Fd()), oldttystate)
+		cleanupFuncs = append(cleanupFuncs, func() {
+			termios.Restore(int(stdin.Fd()), oldttystate)
+		})
+	}
+
+	dataDone := make(chan bool)
+	signalSendCh := make(chan unix.Signal)
+	signalResCh := make(chan error)
+
+	// This is the signal control handler, it receives signals from lxc CLI and forwards them
+	// to the VM agent.
+	controlHander := func(control *websocket.Conn) {
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		defer control.WriteMessage(websocket.CloseMessage, closeMsg)
+
+		for {
+			select {
+			case signal := <-signalSendCh:
+				err := vm.forwardSignal(control, signal)
+				signalResCh <- err
+			case <-dataDone:
+				return
+			}
+		}
 	}
 
 	args := lxdClient.InstanceExecArgs{
 		Stdin:    stdin,
 		Stdout:   stdout,
 		Stderr:   stderr,
-		DataDone: make(chan bool),
+		DataDone: dataDone,
+		Control:  controlHander,
 	}
 
 	op, err := agent.ExecInstance("", post, &args)
 	if err != nil {
-		return nil, -1, -1, err
+		return nil, err
 	}
 
-	err = op.Wait()
-	if err != nil {
-		return nil, -1, -1, err
+	instCmd = &VMQemuCmd{
+		cmd:              op,
+		attachedChildPid: -1, // Process is not running on LXD host.
+		dataDone:         args.DataDone,
+		cleanupFunc:      cleanupFunc,
+		signalSendCh:     signalSendCh,
+		signalResCh:      signalResCh,
 	}
-	opAPI := op.Get()
 
-	<-args.DataDone
-
-	return nil, int(opAPI.Metadata["return"].(float64)), -1, nil
+	return instCmd, nil
 }
 
 func (vm *vmQemu) Render() (interface{}, interface{}, error) {
