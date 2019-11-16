@@ -378,6 +378,27 @@ func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix strin
 	return unixDeviceSetup(s, devicesPath, typePrefix, deviceName, configCopy, defaultMode, runConf)
 }
 
+// unixDeviceSetupBlockNum calls unixDeviceSetup and overrides the supplied device config with the
+// type as "unix-block" and the supplied major and minor numbers. This function can be used when you
+// already know the device's major and minor numbers to avoid unixDeviceSetup() having to stat the
+// device to ascertain these attributes. If defaultMode is true or mode is supplied in the device
+// config then the origin device does not need to be accessed for its file mode.
+func unixDeviceSetupBlockNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *deviceConfig.RunConfig) error {
+	configCopy := deviceConfig.Device{}
+	for k, v := range m {
+		configCopy[k] = v
+	}
+
+	// Overridng these in the config copy should avoid the need for unixDeviceSetup to stat
+	// the origin device to ascertain this information.
+	configCopy["type"] = "unix-block"
+	configCopy["major"] = fmt.Sprintf("%d", major)
+	configCopy["minor"] = fmt.Sprintf("%d", minor)
+	configCopy["path"] = path
+
+	return unixDeviceSetup(s, devicesPath, typePrefix, deviceName, configCopy, defaultMode, runConf)
+}
+
 // UnixDeviceExists checks if the unix device already exists in devices path.
 func UnixDeviceExists(devicesPath string, prefix string, path string) bool {
 	relativeDestPath := strings.TrimPrefix(path, "/")
