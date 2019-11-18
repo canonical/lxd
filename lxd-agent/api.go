@@ -19,5 +19,5 @@ type APIEndpoint struct {
 
 // APIEndpointAction represents an action on an API endpoint.
 type APIEndpointAction struct {
-	Handler func(r *http.Request) response.Response
+	Handler func(d *Daemon, r *http.Request) response.Response
 }

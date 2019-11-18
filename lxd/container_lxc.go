@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -34,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
@@ -5894,7 +5894,7 @@ func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	return string(msg), nil
 }
 
-func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool, cwd string, uid uint32, gid uint32) (*exec.Cmd, int, int, error) {
+func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
 	// Prepare the environment
 	envSlice := []string{}
 
@@ -5906,7 +5906,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	logPath := filepath.Join(c.LogPath(), "forkexec.log")
 	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 	if err != nil {
-		return nil, -1, -1, err
+		return nil, err
 	}
 
 	// Prepare the subcommand
@@ -5959,47 +5959,29 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	rStatus, wStatus, err := shared.Pipe()
 	defer rStatus.Close()
 	if err != nil {
-		return nil, -1, -1, err
+		return nil, err
 	}
 
 	cmd.ExtraFiles = []*os.File{stdin, stdout, stderr, wStatus}
 	err = cmd.Start()
 	if err != nil {
 		wStatus.Close()
-		return nil, -1, -1, err
+		return nil, err
 	}
 	wStatus.Close()
 
 	attachedPid := -1
 	if err := json.NewDecoder(rStatus).Decode(&attachedPid); err != nil {
 		logger.Errorf("Failed to retrieve PID of executing child process: %s", err)
-		return nil, -1, -1, err
+		return nil, err
 	}
 
-	// It's the callers responsibility to wait or not wait.
-	if !wait {
-		return &cmd, -1, attachedPid, nil
+	instCmd := &ContainerLXCCmd{
+		cmd:              &cmd,
+		attachedChildPid: attachedPid,
 	}
 
-	err = cmd.Wait()
-	if err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			status, ok := exitErr.Sys().(syscall.WaitStatus)
-			if ok {
-				return nil, status.ExitStatus(), attachedPid, nil
-			}
-
-			if status.Signaled() {
-				// 128 + n == Fatal error signal "n"
-				return nil, 128 + int(status.Signal()), attachedPid, nil
-			}
-		}
-
-		return nil, -1, -1, err
-	}
-
-	return nil, 0, attachedPid, nil
+	return instCmd, nil
 }
 
 func (c *containerLXC) cpuState() api.InstanceStateCPU {

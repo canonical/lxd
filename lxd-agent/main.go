@@ -12,7 +12,8 @@ type cmdGlobal struct {
 	flagVersion bool
 	flagHelp    bool
 
-	flagLogDebug bool
+	flagLogVerbose bool
+	flagLogDebug   bool
 }
 
 func main() {
@@ -29,6 +30,7 @@ func main() {
 	agentCmd.global = &globalCmd
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagLogVerbose, "verbose", "v", false, "Show all information messages")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagLogDebug, "debug", "d", false, "Show all debug messages")
 
 	// Version handling

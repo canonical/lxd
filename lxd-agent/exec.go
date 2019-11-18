@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -20,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 )
 
@@ -30,7 +30,7 @@ var execCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: execPost},
 }
 
-func execPost(r *http.Request) response.Response {
+func execPost(d *Daemon, r *http.Request) response.Response {
 	post := api.ContainerExecPost{}
 
 	buf, err := ioutil.ReadAll(r.Body)
@@ -49,6 +49,7 @@ func execPost(r *http.Request) response.Response {
 			env[k] = v
 		}
 	}
+
 	// Set default value for PATH
 	_, ok := env["PATH"]
 	if !ok {
@@ -74,6 +75,14 @@ func execPost(r *http.Request) response.Response {
 	_, ok = env["LANG"]
 	if !ok {
 		env["LANG"] = "C.UTF-8"
+	}
+
+	// Set the default working directory
+	if post.Cwd == "" {
+		post.Cwd = env["HOME"]
+		if post.Cwd == "" {
+			post.Cwd = "/"
+		}
 	}
 
 	ws := &execWs{}
@@ -112,6 +121,9 @@ func execPost(r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	// Link the operation to the agent's event server.
+	op.SetEventServer(d.events)
 
 	return operations.OperationResponse(op)
 }
@@ -208,7 +220,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPty(s.rootUID, s.rootGID)
+		ptys[0], ttys[0], err = shared.OpenPty(int64(s.uid), int64(s.gid))
 		if err != nil {
 			return err
 		}
@@ -235,7 +247,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[2]
 	}
 
-	controlExit := make(chan bool)
+	controlExit := make(chan bool, 1)
 	attachedChildIsBorn := make(chan int)
 	attachedChildIsDead := make(chan bool, 1)
 	var wgEOF sync.WaitGroup
@@ -243,7 +255,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
+			logger.Debugf("Interactive child process handler waiting")
+			defer logger.Debugf("Interactive child process handler finished")
 			attachedChildPid := <-attachedChildIsBorn
+
 			select {
 			case <-s.controlConnected:
 				break
@@ -252,6 +267,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
+			logger.Debugf("Interactive child process handler started for child PID %d", attachedChildPid)
 			for {
 				s.connsLock.Lock()
 				conn := s.conns[-1]
@@ -263,7 +279,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if err != nil {
-					log.Printf("Got error getting next reader %s", err)
+					logger.Debugf("Got error getting next reader for child PID %d: %v", attachedChildPid, err)
 					er, ok := err.(*websocket.CloseError)
 					if !ok {
 						break
@@ -276,50 +292,50 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// If an abnormal closure occurred, kill the attached process.
 					err := unix.Kill(attachedChildPid, unix.SIGKILL)
 					if err != nil {
-						log.Printf("Failed to send SIGKILL to pid %d\n", attachedChildPid)
+						logger.Errorf("Failed to send SIGKILL to pid %d", attachedChildPid)
 					} else {
-						log.Printf("Sent SIGKILL to pid %d\n", attachedChildPid)
+						logger.Infof("Sent SIGKILL to pid %d", attachedChildPid)
 					}
 					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					log.Printf("Failed to read message %s\n", err)
+					logger.Errorf("Failed to read message %s", err)
 					break
 				}
 
 				command := api.ContainerExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					log.Printf("Failed to unmarshal control socket command: %s\n", err)
+					logger.Errorf("Failed to unmarshal control socket command: %s", err)
 					continue
 				}
 
 				if command.Command == "window-resize" {
 					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						log.Printf("Unable to extract window width: %s\n", err)
+						logger.Errorf("Unable to extract window width: %s", err)
 						continue
 					}
 
 					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
-						log.Printf("Unable to extract window height: %s\n", err)
+						logger.Errorf("Unable to extract window height: %s", err)
 						continue
 					}
 
 					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						log.Printf("Failed to set window size to: %dx%d\n", winchWidth, winchHeight)
+						logger.Errorf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 						continue
 					}
 				} else if command.Command == "signal" {
 					if err := unix.Kill(attachedChildPid, unix.Signal(command.Signal)); err != nil {
-						log.Printf("Failed forwarding signal '%d' to PID %d\n", command.Signal, attachedChildPid)
+						logger.Errorf("Failed forwarding signal '%d' to PID %d", command.Signal, attachedChildPid)
 						continue
 					}
-					log.Printf("Forwarded signal '%d' to PID %d\n", command.Signal, attachedChildPid)
+					logger.Errorf("Forwarded signal '%d' to PID %d", command.Signal, attachedChildPid)
 				}
 			}
 		}()
@@ -329,17 +345,16 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			log.Println("Starting to mirror websocket")
+			logger.Info("Started mirroring websocket")
 			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
-			log.Println("Finished to mirror websocket")
+			logger.Info("Finished mirroring websocket")
 
 			conn.Close()
 			wgEOF.Done()
 		}()
-
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
@@ -414,10 +429,34 @@ func (s *execWs) Do(op *operations.Operation) error {
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: s.uid,
+			Gid: s.gid,
+		},
+		// Creates a new session if the calling process is not a process group leader.
+		// The calling process is the leader of the new session, the process group leader of
+		// the new process group, and has no controlling terminal.
+		// This is important to allow remote shells to handle ctrl+c.
+		Setsid: true,
+	}
+
+	// Make the given terminal the controlling terminal of the calling process.
+	// The calling process must be a session leader and not have a controlling terminal already.
+	// This is important as allows ctrl+c to work as expected for non-shell programs.
+	if s.interactive {
+		cmd.SysProcAttr.Setctty = true
+	}
+
+	cmd.Dir = s.cwd
 
 	err = cmd.Start()
 	if err != nil {
 		return finisher(-1, err)
+	}
+
+	if s.interactive {
+		attachedChildIsBorn <- cmd.Process.Pid
 	}
 
 	err = cmd.Wait()

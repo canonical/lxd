@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var stateCmd = APIEndpoint{
@@ -21,11 +21,11 @@ var stateCmd = APIEndpoint{
 	Put: APIEndpointAction{Handler: statePut},
 }
 
-func stateGet(r *http.Request) response.Response {
+func stateGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, renderState())
 }
 
-func statePut(r *http.Request) response.Response {
+func statePut(d *Daemon, r *http.Request) response.Response {
 	return response.NotImplemented(nil)
 }
 
@@ -85,7 +85,7 @@ func networkState() map[string]api.InstanceStateNetwork {
 
 	ifs, err := net.Interfaces()
 	if err != nil {
-		log.Printf("Failed to retrieve network interfaces: %v", err)
+		logger.Errorf("Failed to retrieve network interfaces: %v", err)
 		return result
 	}
 
