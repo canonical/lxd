@@ -23,7 +23,7 @@ var fileCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: fileHandler},
 }
 
-func fileHandler(r *http.Request) response.Response {
+func fileHandler(d *Daemon, r *http.Request) response.Response {
 	path := r.FormValue("path")
 	if path == "" {
 		return response.BadRequest(fmt.Errorf("missing path argument"))

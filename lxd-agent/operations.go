@@ -34,7 +34,7 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet},
 }
 
-func operationDelete(r *http.Request) response.Response {
+func operationDelete(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node
@@ -51,7 +51,7 @@ func operationDelete(r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-func operationGet(r *http.Request) response.Response {
+func operationGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 	var body *api.Operation
 
@@ -69,7 +69,7 @@ func operationGet(r *http.Request) response.Response {
 	return response.SyncResponse(true, body)
 }
 
-func operationsGet(r *http.Request) response.Response {
+func operationsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
@@ -140,7 +140,7 @@ func operationsGet(r *http.Request) response.Response {
 	return response.SyncResponse(true, md)
 }
 
-func operationWebsocketGet(r *http.Request) response.Response {
+func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	id := mux.Vars(r)["id"]
 
 	// First check if the query is for a local operation from this node

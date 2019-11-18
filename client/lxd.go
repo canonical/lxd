@@ -380,7 +380,7 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	}
 
 	// Log the data
-	logger.Debugf("Connected to the websocket")
+	logger.Debugf("Connected to the websocket: %v", url)
 
 	return conn, err
 }

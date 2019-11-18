@@ -9,6 +9,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -104,12 +105,13 @@ type Operation struct {
 	// Locking for concurent access to the Operation
 	lock sync.Mutex
 
-	state *state.State
+	state  *state.State
+	events *events.Server
 }
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(state *state.State, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
+func OperationCreate(s *state.State, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error) (*Operation, error) {
 	// Main attributes
 	op := Operation{}
 	op.project = project
@@ -123,7 +125,11 @@ func OperationCreate(state *state.State, project string, opClass operationClass,
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
 	op.chanDone = make(chan error)
-	op.state = state
+	op.state = s
+
+	if s != nil {
+		op.SetEventServer(s.Events)
+	}
 
 	newMetadata, err := shared.ParseMetadata(opMetadata)
 	if err != nil {
@@ -167,6 +173,11 @@ func OperationCreate(state *state.State, project string, opClass operationClass,
 	op.sendEvent(md)
 
 	return &op, nil
+}
+
+// SetEventServer allows injection of event server.
+func (op *Operation) SetEventServer(events *events.Server) {
+	op.events = events
 }
 
 func (op *Operation) done() {

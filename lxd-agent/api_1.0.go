@@ -17,6 +17,7 @@ var api10Cmd = APIEndpoint{
 var api10 = []APIEndpoint{
 	api10Cmd,
 	execCmd,
+	eventsCmd,
 	fileCmd,
 	operationsCmd,
 	operationCmd,
@@ -24,7 +25,7 @@ var api10 = []APIEndpoint{
 	stateCmd,
 }
 
-func api10Get(r *http.Request) response.Response {
+func api10Get(d *Daemon, r *http.Request) response.Response {
 	srv := api.ServerUntrusted{
 		APIExtensions: version.APIExtensions,
 		APIStatus:     "stable",

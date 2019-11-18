@@ -6,12 +6,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -151,14 +150,17 @@ func (s *execWs) Do(op *operations.Operation) error {
 	}
 
 	controlExit := make(chan bool)
-	attachedChildIsBorn := make(chan int)
+	attachedChildIsBorn := make(chan instance.Cmd)
 	attachedChildIsDead := make(chan bool, 1)
 	var wgEOF sync.WaitGroup
 
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
-			attachedChildPid := <-attachedChildIsBorn
+			logger.Debugf("Interactive child process handler waiting")
+			defer logger.Debugf("Interactive child process handler finished")
+			attachedChild := <-attachedChildIsBorn
+
 			select {
 			case <-s.controlConnected:
 				break
@@ -167,6 +169,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
+			logger.Debugf("Interactive child process handler started for child PID %d", attachedChild.PID())
 			for {
 				s.connsLock.Lock()
 				conn := s.conns[-1]
@@ -188,12 +191,12 @@ func (s *execWs) Do(op *operations.Operation) error {
 						break
 					}
 
-					// If an abnormal closure occurred, kill the attached process.
-					err := unix.Kill(attachedChildPid, unix.SIGKILL)
+					// If an abnormal closure occurred, kill the attached child.
+					err := attachedChild.Signal(unix.SIGKILL)
 					if err != nil {
-						logger.Debugf("Failed to send SIGKILL to pid %d", attachedChildPid)
+						logger.Debugf("Failed to send SIGKILL to PID %d: %v", attachedChild.PID(), err)
 					} else {
-						logger.Debugf("Sent SIGKILL to pid %d", attachedChildPid)
+						logger.Debugf("Sent SIGKILL to PID %d", attachedChild.PID())
 					}
 					return
 				}
@@ -230,11 +233,12 @@ func (s *execWs) Do(op *operations.Operation) error {
 						continue
 					}
 				} else if command.Command == "signal" {
-					if err := unix.Kill(attachedChildPid, unix.Signal(command.Signal)); err != nil {
-						logger.Debugf("Failed forwarding signal '%d' to PID %d", command.Signal, attachedChildPid)
+					err := attachedChild.Signal(unix.Signal(command.Signal))
+					if err != nil {
+						logger.Debugf("Failed forwarding signal '%d' to PID %d: %v", command.Signal, attachedChild.PID(), err)
 						continue
 					}
-					logger.Debugf("Forwarded signal '%d' to PID %d", command.Signal, attachedChildPid)
+					logger.Debugf("Forwarded signal '%d' to PID %d", command.Signal, attachedChild.PID())
 				}
 			}
 		}()
@@ -244,12 +248,12 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			logger.Debugf("Starting to mirror websocket")
+			logger.Debugf("Started mirroring websocket")
 			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
-			logger.Debugf("Finished to mirror websocket")
+			logger.Debugf("Finished mirroring websocket")
 
 			conn.Close()
 			wgEOF.Done()
@@ -313,34 +317,22 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return cmdErr
 	}
 
-	cmd, _, attachedPid, err := s.instance.Exec(s.command, s.env, stdin, stdout, stderr, false, s.cwd, s.uid, s.gid)
+	cmd, err := s.instance.Exec(s.command, s.env, stdin, stdout, stderr, s.cwd, s.uid, s.gid)
 	if err != nil {
 		return err
 	}
 
 	if s.interactive {
-		attachedChildIsBorn <- attachedPid
+		// Start the interactive process handler.
+		attachedChildIsBorn <- cmd
 	}
 
-	err = cmd.Wait()
-	if err == nil {
-		return finisher(0, nil)
+	exitCode, err := cmd.Wait()
+	if err != nil {
+		return err
 	}
 
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		status, ok := exitErr.Sys().(syscall.WaitStatus)
-		if ok {
-			return finisher(status.ExitStatus(), nil)
-		}
-
-		if status.Signaled() {
-			// 128 + n == Fatal error signal "n"
-			return finisher(128+int(status.Signal()), nil)
-		}
-	}
-
-	return finisher(-1, nil)
+	return finisher(exitCode, err)
 }
 
 func containerExecPost(d *Daemon, r *http.Request) response.Response {
@@ -493,8 +485,6 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(op *operations.Operation) error {
-		var cmdErr error
-		var cmdResult int
 		metadata := shared.Jmap{}
 
 		if post.RecordOutput {
@@ -512,17 +502,34 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			defer stderr.Close()
 
 			// Run the command
-			_, cmdResult, _, cmdErr = inst.Exec(post.Command, env, nil, stdout, stderr, true, post.Cwd, post.User, post.Group)
+			cmd, err := inst.Exec(post.Command, env, nil, stdout, stderr, post.Cwd, post.User, post.Group)
+			if err != nil {
+				return err
+			}
+
+			exitCode, err := cmd.Wait()
+			if err != nil {
+				return err
+			}
 
 			// Update metadata with the right URLs
-			metadata["return"] = cmdResult
+			metadata["return"] = exitCode
 			metadata["output"] = shared.Jmap{
 				"1": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			_, cmdResult, _, cmdErr = inst.Exec(post.Command, env, nil, nil, nil, true, post.Cwd, post.User, post.Group)
-			metadata["return"] = cmdResult
+			cmd, err := inst.Exec(post.Command, env, nil, nil, nil, post.Cwd, post.User, post.Group)
+			if err != nil {
+				return err
+			}
+
+			exitCode, err := cmd.Wait()
+			if err != nil {
+				return err
+			}
+
+			metadata["return"] = exitCode
 		}
 
 		err = op.UpdateMetadata(metadata)
@@ -530,7 +537,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			logger.Error("Error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
 		}
 
-		return cmdErr
+		return nil
 	}
 
 	resources := map[string][]string{}

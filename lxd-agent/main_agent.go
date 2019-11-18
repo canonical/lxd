@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 
@@ -10,6 +9,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 type cmdAgent struct {
@@ -33,7 +34,17 @@ func (c *cmdAgent) Command() *cobra.Command {
 }
 
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
-	// Setup cloud-init
+	// Setup logger.
+	log, err := logging.GetLogger("lxd-agent", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
+	if err != nil {
+		os.Exit(1)
+	}
+	logger.Log = log
+
+	logger.Info("lxd-agent starting")
+	defer logger.Info("lxd-agent stopped")
+
+	// Setup cloud-init.
 	if shared.PathExists("/etc/cloud") && !shared.PathExists("/var/lib/cloud/seed/nocloud-net") {
 		err := os.MkdirAll("/var/lib/cloud/seed/nocloud-net/", 0700)
 		if err != nil {
@@ -65,23 +76,25 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup the listener.
 	l, err := vsock.Listen(8443)
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to listen on vsock"))
+		return errors.Wrap(err, "Failed to listen on vsock")
 	}
 
 	// Load the expected server certificate.
 	cert, err := shared.ReadCert("server.crt")
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to read client certificate"))
+		return errors.Wrap(err, "Failed to read client certificate")
 	}
 
 	tlsConfig, err := serverTLSConfig()
 	if err != nil {
-		log.Fatalln(errors.Wrap(err, "Failed to get TLS config"))
+		return errors.Wrap(err, "Failed to get TLS config")
 	}
 
-	// Prepare the HTTP server.
-	httpServer := restServer(tlsConfig, cert, c.global.flagLogDebug)
+	d := NewDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
-	// Start the server
+	// Prepare the HTTP server.
+	httpServer := restServer(tlsConfig, cert, c.global.flagLogDebug, d)
+
+	// Start the server.
 	return httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
 }
