@@ -29,6 +29,8 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	reqInstanceType := r.URL.Query().Get("instance-type")
 	if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 		return instancetype.Container, nil
+	} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+		return instancetype.VM, nil
 	} else if reqInstanceType != "" {
 		instanceType, err := instancetype.New(reqInstanceType)
 		if err != nil {
@@ -216,6 +218,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
+				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+					instancePath = "virtual-machines"
 				}
 				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container)
 				resultString = append(resultString, url)

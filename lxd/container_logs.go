@@ -15,18 +15,24 @@ import (
 )
 
 var instanceLogCmd = APIEndpoint{
-	Name:    "instanceLog",
-	Path:    "instances/{name}/logs/{file}",
-	Aliases: []APIEndpointAlias{{Name: "containerLog", Path: "containers/{name}/logs/{file}"}},
+	Name: "instanceLog",
+	Path: "instances/{name}/logs/{file}",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerLog", Path: "containers/{name}/logs/{file}"},
+		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
+	},
 
 	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
 
 var instanceLogsCmd = APIEndpoint{
-	Name:    "instanceLogs",
-	Path:    "instances/{name}/logs",
-	Aliases: []APIEndpointAlias{{Name: "containerLogs", Path: "containers/{name}/logs"}},
+	Name: "instanceLogs",
+	Path: "instances/{name}/logs",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerLogs", Path: "containers/{name}/logs"},
+		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
+	},
 
 	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
