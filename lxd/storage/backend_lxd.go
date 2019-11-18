@@ -224,10 +224,7 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Prefix(projectName, parentName)
 
-	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
-	if err != nil {
-		return err
-	}
+	snapshotTargetPath := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
 	if shared.PathExists(snapshotSymlink) {
@@ -260,10 +257,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
 	volStorageName := project.Prefix(projectName, parentName)
 
-	snapshotTargetPath, err := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
-	if err != nil {
-		return err
-	}
+	snapshotTargetPath := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 
 	// If snapshot parent directory doesn't exist, remove symlink.
 	if !shared.PathExists(snapshotTargetPath) {

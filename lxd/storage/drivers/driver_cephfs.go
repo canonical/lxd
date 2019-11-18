@@ -460,10 +460,7 @@ func (d *cephfs) DeleteVolume(volType VolumeType, volName string, op *operations
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
 	// to just in case the top-level directory is left.
-	snapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-	if err != nil {
-		return err
-	}
+	snapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
 
 	err = os.RemoveAll(snapshotDir)
 	if err != nil {
@@ -481,12 +478,9 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 	vol := NewVolume(d, d.name, volType, ContentTypeFS, volName, nil)
 
 	// Create new snapshots directory.
-	snapshotDir, err := GetVolumeSnapshotDir(d.name, volType, newName)
-	if err != nil {
-		return err
-	}
+	snapshotDir := GetVolumeSnapshotDir(d.name, volType, newName)
 
-	err = os.MkdirAll(snapshotDir, 0711)
+	err := os.MkdirAll(snapshotDir, 0711)
 	if err != nil {
 		return err
 	}
@@ -516,16 +510,10 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 	}()
 
 	// Rename the snapshot directory first.
-	srcSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-	if err != nil {
-		return err
-	}
+	srcSnapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
 
 	if shared.PathExists(srcSnapshotDir) {
-		targetSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, newName)
-		if err != nil {
-			return err
-		}
+		targetSnapshotDir := GetVolumeSnapshotDir(d.name, volType, newName)
 
 		err = os.Rename(srcSnapshotDir, targetSnapshotDir)
 		if err != nil {
@@ -741,11 +729,7 @@ func (d *cephfs) VolumeSnapshots(volType VolumeType, volName string, op *operati
 		return nil, fmt.Errorf("Volume type not supported")
 	}
 
-	snapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-	if err != nil {
-		return nil, err
-	}
-
+	snapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
 	snapshots := []string{}
 
 	ents, err := ioutil.ReadDir(snapshotDir)
