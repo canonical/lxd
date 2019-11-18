@@ -292,50 +292,50 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// If an abnormal closure occurred, kill the attached process.
 					err := unix.Kill(attachedChildPid, unix.SIGKILL)
 					if err != nil {
-						logger.Errorf("Failed to send SIGKILL to pid %d\n", attachedChildPid)
+						logger.Errorf("Failed to send SIGKILL to pid %d", attachedChildPid)
 					} else {
-						logger.Infof("Sent SIGKILL to pid %d\n", attachedChildPid)
+						logger.Infof("Sent SIGKILL to pid %d", attachedChildPid)
 					}
 					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					logger.Errorf("Failed to read message %s\n", err)
+					logger.Errorf("Failed to read message %s", err)
 					break
 				}
 
 				command := api.ContainerExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Errorf("Failed to unmarshal control socket command: %s\n", err)
+					logger.Errorf("Failed to unmarshal control socket command: %s", err)
 					continue
 				}
 
 				if command.Command == "window-resize" {
 					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						logger.Errorf("Unable to extract window width: %s\n", err)
+						logger.Errorf("Unable to extract window width: %s", err)
 						continue
 					}
 
 					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
-						logger.Errorf("Unable to extract window height: %s\n", err)
+						logger.Errorf("Unable to extract window height: %s", err)
 						continue
 					}
 
 					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						logger.Errorf("Failed to set window size to: %dx%d\n", winchWidth, winchHeight)
+						logger.Errorf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 						continue
 					}
 				} else if command.Command == "signal" {
 					if err := unix.Kill(attachedChildPid, unix.Signal(command.Signal)); err != nil {
-						logger.Errorf("Failed forwarding signal '%d' to PID %d\n", command.Signal, attachedChildPid)
+						logger.Errorf("Failed forwarding signal '%d' to PID %d", command.Signal, attachedChildPid)
 						continue
 					}
-					logger.Errorf("Forwarded signal '%d' to PID %d\n", command.Signal, attachedChildPid)
+					logger.Errorf("Forwarded signal '%d' to PID %d", command.Signal, attachedChildPid)
 				}
 			}
 		}()
