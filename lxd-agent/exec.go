@@ -434,7 +434,18 @@ func (s *execWs) Do(op *operations.Operation) error {
 			Uid: s.uid,
 			Gid: s.gid,
 		},
+		// Creates a new session if the calling process is not a process group leader.
+		// The calling process is the leader of the new session, the process group leader of
+		// the new process group, and has no controlling terminal.
+		// This is important to allow remote shells to handle ctrl+c.
 		Setsid: true,
+	}
+
+	// Make the given terminal the controlling terminal of the calling process.
+	// The calling process must be a session leader and not have a controlling terminal already.
+	// This is important as allows ctrl+c to work as expected for non-shell programs.
+	if s.interactive {
+		cmd.SysProcAttr.Setctty = true
 	}
 
 	cmd.Dir = s.cwd
