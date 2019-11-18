@@ -502,11 +502,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *dir) VolumeSnapshots(volType VolumeType, volName string, op *operations.Operation) ([]string, error) {
-	snapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-	if err != nil {
-		return nil, err
-	}
-
+	snapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
 	snapshots := []string{}
 
 	ents, err := ioutil.ReadDir(snapshotDir)
@@ -562,12 +558,9 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 	vol := NewVolume(d, d.name, volType, ContentTypeFS, volName, nil)
 
 	// Create new snapshots directory.
-	snapshotDir, err := GetVolumeSnapshotDir(d.name, volType, newVolName)
-	if err != nil {
-		return err
-	}
+	snapshotDir := GetVolumeSnapshotDir(d.name, volType, newVolName)
 
-	err = os.MkdirAll(snapshotDir, 0711)
+	err := os.MkdirAll(snapshotDir, 0711)
 	if err != nil {
 		return err
 	}
@@ -626,10 +619,8 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 	})
 
 	// Remove old snapshots directory.
-	oldSnapshotDir, err := GetVolumeSnapshotDir(d.name, volType, volName)
-	if err != nil {
-		return err
-	}
+	oldSnapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
+
 	err = os.RemoveAll(oldSnapshotDir)
 	if err != nil {
 		return err
