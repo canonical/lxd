@@ -369,3 +369,18 @@ func resolveMountOptions(options string) (uintptr, string) {
 
 	return mountFlags, strings.Join(tmp, ",")
 }
+
+func hasFilesystem(path string, fsType int64) bool {
+	fs := unix.Statfs_t{}
+
+	err := unix.Statfs(path, &fs)
+	if err != nil {
+		return false
+	}
+
+	if fs.Type != fsType {
+		return false
+	}
+
+	return true
+}
