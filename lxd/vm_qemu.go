@@ -1991,7 +1991,8 @@ func (vm *vmQemu) FileExists(path string) error {
 func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
 	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
 	if err != nil {
-		return 0, 0, 0, "", nil, err
+		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
+		return 0, 0, 0, "", nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
 
@@ -2028,7 +2029,8 @@ func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.Fil
 func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
 	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
 	if err != nil {
-		return err
+		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
+		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
 
@@ -2167,7 +2169,8 @@ func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, 
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
 	if err != nil {
-		return nil, err
+		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
+		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	cleanupFuncs = append(cleanupFuncs, agent.Disconnect)
 
