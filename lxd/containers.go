@@ -17,18 +17,24 @@ import (
 )
 
 var instancesCmd = APIEndpoint{
-	Name:    "instances",
-	Path:    "instances",
-	Aliases: []APIEndpointAlias{{Name: "containers", Path: "containers"}},
+	Name: "instances",
+	Path: "instances",
+	Aliases: []APIEndpointAlias{
+		{Name: "containers", Path: "containers"},
+		{Name: "vms", Path: "virtual-machines"},
+	},
 
 	Get:  APIEndpointAction{Handler: containersGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containersPost, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceCmd = APIEndpoint{
-	Name:    "instance",
-	Path:    "instances/{name}",
-	Aliases: []APIEndpointAlias{{Name: "container", Path: "containers/{name}"}},
+	Name: "instance",
+	Path: "instances/{name}",
+	Aliases: []APIEndpointAlias{
+		{Name: "container", Path: "containers/{name}"},
+		{Name: "vm", Path: "virtual-machines/{name}"},
+	},
 
 	Get:    APIEndpointAction{Handler: containerGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Put:    APIEndpointAction{Handler: containerPut, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
@@ -38,18 +44,24 @@ var instanceCmd = APIEndpoint{
 }
 
 var instanceStateCmd = APIEndpoint{
-	Name:    "instanceState",
-	Path:    "instances/{name}/state",
-	Aliases: []APIEndpointAlias{{Name: "containerState", Path: "containers/{name}/state"}},
+	Name: "instanceState",
+	Path: "instances/{name}/state",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerState", Path: "containers/{name}/state"},
+		{Name: "vmState", Path: "virtual-machines/{name}/state"},
+	},
 
 	Get: APIEndpointAction{Handler: containerState, AccessHandler: AllowProjectPermission("containers", "view")},
 	Put: APIEndpointAction{Handler: containerStatePut, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceFileCmd = APIEndpoint{
-	Name:    "instanceFile",
-	Path:    "instances/{name}/files",
-	Aliases: []APIEndpointAlias{{Name: "containerFile", Path: "containers/{name}/files"}},
+	Name: "instanceFile",
+	Path: "instances/{name}/files",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerFile", Path: "containers/{name}/files"},
+		{Name: "vmFile", Path: "virtual-machines/{name}/files"},
+	},
 
 	Get:    APIEndpointAction{Handler: containerFileHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Post:   APIEndpointAction{Handler: containerFileHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
@@ -57,18 +69,24 @@ var instanceFileCmd = APIEndpoint{
 }
 
 var instanceSnapshotsCmd = APIEndpoint{
-	Name:    "instanceSnapshots",
-	Path:    "instances/{name}/snapshots",
-	Aliases: []APIEndpointAlias{{Name: "containerSnapshots", Path: "containers/{name}/snapshots"}},
+	Name: "instanceSnapshots",
+	Path: "instances/{name}/snapshots",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerSnapshots", Path: "containers/{name}/snapshots"},
+		{Name: "vmSnapshots", Path: "virtual-machines/{name}/snapshots"},
+	},
 
 	Get:  APIEndpointAction{Handler: containerSnapshotsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containerSnapshotsPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceSnapshotCmd = APIEndpoint{
-	Name:    "instanceSnapshot",
-	Path:    "instances/{name}/snapshots/{snapshotName}",
-	Aliases: []APIEndpointAlias{{Name: "containerSnapshot", Path: "containers/{name}/snapshots/{snapshotName}"}},
+	Name: "instanceSnapshot",
+	Path: "instances/{name}/snapshots/{snapshotName}",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerSnapshot", Path: "containers/{name}/snapshots/{snapshotName}"},
+		{Name: "vmSnapshot", Path: "virtual-machines/{name}/snapshots/{snapshotName}"},
+	},
 
 	Get:    APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 	Post:   APIEndpointAction{Handler: containerSnapshotHandler, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
@@ -77,9 +95,12 @@ var instanceSnapshotCmd = APIEndpoint{
 }
 
 var instanceConsoleCmd = APIEndpoint{
-	Name:    "instanceConsole",
-	Path:    "instances/{name}/console",
-	Aliases: []APIEndpointAlias{{Name: "containerConsole", Path: "containers/{name}/console"}},
+	Name: "instanceConsole",
+	Path: "instances/{name}/console",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerConsole", Path: "containers/{name}/console"},
+		{Name: "vmConsole", Path: "virtual-machines/{name}/console"},
+	},
 
 	Get:    APIEndpointAction{Handler: containerConsoleLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post:   APIEndpointAction{Handler: containerConsolePost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
@@ -87,26 +108,35 @@ var instanceConsoleCmd = APIEndpoint{
 }
 
 var instanceExecCmd = APIEndpoint{
-	Name:    "instanceExec",
-	Path:    "instances/{name}/exec",
-	Aliases: []APIEndpointAlias{{Name: "containerExec", Path: "containers/{name}/exec"}},
+	Name: "instanceExec",
+	Path: "instances/{name}/exec",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerExec", Path: "containers/{name}/exec"},
+		{Name: "vmExec", Path: "virtual-machines/{name}/exec"},
+	},
 
 	Post: APIEndpointAction{Handler: containerExecPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceMetadataCmd = APIEndpoint{
-	Name:    "instanceMetadata",
-	Path:    "instances/{name}/metadata",
-	Aliases: []APIEndpointAlias{{Name: "containerMetadata", Path: "containers/{name}/metadata"}},
+	Name: "instanceMetadata",
+	Path: "instances/{name}/metadata",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerMetadata", Path: "containers/{name}/metadata"},
+		{Name: "vmMetadata", Path: "virtual-machines/{name}/metadata"},
+	},
 
 	Get: APIEndpointAction{Handler: containerMetadataGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Put: APIEndpointAction{Handler: containerMetadataPut, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
 }
 
 var instanceMetadataTemplatesCmd = APIEndpoint{
-	Name:    "instanceMetadataTemplates",
-	Path:    "instances/{name}/metadata/templates",
-	Aliases: []APIEndpointAlias{{Name: "containerMetadataTemplates", Path: "containers/{name}/metadata/templates"}},
+	Name: "instanceMetadataTemplates",
+	Path: "instances/{name}/metadata/templates",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerMetadataTemplates", Path: "containers/{name}/metadata/templates"},
+		{Name: "vmMetadataTemplates", Path: "virtual-machines/{name}/metadata/templates"},
+	},
 
 	Get:    APIEndpointAction{Handler: containerMetadataTemplatesGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post:   APIEndpointAction{Handler: containerMetadataTemplatesPostPut, AccessHandler: AllowProjectPermission("containers", "manage-containers")},
@@ -115,18 +145,24 @@ var instanceMetadataTemplatesCmd = APIEndpoint{
 }
 
 var instanceBackupsCmd = APIEndpoint{
-	Name:    "instanceBackups",
-	Path:    "instances/{name}/backups",
-	Aliases: []APIEndpointAlias{{Name: "containerBackups", Path: "containers/{name}/backups"}},
+	Name: "instanceBackups",
+	Path: "instances/{name}/backups",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerBackups", Path: "containers/{name}/backups"},
+		{Name: "vmBackups", Path: "virtual-machines/{name}/backups"},
+	},
 
 	Get:  APIEndpointAction{Handler: containerBackupsGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post: APIEndpointAction{Handler: containerBackupsPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
 }
 
 var instanceBackupCmd = APIEndpoint{
-	Name:    "instanceBackup",
-	Path:    "instances/{name}/backups/{backupName}",
-	Aliases: []APIEndpointAlias{{Name: "containerBackup", Path: "containers/{name}/backups/{backupName}"}},
+	Name: "instanceBackup",
+	Path: "instances/{name}/backups/{backupName}",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerBackup", Path: "containers/{name}/backups/{backupName}"},
+		{Name: "vmBackup", Path: "virtual-machines/{name}/backups/{backupName}"},
+	},
 
 	Get:    APIEndpointAction{Handler: containerBackupGet, AccessHandler: AllowProjectPermission("containers", "view")},
 	Post:   APIEndpointAction{Handler: containerBackupPost, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
@@ -134,9 +170,12 @@ var instanceBackupCmd = APIEndpoint{
 }
 
 var instanceBackupExportCmd = APIEndpoint{
-	Name:    "instanceBackupExport",
-	Path:    "instances/{name}/backups/{backupName}/export",
-	Aliases: []APIEndpointAlias{{Name: "containerBackupExport", Path: "containers/{name}/backups/{backupName}/export"}},
+	Name: "instanceBackupExport",
+	Path: "instances/{name}/backups/{backupName}/export",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerBackupExport", Path: "containers/{name}/backups/{backupName}/export"},
+		{Name: "vmBackupExport", Path: "virtual-machines/{name}/backups/{backupName}/export"},
+	},
 
 	Get: APIEndpointAction{Handler: containerBackupExportGet, AccessHandler: AllowProjectPermission("containers", "view")},
 }
