@@ -392,6 +392,14 @@ func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
+func (vm *vmQemu) ovmfPath() string {
+	if os.Getenv("LXD_OVMF_PATH") != "" {
+		return os.Getenv("LXD_OVMF_PATH")
+	}
+
+	return "/usr/share/OVMF"
+}
+
 func (vm *vmQemu) Start(stateful bool) error {
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
 	err := util.LoadModule("vhost_vsock")
@@ -433,7 +441,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 	// Copy OVMF settings firmware to nvram file.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
 	if !shared.PathExists(vm.getNvramPath()) {
-		srcOvmfFile := "/usr/share/OVMF/OVMF_VARS.ms.fd"
+		srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.ms.fd")
 		if !shared.PathExists(srcOvmfFile) {
 			return fmt.Errorf("Required secure boot EFI firmware settings file missing: %s", srcOvmfFile)
 		}
@@ -1024,7 +1032,7 @@ func (vm *vmQemu) addFirmwareConfig(sb *strings.Builder) {
 	sb.WriteString(fmt.Sprintf(`
 # Firmware (read only)
 [drive]
-file = "/usr/share/OVMF/OVMF_CODE.fd"
+file = "%s"
 if = "pflash"
 format = "raw"
 unit = "0"
@@ -1036,7 +1044,7 @@ file = "%s"
 if = "pflash"
 format = "raw"
 unit = "1"
-`, nvramPath))
+`, filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"), nvramPath))
 
 	return
 }
