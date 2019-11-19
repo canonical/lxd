@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/lxd/storage/memorypipe"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1568,6 +1569,11 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	if !b.driver.Info().OptimizedImages {
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
+
+	// We need to lock this operation to ensure that the image is not being
+	// created multiple times.
+	unlock := locking.Lock(b.name, string(drivers.VolumeTypeImage), fingerprint)
+	defer unlock()
 
 	// Check if we already have a suitable volume.
 	if b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
