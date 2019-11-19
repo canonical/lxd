@@ -60,8 +60,9 @@ _have lxc && {
       return 0
     fi
 
-    lxc_cmds="config copy delete exec file finger help image info init launch \
-      list manpage monitor move network profile project publish query remote rename \
+    lxc_cmds="alias cluster config console copy delete exec export file \
+      help image import info init launch list manpage monitor move network \
+      operation pause profile project publish query remote rename \
       restart restore shell snapshot start stop storage version"
 
     global_keys="backups.compression_algorithm,
