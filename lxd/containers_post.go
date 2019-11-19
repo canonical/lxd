@@ -604,7 +604,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 
 	run := func(op *operations.Operation) error {
 		instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
-		_, err := containerCreateAsCopy(d.State(), args, source, instanceOnly, req.Source.Refresh)
+		_, err := instanceCreateAsCopy(d.State(), args, source, instanceOnly, req.Source.Refresh)
 		if err != nil {
 			return err
 		}
@@ -612,7 +612,8 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{req.Name, req.Source.Source}
+	resources["instances"] = []string{req.Name, req.Source.Source}
+	resources["containers"] = resources["instances"] // Populate old field name.
 
 	op, err := operations.OperationCreate(d.State(), targetProject, operations.OperationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
