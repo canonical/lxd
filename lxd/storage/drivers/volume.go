@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -107,13 +108,10 @@ func (v Volume) CreateMountPath() error {
 func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
 	parentName, snapName, isSnap := shared.InstanceGetParentAndSnapshotName(v.name)
 
-	mountLockID := fmt.Sprintf("mount/%s/%s/%s", v.pool, v.volType, v.name)
-	umountLockID := fmt.Sprintf("umount/%s/%s/%s", v.pool, v.volType, v.name)
-
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	if isSnap {
-		unlock := lock(mountLockID)
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourMount, err := v.driver.MountVolumeSnapshot(v.volType, parentName, snapName, op)
 		if err != nil {
@@ -125,13 +123,13 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 
 		if ourMount {
 			defer func() {
-				unlock := lock(umountLockID)
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
 				v.driver.UnmountVolumeSnapshot(v.volType, parentName, snapName, op)
 				unlock()
 			}()
 		}
 	} else {
-		unlock := lock(mountLockID)
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
 
 		ourMount, err := v.driver.MountVolume(v.volType, v.name, op)
 		if err != nil {
@@ -143,7 +141,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 
 		if ourMount {
 			defer func() {
-				unlock := lock(umountLockID)
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
 				v.driver.UnmountVolume(v.volType, v.name, op)
 				unlock()
 			}()
