@@ -168,7 +168,7 @@ func vmQemuCreate(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, err
 	}
 
-	// Validate expanded config
+	// Validate expanded config.
 	err = containerValidConfig(s.OS, vm.expandedConfig, false, true)
 	if err != nil {
 		logger.Error("Failed creating instance", ctxMap)
@@ -181,7 +181,7 @@ func vmQemuCreate(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
-	// Retrieve the instance's storage pool
+	// Retrieve the instance's storage pool.
 	_, rootDiskDevice, err := shared.GetRootDiskDevice(vm.expandedDevices.CloneNative())
 	if err != nil {
 		return nil, err
