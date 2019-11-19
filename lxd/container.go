@@ -320,7 +320,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(d.State(), inst)
+	err = instanceConfigureInternal(d.State(), inst)
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +561,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(d.State(), inst)
+	err = instanceConfigureInternal(d.State(), inst)
 	if err != nil {
 		return nil, errors.Wrap(err, "Configure instance")
 	}
@@ -575,7 +575,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	var err error
 
 	if refresh {
-		// Load the target container
+		// Load the target instance.
 		ct, err = instanceLoadByProjectAndName(s, args.Project, args.Name)
 		if err != nil {
 			refresh = false
@@ -583,7 +583,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	}
 
 	if !refresh {
-		// Create the container.
+		// Create the instance.
 		ct, err = instanceCreateInternal(s, args)
 		if err != nil {
 			return nil, err
@@ -591,12 +591,11 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	}
 
 	if refresh && ct.IsRunning() {
-		return nil, fmt.Errorf("Cannot refresh a running container")
+		return nil, fmt.Errorf("Cannot refresh a running instance")
 	}
 
-	// At this point we have already figured out the parent
-	// container's root disk device so we can simply
-	// retrieve it from the expanded devices.
+	// At this point we have already figured out the parent container's root disk device so we
+	// can simply retrieve it from the expanded devices.
 	parentStoragePool := ""
 	parentExpandedDevices := ct.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
@@ -604,18 +603,18 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
 
-	csList := []*Instance{}
+	snapList := []*Instance{}
 	var snapshots []Instance
 
 	if !containerOnly {
 		if refresh {
-			// Compare snapshots
-			syncSnapshots, deleteSnapshots, err := containerCompareSnapshots(sourceContainer, ct)
+			// Compare snapshots.
+			syncSnapshots, deleteSnapshots, err := instanceCompareSnapshots(sourceContainer, ct)
 			if err != nil {
 				return nil, err
 			}
 
-			// Delete extra snapshots
+			// Delete extra snapshots first.
 			for _, snap := range deleteSnapshots {
 				err := snap.Delete()
 				if err != nil {
@@ -623,10 +622,10 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 				}
 			}
 
-			// Only care about the snapshots that need updating
+			// Only care about the snapshots that need updating.
 			snapshots = syncSnapshots
 		} else {
-			// Get snapshots of source container
+			// Get snapshots of source instance.
 			snapshots, err = sourceContainer.Snapshots()
 			if err != nil {
 				ct.Delete()
@@ -638,7 +637,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 		for _, snap := range snapshots {
 			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
 
-			// Ensure that snapshot and parent container have the
+			// Ensure that snapshot and parent instance have the
 			// same storage pool in their local root disk device.
 			// If the root disk device for the snapshot comes from a
 			// profile on the new instance as well we don't need to
@@ -681,7 +680,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 				return nil, err
 			}
 
-			// Restore snapshot creation date
+			// Restore snapshot creation date.
 			err = s.Cluster.ContainerCreationUpdate(cs.ID(), snap.CreationDate())
 			if err != nil {
 				if !refresh {
@@ -691,11 +690,11 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 				return nil, err
 			}
 
-			csList = append(csList, &cs)
+			snapList = append(snapList, &cs)
 		}
 	}
 
-	// Now clone or refresh the storage
+	// Now clone or refresh the storage.
 	if refresh {
 		err = ct.Storage().ContainerRefresh(ct, sourceContainer, snapshots)
 		if err != nil {
@@ -713,7 +712,7 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	}
 
 	// Apply any post-storage configuration.
-	err = containerConfigureInternal(s, ct)
+	err = instanceConfigureInternal(s, ct)
 	if err != nil {
 		if !refresh {
 			ct.Delete()
@@ -723,9 +722,9 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	}
 
 	if !containerOnly {
-		for _, cs := range csList {
+		for _, snap := range snapList {
 			// Apply any post-storage configuration.
-			err = containerConfigureInternal(s, *cs)
+			err = instanceConfigureInternal(s, *snap)
 			if err != nil {
 				if !refresh {
 					ct.Delete()
@@ -1051,7 +1050,8 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, err
 	return inst, nil
 }
 
-func containerConfigureInternal(state *state.State, c Instance) error {
+// instanceConfigureInternal applies quota set in volatile "apply_quota" and writes a backup file.
+func instanceConfigureInternal(state *state.State, c Instance) error {
 	// Find the root device
 	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
@@ -1339,44 +1339,57 @@ func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) 
 	return inst, nil
 }
 
-func containerCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
-	// Get the source snapshots
+// instanceCompareSnapshots returns a list of snapshots to sync to the target and a list of
+// snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
+// exist in the target or its creation date is different to the source. A snapshot will be marked
+// as "to delete" if it doesn't exist in the source or creation date is different to the source.
+func instanceCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
+	// Get the source snapshots.
 	sourceSnapshots, err := source.Snapshots()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Get the target snapshots
+	// Get the target snapshots.
 	targetSnapshots, err := target.Snapshots()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Compare source and target
+	// Compare source and target.
 	sourceSnapshotsTime := map[string]time.Time{}
 	targetSnapshotsTime := map[string]time.Time{}
 
 	toDelete := []Instance{}
 	toSync := []Instance{}
 
+	// Generate a list of source snapshot creation dates.
 	for _, snap := range sourceSnapshots {
 		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 		sourceSnapshotsTime[snapName] = snap.CreationDate()
 	}
 
+	// Generate a list of target snapshot creation times, if the source doesn't contain the
+	// the snapshot or the creation time is different on the source then add the target snapshot
+	// to the "to delete" list.
 	for _, snap := range targetSnapshots {
 		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
 		targetSnapshotsTime[snapName] = snap.CreationDate()
 		existDate, exists := sourceSnapshotsTime[snapName]
 		if !exists {
+			// Snapshot doesn't exist in source, mark it for deletion on target.
 			toDelete = append(toDelete, snap)
 		} else if existDate != snap.CreationDate() {
+			// Snapshot creation date is different in source, mark it for deletion on
+			// target.
 			toDelete = append(toDelete, snap)
 		}
 	}
 
+	// For each of the source snapshots, decide whether it needs to be synced or not based on
+	// whether it already exists in the target and whether the creation dates match.
 	for _, snap := range sourceSnapshots {
 		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
 
