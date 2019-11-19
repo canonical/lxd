@@ -1006,6 +1006,64 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 		}
 	}
 
+	// If the source and target are in the same pool then use CreateVolumeFromCopy rather than
+	// migration system as it will be quicker.
+	if srcPool == b {
+		logger.Debug("CreateCustomVolumeFromCopy same-pool mode detected")
+
+		// Create slice to record DB volumes created if revert needed later.
+		revertDBVolumes := []string{}
+		defer func() {
+			// Remove any DB volume rows created if we are reverting.
+			for _, volName := range revertDBVolumes {
+				b.state.Cluster.StoragePoolVolumeDelete("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
+			}
+		}()
+
+		vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config)
+		srcVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, srcVolName, srcVolRow.Config)
+
+		// Check the supplied config and remove any fields not relevant for pool type.
+		err := b.driver.ValidateVolume(vol, true)
+		if err != nil {
+			return err
+		}
+
+		// Create database entry for new storage volume.
+		err = VolumeDBCreate(b.state, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+		if err != nil {
+			return err
+		}
+
+		revertDBVolumes = append(revertDBVolumes, volName)
+
+		if len(snapshotNames) > 0 {
+			for _, snapName := range snapshotNames {
+				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
+
+				// Create database entry for new storage volume snapshot.
+				err = VolumeDBCreate(b.state, b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, config)
+				if err != nil {
+					return err
+				}
+
+				revertDBVolumes = append(revertDBVolumes, newSnapshotName)
+			}
+		}
+
+		err = b.driver.CreateVolumeFromCopy(vol, srcVol, !srcVolOnly, op)
+		if err != nil {
+			return err
+		}
+
+		revertDBVolumes = nil
+		return nil
+	}
+
+	// We are copying volumes between storage pools so use migration system as it will be able
+	// to negotiate a common transfer method between pool types.
+	logger.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
+
 	// Create in-memory pipe pair to simulate a connection between the sender and receiver.
 	aEnd, bEnd := memorypipe.NewPipePair()
 
