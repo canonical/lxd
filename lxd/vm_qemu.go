@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
@@ -168,7 +169,7 @@ func vmQemuCreate(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, err
 	}
 
-	// Validate expanded config
+	// Validate expanded config.
 	err = containerValidConfig(s.OS, vm.expandedConfig, false, true)
 	if err != nil {
 		logger.Error("Failed creating instance", ctxMap)
@@ -181,7 +182,7 @@ func vmQemuCreate(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
-	// Retrieve the instance's storage pool
+	// Retrieve the instance's storage pool.
 	_, rootDiskDevice, err := shared.GetRootDiskDevice(vm.expandedDevices.CloneNative())
 	if err != nil {
 		return nil, err
@@ -1845,24 +1846,32 @@ func (vm *vmQemu) Delete() error {
 	// Attempt to initialize storage interface for the instance.
 	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
 	if err != nil {
-		logger.Warn("Failed to init storage pool", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+		logger.Error("Failed to init storage pool", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
 
-		// Remove the volume record from the database. This deletion would
-		// normally be handled by DeleteInstance() but since the storage driver
-		// (new storage) is not implemented, we need to do it here manually.
-		poolName, err := vm.StoragePool()
-		if err != nil {
-			return err
-		}
+		// Because of the way vmQemuCreate creates the storage volume record before loading
+		// the storage pool driver, Delete() may be called as part of a revertion if the
+		// pool being used to create the VM on doesn't support VMs. This deletion will then
+		// fail too, so we need to detect this scenario and just remove the storage volume
+		// DB record.
+		// TODO: This can be removed once all pool drivers are ported to new storage layer.
+		if err == storageDrivers.ErrUnknownDriver || err == storageDrivers.ErrNotImplemented {
+			// Remove the volume record from the database. This deletion would
+			// normally be handled by DeleteInstance() call below but since the storage
+			// driver (new storage) is not implemented, we need to do it here manually.
+			poolName, err := vm.StoragePool()
+			if err != nil {
+				return err
+			}
 
-		poolID, err := vm.state.Cluster.StoragePoolGetID(poolName)
-		if err != nil {
-			return err
-		}
+			poolID, err := vm.state.Cluster.StoragePoolGetID(poolName)
+			if err != nil {
+				return err
+			}
 
-		err = vm.state.Cluster.StoragePoolVolumeDelete(vm.Project(), vm.Name(), db.StoragePoolVolumeTypeVM, poolID)
-		if err != nil {
-			return err
+			err = vm.state.Cluster.StoragePoolVolumeDelete(vm.Project(), vm.Name(), db.StoragePoolVolumeTypeVM, poolID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
