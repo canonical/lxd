@@ -820,6 +820,7 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 	return c, nil
 }
 
+// instanceCreateInternal creates an instance record and storage volume record in the database.
 func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 	// Set default values.
 	if args.Project == "" {
