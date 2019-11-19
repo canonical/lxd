@@ -705,21 +705,37 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	}
 
 	// Now clone or refresh the storage.
-	if inst.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance type must be container")
-	}
-
-	ct := inst.(*containerLXC)
-
 	if refresh {
+		if inst.Type() != instancetype.Container {
+			return nil, fmt.Errorf("Instance type must be container")
+		}
+
+		ct := inst.(*containerLXC)
 		err = ct.Storage().ContainerRefresh(inst, sourceInst, snapshots)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
-		if err != nil {
-			return nil, err
+		// Check if we can load new storage layer for both target and source pool driver types.
+		pool, err := storagePools.GetPoolByInstance(s, inst)
+		_, srcPoolErr := storagePools.GetPoolByInstance(s, sourceInst)
+		if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && srcPoolErr != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrNotImplemented {
+			if err != nil {
+				return nil, errors.Wrap(err, "Load instance storage pool")
+			}
+
+			err = pool.CreateInstanceFromCopy(inst, sourceInst, !instanceOnly, op)
+			if err != nil {
+				return nil, errors.Wrap(err, "Create instance from copy")
+			}
+		} else if inst.Type() == instancetype.Container {
+			ct := inst.(*containerLXC)
+			err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("Instance type not supported")
 		}
 	}
 
