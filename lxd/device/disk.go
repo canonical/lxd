@@ -667,7 +667,7 @@ func (d *disk) createDevice() (string, error) {
 	}
 
 	// Check if the source exists.
-	if !shared.PathExists(srcPath) {
+	if !(strings.HasPrefix(fsName, "ceph:") || strings.HasPrefix(fsName, "cephfs:")) && !shared.PathExists(srcPath) {
 		if !isRequired {
 			return "", nil
 		}
