@@ -570,34 +570,44 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	return inst, nil
 }
 
-func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer Instance, containerOnly bool, refresh bool) (Instance, error) {
-	var ct Instance
+func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst Instance, instanceOnly bool, refresh bool) (Instance, error) {
+	var inst, revertInst Instance
 	var err error
+
+	defer func() {
+		if revertInst == nil {
+			return
+		}
+
+		revertInst.Delete()
+	}()
 
 	if refresh {
 		// Load the target instance.
-		ct, err = instanceLoadByProjectAndName(s, args.Project, args.Name)
+		inst, err = instanceLoadByProjectAndName(s, args.Project, args.Name)
 		if err != nil {
-			refresh = false
+			refresh = false // Instance doesn't exist, so switch to copy mode.
+		}
+
+		if inst.IsRunning() {
+			return nil, fmt.Errorf("Cannot refresh a running instance")
 		}
 	}
 
+	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !refresh {
 		// Create the instance.
-		ct, err = instanceCreateInternal(s, args)
+		inst, err = instanceCreateInternal(s, args)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if refresh && ct.IsRunning() {
-		return nil, fmt.Errorf("Cannot refresh a running instance")
+		revertInst = inst
 	}
 
 	// At this point we have already figured out the parent container's root disk device so we
 	// can simply retrieve it from the expanded devices.
 	parentStoragePool := ""
-	parentExpandedDevices := ct.ExpandedDevices()
+	parentExpandedDevices := inst.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -606,10 +616,10 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 	snapList := []*Instance{}
 	var snapshots []Instance
 
-	if !containerOnly {
+	if !instanceOnly {
 		if refresh {
 			// Compare snapshots.
-			syncSnapshots, deleteSnapshots, err := instanceCompareSnapshots(sourceContainer, ct)
+			syncSnapshots, deleteSnapshots, err := instanceCompareSnapshots(sourceInst, inst)
 			if err != nil {
 				return nil, err
 			}
@@ -626,10 +636,8 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 			snapshots = syncSnapshots
 		} else {
 			// Get snapshots of source instance.
-			snapshots, err = sourceContainer.Snapshots()
+			snapshots, err = sourceInst.Snapshots()
 			if err != nil {
-				ct.Delete()
-
 				return nil, err
 			}
 		}
@@ -656,11 +664,11 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 				}
 			}
 
-			newSnapName := fmt.Sprintf("%s/%s", ct.Name(), fields[1])
-			csArgs := db.InstanceArgs{
+			newSnapName := fmt.Sprintf("%s/%s", inst.Name(), fields[1])
+			snapInstArgs := db.InstanceArgs{
 				Architecture: snap.Architecture(),
 				Config:       snap.LocalConfig(),
-				Type:         sourceContainer.Type(),
+				Type:         sourceInst.Type(),
 				Snapshot:     true,
 				Devices:      snapDevices,
 				Description:  snap.Description(),
@@ -671,71 +679,52 @@ func containerCreateAsCopy(s *state.State, args db.InstanceArgs, sourceContainer
 			}
 
 			// Create the snapshots.
-			cs, err := instanceCreateInternal(s, csArgs)
+			snapInst, err := instanceCreateInternal(s, snapInstArgs)
 			if err != nil {
-				if !refresh {
-					ct.Delete()
-				}
-
 				return nil, err
 			}
 
 			// Restore snapshot creation date.
-			err = s.Cluster.ContainerCreationUpdate(cs.ID(), snap.CreationDate())
+			err = s.Cluster.ContainerCreationUpdate(snapInst.ID(), snap.CreationDate())
 			if err != nil {
-				if !refresh {
-					ct.Delete()
-				}
-
 				return nil, err
 			}
 
-			snapList = append(snapList, &cs)
+			snapList = append(snapList, &snapInst)
 		}
 	}
 
 	// Now clone or refresh the storage.
 	if refresh {
-		err = ct.Storage().ContainerRefresh(ct, sourceContainer, snapshots)
+		err = inst.Storage().ContainerRefresh(inst, sourceInst, snapshots)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err = ct.Storage().ContainerCopy(ct, sourceContainer, containerOnly)
+		err = inst.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
 		if err != nil {
-			if !refresh {
-				ct.Delete()
-			}
-
 			return nil, err
 		}
 	}
 
 	// Apply any post-storage configuration.
-	err = instanceConfigureInternal(s, ct)
+	err = instanceConfigureInternal(s, inst)
 	if err != nil {
-		if !refresh {
-			ct.Delete()
-		}
-
 		return nil, err
 	}
 
-	if !containerOnly {
+	if !instanceOnly {
 		for _, snap := range snapList {
 			// Apply any post-storage configuration.
 			err = instanceConfigureInternal(s, *snap)
 			if err != nil {
-				if !refresh {
-					ct.Delete()
-				}
-
 				return nil, err
 			}
 		}
 	}
 
-	return ct, nil
+	revertInst = nil
+	return inst, nil
 }
 
 func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance Instance) (Instance, error) {
