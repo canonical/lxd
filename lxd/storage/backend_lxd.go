@@ -557,8 +557,41 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 	return nil
 }
 
-func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error {
-	return ErrNotImplemented
+// CreateInstanceFromMigration receives an instance being migrated.
+// The args.Name and args.Config fields are ignored and, instance properties are used instead.
+func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	logger.Debug("CreateInstanceFromMigration started")
+	defer logger.Debug("CreateInstanceFromMigration finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Find the root device config for instance.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Override args.Name and args.Config to ensure volume is created based on instance.
+	args.Config = rootDiskConf
+	args.Name = inst.Name()
+
+	vol := b.newVolume(volType, contentType, args.Name, args.Config)
+	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
+	if err != nil {
+		conn.Close()
+		return err
+	}
+
+	return nil
 }
 
 // RenameInstance renames the instance's root volume and any snapshot volumes.
