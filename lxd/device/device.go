@@ -9,15 +9,16 @@ import (
 
 // devTypes defines supported top-level device type creation functions.
 var devTypes = map[string]func(deviceConfig.Device) device{
-	"nic":        nicLoadByType,
-	"infiniband": infinibandLoadByType,
-	"proxy":      func(c deviceConfig.Device) device { return &proxy{} },
-	"gpu":        func(c deviceConfig.Device) device { return &gpu{} },
-	"usb":        func(c deviceConfig.Device) device { return &usb{} },
-	"unix-char":  func(c deviceConfig.Device) device { return &unixCommon{} },
-	"unix-block": func(c deviceConfig.Device) device { return &unixCommon{} },
-	"disk":       func(c deviceConfig.Device) device { return &disk{} },
-	"none":       func(c deviceConfig.Device) device { return &none{} },
+	"nic":          nicLoadByType,
+	"infiniband":   infinibandLoadByType,
+	"proxy":        func(c deviceConfig.Device) device { return &proxy{} },
+	"gpu":          func(c deviceConfig.Device) device { return &gpu{} },
+	"usb":          func(c deviceConfig.Device) device { return &usb{} },
+	"unix-char":    func(c deviceConfig.Device) device { return &unixCommon{} },
+	"unix-block":   func(c deviceConfig.Device) device { return &unixCommon{} },
+	"unix-hotplug": func(c deviceConfig.Device) device { return &unixHotplug{} },
+	"disk":         func(c deviceConfig.Device) device { return &disk{} },
+	"none":         func(c deviceConfig.Device) device { return &none{} },
 }
 
 // VolatileSetter is a function that accepts one or more key/value strings to save into the LXD

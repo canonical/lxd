@@ -34,7 +34,7 @@ func (c deviceTaskCPUs) Len() int           { return len(c) }
 func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, error) {
+func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, chan device.UnixHotplugEvent, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
@@ -43,25 +43,26 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 		NETLINK_KOBJECT_UEVENT,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	nl := unix.SockaddrNetlink{
 		Family: unix.AF_NETLINK,
 		Pid:    uint32(os.Getpid()),
-		Groups: 1,
+		Groups: 3,
 	}
 
 	err = unix.Bind(fd, &nl)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	chCPU := make(chan []string, 1)
 	chNetwork := make(chan []string, 0)
 	chUSB := make(chan device.USBEvent)
+	chUnix := make(chan device.UnixHotplugEvent)
 
-	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent) {
+	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent, chUnix chan device.UnixHotplugEvent) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
 			r, err := unix.Read(fd, b)
@@ -72,11 +73,16 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 			ueventBuf := make([]byte, r)
 			copy(ueventBuf, b)
 			ueventLen := 0
+			udevEvent := false
 			ueventParts := strings.Split(string(ueventBuf), "\x00")
 			props := map[string]string{}
 			for _, part := range ueventParts {
 				if strings.HasPrefix(part, "SEQNUM=") {
 					continue
+				}
+
+				if strings.HasPrefix(part, "libudev") {
+					udevEvent = true
 				}
 
 				ueventLen += len(part) + 1
@@ -180,10 +186,74 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				chUSB <- usb
 			}
 
-		}
-	}(chCPU, chNetwork, chUSB)
+			if (props["SUBSYSTEM"] == "char" || props["SUBSYSTEM"] == "block") && udevEvent {
+				vendor, ok := props["ID_VENDOR_ID"]
+				if !ok {
+					continue
+				}
 
-	return chCPU, chNetwork, chUSB, nil
+				product, ok := props["ID_MODEL_ID"]
+				if !ok {
+					continue
+				}
+
+				major, ok := props["MAJOR"]
+				if !ok {
+					continue
+				}
+
+				minor, ok := props["MINOR"]
+				if !ok {
+					continue
+				}
+
+				devname, ok := props["DEVNAME"]
+				if !ok {
+					continue
+				}
+
+				busnum, ok := props["BUSNUM"]
+				if !ok {
+					continue
+				}
+
+				devnum, ok := props["DEVNUM"]
+				if !ok {
+					continue
+				}
+
+				zeroPad := func(s string, l int) string {
+					return strings.Repeat("0", l-len(s)) + s
+				}
+
+				unix, err := device.UnixHotplugNewEvent(
+					props["ACTION"],
+					/* udev doesn't zero pad these, while
+					 * everything else does, so let's zero pad them
+					 * for consistency
+					 */
+					zeroPad(vendor, 4),
+					zeroPad(product, 4),
+					major,
+					minor,
+					busnum,
+					devnum,
+					devname,
+					ueventParts[:len(ueventParts)-1],
+					ueventLen,
+				)
+				if err != nil {
+					logger.Error("Error reading unix device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					continue
+				}
+
+				chUnix <- unix
+			}
+
+		}
+	}(chCPU, chNetwork, chUSB, chUnix)
+
+	return chCPU, chNetwork, chUSB, chUnix, nil
 }
 
 func parseCpuset(cpu string) ([]int, error) {
@@ -440,7 +510,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceEventListener(s *state.State) {
-	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
+	chNetlinkCPU, chNetlinkNetwork, chUSB, chUnix, err := deviceNetlinkListener()
 	if err != nil {
 		logger.Errorf("scheduler: Couldn't setup netlink listener: %v", err)
 		return
@@ -475,6 +545,8 @@ func deviceEventListener(s *state.State) {
 			networkAutoAttach(s.Cluster, e[0])
 		case e := <-chUSB:
 			device.USBRunHandlers(s, &e)
+		case e := <-chUnix:
+			device.UnixHotplugRunHandlers(s, &e)
 		case e := <-cgroup.DeviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
