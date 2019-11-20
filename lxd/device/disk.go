@@ -564,7 +564,14 @@ func (d *disk) createDevice() (string, error) {
 		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		if strings.HasPrefix(d.config["source"], "cephfs:") {
 			isFile = false
-			//filesystem mount
+
+			// get fs name and path from d.config
+			fields := strings.SplitN(d.config["source"], ":", 2)
+			fields = strings.SplitN(fields[1], "/", 2)
+			mdsName := fields[0]
+			mdsPath := fields[1]
+
+			// filesystem mount
 			userName := d.config["ceph.user_name"]
 			if userName == "" {
 				userName = "admin"
@@ -573,7 +580,7 @@ func (d *disk) createDevice() (string, error) {
 			if clusterName == "" {
 				clusterName = "ceph"
 			}
-			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, fsName)
+			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
 			if fsErr != nil {
 				return "", fsErr
 			}
