@@ -675,7 +675,7 @@ func (s *storageCeph) StoragePoolVolumeRename(newName string) error {
 		return err
 	}
 
-	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.pool.Name, s.volume.Name)
+	usedBy, err := storagePoolVolumeUsedByInstancesGet(s.s, "default", s.pool.Name, s.volume.Name)
 	if err != nil {
 		return err
 	}

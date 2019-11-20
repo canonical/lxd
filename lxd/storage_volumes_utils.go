@@ -214,13 +214,13 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 	return nil
 }
 
-func storagePoolVolumeUsedByContainersGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
+func storagePoolVolumeUsedByInstancesGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
 	insts, err := instanceLoadByProject(s, project)
 	if err != nil {
 		return []string{}, err
 	}
 
-	ctsUsingVolume := []string{}
+	instUsingVolume := []string{}
 	for _, inst := range insts {
 		for _, dev := range inst.LocalDevices() {
 			if dev["type"] != "disk" {
@@ -228,13 +228,13 @@ func storagePoolVolumeUsedByContainersGet(s *state.State, project, poolName stri
 			}
 
 			if dev["pool"] == poolName && dev["source"] == volumeName {
-				ctsUsingVolume = append(ctsUsingVolume, inst.Name())
+				instUsingVolume = append(instUsingVolume, inst.Name())
 				break
 			}
 		}
 	}
 
-	return ctsUsingVolume, nil
+	return instUsingVolume, nil
 }
 
 func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
@@ -436,7 +436,7 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 	}
 
 	// Look for containers using this volume
-	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(s, project, poolName, volumeName)
+	ctsUsingVolume, err := storagePoolVolumeUsedByInstancesGet(s, project, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
 	}
