@@ -652,15 +652,15 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			}
 		}
 
-		for _, snap := range snapshots {
-			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+		for _, srcSnap := range snapshots {
+			fields := strings.SplitN(srcSnap.Name(), shared.SnapshotDelimiter, 2)
 
 			// Ensure that snapshot and parent instance have the
 			// same storage pool in their local root disk device.
 			// If the root disk device for the snapshot comes from a
 			// profile on the new instance as well we don't need to
 			// do anything.
-			snapDevices := snap.LocalDevices()
+			snapDevices := srcSnap.LocalDevices()
 			if snapDevices != nil {
 				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapDevices.CloneNative())
 				if snapLocalRootDiskDeviceKey != "" {
@@ -676,15 +676,15 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 
 			newSnapName := fmt.Sprintf("%s/%s", inst.Name(), fields[1])
 			snapInstArgs := db.InstanceArgs{
-				Architecture: snap.Architecture(),
-				Config:       snap.LocalConfig(),
+				Architecture: srcSnap.Architecture(),
+				Config:       srcSnap.LocalConfig(),
 				Type:         sourceInst.Type(),
 				Snapshot:     true,
 				Devices:      snapDevices,
-				Description:  snap.Description(),
-				Ephemeral:    snap.IsEphemeral(),
+				Description:  srcSnap.Description(),
+				Ephemeral:    srcSnap.IsEphemeral(),
 				Name:         newSnapName,
-				Profiles:     snap.Profiles(),
+				Profiles:     srcSnap.Profiles(),
 				Project:      args.Project,
 			}
 
@@ -694,8 +694,8 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 				return nil, err
 			}
 
-			// Restore snapshot creation date.
-			err = s.Cluster.ContainerCreationUpdate(snapInst.ID(), snap.CreationDate())
+			// Set snapshot creation date to that of the source snapshot.
+			err = s.Cluster.InstanceSnapshotCreationUpdate(snapInst.ID(), srcSnap.CreationDate())
 			if err != nil {
 				return nil, err
 			}
