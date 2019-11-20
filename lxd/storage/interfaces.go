@@ -45,11 +45,11 @@ type Pool interface {
 	CreateInstanceFromBackup(i Instance, sourcePath string, op *operations.Operation) error
 	CreateInstanceFromCopy(i Instance, src Instance, snapshots bool, op *operations.Operation) error
 	CreateInstanceFromImage(i Instance, fingerprint string, op *operations.Operation) error
-	CreateInstanceFromMigration(i Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error
+	CreateInstanceFromMigration(i Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	RenameInstance(i Instance, newName string, op *operations.Operation) error
 	DeleteInstance(i Instance, op *operations.Operation) error
 
-	MigrateInstance(i Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error)
+	MigrateInstance(i Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(i Instance, src Instance, snapshots bool, op *operations.Operation) error
 	BackupInstance(i Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
