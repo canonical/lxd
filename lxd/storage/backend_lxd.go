@@ -1341,6 +1341,7 @@ func (b *lxdBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args migration
 	logger.Debug("MigrateCustomVolume started")
 	defer logger.Debug("MigrateCustomVolume finished")
 
+	// Volume config not needed to send a volume so set to nil.
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, nil)
 	err := b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
