@@ -124,7 +124,7 @@ test_container_devices_disk_cephfs() {
   fi
 
   lxc launch testimage ceph-fs -c security.privileged=true
-  lxc config device add ceph-fs fs disk source=cephfs:"${LXD_CEPH_CEPHFS}"/ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
+  lxc config device add ceph-fs fs disk source=cephfs:"${LXD_CEPH_CEPHFS}"/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
   lxc exec ceph-fs -- stat /cephfs
   lxc restart ceph-fs
   lxc exec ceph-fs -- stat /cephfs
