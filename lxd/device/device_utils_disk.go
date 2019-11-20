@@ -3,13 +3,13 @@ package device
 import (
 	"bufio"
 	"fmt"
-	"github.com/lxc/lxd/shared/logger"
-	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -69,7 +69,10 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 			return err
 		}
 	} else {
-		flags |= unix.MS_BIND
+		if fsName == "none" {
+			flags |= unix.MS_BIND
+		}
+
 		if propagation != "" {
 			switch propagation {
 			case "private":
@@ -252,9 +255,7 @@ func cephFsConfig(clusterName string, userName string) ([]string, string, error)
 	return cephMon, cephSecret, nil
 }
 
-func diskCephfsOptions(clusterName string, userName string, fsName string) (string, string, error) {
-	logger.Debugf("getting options for CEPHFS ")
-
+func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, string, error) {
 	// Get the credentials and host
 	monAddresses, secret, err := cephFsConfig(clusterName, userName)
 	if err != nil {
@@ -267,7 +268,7 @@ func diskCephfsOptions(clusterName string, userName string, fsName string) (stri
 		srcpath += fmt.Sprintf("%s:6789,", monAddress)
 	}
 	srcpath = srcpath[:len(srcpath)-1]
-	srcpath += ":/"
+	srcpath += fmt.Sprintf(":/%s", fsPath)
 
 	return srcpath, fsOptions, nil
 }
