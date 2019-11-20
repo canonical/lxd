@@ -498,6 +498,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		return err
 	}
 
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
 	revert := true
 	defer func() {
 		if !revert {
@@ -506,12 +511,13 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		b.DeleteInstance(inst, op)
 	}()
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
 	}
 
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), nil)
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
 
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
@@ -529,6 +535,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 			return err
 		}
 
+		// No config for an image volume so set to nil.
 		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 		if err != nil {
