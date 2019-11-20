@@ -563,50 +563,58 @@ func (d *disk) createDevice() (string, error) {
 	if d.config["pool"] == "" {
 		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		if strings.HasPrefix(d.config["source"], "cephfs:") {
-			isFile = false
-
-			// get fs name and path from d.config
+			// Get fs name and path from d.config.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
 			mdsName := fields[0]
 			mdsPath := fields[1]
 
-			// filesystem mount
+			// Apply the ceph configuration.
 			userName := d.config["ceph.user_name"]
 			if userName == "" {
 				userName = "admin"
 			}
+
 			clusterName := d.config["ceph.cluster_name"]
 			if clusterName == "" {
 				clusterName = "ceph"
 			}
+
+			// Get the mount options.
 			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
 			if fsErr != nil {
 				return "", fsErr
 			}
+
+			// Join the options with any provided by the user.
 			if mntOptions == "" {
 				mntOptions = fsOptions
 			} else {
 				mntOptions += "," + fsOptions
 			}
-			srcPath = mntSrcPath
+
 			fsName = "ceph"
-		} else if strings.HasPrefix(d.config["source"], "ceph:") {
+			srcPath = mntSrcPath
 			isFile = false
-			// get pool name, volume name, ceph.user_name, and ceph.cluster_name from d.config and make call to map
-			// after call to map, save the src path it returned in variable src_path
+		} else if strings.HasPrefix(d.config["source"], "ceph:") {
+			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
 			fields = strings.SplitN(fields[1], "/", 2)
 			poolName := fields[0]
 			volumeName := fields[1]
+
+			// Apply the ceph configuration.
 			userName := d.config["ceph.user_name"]
 			if userName == "" {
 				userName = "admin"
 			}
+
 			clusterName := d.config["ceph.cluster_name"]
 			if clusterName == "" {
 				clusterName = "ceph"
 			}
+
+			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
 				msg := fmt.Sprintf("Could not mount map Ceph RBD: %s.", err)
@@ -617,11 +625,15 @@ func (d *disk) createDevice() (string, error) {
 					return "", fmt.Errorf(msg)
 				}
 			}
+
+			// Record the device path.
 			err = d.volatileSet(map[string]string{"ceph_rbd_src_path": rbdPath})
 			if err != nil {
 				return "", err
 			}
+
 			srcPath = rbdPath
+			isFile = false
 		}
 	} else {
 		// Deal with mounting storage volumes created via the storage api. Extract the name
