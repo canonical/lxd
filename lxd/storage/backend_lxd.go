@@ -1277,7 +1277,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	// to negotiate a common transfer method between pool types.
 	logger.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
 
-	// Create in-memory pipe pair to simulate a connection between the sender and receiver.
+	// Use in-memory pipe pair to simulate a connection between the sender and receiver.
 	aEnd, bEnd := memorypipe.NewPipePair()
 
 	// Negotiate the migration type to use.
