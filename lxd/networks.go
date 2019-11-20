@@ -735,6 +735,11 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 					if err != nil {
 						continue
 					}
+				} else if inst.Type() == instancetype.VM {
+					d, err = inst.(*vmQemu).fillNetworkDevice(k, d)
+					if err != nil {
+						continue
+					}
 				}
 
 				// Record the MAC
