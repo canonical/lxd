@@ -41,32 +41,32 @@ type Pool interface {
 	Unmount() (bool, error)
 
 	// Instances.
-	CreateInstance(i Instance, op *operations.Operation) error
-	CreateInstanceFromBackup(i Instance, sourcePath string, op *operations.Operation) error
-	CreateInstanceFromCopy(i Instance, src Instance, snapshots bool, op *operations.Operation) error
-	CreateInstanceFromImage(i Instance, fingerprint string, op *operations.Operation) error
-	CreateInstanceFromMigration(i Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	RenameInstance(i Instance, newName string, op *operations.Operation) error
-	DeleteInstance(i Instance, op *operations.Operation) error
+	CreateInstance(inst Instance, op *operations.Operation) error
+	CreateInstanceFromBackup(inst Instance, sourcePath string, op *operations.Operation) error
+	CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error
+	CreateInstanceFromImage(inst Instance, fingerprint string, op *operations.Operation) error
+	CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
+	RenameInstance(inst Instance, newName string, op *operations.Operation) error
+	DeleteInstance(inst Instance, op *operations.Operation) error
 
-	MigrateInstance(i Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
-	RefreshInstance(i Instance, src Instance, snapshots bool, op *operations.Operation) error
-	BackupInstance(i Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
+	MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
+	RefreshInstance(inst Instance, src Instance, snapshots bool, op *operations.Operation) error
+	BackupInstance(inst Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
-	GetInstanceUsage(i Instance) (int64, error)
-	SetInstanceQuota(i Instance, size string, op *operations.Operation) error
+	GetInstanceUsage(inst Instance) (int64, error)
+	SetInstanceQuota(inst Instance, size string, op *operations.Operation) error
 
-	MountInstance(i Instance, op *operations.Operation) (bool, error)
-	UnmountInstance(i Instance, op *operations.Operation) (bool, error)
-	GetInstanceDisk(i Instance) (string, error)
+	MountInstance(inst Instance, op *operations.Operation) (bool, error)
+	UnmountInstance(inst Instance, op *operations.Operation) (bool, error)
+	GetInstanceDisk(inst Instance) (string, error)
 
 	// Instance snapshots.
-	CreateInstanceSnapshot(i Instance, name string, op *operations.Operation) error
-	RenameInstanceSnapshot(i Instance, newName string, op *operations.Operation) error
-	DeleteInstanceSnapshot(i Instance, op *operations.Operation) error
-	RestoreInstanceSnapshot(i Instance, op *operations.Operation) error
-	MountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error)
-	UnmountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error)
+	CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error
+	RenameInstanceSnapshot(inst Instance, newName string, op *operations.Operation) error
+	DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error
+	RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error
+	MountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error)
+	UnmountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error)
 
 	// Images.
 	EnsureImage(fingerprint string, op *operations.Operation) error
