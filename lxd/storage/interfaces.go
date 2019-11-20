@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -20,6 +21,7 @@ type Instance interface {
 	IsRunning() bool
 	IsSnapshot() bool
 	DeferTemplateApply(trigger string) error
+	ExpandedDevices() deviceConfig.Devices
 }
 
 // Pool represents a LXD storage pool.
