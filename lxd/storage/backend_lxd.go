@@ -296,7 +296,13 @@ func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) err
 		contentType = drivers.ContentTypeBlock
 	}
 
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), nil)
+	// Find the root device config for instance.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
 	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
