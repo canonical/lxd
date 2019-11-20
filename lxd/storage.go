@@ -488,7 +488,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		logger.Debugf("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
-			volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s, "default", poolName, volumeName)
+			volumeUsedBy, err := storagePoolVolumeUsedByInstancesGet(s, "default", poolName, volumeName)
 			if err != nil {
 				return nil, err
 			}
