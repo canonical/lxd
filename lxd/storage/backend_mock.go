@@ -74,7 +74,7 @@ func (b *mockBackend) CreateInstanceFromImage(i Instance, fingerprint string, op
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromMigration(i Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	return nil
 }
 
@@ -86,8 +86,8 @@ func (b *mockBackend) DeleteInstance(i Instance, op *operations.Operation) error
 	return nil
 }
 
-func (b *mockBackend) MigrateInstance(i Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
-	return nil, nil
+func (b *mockBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+	return nil
 }
 
 func (b *mockBackend) RefreshInstance(i Instance, src Instance, snapshots bool, op *operations.Operation) error {
