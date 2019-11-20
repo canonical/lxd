@@ -1084,9 +1084,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// Create the new image volume.
-	vol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
-	err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+	// Create the new image volume. No config for an image volume so set to nil.
+	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+	err = b.driver.CreateVolume(imgVol, b.imageFiller(fingerprint, op), op)
 	if err != nil {
 		return err
 	}
