@@ -863,6 +863,77 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, leases)
 }
 
+func networkGetLeaseAddresses(s *state.State, network string, hwaddr string) ([]api.InstanceStateNetworkAddress, error) {
+	addresses := []api.InstanceStateNetworkAddress{}
+
+	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
+	if !shared.PathExists(leaseFile) {
+		return addresses, nil
+	}
+
+	dbInfo, err := networkLoadByName(s, network)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := ioutil.ReadFile(leaseFile)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, lease := range strings.Split(string(content), "\n") {
+		fields := strings.Fields(lease)
+		if len(fields) < 5 {
+			continue
+		}
+
+		// Parse the MAC
+		mac := networkGetMacSlice(fields[1])
+		macStr := strings.Join(mac, ":")
+
+		if len(macStr) < 17 && fields[4] != "" {
+			macStr = fields[4][len(fields[4])-17:]
+		}
+
+		if macStr != hwaddr {
+			continue
+		}
+
+		// Parse the IP
+		addr := api.InstanceStateNetworkAddress{
+			Address: fields[2],
+			Scope:   "global",
+		}
+
+		ip := net.ParseIP(addr.Address)
+		if ip == nil {
+			continue
+		}
+
+		if ip.To4() != nil {
+			addr.Family = "inet"
+
+			_, subnet, _ := net.ParseCIDR(dbInfo.Config()["ipv4.address"])
+			if subnet != nil {
+				mask, _ := subnet.Mask.Size()
+				addr.Netmask = fmt.Sprintf("%d", mask)
+			}
+		} else {
+			addr.Family = "inet6"
+
+			_, subnet, _ := net.ParseCIDR(dbInfo.Config()["ipv6.address"])
+			if subnet != nil {
+				mask, _ := subnet.Mask.Size()
+				addr.Netmask = fmt.Sprintf("%d", mask)
+			}
+		}
+
+		addresses = append(addresses, addr)
+	}
+
+	return addresses, nil
+}
+
 // The network structs and functions
 func networkLoadByName(s *state.State, name string) (*network, error) {
 	id, dbInfo, err := s.Cluster.NetworkGet(name)
