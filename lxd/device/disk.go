@@ -627,7 +627,7 @@ func (d *disk) createDevice() (string, error) {
 			}
 
 			// Record the device path.
-			err = d.volatileSet(map[string]string{"ceph_rbd_src_path": rbdPath})
+			err = d.volatileSet(map[string]string{"ceph_rbd": rbdPath})
 			if err != nil {
 				return "", err
 			}
@@ -793,7 +793,7 @@ func (d *disk) postStop() error {
 
 	if strings.HasPrefix(d.config["source"], "ceph:") {
 		v := d.volatileGet()
-		err := diskCephRbdUnmap(v["ceph_rbd_src_path"])
+		err := diskCephRbdUnmap(v["ceph_rbd"])
 		if err != nil {
 			return err
 		}
