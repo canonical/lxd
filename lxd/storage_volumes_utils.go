@@ -43,7 +43,7 @@ var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, sto
 var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
 
 func init() {
-	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningContainersWithProfilesGet
+	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningInstancesWithProfilesGet
 }
 
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
@@ -178,7 +178,7 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 
 	// Confirm that no containers are running when changing shifted state
 	if newConfig["security.shifted"] != oldConfig["security.shifted"] {
-		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(state, poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
+		ctsUsingVolume, err := storagePoolVolumeUsedByRunningInstancesWithProfilesGet(state, poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
 		if err != nil {
 			return err
 		}
@@ -371,7 +371,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 	return nil
 }
 
-func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
+func storagePoolVolumeUsedByRunningInstancesWithProfilesGet(s *state.State,
 	poolName string, volumeName string, volumeTypeName string,
 	runningOnly bool) ([]string, error) {
 	insts, err := instanceLoadAll(s)
@@ -379,7 +379,7 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 		return []string{}, err
 	}
 
-	ctsUsingVolume := []string{}
+	instUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
 	for _, inst := range insts {
 		if runningOnly && !inst.IsRunning() {
@@ -399,12 +399,12 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				ctsUsingVolume = append(ctsUsingVolume, inst.Name())
+				instUsingVolume = append(instUsingVolume, inst.Name())
 			}
 		}
 	}
 
-	return ctsUsingVolume, nil
+	return instUsingVolume, nil
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
