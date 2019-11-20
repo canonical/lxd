@@ -1,8 +1,13 @@
 package device
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
+	"syscall"
+	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -48,7 +53,7 @@ func IsBlockdev(path string) bool {
 }
 
 // DiskMount mounts a disk device.
-func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, propagation string, rawMountOptions string) error {
+func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, propagation string, rawMountOptions string, fsName string) error {
 	var err error
 
 	// Prepare the mount flags
@@ -58,14 +63,16 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Detect the filesystem
-	fstype := "none"
 	if IsBlockdev(srcPath) {
-		fstype, err = BlockFsDetect(srcPath)
+		fsName, err = BlockFsDetect(srcPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		flags |= unix.MS_BIND
+		if fsName == "none" {
+			flags |= unix.MS_BIND
+		}
+
 		if propagation != "" {
 			switch propagation {
 			case "private":
@@ -95,7 +102,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Mount the filesystem
-	err = unix.Mount(srcPath, dstPath, fstype, uintptr(flags), rawMountOptions)
+	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), rawMountOptions)
 	if err != nil {
 		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
 	}
@@ -103,7 +110,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	// Remount bind mounts in readonly mode if requested
 	if readonly == true && flags&unix.MS_BIND == unix.MS_BIND {
 		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
-		err = unix.Mount("", dstPath, fstype, uintptr(flags), "")
+		err = unix.Mount("", dstPath, fsName, uintptr(flags), "")
 		if err != nil {
 			return fmt.Errorf("Unable to mount %s in readonly mode: %s", dstPath, err)
 		}
@@ -116,4 +123,152 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	return nil
+}
+
+func diskCephRbdMap(clusterName string, userName string, poolName string, volumeName string) (string, error) {
+	devPath, err := shared.RunCommand(
+		"rbd",
+		"--id", userName,
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"map",
+		fmt.Sprintf("%s", volumeName))
+	if err != nil {
+		return "", err
+	}
+
+	idx := strings.Index(devPath, "/dev/rbd")
+	if idx < 0 {
+		return "", fmt.Errorf("Failed to detect mapped device path")
+	}
+
+	devPath = devPath[idx:]
+	return strings.TrimSpace(devPath), nil
+}
+
+func diskCephRbdUnmap(deviceName string) error {
+	unmapImageName := fmt.Sprintf("%s", deviceName)
+	busyCount := 0
+again:
+	_, err := shared.RunCommand(
+		"rbd",
+		"unmap",
+		unmapImageName)
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 22 {
+					// EINVAL (already unmapped)
+					return nil
+				}
+
+				if waitStatus.ExitStatus() == 16 {
+					// EBUSY (currently in use)
+					busyCount++
+					if busyCount == 10 {
+						return err
+					}
+
+					// Wait a second an try again
+					time.Sleep(time.Second)
+					goto again
+				}
+			}
+		}
+
+		return err
+	}
+	goto again
+}
+
+func cephFsConfig(clusterName string, userName string) ([]string, string, error) {
+	// Parse the CEPH configuration
+	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", clusterName))
+	if err != nil {
+		return nil, "", err
+	}
+
+	cephMon := []string{}
+
+	scan := bufio.NewScanner(cephConf)
+	for scan.Scan() {
+		line := scan.Text()
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "mon_host") {
+			fields := strings.SplitN(line, "=", 2)
+			if len(fields) < 2 {
+				continue
+			}
+
+			servers := strings.Split(fields[1], ",")
+			for _, server := range servers {
+				cephMon = append(cephMon, strings.TrimSpace(server))
+			}
+			break
+		}
+	}
+
+	if len(cephMon) == 0 {
+		return nil, "", fmt.Errorf("Couldn't find a CPEH mon")
+	}
+
+	// Parse the CEPH keyring
+	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", clusterName, userName))
+	if err != nil {
+		return nil, "", err
+	}
+
+	var cephSecret string
+
+	scan = bufio.NewScanner(cephKeyring)
+	for scan.Scan() {
+		line := scan.Text()
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "key") {
+			fields := strings.SplitN(line, "=", 2)
+			if len(fields) < 2 {
+				continue
+			}
+
+			cephSecret = strings.TrimSpace(fields[1])
+			break
+		}
+	}
+
+	if cephSecret == "" {
+		return nil, "", fmt.Errorf("Couldn't find a keyring entry")
+	}
+
+	return cephMon, cephSecret, nil
+}
+
+func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, string, error) {
+	// Get the credentials and host
+	monAddresses, secret, err := cephFsConfig(clusterName, userName)
+	if err != nil {
+		return "", "", err
+	}
+
+	fsOptions := fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", userName, secret, fsName)
+	srcpath := ""
+	for _, monAddress := range monAddresses {
+		srcpath += fmt.Sprintf("%s:6789,", monAddress)
+	}
+	srcpath = srcpath[:len(srcpath)-1]
+	srcpath += fmt.Sprintf(":/%s", fsPath)
+
+	return srcpath, fsOptions, nil
 }
