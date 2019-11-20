@@ -1397,7 +1397,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config)
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
 	if err != nil {
-		return nil
+		conn.Close()
+		return err
 	}
 
 	revertDBVolumes = nil
