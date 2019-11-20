@@ -764,8 +764,37 @@ func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) err
 	return nil
 }
 
-func (b *lxdBackend) MigrateInstance(inst Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
-	return nil, ErrNotImplemented
+// MigrateInstance sends an instance volume for migration.
+// The args.Name field is ignored and the name of the instance is used instead.
+func (b *lxdBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	logger.Debug("MigrateInstance started")
+	defer logger.Debug("MigrateInstance finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	args.Name = inst.Name() // Override args.Name to ensure instance volume is sent.
+	vol := b.newVolume(volType, contentType, args.Name, rootDiskConf)
+	err = b.driver.MigrateVolume(vol, conn, args, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) RefreshInstance(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
