@@ -14,6 +14,8 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -25,7 +27,7 @@ import (
 )
 
 // Create a new backup
-func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer Instance) error {
+func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer instance.Instance) error {
 	// Create the database entry
 	err := s.Cluster.ContainerBackupCreate(args)
 	if err != nil {
@@ -59,8 +61,14 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer In
 	}
 	defer os.RemoveAll(tmpPath)
 
+	if sourceContainer.Type() != instancetype.Container {
+		return fmt.Errorf("Instance type must be container")
+	}
+
+	ct := sourceContainer.(*containerLXC)
+
 	// Now create the empty snapshot
-	err = sourceContainer.Storage().ContainerBackupCreate(tmpPath, *b, sourceContainer)
+	err = ct.Storage().ContainerBackupCreate(tmpPath, *b, sourceContainer)
 	if err != nil {
 		s.Cluster.ContainerBackupRemove(args.Name)
 		return errors.Wrap(err, "Backup storage")
@@ -164,16 +172,22 @@ func backupFixStoragePool(c *db.Cluster, b backup.Info, useDefaultPool bool) err
 	return nil
 }
 
-func backupCreateTarball(s *state.State, path string, b backup.Backup, c Instance) error {
+func backupCreateTarball(s *state.State, path string, b backup.Backup, c instance.Instance) error {
 	// Create the index
 	pool, err := c.StoragePool()
 	if err != nil {
 		return err
 	}
 
+	if c.Type() != instancetype.Container {
+		return fmt.Errorf("Instance type must be container")
+	}
+
+	ct := c.(*containerLXC)
+
 	indexFile := backup.Info{
 		Name:       c.Name(),
-		Backend:    c.Storage().GetStorageTypeName(),
+		Backend:    ct.Storage().GetStorageTypeName(),
 		Privileged: c.IsPrivileged(),
 		Pool:       pool,
 		Snapshots:  []string{},

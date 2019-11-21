@@ -31,7 +31,7 @@ import (
 
 type execWs struct {
 	command  []string
-	instance Instance
+	instance instance.Instance
 	env      map[string]string
 
 	rootUid          int64

@@ -9,6 +9,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -17,8 +19,8 @@ import (
 )
 
 type btrfsMigrationSourceDriver struct {
-	container          Instance
-	snapshots          []Instance
+	container          instance.Instance
+	snapshots          []instance.Instance
 	btrfsSnapshotNames []string
 	btrfs              *storageBtrfs
 	runningSnapName    string
@@ -70,7 +72,13 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 }
 
 func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operations.Operation, bwlimit string, containerOnly bool) error {
-	_, containerPool, _ := s.container.Storage().GetContainerPoolInfo()
+	if s.container.Type() != instancetype.Container {
+		return fmt.Errorf("Instance type must be container")
+	}
+
+	ct := s.container.(*containerLXC)
+
+	_, containerPool, _ := ct.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
 	containersPath := driver.GetContainerMountPoint("default", containerPool, "")
 	sourceName := containerName

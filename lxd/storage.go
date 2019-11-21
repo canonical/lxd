@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -193,32 +194,32 @@ type storage interface {
 
 	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
-	ContainerCreate(container Instance) error
+	ContainerCreate(container instance.Instance) error
 
 	// ContainerCreateFromImage creates a container from a image.
-	ContainerCreateFromImage(c Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error
-	ContainerDelete(c Instance) error
-	ContainerCopy(target Instance, source Instance, containerOnly bool) error
-	ContainerRefresh(target Instance, source Instance, snapshots []Instance) error
-	ContainerMount(c Instance) (bool, error)
-	ContainerUmount(c Instance, path string) (bool, error)
-	ContainerRename(container Instance, newName string) error
-	ContainerRestore(container Instance, sourceContainer Instance) error
-	ContainerGetUsage(container Instance) (int64, error)
+	ContainerCreateFromImage(c instance.Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error
+	ContainerDelete(c instance.Instance) error
+	ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error
+	ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error
+	ContainerMount(c instance.Instance) (bool, error)
+	ContainerUmount(c instance.Instance, path string) (bool, error)
+	ContainerRename(container instance.Instance, newName string) error
+	ContainerRestore(container instance.Instance, sourceContainer instance.Instance) error
+	ContainerGetUsage(container instance.Instance) (int64, error)
 	GetContainerPoolInfo() (int64, string, string)
-	ContainerStorageReady(container Instance) bool
+	ContainerStorageReady(container instance.Instance) bool
 
-	ContainerSnapshotCreate(target Instance, source Instance) error
-	ContainerSnapshotDelete(c Instance) error
-	ContainerSnapshotRename(c Instance, newName string) error
-	ContainerSnapshotStart(c Instance) (bool, error)
-	ContainerSnapshotStop(c Instance) (bool, error)
+	ContainerSnapshotCreate(target instance.Instance, source instance.Instance) error
+	ContainerSnapshotDelete(c instance.Instance) error
+	ContainerSnapshotRename(c instance.Instance, newName string) error
+	ContainerSnapshotStart(c instance.Instance) (bool, error)
+	ContainerSnapshotStop(c instance.Instance) (bool, error)
 
-	ContainerBackupCreate(path string, backup backup.Backup, sourceContainer Instance) error
+	ContainerBackupCreate(path string, backup backup.Backup, sourceContainer instance.Instance) error
 	ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error
 
 	// For use in migrating snapshots.
-	ContainerSnapshotCreateEmpty(c Instance) error
+	ContainerSnapshotCreateEmpty(c instance.Instance) error
 
 	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error

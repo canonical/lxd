@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/seccomp"
@@ -205,7 +206,7 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 	// Create a temporary Instance for use in device validation.
 	// Populate it's name, localDevices and expandedDevices properties based on the mode of
 	// validation occurring. In non-expanded validation expensive checks should be avoided.
-	var inst Instance
+	var inst instance.Instance
 
 	if instanceType == instancetype.Container {
 		c := &containerLXC{
@@ -257,7 +258,7 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 
 // The container interface
 type container interface {
-	Instance
+	instance.Instance
 
 	/* actionScript here is a script called action.sh in the stateDir, to
 	 * be passed to CRIU as --action-script
@@ -282,7 +283,7 @@ type container interface {
 }
 
 // instanceCreateAsEmpty creates an empty instance.
-func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
+func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance record.
 	inst, err := instanceCreateInternal(d.State(), args)
 	if err != nil {
@@ -310,8 +311,10 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (Instance, error) {
 			return nil, errors.Wrap(err, "Create instance")
 		}
 	} else if inst.Type() == instancetype.Container {
+		ct := inst.(*containerLXC)
+
 		// Now create the empty storage.
-		err = inst.Storage().ContainerCreate(inst)
+		err = ct.Storage().ContainerCreate(inst)
 		if err != nil {
 			return nil, err
 		}
@@ -436,15 +439,21 @@ func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSee
 	return pool, nil
 }
 
-func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (Instance, error) {
+func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the snapshot
 	c, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
 	}
 
+	if c.Type() != instancetype.Container {
+		return nil, fmt.Errorf("Instance type must be container")
+	}
+
+	ct := c.(*containerLXC)
+
 	// Now create the empty snapshot
-	err = c.Storage().ContainerSnapshotCreateEmpty(c)
+	err = ct.Storage().ContainerSnapshotCreateEmpty(c)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -454,7 +463,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (Instanc
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (Instance, error) {
+func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
 	s := d.State()
 
 	// Get the image properties.
@@ -552,7 +561,8 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		}
 
 		// Now create the storage from an image.
-		err = inst.Storage().ContainerCreateFromImage(inst, hash, tracker)
+		ct := inst.(*containerLXC)
+		err = ct.Storage().ContainerCreateFromImage(inst, hash, tracker)
 		if err != nil {
 			return nil, errors.Wrap(err, "Create instance from image")
 		}
@@ -570,8 +580,8 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	return inst, nil
 }
 
-func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst Instance, instanceOnly bool, refresh bool) (Instance, error) {
-	var inst, revertInst Instance
+func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst instance.Instance, instanceOnly bool, refresh bool) (instance.Instance, error) {
+	var inst, revertInst instance.Instance
 	var err error
 
 	defer func() {
@@ -613,8 +623,8 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst Insta
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
 
-	snapList := []*Instance{}
-	var snapshots []Instance
+	snapList := []*instance.Instance{}
+	var snapshots []instance.Instance
 
 	if !instanceOnly {
 		if refresh {
@@ -695,13 +705,19 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst Insta
 	}
 
 	// Now clone or refresh the storage.
+	if inst.Type() != instancetype.Container {
+		return nil, fmt.Errorf("Instance type must be container")
+	}
+
+	ct := inst.(*containerLXC)
+
 	if refresh {
-		err = inst.Storage().ContainerRefresh(inst, sourceInst, snapshots)
+		err = ct.Storage().ContainerRefresh(inst, sourceInst, snapshots)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err = inst.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
+		err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -727,7 +743,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst Insta
 	return inst, nil
 }
 
-func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance Instance) (Instance, error) {
+func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance) (instance.Instance, error) {
 	if sourceInstance.Type() != instancetype.Container {
 		return nil, fmt.Errorf("Instance not container type")
 	}
@@ -784,7 +800,13 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 	}
 
 	// Clone the container
-	err = sourceInstance.Storage().ContainerSnapshotCreate(c, sourceInstance)
+	if sourceInstance.Type() != instancetype.Container {
+		return nil, fmt.Errorf("Instance type must be container")
+	}
+
+	ct := sourceInstance.(*containerLXC)
+
+	err = ct.Storage().ContainerSnapshotCreate(c, sourceInstance)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -821,7 +843,7 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 }
 
 // instanceCreateInternal creates an instance record and storage volume record in the database.
-func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
+func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Set default values.
 	if args.Project == "" {
 		args.Project = "default"
@@ -1022,7 +1044,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, err
 
 	args = db.ContainerToArgs(&dbInst)
 
-	var inst Instance
+	var inst instance.Instance
 
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCCreate(s, args)
@@ -1041,7 +1063,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (Instance, err
 }
 
 // instanceConfigureInternal applies quota set in volatile "apply_quota" and writes a backup file.
-func instanceConfigureInternal(state *state.State, c Instance) error {
+func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 	// Find the root device
 	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
@@ -1074,8 +1096,10 @@ func instanceConfigureInternal(state *state.State, c Instance) error {
 			return err
 		}
 
+		ct := c.(*containerLXC)
+
 		// handle quota: at this point, storage is guaranteed to be ready
-		storage := c.Storage()
+		storage := ct.Storage()
 		if rootDiskDevice["size"] != "" {
 			storageTypeName := storage.GetStorageTypeName()
 			if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
@@ -1111,7 +1135,7 @@ func instanceConfigureInternal(state *state.State, c Instance) error {
 	return nil
 }
 
-func instanceLoadById(s *state.State, id int) (Instance, error) {
+func instanceLoadById(s *state.State, id int) (instance.Instance, error) {
 	// Get the DB record
 	project, name, err := s.Cluster.ContainerProjectAndName(id)
 	if err != nil {
@@ -1121,7 +1145,7 @@ func instanceLoadById(s *state.State, id int) (Instance, error) {
 	return instanceLoadByProjectAndName(s, project, name)
 }
 
-func instanceLoadByProjectAndName(s *state.State, project, name string) (Instance, error) {
+func instanceLoadByProjectAndName(s *state.State, project, name string) (instance.Instance, error) {
 	// Get the DB record
 	var container *db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1166,7 +1190,7 @@ func instanceLoadByProjectAndName(s *state.State, project, name string) (Instanc
 	return inst, nil
 }
 
-func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
+func instanceLoadByProject(s *state.State, project string) ([]instance.Instance, error) {
 	// Get all the containers
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1190,7 +1214,7 @@ func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
 }
 
 // Load all instances across all projects.
-func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
+func instanceLoadFromAllProjects(s *state.State) ([]instance.Instance, error) {
 	var projects []string
 
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1202,7 +1226,7 @@ func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
 		return nil, err
 	}
 
-	instances := []Instance{}
+	instances := []instance.Instance{}
 	for _, project := range projects {
 		projectInstances, err := instanceLoadByProject(s, project)
 		if err != nil {
@@ -1215,12 +1239,12 @@ func instanceLoadFromAllProjects(s *state.State) ([]Instance, error) {
 }
 
 // Legacy interface.
-func instanceLoadAll(s *state.State) ([]Instance, error) {
+func instanceLoadAll(s *state.State) ([]instance.Instance, error) {
 	return instanceLoadByProject(s, "default")
 }
 
 // Load all instances of this nodes.
-func instanceLoadNodeAll(s *state.State) ([]Instance, error) {
+func instanceLoadNodeAll(s *state.State) ([]instance.Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1240,7 +1264,7 @@ func instanceLoadNodeAll(s *state.State) ([]Instance, error) {
 }
 
 // Load all instances of this nodes under the given project.
-func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]Instance, error) {
+func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1259,7 +1283,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	return instanceLoadAllInternal(cts, s)
 }
 
-func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Instance, error) {
+func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]instance.Instance, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]map[string]api.Profile{}
 	for _, instArgs := range dbInstances {
@@ -1289,7 +1313,7 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 	}
 
 	// Load the instances structs
-	instances := []Instance{}
+	instances := []instance.Instance{}
 	for _, dbInstance := range dbInstances {
 		// Figure out the instances's profiles
 		cProfiles := []api.Profile{}
@@ -1310,8 +1334,8 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]Insta
 }
 
 // instanceLoad creates the underlying instance type struct and returns it as an Instance.
-func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error) {
-	var inst Instance
+func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+	var inst instance.Instance
 	var err error
 
 	if args.Type == instancetype.Container {
@@ -1333,7 +1357,7 @@ func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) 
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
 // exist in the target or its creation date is different to the source. A snapshot will be marked
 // as "to delete" if it doesn't exist in the source or creation date is different to the source.
-func instanceCompareSnapshots(source Instance, target Instance) ([]Instance, []Instance, error) {
+func instanceCompareSnapshots(source instance.Instance, target instance.Instance) ([]instance.Instance, []instance.Instance, error) {
 	// Get the source snapshots.
 	sourceSnapshots, err := source.Snapshots()
 	if err != nil {
@@ -1350,8 +1374,8 @@ func instanceCompareSnapshots(source Instance, target Instance) ([]Instance, []I
 	sourceSnapshotsTime := map[string]time.Time{}
 	targetSnapshotsTime := map[string]time.Time{}
 
-	toDelete := []Instance{}
-	toSync := []Instance{}
+	toDelete := []instance.Instance{}
+	toSync := []instance.Instance{}
 
 	// Generate a list of source snapshot creation dates.
 	for _, snap := range sourceSnapshots {
@@ -1402,7 +1426,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		// Figure out which need snapshotting (if any)
-		instances := []Instance{}
+		instances := []instance.Instance{}
 		for _, c := range allContainers {
 			schedule := c.ExpandedConfig()["snapshots.schedule"]
 
@@ -1483,7 +1507,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []Instance) error {
+func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []instance.Instance) error {
 	// Make the snapshots
 	for _, c := range instances {
 		ch := make(chan error)
@@ -1545,7 +1569,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		// Figure out which need snapshotting (if any)
-		expiredSnapshots := []Instance{}
+		expiredSnapshots := []instance.Instance{}
 		for _, c := range allInstances {
 			snapshots, err := c.Snapshots()
 			if err != nil {
@@ -1604,7 +1628,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []Instance) error {
+func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
 		err := snapshot.Delete()
@@ -1616,7 +1640,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	return nil
 }
 
-func containerDetermineNextSnapshotName(d *Daemon, c Instance, defaultPattern string) (string, error) {
+func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultPattern string) (string, error) {
 	var err error
 
 	pattern := c.ExpandedConfig()["snapshots.pattern"]

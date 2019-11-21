@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -745,7 +746,7 @@ func (s *storageCeph) getRBDMountOptions() string {
 // copyWithoutSnapshotsFull creates a non-sparse copy of a container
 // This does not introduce a dependency relation between the source RBD storage
 // volume and the target RBD storage volume.
-func (s *storageCeph) copyWithoutSnapshotsFull(target Instance, source Instance) error {
+func (s *storageCeph) copyWithoutSnapshotsFull(target instance.Instance, source instance.Instance) error {
 	logger.Debugf(`Creating non-sparse copy of RBD storage volume for container "%s" to "%s" without snapshots`, source.Name(), target.Name())
 
 	sourceIsSnapshot := source.IsSnapshot()
@@ -813,7 +814,7 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target Instance, source Instance)
 // copyWithoutSnapshotsFull creates a sparse copy of a container
 // This introduces a dependency relation between the source RBD storage volume
 // and the target RBD storage volume.
-func (s *storageCeph) copyWithoutSnapshotsSparse(target Instance, source Instance) error {
+func (s *storageCeph) copyWithoutSnapshotsSparse(target instance.Instance, source instance.Instance) error {
 	logger.Debugf(`Creating sparse copy of RBD storage volume for container "%s" to "%s" without snapshots`, source.Name(),
 		target.Name())
 
@@ -1602,7 +1603,7 @@ func (s *storageCeph) cephRBDVolumeDumpToFile(sourceVolumeName string, file stri
 }
 
 // cephRBDVolumeBackupCreate creates a backup of a container or snapshot.
-func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup.Backup, source Instance) error {
+func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup.Backup, source instance.Instance) error {
 	sourceIsSnapshot := source.IsSnapshot()
 	sourceContainerName := source.Name()
 	sourceContainerOnlyName := project.Prefix(source.Project(), sourceContainerName)
