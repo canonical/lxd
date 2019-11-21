@@ -49,7 +49,7 @@ import (
 
 var vmVsockTimeout time.Duration = time.Second
 
-func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error) {
+func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct.
 	vm := vmQemuInstantiate(s, args)
 
@@ -111,7 +111,7 @@ func vmQemuInstantiate(s *state.State, args db.InstanceArgs) *vmQemu {
 }
 
 // vmQemuCreate creates a new storage volume record and returns an initialised Instance.
-func vmQemuCreate(s *state.State, args db.InstanceArgs) (Instance, error) {
+func vmQemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance struct.
 	vm := &vmQemu{
 		state:        s,
@@ -1262,12 +1262,12 @@ func (vm *vmQemu) IsPrivileged() bool {
 	return shared.IsTrue(vm.expandedConfig["security.privileged"])
 }
 
-func (vm *vmQemu) Restore(source Instance, stateful bool) error {
+func (vm *vmQemu) Restore(source instance.Instance, stateful bool) error {
 	return fmt.Errorf("Restore Not implemented")
 }
 
-func (vm *vmQemu) Snapshots() ([]Instance, error) {
-	return []Instance{}, nil
+func (vm *vmQemu) Snapshots() ([]instance.Instance, error) {
+	return []instance.Instance{}, nil
 }
 
 func (vm *vmQemu) Backups() ([]backup.Backup, error) {
@@ -2697,12 +2697,6 @@ func (vm *vmQemu) StorageStart() (bool, error) {
 // StorageStop deprecated.
 func (vm *vmQemu) StorageStop() (bool, error) {
 	return false, storagePools.ErrNotImplemented
-}
-
-// Storage is deprecated will always return nil.
-// It is here just to satisfy the Instance interface (which will be updated in the future).
-func (vm *vmQemu) Storage() storage {
-	return nil
 }
 
 func (vm *vmQemu) DeferTemplateApply(trigger string) error {

@@ -18,6 +18,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
@@ -39,7 +40,7 @@ type migrationFields struct {
 	// container specific fields
 	live         bool
 	instanceOnly bool
-	instance     Instance
+	instance     instance.Instance
 
 	// storage specific fields
 	storage    storage
@@ -264,7 +265,7 @@ type MigrationSinkArgs struct {
 	Url     string
 
 	// Instance specific fields
-	Instance     Instance
+	Instance     instance.Instance
 	InstanceOnly bool
 	Idmap        *idmap.IdmapSet
 	Live         bool
@@ -281,7 +282,7 @@ type MigrationSinkArgs struct {
 
 type MigrationSourceArgs struct {
 	// Instance specific fields
-	Instance     Instance
+	Instance     instance.Instance
 	InstanceOnly bool
 
 	// Transport specific fields

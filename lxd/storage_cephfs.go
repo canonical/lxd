@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -621,81 +622,81 @@ func (s *storageCephFs) StoragePoolVolumeRename(newName string) error {
 	return nil
 }
 
-func (s *storageCephFs) ContainerStorageReady(container Instance) bool {
+func (s *storageCephFs) ContainerStorageReady(container instance.Instance) bool {
 	containerMntPoint := driver.GetContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
 	return !ok
 }
 
-func (s *storageCephFs) ContainerCreate(container Instance) error {
+func (s *storageCephFs) ContainerCreate(container instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerCreateFromImage(container Instance, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageCephFs) ContainerCreateFromImage(container instance.Instance, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerCanRestore(container Instance, sourceContainer Instance) error {
+func (s *storageCephFs) ContainerCanRestore(container instance.Instance, sourceContainer instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerDelete(container Instance) error {
+func (s *storageCephFs) ContainerDelete(container instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
+func (s *storageCephFs) ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
+func (s *storageCephFs) ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerMount(c Instance) (bool, error) {
+func (s *storageCephFs) ContainerMount(c instance.Instance) (bool, error) {
 	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerUmount(c Instance, path string) (bool, error) {
+func (s *storageCephFs) ContainerUmount(c instance.Instance, path string) (bool, error) {
 	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerRename(container Instance, newName string) error {
+func (s *storageCephFs) ContainerRename(container instance.Instance, newName string) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerRestore(container Instance, sourceContainer Instance) error {
+func (s *storageCephFs) ContainerRestore(container instance.Instance, sourceContainer instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerGetUsage(c Instance) (int64, error) {
+func (s *storageCephFs) ContainerGetUsage(c instance.Instance) (int64, error) {
 	return -1, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
+func (s *storageCephFs) ContainerSnapshotCreate(snapshotContainer instance.Instance, sourceContainer instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
+func (s *storageCephFs) ContainerSnapshotCreateEmpty(snapshotContainer instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerSnapshotDelete(snapshotContainer Instance) error {
+func (s *storageCephFs) ContainerSnapshotDelete(snapshotContainer instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerSnapshotRename(snapshotContainer Instance, newName string) error {
+func (s *storageCephFs) ContainerSnapshotRename(snapshotContainer instance.Instance, newName string) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerSnapshotStart(container Instance) (bool, error) {
+func (s *storageCephFs) ContainerSnapshotStart(container instance.Instance) (bool, error) {
 	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerSnapshotStop(container Instance) (bool, error) {
+func (s *storageCephFs) ContainerSnapshotStop(container instance.Instance) (bool, error) {
 	return false, fmt.Errorf("CEPHFS cannot be used for containers")
 }
 
-func (s *storageCephFs) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
+func (s *storageCephFs) ContainerBackupCreate(path string, backup backup.Backup, source instance.Instance) error {
 	return fmt.Errorf("CEPHFS cannot be used for containers")
 }
 

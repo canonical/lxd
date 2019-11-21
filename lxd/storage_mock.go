@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -111,73 +112,73 @@ func (s *storageMock) StoragePoolUpdate(writable *api.StoragePoolPut, changedCon
 	return nil
 }
 
-func (s *storageMock) ContainerStorageReady(container Instance) bool {
+func (s *storageMock) ContainerStorageReady(container instance.Instance) bool {
 	return true
 }
 
-func (s *storageMock) ContainerCreate(container Instance) error {
+func (s *storageMock) ContainerCreate(container instance.Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerCreateFromImage(container Instance, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageMock) ContainerCreateFromImage(container instance.Instance, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
 	return nil
 }
 
-func (s *storageMock) ContainerDelete(container Instance) error {
+func (s *storageMock) ContainerDelete(container instance.Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
+func (s *storageMock) ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error {
 	return nil
 }
 
-func (s *storageMock) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
+func (s *storageMock) ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerMount(c Instance) (bool, error) {
+func (s *storageMock) ContainerMount(c instance.Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerUmount(c Instance, path string) (bool, error) {
+func (s *storageMock) ContainerUmount(c instance.Instance, path string) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerRename(container Instance, newName string) error {
+func (s *storageMock) ContainerRename(container instance.Instance, newName string) error {
 	return nil
 }
 
-func (s *storageMock) ContainerRestore(container Instance, sourceContainer Instance) error {
+func (s *storageMock) ContainerRestore(container instance.Instance, sourceContainer instance.Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerGetUsage(container Instance) (int64, error) {
+func (s *storageMock) ContainerGetUsage(container instance.Instance) (int64, error) {
 	return 0, nil
 }
-func (s *storageMock) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
+func (s *storageMock) ContainerSnapshotCreate(snapshotContainer instance.Instance, sourceContainer instance.Instance) error {
 	return nil
 }
-func (s *storageMock) ContainerSnapshotDelete(snapshotContainer Instance) error {
-	return nil
-}
-
-func (s *storageMock) ContainerSnapshotRename(snapshotContainer Instance, newName string) error {
+func (s *storageMock) ContainerSnapshotDelete(snapshotContainer instance.Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerSnapshotStart(container Instance) (bool, error) {
+func (s *storageMock) ContainerSnapshotRename(snapshotContainer instance.Instance, newName string) error {
+	return nil
+}
+
+func (s *storageMock) ContainerSnapshotStart(container instance.Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerSnapshotStop(container Instance) (bool, error) {
+func (s *storageMock) ContainerSnapshotStop(container instance.Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
+func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer instance.Instance) error {
 	return nil
 }
 
-func (s *storageMock) ContainerBackupCreate(path string, backup backup.Backup, sourceContainer Instance) error {
+func (s *storageMock) ContainerBackupCreate(path string, backup backup.Backup, sourceContainer instance.Instance) error {
 	return nil
 }
 

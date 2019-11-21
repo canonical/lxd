@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -17,8 +18,8 @@ import (
 )
 
 type zfsMigrationSourceDriver struct {
-	instance         Instance
-	snapshots        []Instance
+	instance         instance.Instance
+	snapshots        []instance.Instance
 	zfsSnapshotNames []string
 	zfs              *storageZfs
 	runningSnapName  string

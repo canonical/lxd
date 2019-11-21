@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 )
@@ -53,7 +54,7 @@ func containerFileHandler(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func containerFileGet(c Instance, path string, r *http.Request) response.Response {
+func containerFileGet(c instance.Instance, path string, r *http.Request) response.Response {
 	/*
 	 * Copy out of the ns to a temporary file, and then use that to serve
 	 * the request from. This prevents us from having to worry about stuff
@@ -98,7 +99,7 @@ func containerFileGet(c Instance, path string, r *http.Request) response.Respons
 	}
 }
 
-func containerFilePost(c Instance, path string, r *http.Request) response.Response {
+func containerFilePost(c instance.Instance, path string, r *http.Request) response.Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
 
@@ -151,7 +152,7 @@ func containerFilePost(c Instance, path string, r *http.Request) response.Respon
 	}
 }
 
-func containerFileDelete(c Instance, path string, r *http.Request) response.Response {
+func containerFileDelete(c instance.Instance, path string, r *http.Request) response.Response {
 	err := c.FileRemove(path)
 	if err != nil {
 		return response.SmartError(err)

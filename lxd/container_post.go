@@ -14,6 +14,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -104,7 +105,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Target node is offline"))
 	}
 
-	var inst Instance
+	var inst instance.Instance
 
 	// Check whether to forward the request to the node that is running the
 	// container. Here are the possible cases:
@@ -265,7 +266,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move a non-ceph container to another cluster node.
-func containerPostClusteringMigrate(d *Daemon, c Instance, oldName, newName, newNode string) response.Response {
+func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, newName, newNode string) response.Response {
 	cert := d.endpoints.NetworkCert()
 
 	var sourceAddress string
@@ -408,7 +409,7 @@ func containerPostClusteringMigrate(d *Daemon, c Instance, oldName, newName, new
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c Instance, project, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
+func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, project, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
 	run := func(*operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally

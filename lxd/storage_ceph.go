@@ -16,6 +16,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -767,7 +769,7 @@ func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedCon
 	return nil
 }
 
-func (s *storageCeph) ContainerStorageReady(container Instance) bool {
+func (s *storageCeph) ContainerStorageReady(container instance.Instance) bool {
 	name := container.Name()
 	logger.Debugf(`Checking if RBD storage volume for container "%s" on storage pool "%s" is ready`, name, s.pool.Name)
 
@@ -782,7 +784,7 @@ func (s *storageCeph) ContainerStorageReady(container Instance) bool {
 	return true
 }
 
-func (s *storageCeph) ContainerCreate(container Instance) error {
+func (s *storageCeph) ContainerCreate(container instance.Instance) error {
 	containerName := container.Name()
 	err := s.doContainerCreate(container.Project(), containerName, container.IsPrivileged())
 	if err != nil {
@@ -801,7 +803,7 @@ func (s *storageCeph) ContainerCreate(container Instance) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerCreateFromImage(container Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageCeph) ContainerCreateFromImage(container instance.Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf(`Creating RBD storage volume for container "%s" on storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	revert := true
@@ -953,7 +955,7 @@ func (s *storageCeph) ContainerCreateFromImage(container Instance, fingerprint s
 	return nil
 }
 
-func (s *storageCeph) ContainerDelete(container Instance) error {
+func (s *storageCeph) ContainerDelete(container instance.Instance) error {
 	containerName := container.Name()
 	logger.Debugf(`Deleting RBD storage volume for container "%s" on storage pool "%s"`, containerName, s.pool.Name)
 
@@ -1002,7 +1004,7 @@ func (s *storageCeph) ContainerDelete(container Instance) error {
 // - for each snapshot dump the contents into the empty storage volume and
 //   after each dump take a snapshot of the rbd storage volume
 // - dump the container contents into the rbd storage volume.
-func (s *storageCeph) doCrossPoolContainerCopy(target Instance, source Instance, containerOnly bool, refresh bool, refreshSnapshots []Instance) error {
+func (s *storageCeph) doCrossPoolContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool, refresh bool, refreshSnapshots []instance.Instance) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1027,7 +1029,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target Instance, source Instance,
 		return err
 	}
 
-	var snapshots []Instance
+	var snapshots []instance.Instance
 
 	if refresh {
 		snapshots = refreshSnapshots
@@ -1097,13 +1099,24 @@ func (s *storageCeph) doCrossPoolContainerCopy(target Instance, source Instance,
 	return nil
 }
 
-func (s *storageCeph) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
+func (s *storageCeph) ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error {
 	sourceContainerName := source.Name()
 	logger.Debugf(`Copying RBD container storage %s to %s`, sourceContainerName, target.Name())
 
+	if source.Type() != instancetype.Container {
+		return fmt.Errorf("Source Instance type must be container")
+	}
+
+	if target.Type() != instancetype.Container {
+		return fmt.Errorf("Target Instance type must be container")
+	}
+
+	srcCt := source.(*containerLXC)
+	targetCt := target.(*containerLXC)
+
 	// Handle cross pool copies
-	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
-	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 	}
@@ -1330,13 +1343,13 @@ func (s *storageCeph) ContainerCopy(target Instance, source Instance, containerO
 	return nil
 }
 
-func (s *storageCeph) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
+func (s *storageCeph) ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error {
 	logger.Debugf(`Refreshing RBD container storage for %s from %s`, target.Name(), source.Name())
 
 	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
 
-func (s *storageCeph) ContainerMount(c Instance) (bool, error) {
+func (s *storageCeph) ContainerMount(c instance.Instance) (bool, error) {
 	logger.Debugf("Mounting RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	ourMount, err := s.doContainerMount(c.Project(), c.Name())
@@ -1348,7 +1361,7 @@ func (s *storageCeph) ContainerMount(c Instance) (bool, error) {
 	return ourMount, nil
 }
 
-func (s *storageCeph) ContainerUmount(c Instance, path string) (bool, error) {
+func (s *storageCeph) ContainerUmount(c instance.Instance, path string) (bool, error) {
 	logger.Debugf("Unmounting RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	name := c.Name()
 
@@ -1397,7 +1410,7 @@ func (s *storageCeph) ContainerUmount(c Instance, path string) (bool, error) {
 	return ourUmount, nil
 }
 
-func (s *storageCeph) ContainerRename(c Instance, newName string) error {
+func (s *storageCeph) ContainerRename(c instance.Instance, newName string) error {
 	oldName := c.Name()
 	containerPath := c.Path()
 
@@ -1549,7 +1562,7 @@ func (s *storageCeph) ContainerRename(c Instance, newName string) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerRestore(target Instance, source Instance) error {
+func (s *storageCeph) ContainerRestore(target instance.Instance, source instance.Instance) error {
 	sourceName := source.Name()
 	targetName := target.Name()
 
@@ -1591,11 +1604,11 @@ func (s *storageCeph) ContainerRestore(target Instance, source Instance) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerGetUsage(container Instance) (int64, error) {
+func (s *storageCeph) ContainerGetUsage(container instance.Instance) (int64, error) {
 	return -1, fmt.Errorf("RBD quotas are currently not supported")
 }
 
-func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
+func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer instance.Instance, sourceContainer instance.Instance) error {
 	containerMntPoint := driver.GetContainerMountPoint(sourceContainer.Project(), s.pool.Name, sourceContainer.Name())
 	if shared.IsMountPoint(containerMntPoint) {
 		// This is costly but we need to ensure that all cached data has
@@ -1614,7 +1627,7 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer Instance, source
 	return s.doContainerSnapshotCreate(sourceContainer.Project(), snapshotContainer.Name(), sourceContainer.Name())
 }
 
-func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer Instance) error {
+func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer instance.Instance) error {
 	logger.Debugf(`Deleting RBD storage volume for snapshot "%s" on storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	snapshotContainerName := snapshotContainer.Name()
@@ -1680,7 +1693,7 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer Instance) error 
 	return nil
 }
 
-func (s *storageCeph) ContainerSnapshotRename(c Instance, newName string) error {
+func (s *storageCeph) ContainerSnapshotRename(c instance.Instance, newName string) error {
 	oldName := c.Name()
 	logger.Debugf(`Renaming RBD storage volume for snapshot "%s" from "%s" to "%s"`, oldName, oldName, newName)
 
@@ -1728,7 +1741,7 @@ func (s *storageCeph) ContainerSnapshotRename(c Instance, newName string) error 
 	return nil
 }
 
-func (s *storageCeph) ContainerSnapshotStart(c Instance) (bool, error) {
+func (s *storageCeph) ContainerSnapshotStart(c instance.Instance) (bool, error) {
 	containerName := c.Name()
 	logger.Debugf(`Initializing RBD storage volume for snapshot "%s" on storage pool "%s"`, containerName, s.pool.Name)
 
@@ -1844,7 +1857,7 @@ func (s *storageCeph) ContainerSnapshotStart(c Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageCeph) ContainerSnapshotStop(c Instance) (bool, error) {
+func (s *storageCeph) ContainerSnapshotStop(c instance.Instance) (bool, error) {
 	logger.Debugf(`Stopping RBD storage volume for snapshot "%s" on storage pool "%s"`, c.Name(), s.pool.Name)
 
 	containerName := c.Name()
@@ -1891,14 +1904,14 @@ func (s *storageCeph) ContainerSnapshotStop(c Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageCeph) ContainerSnapshotCreateEmpty(c Instance) error {
+func (s *storageCeph) ContainerSnapshotCreateEmpty(c instance.Instance) error {
 	logger.Debugf(`Creating empty RBD storage volume for snapshot "%s" on storage pool "%s" (noop)`, c.Name(), s.pool.Name)
 
 	logger.Debugf(`Created empty RBD storage volume for snapshot "%s" on storage pool "%s" (noop)`, c.Name(), s.pool.Name)
 	return nil
 }
 
-func (s *storageCeph) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
+func (s *storageCeph) ContainerBackupCreate(path string, backup backup.Backup, source instance.Instance) error {
 	// Generate the actual backup
 	if !backup.InstanceOnly() {
 		snapshots, err := source.Snapshots()
@@ -2814,7 +2827,7 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 
 	driver := rbdMigrationSourceDriver{
 		container:        args.Instance,
-		snapshots:        []Instance{},
+		snapshots:        []instance.Instance{},
 		rbdSnapshotNames: []string{},
 		ceph:             s,
 	}

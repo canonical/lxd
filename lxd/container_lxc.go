@@ -3260,11 +3260,11 @@ func (c *containerLXC) RenderState() (*api.InstanceState, error) {
 	return &status, nil
 }
 
-func (c *containerLXC) Snapshots() ([]Instance, error) {
+func (c *containerLXC) Snapshots() ([]instance.Instance, error) {
 	var snaps []db.Instance
 
 	if c.IsSnapshot() {
-		return []Instance{}, nil
+		return []instance.Instance{}, nil
 	}
 
 	// Get all the snapshots
@@ -3287,9 +3287,9 @@ func (c *containerLXC) Snapshots() ([]Instance, error) {
 		return nil, err
 	}
 
-	instances := make([]Instance, len(containers))
+	instances := make([]instance.Instance, len(containers))
 	for k, v := range containers {
-		instances[k] = Instance(v)
+		instances[k] = instance.Instance(v)
 	}
 
 	return instances, nil
@@ -3316,7 +3316,7 @@ func (c *containerLXC) Backups() ([]backup.Backup, error) {
 	return backups, nil
 }
 
-func (c *containerLXC) Restore(sourceContainer Instance, stateful bool) error {
+func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container.
@@ -4015,7 +4015,7 @@ type backupFile struct {
 	Volume    *api.StorageVolume      `yaml:"volume"`
 }
 
-func writeBackupFile(c Instance) error {
+func writeBackupFile(c instance.Instance) error {
 	// We only write backup files out for actual containers
 	if c.IsSnapshot() {
 		return nil
