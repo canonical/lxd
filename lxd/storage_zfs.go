@@ -2567,7 +2567,7 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operations.Operatio
 	zfsName := fmt.Sprintf("containers/%s", project.Prefix(args.Instance.Project(), args.Instance.Name()))
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", poolName, zfsName)
-		args := []string{"receive", "-F", "-o", "canmount=noauto", "-o", "mountpoint=none", "-u", zfsFsName}
+		args := []string{"receive", "-F", "-u", zfsFsName}
 		cmd := exec.Command("zfs", args...)
 
 		stdin, err := cmd.StdinPipe()
@@ -2599,8 +2599,22 @@ func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operations.Operatio
 		err = cmd.Wait()
 		if err != nil {
 			logger.Errorf("Problem with zfs recv: %s", string(output))
+			return err
 		}
-		return err
+
+		if !strings.Contains(zfsName, "@") {
+			err = zfsPoolVolumeSet(poolName, zfsName, "canmount", "noauto")
+			if err != nil {
+				return err
+			}
+
+			err = zfsPoolVolumeSet(poolName, zfsName, "mountpoint", "none")
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	// Destroy the pre-existing (empty) dataset, this avoids issues with encryption
