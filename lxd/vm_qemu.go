@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -2376,13 +2377,61 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 		status, err := vm.agentGetState()
 		if err != nil {
 			logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
-		} else {
-			status.Pid = int64(pid)
-			status.Status = statusCode.String()
-			status.StatusCode = statusCode
+			status = &api.InstanceState{}
+			status.Processes = -1
 
-			return status, nil
+			networks := map[string]api.InstanceStateNetwork{}
+			for k, m := range vm.ExpandedDevices() {
+				// We only care about nics.
+				if m["type"] != "nic" || m["nictype"] != "bridged" {
+					continue
+				}
+
+				// Fill the MAC address.
+				m, err := vm.fillNetworkDevice(k, m)
+				if err != nil {
+					return nil, err
+				}
+
+				// Parse the lease file.
+				addresses, err := networkGetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
+				if err != nil {
+					return nil, err
+				}
+
+				if len(addresses) == 0 {
+					continue
+				}
+
+				// Get MTU.
+				iface, err := net.InterfaceByName(m["parent"])
+				if err != nil {
+					return nil, err
+				}
+
+				if m["host_name"] == "" {
+					m["host_name"] = vm.localConfig[fmt.Sprintf("volatile.%s.host_name", k)]
+				}
+
+				networks[k] = api.InstanceStateNetwork{
+					Addresses: addresses,
+					Counters:  api.InstanceStateNetworkCounters(shared.NetworkGetCounters(m["host_name"])),
+					Hwaddr:    m["hwaddr"],
+					HostName:  m["host_name"],
+					Mtu:       iface.MTU,
+					State:     "up",
+					Type:      "broadcast",
+				}
+			}
+
+			status.Network = networks
 		}
+
+		status.Pid = int64(pid)
+		status.Status = statusCode.String()
+		status.StatusCode = statusCode
+
+		return status, nil
 	}
 
 	// At least return the Status and StatusCode if we couldn't get any

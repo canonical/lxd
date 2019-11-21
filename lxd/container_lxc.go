@@ -745,6 +745,10 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 
 	mapentries := idmap.ByHostid{}
 	for _, container := range cts {
+		if container.Type() != instancetype.Container {
+			continue
+		}
+
 		name := container.Name()
 
 		/* Don't change our map Just Because. */

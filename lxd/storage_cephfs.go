@@ -588,7 +588,7 @@ func (s *storageCephFs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renaming CEPHFS storage volume on storage pool "%s" from "%s" to "%s`, s.pool.Name, s.volume.Name, newName)
 
 	// Sanity check
-	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.pool.Name, s.volume.Name)
+	usedBy, err := storagePoolVolumeUsedByInstancesGet(s.s, "default", s.pool.Name, s.volume.Name)
 	if err != nil {
 		return err
 	}
