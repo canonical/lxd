@@ -629,7 +629,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	if !instanceOnly {
 		if refresh {
 			// Compare snapshots.
-			syncSnapshots, deleteSnapshots, err := instanceCompareSnapshots(sourceInst, inst)
+			syncSnapshots, deleteSnapshots, err := instance.CompareSnapshots(sourceInst, inst)
 			if err != nil {
 				return nil, err
 			}
