@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
@@ -71,13 +72,13 @@ func (d *gpu) validateEnvironment() error {
 }
 
 // Start is run when the device is added to the container.
-func (d *gpu) Start() (*RunConfig, error) {
+func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
+	runConf := deviceConfig.RunConfig{}
 	gpus, err := resources.GetGPU()
 	if err != nil {
 		return nil, err
@@ -184,8 +185,8 @@ func (d *gpu) Start() (*RunConfig, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *gpu) Stop() (*RunConfig, error) {
-	runConf := RunConfig{
+func (d *gpu) Stop() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

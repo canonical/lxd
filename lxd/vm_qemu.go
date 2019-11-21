@@ -454,7 +454,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		}
 	}
 
-	devConfs := make([]*device.RunConfig, 0, len(vm.expandedDevices))
+	devConfs := make([]*deviceConfig.RunConfig, 0, len(vm.expandedDevices))
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dev := range vm.expandedDevices.Sorted() {
@@ -543,7 +543,7 @@ func (vm *vmQemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (
 // deviceStart loads a new device and calls its Start() function. After processing the runtime
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the instance is running or not.
-func (vm *vmQemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*device.RunConfig, error) {
+func (vm *vmQemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -804,7 +804,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 }
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
-func (vm *vmQemu) generateQemuConfigFile(devConfs []*device.RunConfig) (string, error) {
+func (vm *vmQemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
@@ -1107,7 +1107,7 @@ bootindex = "1"
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (vm *vmQemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf device.MountEntryItem) {
+func (vm *vmQemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf deviceConfig.MountEntryItem) {
 	driveName := fmt.Sprintf(driveConf.TargetPath)
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
@@ -1133,7 +1133,7 @@ drive = "lxd_%s"
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *vmQemu) addNetDevConfig(sb *strings.Builder, nicConfig []device.RunConfigItem) {
+func (vm *vmQemu) addNetDevConfig(sb *strings.Builder, nicConfig []deviceConfig.RunConfigItem) {
 	var devName, devTap, devHwaddr string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "name" {
@@ -2496,7 +2496,7 @@ func (vm *vmQemu) IsStateful() bool {
 	return vm.stateful
 }
 
-func (vm *vmQemu) DeviceEventHandler(runConf *device.RunConfig) error {
+func (vm *vmQemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return fmt.Errorf("DeviceEventHandler Not implemented")
 }
 

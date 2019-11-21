@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -20,8 +21,8 @@ type UnixEvent struct {
 
 // UnixSubscription used to subcribe to specific events.
 type UnixSubscription struct {
-	Path    string                              // The absolute source path on the host.
-	Handler func(UnixEvent) (*RunConfig, error) // The function to run when an event occurs.
+	Path    string                                           // The absolute source path on the host.
+	Handler func(UnixEvent) (*deviceConfig.RunConfig, error) // The function to run when an event occurs.
 }
 
 // unixHandlers stores the event handler callbacks for Unix events.
@@ -31,7 +32,7 @@ var unixHandlers = map[string]UnixSubscription{}
 var unixMutex sync.Mutex
 
 // unixRegisterHandler registers a handler function to be called whenever a Unix device event occurs.
-func unixRegisterHandler(s *state.State, instance Instance, deviceName, path string, handler func(UnixEvent) (*RunConfig, error)) error {
+func unixRegisterHandler(s *state.State, instance Instance, deviceName, path string, handler func(UnixEvent) (*deviceConfig.RunConfig, error)) error {
 	if path == "" || handler == nil {
 		return fmt.Errorf("Invalid subscription")
 	}

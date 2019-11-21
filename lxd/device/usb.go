@@ -69,20 +69,20 @@ func (d *usb) Register() error {
 	// Extract variables needed to run the event hook so that the reference to this device
 	// struct is not needed to be kept in memory.
 	devicesPath := d.instance.DevicesPath()
-	deviceConfig := d.config
+	devConfig := d.config
 	deviceName := d.name
 	state := d.state
 
 	// Handler for when a USB event occurs.
-	f := func(e USBEvent) (*RunConfig, error) {
-		if !usbIsOurDevice(deviceConfig, &e) {
+	f := func(e USBEvent) (*deviceConfig.RunConfig, error) {
+		if !usbIsOurDevice(devConfig, &e) {
 			return nil, nil
 		}
 
-		runConf := RunConfig{}
+		runConf := deviceConfig.RunConfig{}
 
 		if e.Action == "add" {
-			err := unixDeviceSetupCharNum(state, devicesPath, "unix", deviceName, deviceConfig, e.Major, e.Minor, e.Path, false, &runConf)
+			err := unixDeviceSetupCharNum(state, devicesPath, "unix", deviceName, devConfig, e.Major, e.Minor, e.Path, false, &runConf)
 			if err != nil {
 				return nil, err
 			}
@@ -115,13 +115,13 @@ func (d *usb) Register() error {
 }
 
 // Start is run when the device is added to the instance.
-func (d *usb) Start() (*RunConfig, error) {
+func (d *usb) Start() (*deviceConfig.RunConfig, error) {
 	usbs, err := d.loadUsb()
 	if err != nil {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
+	runConf := deviceConfig.RunConfig{}
 	runConf.PostHooks = []func() error{d.Register}
 
 	for _, usb := range usbs {
@@ -143,11 +143,11 @@ func (d *usb) Start() (*RunConfig, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *usb) Stop() (*RunConfig, error) {
+func (d *usb) Stop() (*deviceConfig.RunConfig, error) {
 	// Unregister any USB event handlers for this device.
 	usbUnregisterHandler(d.instance, d.name)
 
-	runConf := RunConfig{
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

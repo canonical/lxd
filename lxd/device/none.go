@@ -1,5 +1,9 @@
 package device
 
+import (
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+)
+
 type none struct {
 	deviceCommon
 }
@@ -16,11 +20,11 @@ func (d *none) validateConfig() error {
 }
 
 // Start is run when the device is added to the container.
-func (d *none) Start() (*RunConfig, error) {
+func (d *none) Start() (*deviceConfig.RunConfig, error) {
 	return nil, nil
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *none) Stop() (*RunConfig, error) {
+func (d *none) Stop() (*deviceConfig.RunConfig, error) {
 	return nil, nil
 }
