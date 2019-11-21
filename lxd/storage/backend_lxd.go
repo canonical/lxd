@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -468,6 +469,141 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapsho
 	return nil
 }
 
+// RefreshInstance synchronises one instance's volume (and optionally snapshots) over another.
+// Snapshots that are not present in the source but are in the destination are removed from the
+// destination if snapshots are included in the synchronisation.
+func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "srcSnapshots": len(srcSnapshots)})
+	logger.Debug("RefreshInstance started")
+	defer logger.Debug("RefreshInstance finished")
+
+	if inst.Type() != src.Type() {
+		return fmt.Errorf("Instance types must match")
+	}
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Initialise a new volume containing the root disk config supplied in the new instance.
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
+
+	// We don't need to use the source instance's root disk config, so set to nil.
+	srcVol := b.newVolume(volType, contentType, project.Prefix(src.Project(), src.Name()), nil)
+
+	srcSnapVols := []drivers.Volume{}
+	for _, snapInst := range srcSnapshots {
+		// Initialise a new volume containing the root disk config supplied in the
+		// new instance. We don't need to use the source instance's snapshot root
+		// disk config, so set to nil. This is because snapshots are immutable yet
+		// the instance and its snapshots can be transferred between pools, so using
+		// the data from the snapshot is incorrect.
+		srcSnapVol := b.newVolume(volType, contentType, project.Prefix(snapInst.Project(), snapInst.Name()), nil)
+		srcSnapVols = append(srcSnapVols, srcSnapVol)
+	}
+
+	srcPool, err := GetPoolByInstance(b.state, src)
+	if err != nil {
+		return err
+	}
+
+	if b.Name() == srcPool.Name() {
+		logger.Debug("RefreshInstance same-pool mode detected")
+		err = b.driver.RefreshVolume(vol, srcVol, srcSnapVols, op)
+		if err != nil {
+			return err
+		}
+	} else {
+		// We are copying volumes between storage pools so use migration system as it will
+		// be able to negotiate a common transfer method between pool types.
+		logger.Debug("RefreshInstance cross-pool mode detected")
+
+		// Retrieve a list of snapshots we are copying.
+		snapshotNames := []string{}
+		for _, srcSnapVol := range srcSnapVols {
+			_, snapShotName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapVol.Name())
+			snapshotNames = append(snapshotNames, snapShotName)
+		}
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		aEnd, bEnd := memorypipe.NewPipePair()
+
+		// Negotiate the migration type to use.
+		offeredTypes := srcPool.MigrationTypes(contentType)
+		offerHeader := migration.TypesToHeader(offeredTypes...)
+		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType))
+		if err != nil {
+			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+		}
+
+		// Run sender and receiver in separate go routines to prevent deadlocks.
+		aEndErrCh := make(chan error, 1)
+		bEndErrCh := make(chan error, 1)
+		go func() {
+			err := srcPool.MigrateInstance(src, aEnd, migration.VolumeSourceArgs{
+				Name:          src.Name(),
+				Snapshots:     snapshotNames,
+				MigrationType: migrationType,
+				TrackProgress: true, // Do use a progress tracker on sender.
+			}, op)
+
+			aEndErrCh <- err
+		}()
+
+		go func() {
+			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+				Name:          inst.Name(),
+				Snapshots:     snapshotNames,
+				MigrationType: migrationType,
+				Refresh:       true,  // Indicate to receiver volume should exist.
+				TrackProgress: false, // Do not a progress tracker on receiver.
+			}, op)
+
+			bEndErrCh <- err
+		}()
+
+		// Capture errors from the sender and receiver from their result channels.
+		errs := []error{}
+		aEndErr := <-aEndErrCh
+		if aEndErr != nil {
+			errs = append(errs, aEndErr)
+		}
+
+		bEndErr := <-bEndErrCh
+		if bEndErr != nil {
+			errs = append(errs, bEndErr)
+		}
+
+		if len(errs) > 0 {
+			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
+		}
+	}
+
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	err = inst.DeferTemplateApply("copy")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will unpack the specified image archive into the specified mount path
 // provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
@@ -795,10 +931,6 @@ func (b *lxdBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, arg
 	}
 
 	return nil
-}
-
-func (b *lxdBackend) RefreshInstance(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
-	return ErrNotImplemented
 }
 
 func (b *lxdBackend) BackupInstance(inst Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
