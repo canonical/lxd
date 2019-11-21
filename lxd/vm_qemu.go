@@ -2413,14 +2413,23 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 					m["host_name"] = vm.localConfig[fmt.Sprintf("volatile.%s.host_name", k)]
 				}
 
+				// Retrieve the host counters, as we report the values
+				// from the instance's point of view, those counters need to be reversed below.
+				hostCounters := shared.NetworkGetCounters(m["host_name"])
+
 				networks[k] = api.InstanceStateNetwork{
 					Addresses: addresses,
-					Counters:  api.InstanceStateNetworkCounters(shared.NetworkGetCounters(m["host_name"])),
-					Hwaddr:    m["hwaddr"],
-					HostName:  m["host_name"],
-					Mtu:       iface.MTU,
-					State:     "up",
-					Type:      "broadcast",
+					Counters: api.InstanceStateNetworkCounters{
+						BytesReceived:   hostCounters.BytesSent,
+						BytesSent:       hostCounters.BytesReceived,
+						PacketsReceived: hostCounters.PacketsSent,
+						PacketsSent:     hostCounters.PacketsReceived,
+					},
+					Hwaddr:   m["hwaddr"],
+					HostName: m["host_name"],
+					Mtu:      iface.MTU,
+					State:    "up",
+					Type:     "broadcast",
 				}
 			}
 
