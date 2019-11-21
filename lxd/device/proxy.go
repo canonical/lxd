@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/project"
@@ -127,14 +128,14 @@ func (d *proxy) validateEnvironment() error {
 }
 
 // Start is run when the device is added to the container.
-func (d *proxy) Start() (*RunConfig, error) {
+func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
 	}
 
 	// Proxy devices have to be setup once the container is running.
-	runConf := RunConfig{}
+	runConf := deviceConfig.RunConfig{}
 	runConf.PostHooks = []func() error{
 		func() error {
 			if shared.IsTrue(d.config["nat"]) {
@@ -224,7 +225,7 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *proxy) Stop() (*RunConfig, error) {
+func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
 	iptables.ContainerClear("ipv4", fmt.Sprintf("%s (%s)", d.instance.Name(), d.name), "nat")
 	iptables.ContainerClear("ipv6", fmt.Sprintf("%s (%s)", d.instance.Name(), d.name), "nat")

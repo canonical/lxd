@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
@@ -115,7 +116,7 @@ func (d *nicRouted) validateEnvironment() error {
 }
 
 // Start is run when the instance is starting up (Routed mode doesn't support hot plugging).
-func (d *nicRouted) Start() (*RunConfig, error) {
+func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -160,8 +161,8 @@ func (d *nicRouted) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
-	nic := []RunConfigItem{
+	runConf := deviceConfig.RunConfig{}
+	nic := []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "veth"},
 		{Key: "flags", Value: "up"},
@@ -173,33 +174,33 @@ func (d *nicRouted) Start() (*RunConfig, error) {
 	// the instance's IPs over that interface using proxy APR/NDP.
 	if parentName != "" {
 		nic = append(nic,
-			RunConfigItem{Key: "l2proxy", Value: "1"},
-			RunConfigItem{Key: "link", Value: parentName},
+			deviceConfig.RunConfigItem{Key: "l2proxy", Value: "1"},
+			deviceConfig.RunConfigItem{Key: "link", Value: parentName},
 		)
 	}
 
 	if d.config["mtu"] != "" {
-		nic = append(nic, RunConfigItem{Key: "mtu", Value: d.config["mtu"]})
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "mtu", Value: d.config["mtu"]})
 	}
 
 	if d.config["ipv4.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
 		}
 
 		// Use a fixed link-local address as the next-hop default gateway.
-		nic = append(nic, RunConfigItem{Key: "ipv4.gateway", Value: nicRoutedIPv4GW})
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: nicRoutedIPv4GW})
 	}
 
 	if d.config["ipv6.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
 		}
 
 		// Use a fixed link-local address as the next-hop default gateway.
-		nic = append(nic, RunConfigItem{Key: "ipv6.gateway", Value: nicRoutedIPv6GW})
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: nicRoutedIPv6GW})
 	}
 
 	runConf.NetworkInterface = nic
@@ -266,8 +267,8 @@ func (d *nicRouted) postStart() error {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *nicRouted) Stop() (*RunConfig, error) {
-	runConf := RunConfig{
+func (d *nicRouted) Stop() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

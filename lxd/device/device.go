@@ -43,7 +43,7 @@ type Device interface {
 	// Start peforms any host-side configuration required to start the device for the instance.
 	// This can be when a device is plugged into a running instance or the instance is starting.
 	// Returns run-time configuration needed for configuring the instance with the new device.
-	Start() (*RunConfig, error)
+	Start() (*deviceConfig.RunConfig, error)
 
 	// Register provides the ability for a device to subcribe to events that LXD can generate.
 	// It is called after a device is started (after Start()) or when LXD starts.
@@ -58,7 +58,7 @@ type Device interface {
 	// Stop performs any host-side cleanup required when a device is removed from an instance,
 	// either due to unplugging it from a running instance or instance is being shutdown.
 	// Returns run-time configuration needed for detaching the device from the instance.
-	Stop() (*RunConfig, error)
+	Stop() (*deviceConfig.RunConfig, error)
 
 	// Remove performs any host-side cleanup when an instance is removed from an instance.
 	Remove() error

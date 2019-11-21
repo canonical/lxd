@@ -70,7 +70,7 @@ func infinibandDevices(nics *api.ResourcesNetwork, parent string) map[string]*ap
 
 // infinibandAddDevices creates the UNIX devices for the provided IBF device and then configures the
 // supplied runConfig with the Cgroup rules and mount instructions to pass the device into instance.
-func infinibandAddDevices(s *state.State, devicesPath string, deviceName string, ibDev *api.ResourcesNetworkCardPort, runConf *RunConfig) error {
+func infinibandAddDevices(s *state.State, devicesPath string, deviceName string, ibDev *api.ResourcesNetworkCardPort, runConf *deviceConfig.RunConfig) error {
 	if ibDev.Infiniband == nil {
 		return fmt.Errorf("No infiniband devices supplied")
 	}

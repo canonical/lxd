@@ -53,7 +53,7 @@ func (d *nicP2P) CanHotPlug() (bool, []string) {
 }
 
 // Start is run when the device is added to a running instance or instance is starting up.
-func (d *nicP2P) Start() (*RunConfig, error) {
+func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -83,8 +83,8 @@ func (d *nicP2P) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
-	runConf.NetworkInterface = []RunConfigItem{
+	runConf := deviceConfig.RunConfig{}
+	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
@@ -119,8 +119,8 @@ func (d *nicP2P) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *nicP2P) Stop() (*RunConfig, error) {
-	runConf := RunConfig{
+func (d *nicP2P) Stop() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

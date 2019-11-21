@@ -1477,7 +1477,7 @@ func (c *containerLXC) deviceAdd(deviceName string, rawConfig deviceConfig.Devic
 // deviceStart loads a new device and calls its Start() function. After processing the runtime
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the container is running or not.
-func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*device.RunConfig, error) {
+func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1542,7 +1542,7 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Dev
 }
 
 // deviceStaticShiftMounts statically shift device mount files ownership to active idmap if needed.
-func (c *containerLXC) deviceStaticShiftMounts(mounts []device.MountEntryItem) error {
+func (c *containerLXC) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) error {
 	idmapSet, err := c.CurrentIdmap()
 	if err != nil {
 		return fmt.Errorf("Failed to get idmap for device: %s", err)
@@ -1554,7 +1554,7 @@ func (c *containerLXC) deviceStaticShiftMounts(mounts []device.MountEntryItem) e
 		for _, mount := range mounts {
 			// Skip UID/GID shifting if OwnerShift mode is not static, or the host-side
 			// DevPath is empty (meaning an unmount request that doesn't need shifting).
-			if mount.OwnerShift != device.MountOwnerShiftStatic || mount.DevPath == "" {
+			if mount.OwnerShift != deviceConfig.MountOwnerShiftStatic || mount.DevPath == "" {
 				continue
 			}
 
@@ -1570,7 +1570,7 @@ func (c *containerLXC) deviceStaticShiftMounts(mounts []device.MountEntryItem) e
 }
 
 // deviceAddCgroupRules live adds cgroup rules to a container.
-func (c *containerLXC) deviceAddCgroupRules(cgroups []device.RunConfigItem) error {
+func (c *containerLXC) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
 	for _, rule := range cgroups {
 		// Only apply devices cgroup rules if container is running privileged and host has devices cgroup controller.
 		if strings.HasPrefix(rule.Key, "devices.") && (!c.isCurrentlyPrivileged() || c.state.OS.RunningInUserNS || !c.state.OS.CGroupDevicesController) {
@@ -1588,7 +1588,7 @@ func (c *containerLXC) deviceAddCgroupRules(cgroups []device.RunConfigItem) erro
 }
 
 // deviceAttachNIC live attaches a NIC device to a container.
-func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []device.RunConfigItem) error {
+func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {
@@ -1701,7 +1701,7 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig deviceConfig.Devi
 }
 
 // deviceDetachNIC detaches a NIC device from a container.
-func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []device.RunConfigItem, stopHookNetnsPath string) error {
+func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem, stopHookNetnsPath string) error {
 	// Get requested device name to detach interface back to on the host.
 	devName := ""
 	for _, dev := range netIF {
@@ -1762,7 +1762,7 @@ func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []dev
 
 // deviceHandleMounts live attaches or detaches mounts on a container.
 // If the mount DevPath is empty the mount action is treated as unmount.
-func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error {
+func (c *containerLXC) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	for _, mount := range mounts {
 		if mount.DevPath != "" {
 			flags := 0
@@ -1777,7 +1777,7 @@ func (c *containerLXC) deviceHandleMounts(mounts []device.MountEntryItem) error 
 			}
 
 			shiftfs := false
-			if mount.OwnerShift == device.MountOwnerShiftDynamic {
+			if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
 				shiftfs = true
 			}
 
@@ -1894,7 +1894,7 @@ func (c *containerLXC) deviceResetVolatile(devName string, oldConfig, newConfig 
 }
 
 // DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
-func (c *containerLXC) DeviceEventHandler(runConf *device.RunConfig) error {
+func (c *containerLXC) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	// Device events can only be processed when the container is running.
 	if !c.IsRunning() {
 		return nil
@@ -2263,7 +2263,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 					return "", postStartHooks, errors.Wrapf(fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"), "Failed to setup device mount '%s'", dev.Name)
 				}
 
-				if mount.OwnerShift == device.MountOwnerShiftDynamic && !c.IsPrivileged() {
+				if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic && !c.IsPrivileged() {
 					if !c.state.OS.Shiftfs {
 						return "", postStartHooks, errors.Wrapf(fmt.Errorf("shiftfs is required but isn't supported on system"), "Failed to setup device mount '%s'", dev.Name)
 					}
