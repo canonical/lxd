@@ -296,7 +296,13 @@ func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) err
 		contentType = drivers.ContentTypeBlock
 	}
 
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), nil)
+	// Find the root device config for instance.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
 	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
@@ -320,8 +326,146 @@ func (b *lxdBackend) CreateInstanceFromBackup(inst Instance, sourcePath string, 
 	return ErrNotImplemented
 }
 
+// CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
 func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
+	logger.Debug("CreateInstanceFromCopy started")
+	defer logger.Debug("CreateInstanceFromCopy finished")
+
+	if inst.Type() != src.Type() {
+		return fmt.Errorf("Instance types must match")
+	}
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Initialise a new volume containing the root disk config supplied in the new instance.
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
+
+	// We don't need to use the source instance's root disk config, so set to nil.
+	srcVol := b.newVolume(volType, contentType, project.Prefix(src.Project(), src.Name()), nil)
+
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+		b.DeleteInstance(inst, op)
+	}()
+
+	srcPool, err := GetPoolByInstance(b.state, src)
+	if err != nil {
+		return err
+	}
+
+	if b.Name() == srcPool.Name() {
+		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
+		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
+		if err != nil {
+			return err
+		}
+	} else {
+		// We are copying volumes between storage pools so use migration system as it will
+		// be able to negotiate a common transfer method between pool types.
+		logger.Debug("CreateInstanceFromCopy cross-pool mode detected")
+
+		// If we are copying snapshots, retrieve a list of snapshots from source volume.
+		snapshotNames := []string{}
+		if snapshots {
+			snapshots, err := VolumeSnapshotsGet(b.state, srcPool.Name(), src.Name(), volDBType)
+			if err != nil {
+				return err
+			}
+
+			for _, snapshot := range snapshots {
+				_, snapShotName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.Name)
+				snapshotNames = append(snapshotNames, snapShotName)
+			}
+		}
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		aEnd, bEnd := memorypipe.NewPipePair()
+
+		// Negotiate the migration type to use.
+		offeredTypes := srcPool.MigrationTypes(contentType)
+		offerHeader := migration.TypesToHeader(offeredTypes...)
+		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType))
+		if err != nil {
+			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+		}
+
+		// Run sender and receiver in separate go routines to prevent deadlocks.
+		aEndErrCh := make(chan error, 1)
+		bEndErrCh := make(chan error, 1)
+		go func() {
+			err := srcPool.MigrateInstance(src, aEnd, migration.VolumeSourceArgs{
+				Name:          src.Name(),
+				Snapshots:     snapshotNames,
+				MigrationType: migrationType,
+				TrackProgress: true, // Do use a progress tracker on sender.
+			}, op)
+
+			aEndErrCh <- err
+		}()
+
+		go func() {
+			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
+				Name:          inst.Name(),
+				Snapshots:     snapshotNames,
+				MigrationType: migrationType,
+				TrackProgress: false, // Do not a progress tracker on receiver.
+			}, op)
+
+			bEndErrCh <- err
+		}()
+
+		// Capture errors from the sender and receiver from their result channels.
+		errs := []error{}
+		aEndErr := <-aEndErrCh
+		if aEndErr != nil {
+			errs = append(errs, aEndErr)
+		}
+
+		bEndErr := <-bEndErrCh
+		if bEndErr != nil {
+			errs = append(errs, bEndErr)
+		}
+
+		if len(errs) > 0 {
+			return fmt.Errorf("Create instance volume from copy failed: %v", errs)
+		}
+	}
+
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	err = inst.DeferTemplateApply("copy")
+	if err != nil {
+		return err
+	}
+
+	revert = false
+	return nil
 }
 
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
@@ -354,6 +498,11 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		return err
 	}
 
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
 	revert := true
 	defer func() {
 		if !revert {
@@ -362,12 +511,13 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 		b.DeleteInstance(inst, op)
 	}()
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
 	}
 
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), nil)
+	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
 
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
@@ -385,6 +535,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 			return err
 		}
 
+		// No config for an image volume so set to nil.
 		imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 		err = b.driver.CreateVolumeFromCopy(vol, imgVol, false, op)
 		if err != nil {
@@ -406,8 +557,41 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 	return nil
 }
 
-func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.SinkArgs, op *operations.Operation) error {
-	return ErrNotImplemented
+// CreateInstanceFromMigration receives an instance being migrated.
+// The args.Name and args.Config fields are ignored and, instance properties are used instead.
+func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	logger.Debug("CreateInstanceFromMigration started")
+	defer logger.Debug("CreateInstanceFromMigration finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Find the root device config for instance.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Override args.Name and args.Config to ensure volume is created based on instance.
+	args.Config = rootDiskConf
+	args.Name = inst.Name()
+
+	vol := b.newVolume(volType, contentType, args.Name, args.Config)
+	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
+	if err != nil {
+		conn.Close()
+		return err
+	}
+
+	return nil
 }
 
 // RenameInstance renames the instance's root volume and any snapshot volumes.
@@ -580,8 +764,37 @@ func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) err
 	return nil
 }
 
-func (b *lxdBackend) MigrateInstance(inst Instance, snapshots bool, args migration.SourceArgs) (migration.StorageSourceDriver, error) {
-	return nil, ErrNotImplemented
+// MigrateInstance sends an instance volume for migration.
+// The args.Name field is ignored and the name of the instance is used instead.
+func (b *lxdBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	logger.Debug("MigrateInstance started")
+	defer logger.Debug("MigrateInstance finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	args.Name = inst.Name() // Override args.Name to ensure instance volume is sent.
+	vol := b.newVolume(volType, contentType, args.Name, rootDiskConf)
+	err = b.driver.MigrateVolume(vol, conn, args, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *lxdBackend) RefreshInstance(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
@@ -871,9 +1084,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// Create the new image volume.
-	vol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
-	err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+	// Create the new image volume. No config for an image volume so set to nil.
+	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+	err = b.driver.CreateVolume(imgVol, b.imageFiller(fingerprint, op), op)
 	if err != nil {
 		return err
 	}
@@ -1064,7 +1277,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	// to negotiate a common transfer method between pool types.
 	logger.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
 
-	// Create in-memory pipe pair to simulate a connection between the sender and receiver.
+	// Use in-memory pipe pair to simulate a connection between the sender and receiver.
 	aEnd, bEnd := memorypipe.NewPipePair()
 
 	// Negotiate the migration type to use.
@@ -1128,6 +1341,7 @@ func (b *lxdBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args migration
 	logger.Debug("MigrateCustomVolume started")
 	defer logger.Debug("MigrateCustomVolume finished")
 
+	// Volume config not needed to send a volume so set to nil.
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, nil)
 	err := b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
@@ -1183,7 +1397,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config)
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
 	if err != nil {
-		return nil
+		conn.Close()
+		return err
 	}
 
 	revertDBVolumes = nil
