@@ -1829,26 +1829,9 @@ func (vm *vmQemu) Delete() error {
 	// TODO consider lxd import detection for VMs.
 	isImport := false
 
-	// Remove all backups if not snapshot.
-	if !vm.IsSnapshot() {
-		backups, err := vm.Backups()
-		if err != nil {
-			logger.Error("Failed to load backups", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
-		}
-
-		for _, backup := range backups {
-			err = backup.Delete()
-			if err != nil {
-				logger.Error("Failed to delete backup", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "backup": backup.Name, "err": err})
-			}
-		}
-	}
-
 	// Attempt to initialize storage interface for the instance.
 	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
-	if err != nil {
-		logger.Error("Failed to init storage pool", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
-
+	if err != nil && err != db.ErrNoSuchObject {
 		// Because of the way vmQemuCreate creates the storage volume record before loading
 		// the storage pool driver, Delete() may be called as part of a revertion if the
 		// pool being used to create the VM on doesn't support VMs. This deletion will then
@@ -1856,6 +1839,7 @@ func (vm *vmQemu) Delete() error {
 		// DB record.
 		// TODO: This can be removed once all pool drivers are ported to new storage layer.
 		if err == storageDrivers.ErrUnknownDriver || err == storageDrivers.ErrNotImplemented {
+			logger.Warn("Unsupported storage pool type, removing DB volume record", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
 			// Remove the volume record from the database. This deletion would
 			// normally be handled by DeleteInstance() call below but since the storage
 			// driver (new storage) is not implemented, we need to do it here manually.
@@ -1873,6 +1857,8 @@ func (vm *vmQemu) Delete() error {
 			if err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 	}
 
@@ -1882,7 +1868,7 @@ func (vm *vmQemu) Delete() error {
 				// Remove snapshot volume and database record.
 				err = pool.DeleteInstanceSnapshot(vm, nil)
 				if err != nil {
-					logger.Error("Failed to delete instance snapshot volume", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+					return err
 				}
 			}
 		} else {
@@ -1890,14 +1876,14 @@ func (vm *vmQemu) Delete() error {
 			// calling its Delete function.
 			err := instanceDeleteSnapshots(vm.state, vm.Project(), vm.Name())
 			if err != nil {
-				logger.Error("Failed to delete instance snapshot volumes", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+				return err
 			}
 
 			if !isImport {
 				// Remove the storage volume, snapshot volumes and database records.
 				err = pool.DeleteInstance(vm, nil)
 				if err != nil {
-					logger.Error("Failed to delete instance volume", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+					return err
 				}
 			}
 		}
@@ -1905,28 +1891,42 @@ func (vm *vmQemu) Delete() error {
 
 	// Perform other cleanup steps if not snapshot.
 	if !vm.IsSnapshot() {
-		// Clean things up.
-		vm.cleanup()
+		// Remove all backups.
+		backups, err := vm.Backups()
+		if err != nil {
+			return err
+		}
+
+		for _, backup := range backups {
+			err = backup.Delete()
+			if err != nil {
+				return err
+			}
+		}
 
 		// Delete the MAAS entry.
 		err = vm.maasDelete()
 		if err != nil {
 			logger.Error("Failed deleting instance MAAS record", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+			return err
 		}
 
 		// Run device removal function for each device.
 		for k, m := range vm.expandedDevices {
 			err = vm.deviceRemove(k, m)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				logger.Error("Failed to remove device", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "device": k, "err": err})
+				return errors.Wrapf(err, "Failed to remove device '%s'", k)
 			}
 		}
+
+		// Clean things up.
+		vm.cleanup()
 	}
 
 	// Remove the database record of the instance or snapshot instance.
 	if err := vm.state.Cluster.InstanceRemove(vm.Project(), vm.Name()); err != nil {
 		logger.Error("Failed deleting instance entry", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
-		return err // This is the only step we should return prematurely at.
+		return err
 	}
 
 	logger.Info("Deleted instance", ctxMap)
