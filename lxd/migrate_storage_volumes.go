@@ -145,7 +145,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	if pool != nil {
 		migrationType, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 		if err != nil {
-			logger.Errorf("Failed to neogotiate migration type: %v", err)
+			logger.Errorf("Failed to negotiate migration type: %v", err)
 			s.sendControl(err)
 			return err
 		}

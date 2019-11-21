@@ -580,7 +580,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 	return inst, nil
 }
 
-func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst instance.Instance, instanceOnly bool, refresh bool) (instance.Instance, error) {
+func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst instance.Instance, instanceOnly bool, refresh bool, op *operations.Operation) (instance.Instance, error) {
 	var inst, revertInst instance.Instance
 	var err error
 
@@ -652,15 +652,15 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 			}
 		}
 
-		for _, snap := range snapshots {
-			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
+		for _, srcSnap := range snapshots {
+			fields := strings.SplitN(srcSnap.Name(), shared.SnapshotDelimiter, 2)
 
 			// Ensure that snapshot and parent instance have the
 			// same storage pool in their local root disk device.
 			// If the root disk device for the snapshot comes from a
 			// profile on the new instance as well we don't need to
 			// do anything.
-			snapDevices := snap.LocalDevices()
+			snapDevices := srcSnap.LocalDevices()
 			if snapDevices != nil {
 				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapDevices.CloneNative())
 				if snapLocalRootDiskDeviceKey != "" {
@@ -676,15 +676,15 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 
 			newSnapName := fmt.Sprintf("%s/%s", inst.Name(), fields[1])
 			snapInstArgs := db.InstanceArgs{
-				Architecture: snap.Architecture(),
-				Config:       snap.LocalConfig(),
+				Architecture: srcSnap.Architecture(),
+				Config:       srcSnap.LocalConfig(),
 				Type:         sourceInst.Type(),
 				Snapshot:     true,
 				Devices:      snapDevices,
-				Description:  snap.Description(),
-				Ephemeral:    snap.IsEphemeral(),
+				Description:  srcSnap.Description(),
+				Ephemeral:    srcSnap.IsEphemeral(),
 				Name:         newSnapName,
-				Profiles:     snap.Profiles(),
+				Profiles:     srcSnap.Profiles(),
 				Project:      args.Project,
 			}
 
@@ -694,8 +694,8 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 				return nil, err
 			}
 
-			// Restore snapshot creation date.
-			err = s.Cluster.ContainerCreationUpdate(snapInst.ID(), snap.CreationDate())
+			// Set snapshot creation date to that of the source snapshot.
+			err = s.Cluster.InstanceSnapshotCreationUpdate(snapInst.ID(), srcSnap.CreationDate())
 			if err != nil {
 				return nil, err
 			}
@@ -705,21 +705,37 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	}
 
 	// Now clone or refresh the storage.
-	if inst.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance type must be container")
-	}
-
-	ct := inst.(*containerLXC)
-
 	if refresh {
+		if inst.Type() != instancetype.Container {
+			return nil, fmt.Errorf("Instance type must be container")
+		}
+
+		ct := inst.(*containerLXC)
 		err = ct.Storage().ContainerRefresh(inst, sourceInst, snapshots)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
-		if err != nil {
-			return nil, err
+		// Check if we can load new storage layer for both target and source pool driver types.
+		pool, err := storagePools.GetPoolByInstance(s, inst)
+		_, srcPoolErr := storagePools.GetPoolByInstance(s, sourceInst)
+		if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && srcPoolErr != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrNotImplemented {
+			if err != nil {
+				return nil, errors.Wrap(err, "Load instance storage pool")
+			}
+
+			err = pool.CreateInstanceFromCopy(inst, sourceInst, !instanceOnly, op)
+			if err != nil {
+				return nil, errors.Wrap(err, "Create instance from copy")
+			}
+		} else if inst.Type() == instancetype.Container {
+			ct := inst.(*containerLXC)
+			err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("Instance type not supported")
 		}
 	}
 

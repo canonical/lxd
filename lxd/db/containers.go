@@ -973,11 +973,10 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 	return nil
 }
 
-// ContainerCreationUpdate updates the cration_date field of the container
-// with the given ID.
-func (c *Cluster) ContainerCreationUpdate(id int, date time.Time) error {
-	stmt := `UPDATE instances SET creation_date=? WHERE id=?`
-	err := exec(c.db, stmt, date, id)
+// InstanceSnapshotCreationUpdate updates the creation_date field of the instance snapshot with ID.
+func (c *Cluster) InstanceSnapshotCreationUpdate(instanceID int, date time.Time) error {
+	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`
+	err := exec(c.db, stmt, date, instanceID)
 	return err
 }
 
