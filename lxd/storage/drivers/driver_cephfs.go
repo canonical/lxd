@@ -431,6 +431,10 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 	return nil
 }
 
+func (d *cephfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
+	return ErrNotImplemented
+}
+
 func (d *cephfs) DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error {
 	if volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
