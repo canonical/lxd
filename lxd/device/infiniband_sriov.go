@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
@@ -57,7 +58,7 @@ func (d *infinibandSRIOV) validateEnvironment() error {
 }
 
 // Start is run when the device is added to a running instance or instance is starting up.
-func (d *infinibandSRIOV) Start() (*RunConfig, error) {
+func (d *infinibandSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -123,7 +124,7 @@ func (d *infinibandSRIOV) Start() (*RunConfig, error) {
 		}
 	}
 
-	runConf := RunConfig{}
+	runConf := deviceConfig.RunConfig{}
 
 	// Configure runConf with infiniband setup instructions.
 	err = infinibandAddDevices(d.state, d.instance.DevicesPath(), d.name, vfDev, &runConf)
@@ -136,7 +137,7 @@ func (d *infinibandSRIOV) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
-	runConf.NetworkInterface = []RunConfigItem{
+	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
@@ -147,11 +148,11 @@ func (d *infinibandSRIOV) Start() (*RunConfig, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *infinibandSRIOV) Stop() (*RunConfig, error) {
+func (d *infinibandSRIOV) Stop() (*deviceConfig.RunConfig, error) {
 	v := d.volatileGet()
-	runConf := RunConfig{
+	runConf := deviceConfig.RunConfig{
 		PostHooks:        []func() error{d.postStop},
-		NetworkInterface: []RunConfigItem{{Key: "link", Value: v["host_name"]}},
+		NetworkInterface: []deviceConfig.RunConfigItem{{Key: "link", Value: v["host_name"]}},
 	}
 
 	err := unixDeviceRemove(d.instance.DevicesPath(), IBDevPrefix, d.name, "", &runConf)

@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
@@ -41,7 +42,7 @@ func (d *nicMACVLAN) validateEnvironment() error {
 }
 
 // Start is run when the device is added to a running instance or instance is starting up.
-func (d *nicMACVLAN) Start() (*RunConfig, error) {
+func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -103,8 +104,8 @@ func (d *nicMACVLAN) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
-	runConf.NetworkInterface = []RunConfigItem{
+	runConf := deviceConfig.RunConfig{}
+	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
@@ -115,11 +116,11 @@ func (d *nicMACVLAN) Start() (*RunConfig, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *nicMACVLAN) Stop() (*RunConfig, error) {
+func (d *nicMACVLAN) Stop() (*deviceConfig.RunConfig, error) {
 	v := d.volatileGet()
-	runConf := RunConfig{
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
-		NetworkInterface: []RunConfigItem{
+		NetworkInterface: []deviceConfig.RunConfigItem{
 			{Key: "link", Value: v["host_name"]},
 		},
 	}

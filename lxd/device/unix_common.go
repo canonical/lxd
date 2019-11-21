@@ -76,24 +76,24 @@ func (d *unixCommon) Register() error {
 	// Extract variables needed to run the event hook so that the reference to this device
 	// struct is not needed to be kept in memory.
 	devicesPath := d.instance.DevicesPath()
-	deviceConfig := d.config
+	devConfig := d.config
 	deviceName := d.name
 	state := d.state
 
 	// Handler for when a Unix event occurs.
-	f := func(e UnixEvent) (*RunConfig, error) {
+	f := func(e UnixEvent) (*deviceConfig.RunConfig, error) {
 		// Check if the event is for a device file that this device wants.
-		if unixDeviceSourcePath(deviceConfig) != e.Path {
+		if unixDeviceSourcePath(devConfig) != e.Path {
 			return nil, nil
 		}
 
 		// Derive the host side path for the instance device file.
 		ourPrefix := deviceJoinPath("unix", deviceName)
-		relativeDestPath := strings.TrimPrefix(unixDeviceDestPath(deviceConfig), "/")
+		relativeDestPath := strings.TrimPrefix(unixDeviceDestPath(devConfig), "/")
 		devName := deviceNameEncode(deviceJoinPath(ourPrefix, relativeDestPath))
 		devPath := filepath.Join(devicesPath, devName)
 
-		runConf := RunConfig{}
+		runConf := deviceConfig.RunConfig{}
 
 		if e.Action == "add" {
 			// Skip if host side instance device file already exists.
@@ -111,7 +111,7 @@ func (d *unixCommon) Register() error {
 				return nil, fmt.Errorf("Path specified is not a %s device", d.config["type"])
 			}
 
-			err = unixDeviceSetup(state, devicesPath, "unix", deviceName, deviceConfig, true, &runConf)
+			err = unixDeviceSetup(state, devicesPath, "unix", deviceName, devConfig, true, &runConf)
 			if err != nil {
 				return nil, err
 			}
@@ -141,7 +141,7 @@ func (d *unixCommon) Register() error {
 	}
 
 	// Register the handler function against the device's source path.
-	subPath := unixDeviceSourcePath(deviceConfig)
+	subPath := unixDeviceSourcePath(devConfig)
 	err := unixRegisterHandler(d.state, d.instance, d.name, subPath, f)
 	if err != nil {
 		return err
@@ -151,8 +151,8 @@ func (d *unixCommon) Register() error {
 }
 
 // Start is run when the device is added to the container.
-func (d *unixCommon) Start() (*RunConfig, error) {
-	runConf := RunConfig{}
+func (d *unixCommon) Start() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{}
 	runConf.PostHooks = []func() error{d.Register}
 	srcPath := unixDeviceSourcePath(d.config)
 
@@ -186,14 +186,14 @@ func (d *unixCommon) Start() (*RunConfig, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *unixCommon) Stop() (*RunConfig, error) {
+func (d *unixCommon) Stop() (*deviceConfig.RunConfig, error) {
 	// Unregister any Unix event handlers for this device.
 	err := unixUnregisterHandler(d.state, d.instance, d.name)
 	if err != nil {
 		return nil, err
 	}
 
-	runConf := RunConfig{
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

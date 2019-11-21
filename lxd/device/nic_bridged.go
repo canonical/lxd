@@ -110,7 +110,7 @@ func (d *nicBridged) Add() error {
 }
 
 // Start is run when the device is added to a running instance or instance is starting up.
-func (d *nicBridged) Start() (*RunConfig, error) {
+func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -169,8 +169,8 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
-	runConf.NetworkInterface = []RunConfigItem{
+	runConf := deviceConfig.RunConfig{}
+	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
@@ -179,7 +179,7 @@ func (d *nicBridged) Start() (*RunConfig, error) {
 
 	if d.instance.Type() == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
-			RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
 		)
 	}
 
@@ -247,8 +247,8 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *nicBridged) Stop() (*RunConfig, error) {
-	runConf := RunConfig{
+func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

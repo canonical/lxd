@@ -19,5 +19,5 @@ type Instance interface {
 	ExpandedConfig() map[string]string
 	LocalDevices() deviceConfig.Devices
 	ExpandedDevices() deviceConfig.Devices
-	DeviceEventHandler(*RunConfig) error
+	DeviceEventHandler(*deviceConfig.RunConfig) error
 }

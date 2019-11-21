@@ -288,7 +288,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 // mount and cgroup rule instructions to have it be attached to the instance. If defaultMode is true
 // or mode is supplied in the device config then the origin device does not need to be accessed for
 // its file mode.
-func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, defaultMode bool, runConf *RunConfig) error {
+func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, defaultMode bool, runConf *deviceConfig.RunConfig) error {
 	// Before creating the device, check that another existing device isn't using the same mount
 	// path inside the instance as our device. If we find an existing device with the same mount
 	// path we will skip mounting our device inside the instance. This can happen when multiple
@@ -340,16 +340,16 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 	}
 
 	// Instruct LXD to perform the mount.
-	runConf.Mounts = append(runConf.Mounts, MountEntryItem{
+	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 		DevPath:    d.HostPath,
 		TargetPath: d.RelativePath,
 		FSType:     "none",
 		Opts:       []string{"bind", "create=file"},
-		OwnerShift: MountOwnerShiftStatic,
+		OwnerShift: deviceConfig.MountOwnerShiftStatic,
 	})
 
 	// Instruct LXD to setup the cgroup rule.
-	runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+	runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 		Key:   "devices.allow",
 		Value: fmt.Sprintf("%s %d:%d rwm", d.Type, d.Major, d.Minor),
 	})
@@ -362,7 +362,7 @@ func unixDeviceSetup(s *state.State, devicesPath string, typePrefix string, devi
 // already know the device's major and minor numbers to avoid unixDeviceSetup() having to stat the
 // device to ascertain these attributes. If defaultMode is true or mode is supplied in the device
 // config then the origin device does not need to be accessed for its file mode.
-func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *RunConfig) error {
+func unixDeviceSetupCharNum(s *state.State, devicesPath string, typePrefix string, deviceName string, m deviceConfig.Device, major uint32, minor uint32, path string, defaultMode bool, runConf *deviceConfig.RunConfig) error {
 	configCopy := deviceConfig.Device{}
 	for k, v := range m {
 		configCopy[k] = v
@@ -394,7 +394,7 @@ func UnixDeviceExists(devicesPath string, prefix string, path string) bool {
 // that shares the same mount path then the unmount rule is not added to the runConf as the device
 // may still be in use with another LXD device.
 // Accepts an optional file prefix that will be used to narrow the selection of files to remove.
-func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, optPrefix string, runConf *RunConfig) error {
+func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, optPrefix string, runConf *deviceConfig.RunConfig) error {
 	// Load all devices.
 	dents, err := ioutil.ReadDir(devicesPath)
 	if err != nil {
@@ -469,7 +469,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		}
 
 		// Append this device to the mount rules (these will be unmounted).
-		runConf.Mounts = append(runConf.Mounts, MountEntryItem{
+		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 			TargetPath: deviceNameDecode(ourEncRelDestFile),
 		})
 
@@ -480,7 +480,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		}
 
 		// Append a deny cgroup fule for this device.
-		runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+		runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 			Key:   "devices.deny",
 			Value: fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor),
 		})

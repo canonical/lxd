@@ -199,7 +199,7 @@ func (d *disk) CanHotPlug() (bool, []string) {
 }
 
 // Start is run when the device is added to the instance.
-func (d *disk) Start() (*RunConfig, error) {
+func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -212,14 +212,14 @@ func (d *disk) Start() (*RunConfig, error) {
 	return d.startContainer()
 }
 
-// startVM starts the disk device for a container instance.
-func (d *disk) startContainer() (*RunConfig, error) {
-	runConf := RunConfig{}
+// startContainer starts the disk device for a container instance.
+func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{}
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 
 	// Apply cgroups only after all the mounts have been processed.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
-		runConf := RunConfig{}
+		runConf := deviceConfig.RunConfig{}
 
 		err := d.generateLimits(&runConf)
 		if err != nil {
@@ -237,7 +237,7 @@ func (d *disk) startContainer() (*RunConfig, error) {
 	// Deal with a rootfs.
 	if shared.IsRootDiskDevice(d.config) {
 		// Set the rootfs path.
-		rootfs := RootFSEntryItem{
+		rootfs := deviceConfig.RootFSEntryItem{
 			Path: d.instance.RootfsPath(),
 		}
 
@@ -281,14 +281,14 @@ func (d *disk) startContainer() (*RunConfig, error) {
 			isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		}
 
-		ownerShift := MountOwnerShiftNone
+		ownerShift := deviceConfig.MountOwnerShiftNone
 		if shared.IsTrue(d.config["shift"]) {
-			ownerShift = MountOwnerShiftDynamic
+			ownerShift = deviceConfig.MountOwnerShiftDynamic
 		}
 
 		// If ownerShift is none and pool is specified then check whether the pool itself
 		// has owner shifting enabled, and if so enable shifting on this device too.
-		if ownerShift == MountOwnerShiftNone && d.config["pool"] != "" {
+		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
 			poolID, _, err := d.state.Cluster.StoragePoolGet(d.config["pool"])
 			if err != nil {
 				return nil, err
@@ -332,7 +332,7 @@ func (d *disk) startContainer() (*RunConfig, error) {
 
 		if sourceDevPath != "" {
 			// Instruct LXD to perform the mount.
-			runConf.Mounts = append(runConf.Mounts, MountEntryItem{
+			runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 				DevPath:    sourceDevPath,
 				TargetPath: relativeDestPath,
 				FSType:     "none",
@@ -349,8 +349,8 @@ func (d *disk) startContainer() (*RunConfig, error) {
 }
 
 // startVM starts the disk device for a virtual machine instance.
-func (d *disk) startVM() (*RunConfig, error) {
-	runConf := RunConfig{}
+func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{}
 
 	if shared.IsRootDiskDevice(d.config) {
 		runConf.RootFS.Path = d.config["path"]
@@ -364,7 +364,7 @@ func (d *disk) startVM() (*RunConfig, error) {
 			return nil, err
 		}
 
-		runConf.Mounts = []MountEntryItem{
+		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
 				DevPath:    isoPath,
 				TargetPath: d.name,
@@ -444,7 +444,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 	// Only apply IO limits if instance is running.
 	if isRunning {
-		runConf := RunConfig{}
+		runConf := deviceConfig.RunConfig{}
 		err := d.generateLimits(&runConf)
 		if err != nil {
 			return err
@@ -464,7 +464,7 @@ func (d *disk) applyQuota(newSize string) error {
 }
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
-func (d *disk) generateLimits(runConf *RunConfig) error {
+func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	// Disk priority limits.
 	diskPriority := d.instance.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
@@ -481,7 +481,7 @@ func (d *disk) generateLimits(runConf *RunConfig) error {
 				priority = 10
 			}
 
-			runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+			runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 				Key:   "blkio.weight",
 				Value: fmt.Sprintf("%d", priority),
 			})
@@ -514,28 +514,28 @@ func (d *disk) generateLimits(runConf *RunConfig) error {
 
 		for block, limit := range diskLimits {
 			if limit.readBps > 0 {
-				runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 					Key:   "blkio.throttle.read_bps_device",
 					Value: fmt.Sprintf("%s %d", block, limit.readBps),
 				})
 			}
 
 			if limit.readIops > 0 {
-				runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 					Key:   "blkio.throttle.read_iops_device",
 					Value: fmt.Sprintf("%s %d", block, limit.readIops),
 				})
 			}
 
 			if limit.writeBps > 0 {
-				runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 					Key:   "blkio.throttle.write_bps_device",
 					Value: fmt.Sprintf("%s %d", block, limit.writeBps),
 				})
 			}
 
 			if limit.writeIops > 0 {
-				runConf.CGroups = append(runConf.CGroups, RunConfigItem{
+				runConf.CGroups = append(runConf.CGroups, deviceConfig.RunConfigItem{
 					Key:   "blkio.throttle.write_iops_device",
 					Value: fmt.Sprintf("%s %d", block, limit.writeIops),
 				})
@@ -734,16 +734,16 @@ func (d *disk) createDevice() (string, error) {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *disk) Stop() (*RunConfig, error) {
+func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	if d.instance.Type() == instancetype.VM {
 		if shared.IsRootDiskDevice(d.config) {
-			return &RunConfig{}, nil
+			return &deviceConfig.RunConfig{}, nil
 		}
 
 		return nil, fmt.Errorf("Non-root disks not supported for VMs")
 	}
 
-	runConf := RunConfig{
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
@@ -757,7 +757,7 @@ func (d *disk) Stop() (*RunConfig, error) {
 	}
 
 	// Request an unmount of the device inside the instance.
-	runConf.Mounts = append(runConf.Mounts, MountEntryItem{
+	runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
 		TargetPath: relativeDestPath,
 	})
 

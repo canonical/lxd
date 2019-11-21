@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -27,13 +28,13 @@ type USBEvent struct {
 }
 
 // usbHandlers stores the event handler callbacks for USB events.
-var usbHandlers = map[string]func(USBEvent) (*RunConfig, error){}
+var usbHandlers = map[string]func(USBEvent) (*deviceConfig.RunConfig, error){}
 
 // usbMutex controls access to the usbHandlers map.
 var usbMutex sync.Mutex
 
 // usbRegisterHandler registers a handler function to be called whenever a USB device event occurs.
-func usbRegisterHandler(instance Instance, deviceName string, handler func(USBEvent) (*RunConfig, error)) {
+func usbRegisterHandler(instance Instance, deviceName string, handler func(USBEvent) (*deviceConfig.RunConfig, error)) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
