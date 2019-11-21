@@ -1172,7 +1172,7 @@ func instanceLoadByProject(s *state.State, project string) ([]Instance, error) {
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
 			Project: project,
-			Type:    instancetype.Container,
+			Type:    instancetype.Any,
 		}
 		var err error
 		cts, err = tx.InstanceList(filter)

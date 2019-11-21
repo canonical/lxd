@@ -596,7 +596,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check if a running container is using it.
-	ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volumeName, volumeTypeName, true)
+	ctsUsingVolume, err := storagePoolVolumeUsedByRunningInstancesWithProfilesGet(d.State(), poolName, volumeName, volumeTypeName, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1010,7 +1010,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	} else {
 
 		if req.Restore != "" {
-			ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, vol.Name, storagePoolVolumeTypeNameCustom, true)
+			ctsUsingVolume, err := storagePoolVolumeUsedByRunningInstancesWithProfilesGet(d.State(), poolName, vol.Name, storagePoolVolumeTypeNameCustom, true)
 			if err != nil {
 				return response.InternalError(err)
 			}
