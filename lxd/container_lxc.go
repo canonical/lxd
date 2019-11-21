@@ -3547,15 +3547,9 @@ func (c *containerLXC) Delete() error {
 		}
 	}
 
-	// Get the storage pool name of the instance.
-	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
-	if err != nil {
-		return err
-	}
-
 	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByName(c.state, poolName)
-	if err != storageDrivers.ErrUnknownDriver {
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
 		if err != nil {
 			return err
 		}
@@ -3577,19 +3571,6 @@ func (c *containerLXC) Delete() error {
 				return err
 			}
 
-			// Remove all backups.
-			backups, err := c.Backups()
-			if err != nil {
-				return err
-			}
-
-			for _, backup := range backups {
-				err = backup.Delete()
-				if err != nil {
-					return err
-				}
-			}
-
 			if !isImport {
 				// Remove the storage volume, snapshot volumes and database records.
 				err = pool.DeleteInstance(c, nil)
@@ -3597,32 +3578,8 @@ func (c *containerLXC) Delete() error {
 					return err
 				}
 			}
-
-			// Clean things up.
-			c.cleanup()
-
-			// Delete the MAAS entry.
-			err = c.maasDelete()
-			if err != nil {
-				logger.Error("Failed deleting instance MAAS record", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
-				return err
-			}
-
-			// Run device removal function for each device.
-			for k, m := range c.expandedDevices {
-				err = c.deviceRemove(k, m)
-				if err != nil && err != device.ErrUnsupportedDevType {
-					return errors.Wrapf(err, "Failed to remove device '%s'", k)
-				}
-			}
 		}
-
-		// Remove the database record of the instance or snapshot instance.
-		if err := c.state.Cluster.InstanceRemove(c.Project(), c.Name()); err != nil {
-			logger.Error("Failed deleting instance entry", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
-			return err
-		}
-	} else {
+	} else if err == storageDrivers.ErrUnknownDriver {
 		// Attempt to initialize storage interface for the container.
 		err := c.initStorage()
 		if err != nil {
@@ -3630,7 +3587,7 @@ func (c *containerLXC) Delete() error {
 		}
 
 		if c.IsSnapshot() {
-			// Remove the snapshot
+			// Remove the snapshot.
 			if c.storage != nil && !isImport {
 				err := c.storage.ContainerSnapshotDelete(c)
 				if err != nil {
@@ -3639,30 +3596,14 @@ func (c *containerLXC) Delete() error {
 				}
 			}
 		} else {
-			// Remove all snapshots
+			// Remove all snapshots.
 			err := instanceDeleteSnapshots(c.state, c.Project(), c.Name())
 			if err != nil {
 				logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 				return err
 			}
 
-			// Remove all backups
-			backups, err := c.Backups()
-			if err != nil {
-				return err
-			}
-
-			for _, backup := range backups {
-				err = backup.Delete()
-				if err != nil {
-					return err
-				}
-			}
-
-			// Clean things up
-			c.cleanup()
-
-			// Delete the container from disk
+			// Delete the container from disk.
 			if c.storage != nil && !isImport {
 				_, poolName, _ := c.storage.GetContainerPoolInfo()
 				containerMountPoint := storagePools.GetContainerMountPoint(c.Project(), poolName, c.Name())
@@ -3675,30 +3616,9 @@ func (c *containerLXC) Delete() error {
 					}
 				}
 			}
-
-			// Delete the MAAS entry
-			err = c.maasDelete()
-			if err != nil {
-				logger.Error("Failed deleting container MAAS record", log.Ctx{"name": c.Name(), "err": err})
-				return err
-			}
-
-			// Remove devices from container.
-			for k, m := range c.expandedDevices {
-				err = c.deviceRemove(k, m)
-				if err != nil && err != device.ErrUnsupportedDevType {
-					return errors.Wrapf(err, "Failed to remove device '%s'", k)
-				}
-			}
 		}
 
-		// Remove the database record
-		if err := c.state.Cluster.InstanceRemove(c.project, c.Name()); err != nil {
-			logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
-			return err
-		}
-
-		// Remove the database entry for the pool device
+		// Remove the database entry for the pool device.
 		if c.storage != nil {
 			// Get the name of the storage pool the container is attached to. This
 			// reverse-engineering works because container names are globally
@@ -3711,6 +3631,46 @@ func (c *containerLXC) Delete() error {
 				return err
 			}
 		}
+	}
+
+	// Perform other cleanup steps if not snapshot.
+	if !c.IsSnapshot() {
+		// Remove all backups.
+		backups, err := c.Backups()
+		if err != nil {
+			return err
+		}
+
+		for _, backup := range backups {
+			err = backup.Delete()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Delete the MAAS entry.
+		err = c.maasDelete()
+		if err != nil {
+			logger.Error("Failed deleting container MAAS record", log.Ctx{"name": c.Name(), "err": err})
+			return err
+		}
+
+		// Remove devices from container.
+		for k, m := range c.expandedDevices {
+			err = c.deviceRemove(k, m)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return errors.Wrapf(err, "Failed to remove device '%s'", k)
+			}
+		}
+
+		// Clean things up.
+		c.cleanup()
+	}
+
+	// Remove the database record of the instance or snapshot instance.
+	if err := c.state.Cluster.InstanceRemove(c.project, c.Name()); err != nil {
+		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
+		return err
 	}
 
 	logger.Info("Deleted container", ctxMap)
