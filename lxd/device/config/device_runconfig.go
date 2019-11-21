@@ -1,4 +1,4 @@
-package device
+package config
 
 // MountOwnerShiftNone do not use owner shifting.
 const MountOwnerShiftNone = ""

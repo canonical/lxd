@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
@@ -106,7 +107,7 @@ func (d *nicIPVLAN) validateEnvironment() error {
 }
 
 // Start is run when the instance is starting up (IPVLAN doesn't support hot plugging).
-func (d *nicIPVLAN) Start() (*RunConfig, error) {
+func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
 		return nil, err
@@ -142,8 +143,8 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 		return nil, err
 	}
 
-	runConf := RunConfig{}
-	nic := []RunConfigItem{
+	runConf := deviceConfig.RunConfig{}
+	nic := []deviceConfig.RunConfigItem{
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "ipvlan"},
 		{Key: "flags", Value: "up"},
@@ -154,25 +155,25 @@ func (d *nicIPVLAN) Start() (*RunConfig, error) {
 	}
 
 	if d.config["mtu"] != "" {
-		nic = append(nic, RunConfigItem{Key: "mtu", Value: d.config["mtu"]})
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "mtu", Value: d.config["mtu"]})
 	}
 
 	if d.config["ipv4.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
 		}
 
-		nic = append(nic, RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
 	}
 
 	if d.config["ipv6.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
 		}
 
-		nic = append(nic, RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
+		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
 	}
 
 	runConf.NetworkInterface = nic
@@ -211,8 +212,8 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 }
 
 // Stop is run when the device is removed from the instance.
-func (d *nicIPVLAN) Stop() (*RunConfig, error) {
-	runConf := RunConfig{
+func (d *nicIPVLAN) Stop() (*deviceConfig.RunConfig, error) {
+	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 

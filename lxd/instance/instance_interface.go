@@ -7,7 +7,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
@@ -66,7 +65,7 @@ type Instance interface {
 	IsStateful() bool
 
 	// Hooks
-	DeviceEventHandler(*device.RunConfig) error
+	DeviceEventHandler(*deviceConfig.RunConfig) error
 
 	// Properties
 	ID() int
