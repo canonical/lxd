@@ -898,7 +898,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 
 	err = b.driver.DeleteVolume(drivers.VolumeTypeImage, fingerprint, op)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	err = b.state.Cluster.StoragePoolVolumeDelete("default", fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
@@ -906,7 +906,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		return err
 	}
 
-	return ErrNotImplemented
+	return nil
 }
 
 // CreateCustomVolume creates an empty custom volume.
