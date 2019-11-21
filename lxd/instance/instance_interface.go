@@ -1,4 +1,4 @@
-package main
+package instance
 
 import (
 	"io"
@@ -9,7 +9,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -54,7 +53,7 @@ type Instance interface {
 
 	// Console - Allocate and run a console tty.
 	Console() (*os.File, error)
-	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error)
+	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (Cmd, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)
@@ -109,7 +108,6 @@ type Instance interface {
 	// Needed for migration for now.
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
-	Storage() storage
 	DeferTemplateApply(trigger string) error
 	DaemonState() *state.State
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -207,7 +208,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
-	var c Instance
+	var c instance.Instance
 
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
@@ -894,7 +895,7 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
 }
 
-func clusterCopyContainerInternal(d *Daemon, source Instance, project string, req *api.InstancesPost) response.Response {
+func clusterCopyContainerInternal(d *Daemon, source instance.Instance, project string, req *api.InstancesPost) response.Response {
 	name := req.Source.Source
 
 	// Locate the source of the container

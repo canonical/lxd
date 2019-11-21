@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -90,7 +91,7 @@ func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
 	return networks, nil
 }
 
-func networkIsInUse(c Instance, name string) bool {
+func networkIsInUse(c instance.Instance, name string) bool {
 	for _, d := range c.ExpandedDevices() {
 		if d["type"] != "nic" {
 			continue

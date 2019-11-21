@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -358,7 +359,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respo
 }
 
 // Return the full path of a container template.
-func getContainerTemplatePath(c Instance, filename string) (string, error) {
+func getContainerTemplatePath(c instance.Instance, filename string) (string, error) {
 	if strings.Contains(filename, "/") {
 		return "", fmt.Errorf("Invalid template filename")
 	}

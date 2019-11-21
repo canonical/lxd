@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -28,7 +29,7 @@ import (
 
 type consoleWs struct {
 	// instance currently worked on
-	instance Instance
+	instance instance.Instance
 
 	// websocket connections to bridge pty fds to
 	conns map[int]*websocket.Conn

@@ -16,6 +16,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -27,7 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewMigrationSource(inst Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
+func NewMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{instance: inst}, make(chan bool, 1)}
 	ret.instanceOnly = instanceOnly
 
@@ -80,7 +81,7 @@ fi
 	return err
 }
 
-func snapshotToProtobuf(c Instance) *migration.Snapshot {
+func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 	config := []*migration.Config{}
 	for k, v := range c.LocalConfig() {
 		kCopy := string(k)
@@ -400,7 +401,13 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
-	myType := s.instance.Storage().MigrationType()
+	if s.instance.Type() != instancetype.Container {
+		return fmt.Errorf("Instance type must be container")
+	}
+
+	ct := s.instance.(*containerLXC)
+
+	myType := ct.Storage().MigrationType()
 	hasFeature := true
 	header := migration.MigrationHeader{
 		Fs:            &myType,
@@ -455,7 +462,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	}
 
 	// Initialize storage driver
-	driver, fsErr := s.instance.Storage().MigrationSource(sourceArgs)
+	driver, fsErr := ct.Storage().MigrationSource(sourceArgs)
 	if fsErr != nil {
 		s.sendControl(fsErr)
 		return fsErr
@@ -473,7 +480,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		}
 
 		// Check if this storage pool has a rate limit set for rsync.
-		poolwritable := s.instance.Storage().GetStoragePoolWritable()
+		poolwritable := ct.Storage().GetStoragePoolWritable()
 		if poolwritable.Config != nil {
 			bwlimit = poolwritable.Config["rsync.bwlimit"]
 		}
@@ -780,10 +787,10 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 
 func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 	if c.src.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance not container type")
+		return fmt.Errorf("Instance type must be container")
 	}
 
-	ct := c.src.instance.(container)
+	ct := c.src.instance.(*containerLXC)
 
 	var err error
 
@@ -858,12 +865,12 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 		}
 	}
 
-	mySink := c.src.instance.Storage().MigrationSink
+	mySink := ct.Storage().MigrationSink
 	if c.refresh {
 		mySink = rsyncMigrationSink
 	}
 
-	myType := c.src.instance.Storage().MigrationType()
+	myType := ct.Storage().MigrationType()
 	resp := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
@@ -1166,12 +1173,12 @@ func (s *migrationSourceWs) ConnectContainerTarget(target api.InstancePostTarget
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 
-func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []Instance) ([]*migration.Snapshot, []Instance) {
+func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []instance.Instance) ([]*migration.Snapshot, []instance.Instance) {
 	// Compare source and target
 	sourceSnapshotsTime := map[string]int64{}
 	targetSnapshotsTime := map[string]int64{}
 
-	toDelete := []Instance{}
+	toDelete := []instance.Instance{}
 	toSync := []*migration.Snapshot{}
 
 	for _, snap := range sourceSnapshots {
