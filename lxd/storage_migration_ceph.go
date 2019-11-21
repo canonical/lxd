@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -17,15 +18,15 @@ import (
 )
 
 type rbdMigrationSourceDriver struct {
-	container        Instance
-	snapshots        []Instance
+	container        instance.Instance
+	snapshots        []instance.Instance
 	rbdSnapshotNames []string
 	ceph             *storageCeph
 	runningSnapName  string
 	stoppedSnapName  string
 }
 
-func (s *rbdMigrationSourceDriver) Snapshots() []Instance {
+func (s *rbdMigrationSourceDriver) Snapshots() []instance.Instance {
 	return s.snapshots
 }
 

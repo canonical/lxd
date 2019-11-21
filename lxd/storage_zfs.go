@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -764,11 +765,11 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 }
 
 // Things we don't need to care about
-func (s *storageZfs) ContainerMount(c Instance) (bool, error) {
+func (s *storageZfs) ContainerMount(c instance.Instance) (bool, error) {
 	return s.doContainerMount(c.Project(), c.Name(), c.IsPrivileged())
 }
 
-func (s *storageZfs) ContainerUmount(c Instance, path string) (bool, error) {
+func (s *storageZfs) ContainerUmount(c instance.Instance, path string) (bool, error) {
 	logger.Debugf("Unmounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	name := c.Name()
 
@@ -813,13 +814,13 @@ func (s *storageZfs) ContainerUmount(c Instance, path string) (bool, error) {
 }
 
 // Things we do have to care about
-func (s *storageZfs) ContainerStorageReady(container Instance) bool {
+func (s *storageZfs) ContainerStorageReady(container instance.Instance) bool {
 	volumeName := project.Prefix(container.Project(), container.Name())
 	fs := fmt.Sprintf("containers/%s", volumeName)
 	return zfsFilesystemEntityExists(s.getOnDiskPoolName(), fs)
 }
 
-func (s *storageZfs) ContainerCreate(container Instance) error {
+func (s *storageZfs) ContainerCreate(container instance.Instance) error {
 	err := s.doContainerCreate(container.Project(), container.Name(), container.IsPrivileged())
 	if err != nil {
 		s.doContainerDelete(container.Project(), container.Name())
@@ -842,7 +843,7 @@ func (s *storageZfs) ContainerCreate(container Instance) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageZfs) ContainerCreateFromImage(container instance.Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerPath := container.Path()
@@ -920,7 +921,7 @@ func (s *storageZfs) ContainerCreateFromImage(container Instance, fingerprint st
 	return nil
 }
 
-func (s *storageZfs) ContainerDelete(container Instance) error {
+func (s *storageZfs) ContainerDelete(container instance.Instance) error {
 	err := s.doContainerDelete(container.Project(), container.Name())
 	if err != nil {
 		return err
@@ -929,7 +930,7 @@ func (s *storageZfs) ContainerDelete(container Instance) error {
 	return nil
 }
 
-func (s *storageZfs) copyWithoutSnapshotsSparse(target Instance, source Instance) error {
+func (s *storageZfs) copyWithoutSnapshotsSparse(target instance.Instance, source instance.Instance) error {
 	poolName := s.getOnDiskPoolName()
 
 	sourceContainerName := source.Name()
@@ -1031,7 +1032,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target Instance, source Instance
 	return nil
 }
 
-func (s *storageZfs) copyWithoutSnapshotFull(target Instance, source Instance) error {
+func (s *storageZfs) copyWithoutSnapshotFull(target instance.Instance, source instance.Instance) error {
 	logger.Debugf("Creating full ZFS copy \"%s\" to \"%s\"", source.Name(), target.Name())
 
 	sourceIsSnapshot := source.IsSnapshot()
@@ -1132,7 +1133,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target Instance, source Instance) e
 	return nil
 }
 
-func (s *storageZfs) copyWithSnapshots(target Instance, source Instance, parentSnapshot string) error {
+func (s *storageZfs) copyWithSnapshots(target instance.Instance, source instance.Instance, parentSnapshot string) error {
 	sourceName := source.Name()
 	targetParentName, targetSnapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
@@ -1179,7 +1180,7 @@ func (s *storageZfs) copyWithSnapshots(target Instance, source Instance, parentS
 	return nil
 }
 
-func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, containerOnly bool, refresh bool, refreshSnapshots []Instance) error {
+func (s *storageZfs) doCrossPoolContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool, refresh bool, refreshSnapshots []instance.Instance) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1204,7 +1205,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 		return err
 	}
 
-	var snapshots []Instance
+	var snapshots []instance.Instance
 
 	if refresh {
 		snapshots = refreshSnapshots
@@ -1257,7 +1258,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target Instance, source Instance, 
 	return nil
 }
 
-func (s *storageZfs) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
+func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error {
 	logger.Debugf("Copying ZFS container storage %s to %s", source.Name(), target.Name())
 
 	ourStart, err := source.StorageStart()
@@ -1268,8 +1269,19 @@ func (s *storageZfs) ContainerCopy(target Instance, source Instance, containerOn
 		defer source.StorageStop()
 	}
 
-	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
-	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
+	if source.Type() != instancetype.Container {
+		return fmt.Errorf("Source Instance type must be container")
+	}
+
+	if target.Type() != instancetype.Container {
+		return fmt.Errorf("Target Instance type must be container")
+	}
+
+	srcCt := source.(*containerLXC)
+	targetCt := target.(*containerLXC)
+
+	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 	}
@@ -1384,7 +1396,7 @@ func (s *storageZfs) ContainerCopy(target Instance, source Instance, containerOn
 	return nil
 }
 
-func (s *storageZfs) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
+func (s *storageZfs) ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error {
 	logger.Debugf("Refreshing ZFS container storage for %s from %s", target.Name(), source.Name())
 
 	ourStart, err := source.StorageStart()
@@ -1398,7 +1410,7 @@ func (s *storageZfs) ContainerRefresh(target Instance, source Instance, snapshot
 	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
 
-func (s *storageZfs) ContainerRename(container Instance, newName string) error {
+func (s *storageZfs) ContainerRename(container instance.Instance, newName string) error {
 	logger.Debugf("Renaming ZFS storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	poolName := s.getOnDiskPoolName()
@@ -1482,7 +1494,7 @@ func (s *storageZfs) ContainerRename(container Instance, newName string) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerRestore(target Instance, source Instance) error {
+func (s *storageZfs) ContainerRestore(target instance.Instance, source instance.Instance) error {
 	logger.Debugf("Restoring ZFS storage volume for container \"%s\" from %s to %s", s.volume.Name, source.Name(), target.Name())
 
 	snaps, err := target.Snapshots()
@@ -1546,7 +1558,7 @@ func (s *storageZfs) ContainerRestore(target Instance, source Instance) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerGetUsage(container Instance) (int64, error) {
+func (s *storageZfs) ContainerGetUsage(container instance.Instance) (int64, error) {
 	var err error
 
 	fs := fmt.Sprintf("containers/%s", project.Prefix(container.Project(), container.Name()))
@@ -1625,7 +1637,7 @@ func (s *storageZfs) doContainerSnapshotCreate(projectName, targetName string, s
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
+func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer instance.Instance, sourceContainer instance.Instance) error {
 	err := s.doContainerSnapshotCreate(sourceContainer.Project(), snapshotContainer.Name(), sourceContainer.Name())
 	if err != nil {
 		s.ContainerSnapshotDelete(snapshotContainer)
@@ -1719,7 +1731,7 @@ func zfsSnapshotDeleteInternal(projectName, poolName string, ctName string, onDi
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer Instance) error {
+func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer instance.Instance) error {
 	logger.Debugf("Deleting ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
@@ -1733,7 +1745,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer Instance) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotRename(snapshotContainer Instance, newName string) error {
+func (s *storageZfs) ContainerSnapshotRename(snapshotContainer instance.Instance, newName string) error {
 	logger.Debugf("Renaming ZFS storage volume for snapshot \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	oldName := snapshotContainer.Name()
@@ -1798,7 +1810,7 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer Instance, newName
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotStart(container Instance) (bool, error) {
+func (s *storageZfs) ContainerSnapshotStart(container instance.Instance) (bool, error) {
 	logger.Debugf("Initializing ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	cName, sName, _ := shared.ContainerGetParentAndSnapshotName(container.Name())
@@ -1822,7 +1834,7 @@ func (s *storageZfs) ContainerSnapshotStart(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageZfs) ContainerSnapshotStop(container Instance) (bool, error) {
+func (s *storageZfs) ContainerSnapshotStop(container instance.Instance) (bool, error) {
 	logger.Debugf("Stopping ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	cName, sName, _ := shared.ContainerGetParentAndSnapshotName(container.Name())
@@ -1837,12 +1849,12 @@ func (s *storageZfs) ContainerSnapshotStop(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
+func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer instance.Instance) error {
 	/* don't touch the fs yet, as migration will do that for us */
 	return nil
 }
 
-func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup.Backup, source Instance) error {
+func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup.Backup, source instance.Instance) error {
 	sourceIsSnapshot := source.IsSnapshot()
 	poolName := s.getOnDiskPoolName()
 
@@ -1890,7 +1902,7 @@ func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup.Backup,
 	return nil
 }
 
-func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup.Backup, source Instance, parentSnapshot string) error {
+func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup.Backup, source instance.Instance, parentSnapshot string) error {
 	sourceName := source.Name()
 	snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
 
@@ -1922,7 +1934,7 @@ func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup.Backup, sour
 	return zfsSendCmd.Run()
 }
 
-func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup backup.Backup, source Instance) error {
+func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup backup.Backup, source instance.Instance) error {
 	// Handle snapshots
 	snapshots, err := source.Snapshots()
 	if err != nil {
@@ -1991,7 +2003,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backup.Backup, source Instance) error {
+func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backup.Backup, source instance.Instance) error {
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
 		output, err := rsync.LocalCopy(oldPath, newPath, bwlimit, true)
@@ -2094,7 +2106,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	return nil
 }
 
-func (s *storageZfs) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
+func (s *storageZfs) ContainerBackupCreate(path string, backup backup.Backup, source instance.Instance) error {
 	// Generate the actual backup
 	if backup.OptimizedStorage() {
 		err := s.doContainerBackupCreateOptimized(path, backup, source)
@@ -2520,7 +2532,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 
 	driver := zfsMigrationSourceDriver{
 		instance:         args.Instance,
-		snapshots:        []Instance{},
+		snapshots:        []instance.Instance{},
 		zfsSnapshotNames: []string{},
 		zfs:              s,
 		zfsFeatures:      args.ZfsFeatures,

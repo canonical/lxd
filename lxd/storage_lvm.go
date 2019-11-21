@@ -13,6 +13,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -923,7 +925,7 @@ func (s *storageLvm) StoragePoolVolumeRename(newName string) error {
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
-func (s *storageLvm) ContainerStorageReady(container Instance) bool {
+func (s *storageLvm) ContainerStorageReady(container instance.Instance) bool {
 	containerLvmName := containerNameToLVName(container.Name())
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
@@ -931,7 +933,7 @@ func (s *storageLvm) ContainerStorageReady(container Instance) bool {
 	return ok
 }
 
-func (s *storageLvm) ContainerCreate(container Instance) error {
+func (s *storageLvm) ContainerCreate(container instance.Instance) error {
 	logger.Debugf("Creating empty LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	tryUndo := true
@@ -995,7 +997,7 @@ func (s *storageLvm) ContainerCreate(container Instance) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerCreateFromImage(container Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
+func (s *storageLvm) ContainerCreateFromImage(container instance.Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	tryUndo := true
@@ -1110,7 +1112,7 @@ func lvmContainerDeleteInternal(projectName, poolName string, ctName string, isS
 	return nil
 }
 
-func (s *storageLvm) ContainerDelete(container Instance) error {
+func (s *storageLvm) ContainerDelete(container instance.Instance) error {
 	logger.Debugf("Deleting LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerName := container.Name()
@@ -1124,7 +1126,7 @@ func (s *storageLvm) ContainerDelete(container Instance) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerCopy(target Instance, source Instance, containerOnly bool) error {
+func (s *storageLvm) ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error {
 	logger.Debugf("Copying LVM container storage for container %s to %s", source.Name(), target.Name())
 
 	err := s.doContainerCopy(target, source, containerOnly, false, nil)
@@ -1136,7 +1138,7 @@ func (s *storageLvm) ContainerCopy(target Instance, source Instance, containerOn
 	return nil
 }
 
-func (s *storageLvm) doContainerCopy(target Instance, source Instance, containerOnly bool, refresh bool, refreshSnapshots []Instance) error {
+func (s *storageLvm) doContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool, refresh bool, refreshSnapshots []instance.Instance) error {
 	ourStart, err := source.StorageStart()
 	if err != nil {
 		return err
@@ -1180,7 +1182,7 @@ func (s *storageLvm) doContainerCopy(target Instance, source Instance, container
 		return nil
 	}
 
-	var snapshots []Instance
+	var snapshots []instance.Instance
 
 	if refresh {
 		snapshots = refreshSnapshots
@@ -1222,7 +1224,7 @@ func (s *storageLvm) doContainerCopy(target Instance, source Instance, container
 	return nil
 }
 
-func (s *storageLvm) ContainerRefresh(target Instance, source Instance, snapshots []Instance) error {
+func (s *storageLvm) ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error {
 	logger.Debugf("Refreshing LVM container storage for %s from %s", target.Name(), source.Name())
 
 	err := s.doContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
@@ -1234,7 +1236,7 @@ func (s *storageLvm) ContainerRefresh(target Instance, source Instance, snapshot
 	return nil
 }
 
-func (s *storageLvm) ContainerMount(c Instance) (bool, error) {
+func (s *storageLvm) ContainerMount(c instance.Instance) (bool, error) {
 	return s.doContainerMount(c.Project(), c.Name(), false)
 }
 
@@ -1295,7 +1297,7 @@ func (s *storageLvm) doContainerMount(project, name string, snap bool) (bool, er
 	return ourMount, nil
 }
 
-func (s *storageLvm) ContainerUmount(c Instance, path string) (bool, error) {
+func (s *storageLvm) ContainerUmount(c instance.Instance, path string) (bool, error) {
 	return s.umount(c.Project(), c.Name(), path)
 }
 
@@ -1343,7 +1345,7 @@ func (s *storageLvm) umount(project, name string, path string) (bool, error) {
 	return ourUmount, nil
 }
 
-func (s *storageLvm) ContainerRename(container Instance, newContainerName string) error {
+func (s *storageLvm) ContainerRename(container instance.Instance, newContainerName string) error {
 	logger.Debugf("Renaming LVM storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newContainerName)
 
 	tryUndo := true
@@ -1424,10 +1426,21 @@ func (s *storageLvm) ContainerRename(container Instance, newContainerName string
 	return nil
 }
 
-func (s *storageLvm) ContainerRestore(target Instance, source Instance) error {
+func (s *storageLvm) ContainerRestore(target instance.Instance, source instance.Instance) error {
 	logger.Debugf("Restoring LVM storage volume for container \"%s\" from %s to %s", s.volume.Name, source.Name(), target.Name())
 
-	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	if source.Type() != instancetype.Container {
+		return fmt.Errorf("Source Instance type must be container")
+	}
+
+	if target.Type() != instancetype.Container {
+		return fmt.Errorf("Target Instance type must be container")
+	}
+
+	srcCt := source.(*containerLXC)
+	targetCt := target.(*containerLXC)
+
+	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
 	if s.pool.Name != sourcePool {
 		return fmt.Errorf("containers must be on the same pool to be restored")
 	}
@@ -1439,12 +1452,12 @@ func (s *storageLvm) ContainerRestore(target Instance, source Instance) error {
 	targetLvmName := containerNameToLVName(targetName)
 	targetPath := target.Path()
 	if s.useThinpool {
-		ourUmount, err := target.Storage().ContainerUmount(target, targetPath)
+		ourUmount, err := targetCt.Storage().ContainerUmount(target, targetPath)
 		if err != nil {
 			return err
 		}
 		if ourUmount {
-			defer target.Storage().ContainerMount(target)
+			defer targetCt.Storage().ContainerMount(target)
 		}
 
 		poolName := s.getOnDiskPoolName()
@@ -1503,11 +1516,11 @@ func (s *storageLvm) ContainerRestore(target Instance, source Instance) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerGetUsage(container Instance) (int64, error) {
+func (s *storageLvm) ContainerGetUsage(container instance.Instance) (int64, error) {
 	return -1, fmt.Errorf("the LVM container backend doesn't support quotas")
 }
 
-func (s *storageLvm) ContainerSnapshotCreate(snapshotContainer Instance, sourceContainer Instance) error {
+func (s *storageLvm) ContainerSnapshotCreate(snapshotContainer instance.Instance, sourceContainer instance.Instance) error {
 	logger.Debugf("Creating LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	err := s.createSnapshotContainer(snapshotContainer, sourceContainer, true)
@@ -1519,7 +1532,7 @@ func (s *storageLvm) ContainerSnapshotCreate(snapshotContainer Instance, sourceC
 	return nil
 }
 
-func (s *storageLvm) ContainerSnapshotDelete(snapshotContainer Instance) error {
+func (s *storageLvm) ContainerSnapshotDelete(snapshotContainer instance.Instance) error {
 	logger.Debugf("Deleting LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	err := s.ContainerDelete(snapshotContainer)
@@ -1531,7 +1544,7 @@ func (s *storageLvm) ContainerSnapshotDelete(snapshotContainer Instance) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerSnapshotRename(snapshotContainer Instance, newContainerName string) error {
+func (s *storageLvm) ContainerSnapshotRename(snapshotContainer instance.Instance, newContainerName string) error {
 	logger.Debugf("Renaming LVM storage volume for snapshot \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newContainerName)
 
 	tryUndo := true
@@ -1563,7 +1576,7 @@ func (s *storageLvm) ContainerSnapshotRename(snapshotContainer Instance, newCont
 	return nil
 }
 
-func (s *storageLvm) ContainerSnapshotStart(container Instance) (bool, error) {
+func (s *storageLvm) ContainerSnapshotStart(container instance.Instance) (bool, error) {
 	logger.Debugf(`Initializing LVM storage volume for snapshot "%s" on storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
@@ -1613,7 +1626,7 @@ func (s *storageLvm) ContainerSnapshotStart(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageLvm) ContainerSnapshotStop(container Instance) (bool, error) {
+func (s *storageLvm) ContainerSnapshotStop(container instance.Instance) (bool, error) {
 	logger.Debugf("Stopping LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerName := container.Name()
@@ -1652,7 +1665,7 @@ func (s *storageLvm) ContainerSnapshotStop(container Instance) (bool, error) {
 	return true, nil
 }
 
-func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer Instance) error {
+func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer instance.Instance) error {
 	logger.Debugf("Creating empty LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	err := s.ContainerCreate(snapshotContainer)
@@ -1664,7 +1677,7 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer Instance) er
 	return nil
 }
 
-func (s *storageLvm) ContainerBackupCreate(path string, backup backup.Backup, source Instance) error {
+func (s *storageLvm) ContainerBackupCreate(path string, backup backup.Backup, source instance.Instance) error {
 	poolName := s.getOnDiskPoolName()
 
 	// Prepare for rsync

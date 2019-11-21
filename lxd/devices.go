@@ -16,11 +16,11 @@ import (
 
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/device"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
-
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type deviceTaskCPU struct {
@@ -299,8 +299,8 @@ func deviceTaskBalance(s *state.State) {
 		return
 	}
 
-	fixedInstances := map[int][]Instance{}
-	balancedInstances := map[Instance]int{}
+	fixedInstances := map[int][]instance.Instance{}
+	balancedInstances := map[instance.Instance]int{}
 	for _, c := range instances {
 		conf := c.ExpandedConfig()
 		cpulimit, ok := conf["limits.cpu"]
@@ -332,14 +332,14 @@ func deviceTaskBalance(s *state.State) {
 				if ok {
 					fixedInstances[nr] = append(fixedInstances[nr], c)
 				} else {
-					fixedInstances[nr] = []Instance{c}
+					fixedInstances[nr] = []instance.Instance{c}
 				}
 			}
 		}
 	}
 
 	// Balance things
-	pinning := map[Instance][]string{}
+	pinning := map[instance.Instance][]string{}
 	usage := map[int]deviceTaskCPU{}
 
 	for _, id := range cpus {

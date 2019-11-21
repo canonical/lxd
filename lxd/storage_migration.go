@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -43,8 +44,8 @@ type MigrationStorageSourceDriver interface {
 }
 
 type rsyncStorageSourceDriver struct {
-	container     Instance
-	snapshots     []Instance
+	container     instance.Instance
+	snapshots     []instance.Instance
 	rsyncFeatures []string
 }
 
@@ -147,7 +148,7 @@ func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSour
 }
 
 func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	var snapshots = []Instance{}
+	var snapshots = []instance.Instance{}
 	if !args.InstanceOnly {
 		allSnapshots, err := args.Instance.Snapshots()
 		if err != nil {
@@ -169,7 +170,7 @@ func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (Mi
 
 func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var err error
-	var snapshots = []Instance{}
+	var snapshots = []instance.Instance{}
 	if !args.InstanceOnly {
 		snapshots, err = args.Instance.Snapshots()
 		if err != nil {
@@ -311,7 +312,13 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 		return err
 	}
 
-	isDirBackend := args.Instance.Storage().GetStorageType() == storageTypeDir
+	if args.Instance.Type() != instancetype.Container {
+		return fmt.Errorf("Instance type must be container")
+	}
+
+	ct := args.Instance.(*containerLXC)
+
+	isDirBackend := ct.Storage().GetStorageType() == storageTypeDir
 	if isDirBackend {
 		if !args.InstanceOnly {
 			for _, snap := range args.Snapshots {

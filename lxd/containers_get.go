@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
@@ -107,7 +108,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 
 	// Get the local instances
-	nodeCts := map[string]Instance{}
+	nodeCts := map[string]instance.Instance{}
 	if recursion > 0 {
 		cts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
 		if err != nil {
