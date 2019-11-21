@@ -264,7 +264,7 @@ func (d *cephfs) Mount() (bool, error) {
 	// Parse the namespace / path.
 	fields := strings.SplitN(d.config["cephfs.path"], "/", 2)
 	fsName := fields[0]
-	fsPath := "/"
+	fsPath := ""
 	if len(fields) > 1 {
 		fsPath = fields[1]
 	}
