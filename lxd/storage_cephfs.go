@@ -806,7 +806,7 @@ func (s *storageCephFs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) e
 		}
 
 		for _, snap := range snapshots {
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			err = s.copyVolume(source.Pool, snap.Name, fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName))
 			if err != nil {
 				return err
@@ -854,7 +854,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolum
 	}
 
 	// Parse the name
-	sourceName, snapName, ok := shared.ContainerGetParentAndSnapshotName(target.Name)
+	sourceName, snapName, ok := shared.InstanceGetParentAndSnapshotName(target.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -894,7 +894,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	// Parse the name
-	sourceName, snapName, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, snapName, ok := shared.InstanceGetParentAndSnapshotName(s.volume.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -936,7 +936,7 @@ func (s *storageCephFs) StoragePoolVolumeSnapshotRename(newName string) error {
 	}
 
 	// Rename the snapshot entry
-	sourceName, oldSnapName, _ := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, oldSnapName, _ := shared.InstanceGetParentAndSnapshotName(s.volume.Name)
 	sourcePath := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
 	oldCephSnapPath := filepath.Join(sourcePath, ".snap", oldSnapName)
 	newCephSnapPath := filepath.Join(sourcePath, ".snap", newName)
@@ -980,7 +980,7 @@ func (s *storageCephFs) copyVolume(sourcePool string, source string, target stri
 	}
 
 	// Split target name
-	targetVolName, targetSnapName, ok := shared.ContainerGetParentAndSnapshotName(target)
+	targetVolName, targetSnapName, ok := shared.InstanceGetParentAndSnapshotName(target)
 
 	// Figure out target path
 	dstMountPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, targetVolName)

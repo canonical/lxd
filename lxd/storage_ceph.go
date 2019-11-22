@@ -1073,7 +1073,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target instance.Instance, source 
 			logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
 
 			// create snapshot
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 			err = s.doContainerSnapshotCreate(target.Project(), fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
 			if fsFreezeErr == nil {
 				msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--unfreeze", destContainerMntPoint)
@@ -1216,11 +1216,11 @@ func (s *storageCeph) ContainerCopy(target instance.Instance, source instance.In
 		for i, snap := range snapshots {
 			prev := ""
 			if i > 0 {
-				_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snapshots[i-1].Name())
+				_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapshots[i-1].Name())
 				prev = fmt.Sprintf("snapshot_%s", snapOnlyName)
 			}
 
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 			lastSnap = fmt.Sprintf("snapshot_%s", snapOnlyName)
 			sourceVolumeName := fmt.Sprintf(
 				"%s/container_%s@snapshot_%s",
@@ -1584,7 +1584,7 @@ func (s *storageCeph) ContainerRestore(target instance.Instance, source instance
 		defer target.StorageStart()
 	}
 
-	sourceContainerOnlyName, sourceSnapshotOnlyName, _ := shared.ContainerGetParentAndSnapshotName(sourceName)
+	sourceContainerOnlyName, sourceSnapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(sourceName)
 	prefixedSourceSnapOnlyName := fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
 	err = cephRBDVolumeRestore(s.ClusterName, s.OSDPoolName,
 		project.Prefix(source.Project(), sourceContainerOnlyName), storagePoolVolumeTypeNameContainer,
@@ -1632,7 +1632,7 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer instance.Instanc
 
 	snapshotContainerName := snapshotContainer.Name()
 	sourceContainerName, sourceContainerSnapOnlyName, _ :=
-		shared.ContainerGetParentAndSnapshotName(snapshotContainerName)
+		shared.InstanceGetParentAndSnapshotName(snapshotContainerName)
 	snapshotName := fmt.Sprintf("snapshot_%s", sourceContainerSnapOnlyName)
 
 	rbdVolumeExists := cephRBDSnapshotExists(s.ClusterName, s.OSDPoolName,
@@ -1699,10 +1699,10 @@ func (s *storageCeph) ContainerSnapshotRename(c instance.Instance, newName strin
 
 	revert := true
 
-	containerOnlyName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(oldName)
+	containerOnlyName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(oldName)
 	containerOnlyName = project.Prefix(c.Project(), containerOnlyName)
 	oldSnapOnlyName := fmt.Sprintf("snapshot_%s", snapOnlyName)
-	_, newSnapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(newName)
+	_, newSnapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(newName)
 	newSnapOnlyName = fmt.Sprintf("snapshot_%s", newSnapOnlyName)
 	err := cephRBDVolumeSnapshotRename(s.ClusterName, s.OSDPoolName,
 		containerOnlyName, storagePoolVolumeTypeNameContainer, oldSnapOnlyName,
@@ -1747,7 +1747,7 @@ func (s *storageCeph) ContainerSnapshotStart(c instance.Instance) (bool, error) 
 
 	revert := true
 
-	containerOnlyName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(containerName)
+	containerOnlyName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(containerName)
 	containerOnlyName = project.Prefix(c.Project(), containerOnlyName)
 
 	// protect
@@ -1877,7 +1877,7 @@ func (s *storageCeph) ContainerSnapshotStop(c instance.Instance) (bool, error) {
 
 	logger.Debugf("Unmounted %s", containerMntPoint)
 
-	containerOnlyName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(containerName)
+	containerOnlyName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(containerName)
 	containerOnlyName = project.Prefix(c.Project(), containerOnlyName)
 	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
 
@@ -2712,7 +2712,7 @@ func (s *storageCeph) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeS
 		}
 	}
 
-	sourceOnlyName, snapshotOnlyName, _ := shared.ContainerGetParentAndSnapshotName(target.Name)
+	sourceOnlyName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(target.Name)
 	snapshotName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 	err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, sourceOnlyName, storagePoolVolumeTypeNameCustom, snapshotName, s.UserName)
 	if err != nil {
@@ -2732,7 +2732,7 @@ func (s *storageCeph) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeS
 }
 
 func (s *storageCeph) doPoolVolumeSnapshotDelete(name string) error {
-	sourceName, snapshotOnlyName, ok := shared.ContainerGetParentAndSnapshotName(name)
+	sourceName, snapshotOnlyName, ok := shared.InstanceGetParentAndSnapshotName(name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -2782,7 +2782,7 @@ func (s *storageCeph) StoragePoolVolumeSnapshotDelete() error {
 func (s *storageCeph) StoragePoolVolumeSnapshotRename(newName string) error {
 	logger.Infof("Renaming CEPH storage volume on OSD storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
 
-	sourceName, oldSnapOnlyName, ok := shared.ContainerGetParentAndSnapshotName(s.volume.Name)
+	sourceName, oldSnapOnlyName, ok := shared.InstanceGetParentAndSnapshotName(s.volume.Name)
 	if !ok {
 		return fmt.Errorf("Not a snapshot name")
 	}
@@ -2964,7 +2964,7 @@ func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operations.Operati
 		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, project.Prefix(args.Instance.Project(), instanceName), storagePoolVolumeTypeNameContainer, s.UserName)
 		if err == nil {
 			for _, snap := range snaps {
-				snapOnlyName, _, _ := shared.ContainerGetParentAndSnapshotName(snap)
+				snapOnlyName, _, _ := shared.InstanceGetParentAndSnapshotName(snap)
 				if !strings.HasPrefix(snapOnlyName, "migration-send") {
 					continue
 				}

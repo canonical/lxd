@@ -56,8 +56,8 @@ const shorthand = "46abcdfFlnNpPsStL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 func TestColumns(t *testing.T) {
-	keys := make([]string, 0, len(shared.KnownContainerConfigKeys))
-	for k := range shared.KnownContainerConfigKeys {
+	keys := make([]string, 0, len(shared.KnownInstanceConfigKeys))
+	for k := range shared.KnownInstanceConfigKeys {
 		keys = append(keys, k)
 		//Test compatibility with 'config:' prefix
 		keys = append(keys, "config:"+k)

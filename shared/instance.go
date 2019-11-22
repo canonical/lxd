@@ -13,14 +13,14 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-type ContainerAction string
+type InstanceAction string
 
 const (
-	Stop     ContainerAction = "stop"
-	Start    ContainerAction = "start"
-	Restart  ContainerAction = "restart"
-	Freeze   ContainerAction = "freeze"
-	Unfreeze ContainerAction = "unfreeze"
+	Stop     InstanceAction = "stop"
+	Start    InstanceAction = "start"
+	Restart  InstanceAction = "restart"
+	Freeze   InstanceAction = "freeze"
+	Unfreeze InstanceAction = "unfreeze"
 )
 
 func IsInt64(value string) error {
@@ -134,7 +134,7 @@ func IsDeviceID(value string) error {
 }
 
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
-// a container. It typically get passed a specific entry of api.Container.Devices.
+// a container. It typically get passed a specific entry of api.Instance.Devices.
 func IsRootDiskDevice(device map[string]string) bool {
 	// Root disk devices also need a non-empty "pool" property, but we can't check that here
 	// because this function is used with clients talking to older servers where there was no
@@ -170,10 +170,10 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	return "", nil, fmt.Errorf("No root device could be found")
 }
 
-// KnownContainerConfigKeys maps all fully defined, well-known config keys
+// KnownInstanceConfigKeys maps all fully defined, well-known config keys
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
-var KnownContainerConfigKeys = map[string]func(value string) error{
+var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"boot.autostart":             IsBool,
 	"boot.autostart.delay":       IsInt64,
 	"boot.autostart.priority":    IsInt64,
@@ -352,7 +352,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 // be done by the caller.  User defined keys are always considered to
 // be valid, e.g. user.* and environment.* keys.
 func ConfigKeyChecker(key string) (func(value string) error, error) {
-	if f, ok := KnownContainerConfigKeys[key]; ok {
+	if f, ok := KnownInstanceConfigKeys[key]; ok {
 		return f, nil
 	}
 
@@ -422,9 +422,9 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 	return nil, fmt.Errorf("Unknown configuration key: %s", key)
 }
 
-// ContainerGetParentAndSnapshotName returns the parent container name, snapshot
+// InstanceGetParentAndSnapshotName returns the parent container name, snapshot
 // name, and whether it actually was a snapshot name.
-func ContainerGetParentAndSnapshotName(name string) (string, string, bool) {
+func InstanceGetParentAndSnapshotName(name string) (string, string, bool) {
 	fields := strings.SplitN(name, SnapshotDelimiter, 2)
 	if len(fields) == 1 {
 		return name, "", false
