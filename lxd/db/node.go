@@ -375,6 +375,30 @@ func (c *ClusterTx) NodeAddRole(id int64, role ClusterRole) error {
 	return nil
 }
 
+// NodeRemoveRole removes a role from the node.
+func (c *ClusterTx) NodeRemoveRole(id int64, role ClusterRole) error {
+	// Translate role names to ids
+	roleID := -1
+	for k, v := range ClusterRoles {
+		if v == role {
+			roleID = k
+			break
+		}
+	}
+
+	if roleID < 0 {
+		return fmt.Errorf("Invalid role: %v", role)
+	}
+
+	// Update the database record
+	_, err := c.tx.Exec("DELETE FROM nodes_roles WHERE node_id=? AND role=?", id, roleID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // NodeRemove removes the node with the given id.
 func (c *ClusterTx) NodeRemove(id int64) error {
 	result, err := c.tx.Exec("DELETE FROM nodes WHERE id=?", id)
