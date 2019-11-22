@@ -13,14 +13,14 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-type ContainerAction string
+type InstanceAction string
 
 const (
-	Stop     ContainerAction = "stop"
-	Start    ContainerAction = "start"
-	Restart  ContainerAction = "restart"
-	Freeze   ContainerAction = "freeze"
-	Unfreeze ContainerAction = "unfreeze"
+	Stop     InstanceAction = "stop"
+	Start    InstanceAction = "start"
+	Restart  InstanceAction = "restart"
+	Freeze   InstanceAction = "freeze"
+	Unfreeze InstanceAction = "unfreeze"
 )
 
 func IsInt64(value string) error {
