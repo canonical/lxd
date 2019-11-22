@@ -64,11 +64,6 @@ func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (i
 		return nil, err
 	}
 
-	err = vm.initAgentClient()
-	if err != nil {
-		return nil, err
-	}
-
 	return vm, nil
 }
 
@@ -271,17 +266,74 @@ type vmQemu struct {
 
 	expiryDate time.Time
 
+	// Cached handles.
+	// Do not use these variables directly, instead use their associated get functions so they
+	// will be initialised on demand.
 	agentClient *http.Client
+	storagePool storagePools.Pool
 }
 
-func (vm *vmQemu) initAgentClient() error {
+// getAgentClient returns the current agent client handle. To avoid TLS setup each time this
+// function is called, the handle is cached internally in the vmQemu struct.
+func (vm *vmQemu) getAgentClient() (*http.Client, error) {
+	if vm.agentClient != nil {
+		return vm.agentClient, nil
+	}
+
 	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
 	agentCert, _, clientCert, clientKey, err := vm.generateAgentCert()
+	if err != nil {
+		return nil, err
+	}
+
+	agent, err := vsock.HTTPClient(vm.vsockID(), clientCert, clientKey, agentCert)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent, nil
+}
+
+// getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
+// function is called, the handle is cached internally in the vmQemu struct.
+func (vm *vmQemu) getStoragePool() (storagePools.Pool, error) {
+	if vm.storagePool != nil {
+		return vm.storagePool, nil
+	}
+
+	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	if err != nil {
+		return nil, err
+	}
+	vm.storagePool = pool
+
+	return vm.storagePool, nil
+}
+
+// mount mounts the instance's config volume if needed.
+func (vm *vmQemu) mount() (ourMount bool, err error) {
+	var pool storagePools.Pool
+	pool, err = vm.getStoragePool()
+	if err != nil {
+		return
+	}
+
+	ourMount, err = pool.MountInstance(vm, nil)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// unmount unmounts the instance's config volume if needed.
+func (vm *vmQemu) unmount() error {
+	pool, err := vm.getStoragePool()
 	if err != nil {
 		return err
 	}
 
-	vm.agentClient, err = vsock.HTTPClient(vm.vsockID(), clientCert, clientKey, agentCert)
+	_, err = pool.UnmountInstance(vm, nil)
 	if err != nil {
 		return err
 	}
@@ -291,13 +343,23 @@ func (vm *vmQemu) initAgentClient() error {
 
 // generateAgentCert creates the necessary server key and certificate if needed.
 func (vm *vmQemu) generateAgentCert() (string, string, string, string, error) {
+	// Mount the instance's config volume if needed.
+	ourMount, err := vm.mount()
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	if ourMount {
+		defer vm.unmount()
+	}
+
 	agentCertFile := filepath.Join(vm.Path(), "agent.crt")
 	agentKeyFile := filepath.Join(vm.Path(), "agent.key")
 	clientCertFile := filepath.Join(vm.Path(), "agent-client.crt")
 	clientKeyFile := filepath.Join(vm.Path(), "agent-client.key")
 
 	// Create server certificate.
-	err := shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
+	err = shared.FindOrGenCert(agentCertFile, agentKeyFile, false, false)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -390,6 +452,7 @@ func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
+	vm.unmount()
 
 	return nil
 }
@@ -411,6 +474,12 @@ func (vm *vmQemu) Start(stateful bool) error {
 
 	if vm.IsRunning() {
 		return fmt.Errorf("The instance is already running")
+	}
+
+	// Mount the instance's config volume.
+	_, err = vm.mount()
+	if err != nil {
+		return err
 	}
 
 	err = vm.generateConfigShare()
@@ -629,12 +698,25 @@ func (vm *vmQemu) getNvramPath() string {
 	return filepath.Join(vm.Path(), "qemu.nvram")
 }
 
+// generateConfigShare generates the config share directory that will be exported to the VM via
+// a 9P share. Due to the unknown size of templates inside the images this directory is created
+// inside the VM's config volume so that it can be restricted by quota.
 func (vm *vmQemu) generateConfigShare() error {
+	// Mount the instance's config volume if needed.
+	ourMount, err := vm.mount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer vm.unmount()
+	}
+
 	configDrivePath := filepath.Join(vm.Path(), "config")
 
 	// Create config drive dir.
 	os.RemoveAll(configDrivePath)
-	err := os.MkdirAll(configDrivePath, 0500)
+	err = os.MkdirAll(configDrivePath, 0500)
 	if err != nil {
 		return err
 	}
@@ -804,6 +886,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 }
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
+// It writes the config file inside the VM's log path.
 func (vm *vmQemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
@@ -1073,7 +1156,7 @@ mount_tag = "config"
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
 func (vm *vmQemu) addRootDriveConfig(sb *strings.Builder) error {
-	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	pool, err := vm.getStoragePool()
 	if err != nil {
 		return err
 	}
@@ -1250,6 +1333,7 @@ func (vm *vmQemu) Stop(stateful bool) error {
 	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
+	vm.unmount()
 
 	return nil
 }
@@ -1830,7 +1914,7 @@ func (vm *vmQemu) Delete() error {
 	isImport := false
 
 	// Attempt to initialize storage interface for the instance.
-	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	pool, err := vm.getStoragePool()
 	if err != nil && err != db.ErrNoSuchObject {
 		// Because of the way vmQemuCreate creates the storage volume record before loading
 		// the storage pool driver, Delete() may be called as part of a revertion if the
@@ -2007,7 +2091,12 @@ func (vm *vmQemu) FileExists(path string) error {
 }
 
 func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
-	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return 0, 0, 0, "", nil, err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
 		return 0, 0, 0, "", nil, fmt.Errorf("Failed to connect to lxd-agent")
@@ -2045,7 +2134,12 @@ func (vm *vmQemu) FilePull(srcPath string, dstPath string) (int64, int64, os.Fil
 }
 
 func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
-	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
 		return fmt.Errorf("Failed to connect to lxd-agent")
@@ -2185,7 +2279,12 @@ func (vm *vmQemu) Exec(command []string, env map[string]string, stdin *os.File, 
 		}
 	}()
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return nil, err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
@@ -2461,7 +2560,12 @@ func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
 		return nil, err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, vm.agentClient)
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return nil, err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		return nil, err
 	}
