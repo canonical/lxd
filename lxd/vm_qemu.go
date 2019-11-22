@@ -540,23 +540,50 @@ func (vm *vmQemu) Start(stateful bool) error {
 		devConfs = append(devConfs, runConf)
 	}
 
-	confFile, err := vm.generateQemuConfigFile(devConfs)
+	// Get qemu configuration
+	qemuBinary, qemuType, qemuConfig, err := vm.qemuArchConfig()
+	if err != nil {
+		return err
+	}
+
+	confFile, err := vm.generateQemuConfigFile(qemuType, qemuConfig, devConfs)
 	if err != nil {
 		return err
 	}
 
 	// Check qemu is installed.
-	_, err = exec.LookPath("qemu-system-x86_64")
+	_, err = exec.LookPath(qemuBinary)
 	if err != nil {
 		return err
 	}
 
-	_, err = shared.RunCommand("qemu-system-x86_64", "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", vm.pidFilePath())
+	_, err = shared.RunCommand(qemuBinary, "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", vm.pidFilePath())
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (vm *vmQemu) qemuArchConfig() (string, string, string, error) {
+	if vm.architecture == osarch.ARCH_64BIT_INTEL_X86 {
+		conf := `
+[global]
+driver = "ICH9-LPC"
+property = "disable_s3"
+value = "1"
+
+[global]
+driver = "ICH9-LPC"
+property = "disable_s4"
+value = "1"
+`
+		return "qemu-system-x86_64", "q35", conf, nil
+	} else if vm.architecture == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
+		return "qemu-system-aarch64", "virt", "", nil
+	}
+
+	return "", "", "", fmt.Errorf("Architecture isn't supported for virtual machines")
 }
 
 // deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
@@ -887,29 +914,19 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *vmQemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig) (string, error) {
+func (vm *vmQemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
-	sb.WriteString(`
+	sb.WriteString(fmt.Sprintf(`
 # Machine
 [machine]
 graphics = "off"
-type = "q35"
+type = "%s"
 accel = "kvm"
 usb = "off"
 graphics = "off"
-
-[global]
-driver = "ICH9-LPC"
-property = "disable_s3"
-value = "1"
-
-[global]
-driver = "ICH9-LPC"
-property = "disable_s4"
-value = "1"
-
+%s
 [boot-opts]
 strict = "on"
 
@@ -969,7 +986,7 @@ addr = "0x0"
 # Console
 [chardev "console"]
 backend = "pty"
-`)
+`, qemuType, qemuConf))
 
 	// Now add the dynamic parts of the config.
 	err := vm.addMemoryConfig(sb)
