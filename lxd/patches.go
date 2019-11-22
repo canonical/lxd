@@ -74,6 +74,7 @@ var patches = []patch{
 	{name: "storage_api_rename_container_snapshots_links_again", run: patchStorageApiUpdateContainerSnapshots},
 	{name: "storage_api_rename_container_snapshots_dir_again_again", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "clustering_add_roles", run: patchClusteringAddRoles},
+	{name: "clustering_add_roles_again", run: patchClusteringAddRoles},
 }
 
 type patch struct {
@@ -3369,6 +3370,11 @@ func patchClusteringAddRoles(name string, d *Daemon) error {
 
 			if shared.StringInSlice(node.Address, addresses) && !shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
 				err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
+				if err != nil {
+					return err
+				}
+			} else if shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles) {
+				err = tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
 				if err != nil {
 					return err
 				}
