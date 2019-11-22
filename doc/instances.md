@@ -34,61 +34,61 @@ currently supported:
 
 The currently supported keys are:
 
-Key                                             | Type      | Default           | Live update   | API extension                              | Description
-:--                                             | :---      | :------           | :----------   | :------------                              | :----------
-boot.autostart                                  | boolean   | -                 | n/a           | -                                          | Always start the instance when LXD starts (if not set, restore last state)
-boot.autostart.delay                            | integer   | 0                 | n/a           | -                                          | Number of seconds to wait after the instance started before starting the next one
-boot.autostart.priority                         | integer   | 0                 | n/a           | -                                          | What order to start the instances in (starting with highest)
-boot.host\_shutdown\_timeout                    | integer   | 30                | yes           | container\_host\_shutdown\_timeout         | Seconds to wait for instance to shutdown before it is force stopped
-boot.stop.priority                              | integer   | 0                 | n/a           | container\_stop\_priority                  | What order to shutdown the instances (starting with highest)
-environment.\*                                  | string    | -                 | yes (exec)    | -                                          | key/value environment variables to export to the instance and set on exec
-limits.cpu                                      | string    | - (all)           | yes           | -                                          | Number or range of CPUs to expose to the instance
-limits.cpu.allowance                            | string    | 100%              | yes           | -                                          | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
-limits.cpu.priority                             | integer   | 10 (maximum)      | yes           | -                                          | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
-limits.disk.priority                            | integer   | 5 (medium)        | yes           | -                                          | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
-limits.kernel.\*                                | string    | -                 | no            | kernel\_limits                             | This limits kernel resources per instance (e.g. number of open files)
-limits.memory                                   | string    | - (all)           | yes           | -                                          | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
-limits.memory.enforce                           | string    | hard              | yes           | -                                          | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
-limits.memory.swap                              | boolean   | true              | yes           | -                                          | Whether to allow some of the instance's memory to be swapped out to disk
-limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | -                                          | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
-limits.network.priority                         | integer   | 0 (minimum)       | yes           | -                                          | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
-limits.processes                                | integer   | - (max)           | yes           | -                                          | Maximum number of processes that can run in the instance
-linux.kernel\_modules                           | string    | -                 | yes           | -                                          | Comma separated list of kernel modules to load before starting the instance
-migration.incremental.memory                    | boolean   | false             | yes           | migration\_pre\_copy                       | Incremental memory transfer of the instance's memory to reduce downtime
-migration.incremental.memory.goal               | integer   | 70                | yes           | migration\_pre\_copy                       | Percentage of memory to have in sync before stopping the instance
-migration.incremental.memory.iterations         | integer   | 10                | yes           | migration\_pre\_copy                       | Maximum number of transfer operations to go through before stopping the instance
-nvidia.driver.capabilities                      | string    | compute,utility   | no            | nvidia\_runtime\_config                    | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
-nvidia.runtime                                  | boolean   | false             | no            | nvidia\_runtime                            | Pass the host NVIDIA and CUDA runtime libraries into the instance
-nvidia.require.cuda                             | string    | -                 | no            | nvidia\_runtime\_config                    | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
-nvidia.require.driver                           | string    | -                 | no            | nvidia\_runtime\_config                    | Version expression for the required driver version (sets libnvidia-container NVIDIA\_REQUIRE\_DRIVER)
-raw.apparmor                                    | blob      | -                 | yes           | -                                          | Apparmor profile entries to be appended to the generated profile
-raw.idmap                                       | blob      | -                 | no            | id\_map                                    | Raw idmap configuration (e.g. "both 1000 1000")
-raw.lxc                                         | blob      | -                 | no            | -                                          | Raw LXC configuration to be appended to the generated one
-raw.seccomp                                     | blob      | -                 | no            | container\_syscall\_filtering              | Raw Seccomp configuration
-security.devlxd                                 | boolean   | true              | no            | restrict\_devlxd                           | Controls the presence of /dev/lxd in the instance
-security.devlxd.images                          | boolean   | false             | no            | devlxd\_images                             | Controls the availability of the /1.0/images API over devlxd
-security.idmap.base                             | integer   | -                 | no            | id\_map\_base                              | The base host ID to use for the allocation (overrides auto-detection)
-security.idmap.isolated                         | boolean   | false             | no            | id\_map                                    | Use an idmap for this instance that is unique among instances with isolated set
-security.idmap.size                             | integer   | -                 | no            | id\_map                                    | The size of the idmap to use
-security.nesting                                | boolean   | false             | yes           | -                                          | Support running lxd (nested) inside the instance
-security.privileged                             | boolean   | false             | no            | -                                          | Runs the instance in privileged mode
-security.protection.delete                      | boolean   | false             | yes           | container\_protection\_delete              | Prevents the instance from being deleted
-security.protection.shift                       | boolean   | false             | yes           | container\_protection\_shift               | Prevents the instance's filesystem from being uid/gid shifted on startup
-security.syscalls.blacklist                     | string    | -                 | no            | container\_syscall\_filtering              | A '\n' separated list of syscalls to blacklist
-security.syscalls.blacklist\_compat             | boolean   | false             | no            | container\_syscall\_filtering              | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
-security.syscalls.blacklist\_default            | boolean   | true              | no            | container\_syscall\_filtering              | Enables the default syscall blacklist
-security.syscalls.intercept.mknod               | boolean   | false             | no            | container\_syscall\_intercept              | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
-security.syscalls.intercept.mount               | boolean   | false             | no            | container\_syscall\_intercept\_mount       | Handles the `mount` system call
-security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | container\_syscall\_intercept\_mount       | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
-security.syscalls.intercept.mount.fuse          | string    | -                 | yes           | container\_syscall\_intercept\_mount\_fuse | Whether to mount shiftfs on top of filesystems handled through mount syscall interception
-security.syscalls.intercept.mount.shift         | boolean   | false             | yes           | container\_syscall\_intercept\_mount       | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
-security.syscalls.intercept.setxattr            | boolean   | false             | no            | container\_syscall\_intercept              | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
-security.syscalls.whitelist                     | string    | -                 | no            | container\_syscall\_filtering              | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
-snapshots.schedule                              | string    | -                 | no            | snapshot\_scheduling                       | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
-snapshots.schedule.stopped                      | bool      | false             | no            | snapshot\_scheduling                       | Controls whether or not stopped instances are to be snapshoted automatically
-snapshots.pattern                               | string    | snap%d            | no            | snapshot\_scheduling                       | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
-snapshots.expiry                                | string    | -                 | no            | snapshot\_expiry                           | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-user.\*                                         | string    | -                 | n/a           | -                                          | Free form user key/value storage (can be used in search)
+Key                                             | Type      | Default           | Live update   | Description
+:--                                             | :---      | :------           | :----------   | :----------
+boot.autostart                                  | boolean   | -                 | n/a           | Always start the instance when LXD starts (if not set, restore last state)
+boot.autostart.delay                            | integer   | 0                 | n/a           | Number of seconds to wait after the instance started before starting the next one
+boot.autostart.priority                         | integer   | 0                 | n/a           | What order to start the instances in (starting with highest)
+boot.host\_shutdown\_timeout                    | integer   | 30                | yes           | Seconds to wait for instance to shutdown before it is force stopped
+boot.stop.priority                              | integer   | 0                 | n/a           | What order to shutdown the instances (starting with highest)
+environment.\*                                  | string    | -                 | yes (exec)    | key/value environment variables to export to the instance and set on exec
+limits.cpu                                      | string    | - (all)           | yes           | Number or range of CPUs to expose to the instance
+limits.cpu.allowance                            | string    | 100%              | yes           | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
+limits.cpu.priority                             | integer   | 10 (maximum)      | yes           | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
+limits.disk.priority                            | integer   | 5 (medium)        | yes           | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
+limits.kernel.\*                                | string    | -                 | no            | This limits kernel resources per instance (e.g. number of open files)
+limits.memory                                   | string    | - (all)           | yes           | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
+limits.memory.enforce                           | string    | hard              | yes           | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
+limits.memory.swap                              | boolean   | true              | yes           | Whether to allow some of the instance's memory to be swapped out to disk
+limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
+limits.network.priority                         | integer   | 0 (minimum)       | yes           | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
+limits.processes                                | integer   | - (max)           | yes           | Maximum number of processes that can run in the instance
+linux.kernel\_modules                           | string    | -                 | yes           | Comma separated list of kernel modules to load before starting the instance
+migration.incremental.memory                    | boolean   | false             | yes           | Incremental memory transfer of the instance's memory to reduce downtime
+migration.incremental.memory.goal               | integer   | 70                | yes           | Percentage of memory to have in sync before stopping the instance
+migration.incremental.memory.iterations         | integer   | 10                | yes           | Maximum number of transfer operations to go through before stopping the instance
+nvidia.driver.capabilities                      | string    | compute,utility   | no            | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
+nvidia.runtime                                  | boolean   | false             | no            | Pass the host NVIDIA and CUDA runtime libraries into the instance
+nvidia.require.cuda                             | string    | -                 | no            | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
+nvidia.require.driver                           | string    | -                 | no            | Version expression for the required driver version (sets libnvidia-container NVIDIA\_REQUIRE\_DRIVER)
+raw.apparmor                                    | blob      | -                 | yes           | Apparmor profile entries to be appended to the generated profile
+raw.idmap                                       | blob      | -                 | no            | Raw idmap configuration (e.g. "both 1000 1000")
+raw.lxc                                         | blob      | -                 | no            | Raw LXC configuration to be appended to the generated one
+raw.seccomp                                     | blob      | -                 | no            | Raw Seccomp configuration
+security.devlxd                                 | boolean   | true              | no            | Controls the presence of /dev/lxd in the instance
+security.devlxd.images                          | boolean   | false             | no            | Controls the availability of the /1.0/images API over devlxd
+security.idmap.base                             | integer   | -                 | no            | The base host ID to use for the allocation (overrides auto-detection)
+security.idmap.isolated                         | boolean   | false             | no            | Use an idmap for this instance that is unique among instances with isolated set
+security.idmap.size                             | integer   | -                 | no            | The size of the idmap to use
+security.nesting                                | boolean   | false             | yes           | Support running lxd (nested) inside the instance
+security.privileged                             | boolean   | false             | no            | Runs the instance in privileged mode
+security.protection.delete                      | boolean   | false             | yes           | Prevents the instance from being deleted
+security.protection.shift                       | boolean   | false             | yes           | Prevents the instance's filesystem from being uid/gid shifted on startup
+security.syscalls.blacklist                     | string    | -                 | no            | A '\n' separated list of syscalls to blacklist
+security.syscalls.blacklist\_compat             | boolean   | false             | no            | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
+security.syscalls.blacklist\_default            | boolean   | true              | no            | Enables the default syscall blacklist
+security.syscalls.intercept.mknod               | boolean   | false             | no            | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
+security.syscalls.intercept.mount               | boolean   | false             | no            | Handles the `mount` system call
+security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
+security.syscalls.intercept.mount.fuse          | string    | -                 | yes           | Whether to mount shiftfs on top of filesystems handled through mount syscall interception
+security.syscalls.intercept.mount.shift         | boolean   | false             | yes           | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
+security.syscalls.intercept.setxattr            | boolean   | false             | no            | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
+security.syscalls.whitelist                     | string    | -                 | no            | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
+snapshots.schedule                              | string    | -                 | no            | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
+snapshots.schedule.stopped                      | bool      | false             | no            | Controls whether or not stopped instances are to be snapshoted automatically
+snapshots.pattern                               | string    | snap%d            | no            | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.expiry                                | string    | -                 | no            | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+user.\*                                         | string    | -                 | n/a           | Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
 
@@ -257,15 +257,15 @@ Straight physical device passthrough from the host. The targeted device will van
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-vlan                    | integer   | -                 | no        | network\_vlan\_physical                | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+parent                  | string    | -                 | yes       | The name of the host device
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+vlan                    | integer   | -                 | no        | The VLAN ID to attach to
+maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
 
 #### nictype: bridged
 
@@ -273,25 +273,25 @@ Uses an existing bridge on the host and creates a virtual device pair to connect
 
 Device configuration properties:
 
-Key                      | Type      | Default           | Required  | API extension                          | Description
-:--                      | :--       | :--               | :--       | :--                                    | :--
-parent                   | string    | -                 | yes       | -                                      | The name of the host device
-name                     | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                      | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
-hwaddr                   | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-host\_name               | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
-limits.ingress           | string    | -                 | no        | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress            | string    | -                 | no        | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max               | string    | -                 | no        | -                                      | Same as modifying both limits.ingress and limits.egress
-ipv4.address             | string    | -                 | no        | network                                | An IPv4 address to assign to the instance through DHCP
-ipv6.address             | string    | -                 | no        | network                                | An IPv6 address to assign to the instance through DHCP
-ipv4.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv4 static routes to add on host to nic
-ipv6.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv6 static routes to add on host to nic
-security.mac\_filtering  | boolean   | false             | no        | network                                | Prevent the instance from spoofing another's MAC address
-security.ipv4\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
-security.ipv6\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
-maas.subnet.ipv4         | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6         | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
+Key                      | Type      | Default           | Required  | Description
+:--                      | :--       | :--               | :--       | :--
+parent                   | string    | -                 | yes       | The name of the host device
+name                     | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                      | integer   | parent MTU        | no        | The MTU of the new interface
+hwaddr                   | string    | randomly assigned | no        | The MAC address of the new interface
+host\_name               | string    | randomly assigned | no        | The name of the interface inside the host
+limits.ingress           | string    | -                 | no        | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress            | string    | -                 | no        | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max               | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
+ipv4.address             | string    | -                 | no        | An IPv4 address to assign to the instance through DHCP
+ipv6.address             | string    | -                 | no        | An IPv6 address to assign to the instance through DHCP
+ipv4.routes              | string    | -                 | no        | Comma delimited list of IPv4 static routes to add on host to nic
+ipv6.routes              | string    | -                 | no        | Comma delimited list of IPv6 static routes to add on host to nic
+security.mac\_filtering  | boolean   | false             | no        | Prevent the instance from spoofing another's MAC address
+security.ipv4\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
+security.ipv6\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
+maas.subnet.ipv4         | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6         | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
 
 #### nictype: macvlan
 
@@ -299,15 +299,15 @@ Sets up a new network device based on an existing one but using a different MAC 
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+parent                  | string    | -                 | yes       | The name of the host device
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+vlan                    | integer   | -                 | no        | The VLAN ID to attach to
+maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
 
 #### nictype: ipvlan
 
@@ -336,15 +336,15 @@ net.ipv6.conf.<parent>.proxy_ndp=1
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to the instance
-ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to the instance
-vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+parent                  | string    | -                 | yes       | The name of the host device
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
+ipv6.address            | string    | -                 | no        | Comma delimited list of IPv6 static addresses to add to the instance
+vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 
 #### nictype: p2p
 
@@ -352,17 +352,17 @@ Creates a virtual device pair, putting one side in the instance and leaving the 
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                     | integer   | kernel assigned   | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-host\_name              | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
-limits.ingress          | string    | -                 | no        | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string    | -                 | no        | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max              | string    | -                 | no        | -                                      | Same as modifying both limits.ingress and limits.egress
-ipv4.routes             | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv4 static routes to add on host to nic
-ipv6.routes             | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv6 static routes to add on host to nic
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                     | integer   | kernel assigned   | no        | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
+limits.ingress          | string    | -                 | no        | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress           | string    | -                 | no        | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max              | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
+ipv4.routes             | string    | -                 | no        | Comma delimited list of IPv4 static routes to add on host to nic
+ipv6.routes             | string    | -                 | no        | Comma delimited list of IPv6 static routes to add on host to nic
 
 #### nictype: sriov
 
@@ -370,16 +370,16 @@ Passes a virtual function of an SR-IOV enabled physical network device into the 
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                     | integer   | kernel assigned   | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-security.mac\_filtering | boolean   | false             | no        | network\_vlan\_sriov                   | Prevent the instance from spoofing another's MAC address
-vlan                    | integer   | -                 | no        | network\_vlan\_sriov                   | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+parent                  | string    | -                 | yes       | The name of the host device
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                     | integer   | kernel assigned   | no        | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+security.mac\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's MAC address
+vlan                    | integer   | -                 | no        | The VLAN ID to attach to
+maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
 
 #### nictype: routed
 
@@ -421,15 +421,15 @@ net.ipv6.conf.<parent>.proxy_ndp=1
 
 Device configuration properties:
 
-Key                     | Type      | Default           | Required  | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | no        | -                                      | The name of the host device to join the instance to
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
-mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
-hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to the instance
-ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to the instance
-vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
+Key                     | Type      | Default           | Required  | Description
+:--                     | :--       | :--               | :--       | :--
+parent                  | string    | -                 | no        | The name of the host device to join the instance to
+name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
+hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
+ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
+ipv6.address            | string    | -                 | no        | Comma delimited list of IPv6 static addresses to add to the instance
+vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 
 #### bridged, macvlan or ipvlan for connection to physical network
 The `bridged`, `macvlan` and `ipvlan` interface types can both be used to connect
@@ -500,13 +500,13 @@ LXD supports two different kind of network types for infiniband devices:
 
 Different network interface types have different additional properties, the current list is:
 
-Key                     | Type      | Default           | Required  | Used by         | API extension | Description
-:--                     | :--       | :--               | :--       | :--             | :--           | :--
-nictype                 | string    | -                 | yes       | all             | infiniband    | The device type, one of "physical", or "sriov"
-name                    | string    | kernel assigned   | no        | all             | infiniband    | The name of the interface inside the instance
-hwaddr                  | string    | randomly assigned | no        | all             | infiniband    | The MAC address of the new interface. Can be either full 20 byte variant or short 8 byte variant (which will only modify the last 8 bytes of the parent device)
-mtu                     | integer   | parent MTU        | no        | all             | infiniband    | The MTU of the new interface
-parent                  | string    | -                 | yes       | physical, sriov | infiniband    | The name of the host device or bridge
+Key                     | Type      | Default           | Required  | Used by         | Description
+:--                     | :--       | :--               | :--       | :--             | :--
+nictype                 | string    | -                 | yes       | all             | The device type, one of "physical", or "sriov"
+name                    | string    | kernel assigned   | no        | all             | The name of the interface inside the instance
+hwaddr                  | string    | randomly assigned | no        | all             | The MAC address of the new interface. Can be either full 20 byte variant or short 8 byte variant (which will only modify the last 8 bytes of the parent device)
+mtu                     | integer   | parent MTU        | no        | all             | The MTU of the new interface
+parent                  | string    | -                 | yes       | physical, sriov | The name of the host device or bridge
 
 To create a `physical` `infiniband` device use:
 
@@ -545,23 +545,23 @@ lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path>
 
 The following properties exist:
 
-Key                 | Type      | Default           | Required  | Description
-:--                 | :--       | :--               | :--       | :--
-limits.read         | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.write        | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.max          | string    | -                 | no        | Same as modifying both limits.read and limits.write
-path                | string    | -                 | yes       | Path inside the instance where the disk will be mounted
-source              | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
-required            | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
-readonly            | boolean   | false             | no        | Controls whether to make the mount read-only
-size                | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
-recursive           | boolean   | false             | no        | Whether or not to recursively mount the source path
-pool                | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
-propagation         | string    | -                 | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
-shift               | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
-raw.mount.options   | string    | -                 | no        | Filesystem specific mount options
-ceph.user\_name     | string    | admin             | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
-ceph.cluster\_name  | string    | admin             | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
+Key                 | Type      | Default   | Required  | Description
+:--                 | :--       | :--       | :--       | :--
+limits.read         | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.write        | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.max          | string    | -         | no        | Same as modifying both limits.read and limits.write
+path                | string    | -         | yes       | Path inside the instance where the disk will be mounted
+source              | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
+required            | boolean   | true      | no        | Controls whether to fail if the source doesn't exist
+readonly            | boolean   | false     | no        | Controls whether to make the mount read-only
+size                | string    | -         | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
+recursive           | boolean   | false     | no        | Whether or not to recursively mount the source path
+pool                | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
+propagation         | string    | -         | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
+shift               | boolean   | false     | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
+raw.mount.options   | string    | -         | no        | Filesystem specific mount options
+ceph.user\_name     | string    | admin     | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
+ceph.cluster\_name  | string    | admin     | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
@@ -569,16 +569,16 @@ appear in the instance's `/dev` and allow read/write operations to it.
 
 The following properties exist:
 
-Key         | Type      | Default           | API extension                     | Required  | Description
-:--         | :--       | :--               | :--                               | :--       | :--
-source      | string    | -                 | unix\_device\_rename              | no        | Path on the host
-path        | string    | -                 |                                   | no        | Path inside the instance (one of "source" and "path" must be set)
-major       | int       | device on host    |                                   | no        | Device major number
-minor       | int       | device on host    |                                   | no        | Device minor number
-uid         | int       | 0                 |                                   | no        | UID of the device owner in the instance
-gid         | int       | 0                 |                                   | no        | GID of the device owner in the instance
-mode        | int       | 0660              |                                   | no        | Mode of the device in the instance
-required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+source      | string    | -                 | no        | Path on the host
+path        | string    | -                 | no        | Path inside the instance (one of "source" and "path" must be set)
+major       | int       | device on host    | no        | Device major number
+minor       | int       | device on host    | no        | Device minor number
+uid         | int       | 0                 | no        | UID of the device owner in the instance
+gid         | int       | 0                 | no        | GID of the device owner in the instance
+mode        | int       | 0660              | no        | Mode of the device in the instance
+required    | boolean   | true              | no        | Whether or not this device is required to start the instance
 
 ### Type: unix-block
 Unix block device entries simply make the requested block device
@@ -586,16 +586,16 @@ appear in the instance's `/dev` and allow read/write operations to it.
 
 The following properties exist:
 
-Key         | Type      | Default           | API extension                     | Required  | Description
-:--         | :--       | :--               | :--                               | :--       | :--
-source      | string    | -                 | unix\_device\_rename              | no        | Path on the host
-path        | string    | -                 |                                   | no        | Path inside the instance (one of "source" and "path" must be set)
-major       | int       | device on host    |                                   | no        | Device major number
-minor       | int       | device on host    |                                   | no        | Device minor number
-uid         | int       | 0                 |                                   | no        | UID of the device owner in the instance
-gid         | int       | 0                 |                                   | no        | GID of the device owner in the instance
-mode        | int       | 0660              |                                   | no        | Mode of the device in the instance
-required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+source      | string    | -                 | no        | Path on the host
+path        | string    | -                 | no        | Path inside the instance (one of "source" and "path" must be set)
+major       | int       | device on host    | no        | Device major number
+minor       | int       | device on host    | no        | Device minor number
+uid         | int       | 0                 | no        | UID of the device owner in the instance
+gid         | int       | 0                 | no        | GID of the device owner in the instance
+mode        | int       | 0660              | no        | Mode of the device in the instance
+required    | boolean   | true              | no        | Whether or not this device is required to start the instance
 
 ### Type: usb
 USB device entries simply make the requested USB device appear in the
@@ -645,18 +645,18 @@ The supported connection types are:
 * `UDP <-> UNIX`
 * `UNIX <-> UDP`
 
-Key             | Type      | Default           | Required  | Description
-:--             | :--       | :--               | :--       | :--
-listen          | string    | -                 | yes       | The address and port to bind and listen
-connect         | string    | -                 | yes       | The address and port to connect to
-bind            | string    | host              | no        | Which side to bind on (host/guest)
-uid             | int       | 0                 | no        | UID of the owner of the listening Unix socket
-gid             | int       | 0                 | no        | GID of the owner of the listening Unix socket
-mode            | int       | 0644              | no        | Mode for the listening Unix socket
-nat             | bool      | false             | no        | Whether to optimize proxying via NAT
-proxy\_protocol | bool      | false             | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
-security.uid    | int       | 0                 | no        | What UID to drop privilege to
-security.gid    | int       | 0                 | no        | What GID to drop privilege to
+Key             | Type      | Default       | Required  | Description
+:--             | :--       | :--           | :--       | :--
+listen          | string    | -             | yes       | The address and port to bind and listen
+connect         | string    | -             | yes       | The address and port to connect to
+bind            | string    | host          | no        | Which side to bind on (host/guest)
+uid             | int       | 0             | no        | UID of the owner of the listening Unix socket
+gid             | int       | 0             | no        | GID of the owner of the listening Unix socket
+mode            | int       | 0644          | no        | Mode for the listening Unix socket
+nat             | bool      | false         | no        | Whether to optimize proxying via NAT
+proxy\_protocol | bool      | false         | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
+security.uid    | int       | 0             | no        | What UID to drop privilege to
+security.gid    | int       | 0             | no        | What GID to drop privilege to
 
 ```
 lxc config device add <instance> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance>
