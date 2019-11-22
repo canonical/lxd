@@ -101,7 +101,9 @@ volatile.idmap.current                      | string    | -             | The id
 volatile.idmap.next                         | string    | -             | The idmap to use next time the instance starts
 volatile.last\_state.idmap                  | string    | -             | Serialized instance uid/gid map
 volatile.last\_state.power                  | string    | -             | Instance state as of last host shutdown
+volatile.vm.uuid                            | string    | -             | Virtual machine UUID
 volatile.\<name\>.apply\_quota              | string    | -             | Disk quota to be applied on next instance start
+volatile.\<name\>.ceph\_rbd                 | string    | -             | RBD device path for Ceph disk devices
 volatile.\<name\>.host\_name                | string    | -             | Network device name on the host
 volatile.\<name\>.hwaddr                    | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
 volatile.\<name\>.last\_state.created       | string    | -             | Whether or not the network device physical device was created ("true" or "false")
