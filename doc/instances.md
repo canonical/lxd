@@ -545,23 +545,23 @@ lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path>
 
 The following properties exist:
 
-Key              | Type      | Default           | Required  | Description
-:--              | :--       | :--               | :--       | :--
-limits.read      | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.write     | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
-limits.max       | string    | -                 | no        | Same as modifying both limits.read and limits.write
-path             | string    | -                 | yes       | Path inside the instance where the disk will be mounted
-source           | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
-required         | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
-readonly         | boolean   | false             | no        | Controls whether to make the mount read-only
-size             | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
-recursive        | boolean   | false             | no        | Whether or not to recursively mount the source path
-pool             | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
-propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
-shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
-raw.mount.options| string    | -                 | no        | Filesystem specific mount options
-ceph.user_name   | string    | admin             | no        | If source is ceph or cephfs then ceph username must be specified by user for proper mount 
-ceph.cluster_name | string   | admin             | no        | If source is ceph or cephfs then ceph cluster_name must be specified by user for proper mount 
+Key                 | Type      | Default           | Required  | Description
+:--                 | :--       | :--               | :--       | :--
+limits.read         | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.write        | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
+limits.max          | string    | -                 | no        | Same as modifying both limits.read and limits.write
+path                | string    | -                 | yes       | Path inside the instance where the disk will be mounted
+source              | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
+required            | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
+readonly            | boolean   | false             | no        | Controls whether to make the mount read-only
+size                | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
+recursive           | boolean   | false             | no        | Whether or not to recursively mount the source path
+pool                | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
+propagation         | string    | -                 | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
+shift               | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
+raw.mount.options   | string    | -                 | no        | Filesystem specific mount options
+ceph.user\_name     | string    | admin             | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
+ceph.cluster\_name  | string    | admin             | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
