@@ -1626,7 +1626,7 @@ func containerDetermineNextSnapshotName(d *Daemon, c instance.Instance, defaultP
 	}
 
 	for _, snap := range snapshots {
-		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 		if snapOnlyName == pattern {
 			snapshotExists = true
 			break

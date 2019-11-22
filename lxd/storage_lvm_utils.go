@@ -287,7 +287,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer instance.Instance
 	}
 	if targetIsSnapshot {
 		targetContainerMntPoint = driver.GetSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
-		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(sourceContainerName)
+		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(sourceContainerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(sourceContainer.Project(), sourceName))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(sourceContainer.Project(), sourceName))
 		err = driver.CreateSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -349,7 +349,7 @@ func (s *storageLvm) copySnapshot(target instance.Instance, source instance.Inst
 		return err
 	}
 
-	targetParentName, _, _ := shared.ContainerGetParentAndSnapshotName(target.Name())
+	targetParentName, _, _ := shared.InstanceGetParentAndSnapshotName(target.Name())
 	containersPath := driver.GetSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", project.Prefix(target.Project(), targetParentName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(target.Project(), targetParentName))
@@ -973,7 +973,7 @@ func (s *storageLvm) copyVolume(sourcePool string, source string) error {
 }
 
 func (s *storageLvm) copyVolumeSnapshot(sourcePool string, source string) error {
-	_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(source)
+	_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(source)
 	target := fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName)
 	targetMntPoint := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target)
 

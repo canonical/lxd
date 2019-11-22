@@ -86,7 +86,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 	// Deal with sending a snapshot to create a container on another LXD
 	// instance.
 	if s.container.IsSnapshot() {
-		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(containerName)
+		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(containerName)
 		snapshotsPath := driver.GetSnapshotMountPoint(s.container.Project(), containerPool, sourceName)
 		tmpContainerMntPoint, err := ioutil.TempDir(snapshotsPath, sourceName)
 		if err != nil {
@@ -168,7 +168,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, b
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	parentName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
+	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(s.container.Name())
 	containerMntPt := driver.GetContainerMountPoint(s.container.Project(), s.btrfs.pool.Name, parentName)
 	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPt, s.stoppedSnapName, true, true)
 	if err != nil {

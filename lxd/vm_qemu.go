@@ -1673,7 +1673,7 @@ func (vm *vmQemu) Update(args db.InstanceArgs, userRequested bool) error {
 	var endpoint string
 
 	if vm.IsSnapshot() {
-		parentName, snapName, _ := shared.ContainerGetParentAndSnapshotName(vm.name)
+		parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(vm.name)
 		endpoint = fmt.Sprintf("/1.0/virtual-machines/%s/snapshots/%s", parentName, snapName)
 	} else {
 		endpoint = fmt.Sprintf("/1.0/virtual-machines/%s", vm.name)

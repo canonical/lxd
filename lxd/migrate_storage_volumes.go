@@ -110,7 +110,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 					}
 
 					snapshots = append(snapshots, volumeSnapshotToProtobuf(snapVolume))
-					_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+					_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 					snapshotNames = append(snapshotNames, snapName)
 				}
 			}
@@ -521,7 +521,7 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolume) *migration.Snapshot {
 		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
 	}
 
-	_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(vol.Name)
+	_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(vol.Name)
 
 	return &migration.Snapshot{
 		Name:         &snapOnlyName,
