@@ -48,15 +48,15 @@ limits.cpu.priority                             | integer   | 10 (maximum)      
 limits.disk.priority                            | integer   | 5 (medium)        | yes           | -                                          | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
 limits.kernel.\*                                | string    | -                 | no            | kernel\_limits                             | This limits kernel resources per instance (e.g. number of open files)
 limits.memory                                   | string    | - (all)           | yes           | -                                          | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
-limits.memory.enforce                           | string    | hard              | yes           | -                                          | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available.
+limits.memory.enforce                           | string    | hard              | yes           | -                                          | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
 limits.memory.swap                              | boolean   | true              | yes           | -                                          | Whether to allow some of the instance's memory to be swapped out to disk
 limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | -                                          | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
 limits.network.priority                         | integer   | 0 (minimum)       | yes           | -                                          | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
 limits.processes                                | integer   | - (max)           | yes           | -                                          | Maximum number of processes that can run in the instance
 linux.kernel\_modules                           | string    | -                 | yes           | -                                          | Comma separated list of kernel modules to load before starting the instance
-migration.incremental.memory                    | boolean   | false             | yes           | migration\_pre\_copy                       | Incremental memory transfer of the instance's memory to reduce downtime.
-migration.incremental.memory.goal               | integer   | 70                | yes           | migration\_pre\_copy                       | Percentage of memory to have in sync before stopping the instance.
-migration.incremental.memory.iterations         | integer   | 10                | yes           | migration\_pre\_copy                       | Maximum number of transfer operations to go through before stopping the instance.
+migration.incremental.memory                    | boolean   | false             | yes           | migration\_pre\_copy                       | Incremental memory transfer of the instance's memory to reduce downtime
+migration.incremental.memory.goal               | integer   | 70                | yes           | migration\_pre\_copy                       | Percentage of memory to have in sync before stopping the instance
+migration.incremental.memory.iterations         | integer   | 10                | yes           | migration\_pre\_copy                       | Maximum number of transfer operations to go through before stopping the instance
 nvidia.driver.capabilities                      | string    | compute,utility   | no            | nvidia\_runtime\_config                    | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
 nvidia.runtime                                  | boolean   | false             | no            | nvidia\_runtime                            | Pass the host NVIDIA and CUDA runtime libraries into the instance
 nvidia.require.cuda                             | string    | -                 | no            | nvidia\_runtime\_config                    | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
@@ -68,7 +68,7 @@ raw.seccomp                                     | blob      | -                 
 security.devlxd                                 | boolean   | true              | no            | restrict\_devlxd                           | Controls the presence of /dev/lxd in the instance
 security.devlxd.images                          | boolean   | false             | no            | devlxd\_images                             | Controls the availability of the /1.0/images API over devlxd
 security.idmap.base                             | integer   | -                 | no            | id\_map\_base                              | The base host ID to use for the allocation (overrides auto-detection)
-security.idmap.isolated                         | boolean   | false             | no            | id\_map                                    | Use an idmap for this instance that is unique among instances with isolated set.
+security.idmap.isolated                         | boolean   | false             | no            | id\_map                                    | Use an idmap for this instance that is unique among instances with isolated set
 security.idmap.size                             | integer   | -                 | no            | id\_map                                    | The size of the idmap to use
 security.nesting                                | boolean   | false             | yes           | -                                          | Support running lxd (nested) inside the instance
 security.privileged                             | boolean   | false             | no            | -                                          | Runs the instance in privileged mode
@@ -79,8 +79,8 @@ security.syscalls.blacklist\_compat             | boolean   | false             
 security.syscalls.blacklist\_default            | boolean   | true              | no            | container\_syscall\_filtering              | Enables the default syscall blacklist
 security.syscalls.intercept.mknod               | boolean   | false             | no            | container\_syscall\_intercept              | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
 security.syscalls.intercept.mount               | boolean   | false             | no            | container\_syscall\_intercept\_mount       | Handles the `mount` system call
-security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | container\_syscall\_intercept\_mount       | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance.
-security.syscalls.intercept.mount.fuse          | string    | -                 | yes           | container\_syscall\_intercept\_mount\_fuse | Whether to mount shiftfs on top of filesystems handled through mount syscall interception.
+security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | container\_syscall\_intercept\_mount       | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
+security.syscalls.intercept.mount.fuse          | string    | -                 | yes           | container\_syscall\_intercept\_mount\_fuse | Whether to mount shiftfs on top of filesystems handled through mount syscall interception
 security.syscalls.intercept.mount.shift         | boolean   | false             | yes           | container\_syscall\_intercept\_mount       | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
 security.syscalls.intercept.setxattr            | boolean   | false             | no            | container\_syscall\_intercept              | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
 security.syscalls.whitelist                     | string    | -                 | no            | container\_syscall\_filtering              | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
@@ -95,7 +95,7 @@ The following volatile keys are currently internally used by LXD:
 Key                                         | Type      | Default       | Description
 :--                                         | :---      | :------       | :----------
 volatile.apply\_template                    | string    | -             | The name of a template hook which should be triggered upon next startup
-volatile.base\_image                        | string    | -             | The hash of the image the instance was created from, if any.
+volatile.base\_image                        | string    | -             | The hash of the image the instance was created from, if any
 volatile.idmap.base                         | integer   | -             | The first id in the instance's primary idmap range
 volatile.idmap.current                      | string    | -             | The idmap currently in use by the instance
 volatile.idmap.next                         | string    | -             | The idmap to use next time the instance starts
@@ -116,11 +116,11 @@ Additionally, those user keys have become common with images (support isn't guar
 
 Key                         | Type          | Default           | Description
 :--                         | :---          | :------           | :----------
-user.meta-data              | string        | -                 | Cloud-init meta-data, content is appended to seed value.
-user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value.
-user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images.
-user.user-data              | string        | #!cloud-config    | Cloud-init user-data, content is used as seed value.
-user.vendor-data            | string        | #!cloud-config    | Cloud-init vendor-data, content is used as seed value.
+user.meta-data              | string        | -                 | Cloud-init meta-data, content is appended to seed value
+user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value
+user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images
+user.user-data              | string        | #!cloud-config    | Cloud-init user-data, content is used as seed value
+user.vendor-data            | string        | #!cloud-config    | Cloud-init vendor-data, content is used as seed value
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
@@ -554,9 +554,9 @@ path             | string    | -                 | yes       | Path inside the i
 source           | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
 required         | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
 readonly         | boolean   | false             | no        | Controls whether to make the mount read-only
-size             | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/).
+size             | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/)
 recursive        | boolean   | false             | no        | Whether or not to recursively mount the source path
-pool             | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
+pool             | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
 propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
 shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
 raw.mount.options| string    | -                 | no        | Filesystem specific mount options
@@ -578,7 +578,7 @@ minor       | int       | device on host    |                                   
 uid         | int       | 0                 |                                   | no        | UID of the device owner in the instance
 gid         | int       | 0                 |                                   | no        | GID of the device owner in the instance
 mode        | int       | 0660              |                                   | no        | Mode of the device in the instance
-required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance.
+required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance
 
 ### Type: unix-block
 Unix block device entries simply make the requested block device
@@ -595,7 +595,7 @@ minor       | int       | device on host    |                                   
 uid         | int       | 0                 |                                   | no        | UID of the device owner in the instance
 gid         | int       | 0                 |                                   | no        | GID of the device owner in the instance
 mode        | int       | 0660              |                                   | no        | Mode of the device in the instance
-required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance.
+required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance
 
 ### Type: usb
 USB device entries simply make the requested USB device appear in the
@@ -605,8 +605,8 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-vendorid    | string    | -                 | no        | The vendor id of the USB device.
-productid   | string    | -                 | no        | The product id of the USB device.
+vendorid    | string    | -                 | no        | The vendor id of the USB device
+productid   | string    | -                 | no        | The product id of the USB device
 uid         | int       | 0                 | no        | UID of the device owner in the instance
 gid         | int       | 0                 | no        | GID of the device owner in the instance
 mode        | int       | 0660              | no        | Mode of the device in the instance
@@ -620,10 +620,10 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-vendorid    | string    | -                 | no        | The vendor id of the GPU device.
-productid   | string    | -                 | no        | The product id of the GPU device.
-id          | string    | -                 | no        | The card id of the GPU device.
-pci         | string    | -                 | no        | The pci address of the GPU device.
+vendorid    | string    | -                 | no        | The vendor id of the GPU device
+productid   | string    | -                 | no        | The product id of the GPU device
+id          | string    | -                 | no        | The card id of the GPU device
+pci         | string    | -                 | no        | The pci address of the GPU device
 uid         | int       | 0                 | no        | UID of the device owner in the instance
 gid         | int       | 0                 | no        | GID of the device owner in the instance
 mode        | int       | 0660              | no        | Mode of the device in the instance
