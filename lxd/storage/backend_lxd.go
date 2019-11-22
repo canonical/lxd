@@ -352,6 +352,10 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapsho
 		contentType = drivers.ContentTypeBlock
 	}
 
+	if b.driver.HasVolume(volType, project.Prefix(inst.Project(), inst.Name())) {
+		return fmt.Errorf("Cannot create volume, already exists on target")
+	}
+
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
@@ -708,6 +712,13 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWrit
 	contentType := drivers.ContentTypeFS
 	if inst.Type() == instancetype.VM {
 		contentType = drivers.ContentTypeBlock
+	}
+
+	volExists := b.driver.HasVolume(volType, project.Prefix(inst.Project(), inst.Name()))
+	if args.Refresh && !volExists {
+		return fmt.Errorf("Cannot refresh volume, doesn't exist on target")
+	} else if !args.Refresh && volExists {
+		return fmt.Errorf("Cannot create volume, already exists on target")
 	}
 
 	// Find the root device config for instance.
