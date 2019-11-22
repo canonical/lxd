@@ -83,7 +83,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 
 	var opType db.OperationType
 	var do func(*operations.Operation) error
-	switch shared.ContainerAction(raw.Action) {
+	switch shared.InstanceAction(raw.Action) {
 	case shared.Start:
 		opType = db.OperationContainerStart
 		do = func(op *operations.Operation) error {
