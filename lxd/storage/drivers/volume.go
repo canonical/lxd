@@ -55,6 +55,11 @@ func NewVolume(driver Driver, poolName string, volType VolumeType, contentType C
 	}
 }
 
+// Name returns volume's name.
+func (v Volume) Name() string {
+	return v.name
+}
+
 // NewSnapshot instantiates a new Volume struct representing a snapshot of the parent volume.
 func (v Volume) NewSnapshot(snapshotName string) (Volume, error) {
 	if v.IsSnapshot() {
