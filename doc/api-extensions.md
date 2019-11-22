@@ -883,3 +883,6 @@ redirect filesystem mounts to their fuse implementation. To this end, set e.g.
 
 ## container\_disk\_ceph
 This allows for existing a CEPH RDB or FS to be directly connected to a LXD container.
+
+## virtual\_machines
+Add virtual machine support.
