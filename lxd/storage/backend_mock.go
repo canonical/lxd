@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -90,7 +91,7 @@ func (b *mockBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, ar
 	return nil
 }
 
-func (b *mockBackend) RefreshInstance(i Instance, src Instance, snapshots bool, op *operations.Operation) error {
+func (b *mockBackend) RefreshInstance(i instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
