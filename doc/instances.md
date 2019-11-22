@@ -1,22 +1,22 @@
-# Container configuration
+# Instance configuration
 ## Properties
-The following are direct container properties and can't be part of a profile:
+The following are direct instance properties and can't be part of a profile:
 
  - `name`
  - `architecture`
 
-Name is the container name and can only be changed by renaming the container.
+Name is the instance name and can only be changed by renaming the instance.
 
-Valid container names must:
+Valid instance names must:
 
  - Be between 1 and 63 characters long
  - Be made up exclusively of letters, numbers and dashes from the ASCII table
  - Not start with a digit or a dash
  - Not end with a dash
 
-This requirement is so that the container name may properly be used in
+This requirement is so that the instance name may properly be used in
 DNS records, on the filesystem, in various security profiles as well as
-the hostname of the container itself.
+the hostname of the instance itself.
 
 ## Key/value configuration
 The key/value configuration is namespaced with the following namespaces
@@ -27,65 +27,65 @@ currently supported:
  - `image` (copy of the image properties at time of creation)
  - `limits` (resource limits)
  - `nvidia` (NVIDIA and CUDA configuration)
- - `raw` (raw container configuration overrides)
+ - `raw` (raw instance configuration overrides)
  - `security` (security policies)
  - `user` (storage for user properties, searchable)
- - `volatile` (used internally by LXD to store settings that are specific to a specific container instance)
+ - `volatile` (used internally by LXD to store internal data specific to an instance)
 
 The currently supported keys are:
 
 Key                                             | Type      | Default           | Live update   | API extension                              | Description
 :--                                             | :---      | :------           | :----------   | :------------                              | :----------
-boot.autostart                                  | boolean   | -                 | n/a           | -                                          | Always start the container when LXD starts (if not set, restore last state)
-boot.autostart.delay                            | integer   | 0                 | n/a           | -                                          | Number of seconds to wait after the container started before starting the next one
-boot.autostart.priority                         | integer   | 0                 | n/a           | -                                          | What order to start the containers in (starting with highest)
-boot.host\_shutdown\_timeout                    | integer   | 30                | yes           | container\_host\_shutdown\_timeout         | Seconds to wait for container to shutdown before it is force stopped
-boot.stop.priority                              | integer   | 0                 | n/a           | container\_stop\_priority                  | What order to shutdown the containers (starting with highest)
-environment.\*                                  | string    | -                 | yes (exec)    | -                                          | key/value environment variables to export to the container and set on exec
-limits.cpu                                      | string    | - (all)           | yes           | -                                          | Number or range of CPUs to expose to the container
+boot.autostart                                  | boolean   | -                 | n/a           | -                                          | Always start the instance when LXD starts (if not set, restore last state)
+boot.autostart.delay                            | integer   | 0                 | n/a           | -                                          | Number of seconds to wait after the instance started before starting the next one
+boot.autostart.priority                         | integer   | 0                 | n/a           | -                                          | What order to start the instances in (starting with highest)
+boot.host\_shutdown\_timeout                    | integer   | 30                | yes           | container\_host\_shutdown\_timeout         | Seconds to wait for instance to shutdown before it is force stopped
+boot.stop.priority                              | integer   | 0                 | n/a           | container\_stop\_priority                  | What order to shutdown the instances (starting with highest)
+environment.\*                                  | string    | -                 | yes (exec)    | -                                          | key/value environment variables to export to the instance and set on exec
+limits.cpu                                      | string    | - (all)           | yes           | -                                          | Number or range of CPUs to expose to the instance
 limits.cpu.allowance                            | string    | 100%              | yes           | -                                          | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
-limits.cpu.priority                             | integer   | 10 (maximum)      | yes           | -                                          | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit) (integer between 0 and 10)
-limits.disk.priority                            | integer   | 5 (medium)        | yes           | -                                          | When under load, how much priority to give to the container's I/O requests (integer between 0 and 10)
-limits.kernel.\*                                | string    | -                 | no            | kernel\_limits                             | This limits kernel resources per container (e.g. number of open files)
+limits.cpu.priority                             | integer   | 10 (maximum)      | yes           | -                                          | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
+limits.disk.priority                            | integer   | 5 (medium)        | yes           | -                                          | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
+limits.kernel.\*                                | string    | -                 | no            | kernel\_limits                             | This limits kernel resources per instance (e.g. number of open files)
 limits.memory                                   | string    | - (all)           | yes           | -                                          | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
-limits.memory.enforce                           | string    | hard              | yes           | -                                          | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
-limits.memory.swap                              | boolean   | true              | yes           | -                                          | Whether to allow some of the container's memory to be swapped out to disk
-limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | -                                          | The higher this is set, the least likely the container is to be swapped to disk (integer between 0 and 10)
-limits.network.priority                         | integer   | 0 (minimum)       | yes           | -                                          | When under load, how much priority to give to the container's network requests (integer between 0 and 10)
-limits.processes                                | integer   | - (max)           | yes           | -                                          | Maximum number of processes that can run in the container
-linux.kernel\_modules                           | string    | -                 | yes           | -                                          | Comma separated list of kernel modules to load before starting the container
-migration.incremental.memory                    | boolean   | false             | yes           | migration\_pre\_copy                       | Incremental memory transfer of the container's memory to reduce downtime.
-migration.incremental.memory.goal               | integer   | 70                | yes           | migration\_pre\_copy                       | Percentage of memory to have in sync before stopping the container.
-migration.incremental.memory.iterations         | integer   | 10                | yes           | migration\_pre\_copy                       | Maximum number of transfer operations to go through before stopping the container.
-nvidia.driver.capabilities                      | string    | compute,utility   | no            | nvidia\_runtime\_config                    | What driver capabilities the container needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
-nvidia.runtime                                  | boolean   | false             | no            | nvidia\_runtime                            | Pass the host NVIDIA and CUDA runtime libraries into the container
+limits.memory.enforce                           | string    | hard              | yes           | -                                          | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available.
+limits.memory.swap                              | boolean   | true              | yes           | -                                          | Whether to allow some of the instance's memory to be swapped out to disk
+limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | -                                          | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
+limits.network.priority                         | integer   | 0 (minimum)       | yes           | -                                          | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
+limits.processes                                | integer   | - (max)           | yes           | -                                          | Maximum number of processes that can run in the instance
+linux.kernel\_modules                           | string    | -                 | yes           | -                                          | Comma separated list of kernel modules to load before starting the instance
+migration.incremental.memory                    | boolean   | false             | yes           | migration\_pre\_copy                       | Incremental memory transfer of the instance's memory to reduce downtime.
+migration.incremental.memory.goal               | integer   | 70                | yes           | migration\_pre\_copy                       | Percentage of memory to have in sync before stopping the instance.
+migration.incremental.memory.iterations         | integer   | 10                | yes           | migration\_pre\_copy                       | Maximum number of transfer operations to go through before stopping the instance.
+nvidia.driver.capabilities                      | string    | compute,utility   | no            | nvidia\_runtime\_config                    | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
+nvidia.runtime                                  | boolean   | false             | no            | nvidia\_runtime                            | Pass the host NVIDIA and CUDA runtime libraries into the instance
 nvidia.require.cuda                             | string    | -                 | no            | nvidia\_runtime\_config                    | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
 nvidia.require.driver                           | string    | -                 | no            | nvidia\_runtime\_config                    | Version expression for the required driver version (sets libnvidia-container NVIDIA\_REQUIRE\_DRIVER)
 raw.apparmor                                    | blob      | -                 | yes           | -                                          | Apparmor profile entries to be appended to the generated profile
 raw.idmap                                       | blob      | -                 | no            | id\_map                                    | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                         | blob      | -                 | no            | -                                          | Raw LXC configuration to be appended to the generated one
 raw.seccomp                                     | blob      | -                 | no            | container\_syscall\_filtering              | Raw Seccomp configuration
-security.devlxd                                 | boolean   | true              | no            | restrict\_devlxd                           | Controls the presence of /dev/lxd in the container
+security.devlxd                                 | boolean   | true              | no            | restrict\_devlxd                           | Controls the presence of /dev/lxd in the instance
 security.devlxd.images                          | boolean   | false             | no            | devlxd\_images                             | Controls the availability of the /1.0/images API over devlxd
 security.idmap.base                             | integer   | -                 | no            | id\_map\_base                              | The base host ID to use for the allocation (overrides auto-detection)
-security.idmap.isolated                         | boolean   | false             | no            | id\_map                                    | Use an idmap for this container that is unique among containers with isolated set.
+security.idmap.isolated                         | boolean   | false             | no            | id\_map                                    | Use an idmap for this instance that is unique among instances with isolated set.
 security.idmap.size                             | integer   | -                 | no            | id\_map                                    | The size of the idmap to use
-security.nesting                                | boolean   | false             | yes           | -                                          | Support running lxd (nested) inside the container
-security.privileged                             | boolean   | false             | no            | -                                          | Runs the container in privileged mode
-security.protection.delete                      | boolean   | false             | yes           | container\_protection\_delete              | Prevents the container from being deleted
-security.protection.shift                       | boolean   | false             | yes           | container\_protection\_shift               | Prevents the container's filesystem from being uid/gid shifted on startup
+security.nesting                                | boolean   | false             | yes           | -                                          | Support running lxd (nested) inside the instance
+security.privileged                             | boolean   | false             | no            | -                                          | Runs the instance in privileged mode
+security.protection.delete                      | boolean   | false             | yes           | container\_protection\_delete              | Prevents the instance from being deleted
+security.protection.shift                       | boolean   | false             | yes           | container\_protection\_shift               | Prevents the instance's filesystem from being uid/gid shifted on startup
 security.syscalls.blacklist                     | string    | -                 | no            | container\_syscall\_filtering              | A '\n' separated list of syscalls to blacklist
 security.syscalls.blacklist\_compat             | boolean   | false             | no            | container\_syscall\_filtering              | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist\_default            | boolean   | true              | no            | container\_syscall\_filtering              | Enables the default syscall blacklist
 security.syscalls.intercept.mknod               | boolean   | false             | no            | container\_syscall\_intercept              | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
 security.syscalls.intercept.mount               | boolean   | false             | no            | container\_syscall\_intercept\_mount       | Handles the `mount` system call
-security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | container\_syscall\_intercept\_mount       | Specify a comma-separated list of filesystems that are safe to mount for processes inside the container.
+security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | container\_syscall\_intercept\_mount       | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance.
 security.syscalls.intercept.mount.fuse          | string    | -                 | yes           | container\_syscall\_intercept\_mount\_fuse | Whether to mount shiftfs on top of filesystems handled through mount syscall interception.
 security.syscalls.intercept.mount.shift         | boolean   | false             | yes           | container\_syscall\_intercept\_mount       | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
 security.syscalls.intercept.setxattr            | boolean   | false             | no            | container\_syscall\_intercept              | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
 security.syscalls.whitelist                     | string    | -                 | no            | container\_syscall\_filtering              | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
 snapshots.schedule                              | string    | -                 | no            | snapshot\_scheduling                       | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
-snapshots.schedule.stopped                      | bool      | false             | no            | snapshot\_scheduling                       | Controls whether or not stopped containers are to be snapshoted automatically
+snapshots.schedule.stopped                      | bool      | false             | no            | snapshot\_scheduling                       | Controls whether or not stopped instances are to be snapshoted automatically
 snapshots.pattern                               | string    | snap%d            | no            | snapshot\_scheduling                       | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.expiry                                | string    | -                 | no            | snapshot\_expiry                           | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 user.\*                                         | string    | -                 | n/a           | -                                          | Free form user key/value storage (can be used in search)
@@ -95,22 +95,22 @@ The following volatile keys are currently internally used by LXD:
 Key                                         | Type      | Default       | Description
 :--                                         | :---      | :------       | :----------
 volatile.apply\_template                    | string    | -             | The name of a template hook which should be triggered upon next startup
-volatile.base\_image                        | string    | -             | The hash of the image the container was created from, if any.
-volatile.idmap.base                         | integer   | -             | The first id in the container's primary idmap range
-volatile.idmap.current                      | string    | -             | The idmap currently in use by the container
-volatile.idmap.next                         | string    | -             | The idmap to use next time the container starts
-volatile.last\_state.idmap                  | string    | -             | Serialized container uid/gid map
-volatile.last\_state.power                  | string    | -             | Container state as of last host shutdown
-volatile.\<name\>.apply\_quota              | string    | -             | Disk quota to be applied on next container start
+volatile.base\_image                        | string    | -             | The hash of the image the instance was created from, if any.
+volatile.idmap.base                         | integer   | -             | The first id in the instance's primary idmap range
+volatile.idmap.current                      | string    | -             | The idmap currently in use by the instance
+volatile.idmap.next                         | string    | -             | The idmap to use next time the instance starts
+volatile.last\_state.idmap                  | string    | -             | Serialized instance uid/gid map
+volatile.last\_state.power                  | string    | -             | Instance state as of last host shutdown
+volatile.\<name\>.apply\_quota              | string    | -             | Disk quota to be applied on next instance start
 volatile.\<name\>.host\_name                | string    | -             | Network device name on the host
 volatile.\<name\>.hwaddr                    | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
 volatile.\<name\>.last\_state.created       | string    | -             | Whether or not the network device physical device was created ("true" or "false")
-volatile.\<name\>.last\_state.mtu           | string    | -             | Network device original MTU used when moving a physical device into a container
-volatile.\<name\>.last\_state.hwaddr        | string    | -             | Network device original MAC used when moving a physical device into a container
-volatile.\<name\>.last\_state.vf.id         | string    | -             | SR-IOV Virtual function ID used when moving a VF into a container
-volatile.\<name\>.last\_state.vf.hwaddr     | string    | -             | SR-IOV Virtual function original MAC used when moving a VF into a container
-volatile.\<name\>.last\_state.vf.vlan       | string    | -             | SR-IOV Virtual function original VLAN used when moving a VF into a container
-volatile.\<name\>.last\_state.vf.spoofcheck | string    | -             | SR-IOV Virtual function original spoof check setting used when moving a VF into a container
+volatile.\<name\>.last\_state.mtu           | string    | -             | Network device original MTU used when moving a physical device into an instance
+volatile.\<name\>.last\_state.hwaddr        | string    | -             | Network device original MAC used when moving a physical device into an instance
+volatile.\<name\>.last\_state.vf.id         | string    | -             | SR-IOV Virtual function ID used when moving a VF into an instance
+volatile.\<name\>.last\_state.vf.hwaddr     | string    | -             | SR-IOV Virtual function original MAC used when moving a VF into an instance
+volatile.\<name\>.last\_state.vf.vlan       | string    | -             | SR-IOV Virtual function original VLAN used when moving a VF into an instance
+volatile.\<name\>.last\_state.vf.spoofcheck | string    | -             | SR-IOV Virtual function original spoof check setting used when moving a VF into an instance
 
 Additionally, those user keys have become common with images (support isn't guaranteed):
 
@@ -130,10 +130,10 @@ backward compatibility).
 Those keys can be set using the lxc tool with:
 
 ```bash
-lxc config set <container> <key> <value>
+lxc config set <instance> <key> <value>
 ```
 
-Volatile keys can't be set by the user and can only be set directly against a container.
+Volatile keys can't be set by the user and can only be set directly against an instance.
 
 The raw keys allow direct interaction with the backend features that LXD
 itself uses, setting those may very well break LXD in non-obvious ways
@@ -146,9 +146,9 @@ The CPU limits are implemented through a mix of the `cpuset` and `cpu` CGroup co
 A set of CPUs (e.g. `1,2,3`) or a CPU range (e.g. `0-3`) can be specified.
 
 When a number of CPUs is specified instead (e.g. `4`), LXD will do
-dynamic load-balancing of all containers that aren't pinned to specific
-CPUs, trying to spread the load on the machine. Containers will then be
-re-balanced every time a container starts or stops as well as whenever a
+dynamic load-balancing of all instances that aren't pinned to specific
+CPUs, trying to spread the load on the machine. Instances will then be
+re-balanced every time an instance starts or stops as well as whenever a
 CPU is added to the system.
 
 To pin to a single CPU, you have to use the range syntax (e.g. `1-1`) to
@@ -164,15 +164,15 @@ time, so to restrict to two CPUs worth of time, something like
 
 When using a percentage value, the limit will only be applied when under
 load and will be used to calculate the scheduler priority for the
-container, relative to any other container which is using the same CPU(s).
+instance, relative to any other instance which is using the same CPU(s).
 
 `limits.cpu.priority` is another knob which is used to compute that
-scheduler priority score when a number of containers sharing a set of
+scheduler priority score when a number of instances sharing a set of
 CPUs have the same percentage of CPU assigned to them.
 
 # Devices configuration
-LXD will always provide the container with the basic devices which are required
-for a standard POSIX system to work. These aren't visible in container or
+LXD will always provide the instance with the basic devices which are required
+for a standard POSIX system to work. These aren't visible in instance or
 profile configuration and may not be overridden.
 
 Those includes:
@@ -188,23 +188,23 @@ Those includes:
  - `/dev/fuse` (character device)
  - `lo` (network interface)
 
-Anything else has to be defined in the container configuration or in one of its
+Anything else has to be defined in the instance configuration or in one of its
 profiles. The default profile will typically contain a network interface to
-become `eth0` in the container.
+become `eth0` in the instance.
 
-To add extra devices to a container, device entries can be added directly to a
-container, or to a profile.
+To add extra devices to an instance, device entries can be added directly to an
+instance, or to a profile.
 
-Devices may be added or removed while the container is running.
+Devices may be added or removed while the instance is running.
 
 Every device entry is identified by a unique name. If the same name is used in
-a subsequent profile or in the container's own configuration, the whole entry
+a subsequent profile or in the instance's own configuration, the whole entry
 is overridden by the new definition.
 
-Device entries are added to a container through:
+Device entries are added to an instance through:
 
 ```bash
-lxc config device add <container> <name> <type> [key=value]...
+lxc config device add <instance> <name> <type> [key=value]...
 ```
 
 or to a profile with:
@@ -220,7 +220,7 @@ ID (database)   | Name                              | Description
 :--             | :--                               | :--
 0               | [none](#type-none)                | Inheritance blocker
 1               | [nic](#type-nic)                  | Network interface
-2               | [disk](#type-disk)                | Mountpoint inside the container
+2               | [disk](#type-disk)                | Mountpoint inside the instance
 3               | [unix-char](#type-unix-char)      | Unix character device
 4               | [unix-block](#type-unix-block)    | Unix block device
 5               | [usb](#type-usb)                  | USB device
@@ -229,23 +229,23 @@ ID (database)   | Name                              | Description
 8               | [proxy](#type-proxy)              | Proxy device
 
 ### Type: none
-A none type device doesn't have any property and doesn't create anything inside the container.
+A none type device doesn't have any property and doesn't create anything inside the instance.
 
 It's only purpose it to stop inheritance of devices coming from profiles.
 
 To do so, just add a none type device with the same name of the one you wish to skip inheriting.
-It can be added in a profile being applied after the profile it originated from or directly on the container.
+It can be added in a profile being applied after the profile it originated from or directly on the instance.
 
 ### Type: nic
 LXD supports different kind of network devices:
 
- - [physical](#nictype-physical): Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the container.
- - [bridged](#nictype-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the container.
+ - [physical](#nictype-physical): Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
+ - [bridged](#nictype-bridged): Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
  - [macvlan](#nictype-macvlan): Sets up a new network device based on an existing one but using a different MAC address.
  - [ipvlan](#nictype-ipvlan): Sets up a new network device based on an existing one using the same MAC address but a different IP.
- - [p2p](#nictype-p2p): Creates a virtual device pair, putting one side in the container and leaving the other side on the host.
- - [sriov](#nictype-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the container.
- - [routed](#nictype-routed): Creates a virtual device pair to connect the host to the container and sets up static routes and proxy ARP/NDP entries to allow the container to join the network of a designated parent interface.
+ - [p2p](#nictype-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
+ - [sriov](#nictype-sriov): Passes a virtual function of an SR-IOV enabled physical network device into the instance.
+ - [routed](#nictype-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
 
 Different network interface types have different additional properties.
 
@@ -253,45 +253,45 @@ Each possible `nictype` value is documented below along with the relevant proper
 
 #### nictype: physical
 
-Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the container.
+Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
 
 Device configuration properties:
 
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
 parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
 vlan                    | integer   | -                 | no        | network\_vlan\_physical                | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
+maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
 
 #### nictype: bridged
 
-Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the container.
+Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
 
 Device configuration properties:
 
 Key                      | Type      | Default           | Required  | API extension                          | Description
 :--                      | :--       | :--               | :--       | :--                                    | :--
 parent                   | string    | -                 | yes       | -                                      | The name of the host device
-name                     | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+name                     | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                      | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                   | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
 host\_name               | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
 limits.ingress           | string    | -                 | no        | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
 limits.egress            | string    | -                 | no        | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
 limits.max               | string    | -                 | no        | -                                      | Same as modifying both limits.ingress and limits.egress
-ipv4.address             | string    | -                 | no        | network                                | An IPv4 address to assign to the container through DHCP
-ipv6.address             | string    | -                 | no        | network                                | An IPv6 address to assign to the container through DHCP
+ipv4.address             | string    | -                 | no        | network                                | An IPv4 address to assign to the instance through DHCP
+ipv6.address             | string    | -                 | no        | network                                | An IPv6 address to assign to the instance through DHCP
 ipv4.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv4 static routes to add on host to nic
 ipv6.routes              | string    | -                 | no        | container\_nic\_routes                 | Comma delimited list of IPv6 static routes to add on host to nic
-security.mac\_filtering  | boolean   | false             | no        | network                                | Prevent the container from spoofing another's MAC address
-security.ipv4\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv4 address (enables mac\_filtering)
-security.ipv6\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the container from spoofing another's IPv6 address (enables mac\_filtering)
-maas.subnet.ipv4         | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
-maas.subnet.ipv6         | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
+security.mac\_filtering  | boolean   | false             | no        | network                                | Prevent the instance from spoofing another's MAC address
+security.ipv4\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
+security.ipv6\_filtering | boolean   | false             | no        | container\_nic\_ipfilter               | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
+maas.subnet.ipv4         | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6         | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
 
 #### nictype: macvlan
 
@@ -302,12 +302,12 @@ Device configuration properties:
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
 parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
 vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
+maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
 
 #### nictype: ipvlan
 
@@ -315,9 +315,9 @@ Sets up a new network device based on an existing one using the same MAC address
 
 LXD currently supports IPVLAN in L3S mode.
 
-In this mode, the gateway is automatically set by LXD, however IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before container is started.
+In this mode, the gateway is automatically set by LXD, however IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before instance is started.
 
-For DNS, the nameservers need to be configured inside the container, as these will not automatically be set.
+For DNS, the nameservers need to be configured inside the instance, as these will not automatically be set.
 
 It requires the following sysctls to be set:
 
@@ -339,22 +339,22 @@ Device configuration properties:
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
 parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to container
-ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to container
+ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to the instance
+ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to the instance
 vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
 
 #### nictype: p2p
 
-Creates a virtual device pair, putting one side in the container and leaving the other side on the host.
+Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
 
 Device configuration properties:
 
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                     | integer   | kernel assigned   | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
 host\_name              | string    | randomly assigned | no        | -                                      | The name of the interface inside the host
@@ -366,43 +366,43 @@ ipv6.routes             | string    | -                 | no        | container\
 
 #### nictype: sriov
 
-Passes a virtual function of an SR-IOV enabled physical network device into the container.
+Passes a virtual function of an SR-IOV enabled physical network device into the instance.
 
 Device configuration properties:
 
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
 parent                  | string    | -                 | yes       | -                                      | The name of the host device
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                     | integer   | kernel assigned   | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-security.mac\_filtering | boolean   | false             | no        | network\_vlan\_sriov                   | Prevent the container from spoofing another's MAC address
+security.mac\_filtering | boolean   | false             | no        | network\_vlan\_sriov                   | Prevent the instance from spoofing another's MAC address
 vlan                    | integer   | -                 | no        | network\_vlan\_sriov                   | The VLAN ID to attach to
-maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the container in
-maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the container in
+maas.subnet.ipv4        | string    | -                 | no        | maas\_network                          | MAAS IPv4 subnet to register the instance in
+maas.subnet.ipv6        | string    | -                 | no        | maas\_network                          | MAAS IPv6 subnet to register the instance in
 
 #### nictype: routed
 
-This NIC type is similar in operation to IPVLAN, in that it allows a container to join an external network without needing to configure a bridge and shares the host's MAC address.
+This NIC type is similar in operation to IPVLAN, in that it allows an instance to join an external network without needing to configure a bridge and shares the host's MAC address.
 
-However it differs from IPVLAN because it does not need IPVLAN support in the kernel and the host and container can communicate with each other.
+However it differs from IPVLAN because it does not need IPVLAN support in the kernel and the host and instance can communicate with each other.
 
 It will also respect netfilter rules on the host and will use the host's routing table to route packets which can be useful if the host is connected to multiple networks.
 
-IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before container is started.
+IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before the instance is started.
 
-It sets up a veth pair between host and container and then configures the following link-local gateway IPs on the host end which are then set as the default gateways in the container:
+It sets up a veth pair between host and instance and then configures the following link-local gateway IPs on the host end which are then set as the default gateways in the instance:
 
   169.254.0.1
   fe80::1
 
-It then configures static routes on the host pointing to the container's veth interface for all of the container's IPs.
+It then configures static routes on the host pointing to the instance's veth interface for all of the instance's IPs.
 
 This nic can operate with and without a `parent` network interface set.
 
-With the `parent` network interface set proxy ARP/NDP entries of the container's IPs are added to the parent interface allowing the container to join the parent interface's network at layer 2.
+With the `parent` network interface set proxy ARP/NDP entries of the instance's IPs are added to the parent interface allowing the instance to join the parent interface's network at layer 2.
 
-For DNS, the nameservers need to be configured inside the container, as these will not automatically be set.
+For DNS, the nameservers need to be configured inside the instance, as these will not automatically be set.
 
 It requires the following sysctls to be set:
 
@@ -423,12 +423,12 @@ Device configuration properties:
 
 Key                     | Type      | Default           | Required  | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                                    | :--
-parent                  | string    | -                 | no        | -                                      | The name of the host device to join the container to
-name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the container
+parent                  | string    | -                 | no        | -                                      | The name of the host device to join the instance to
+name                    | string    | kernel assigned   | no        | -                                      | The name of the interface inside the instance
 mtu                     | integer   | parent MTU        | no        | -                                      | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | -                                      | The MAC address of the new interface
-ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to container
-ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to container
+ipv4.address            | string    | -                 | no        | network                                | Comma delimited list of IPv4 static addresses to add to the instance
+ipv6.address            | string    | -                 | no        | network                                | Comma delimited list of IPv6 static addresses to add to the instance
 vlan                    | integer   | -                 | no        | network\_vlan                          | The VLAN ID to attach to
 
 #### bridged, macvlan or ipvlan for connection to physical network
@@ -436,14 +436,14 @@ The `bridged`, `macvlan` and `ipvlan` interface types can both be used to connec
 to an existing physical network.
 
 `macvlan` effectively lets you fork your physical NIC, getting a second
-interface that's then used by the container. This saves you from
+interface that's then used by the instance. This saves you from
 creating a bridge device and veth pairs and usually offers better
 performance than a bridge.
 
 The downside to this is that macvlan devices while able to communicate
 between themselves and to the outside, aren't able to talk to their
 parent device. This means that you can't use macvlan if you ever need
-your containers to talk to the host itself.
+your instances to talk to the host itself.
 
 In such case, a bridge is preferable. A bridge will also let you use mac
 filtering and I/O limits which cannot be applied to a macvlan device.
@@ -458,7 +458,7 @@ function (PF) of the network device. PFs are standard PCIe functions. VFs on
 the other hand are very lightweight PCIe functions that are optimized for data
 movement. They come with a limited set of configuration capabilities to prevent
 changing properties of the PF. Given that VFs appear as regular PCIe devices to
-the system they can be passed to containers just like a regular physical
+the system they can be passed to instances just like a regular physical
 device. The `sriov` interface type expects to be passed the name of an SR-IOV
 enabled network device on the system via the `parent` property. LXD will then
 check for any available VFs on the system. By default LXD will allocate the
@@ -469,7 +469,7 @@ the kernel or card doesn't support incrementing the number of VFs LXD will
 return an error. To create a `sriov` network device use:
 
 ```
-lxc config device add <container> <device-name> nic nictype=sriov parent=<sriov-enabled-device>
+lxc config device add <instance> <device-name> nic nictype=sriov parent=<sriov-enabled-device>
 ```
 
 To tell LXD to use a specific unused VF add the `host_name` property and pass
@@ -478,15 +478,15 @@ it the name of the enabled VF.
 
 #### MAAS integration
 If you're using MAAS to manage the physical network under your LXD host
-and want to attach your containers directly to a MAAS managed network,
+and want to attach your instances directly to a MAAS managed network,
 LXD can be configured to interact with MAAS so that it can track your
-containers.
+instances.
 
 At the daemon level, you must configure `maas.api.url` and
 `maas.api.key`, then set the `maas.subnet.ipv4` and/or
-`maas.subnet.ipv6` keys on the container or profile's `nic` entry.
+`maas.subnet.ipv6` keys on the instance or profile's `nic` entry.
 
-This will have LXD register all your containers with MAAS, giving them
+This will have LXD register all your instances with MAAS, giving them
 proper DHCP leases and DNS records.
 
 If you set the `ipv4.address` or `ipv6.address` keys on the nic, then
@@ -495,15 +495,15 @@ those will be registered as static assignments in MAAS too.
 ### Type: infiniband
 LXD supports two different kind of network types for infiniband devices:
 
- - `physical`: Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the container.
- - `sriov`: Passes a virtual function of an SR-IOV enabled physical network device into the container.
+ - `physical`: Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
+ - `sriov`: Passes a virtual function of an SR-IOV enabled physical network device into the instance.
 
 Different network interface types have different additional properties, the current list is:
 
 Key                     | Type      | Default           | Required  | Used by         | API extension | Description
 :--                     | :--       | :--               | :--       | :--             | :--           | :--
 nictype                 | string    | -                 | yes       | all             | infiniband    | The device type, one of "physical", or "sriov"
-name                    | string    | kernel assigned   | no        | all             | infiniband    | The name of the interface inside the container
+name                    | string    | kernel assigned   | no        | all             | infiniband    | The name of the interface inside the instance
 hwaddr                  | string    | randomly assigned | no        | all             | infiniband    | The MAC address of the new interface. Can be either full 20 byte variant or short 8 byte variant (which will only modify the last 8 bytes of the parent device)
 mtu                     | integer   | parent MTU        | no        | all             | infiniband    | The MTU of the new interface
 parent                  | string    | -                 | yes       | physical, sriov | infiniband    | The name of the host device or bridge
@@ -511,7 +511,7 @@ parent                  | string    | -                 | yes       | physical, 
 To create a `physical` `infiniband` device use:
 
 ```
-lxc config device add <container> <device-name> infiniband nictype=physical parent=<device>
+lxc config device add <instance> <device-name> infiniband nictype=physical parent=<device>
 ```
 
 #### SR-IOV with infiniband devices
@@ -523,24 +523,24 @@ configuring the corresponding kernel module.
 To create a `sriov` `infiniband` device use:
 
 ```
-lxc config device add <container> <device-name> infiniband nictype=sriov parent=<sriov-enabled-device>
+lxc config device add <instance> <device-name> infiniband nictype=sriov parent=<sriov-enabled-device>
 ```
 
 ### Type: disk
-Disk entries are essentially mountpoints inside the container. They can
+Disk entries are essentially mountpoints inside the instance. They can
 either be a bind-mount of an existing file or directory on the host, or
 if the source is a block device, a regular mount.
 
 LXD supports the following additional source types:
-- [Ceph-rbd]: Mount from existing ceph RBD device that is externally managed. LXD can use ceph to manage an internal file system for the container, but in the event that a user has a previously existing ceph RBD that they would like use for this container, they can use this command.
+- [Ceph-rbd]: Mount from existing ceph RBD device that is externally managed. LXD can use ceph to manage an internal file system for the instance, but in the event that a user has a previously existing ceph RBD that they would like use for this instance, they can use this command.
 Example command
 ```
-lxc config device add <container> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username>  path=/ceph
+lxc config device add <instance> ceph-rbd1 disk source=ceph:<my_pool>/<my-volume> ceph.user_name=<username> ceph.cluster_name=<username>  path=/ceph
 ```
-- [Ceph-fs]: Mount from existing ceph FS device that is externally managed. LXD can use ceph to manage an internal file system for the container, but in the event that a user has a previously existing ceph file sys that they would like use for this container, they can use this command.
+- [Ceph-fs]: Mount from existing ceph FS device that is externally managed. LXD can use ceph to manage an internal file system for the instance, but in the event that a user has a previously existing ceph file sys that they would like use for this instancer, they can use this command.
 Example command. 
 ```
-lxc config device add <container> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username>  path=/cephfs
+lxc config device add <instance> ceph-fs1 disk source=cephfs:<my-fs>/<some-path> ceph.user_name=<username> ceph.cluster_name=<username>  path=/cephfs
 ```
 
 The following properties exist:
@@ -550,56 +550,56 @@ Key              | Type      | Default           | Required  | Description
 limits.read      | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
 limits.write     | string    | -                 | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
 limits.max       | string    | -                 | no        | Same as modifying both limits.read and limits.write
-path             | string    | -                 | yes       | Path inside the container where the disk will be mounted
+path             | string    | -                 | yes       | Path inside the instance where the disk will be mounted
 source           | string    | -                 | yes       | Path on the host, either to a file/directory or to a block device
 required         | boolean   | true              | no        | Controls whether to fail if the source doesn't exist
 readonly         | boolean   | false             | no        | Controls whether to make the mount read-only
 size             | string    | -                 | no        | Disk size in bytes (various suffixes supported, see below). This is only supported for the rootfs (/).
 recursive        | boolean   | false             | no        | Whether or not to recursively mount the source path
 pool             | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
-propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the container and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
-shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the container
+propagation      | string    | -                 | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
+shift            | boolean   | false             | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
 raw.mount.options| string    | -                 | no        | Filesystem specific mount options
 ceph.user_name   | string    | admin             | no        | If source is ceph or cephfs then ceph username must be specified by user for proper mount 
 ceph.cluster_name | string   | admin             | no        | If source is ceph or cephfs then ceph cluster_name must be specified by user for proper mount 
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
-appear in the container's `/dev` and allow read/write operations to it.
+appear in the instance's `/dev` and allow read/write operations to it.
 
 The following properties exist:
 
 Key         | Type      | Default           | API extension                     | Required  | Description
 :--         | :--       | :--               | :--                               | :--       | :--
 source      | string    | -                 | unix\_device\_rename              | no        | Path on the host
-path        | string    | -                 |                                   | no        | Path inside the container(one of "source" and "path" must be set)
+path        | string    | -                 |                                   | no        | Path inside the instance (one of "source" and "path" must be set)
 major       | int       | device on host    |                                   | no        | Device major number
 minor       | int       | device on host    |                                   | no        | Device minor number
-uid         | int       | 0                 |                                   | no        | UID of the device owner in the container
-gid         | int       | 0                 |                                   | no        | GID of the device owner in the container
-mode        | int       | 0660              |                                   | no        | Mode of the device in the container
-required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the container.
+uid         | int       | 0                 |                                   | no        | UID of the device owner in the instance
+gid         | int       | 0                 |                                   | no        | GID of the device owner in the instance
+mode        | int       | 0660              |                                   | no        | Mode of the device in the instance
+required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance.
 
 ### Type: unix-block
 Unix block device entries simply make the requested block device
-appear in the container's `/dev` and allow read/write operations to it.
+appear in the instance's `/dev` and allow read/write operations to it.
 
 The following properties exist:
 
 Key         | Type      | Default           | API extension                     | Required  | Description
 :--         | :--       | :--               | :--                               | :--       | :--
 source      | string    | -                 | unix\_device\_rename              | no        | Path on the host
-path        | string    | -                 |                                   | no        | Path inside the container(one of "source" and "path" must be set)
+path        | string    | -                 |                                   | no        | Path inside the instance (one of "source" and "path" must be set)
 major       | int       | device on host    |                                   | no        | Device major number
 minor       | int       | device on host    |                                   | no        | Device minor number
-uid         | int       | 0                 |                                   | no        | UID of the device owner in the container
-gid         | int       | 0                 |                                   | no        | GID of the device owner in the container
-mode        | int       | 0660              |                                   | no        | Mode of the device in the container
-required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the container.
+uid         | int       | 0                 |                                   | no        | UID of the device owner in the instance
+gid         | int       | 0                 |                                   | no        | GID of the device owner in the instance
+mode        | int       | 0660              |                                   | no        | Mode of the device in the instance
+required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the instance.
 
 ### Type: usb
 USB device entries simply make the requested USB device appear in the
-container.
+instance.
 
 The following properties exist:
 
@@ -607,14 +607,14 @@ Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
 vendorid    | string    | -                 | no        | The vendor id of the USB device.
 productid   | string    | -                 | no        | The product id of the USB device.
-uid         | int       | 0                 | no        | UID of the device owner in the container
-gid         | int       | 0                 | no        | GID of the device owner in the container
-mode        | int       | 0660              | no        | Mode of the device in the container
-required    | boolean   | false             | no        | Whether or not this device is required to start the container. (The default is false, and all devices are hot-pluggable)
+uid         | int       | 0                 | no        | UID of the device owner in the instance
+gid         | int       | 0                 | no        | GID of the device owner in the instance
+mode        | int       | 0660              | no        | Mode of the device in the instance
+required    | boolean   | false             | no        | Whether or not this device is required to start the instance. (The default is false, and all devices are hot-pluggable)
 
 ### Type: gpu
 GPU device entries simply make the requested gpu device appear in the
-container.
+instance.
 
 The following properties exist:
 
@@ -624,15 +624,15 @@ vendorid    | string    | -                 | no        | The vendor id of the G
 productid   | string    | -                 | no        | The product id of the GPU device.
 id          | string    | -                 | no        | The card id of the GPU device.
 pci         | string    | -                 | no        | The pci address of the GPU device.
-uid         | int       | 0                 | no        | UID of the device owner in the container
-gid         | int       | 0                 | no        | GID of the device owner in the container
-mode        | int       | 0660              | no        | Mode of the device in the container
+uid         | int       | 0                 | no        | UID of the device owner in the instance
+gid         | int       | 0                 | no        | GID of the device owner in the instance
+mode        | int       | 0660              | no        | Mode of the device in the instance
 
 ### Type: proxy
-Proxy devices allow forwarding network connections between host and container.
+Proxy devices allow forwarding network connections between host and instance.
 This makes it possible to forward traffic hitting one of the host's
-addresses to an address inside the container or to do the reverse and
-have an address in the container connect through the host.
+addresses to an address inside the instance or to do the reverse and
+have an address in the instance connect through the host.
 
 The supported connection types are:
 * `TCP <-> TCP`
@@ -659,7 +659,7 @@ security.uid    | int       | 0                 | no        | What UID to drop p
 security.gid    | int       | 0                 | no        | What GID to drop privilege to
 
 ```
-lxc config device add <container> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/container>
+lxc config device add <instance> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance>
 ```
 
 ## Units for storage and network limits
@@ -702,7 +702,7 @@ The full list of byte suffixes currently supported is:
 
 ## Instance types
 LXD supports simple instance types. Those are represented as a string
-which can be passed at container creation time.
+which can be passed at instance creation time.
 
 There are three allowed syntaxes:
 
@@ -719,7 +719,7 @@ For example, those 3 are equivalent:
 On the command line, this is passed like this:
 
 ```bash
-lxc launch ubuntu:16.04 my-container -t t2.micro
+lxc launch ubuntu:16.04 my-instance -t t2.micro
 ```
 
 The list of supported clouds and instance types can be found here:
@@ -728,7 +728,7 @@ The list of supported clouds and instance types can be found here:
 
 ## Resource limits via `limits.kernel.[limit name]`
 LXD exposes a generic namespaced key `limits.kernel.*` which can be used to set
-resource limits for a given container. It is generic in the sense that LXD will
+resource limits for a given instance. It is generic in the sense that LXD will
 not perform any validation on the resource that is specified following the
 `limits.kernel.*` prefix. LXD cannot know about all the possible resources that
 a given kernel supports. Instead, LXD will simply pass down the corresponding
@@ -760,7 +760,7 @@ the word `unlimited` (e.g. `limits.kernel.nofile=1000:2000`). A single value can
 used as a shortcut to set both soft and hard limit (e.g.
 `limits.kernel.nofile=3000`) to the same value. A resource with no explicitly
 configured limitation will be inherited from the process starting up the
-container. Note that this inheritance is not enforced by LXD but by the kernel.
+instance. Note that this inheritance is not enforced by LXD but by the kernel.
 
 ## Live migration
 LXD supports live migration of containers using [CRIU](http://criu.org). In
@@ -783,7 +783,7 @@ LXD supports scheduled snapshots which can be created at most once every minute.
 There are three configuration options. `snapshots.schedule` takes a shortened
 cron expression: `<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is
 empty (default), no snapshots will be created. `snapshots.schedule.stopped`
-controls whether or not stopped container are to be automatically snapshotted.
+controls whether or not stopped instance are to be automatically snapshotted.
 It defaults to `false`. `snapshots.pattern` takes a pongo2 template string,
 and the pongo2 context contains the `creation_date` variable. Be aware that you
 should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`)
