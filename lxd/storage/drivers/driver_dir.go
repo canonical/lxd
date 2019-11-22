@@ -409,6 +409,27 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
 func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
+	var err error
+	var srcSnapshots []Volume
+
+	if copySnapshots && !srcVol.IsSnapshot() {
+		// Get the list of snapshots from the source.
+		srcSnapshots, err = srcVol.Snapshots(op)
+		if err != nil {
+			return err
+		}
+	}
+
+	return d.copyVolume(vol, srcVol, srcSnapshots, op)
+}
+
+// RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
+func (d *dir) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
+	return d.copyVolume(vol, srcVol, srcSnapshots, op)
+}
+
+// copyVolume copies a volume and its specific snapshots.
+func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS || srcVol.contentType != ContentTypeFS {
 		return fmt.Errorf("Content type not supported")
 	}
@@ -446,13 +467,7 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	// Ensure the volume is mounted.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// If copying snapshots is indicated, check the source isn't itself a snapshot.
-		if copySnapshots && !srcVol.IsSnapshot() {
-			// Get the list of snapshots from the source.
-			srcSnapshots, err := srcVol.Snapshots(op)
-			if err != nil {
-				return err
-			}
-
+		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
 			for _, srcSnapshot := range srcSnapshots {
 				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
 

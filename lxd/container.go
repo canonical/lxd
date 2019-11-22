@@ -629,7 +629,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	if !instanceOnly {
 		if refresh {
 			// Compare snapshots.
-			syncSnapshots, deleteSnapshots, err := instanceCompareSnapshots(sourceInst, inst)
+			syncSnapshots, deleteSnapshots, err := instance.CompareSnapshots(sourceInst, inst)
 			if err != nil {
 				return nil, err
 			}
@@ -704,39 +704,41 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		}
 	}
 
-	// Now clone or refresh the storage.
-	if refresh {
-		if inst.Type() != instancetype.Container {
-			return nil, fmt.Errorf("Instance type must be container")
-		}
-
-		ct := inst.(*containerLXC)
-		err = ct.Storage().ContainerRefresh(inst, sourceInst, snapshots)
+	// Check if we can load new storage layer for both target and source pool driver types.
+	pool, err := storagePools.GetPoolByInstance(s, inst)
+	_, srcPoolErr := storagePools.GetPoolByInstance(s, sourceInst)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && srcPoolErr != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrNotImplemented {
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Load instance storage pool")
 		}
-	} else {
-		// Check if we can load new storage layer for both target and source pool driver types.
-		pool, err := storagePools.GetPoolByInstance(s, inst)
-		_, srcPoolErr := storagePools.GetPoolByInstance(s, sourceInst)
-		if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && srcPoolErr != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrNotImplemented {
-			if err != nil {
-				return nil, errors.Wrap(err, "Load instance storage pool")
-			}
 
+		if refresh {
+			err = pool.RefreshInstance(inst, sourceInst, snapshots, op)
+			if err != nil {
+				return nil, errors.Wrap(err, "Refresh instance")
+			}
+		} else {
 			err = pool.CreateInstanceFromCopy(inst, sourceInst, !instanceOnly, op)
 			if err != nil {
 				return nil, errors.Wrap(err, "Create instance from copy")
 			}
-		} else if inst.Type() == instancetype.Container {
-			ct := inst.(*containerLXC)
-			err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
+		}
+	} else if inst.Type() == instancetype.Container {
+		ct := inst.(*containerLXC)
+
+		if refresh {
+			err = ct.Storage().ContainerRefresh(inst, sourceInst, snapshots)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			return nil, fmt.Errorf("Instance type not supported")
+			err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
+			if err != nil {
+				return nil, err
+			}
 		}
+	} else {
+		return nil, fmt.Errorf("Instance type not supported")
 	}
 
 	// Apply any post-storage configuration.
@@ -1367,69 +1369,6 @@ func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) 
 	}
 
 	return inst, nil
-}
-
-// instanceCompareSnapshots returns a list of snapshots to sync to the target and a list of
-// snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
-// exist in the target or its creation date is different to the source. A snapshot will be marked
-// as "to delete" if it doesn't exist in the source or creation date is different to the source.
-func instanceCompareSnapshots(source instance.Instance, target instance.Instance) ([]instance.Instance, []instance.Instance, error) {
-	// Get the source snapshots.
-	sourceSnapshots, err := source.Snapshots()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Get the target snapshots.
-	targetSnapshots, err := target.Snapshots()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Compare source and target.
-	sourceSnapshotsTime := map[string]time.Time{}
-	targetSnapshotsTime := map[string]time.Time{}
-
-	toDelete := []instance.Instance{}
-	toSync := []instance.Instance{}
-
-	// Generate a list of source snapshot creation dates.
-	for _, snap := range sourceSnapshots {
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
-
-		sourceSnapshotsTime[snapName] = snap.CreationDate()
-	}
-
-	// Generate a list of target snapshot creation times, if the source doesn't contain the
-	// the snapshot or the creation time is different on the source then add the target snapshot
-	// to the "to delete" list.
-	for _, snap := range targetSnapshots {
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
-
-		targetSnapshotsTime[snapName] = snap.CreationDate()
-		existDate, exists := sourceSnapshotsTime[snapName]
-		if !exists {
-			// Snapshot doesn't exist in source, mark it for deletion on target.
-			toDelete = append(toDelete, snap)
-		} else if existDate != snap.CreationDate() {
-			// Snapshot creation date is different in source, mark it for deletion on
-			// target.
-			toDelete = append(toDelete, snap)
-		}
-	}
-
-	// For each of the source snapshots, decide whether it needs to be synced or not based on
-	// whether it already exists in the target and whether the creation dates match.
-	for _, snap := range sourceSnapshots {
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
-
-		existDate, exists := targetSnapshotsTime[snapName]
-		if !exists || existDate != snap.CreationDate() {
-			toSync = append(toSync, snap)
-		}
-	}
-
-	return toSync, toDelete, nil
 }
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
