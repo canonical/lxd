@@ -178,6 +178,7 @@ var APIExtensions = []string{
 	"container_nic_routed",
 	"container_syscall_intercept_mount_fuse",
 	"container_disk_ceph",
+	"virtual-machines",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
