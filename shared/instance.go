@@ -134,7 +134,7 @@ func IsDeviceID(value string) error {
 }
 
 // IsRootDiskDevice returns true if the given device representation is configured as root disk for
-// a container. It typically get passed a specific entry of api.Container.Devices.
+// a container. It typically get passed a specific entry of api.Instance.Devices.
 func IsRootDiskDevice(device map[string]string) bool {
 	// Root disk devices also need a non-empty "pool" property, but we can't check that here
 	// because this function is used with clients talking to older servers where there was no
@@ -422,9 +422,9 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 	return nil, fmt.Errorf("Unknown configuration key: %s", key)
 }
 
-// ContainerGetParentAndSnapshotName returns the parent container name, snapshot
+// InstanceGetParentAndSnapshotName returns the parent container name, snapshot
 // name, and whether it actually was a snapshot name.
-func ContainerGetParentAndSnapshotName(name string) (string, string, bool) {
+func InstanceGetParentAndSnapshotName(name string) (string, string, bool) {
 	fields := strings.SplitN(name, SnapshotDelimiter, 2)
 	if len(fields) == 1 {
 		return name, "", false
