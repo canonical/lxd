@@ -28,7 +28,7 @@ type zfsMigrationSourceDriver struct {
 }
 
 func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zfsParent string, readWrapper func(io.ReadCloser) io.ReadCloser) error {
-	sourceParentName, _, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
+	sourceParentName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
 	poolName := s.zfs.getOnDiskPoolName()
 	args := []string{"send"}
 
@@ -83,7 +83,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 
 func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operations.Operation, bwlimit string, containerOnly bool) error {
 	if s.instance.IsSnapshot() {
-		_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(s.instance.Name())
+		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
 		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
 		wrapper := migration.ProgressReader(op, "fs_progress", s.instance.Name())
 		return s.send(conn, snapshotName, "", wrapper)

@@ -216,7 +216,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	resultString := []string{}
 	resultMap := []*api.StorageVolumeSnapshot{}
 	for _, volume := range volumes {
-		_, snapshotName, _ := shared.ContainerGetParentAndSnapshotName(volume.Name)
+		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(volume.Name)
 
 		if !recursion {
 			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)

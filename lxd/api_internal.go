@@ -665,7 +665,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	for _, od = range onDiskSnapshots {
 		inBackupFile := false
 		for _, ib := range backup.Snapshots {
-			_, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(ib.Name)
+			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(ib.Name)
 			if od == snapOnlyName {
 				inBackupFile = true
 				break
@@ -750,7 +750,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(needForce)
 			}
 		case "lvm":
-			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			ctLvmName := containerNameToLVName(fmt.Sprintf("%s/%s", project.Prefix(projectName, ctName), csName))
 			ctLvName := getLVName(poolName,
 				storagePoolVolumeAPIEndpointContainers,
@@ -778,7 +778,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			ctName = project.Prefix(projectName, ctName)
 			snapshotName := fmt.Sprintf("snapshot_%s", csName)
 
@@ -793,7 +793,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(needForce)
 			}
 		case "zfs":
-			ctName, csName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			snapshotName := fmt.Sprintf("snapshot-%s", csName)
 
 			exists := zfsFilesystemEntityExists(poolName,
@@ -1044,7 +1044,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		// Recreate missing mountpoints and symlinks.
 		snapshotMountPoint := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name,
 			snap.Name)
-		sourceName, _, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 		sourceName = project.Prefix(projectName, sourceName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)

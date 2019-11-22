@@ -200,7 +200,7 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 		}
 
 		for _, snap := range snaps {
-			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 			indexFile.Snapshots = append(indexFile.Snapshots, snapName)
 		}
 	}

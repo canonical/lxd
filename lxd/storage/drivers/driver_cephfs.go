@@ -391,7 +391,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 			}
 
 			for _, srcSnapshot := range srcSnapshots {
-				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.name)
 
 				// Mount the source snapshot.
 				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
@@ -541,7 +541,7 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 
 	for _, snapshot := range snapshots {
 		// Figure out the snapshot paths.
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.name)
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.name)
 		oldCephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 		newCephSnapPath := filepath.Join(targetPath, ".snap", snapName)
 		oldPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapName))

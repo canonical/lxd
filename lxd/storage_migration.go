@@ -94,7 +94,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operations.Operation, bwlimit string, containerOnly bool) error {
-	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
+	ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.container.Name())
 
 	if !containerOnly {
 		for _, send := range s.snapshots {
@@ -133,7 +133,7 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
-	ctName, _, _ := shared.ContainerGetParentAndSnapshotName(s.container.Name())
+	ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.container.Name())
 	// resync anything that changed between our first send and the checkpoint
 	state := s.container.DaemonState()
 	return rsync.Send(project.Prefix(s.container.Project(), ctName), shared.AddSlash(s.container.Path()), &shared.WebsocketIO{Conn: conn}, nil, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
@@ -156,7 +156,7 @@ func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (Mi
 		}
 
 		for _, snap := range allSnapshots {
-			_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name())
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 			if !shared.StringInSlice(snapName, refreshSnapshots) {
 				continue
 			}

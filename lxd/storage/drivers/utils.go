@@ -183,7 +183,7 @@ func GetVolumeMountPath(poolName string, volType VolumeType, volName string) str
 
 // GetVolumeSnapshotDir gets the snapshot mount directory for the parent volume.
 func GetVolumeSnapshotDir(poolName string, volType VolumeType, volName string) string {
-	parent, _, _ := shared.ContainerGetParentAndSnapshotName(volName)
+	parent, _, _ := shared.InstanceGetParentAndSnapshotName(volName)
 	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", parent))
 }
 
