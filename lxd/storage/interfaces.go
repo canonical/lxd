@@ -4,6 +4,7 @@ import (
 	"io"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -50,7 +51,7 @@ type Pool interface {
 	DeleteInstance(inst Instance, op *operations.Operation) error
 
 	MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
-	RefreshInstance(inst Instance, src Instance, snapshots bool, op *operations.Operation) error
+	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error
 	BackupInstance(inst Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
 	GetInstanceUsage(inst Instance) (int64, error)
