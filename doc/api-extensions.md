@@ -850,15 +850,15 @@ This allows for editing of the expiry date on images.
 Adds a FirmwareVersion field to network card entries.
 
 ## backup\_compression\_algorithm
-This adds support for a `compression_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
+This adds support for a `compression\_algorithm` property when creating a backup (`POST /1.0/containers/<name>/backups`).
 
-Setting this property overrides the server default value (`backups.compression_algorithm`).
+Setting this property overrides the server default value (`backups.compression\_algorithm`).
 
 ## ceph\_data\_pool\_name
-This adds support for an optional argument (`ceph.osd.data_pool_name`) when creating
+This adds support for an optional argument (`ceph.osd.data\_pool\_name`) when creating
 storage pools using Ceph RBD, when this argument is used the pool will store it's
-actual data in the pool specified with `data_pool_name` while keeping the metadata
-in the pool specified by `pool_name`.
+actual data in the pool specified with `data\_pool\_name` while keeping the metadata
+in the pool specified by `pool\_name`.
 
 ## container\_syscall\_intercept\_mount
 Adds the `security.syscalls.intercept.mount`,
@@ -867,7 +867,7 @@ Adds the `security.syscalls.intercept.mount`,
 and how the mount system call will be interecepted by LXD and processed with
 elevated permissions.
 
-## compression_squashfs
+## compression\_squashfs
 Adds support for importing/exporting of images/backups using SquashFS file system format.
 
 ## container\_raw\_mount
