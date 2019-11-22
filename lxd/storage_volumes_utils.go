@@ -411,7 +411,7 @@ func storagePoolVolumeUsedByRunningInstancesWithProfilesGet(s *state.State,
 func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volumeName string, volumeTypeName string) ([]string, error) {
 	// Handle container volumes
 	if volumeTypeName == "container" {
-		cName, sName, snap := shared.ContainerGetParentAndSnapshotName(volumeName)
+		cName, sName, snap := shared.InstanceGetParentAndSnapshotName(volumeName)
 
 		if snap {
 			return []string{fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
@@ -579,7 +579,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 			}
 
 			for _, snap := range snapshots {
-				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snap.Name)
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 				_, err := storagePoolVolumeSnapshotCopyInternal(state, poolName, vol, snapName)
 				if err != nil {
 					return err

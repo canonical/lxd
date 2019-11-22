@@ -469,7 +469,7 @@ func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *o
 		// If copying snapshots is indicated, check the source isn't itself a snapshot.
 		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
 			for _, srcSnapshot := range srcSnapshots {
-				_, snapName, _ := shared.ContainerGetParentAndSnapshotName(srcSnapshot.name)
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.name)
 
 				// Mount the source snapshot.
 				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
@@ -607,7 +607,7 @@ func (d *dir) RenameVolume(volType VolumeType, volName string, newVolName string
 
 	for _, snapshot := range snapshots {
 		oldPath := snapshot.MountPath()
-		_, snapName, _ := shared.ContainerGetParentAndSnapshotName(snapshot.name)
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.name)
 		newPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(newVolName, snapName))
 
 		err := os.Rename(oldPath, newPath)

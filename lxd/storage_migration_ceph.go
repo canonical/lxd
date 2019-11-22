@@ -81,7 +81,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	if s.container.IsSnapshot() {
 		// ContainerSnapshotStart() will create the clone that is
 		// referenced by sendName here.
-		containerOnlyName, snapOnlyName, _ := shared.ContainerGetParentAndSnapshotName(containerName)
+		containerOnlyName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(containerName)
 		sendName := fmt.Sprintf(
 			"%s/snapshots_%s_%s_start_clone",
 			s.ceph.OSDPoolName,
