@@ -170,10 +170,10 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	return "", nil, fmt.Errorf("No root device could be found")
 }
 
-// KnownContainerConfigKeys maps all fully defined, well-known config keys
+// KnownInstanceConfigKeys maps all fully defined, well-known config keys
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
-var KnownContainerConfigKeys = map[string]func(value string) error{
+var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"boot.autostart":             IsBool,
 	"boot.autostart.delay":       IsInt64,
 	"boot.autostart.priority":    IsInt64,
@@ -352,7 +352,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 // be done by the caller.  User defined keys are always considered to
 // be valid, e.g. user.* and environment.* keys.
 func ConfigKeyChecker(key string) (func(value string) error, error) {
-	if f, ok := KnownContainerConfigKeys[key]; ok {
+	if f, ok := KnownInstanceConfigKeys[key]; ok {
 		return f, nil
 	}
 
