@@ -22,6 +22,9 @@ navigation:
         - title: Containers
           location: containers.md
 
+        - title: Instances
+          location: instances.md
+
         - title: Networks
           location: networks.md
 
@@ -39,6 +42,9 @@ navigation:
 
         - title: Storage pools
           location: storage.md
+
+        - title: Virtual machines
+          location: virtual-machines.md
 
     - title: Images
       children:
