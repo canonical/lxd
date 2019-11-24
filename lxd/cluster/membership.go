@@ -199,6 +199,9 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		return nil, errors.Wrap(err, "Failed to get raft nodes from the log")
 	}
 	count, err := Count(state)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch cluster members count")
+	}
 	if count != 2 && len(nodes) < membershipMaxRaftNodes {
 		err = state.Node.Transaction(func(tx *db.NodeTx) error {
 			id, err := tx.RaftNodeAdd(address)
