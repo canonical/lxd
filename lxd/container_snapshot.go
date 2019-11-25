@@ -164,7 +164,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 			ExpiryDate:   expiry,
 		}
 
-		_, err := instanceCreateAsSnapshot(d.State(), args, inst)
+		_, err := instanceCreateAsSnapshot(d.State(), args, inst, op)
 		if err != nil {
 			return err
 		}
