@@ -179,6 +179,10 @@ func (b *lxdBackend) Unmount() (bool, error) {
 // ensureInstanceSymlink creates a symlink in the instance directory to the instance's mount path
 // if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName, instanceName, mountPath string) error {
+	if shared.IsSnapshot(instanceName) {
+		return fmt.Errorf("Instance must not be snapshot")
+	}
+
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
@@ -1045,8 +1049,58 @@ func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, error) {
 	return diskPath, nil
 }
 
-func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error {
-	return ErrNotImplemented
+// CreateInstanceSnapshot creates a snaphot of an instance volume.
+func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name()})
+	logger.Debug("CreateInstanceSnapshot started")
+	defer logger.Debug("CreateInstanceSnapshot finished")
+
+	if inst.Type() != src.Type() {
+		return fmt.Errorf("Instance types must match")
+	}
+
+	if !inst.IsSnapshot() {
+		return fmt.Errorf("Instance must be snapshot")
+	}
+
+	if src.IsSnapshot() {
+		return fmt.Errorf("Source instance cannot be snapshot")
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	// Some driver backing stores require that running instances be frozen during snapshot.
+	if b.driver.Info().RunningSnapshotFreeze && src.IsRunning() {
+		err = src.Freeze()
+		if err != nil {
+			return err
+		}
+		defer src.Unfreeze()
+	}
+
+	parentName, snapName, isSnap := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	if !isSnap {
+		return fmt.Errorf("Volume name must be a snapshot")
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), parentName)
+
+	err = b.driver.CreateVolumeSnapshot(volType, volStorageName, snapName, op)
+	if err != nil {
+		return err
+	}
+
+	err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RenameInstanceSnapshot renames an instance snapshot.
