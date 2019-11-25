@@ -734,7 +734,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	return inst, nil
 }
 
-func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance) (instance.Instance, error) {
+func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance) (instance.Instance, error) {
 	if sourceInstance.Type() != instancetype.Container {
 		return nil, fmt.Errorf("Instance is not container type")
 	}
@@ -1470,7 +1470,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 				ExpiryDate:   expiry,
 			}
 
-			_, err = containerCreateAsSnapshot(d.State(), args, c)
+			_, err = instanceCreateAsSnapshot(d.State(), args, c)
 			if err != nil {
 				logger.Error("Error creating snapshots", log.Ctx{"err": err, "container": c})
 			}
