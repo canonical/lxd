@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -167,9 +168,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Instance is not container type")
 		}
 
-		c := inst.(container)
-
-		_, err := containerCreateAsSnapshot(d.State(), args, c)
+		_, err := containerCreateAsSnapshot(d.State(), args, inst)
 		if err != nil {
 			return err
 		}
@@ -223,23 +222,21 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	sc := inst.(container)
-
 	switch r.Method {
 	case "GET":
-		return snapshotGet(sc, snapshotName)
+		return snapshotGet(inst, snapshotName)
 	case "POST":
-		return snapshotPost(d, r, sc, containerName)
+		return snapshotPost(d, r, inst, containerName)
 	case "DELETE":
-		return snapshotDelete(sc, snapshotName)
+		return snapshotDelete(inst, snapshotName)
 	case "PUT":
-		return snapshotPut(d, r, sc, snapshotName)
+		return snapshotPut(d, r, inst, snapshotName)
 	default:
 		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
 }
 
-func snapshotPut(d *Daemon, r *http.Request, sc container, name string) response.Response {
+func snapshotPut(d *Daemon, r *http.Request, sc instance.Instance, name string) response.Response {
 	// Validate the ETag
 	etag := []interface{}{sc.ExpiryDate()}
 	err := util.EtagCheck(r, etag)
@@ -313,7 +310,7 @@ func snapshotPut(d *Daemon, r *http.Request, sc container, name string) response
 	return operations.OperationResponse(op)
 }
 
-func snapshotGet(sc container, name string) response.Response {
+func snapshotGet(sc instance.Instance, name string) response.Response {
 	render, _, err := sc.Render()
 	if err != nil {
 		return response.SmartError(err)
@@ -322,7 +319,7 @@ func snapshotGet(sc container, name string) response.Response {
 	return response.SyncResponse(true, render.(*api.InstanceSnapshot))
 }
 
-func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string) response.Response {
+func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerName string) response.Response {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return response.InternalError(err)
@@ -432,7 +429,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	return operations.OperationResponse(op)
 }
 
-func snapshotDelete(sc container, name string) response.Response {
+func snapshotDelete(sc instance.Instance, name string) response.Response {
 	remove := func(op *operations.Operation) error {
 		return sc.Delete()
 	}

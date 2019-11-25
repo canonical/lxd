@@ -236,7 +236,7 @@ func lxcStatusCode(state lxc.State) api.StatusCode {
 }
 
 // Loader functions
-func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error) {
+func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
@@ -442,7 +442,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (container, error)
 	return c, nil
 }
 
-func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (container, error) {
+func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct
 	c := containerLXCInstantiate(s, args)
 
@@ -5097,7 +5097,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	return nil
 }
 
-func collectCRIULogFile(c container, imagesDir string, function string, method string) error {
+func collectCRIULogFile(c instance.Instance, imagesDir string, function string, method string) error {
 	t := time.Now().Format(time.RFC3339)
 	newPath := shared.LogPath(c.Name(), fmt.Sprintf("%s_%s_%s.log", function, method, t))
 	return shared.FileCopy(filepath.Join(imagesDir, fmt.Sprintf("%s.log", method)), newPath)

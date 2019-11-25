@@ -211,8 +211,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(fmt.Errorf("Instance is not container type"))
 		}
 
-		c := inst.(container)
-		ws, err := NewMigrationSource(c, stateful, instanceOnly)
+		ws, err := NewMigrationSource(inst, stateful, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
