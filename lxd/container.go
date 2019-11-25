@@ -734,9 +734,13 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 	return inst, nil
 }
 
-func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance) (instance.Instance, error) {
+func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance, op *operations.Operation) (instance.Instance, error) {
 	if sourceInstance.Type() != instancetype.Container {
 		return nil, fmt.Errorf("Instance is not container type")
+	}
+
+	if sourceInstance.Type() != args.Type {
+		return nil, fmt.Errorf("Source instance and snapshot instance types do not match")
 	}
 
 	// Deal with state
@@ -785,37 +789,63 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 	}
 
 	// Create the snapshot
-	c, err := instanceCreateInternal(s, args)
+	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
 	}
 
-	// Clone the container
-	if sourceInstance.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance type must be container")
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+
+		inst.Delete()
+	}()
+
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(s, inst)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return nil, err
+		}
+
+		err = pool.CreateInstanceSnapshot(inst, sourceInstance, op)
+		if err != nil {
+			return nil, errors.Wrap(err, "Create instance snapshot")
+		}
+
+		// Mount volume for backup.yaml writing.
+		ourStart, err := pool.MountInstance(sourceInstance, op)
+		if err != nil {
+			return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
+		}
+		if ourStart {
+			defer pool.UnmountInstance(sourceInstance, op)
+		}
+	} else if inst.Type() == instancetype.Container {
+		ct := sourceInstance.(*containerLXC)
+		err = ct.Storage().ContainerSnapshotCreate(inst, sourceInstance)
+		if err != nil {
+			return nil, err
+		}
+
+		// Mount volume for backup.yaml writing.
+		ourStart, err := sourceInstance.StorageStart()
+		if err != nil {
+			return nil, err
+		}
+		if ourStart {
+			defer sourceInstance.StorageStop()
+		}
+
+	} else {
+		return nil, fmt.Errorf("Instance type not supported")
 	}
 
-	ct := sourceInstance.(*containerLXC)
-
-	err = ct.Storage().ContainerSnapshotCreate(c, sourceInstance)
-	if err != nil {
-		c.Delete()
-		return nil, err
-	}
-
-	// Attempt to update backup.yaml on container
-	ourStart, err := sourceInstance.StorageStart()
-	if err != nil {
-		c.Delete()
-		return nil, err
-	}
-	if ourStart {
-		defer sourceInstance.StorageStop()
-	}
-
+	// Attempt to update backup.yaml for instance
 	err = writeBackupFile(sourceInstance)
 	if err != nil {
-		c.Delete()
 		return nil, err
 	}
 
@@ -830,7 +860,8 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 			"snapshot_name": args.Name,
 		})
 
-	return c, nil
+	revert = false
+	return inst, nil
 }
 
 // instanceCreateInternal creates an instance record and storage volume record in the database.
@@ -1470,7 +1501,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 				ExpiryDate:   expiry,
 			}
 
-			_, err = containerCreateAsSnapshot(d.State(), args, c)
+			_, err = instanceCreateAsSnapshot(d.State(), args, c, nil)
 			if err != nil {
 				logger.Error("Error creating snapshots", log.Ctx{"err": err, "container": c})
 			}

@@ -164,11 +164,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 			ExpiryDate:   expiry,
 		}
 
-		if inst.Type() != instancetype.Container {
-			return fmt.Errorf("Instance is not container type")
-		}
-
-		_, err := containerCreateAsSnapshot(d.State(), args, inst)
+		_, err := instanceCreateAsSnapshot(d.State(), args, inst, op)
 		if err != nil {
 			return err
 		}
@@ -177,7 +173,8 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {

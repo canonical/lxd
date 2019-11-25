@@ -28,14 +28,15 @@ type dir struct {
 // Info returns info about the driver and its environment.
 func (d *dir) Info() Info {
 	return Info{
-		Name:               "dir",
-		Version:            "1",
-		OptimizedImages:    false,
-		PreservesInodes:    false,
-		Remote:             false,
-		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:       false,
-		RunningQuotaResize: true,
+		Name:                  "dir",
+		Version:               "1",
+		OptimizedImages:       false,
+		PreservesInodes:       false,
+		Remote:                false,
+		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:          false,
+		RunningQuotaResize:    true,
+		RunningSnapshotFreeze: true,
 	}
 }
 
