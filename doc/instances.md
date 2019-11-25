@@ -64,6 +64,7 @@ nvidia.require.driver                           | string    | -                 
 raw.apparmor                                    | blob      | -                 | yes           | Apparmor profile entries to be appended to the generated profile
 raw.idmap                                       | blob      | -                 | no            | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                         | blob      | -                 | no            | Raw LXC configuration to be appended to the generated one
+raw.qemu                                        | blob      | -                 | no            | Raw Qemu configuration to be appended to the generated command line
 raw.seccomp                                     | blob      | -                 | no            | Raw Seccomp configuration
 security.devlxd                                 | boolean   | true              | no            | Controls the presence of /dev/lxd in the instance
 security.devlxd.images                          | boolean   | false             | no            | Controls the availability of the /1.0/images API over devlxd
@@ -74,6 +75,7 @@ security.nesting                                | boolean   | false             
 security.privileged                             | boolean   | false             | no            | Runs the instance in privileged mode
 security.protection.delete                      | boolean   | false             | yes           | Prevents the instance from being deleted
 security.protection.shift                       | boolean   | false             | yes           | Prevents the instance's filesystem from being uid/gid shifted on startup
+security.secureboot                             | boolean   | true              | no            | Controls whether UEFI secure boot is enabled with the default Microsoft keys
 security.syscalls.blacklist                     | string    | -                 | no            | A '\n' separated list of syscalls to blacklist
 security.syscalls.blacklist\_compat             | boolean   | false             | no            | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist\_default            | boolean   | true              | no            | Enables the default syscall blacklist
