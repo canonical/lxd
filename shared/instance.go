@@ -294,6 +294,8 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.idmap.isolated": IsBool,
 	"security.idmap.size":     IsUint32,
 
+	"security.secureboot": IsBool,
+
 	"security.syscalls.blacklist_default":       IsBool,
 	"security.syscalls.blacklist_compat":        IsBool,
 	"security.syscalls.blacklist":               IsAny,
