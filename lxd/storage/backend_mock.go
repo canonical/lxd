@@ -119,7 +119,7 @@ func (b *mockBackend) GetInstanceDisk(i Instance) (string, error) {
 	return "", nil
 }
 
-func (b *mockBackend) CreateInstanceSnapshot(i Instance, name string, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, op *operations.Operation) error {
 	return nil
 }
 

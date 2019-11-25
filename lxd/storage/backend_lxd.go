@@ -1045,7 +1045,7 @@ func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, error) {
 	return diskPath, nil
 }
 
-func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceSnapshot(inst Instance, src Instance, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
