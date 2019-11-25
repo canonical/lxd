@@ -512,12 +512,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 	// Copy OVMF settings firmware to nvram file.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
 	if !shared.PathExists(vm.getNvramPath()) {
-		srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.ms.fd")
-		if !shared.PathExists(srcOvmfFile) {
-			return fmt.Errorf("Required secure boot EFI firmware settings file missing: %s", srcOvmfFile)
-		}
-
-		err = shared.FileCopy(srcOvmfFile, vm.getNvramPath())
+		err = vm.setupNvram()
 		if err != nil {
 			return err
 		}
@@ -575,6 +570,25 @@ func (vm *vmQemu) Start(stateful bool) error {
 	}
 
 	_, err = shared.RunCommand(qemuBinary, args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (vm *vmQemu) setupNvram() error {
+	srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.fd")
+	if vm.expandedConfig["security.secureboot"] == "" || shared.IsTrue(vm.expandedConfig["security.secureboot"]) {
+		srcOvmfFile = filepath.Join(vm.ovmfPath(), "OVMF_VARS.ms.fd")
+	}
+
+	if !shared.PathExists(srcOvmfFile) {
+		return fmt.Errorf("Required EFI firmware settings file missing: %s", srcOvmfFile)
+	}
+
+	os.Remove(vm.getNvramPath())
+	err := shared.FileCopy(srcOvmfFile, vm.getNvramPath())
 	if err != nil {
 		return err
 	}
@@ -1635,6 +1649,14 @@ func (vm *vmQemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if !vm.IsSnapshot() && updateMAAS {
 		err = vm.maasUpdate(oldExpandedDevices.CloneNative())
+		if err != nil {
+			return err
+		}
+	}
+
+	if shared.StringInSlice("security.secureboot", changedConfig) {
+		// Re-generate the NVRAM
+		err = vm.setupNvram()
 		if err != nil {
 			return err
 		}
