@@ -56,6 +56,10 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	}
 
+	if shared.PathExists("/snap/bin") {
+		env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+	}
+
 	// If running as root, set some env variables
 	if post.User == 0 {
 		// Set default value for HOME
