@@ -164,10 +164,6 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 			ExpiryDate:   expiry,
 		}
 
-		if inst.Type() != instancetype.Container {
-			return fmt.Errorf("Instance is not container type")
-		}
-
 		_, err := instanceCreateAsSnapshot(d.State(), args, inst)
 		if err != nil {
 			return err
