@@ -2379,14 +2379,14 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 	}
 
 	var ret int
-	var c container
+	var c instance.Instance
 	fsType := s.getRBDFilesystem()
 	mountpoint := ""
 	RBDDevPath := ""
 	volumeName := ""
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		ctName := c.Name()
 		if c.IsRunning() {
 			msg := fmt.Sprintf(`Cannot resize RBD storage volume `+

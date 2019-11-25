@@ -436,7 +436,7 @@ func storagePoolInit(s *state.State, poolName string) (storage, error) {
 	return storageInit(s, "default", poolName, "", -1)
 }
 
-func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c container) (storage, error) {
+func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) (storage, error) {
 	st, err := storageInit(s, "default", poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
@@ -505,7 +505,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 						continue
 					}
 
-					ct := instt.(container)
+					ct := instt.(*containerLXC)
 
 					var ctNextIdmap *idmap.IdmapSet
 					if ct.IsRunning() {
@@ -712,7 +712,7 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 	return nil
 }
 
-func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) error {
+func resetContainerDiskIdmap(container *containerLXC, srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := container.DiskIdmap()
 	if err != nil {
 		return err

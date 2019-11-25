@@ -369,7 +369,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 				}
 
 				if args.Instance.Type() == instancetype.Container {
-					c := args.Instance.(container)
+					c := args.Instance.(*containerLXC)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
 						return err
@@ -423,7 +423,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 				}
 
 				if args.Instance.Type() == instancetype.Container {
-					c := args.Instance.(container)
+					c := args.Instance.(*containerLXC)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
 						return err
@@ -458,7 +458,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 	}
 
 	if args.Instance.Type() == instancetype.Container {
-		c := args.Instance.(container)
+		c := args.Instance.(*containerLXC)
 		err = resetContainerDiskIdmap(c, args.Idmap)
 		if err != nil {
 			return err

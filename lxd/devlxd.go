@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/daemon"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -56,10 +57,10 @@ type devLxdHandler struct {
 	 * server side right now either, I went the simple route to avoid
 	 * needless noise.
 	 */
-	f func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse
+	f func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse
 }
 
-var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	filtered := []string{}
 	for k := range c.ExpandedConfig() {
 		if strings.HasPrefix(k, "user.") {
@@ -69,7 +70,7 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c container, 
 	return okResponse(filtered, "json")
 }}
 
-var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	key := mux.Vars(r)["key"]
 	if !strings.HasPrefix(key, "user.") {
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
@@ -83,7 +84,7 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c co
 	return okResponse(value, "raw")
 }}
 
-var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	if !shared.IsTrue(c.ExpandedConfig()["security.devlxd.images"]) {
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
@@ -100,12 +101,12 @@ var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d
 	return &devLxdResponse{"", http.StatusOK, "raw"}
 }}
 
-var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	value := c.ExpandedConfig()["user.meta-data"]
 	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", c.Name(), c.Name(), value), "raw")
 }}
 
-var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "config,device"
@@ -150,7 +151,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
 
-func devlxdEventSend(c container, eventType string, eventMessage interface{}) error {
+func devlxdEventSend(c instance.Instance, eventType string, eventMessage interface{}) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()
@@ -160,10 +161,10 @@ func devlxdEventSend(c container, eventType string, eventMessage interface{}) er
 }
 
 var handlers = []devLxdHandler{
-	{"/", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
 	}},
-	{"/1.0", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	{"/1.0", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 		return okResponse(shared.Jmap{"api_version": version.APIVersion}, "json")
 	}},
 	devlxdConfigGet,
@@ -173,7 +174,7 @@ var handlers = []devLxdHandler{
 	devlxdImageExport,
 }
 
-func hoistReq(f func(*Daemon, container, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
+func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn := extractUnderlyingConn(w)
 		cred, ok := pidMapper.m[conn]
@@ -317,7 +318,7 @@ func extractUnderlyingConn(w http.ResponseWriter) *net.UnixConn {
 
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
 
-func findContainerForPid(pid int32, s *state.State) (container, error) {
+func findContainerForPid(pid int32, s *state.State) (*containerLXC, error) {
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
 	 * better way to do this. Based on rharper's initial performance
@@ -364,7 +365,7 @@ func findContainerForPid(pid int32, s *state.State) (container, error) {
 				return nil, fmt.Errorf("Instance is not container type")
 			}
 
-			c := inst.(container)
+			c := inst.(*containerLXC)
 			return c, nil
 		}
 
@@ -414,7 +415,7 @@ func findContainerForPid(pid int32, s *state.State) (container, error) {
 		}
 
 		if origPidNs == pidNs {
-			return inst.(container), nil
+			return inst.(*containerLXC), nil
 		}
 	}
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/instance"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -20,7 +21,7 @@ func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath st
 	case "ext4":
 		switch volumeType {
 		case storagePoolVolumeTypeContainer:
-			c := data.(container)
+			c := data.(instance.Instance)
 			ourMount, err := c.StorageStop()
 			if err != nil {
 				return nil, err

@@ -1553,7 +1553,7 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 	// Mount the filesystem
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c := data.(container)
+		c := data.(instance.Instance)
 		ourMount, err := c.StorageStart()
 		if err != nil {
 			return err

@@ -1309,7 +1309,7 @@ func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data inte
 	var path string
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c := data.(container)
+		c := data.(instance.Instance)
 		path = driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 	case storagePoolVolumeTypeCustom:
 		path = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)

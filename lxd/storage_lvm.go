@@ -2074,13 +2074,13 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 	}
 
 	poolName := s.getOnDiskPoolName()
-	var c container
+	var c instance.Instance
 	fsType := s.getLvmFilesystem()
 	lvDevPath := ""
 	mountpoint := ""
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		ctName := c.Name()
 		if c.IsRunning() {
 			msg := fmt.Sprintf(`Cannot resize LVM storage volume `+

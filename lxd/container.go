@@ -776,7 +776,7 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 			preDumpDir:   "",
 		}
 
-		c := sourceInstance.(container)
+		c := sourceInstance.(*containerLXC)
 		err = c.Migrate(&criuMigrationArgs)
 		if err != nil {
 			os.RemoveAll(sourceInstance.StatePath())
