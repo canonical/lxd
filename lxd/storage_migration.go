@@ -433,7 +433,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 				_, err = instanceLoadByProjectAndName(args.Instance.DaemonState(),
 					args.Instance.Project(), snapArgs.Name)
 				if err != nil {
-					_, err = instanceCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance)
+					_, err = instanceCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance, op)
 					if err != nil {
 						return err
 					}
