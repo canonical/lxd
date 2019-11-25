@@ -557,7 +557,24 @@ func (vm *vmQemu) Start(stateful bool) error {
 		return err
 	}
 
-	_, err = shared.RunCommand(qemuBinary, "-name", vm.Name(), "-uuid", vmUUID, "-daemonize", "-cpu", "host", "-nographic", "-serial", "chardev:console", "-nodefaults", "-readconfig", confFile, "-pidfile", vm.pidFilePath())
+	args := []string{
+		"-name", vm.Name(),
+		"-uuid", vmUUID,
+		"-daemonize",
+		"-cpu", "host",
+		"-nographic",
+		"-serial", "chardev:console",
+		"-nodefaults",
+		"-readconfig", confFile,
+		"-pidfile", vm.pidFilePath(),
+	}
+
+	if vm.expandedConfig["raw.qemu"] != "" {
+		fields := strings.Split(vm.expandedConfig["raw.qemu"], " ")
+		args = append(args, fields...)
+	}
+
+	_, err = shared.RunCommand(qemuBinary, args...)
 	if err != nil {
 		return err
 	}
