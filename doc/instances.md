@@ -64,6 +64,7 @@ nvidia.require.driver                           | string    | -                 
 raw.apparmor                                    | blob      | -                 | yes           | Apparmor profile entries to be appended to the generated profile
 raw.idmap                                       | blob      | -                 | no            | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                         | blob      | -                 | no            | Raw LXC configuration to be appended to the generated one
+raw.qemu                                        | blob      | -                 | no            | Raw Qemu configuration to be appended to the generated command line
 raw.seccomp                                     | blob      | -                 | no            | Raw Seccomp configuration
 security.devlxd                                 | boolean   | true              | no            | Controls the presence of /dev/lxd in the instance
 security.devlxd.images                          | boolean   | false             | no            | Controls the availability of the /1.0/images API over devlxd
