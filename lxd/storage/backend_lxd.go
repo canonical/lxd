@@ -179,6 +179,10 @@ func (b *lxdBackend) Unmount() (bool, error) {
 // ensureInstanceSymlink creates a symlink in the instance directory to the instance's mount path
 // if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName, instanceName, mountPath string) error {
+	if shared.IsSnapshot(instanceName) {
+		return fmt.Errorf("Instance must not be snapshot")
+	}
+
 	symlinkPath := InstancePath(instanceType, projectName, instanceName, false)
 
 	// Remove any old symlinks left over by previous bugs that may point to a different pool.
