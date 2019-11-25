@@ -168,7 +168,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Instance is not container type")
 		}
 
-		_, err := containerCreateAsSnapshot(d.State(), args, inst)
+		_, err := instanceCreateAsSnapshot(d.State(), args, inst)
 		if err != nil {
 			return err
 		}
