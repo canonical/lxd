@@ -198,8 +198,11 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get raft nodes from the log")
 	}
-
-	if len(nodes) < membershipMaxRaftNodes {
+	count, err := Count(state)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch cluster members count")
+	}
+	if count != 2 && len(nodes) < membershipMaxRaftNodes {
 		err = state.Node.Transaction(func(tx *db.NodeTx) error {
 			id, err := tx.RaftNodeAdd(address)
 			if err != nil {
@@ -482,8 +485,8 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	if err != nil {
 		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
 	}
-	if len(currentRaftNodes) >= membershipMaxRaftNodes {
-		// We're already at full capacity.
+	if len(currentRaftNodes) >= membershipMaxRaftNodes || len(currentRaftNodes) == 1 {
+		// We're already at full capacity or would have a two-member cluster.
 		return "", nil, nil
 	}
 
