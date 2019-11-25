@@ -434,7 +434,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.fds = map[int]string{}
 
 		if inst.Type() == instancetype.Container {
-			c := inst.(container)
+			c := inst.(*containerLXC)
 			idmapset, err := c.CurrentIdmap()
 			if err != nil {
 				return response.InternalError(err)

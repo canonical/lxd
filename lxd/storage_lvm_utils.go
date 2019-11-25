@@ -41,7 +41,7 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c := data.(container)
+		c := data.(instance.Instance)
 		ourMount, err := c.StorageStart()
 		if err != nil {
 			return err

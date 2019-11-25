@@ -142,8 +142,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		return false, 0
 	}
 
-	c := s.instance.(container)
-
+	c := s.instance.(*containerLXC)
 	err := c.Migrate(&criuMigrationArgs)
 
 	if err != nil {
@@ -255,11 +254,10 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	final := args.final
 
 	if s.instance.Type() != instancetype.Container {
-		return false, fmt.Errorf("Instance not container type")
+		return false, fmt.Errorf("Instance is not container type")
 	}
 
-	c := s.instance.(container)
-
+	c := s.instance.(*containerLXC)
 	err := c.Migrate(&criuMigrationArgs)
 	if err != nil {
 		return final, err
@@ -343,10 +341,10 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	}
 
 	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance not container type")
+		return fmt.Errorf("Instance is not container type")
 	}
 
-	c := s.instance.(container)
+	c := s.instance.(*containerLXC)
 
 	// Storage needs to start unconditionally now, since we need to
 	// initialize a new storage interface.

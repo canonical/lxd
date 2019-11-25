@@ -2701,11 +2701,10 @@ func (s *storageBtrfs) btrfsLookupFsUUID(fs string) (string, error) {
 func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
 	logger.Debugf(`Setting BTRFS quota for "%s"`, s.volume.Name)
 
-	var c container
+	var c instance.Instance
 	var subvol string
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
 		subvol = driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 	case storagePoolVolumeTypeCustom:
 		subvol = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
