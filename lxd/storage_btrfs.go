@@ -2705,6 +2705,7 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 	var subvol string
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
+		c = data.(instance.Instance)
 		subvol = driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 	case storagePoolVolumeTypeCustom:
 		subvol = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
