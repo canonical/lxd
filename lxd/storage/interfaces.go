@@ -62,7 +62,7 @@ type Pool interface {
 	GetInstanceDisk(inst Instance) (string, error)
 
 	// Instance snapshots.
-	CreateInstanceSnapshot(inst Instance, name string, op *operations.Operation) error
+	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
 	RenameInstanceSnapshot(inst Instance, newName string, op *operations.Operation) error
 	DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error
 	RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error
