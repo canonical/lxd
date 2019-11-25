@@ -93,7 +93,8 @@ _have lxc && {
       raw.lxc raw.seccomp security.idmap.base security.idmap.isolated \
       security.idmap.size security.devlxd security.devlxd.images \
       security.nesting security.privileged security.protection.delete \
-      security.protection.shift security.syscalls.blacklist \
+      security.protection.shift security.secureboot \
+      security.syscalls.blacklist \
       security.syscalls.blacklist_compat security.syscalls.blacklist_default \
       security.syscalls.intercept.mknod security.syscalls.intercept.mount \
       security.syscalls.intercept.mount.allowed \
