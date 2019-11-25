@@ -331,9 +331,10 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 	// Caller is responsible for full validation of any raw.* value
 	"raw.apparmor": IsAny,
-	"raw.lxc":      IsAny,
-	"raw.seccomp":  IsAny,
 	"raw.idmap":    IsAny,
+	"raw.lxc":      IsAny,
+	"raw.qemu":     IsAny,
+	"raw.seccomp":  IsAny,
 
 	"volatile.apply_template":   IsAny,
 	"volatile.base_image":       IsAny,
