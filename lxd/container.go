@@ -763,7 +763,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 
 func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance) (instance.Instance, error) {
 	if sourceInstance.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance not container type")
+		return nil, fmt.Errorf("Instance is not container type")
 	}
 
 	// Deal with state
