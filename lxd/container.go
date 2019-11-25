@@ -33,7 +33,6 @@ import (
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -254,32 +253,6 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 	}
 
 	return nil
-}
-
-// The container interface
-type container interface {
-	instance.Instance
-
-	/* actionScript here is a script called action.sh in the stateDir, to
-	 * be passed to CRIU as --action-script
-	 */
-	Migrate(args *CriuMigrationArgs) error
-
-	ConsoleLog(opts lxc.ConsoleLogOptions) (string, error)
-
-	// Status
-	IsNesting() bool
-
-	// Hooks
-	OnStart() error
-	OnStopNS(target string, netns string) error
-	OnStop(target string) error
-
-	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
-
-	CurrentIdmap() (*idmap.IdmapSet, error)
-	DiskIdmap() (*idmap.IdmapSet, error)
-	NextIdmap() (*idmap.IdmapSet, error)
 }
 
 // instanceCreateAsEmpty creates an empty instance.
@@ -763,7 +736,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 
 func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance) (instance.Instance, error) {
 	if sourceInstance.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance not container type")
+		return nil, fmt.Errorf("Instance is not container type")
 	}
 
 	// Deal with state
@@ -803,7 +776,7 @@ func containerCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInsta
 			preDumpDir:   "",
 		}
 
-		c := sourceInstance.(container)
+		c := sourceInstance.(*containerLXC)
 		err = c.Migrate(&criuMigrationArgs)
 		if err != nil {
 			os.RemoveAll(sourceInstance.StatePath())

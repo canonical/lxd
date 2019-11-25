@@ -2743,11 +2743,11 @@ func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data inte
 		return fmt.Errorf("Invalid storage type")
 	}
 
-	var c container
+	var c instance.Instance
 	var fs string
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		fs = fmt.Sprintf("containers/%s", project.Prefix(c.Project(), c.Name()))
 	case storagePoolVolumeTypeCustom:
 		fs = fmt.Sprintf("custom/%s", s.volume.Name)
