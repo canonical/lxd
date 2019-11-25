@@ -255,7 +255,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	final := args.final
 
 	if s.instance.Type() != instancetype.Container {
-		return false, fmt.Errorf("Instance not container type")
+		return false, fmt.Errorf("Instance is not container type")
 	}
 
 	c := s.instance.(container)
@@ -343,7 +343,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	}
 
 	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance not container type")
+		return fmt.Errorf("Instance is not container type")
 	}
 
 	c := s.instance.(container)

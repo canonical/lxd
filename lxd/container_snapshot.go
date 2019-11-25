@@ -220,7 +220,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance not container type"))
+		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	sc := inst.(container)
