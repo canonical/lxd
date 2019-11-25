@@ -282,6 +282,15 @@ mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]
 const seccompNotifySetxattr = `setxattr notify [3,1,SCMP_CMP_EQ]
 `
 
+const seccompBlockNewMountAPI = `fsopen errno 38
+fsconfig errno 38
+fsinfo errno 38
+fsmount errno 38
+fspick errno 38
+open_tree errno 38
+move_mount errno 38
+`
+
 // We don't want to filter any of the following flag combinations since they do
 // not cause the creation of a new superblock:
 //
@@ -500,6 +509,10 @@ func seccompGetPolicyContent(c Instance) (string, error) {
 
 		if shared.IsTrue(config["security.syscalls.intercept.mount"]) {
 			policy += seccompNotifyMount
+			// We can't handle the new mount API since it keeps
+			// in-kernel state across an arbitrary number of
+			// multiple syscalls.
+			policy += seccompBlockNewMountAPI
 		}
 	}
 
