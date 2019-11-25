@@ -1097,7 +1097,7 @@ test_clustering_address() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "dir" "8444"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q node2
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -q "database: true"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -q "database: false"
 
   # The new node appears with its custom cluster port
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep ^url | grep -q 8444
@@ -1402,9 +1402,17 @@ test_clustering_recover() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
   # Check the current database nodes
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.103:8443"
 
   # Create a test project, just to insert something in the database.
   LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
@@ -1412,7 +1420,8 @@ test_clustering_recover() {
   # Trying to recover a running daemon results in an error.
   ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster recover-from-quorum-loss || false
 
-  # Shutdown both nodes.
+  # Shutdown all nodes.
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
@@ -1430,9 +1439,11 @@ test_clustering_recover() {
 
   # Cleanup the dead node.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 -q --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 -q --force
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -1441,4 +1452,5 @@ test_clustering_recover() {
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
 }

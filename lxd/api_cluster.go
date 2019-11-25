@@ -608,6 +608,15 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
 
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), false)
+		if err != nil {
+			return err
+		}
+		err = clusterRebalance(client)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -818,6 +827,14 @@ func clusterAcceptMember(
 	}
 
 	return info, nil
+}
+
+func clusterRebalance(client lxd.InstanceServer) error {
+	_, _, err := client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
+	if err != nil {
+		return errors.Wrap(err, "Failed cluster rebalance request")
+	}
+	return nil
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
