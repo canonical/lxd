@@ -625,7 +625,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
-	// Write the data to a temp file
+	// Write the data to a temp file.
 	f, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
 		return response.InternalError(err)
@@ -638,7 +638,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		return response.InternalError(err)
 	}
 
-	// Parse the backup information
+	// Parse the backup information.
 	f.Seek(0, 0)
 	bInfo, err := backup.GetInfo(f)
 	if err != nil {
@@ -647,7 +647,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	}
 	bInfo.Project = project
 
-	// Override pool
+	// Override pool.
 	if pool != "" {
 		bInfo.Pool = pool
 	}
@@ -655,19 +655,27 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	run := func(op *operations.Operation) error {
 		defer f.Close()
 
-		// Dump tarball to storage
+		// Dump tarball to storage.
 		f.Seek(0, 0)
-		cPool, err := containerCreateFromBackup(d.State(), *bInfo, f, pool != "")
+		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, f, pool != "")
 		if err != nil {
-			return errors.Wrap(err, "Create container from backup")
+			return errors.Wrap(err, "Create instance from backup")
 		}
+
+		revert := true
+		defer func() {
+			if !revert {
+				return
+			}
+
+			revertFunc()
+		}()
 
 		body, err := json.Marshal(&internalImportPost{
 			Name:  bInfo.Name,
 			Force: true,
 		})
 		if err != nil {
-			cPool.ContainerDelete(&containerLXC{name: bInfo.Name, project: project})
 			return errors.Wrap(err, "Marshal internal import request")
 		}
 
@@ -680,13 +688,12 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		resp := internalImport(d, req)
 
 		if resp.String() != "success" {
-			cPool.ContainerDelete(&containerLXC{name: bInfo.Name, project: project})
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
 		c, err := instanceLoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
-			return errors.Wrap(err, "Load container")
+			return errors.Wrap(err, "Load instance")
 		}
 
 		_, err = c.StorageStop()
@@ -694,11 +701,13 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return errors.Wrap(err, "Stop storage pool")
 		}
 
+		revert = false
 		return nil
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{bInfo.Name}
+	resources["instances"] = []string{bInfo.Name}
+	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
