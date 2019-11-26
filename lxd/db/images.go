@@ -22,6 +22,30 @@ var ImageSourceProtocol = map[int]string{
 	2: "simplestreams",
 }
 
+// ImagesGetLocal returns the names of all local images.
+func (c *Cluster) ImagesGetLocal() ([]string, error) {
+	q := `
+SELECT images.fingerprint
+  FROM images_nodes
+  JOIN images ON images.id = images_nodes.image_id
+ WHERE node_id = ?
+`
+	var fp string
+	inargs := []interface{}{c.nodeID}
+	outfmt := []interface{}{fp}
+	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	results := []string{}
+	for _, r := range dbResults {
+		results = append(results, r[0].(string))
+	}
+
+	return results, nil
+}
+
 // ImagesGet returns the names of all images (optionally only the public ones).
 func (c *Cluster) ImagesGet(project string, public bool) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
