@@ -92,7 +92,7 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operations.Operation) error {
-			return containerSnapRestore(d.State(), project, name, configRaw.Restore, configRaw.Stateful)
+			return instanceSnapRestore(d.State(), project, name, configRaw.Restore, configRaw.Stateful)
 		}
 
 		opType = db.OperationSnapshotRestore
@@ -109,13 +109,13 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 	return operations.OperationResponse(op)
 }
 
-func containerSnapRestore(s *state.State, project, name, snap string, stateful bool) error {
+func instanceSnapRestore(s *state.State, project, name, snap string, stateful bool) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	c, err := instanceLoadByProjectAndName(s, project, name)
+	inst, err := instanceLoadByProjectAndName(s, project, name)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func containerSnapRestore(s *state.State, project, name, snap string, stateful b
 		}
 	}
 
-	err = c.Restore(source, stateful)
+	err = inst.Restore(source, stateful)
 	if err != nil {
 		return err
 	}
