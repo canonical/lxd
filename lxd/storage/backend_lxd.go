@@ -278,7 +278,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 }
 
 // CreateInstance creates an empty instance.
-func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("CreateInstance started")
 	defer logger.Debug("CreateInstance finished")
@@ -327,12 +327,12 @@ func (b *lxdBackend) CreateInstance(inst Instance, op *operations.Operation) err
 	return nil
 }
 
-func (b *lxdBackend) CreateInstanceFromBackup(inst Instance, sourcePath string, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromBackup(inst instance.Instance, sourcePath string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
 // CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
-func (b *lxdBackend) CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
 	logger.Debug("CreateInstanceFromCopy started")
 	defer logger.Debug("CreateInstanceFromCopy finished")
@@ -632,7 +632,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 }
 
 // CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
-func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("CreateInstanceFromImage started")
 	defer logger.Debug("CreateInstanceFromImage finished")
@@ -703,7 +703,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst Instance, fingerprint string, 
 
 // CreateInstanceFromMigration receives an instance being migrated.
 // The args.Name and args.Config fields are ignored and, instance properties are used instead.
-func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
 	logger.Debug("CreateInstanceFromMigration started")
 	defer logger.Debug("CreateInstanceFromMigration finished")
@@ -746,7 +746,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWrit
 }
 
 // RenameInstance renames the instance's root volume and any snapshot volumes.
-func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operations.Operation) error {
+func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
 	logger.Debug("RenameInstance started")
 	defer logger.Debug("RenameInstance finished")
@@ -853,7 +853,7 @@ func (b *lxdBackend) RenameInstance(inst Instance, newName string, op *operation
 }
 
 // DeleteInstance removes the instance's root volume (all snapshots need to be removed first).
-func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) error {
+func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("DeleteInstance started")
 	defer logger.Debug("DeleteInstance finished")
@@ -917,7 +917,7 @@ func (b *lxdBackend) DeleteInstance(inst Instance, op *operations.Operation) err
 
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
-func (b *lxdBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
 	logger.Debug("MigrateInstance started")
 	defer logger.Debug("MigrateInstance finished")
@@ -948,12 +948,12 @@ func (b *lxdBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, arg
 	return nil
 }
 
-func (b *lxdBackend) BackupInstance(inst Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
-func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
+func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("GetInstanceUsage started")
 	defer logger.Debug("GetInstanceUsage finished")
@@ -968,7 +968,7 @@ func (b *lxdBackend) GetInstanceUsage(inst Instance) (int64, error) {
 // SetInstanceQuota sets the quota on the instance's root volume.
 // Returns ErrRunningQuotaResizeNotSupported if the instance is running and the storage driver
 // doesn't support resizing whilst the instance is running.
-func (b *lxdBackend) SetInstanceQuota(inst Instance, size string, op *operations.Operation) error {
+func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("SetInstanceQuota started")
 	defer logger.Debug("SetInstanceQuota finished")
@@ -990,7 +990,7 @@ func (b *lxdBackend) SetInstanceQuota(inst Instance, size string, op *operations
 }
 
 // MountInstance mounts the instance's root volume.
-func (b *lxdBackend) MountInstance(inst Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstance started")
 	defer logger.Debug("MountInstance finished")
@@ -1008,7 +1008,7 @@ func (b *lxdBackend) MountInstance(inst Instance, op *operations.Operation) (boo
 }
 
 // UnmountInstance unmounts the instance's root volume.
-func (b *lxdBackend) UnmountInstance(inst Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("UnmountInstance started")
 	defer logger.Debug("UnmountInstance finished")
@@ -1026,7 +1026,7 @@ func (b *lxdBackend) UnmountInstance(inst Instance, op *operations.Operation) (b
 }
 
 // GetInstanceDisk returns the location of the disk.
-func (b *lxdBackend) GetInstanceDisk(inst Instance) (string, error) {
+func (b *lxdBackend) GetInstanceDisk(inst instance.Instance) (string, error) {
 	if inst.Type() != instancetype.VM {
 		return "", ErrNotImplemented
 	}
@@ -1104,7 +1104,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 }
 
 // RenameInstanceSnapshot renames an instance snapshot.
-func (b *lxdBackend) RenameInstanceSnapshot(inst Instance, newName string, op *operations.Operation) error {
+func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
 	logger.Debug("RenameInstanceSnapshot started")
 	defer logger.Debug("RenameInstanceSnapshot finished")
@@ -1152,7 +1152,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst Instance, newName string, op *o
 }
 
 // DeleteInstanceSnapshot removes the snapshot volume for the supplied snapshot instance.
-func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error {
+func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("DeleteInstanceSnapshot started")
 	defer logger.Debug("DeleteInstanceSnapshot finished")
@@ -1199,13 +1199,13 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst Instance, op *operations.Operat
 	return nil
 }
 
-func (b *lxdBackend) RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error {
+func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
 // MountInstanceSnapshot mounts an instance snapshot. It is mounted as read only so that the
 // snapshot cannot be modified.
-func (b *lxdBackend) MountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("MountInstanceSnapshot started")
 	defer logger.Debug("MountInstanceSnapshot finished")
@@ -1230,7 +1230,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst Instance, op *operations.Operati
 }
 
 // UnmountInstanceSnapshot unmounts an instance snapshot.
-func (b *lxdBackend) UnmountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("UnmountInstanceSnapshot started")
 	defer logger.Debug("UnmountInstanceSnapshot finished")
