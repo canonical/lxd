@@ -872,8 +872,8 @@ devices:
     type: disk
 name: web
 used_by:
-- /1.0/containers/c1
-- /1.0/containers/c2
+- /1.0/instances/c1
+- /1.0/instances/c2
 EOF
   ) | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web
 

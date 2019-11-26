@@ -389,7 +389,7 @@ CREATE VIEW profiles_used_by_ref (project,
     value) AS
   SELECT projects.name,
     profiles.name,
-    printf('/1.0/containers/%s?project=%s',
+    printf('/1.0/instances/%s?project=%s',
     "instances".name,
     instances_projects.name)
     FROM profiles
@@ -425,7 +425,7 @@ CREATE VIEW projects_config_ref (name,
 CREATE VIEW projects_used_by_ref (name,
     value) AS
   SELECT projects.name,
-    printf('/1.0/containers/%s?project=%s',
+    printf('/1.0/instances/%s?project=%s',
     "instances".name,
     projects.name)
     FROM "instances" JOIN projects ON project_id=projects.id UNION
@@ -487,5 +487,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (18, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (19, strftime("%s"))
 `
