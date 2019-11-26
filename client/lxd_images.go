@@ -226,7 +226,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 			return nil, err
 		}
 
-		if part.FormName() != "rootfs" {
+		if !shared.StringInSlice(part.FormName(), []string{"rootfs", "rootfs.img"}) {
 			return nil, fmt.Errorf("Invalid multipart image")
 		}
 
