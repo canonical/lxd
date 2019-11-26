@@ -657,9 +657,9 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 	// Restore using rsync.
 	bwlimit := d.config["rsync.bwlimit"]
-	output, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
+	_, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync volume: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync volume: %s", err)
 	}
 
 	return nil
