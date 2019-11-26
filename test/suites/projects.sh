@@ -324,8 +324,8 @@ test_projects_profiles_default() {
 
   # If we look at the global profile we see that it's being used by both the
   # container in the above project and the one we just created.
-  lxc profile show default | grep -E -q '^- /1.0/containers/c1$'
-  lxc profile show default | grep -E -q '^- /1.0/containers/c1\?project=foo$'
+  lxc profile show default | grep -E -q '^- /1.0/instances/c1$'
+  lxc profile show default | grep -E -q '^- /1.0/instances/c1\?project=foo$'
 
   lxc delete c1
 
@@ -457,7 +457,7 @@ test_projects_network() {
   # Create a container in the project
   lxc init -n "${network}" testimage c1
 
-  lxc network show "${network}" |grep -q "/1.0/containers/c1?project=foo"
+  lxc network show "${network}" |grep -q "/1.0/instances/c1?project=foo"
 
   # Delete the container
   lxc delete c1

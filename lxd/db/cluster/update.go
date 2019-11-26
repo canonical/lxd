@@ -53,6 +53,49 @@ var updates = map[int]schema.Update{
 	16: updateFromV15,
 	17: updateFromV16,
 	18: updateFromV17,
+	19: updateFromV18,
+}
+
+// Rename 'containers' to 'instances' in *_used_by_ref views.
+func updateFromV18(tx *sql.Tx) error {
+	stmts := `
+DROP VIEW profiles_used_by_ref;
+CREATE VIEW profiles_used_by_ref (project,
+    name,
+    value) AS
+  SELECT projects.name,
+    profiles.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    instances_projects.name)
+    FROM profiles
+    JOIN projects ON projects.id=profiles.project_id
+    JOIN "instances_profiles"
+      ON "instances_profiles".profile_id=profiles.id
+    JOIN "instances"
+      ON "instances".id="instances_profiles".instance_id
+    JOIN projects AS instances_projects
+      ON instances_projects.id="instances".project_id;
+DROP VIEW projects_used_by_ref;
+CREATE VIEW projects_used_by_ref (name,
+    value) AS
+  SELECT projects.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    projects.name)
+    FROM "instances" JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/images/%s',
+    images.fingerprint)
+    FROM images JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/profiles/%s?project=%s',
+    profiles.name,
+    projects.name)
+    FROM profiles JOIN projects ON project_id=projects.id;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // Add nodes_roles table
