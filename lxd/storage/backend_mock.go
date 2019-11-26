@@ -131,7 +131,7 @@ func (b *mockBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operati
 	return nil
 }
 
-func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
