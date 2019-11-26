@@ -81,7 +81,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	// Handle requests targeted to a container on a different node
+	// Handle requests targeted to a container on a different node.
 	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
@@ -90,7 +90,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -103,11 +103,11 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 	expiry, _ := rj.GetString("expires_at")
 	if expiry == "" {
-		// Disable expiration by setting it to zero time
+		// Disable expiration by setting it to zero time.
 		rj["expires_at"] = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
 	}
 
-	// Create body with correct expiry
+	// Create body with correct expiry.
 	body, err := json.Marshal(rj)
 	if err != nil {
 		return response.InternalError(err)
@@ -121,8 +121,8 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Name == "" {
-		// come up with a name
-		backups, err := c.Backups()
+		// come up with a name.
+		backups, err := inst.Backups()
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -132,7 +132,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 		max := 0
 
 		for _, backup := range backups {
-			// Ignore backups not containing base
+			// Ignore backups not containing base.
 			if !strings.HasPrefix(backup.Name(), base) {
 				continue
 			}
@@ -151,7 +151,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 		req.Name = fmt.Sprintf("backup%d", max)
 	}
 
-	// Validate the name
+	// Validate the name.
 	if strings.Contains(req.Name, "/") {
 		return response.BadRequest(fmt.Errorf("Backup names may not contain slashes"))
 	}
@@ -162,7 +162,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	backup := func(op *operations.Operation) error {
 		args := db.InstanceBackupArgs{
 			Name:                 fullName,
-			InstanceID:           c.ID(),
+			InstanceID:           inst.ID(),
 			CreationDate:         time.Now(),
 			ExpiryDate:           req.ExpiresAt,
 			InstanceOnly:         instanceOnly,
@@ -170,7 +170,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := backupCreate(d.State(), args, c)
+		err := backupCreate(d.State(), args, inst)
 		if err != nil {
 			return errors.Wrap(err, "Create backup")
 		}
@@ -179,7 +179,8 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+	resources["containers"] = resources["instances"]
 	resources["backups"] = []string{req.Name}
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask,
