@@ -307,7 +307,10 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
@@ -366,11 +369,17 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
 	// Initialise a new volume containing the root disk config supplied in the new instance.
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+
+	// Get the src volume name on storage.
+	srcVolStorageName := project.Prefix(src.Project(), src.Name())
 
 	// We don't need to use the source instance's root disk config, so set to nil.
-	srcVol := b.newVolume(volType, contentType, project.Prefix(src.Project(), src.Name()), nil)
+	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
 
 	revert := true
 	defer func() {
@@ -505,11 +514,17 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
 	// Initialise a new volume containing the root disk config supplied in the new instance.
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+
+	// Get the src volume name on storage.
+	srcVolStorageName := project.Prefix(src.Project(), src.Name())
 
 	// We don't need to use the source instance's root disk config, so set to nil.
-	srcVol := b.newVolume(volType, contentType, project.Prefix(src.Project(), src.Name()), nil)
+	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
 
 	srcSnapVols := []drivers.Volume{}
 	for _, snapInst := range srcSnapshots {
@@ -518,7 +533,10 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		// disk config, so set to nil. This is because snapshots are immutable yet
 		// the instance and its snapshots can be transferred between pools, so using
 		// the data from the snapshot is incorrect.
-		srcSnapVol := b.newVolume(volType, contentType, project.Prefix(snapInst.Project(), snapInst.Name()), nil)
+
+		// Get the snap volume name on storage.
+		snapVolStorageName := project.Prefix(snapInst.Project(), snapInst.Name())
+		srcSnapVol := b.newVolume(volType, contentType, snapVolStorageName, nil)
 		srcSnapVols = append(srcSnapVols, srcSnapVol)
 	}
 
@@ -661,7 +679,10 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	vol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), inst.Name()), rootDiskConf)
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
@@ -735,7 +756,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	args.Config = rootDiskConf
 	args.Name = inst.Name()
 
-	vol := b.newVolume(volType, contentType, args.Name, args.Config)
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), args.Name)
+
+	vol := b.newVolume(volType, contentType, volStorageName, args.Config)
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
 	if err != nil {
 		conn.Close()
@@ -939,7 +963,11 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	}
 
 	args.Name = inst.Name() // Override args.Name to ensure instance volume is sent.
-	vol := b.newVolume(volType, contentType, args.Name, rootDiskConf)
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), args.Name)
+
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 	err = b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
 		return err
