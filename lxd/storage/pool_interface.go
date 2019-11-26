@@ -3,27 +3,13 @@ package storage
 import (
 	"io"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
 )
-
-// Instance represents the storage relevant subset of a LXD instance.
-type Instance interface {
-	Name() string
-	Project() string
-	Type() instancetype.Type
-
-	IsRunning() bool
-	IsSnapshot() bool
-	DeferTemplateApply(trigger string) error
-	ExpandedDevices() deviceConfig.Devices
-}
 
 // Pool represents a LXD storage pool.
 type Pool interface {
@@ -42,32 +28,32 @@ type Pool interface {
 	Unmount() (bool, error)
 
 	// Instances.
-	CreateInstance(inst Instance, op *operations.Operation) error
-	CreateInstanceFromBackup(inst Instance, sourcePath string, op *operations.Operation) error
-	CreateInstanceFromCopy(inst Instance, src Instance, snapshots bool, op *operations.Operation) error
-	CreateInstanceFromImage(inst Instance, fingerprint string, op *operations.Operation) error
-	CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	RenameInstance(inst Instance, newName string, op *operations.Operation) error
-	DeleteInstance(inst Instance, op *operations.Operation) error
+	CreateInstance(inst instance.Instance, op *operations.Operation) error
+	CreateInstanceFromBackup(inst instance.Instance, sourcePath string, op *operations.Operation) error
+	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error
+	CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error
+	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
+	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
+	DeleteInstance(inst instance.Instance, op *operations.Operation) error
 
-	MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
+	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error
-	BackupInstance(inst Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
+	BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
-	GetInstanceUsage(inst Instance) (int64, error)
-	SetInstanceQuota(inst Instance, size string, op *operations.Operation) error
+	GetInstanceUsage(inst instance.Instance) (int64, error)
+	SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error
 
-	MountInstance(inst Instance, op *operations.Operation) (bool, error)
-	UnmountInstance(inst Instance, op *operations.Operation) (bool, error)
-	GetInstanceDisk(inst Instance) (string, error)
+	MountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
+	UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
+	GetInstanceDisk(inst instance.Instance) (string, error)
 
 	// Instance snapshots.
 	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
-	RenameInstanceSnapshot(inst Instance, newName string, op *operations.Operation) error
-	DeleteInstanceSnapshot(inst Instance, op *operations.Operation) error
-	RestoreInstanceSnapshot(inst Instance, op *operations.Operation) error
-	MountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error)
-	UnmountInstanceSnapshot(inst Instance, op *operations.Operation) (bool, error)
+	RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error
+	DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
+	RestoreInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
+	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
+	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
 
 	// Images.
 	EnsureImage(fingerprint string, op *operations.Operation) error
