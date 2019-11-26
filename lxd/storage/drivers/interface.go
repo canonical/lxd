@@ -69,4 +69,7 @@ type Driver interface {
 	MigrationTypes(contentType ContentType) []migration.Type
 	MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error
 	CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, op *operations.Operation) error
+
+	// Backup.
+	BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 }
