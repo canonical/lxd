@@ -453,7 +453,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 		for _, inst := range insts {
 			if networkIsInUse(inst, n.Name) {
-				uri := fmt.Sprintf("/%s/containers/%s", version.APIVersion, inst.Name())
+				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
 				if inst.Project() != "default" {
 					uri += fmt.Sprintf("?project=%s", inst.Project())
 				}
