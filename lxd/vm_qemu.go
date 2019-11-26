@@ -975,6 +975,11 @@ driver = "virtio-serial"
 [device]
 driver = "virtserialport"
 name = "org.linuxcontainers.lxd"
+chardev = "vserial"
+
+[chardev "vserial"]
+backend = "ringbuf"
+size = "16B"
 
 # PCIe root
 [device "qemu_pcie1"]
