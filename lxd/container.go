@@ -305,26 +305,22 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	return inst, nil
 }
 
-func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSeeker,
-	customPool bool) (storage, error) {
-	var pool storage
+// instanceCreateFromBackup imports a backup file to restore an instance. Returns a revert function
+// that can be called to delete the files created during import if subsequent steps fail.
+func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker, customPool bool) (func(), error) {
 	var fixBackupFile = false
+	poolName := info.Pool
 
-	// Get storage pool from index.yaml
-	pool, storageErr := storagePoolInit(s, info.Pool)
-	if storageErr != nil && errors.Cause(storageErr) != db.ErrNoSuchObject {
-		// Unexpected error
-		return nil, storageErr
-	}
-
-	if errors.Cause(storageErr) == db.ErrNoSuchObject {
-		// The pool doesn't exist, and the backup is in binary format so we
-		// cannot alter the backup.yaml.
+	// Check storage pool from index.yaml exists. If the storage pool in the index.yaml doesn't
+	// exist, try and use the default profile's storage pool.
+	_, _, err := s.Cluster.StoragePoolGet(poolName)
+	if errors.Cause(err) == db.ErrNoSuchObject {
+		// The backup is in binary format so we cannot alter the backup.yaml.
 		if info.HasBinaryFormat {
-			return nil, storageErr
+			return nil, err
 		}
 
-		// Get the default profile
+		// Get the default profile.
 		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get default profile")
@@ -335,43 +331,42 @@ func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSee
 			return nil, errors.Wrap(err, "Failed to get root disk device")
 		}
 
-		// Use the default-profile's root pool
-		pool, err = storagePoolInit(s, v["pool"])
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to initialize storage pool")
-		}
+		// Use the default-profile's root pool.
+		poolName = v["pool"]
 
+		// Mark requirement to change the pool information in the backup.yaml file.
 		fixBackupFile = true
+	} else if err != nil {
+		return nil, err
 	}
 
-	// Find the compression algorithm
-	tarArgs, algo, decomArgs, err := shared.DetectCompressionFile(data)
+	// Find the compression algorithm.
+	tarArgs, algo, decomArgs, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
 		return nil, err
 	}
-	data.Seek(0, 0)
+	srcData.Seek(0, 0)
 
 	if algo == ".squashfs" {
-		// Create a temporary file. 'sqfs2tar' tool do not support reading
-		// from stdin. So write the compressed data to the temporary file
-		// and pass it as program argument
-		tempfile, err := ioutil.TempFile("", "lxd_decompress_")
+		// The 'sqfs2tar' tool does not support reading from stdin. So we need to create a
+		// temporary file, write the compressed data to it and pass it as program argument.
+		tempFile, err := ioutil.TempFile("", "lxd_decompress_")
 		if err != nil {
 			return nil, err
 		}
-		defer tempfile.Close()
-		defer os.Remove(tempfile.Name())
+		defer tempFile.Close()
+		defer os.Remove(tempFile.Name())
 
-		// Write the compressed data
-		_, err = io.Copy(tempfile, data)
+		// Copy the compressed data stream to the temporart file.
+		_, err = io.Copy(tempFile, srcData)
 		if err != nil {
 			return nil, err
 		}
 
-		// Prepare to pass the temporary file as program argument
-		decomArgs := append(decomArgs, tempfile.Name())
+		// Pass the temporary file as program argument to the decompression command.
+		decomArgs := append(decomArgs, tempFile.Name())
 
-		// Create another temporary file to write the decompressed data
+		// Create another temporary file to write the decompressed data.
 		tarData, err := ioutil.TempFile("", "lxd_decompress_")
 		if err != nil {
 			return nil, err
@@ -379,37 +374,42 @@ func containerCreateFromBackup(s *state.State, info backup.Info, data io.ReadSee
 		defer tarData.Close()
 		defer os.Remove(tarData.Name())
 
-		// Decompress to tarData temporary file
-		err = shared.RunCommandWithFds(nil, tarData,
-			decomArgs[0], decomArgs[1:]...)
+		// Decompress to tarData temporary file.
+		err = shared.RunCommandWithFds(nil, tarData, decomArgs[0], decomArgs[1:]...)
 		if err != nil {
 			return nil, err
 		}
 		tarData.Seek(0, 0)
 
-		// Unpack tarball from decompressed temporary file
-		err = pool.ContainerBackupLoad(info, tarData, tarArgs)
-		if err != nil {
-			return nil, err
-		}
+		// Set source data stream to newly created tar file handle.
+		srcData = tarData
+	}
 
-	} else {
-		// Unpack tarball
-		err = pool.ContainerBackupLoad(info, data, tarArgs)
-		if err != nil {
-			return nil, err
-		}
+	pool, err := storagePoolInit(s, poolName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unpack tarball from the source tar stream.
+	err = pool.ContainerBackupLoad(info, srcData, tarArgs)
+	if err != nil {
+		return nil, err
 	}
 
 	if fixBackupFile || customPool {
-		// Update the pool
+		// Update pool information in the backup.yaml file.
 		err = backupFixStoragePool(s.Cluster, info, !customPool)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return pool, nil
+	// Create revert function to remove the files created so far.
+	revertFunc := func() {
+		pool.ContainerDelete(&containerLXC{name: info.Name, project: info.Project})
+	}
+
+	return revertFunc, nil
 }
 
 func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
