@@ -19,6 +19,8 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -26,9 +28,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Create a new backup
-func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer instance.Instance) error {
-	// Create the database entry
+// Create a new backup.
+func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instance.Instance) error {
+	// Create the database entry.
 	err := s.Cluster.ContainerBackupCreate(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
@@ -38,44 +40,65 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer in
 		return errors.Wrap(err, "Insert backup info into database")
 	}
 
-	// Get the backup struct
-	b, err := backup.LoadByName(s, sourceContainer.Project(), args.Name)
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+		s.Cluster.ContainerBackupRemove(args.Name)
+	}()
+
+	// Get the backup struct.
+	b, err := backup.LoadByName(s, sourceInst.Project(), args.Name)
 	if err != nil {
 		return errors.Wrap(err, "Load backup object")
 	}
 
 	b.SetCompressionAlgorithm(args.CompressionAlgorithm)
 
-	ourStart, err := sourceContainer.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer sourceContainer.StorageStop()
-	}
-
-	// Create a temporary path for the backup
+	// Create a temporary path for the backup.
 	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmpPath)
 
-	if sourceContainer.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
+	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return errors.Wrap(err, "Load instance storage pool")
+		}
+
+		err = pool.BackupInstance(sourceInst, tmpPath, b.OptimizedStorage(), !b.InstanceOnly(), nil)
+		if err != nil {
+			return errors.Wrap(err, "Backup create")
+		}
+	} else if sourceInst.Type() == instancetype.Container {
+		ourStart, err := sourceInst.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer sourceInst.StorageStop()
+		}
+
+		ct := sourceInst.(*containerLXC)
+		err = ct.Storage().ContainerBackupCreate(tmpPath, *b, sourceInst)
+		if err != nil {
+			return errors.Wrap(err, "Backup create")
+		}
+	} else {
+		return fmt.Errorf("Instance type not supported")
 	}
 
-	ct := sourceContainer.(*containerLXC)
-
-	// Now create the empty snapshot
-	err = ct.Storage().ContainerBackupCreate(tmpPath, *b, sourceContainer)
+	// Pack the backup.
+	err = backupCreateTarball(s, tmpPath, *b, sourceInst)
 	if err != nil {
-		s.Cluster.ContainerBackupRemove(args.Name)
-		return errors.Wrap(err, "Backup storage")
+		return err
 	}
 
-	// Pack the backup
-	return backupCreateTarball(s, tmpPath, *b, sourceContainer)
+	revert = false
+	return nil
 }
 
 // fixBackupStoragePool changes the pool information in the backup.yaml. This
