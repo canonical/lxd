@@ -3316,26 +3316,41 @@ func (c *containerLXC) Backups() ([]backup.Backup, error) {
 	return backups, nil
 }
 
+// Restore restores a snapshot.
 func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
-	// Initialize storage interface for the container.
-	err := c.initStorage()
-	if err != nil {
-		return err
+	// Initialize storage interface for the container and mount the rootfs for criu state check.
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return err
+		}
+
+		ourStart, err := pool.MountInstance(c, nil)
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer pool.UnmountInstance(c, nil)
+		}
+	} else {
+		err = c.initStorage()
+		if err != nil {
+			return err
+		}
+
+		ourStart, err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer c.StorageStop()
+		}
 	}
 
-	ourStart, err := c.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer c.StorageStop()
-	}
-
-	/* let's also check for CRIU if necessary, before doing a bunch of
-	 * filesystem manipulations
-	 */
+	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
 	if shared.PathExists(c.StatePath()) {
 		_, err := exec.LookPath("criu")
 		if err != nil {
@@ -3343,14 +3358,14 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 		}
 	}
 
-	// Stop the container
+	// Stop the container.
 	wasRunning := false
 	if c.IsRunning() {
 		wasRunning = true
 
 		ephemeral := c.IsEphemeral()
 		if ephemeral {
-			// Unset ephemeral flag
+			// Unset ephemeral flag.
 			args := db.InstanceArgs{
 				Architecture: c.Architecture(),
 				Config:       c.LocalConfig(),
@@ -3368,7 +3383,7 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 				return err
 			}
 
-			// On function return, set the flag back on
+			// On function return, set the flag back on.
 			defer func() {
 				args.Ephemeral = ephemeral
 				c.Update(args, true)
@@ -3382,12 +3397,22 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 		}
 
 		// Ensure that storage is mounted for state path checks.
-		ourStart, err := c.StorageStart()
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer c.StorageStop()
+		if pool != nil {
+			ourStart, err := pool.MountInstance(c, nil)
+			if err != nil {
+				return err
+			}
+			if ourStart {
+				defer pool.UnmountInstance(c, nil)
+			}
+		} else {
+			ourStart, err := c.StorageStart()
+			if err != nil {
+				return err
+			}
+			if ourStart {
+				defer c.StorageStop()
+			}
 		}
 	}
 
@@ -3401,14 +3426,21 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 
 	logger.Info("Restoring container", ctxMap)
 
-	// Restore the rootfs
-	err = c.storage.ContainerRestore(c, sourceContainer)
-	if err != nil {
-		logger.Error("Failed restoring container filesystem", ctxMap)
-		return err
+	// Restore the rootfs.
+	if pool != nil {
+		err = pool.RestoreInstanceSnapshot(c, sourceContainer, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = c.storage.ContainerRestore(c, sourceContainer)
+		if err != nil {
+			logger.Error("Failed restoring container filesystem", ctxMap)
+			return err
+		}
 	}
 
-	// Restore the configuration
+	// Restore the configuration.
 	args := db.InstanceArgs{
 		Architecture: sourceContainer.Architecture(),
 		Config:       sourceContainer.LocalConfig(),
@@ -3427,16 +3459,14 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 		return err
 	}
 
-	// The old backup file may be out of date (e.g. it doesn't have all the
-	// current snapshots of the container listed); let's write a new one to
-	// be safe.
+	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
+	// the container listed); let's write a new one to be safe.
 	err = writeBackupFile(c)
 	if err != nil {
 		return err
 	}
 
-	// If the container wasn't running but was stateful, should we restore
-	// it as running?
+	// If the container wasn't running but was stateful, should we restore it as running?
 	if stateful == true {
 		if !shared.PathExists(c.StatePath()) {
 			return fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
@@ -3455,14 +3485,13 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 			preDumpDir:   "",
 		}
 
-		// Checkpoint
+		// Checkpoint.
 		err := c.Migrate(&criuMigrationArgs)
 		if err != nil {
 			return err
 		}
 
-		// Remove the state from the parent container; we only keep
-		// this in snapshots.
+		// Remove the state from the parent container; we only keep this in snapshots.
 		err2 := os.RemoveAll(c.StatePath())
 		if err2 != nil {
 			logger.Error("Failed to delete snapshot state", log.Ctx{"path": c.StatePath(), "err": err2})
@@ -3483,14 +3512,13 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 			"snapshot_name": c.name,
 		})
 
-	// Restart the container
+	// Restart the container.
 	if wasRunning {
 		logger.Info("Restored container", ctxMap)
 		return c.Start(false)
 	}
 
 	logger.Info("Restored container", ctxMap)
-
 	return nil
 }
 

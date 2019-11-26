@@ -1060,11 +1060,11 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	}
 
 	if !inst.IsSnapshot() {
-		return fmt.Errorf("Instance must be snapshot")
+		return fmt.Errorf("Instance must be a snapshot")
 	}
 
 	if src.IsSnapshot() {
-		return fmt.Errorf("Source instance cannot be snapshot")
+		return fmt.Errorf("Source instance cannot be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
@@ -1199,8 +1199,62 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	return nil
 }
 
-func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
-	return ErrNotImplemented
+// RestoreInstanceSnapshot restores an instance snapshot.
+func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name()})
+	logger.Debug("RestoreInstanceSnapshot started")
+	defer logger.Debug("RestoreInstanceSnapshot finished")
+
+	if inst.Type() != src.Type() {
+		return fmt.Errorf("Instance types must match")
+	}
+
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance must not be snapshot")
+	}
+
+	if !src.IsSnapshot() {
+		return fmt.Errorf("Source instance must be a snapshot")
+	}
+
+	// Target instance must not be running.
+	if inst.IsRunning() {
+		return fmt.Errorf("Instance must not be running to restore")
+	}
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Find the root device config for source snapshot instance.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(src.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	_, snapshotName, isSnap := shared.InstanceGetParentAndSnapshotName(src.Name())
+	if !isSnap {
+		return fmt.Errorf("Volume name must be a snapshot")
+	}
+
+	// Use the source snapshot's rootfs config (as this will later be restored into inst too).
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+	err = b.driver.RestoreVolume(vol, snapshotName, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // MountInstanceSnapshot mounts an instance snapshot. It is mounted as read only so that the
