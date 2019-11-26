@@ -226,7 +226,7 @@ func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *
 			return nil, err
 		}
 
-		if part.FormName() != "rootfs" {
+		if !shared.StringInSlice(part.FormName(), []string{"rootfs", "rootfs.img"}) {
 			return nil, fmt.Errorf("Invalid multipart image")
 		}
 
@@ -387,7 +387,11 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		}
 
 		// Rootfs file
-		fw, err = w.CreateFormFile("rootfs", args.RootfsName)
+		if args.Type == "virtual-machine" {
+			fw, err = w.CreateFormFile("rootfs.img", args.RootfsName)
+		} else {
+			fw, err = w.CreateFormFile("rootfs", args.RootfsName)
+		}
 		if err != nil {
 			return nil, err
 		}
