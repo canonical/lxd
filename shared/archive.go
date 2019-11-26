@@ -47,8 +47,9 @@ func DetectCompressionFile(f io.Reader) ([]string, string, []string, error) {
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
 		return []string{"-xf"}, ".tar", []string{}, nil
 	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
-		return []string{"-xf"}, ".squashfs",
-			[]string{"sqfs2tar", "--no-skip"}, nil
+		return []string{"-xf"}, ".squashfs", []string{"sqfs2tar", "--no-skip"}, nil
+	case bytes.Equal(header[0:3], []byte{'Q', 'F', 'I'}):
+		return []string{""}, ".qcow2", []string{"qemu-img", "convert", "-O", "raw"}, nil
 	default:
 		return nil, "", nil, fmt.Errorf("Unsupported compression")
 	}
