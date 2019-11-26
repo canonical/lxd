@@ -1078,7 +1078,7 @@ func (vm *vmQemu) addMemoryConfig(sb *strings.Builder) error {
 	// Configure memory limit.
 	memSize := vm.expandedConfig["limits.memory"]
 	if memSize == "" {
-		memSize = "1GB" // Default to 1GB if no memory limit specified.
+		memSize = "1GiB" // Default to 1GiB if no memory limit specified.
 	}
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
