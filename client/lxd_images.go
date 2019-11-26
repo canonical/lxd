@@ -387,7 +387,11 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		}
 
 		// Rootfs file
-		fw, err = w.CreateFormFile("rootfs", args.RootfsName)
+		if args.Type == "virtual-machine" {
+			fw, err = w.CreateFormFile("rootfs.img", args.RootfsName)
+		} else {
+			fw, err = w.CreateFormFile("rootfs", args.RootfsName)
+		}
 		if err != nil {
 			return nil, err
 		}
