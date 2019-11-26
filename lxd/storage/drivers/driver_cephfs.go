@@ -987,3 +987,7 @@ func (d *cephfs) getConfig(clusterName string, userName string) ([]string, strin
 
 	return cephMon, cephSecret, nil
 }
+
+func (d *cephfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+	return ErrNotImplemented
+}
