@@ -23,6 +23,9 @@ func DetectCompression(fname string) ([]string, string, []string, error) {
 	return DetectCompressionFile(f)
 }
 
+// DetectCompressionFile detects the compression type of a file and returns the tar arguments needed
+// to unpack the file, compression type (in the form of a file extension), and the command needed
+// to decompress the file to an uncompressed tarball.
 func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) {
 	// read header parts to detect compression method
 	// bz2 - 2 bytes, 'BZ' signature/magic number
@@ -50,8 +53,7 @@ func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) 
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
 		return []string{"-xf"}, ".tar", []string{}, nil
 	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
-		return []string{"-xf"}, ".squashfs",
-			[]string{"sqfs2tar", "--no-skip"}, nil
+		return []string{"-xf"}, ".squashfs", []string{"sqfs2tar", "--no-skip"}, nil
 	default:
 		return nil, "", nil, fmt.Errorf("Unsupported compression")
 	}
