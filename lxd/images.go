@@ -1952,7 +1952,11 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 		filename = fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
 
-		files[1].Identifier = "rootfs"
+		if imgInfo.Type == "virtual-machine" {
+			files[1].Identifier = "rootfs.img"
+		} else {
+			files[1].Identifier = "rootfs"
+		}
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
 
