@@ -49,6 +49,7 @@ limits.disk.priority                            | integer   | 5 (medium)        
 limits.kernel.\*                                | string    | -                 | no            | This limits kernel resources per instance (e.g. number of open files)
 limits.memory                                   | string    | - (all)           | yes           | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
 limits.memory.enforce                           | string    | hard              | yes           | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
+limits.memory.hugepages                         | boolean   | false             | no            | Controls whether to back the instance using hugepages rather than regular system memory
 limits.memory.swap                              | boolean   | true              | yes           | Whether to allow some of the instance's memory to be swapped out to disk
 limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
 limits.network.priority                         | integer   | 0 (minimum)       | yes           | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
