@@ -976,8 +976,38 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	return nil
 }
 
+// BackupInstance creates an instance backup.
 func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
-	return ErrNotImplemented
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "targetPath": targetPath, "optimized": optimized, "snapshots": snapshots})
+	logger.Debug("BackupInstance started")
+	defer logger.Debug("BackupInstance finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+	err = b.driver.BackupVolume(vol, targetPath, optimized, snapshots, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
