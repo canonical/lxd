@@ -168,11 +168,6 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	err = networkFillConfig(&req)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	// Check if we're clustered
 	count, err := cluster.Count(d.State())
 	if err != nil {
@@ -184,7 +179,13 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return resp
+	}
+
+	err = networkFillConfig(&req)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// No targetNode was specified and we're either a single-node
@@ -221,24 +222,37 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		}
 	}
 
+	// Merge the current config.
+	networkID, dbNetwork, err := d.cluster.NetworkGet(req.Name)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range dbNetwork.Config {
+		_, ok := req.Config[k]
+		if !ok {
+			req.Config[k] = v
+		}
+	}
+
+	// Add default values.
+	err = networkFillConfig(&req)
+	if err != nil {
+		return err
+	}
+
 	// Check that the network is properly defined, fetch the node-specific
 	// configs and insert the global config.
 	var configs map[string]map[string]string
 	var nodeName string
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Check that the network was defined at all.
-		networkID, err := tx.NetworkID(req.Name)
-		if err != nil {
-			return err
-		}
-
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Fetch the node-specific configs.
 		configs, err = tx.NetworkNodeConfigs(networkID)
 		if err != nil {
 			return err
 		}
 
-		// Take note of the name of this node
+		// Take note of the name of this node.
 		nodeName, err = tx.NodeName()
 		if err != nil {
 			return err
@@ -613,7 +627,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req)
+	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
@@ -664,10 +678,10 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req)
+	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut) response.Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, notify bool) response.Response {
 	// Validate the configuration
 	err := networkValidateConfig(name, req.Config)
 	if err != nil {
@@ -687,7 +701,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 		return response.NotFound(err)
 	}
 
-	err = n.Update(req)
+	err = n.Update(req, notify)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2122,7 +2136,7 @@ func (n *network) Stop() error {
 	return nil
 }
 
-func (n *network) Update(newNetwork api.NetworkPut) error {
+func (n *network) Update(newNetwork api.NetworkPut, notify bool) error {
 	err := networkFillAuto(newNetwork.Config)
 	if err != nil {
 		return err
@@ -2225,9 +2239,25 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	n.description = newNetwork.Description
 
 	// Update the database
-	err = n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
-	if err != nil {
-		return err
+	if !notify {
+		// Notify all other nodes to update the network.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateNetwork(n.name, newNetwork, "")
+		})
+		if err != nil {
+			return err
+		}
+
+		// Update the database.
+		err = n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Restart the network
