@@ -627,7 +627,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req)
+	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
 }
 
 func networkPatch(d *Daemon, r *http.Request) response.Response {
@@ -678,10 +678,10 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req)
+	return doNetworkUpdate(d, name, dbInfo.Config, req, isClusterNotification(r))
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut) response.Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut, notify bool) response.Response {
 	// Validate the configuration
 	err := networkValidateConfig(name, req.Config)
 	if err != nil {
@@ -701,7 +701,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 		return response.NotFound(err)
 	}
 
-	err = n.Update(req)
+	err = n.Update(req, notify)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2136,7 +2136,7 @@ func (n *network) Stop() error {
 	return nil
 }
 
-func (n *network) Update(newNetwork api.NetworkPut) error {
+func (n *network) Update(newNetwork api.NetworkPut, notify bool) error {
 	err := networkFillAuto(newNetwork.Config)
 	if err != nil {
 		return err
@@ -2239,9 +2239,25 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	n.description = newNetwork.Description
 
 	// Update the database
-	err = n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
-	if err != nil {
-		return err
+	if !notify {
+		// Notify all other nodes to update the network.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UpdateNetwork(n.name, newNetwork, "")
+		})
+		if err != nil {
+			return err
+		}
+
+		// Update the database.
+		err = n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Restart the network
