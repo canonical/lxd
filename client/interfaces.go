@@ -336,6 +336,9 @@ type ImageCreateArgs struct {
 
 	// Progress handler (called with upload progress)
 	ProgressHandler func(progress ioprogress.ProgressData)
+
+	// Type of the image (container or virtual-machine)
+	Type string
 }
 
 // The ImageFileRequest struct is used for an image download request.
