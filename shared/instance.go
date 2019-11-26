@@ -266,6 +266,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	},
 	"limits.memory.swap":          IsBool,
 	"limits.memory.swap.priority": IsPriority,
+	"limits.memory.hugepages":     IsBool,
 
 	"limits.network.priority": IsPriority,
 

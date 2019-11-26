@@ -563,6 +563,9 @@ func (vm *vmQemu) Start(stateful bool) error {
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
 	}
+	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
+		args = append(args, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
+	}
 
 	if vm.expandedConfig["raw.qemu"] != "" {
 		fields := strings.Split(vm.expandedConfig["raw.qemu"], " ")
@@ -1079,13 +1082,11 @@ func (vm *vmQemu) addMemoryConfig(sb *strings.Builder) error {
 		return fmt.Errorf("limits.memory invalid: %v", err)
 	}
 
-	memKB := memSizeBytes / 1000
-
 	sb.WriteString(fmt.Sprintf(`
 # Memory
 [memory]
-size = "%dK"
-`, memKB))
+size = "%dB"
+`, memSizeBytes))
 
 	return nil
 }
