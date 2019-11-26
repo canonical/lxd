@@ -657,9 +657,9 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 	// Restore using rsync.
 	bwlimit := d.config["rsync.bwlimit"]
-	output, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
+	_, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync volume: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync volume: %s", err)
 	}
 
 	return nil
@@ -889,6 +889,58 @@ func (d *dir) RenameVolumeSnapshot(volType VolumeType, volName string, snapshotN
 	err := os.Rename(oldPath, newPath)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
+// This driver does not support optimized backups.
+func (d *dir) BackupVolume(vol Volume, targetPath string, _, snapshots bool, op *operations.Operation) error {
+	bwlimit := d.config["rsync.bwlimit"]
+
+	var parentVolDir string
+
+	// Backups only implemented for containers currently.
+	if vol.volType == VolumeTypeContainer {
+		parentVolDir = "container"
+	} else {
+		return ErrNotImplemented
+	}
+
+	// Handle snapshots.
+	if snapshots {
+		snapshotsPath := filepath.Join(targetPath, "snapshots")
+		snapshots, err := vol.Snapshots(op)
+		if err != nil {
+			return err
+		}
+
+		// Create the snapshot path.
+		if len(snapshots) > 0 {
+			err = os.MkdirAll(snapshotsPath, 0711)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, snap := range snapshots {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+			target := filepath.Join(snapshotsPath, snapName)
+
+			// Copy the snapshot.
+			_, err := rsync.LocalCopy(snap.MountPath(), target, bwlimit, true)
+			if err != nil {
+				return fmt.Errorf("Failed to rsync: %s", err)
+			}
+		}
+	}
+
+	// Copy the parent volume itself.
+	target := filepath.Join(targetPath, parentVolDir)
+	_, err := rsync.LocalCopy(vol.MountPath(), target, bwlimit, true)
+	if err != nil {
+		return fmt.Errorf("Failed to rsync: %s", err)
 	}
 
 	return nil
