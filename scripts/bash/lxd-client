@@ -84,7 +84,7 @@ _have lxc && {
       boot.host_shutdown_timeout environment. \
       limits.cpu limits.cpu.allowance limits.cpu.priority \
       limits.disk.priority limits.memory limits.memory.enforce \
-      limits.kernel \
+      limits.memory.hugepages limits.kernel \
       limits.memory.swap limits.memory.swap.priority limits.network.priority \
       limits.processes linux.kernel_modules migration.incremental.memory \
       migration.incremental.memory.goal nvidia.runtime \
