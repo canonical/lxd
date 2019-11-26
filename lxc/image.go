@@ -726,6 +726,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
+	imageType := "container"
 	if strings.HasPrefix(imageFile, "https://") {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
@@ -760,6 +761,16 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			defer rootfs.Close()
+
+			_, ext, _, err := shared.DetectCompressionFile(rootfs)
+			if err != nil {
+				return err
+			}
+			rootfs.(*os.File).Seek(0, 0)
+
+			if ext == ".qcow2" {
+				imageType = "virtual-machine"
+			}
 		}
 
 		createArgs = &lxd.ImageCreateArgs{
@@ -768,6 +779,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			RootfsFile:      rootfs,
 			RootfsName:      filepath.Base(rootfsFile),
 			ProgressHandler: progress.UpdateProgress,
+			Type:            imageType,
 		}
 		image.Filename = createArgs.MetaName
 	}
