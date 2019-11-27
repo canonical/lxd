@@ -83,6 +83,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 				if strings.HasPrefix(part, "libudev") {
 					udevEvent = true
+					continue
 				}
 
 				ueventLen += len(part) + 1
@@ -97,7 +98,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			ueventLen--
 
-			if props["SUBSYSTEM"] == "cpu" {
+			if props["SUBSYSTEM"] == "cpu" && !udevEvent {
 				if props["DRIVER"] != "processor" {
 					continue
 				}
@@ -114,7 +115,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				}
 			}
 
-			if props["SUBSYSTEM"] == "net" {
+			if props["SUBSYSTEM"] == "net" && !udevEvent {
 				if props["ACTION"] != "add" && props["ACTION"] != "removed" {
 					continue
 				}
@@ -127,7 +128,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				chNetwork <- []string{props["INTERFACE"], props["ACTION"]}
 			}
 
-			if props["SUBSYSTEM"] == "usb" {
+			if props["SUBSYSTEM"] == "usb" && !udevEvent {
 				parts := strings.Split(props["PRODUCT"], "/")
 				if len(parts) < 2 {
 					continue
@@ -187,6 +188,11 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 			}
 
 			if (props["SUBSYSTEM"] == "char" || props["SUBSYSTEM"] == "block") && udevEvent {
+				subsystem, ok := props["SUBSYSTEM"]
+				if !ok {
+					continue
+				}
+
 				vendor, ok := props["ID_VENDOR_ID"]
 				if !ok {
 					continue
@@ -212,16 +218,6 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					continue
 				}
 
-				busnum, ok := props["BUSNUM"]
-				if !ok {
-					continue
-				}
-
-				devnum, ok := props["DEVNUM"]
-				if !ok {
-					continue
-				}
-
 				zeroPad := func(s string, l int) string {
 					return strings.Repeat("0", l-len(s)) + s
 				}
@@ -236,8 +232,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					zeroPad(product, 4),
 					major,
 					minor,
-					busnum,
-					devnum,
+					subsystem,
 					devname,
 					ueventParts[:len(ueventParts)-1],
 					ueventLen,
