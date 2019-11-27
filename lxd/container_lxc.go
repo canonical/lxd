@@ -3997,13 +3997,6 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 	return nil
 }
 
-type backupFile struct {
-	Container *api.Instance           `yaml:"container"`
-	Snapshots []*api.InstanceSnapshot `yaml:"snapshots"`
-	Pool      *api.StoragePool        `yaml:"pool"`
-	Volume    *api.StorageVolume      `yaml:"volume"`
-}
-
 func writeBackupFile(c instance.Instance) error {
 	// We only write backup files out for actual containers
 	if c.IsSnapshot() {
@@ -4058,7 +4051,7 @@ func writeBackupFile(c instance.Instance) error {
 		return err
 	}
 
-	data, err := yaml.Marshal(&backupFile{
+	data, err := yaml.Marshal(&backup.InstanceConfig{
 		Container: ci.(*api.Instance),
 		Snapshots: sis,
 		Pool:      pool,
