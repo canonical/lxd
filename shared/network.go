@@ -474,6 +474,7 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 			if !ok {
 				r.Close()
 				logger.Debugf("sending write barrier")
+				conn.WriteMessage(websocket.BinaryMessage, []byte("\r"))
 				conn.WriteMessage(websocket.TextMessage, []byte{})
 				readDone <- true
 				return
@@ -491,6 +492,7 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 				break
 			}
 		}
+
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		conn.WriteMessage(websocket.CloseMessage, closeMsg)
 		readDone <- true
