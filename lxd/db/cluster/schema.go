@@ -303,6 +303,7 @@ CREATE TABLE nodes (
     api_extensions INTEGER NOT NULL,
     heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
     pending INTEGER NOT NULL DEFAULT 0,
+    arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
     UNIQUE (name),
     UNIQUE (address)
 );
@@ -487,5 +488,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (19, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (20, strftime("%s"))
 `

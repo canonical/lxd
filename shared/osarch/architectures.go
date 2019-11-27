@@ -105,3 +105,16 @@ func ArchitecturePersonalities(arch int) ([]int, error) {
 
 	return []int{}, fmt.Errorf("Architecture isn't supported: %d", arch)
 }
+
+// ArchitectureGetLocalID returns the local hardware architecture ID
+func ArchitectureGetLocalID() (int, error) {
+	name, err := ArchitectureGetLocal()
+	if err != nil {
+		return -1, err
+	}
+	id, err := ArchitectureId(name)
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}

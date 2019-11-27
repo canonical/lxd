@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -165,11 +166,15 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	// 1. This is needed for referential integrity with other tables. Also,
 	// create a default profile.
 	if initial == 0 {
+		arch, err := osarch.ArchitectureGetLocalID()
+		if err != nil {
+			return false, err
+		}
 		err = query.Transaction(db, func(tx *sql.Tx) error {
 			stmt := `
-INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', ?, ?)
+INSERT INTO nodes(id, name, address, schema, api_extensions, arch) VALUES(1, 'none', '0.0.0.0', ?, ?, ?)
 `
-			_, err = tx.Exec(stmt, SchemaVersion, apiExtensions)
+			_, err = tx.Exec(stmt, SchemaVersion, apiExtensions, arch)
 			if err != nil {
 				return err
 			}
