@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -307,10 +308,21 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 }
 
 // NodeAdd adds a node to the current list of LXD nodes that are part of the
-// cluster. It returns the ID of the newly inserted row.
+// cluster. The node's architecture will be the architecture of the machine the
+// method is being run on. It returns the ID of the newly inserted row.
 func (c *ClusterTx) NodeAdd(name string, address string) (int64, error) {
-	columns := []string{"name", "address", "schema", "api_extensions"}
-	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount()}
+	arch, err := osarch.ArchitectureGetLocalID()
+	if err != nil {
+		return -1, err
+	}
+	return c.NodeAddWithArch(name, address, arch)
+}
+
+// NodeAddWithArch is the same as NodeAdd, but lets setting the node
+// architecture explicitly.
+func (c *ClusterTx) NodeAddWithArch(name string, address string, arch int) (int64, error) {
+	columns := []string{"name", "address", "schema", "api_extensions", "arch"}
+	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch}
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 

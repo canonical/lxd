@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
 )
 
@@ -54,6 +55,28 @@ var updates = map[int]schema.Update{
 	17: updateFromV16,
 	18: updateFromV17,
 	19: updateFromV18,
+	20: updateFromV19,
+}
+
+// Add a new "arch" column to the "nodes" table.
+func updateFromV19(tx *sql.Tx) error {
+	// The column has a not-null constraint and a default value of
+	// 0. However, leaving the 0 default won't effectively be accepted when
+	// creating a new, due to the check constraint, so we are sure to end
+	// up with a valid value.
+	_, err := tx.Exec("ALTER TABLE nodes ADD COLUMN arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0)")
+	if err != nil {
+		return err
+	}
+	arch, err := osarch.ArchitectureGetLocalID()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("UPDATE nodes SET arch = ?", arch)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Rename 'containers' to 'instances' in *_used_by_ref views.

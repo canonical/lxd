@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
@@ -165,10 +166,10 @@ CREATE TABLE schema (
 func addNode(t *testing.T, db *sql.DB, address string, schema int, apiExtensions int) {
 	err := query.Transaction(db, func(tx *sql.Tx) error {
 		stmt := `
-INSERT INTO nodes(name, address, schema, api_extensions) VALUES (?, ?, ?, ?)
+INSERT INTO nodes(name, address, schema, api_extensions, arch) VALUES (?, ?, ?, ?, ?)
 `
 		name := fmt.Sprintf("node at %s", address)
-		_, err := tx.Exec(stmt, name, address, schema, apiExtensions)
+		_, err := tx.Exec(stmt, name, address, schema, apiExtensions, osarch.ARCH_64BIT_INTEL_X86)
 		return err
 	})
 	require.NoError(t, err)

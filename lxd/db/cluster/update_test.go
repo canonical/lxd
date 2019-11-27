@@ -8,6 +8,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared/osarch"
+	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -582,4 +584,39 @@ INSERT INTO instances VALUES (2, 1, 'eoan/snap', 2, 1, 0, ?, 0, ?, 'Eoan Ermine 
 	config, err = query.SelectConfig(tx, "instances_snapshots_devices_config", "id = 1")
 	require.NoError(t, err)
 	assert.Equal(t, config, map[string]string{"k": "v"})
+}
+
+func TestUpdateFromV19(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(20, func(db *sql.DB) {
+		// Insert a node.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+	defer db.Close()
+
+	expectedArch, err := osarch.ArchitectureGetLocalID()
+	require.NoError(t, err)
+
+	row := db.QueryRow("SELECT arch FROM nodes")
+	arch := 0
+	err = row.Scan(&arch)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedArch, arch)
+
+	// Trying to create a row without specififying the architecture results
+	// in an error.
+	_, err = db.Exec(`
+INSERT INTO nodes(id, name, description, address, schema, api_extensions, heartbeat, pending)
+VALUES (2, 'n2', '', '2.2.3.4:666', 1, 32, ?, 0)`, time.Now())
+	if err == nil {
+		t.Fatal("expected insertion to fail")
+	}
+	sqliteErr, ok := err.(sqlite3.Error)
+	require.True(t, ok)
+	assert.Equal(t, sqliteErr.Code, sqlite3.ErrConstraint)
 }
