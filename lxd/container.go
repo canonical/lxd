@@ -307,13 +307,10 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 
 // instanceCreateFromBackup imports a backup file to restore an instance. Returns a revert function
 // that can be called to delete the files created during import if subsequent steps fail.
-func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker, customPool bool) (func(), error) {
-	var fixBackupFile = false
-	poolName := info.Pool
-
+func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(), error) {
 	// Check storage pool from index.yaml exists. If the storage pool in the index.yaml doesn't
-	// exist, try and use the default profile's storage pool.
-	_, _, err := s.Cluster.StoragePoolGet(poolName)
+	// exist, try and use the project's default profile storage pool.
+	_, _, err := s.Cluster.StoragePoolGet(info.Pool)
 	if errors.Cause(err) == db.ErrNoSuchObject {
 		// The backup is in binary format so we cannot alter the backup.yaml.
 		if info.HasBinaryFormat {
@@ -332,10 +329,7 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 		}
 
 		// Use the default-profile's root pool.
-		poolName = v["pool"]
-
-		// Mark requirement to change the pool information in the backup.yaml file.
-		fixBackupFile = true
+		info.Pool = v["pool"]
 	} else if err != nil {
 		return nil, err
 	}
@@ -385,7 +379,7 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 		srcData = tarData
 	}
 
-	pool, err := storagePoolInit(s, poolName)
+	pool, err := storagePoolInit(s, info.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -396,12 +390,11 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 		return nil, err
 	}
 
-	if fixBackupFile || customPool {
-		// Update pool information in the backup.yaml file.
-		err = backupFixStoragePool(s.Cluster, info, !customPool)
-		if err != nil {
-			return nil, err
-		}
+	// Update pool information in the backup.yaml file.
+	// Requires the volume and snapshots be mounted from pool.ContainerBackupLoad().
+	err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create revert function to remove the files created so far.
