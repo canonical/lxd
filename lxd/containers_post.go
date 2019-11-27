@@ -657,7 +657,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 
 		// Dump tarball to storage.
 		f.Seek(0, 0)
-		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, f, pool != "")
+		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, f)
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
