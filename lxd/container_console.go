@@ -112,7 +112,7 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 	<-s.allConnected
 
 	// Get console from instance.
-	console, err := s.instance.Console()
+	console, consoleDisconnectCh, err := s.instance.Console()
 	if err != nil {
 		return err
 	}
@@ -204,14 +204,15 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 		<-readDone
 		logger.Debugf("Finished mirroring console to websocket")
 		<-writeDone
-		conn.Close()
 		close(mirrorDoneCh)
 	}()
 
 	// Wait until either the console or the websocket is done.
 	select {
 	case <-mirrorDoneCh:
+		close(consoleDisconnectCh)
 	case <-consoleDoneCh:
+		close(consoleDisconnectCh)
 	}
 
 	// Write a reset escape sequence to the console to cancel any ongoing reads to the handle
