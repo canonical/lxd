@@ -625,24 +625,59 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
-	// Write the data to a temp file.
-	f, err := ioutil.TempFile("", "lxd_backup_")
+	// Create temporary file to store uploaded backup data.
+	backupFile, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer os.Remove(f.Name())
+	defer os.Remove(backupFile.Name())
 
-	_, err = io.Copy(f, data)
+	// Stream uploaded backup data into temporary file.
+	_, err = io.Copy(backupFile, data)
 	if err != nil {
-		f.Close()
+		backupFile.Close()
 		return response.InternalError(err)
+	}
+
+	// Detect squashfs compression and convert to tarball.
+	backupFile.Seek(0, 0)
+	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
+	if err != nil {
+		backupFile.Close()
+		return response.InternalError(err)
+	}
+
+	if algo == ".squashfs" {
+		// Pass the temporary file as program argument to the decompression command.
+		decomArgs := append(decomArgs, backupFile.Name())
+
+		// Create temporary file to store the decompressed tarball in.
+		tarFile, err := ioutil.TempFile("", "lxd_decompress_")
+		if err != nil {
+			backupFile.Close()
+			return response.InternalError(err)
+		}
+		defer os.Remove(tarFile.Name())
+
+		// Decompress to tarData temporary file.
+		err = shared.RunCommandWithFds(nil, tarFile, decomArgs[0], decomArgs[1:]...)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		// We don't need the original squashfs file anymore.
+		backupFile.Close()
+		os.Remove(backupFile.Name())
+
+		// Replace the backup file handle with the handle to the tar file.
+		backupFile = tarFile
 	}
 
 	// Parse the backup information.
-	f.Seek(0, 0)
-	bInfo, err := backup.GetInfo(f)
+	backupFile.Seek(0, 0)
+	bInfo, err := backup.GetInfo(backupFile)
 	if err != nil {
-		f.Close()
+		backupFile.Close()
 		return response.BadRequest(err)
 	}
 	bInfo.Project = project
@@ -680,11 +715,11 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	}
 
 	run := func(op *operations.Operation) error {
-		defer f.Close()
+		defer backupFile.Close()
 
 		// Dump tarball to storage.
-		f.Seek(0, 0)
-		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, f)
+		backupFile.Seek(0, 0)
+		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, backupFile)
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
@@ -739,6 +774,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
 	if err != nil {
+		backupFile.Close()
 		return response.InternalError(err)
 	}
 
