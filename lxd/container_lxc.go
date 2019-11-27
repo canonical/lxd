@@ -5837,7 +5837,9 @@ func (c *containerLXC) FileRemove(path string) error {
 	return nil
 }
 
-func (c *containerLXC) Console() (*os.File, error) {
+func (c *containerLXC) Console() (*os.File, chan error, error) {
+	chDisconnect := make(chan error, 1)
+
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkconsole",
@@ -5849,7 +5851,7 @@ func (c *containerLXC) Console() (*os.File, error) {
 
 	idmapset, err := c.CurrentIdmap()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var rootUID, rootGID int64
@@ -5859,7 +5861,7 @@ func (c *containerLXC) Console() (*os.File, error) {
 
 	master, slave, err := shared.OpenPty(rootUID, rootGID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cmd := exec.Cmd{}
@@ -5871,10 +5873,21 @@ func (c *containerLXC) Console() (*os.File, error) {
 
 	err = cmd.Start()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return master, nil
+	go func() {
+		err = cmd.Wait()
+		master.Close()
+		slave.Close()
+	}()
+
+	go func() {
+		<-chDisconnect
+		cmd.Process.Kill()
+	}()
+
+	return master, chDisconnect, nil
 }
 
 func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {

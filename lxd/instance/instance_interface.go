@@ -51,7 +51,7 @@ type Instance interface {
 	FileRemove(path string) error
 
 	// Console - Allocate and run a console tty.
-	Console() (*os.File, error)
+	Console() (*os.File, chan error, error)
 	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (Cmd, error)
 
 	// Status

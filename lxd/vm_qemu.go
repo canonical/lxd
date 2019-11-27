@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
@@ -48,6 +49,9 @@ import (
 )
 
 var vmVsockTimeout time.Duration = time.Second
+
+var vmConsole = map[int]bool{}
+var vmConsoleLock sync.Mutex
 
 func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct.
@@ -2240,23 +2244,33 @@ func (vm *vmQemu) FileRemove(path string) error {
 	return fmt.Errorf("FileRemove Not implemented")
 }
 
-func (vm *vmQemu) Console() (*os.File, error) {
+func (vm *vmQemu) Console() (*os.File, chan error, error) {
+	chDisconnect := make(chan error, 1)
+
+	// Avoid duplicate connects.
+	vmConsoleLock.Lock()
+	if vmConsole[vm.id] {
+		vmConsoleLock.Unlock()
+		return nil, nil, fmt.Errorf("There is already an active console for this instance")
+	}
+	vmConsoleLock.Unlock()
+
 	// Connect to the monitor.
 	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
 	if err != nil {
-		return nil, err // The VM isn't running as no monitor socket available.
+		return nil, nil, err // The VM isn't running as no monitor socket available.
 	}
 
 	err = monitor.Connect()
 	if err != nil {
-		return nil, err // The capabilities handshake failed.
+		return nil, nil, err // The capabilities handshake failed.
 	}
 	defer monitor.Disconnect()
 
 	// Send the status command.
 	respRaw, err := monitor.Run([]byte("{'execute': 'query-chardev'}"))
 	if err != nil {
-		return nil, err // Status command failed.
+		return nil, nil, err // Status command failed.
 	}
 
 	var respDecoded struct {
@@ -2268,7 +2282,7 @@ func (vm *vmQemu) Console() (*os.File, error) {
 
 	err = json.Unmarshal(respRaw, &respDecoded)
 	if err != nil {
-		return nil, err // JSON decode failed.
+		return nil, nil, err // JSON decode failed.
 	}
 
 	var ptsPath string
@@ -2280,15 +2294,27 @@ func (vm *vmQemu) Console() (*os.File, error) {
 	}
 
 	if ptsPath == "" {
-		return nil, fmt.Errorf("No PTS path found")
+		return nil, nil, fmt.Errorf("No PTS path found")
 	}
 
 	console, err := os.OpenFile(ptsPath, os.O_RDWR, 0600)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return console, nil
+	vmConsoleLock.Lock()
+	vmConsole[vm.id] = true
+	vmConsoleLock.Unlock()
+
+	go func() {
+		<-chDisconnect
+
+		vmConsoleLock.Lock()
+		vmConsole[vm.id] = false
+		vmConsoleLock.Unlock()
+	}()
+
+	return console, chDisconnect, nil
 }
 
 func (vm *vmQemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
