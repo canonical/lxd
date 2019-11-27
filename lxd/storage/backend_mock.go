@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -63,8 +64,8 @@ func (b *mockBackend) CreateInstance(inst instance.Instance, op *operations.Oper
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromBackup(inst instance.Instance, sourcePath string, op *operations.Operation) error {
-	return nil
+func (b *mockBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
+	return nil, nil, nil
 }
 
 func (b *mockBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error {
