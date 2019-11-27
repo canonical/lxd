@@ -222,9 +222,10 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 
 	// Get the console websocket and close it.
 	s.connsLock.Lock()
-	consolConn := s.conns[0]
+	consoleConn := s.conns[0]
 	s.connsLock.Unlock()
-	consolConn.Close()
+	consoleConn.WriteMessage(websocket.BinaryMessage, []byte("\n\r"))
+	consoleConn.Close()
 
 	// Get the control websocket and close it.
 	s.connsLock.Lock()
