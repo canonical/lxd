@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/digitalocean/go-qemu/qmp"
@@ -48,6 +49,9 @@ import (
 )
 
 var vmVsockTimeout time.Duration = time.Second
+
+var vmConsole = map[int]bool{}
+var vmConsoleLock sync.Mutex
 
 func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct.
@@ -2241,7 +2245,15 @@ func (vm *vmQemu) FileRemove(path string) error {
 }
 
 func (vm *vmQemu) Console() (*os.File, chan error, error) {
-	chError := make(chan error, 1)
+	chDisconnect := make(chan error, 1)
+
+	// Avoid duplicate connects.
+	vmConsoleLock.Lock()
+	if vmConsole[vm.id] {
+		vmConsoleLock.Unlock()
+		return nil, nil, fmt.Errorf("There is already an active console for this instance")
+	}
+	vmConsoleLock.Unlock()
 
 	// Connect to the monitor.
 	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
@@ -2290,7 +2302,19 @@ func (vm *vmQemu) Console() (*os.File, chan error, error) {
 		return nil, nil, err
 	}
 
-	return console, chError, nil
+	vmConsoleLock.Lock()
+	vmConsole[vm.id] = true
+	vmConsoleLock.Unlock()
+
+	go func() {
+		<-chDisconnect
+
+		vmConsoleLock.Lock()
+		vmConsole[vm.id] = false
+		vmConsoleLock.Unlock()
+	}()
+
+	return console, chDisconnect, nil
 }
 
 func (vm *vmQemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
