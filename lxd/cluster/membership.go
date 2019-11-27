@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -172,8 +173,15 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 			return err
 		}
 
+		// TODO: when fixing #6380 this should be replaced with the
+		// actual architecture of the foreign node.
+		arch, err := osarch.ArchitectureGetLocalID()
+		if err != nil {
+			return err
+		}
+
 		// Add the new node
-		id, err := tx.NodeAdd(name, address)
+		id, err := tx.NodeAddWithArch(name, address, arch)
 		if err != nil {
 			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
