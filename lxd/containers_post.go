@@ -652,12 +652,39 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		bInfo.Pool = pool
 	}
 
+	// Check storage pool exists.
+	_, _, err = d.State().Cluster.StoragePoolGet(bInfo.Pool)
+	if errors.Cause(err) == db.ErrNoSuchObject {
+		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
+		// the backup.yaml) or the pool has been specified directly from the user restoring
+		// the backup then we cannot proceed so return an error.
+		if bInfo.HasBinaryFormat || pool != "" {
+			return response.InternalError(errors.Wrap(err, "Storage pool not found"))
+		}
+
+		// Otherwise try and restore to the project's default profile pool.
+		_, profile, err := d.State().Cluster.ProfileGet(bInfo.Project, "default")
+		if err != nil {
+			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
+		}
+
+		_, v, err := shared.GetRootDiskDevice(profile.Devices)
+		if err != nil {
+			return response.InternalError(errors.Wrap(err, "Failed to get root disk device"))
+		}
+
+		// Use the default-profile's root pool.
+		bInfo.Pool = v["pool"]
+	} else if err != nil {
+		return response.InternalError(err)
+	}
+
 	run := func(op *operations.Operation) error {
 		defer f.Close()
 
 		// Dump tarball to storage.
 		f.Seek(0, 0)
-		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, f, pool != "")
+		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, f)
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
