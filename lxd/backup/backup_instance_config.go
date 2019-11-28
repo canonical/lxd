@@ -112,11 +112,5 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info) error {
 		return err
 	}
 
-	for _, snap := range b.Snapshots {
-		err = f(shared.VarPath("storage-pools", pool.Name, "containers-snapshots", project.Prefix(b.Project, b.Name), snap, "backup.yaml"))
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
