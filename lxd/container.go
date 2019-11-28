@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -304,40 +305,75 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	return inst, nil
 }
 
-// instanceCreateFromBackup imports a backup file to restore an instance. Returns a revert function
-// that can be called to delete the files created during import if subsequent steps fail.
-func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(), error) {
-	// Find the compression algorithm.
-	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
-	if err != nil {
-		return nil, err
-	}
-	srcData.Seek(0, 0)
+// instanceCreateFromBackup imports a backup file to restore an instance. Because the backup file
+// is unpacked and restored onto the storage device before the instance is created in the database
+// it is necessary to return two functions; a post hook that can be run once the instance has been
+// created in the database to run any storage layer finalisations, and a revert hook that can be
+// run if the instance database load process fails that will remove anything created thus far.
+func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(instance.Instance) error, func(), error) {
+	// Define hook functions that will be returned to caller.
+	var postHook func(instance.Instance) error
+	var revertHook func()
 
-	pool, err := storagePoolInit(s, info.Pool)
-	if err != nil {
-		return nil, err
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(s, info.Pool)
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return nil, nil, err
+		}
+
+		postHook, revertHook, err = pool.CreateInstanceFromBackup(info, srcData, nil)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else { // Fallback to old storage layer.
+
+		// Find the compression algorithm.
+		srcData.Seek(0, 0)
+		tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		pool, err := storagePoolInit(s, info.Pool)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Unpack tarball from the source tar stream.
+		srcData.Seek(0, 0)
+		err = pool.ContainerBackupLoad(info, srcData, tarArgs)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Update pool information in the backup.yaml file.
+		// Requires the volume and snapshots be mounted from pool.ContainerBackupLoad().
+		mountPath := shared.VarPath("storage-pools", info.Pool, "containers", project.Prefix(info.Project, info.Name))
+		err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info, mountPath)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Set revert function to remove the files created so far.
+		revertHook = func() {
+			// Create a temporary container struct (because the container DB record
+			// hasn't been imported yet) for use with storage layer.
+			ctTmp := &containerLXC{name: info.Name, project: info.Project}
+			pool.ContainerDelete(ctTmp)
+		}
+
+		postHook = func(inst instance.Instance) error {
+			_, err = inst.StorageStop()
+			if err != nil {
+				return errors.Wrap(err, "Stop storage pool")
+			}
+
+			return nil
+		}
 	}
 
-	// Unpack tarball from the source tar stream.
-	err = pool.ContainerBackupLoad(info, srcData, tarArgs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update pool information in the backup.yaml file.
-	// Requires the volume and snapshots be mounted from pool.ContainerBackupLoad().
-	err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create revert function to remove the files created so far.
-	revertFunc := func() {
-		pool.ContainerDelete(&containerLXC{name: info.Name, project: info.Project})
-	}
-
-	return revertFunc, nil
+	return postHook, revertHook, nil
 }
 
 func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (instance.Instance, error) {

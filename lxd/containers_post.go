@@ -735,8 +735,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		defer backupFile.Close()
 
 		// Dump tarball to storage.
-		backupFile.Seek(0, 0)
-		revertFunc, err := instanceCreateFromBackup(d.State(), *bInfo, backupFile)
+		postHook, revertHook, err := instanceCreateFromBackup(d.State(), *bInfo, backupFile)
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
@@ -747,7 +746,9 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 				return
 			}
 
-			revertFunc()
+			if revertHook != nil {
+				revertHook()
+			}
 		}()
 
 		body, err := json.Marshal(&internalImportPost{
@@ -775,9 +776,13 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return errors.Wrap(err, "Load instance")
 		}
 
-		_, err = c.StorageStop()
-		if err != nil {
-			return errors.Wrap(err, "Stop storage pool")
+		// Run the storage post hook to perform any final actions now that the instance
+		// has been created in the database.
+		if postHook != nil {
+			err = postHook(c)
+			if err != nil {
+				return errors.Wrap(err, "Post hook")
+			}
 		}
 
 		revert = false
