@@ -3328,6 +3328,7 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 			return err
 		}
 
+		// Ensure that storage is mounted for state path checks and for backup.yaml updates.
 		ourStart, err := pool.MountInstance(c, nil)
 		if err != nil {
 			return err
@@ -3396,7 +3397,7 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 			return err
 		}
 
-		// Ensure that storage is mounted for state path checks.
+		// Ensure that storage is mounted for state path checks and for backup.yaml updates.
 		if pool != nil {
 			ourStart, err := pool.MountInstance(c, nil)
 			if err != nil {

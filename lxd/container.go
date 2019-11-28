@@ -307,39 +307,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 
 // instanceCreateFromBackup imports a backup file to restore an instance. Returns a revert function
 // that can be called to delete the files created during import if subsequent steps fail.
-func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker, customPool bool) (func(), error) {
-	var fixBackupFile = false
-	poolName := info.Pool
-
-	// Check storage pool from index.yaml exists. If the storage pool in the index.yaml doesn't
-	// exist, try and use the default profile's storage pool.
-	_, _, err := s.Cluster.StoragePoolGet(poolName)
-	if errors.Cause(err) == db.ErrNoSuchObject {
-		// The backup is in binary format so we cannot alter the backup.yaml.
-		if info.HasBinaryFormat {
-			return nil, err
-		}
-
-		// Get the default profile.
-		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get default profile")
-		}
-
-		_, v, err := shared.GetRootDiskDevice(profile.Devices)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get root disk device")
-		}
-
-		// Use the default-profile's root pool.
-		poolName = v["pool"]
-
-		// Mark requirement to change the pool information in the backup.yaml file.
-		fixBackupFile = true
-	} else if err != nil {
-		return nil, err
-	}
-
+func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(), error) {
 	// Find the compression algorithm.
 	tarArgs, algo, decomArgs, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
@@ -385,7 +353,7 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 		srcData = tarData
 	}
 
-	pool, err := storagePoolInit(s, poolName)
+	pool, err := storagePoolInit(s, info.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -396,12 +364,11 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 		return nil, err
 	}
 
-	if fixBackupFile || customPool {
-		// Update pool information in the backup.yaml file.
-		err = backupFixStoragePool(s.Cluster, info, !customPool)
-		if err != nil {
-			return nil, err
-		}
+	// Update pool information in the backup.yaml file.
+	// Requires the volume and snapshots be mounted from pool.ContainerBackupLoad().
+	err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create revert function to remove the files created so far.
@@ -743,7 +710,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		return nil, fmt.Errorf("Source instance and snapshot instance types do not match")
 	}
 
-	// Deal with state
+	// Deal with state.
 	if args.Stateful {
 		if !sourceInstance.IsRunning() {
 			return nil, fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
@@ -788,7 +755,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		}
 	}
 
-	// Create the snapshot
+	// Create the snapshot.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
@@ -843,13 +810,13 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		return nil, fmt.Errorf("Instance type not supported")
 	}
 
-	// Attempt to update backup.yaml for instance
+	// Attempt to update backup.yaml for instance.
 	err = writeBackupFile(sourceInstance)
 	if err != nil {
 		return nil, err
 	}
 
-	// Once we're done, remove the state directory
+	// Once we're done, remove the state directory.
 	if args.Stateful {
 		os.RemoveAll(sourceInstance.StatePath())
 	}
@@ -1120,7 +1087,7 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 
 		ct := c.(*containerLXC)
 
-		// handle quota: at this point, storage is guaranteed to be ready
+		// handle quota: at this point, storage is guaranteed to be ready.
 		storage := ct.Storage()
 		if rootDiskDevice["size"] != "" {
 			storageTypeName := storage.GetStorageTypeName()

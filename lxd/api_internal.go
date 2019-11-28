@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,8 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
@@ -390,21 +389,6 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 	return nil
 }
 
-func slurpBackupFile(path string) (*backupFile, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	backup := backupFile{}
-
-	if err := yaml.Unmarshal(data, &backup); err != nil {
-		return nil, err
-	}
-
-	return &backup, nil
-}
-
 type internalImportPost struct {
 	Name  string `json:"name" yaml:"name"`
 	Force bool   `json:"force" yaml:"force"`
@@ -476,7 +460,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	// Read in the backup.yaml file.
 	backupYamlPath := filepath.Join(containerMntPoint, "backup.yaml")
-	backup, err := slurpBackupFile(backupYamlPath)
+	backup, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -1660,14 +1660,14 @@ func (vm *vmQemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if shared.StringInSlice("security.secureboot", changedConfig) {
-		// Re-generate the NVRAM
+		// Re-generate the NVRAM.
 		err = vm.setupNvram()
 		if err != nil {
 			return err
 		}
 	}
 
-	// Finally, apply the changes to the database
+	// Finally, apply the changes to the database.
 	err = query.Retry(func() error {
 		tx, err := vm.state.Cluster.Begin()
 		if err != nil {
