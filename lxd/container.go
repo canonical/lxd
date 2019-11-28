@@ -308,32 +308,6 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 // instanceCreateFromBackup imports a backup file to restore an instance. Returns a revert function
 // that can be called to delete the files created during import if subsequent steps fail.
 func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(), error) {
-	// Check storage pool from index.yaml exists. If the storage pool in the index.yaml doesn't
-	// exist, try and use the project's default profile storage pool.
-	_, _, err := s.Cluster.StoragePoolGet(info.Pool)
-	if errors.Cause(err) == db.ErrNoSuchObject {
-		// The backup is in binary format so we cannot alter the backup.yaml.
-		if info.HasBinaryFormat {
-			return nil, err
-		}
-
-		// Get the default profile.
-		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get default profile")
-		}
-
-		_, v, err := shared.GetRootDiskDevice(profile.Devices)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get root disk device")
-		}
-
-		// Use the default-profile's root pool.
-		info.Pool = v["pool"]
-	} else if err != nil {
-		return nil, err
-	}
-
 	// Find the compression algorithm.
 	tarArgs, algo, decomArgs, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
