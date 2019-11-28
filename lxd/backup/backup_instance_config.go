@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -52,7 +52,7 @@ func updateRootDevicePool(devices map[string]map[string]string, poolName string)
 
 // UpdateInstanceConfigStoragePool changes the pool information in the backup.yaml to the pool
 // specified in b.Pool.
-func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info) error {
+func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info, mountPath string) error {
 	// Load the storage pool.
 	_, pool, err := c.StoragePoolGet(b.Pool)
 	if err != nil {
@@ -107,7 +107,7 @@ func UpdateInstanceConfigStoragePool(c *db.Cluster, b Info) error {
 		return nil
 	}
 
-	err = f(shared.VarPath("storage-pools", pool.Name, "containers", project.Prefix(b.Project, b.Name), "backup.yaml"))
+	err = f(filepath.Join(mountPath, "backup.yaml"))
 	if err != nil {
 		return err
 	}
