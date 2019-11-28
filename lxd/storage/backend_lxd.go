@@ -297,10 +297,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		b.DeleteInstance(inst, op)
 	}()
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Find the root device config for instance.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -444,10 +441,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	if b.driver.HasVolume(volType, project.Prefix(inst.Project(), inst.Name())) {
 		return fmt.Errorf("Cannot create volume, already exists on target")
@@ -593,10 +587,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -750,10 +741,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	revert := true
 	defer func() {
@@ -824,10 +812,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	volExists := b.driver.HasVolume(volType, project.Prefix(inst.Project(), inst.Name()))
 	if args.Refresh && !volExists {
@@ -1041,10 +1026,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -1077,10 +1059,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, o
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -1376,10 +1355,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Find the root device config for source snapshot instance.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(src.ExpandedDevices().CloneNative())
@@ -1479,7 +1455,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	contentType := drivers.ContentTypeFS
-	if api.InstanceType(image.Type) == api.InstanceTypeVM {
+
+	// Image types are not the same as instance types, so don't use instance type constants.
+	if image.Type == "virtual-machine" {
 		contentType = drivers.ContentTypeBlock
 	}
 
