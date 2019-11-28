@@ -2,10 +2,12 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
@@ -94,6 +96,25 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	// Prepare the HTTP server.
 	httpServer := restServer(tlsConfig, cert, c.global.flagLogDebug, d)
+
+	// Serial notification.
+	if shared.PathExists("/dev/virtio-ports/org.linuxcontainers.lxd") {
+		vSerial, err := os.OpenFile("/dev/virtio-ports/org.linuxcontainers.lxd", os.O_RDWR, 0600)
+		if err != nil {
+			return err
+		}
+		defer vSerial.Close()
+
+		vSerial.Write([]byte("STARTED\n"))
+
+		chSignal := make(chan os.Signal, 1)
+		signal.Notify(chSignal, unix.SIGTERM)
+		go func() {
+			<-chSignal
+			vSerial.Write([]byte("STOPPED\n"))
+			os.Exit(0)
+		}()
+	}
 
 	// Start the server.
 	return httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
