@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -348,7 +349,8 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 
 		// Update pool information in the backup.yaml file.
 		// Requires the volume and snapshots be mounted from pool.ContainerBackupLoad().
-		err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info)
+		mountPath := shared.VarPath("storage-pools", info.Pool, "containers", project.Prefix(info.Project, info.Name))
+		err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info, mountPath)
 		if err != nil {
 			return nil, nil, err
 		}
