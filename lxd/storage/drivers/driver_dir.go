@@ -173,6 +173,51 @@ func (d *dir) GetVolumeDiskPath(volType VolumeType, volName string) (string, err
 	return filepath.Join(GetVolumeMountPath(d.name, volType, volName), "root.img"), nil
 }
 
+// setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
+// Returns a revert function that can be used to remove the quota if there is a subsequent error.
+func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
+	// Extract specified size from pool or volume config.
+	size := d.config["volume.size"]
+	if vol.config["size"] != "" {
+		size = vol.config["size"]
+	}
+
+	volPath := vol.MountPath()
+
+	// Get the volume ID for the new volume, which is used to set project quota.
+	volID, err := d.getVolID(vol.volType, vol.name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Define a function to revert the quota being setup.
+	revertFunc := func() {
+		d.deleteQuota(volPath, volID)
+	}
+
+	// Initialise the volume's quota using the volume ID.
+	err = d.initQuota(volPath, volID)
+	if err != nil {
+		return nil, err
+	}
+
+	revert := true
+	defer func() {
+		if revert {
+			revertFunc()
+		}
+	}()
+
+	// Set the quota.
+	err = d.setQuota(volPath, volID, size)
+	if err != nil {
+		return nil, err
+	}
+
+	revert = false
+	return revertFunc, nil
+}
+
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
 func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
@@ -180,12 +225,6 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 	err := vol.CreateMountPath()
 	if err != nil {
 		return err
-	}
-
-	// Extract specified size from pool or volume config.
-	size := d.config["volume.size"]
-	if vol.config["size"] != "" {
-		size = vol.config["size"]
 	}
 
 	revertPath := true
@@ -204,28 +243,17 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 			return err
 		}
 	} else {
-		// Get the volume ID for the new volume, which is used to set project quota.
-		volID, err := d.getVolID(vol.volType, vol.name)
+		revertFunc, err := d.setupInitialQuota(vol)
 		if err != nil {
 			return err
 		}
 
-		// Initialise the volume's quota using the volume ID.
-		err = d.initQuota(volPath, volID)
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			if revertPath {
-				d.deleteQuota(volPath, volID)
-			}
-		}()
-
-		// Set the quota.
-		err = d.setQuota(volPath, volID, size)
-		if err != nil {
-			return err
+		if revertFunc != nil {
+			defer func() {
+				if revertPath {
+					revertFunc()
+				}
+			}()
 		}
 	}
 
@@ -240,7 +268,12 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 	// If we are creating a block volume, resize it to the requested size or 10GB.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		blockSize := size
+		// Extract specified size from pool or volume config.
+		blockSize := d.config["volume.size"]
+		if vol.config["size"] != "" {
+			blockSize = vol.config["size"]
+		}
+
 		if blockSize == "" {
 			blockSize = "10GB"
 		}
