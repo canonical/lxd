@@ -978,3 +978,89 @@ func (d *dir) BackupVolume(vol Volume, targetPath string, _, snapshots bool, op 
 
 	return nil
 }
+
+// RestoreBackupVolume restores a backup tarball onto the storage device.
+func (d *dir) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+	revert := true
+	revertPaths := []string{}
+
+	// Define a revert function that will be used both to revert if an error occurs inside this
+	// function but also return it for use from the calling functions if no error internally.
+	revertHook := func() {
+		for _, revertPath := range revertPaths {
+			os.RemoveAll(revertPath)
+		}
+	}
+
+	// Only execute the revert function if we have had an error internally and revert is true.
+	defer func() {
+		if revert {
+			revertHook()
+		}
+	}()
+
+	volPath := vol.MountPath()
+	err := vol.CreateMountPath()
+	if err != nil {
+		return nil, nil, err
+	}
+	revertPaths = append(revertPaths, volPath)
+
+	// Find the compression algorithm used for backup source data.
+	srcData.Seek(0, 0)
+	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Prepare tar extraction arguments.
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", volPath, "backup/container",
+	}...)
+
+	// Extract instance.
+	srcData.Seek(0, 0)
+	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(snapshots) > 0 {
+		// Create new snapshots directory.
+		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+		err := os.MkdirAll(snapshotDir, 0711)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		revertPaths = append(revertPaths, snapshotDir)
+
+		// Prepare tar arguments.
+		args := append(tarArgs, []string{
+			"-",
+			"--strip-components=2",
+			"--xattrs-include=*",
+			"-C", snapshotDir, "backup/snapshots",
+		}...)
+
+		// Extract snapshots.
+		srcData.Seek(0, 0)
+		err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Define a post hook function that can be run once the backup config has been restored.
+	// This will setup the quota using the restored config.
+	postHook := func(vol Volume) error {
+		_, err := d.setupInitialQuota(vol)
+		return err
+	}
+
+	revert = false
+	return postHook, revertHook, nil
+}
