@@ -26,6 +26,8 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -203,12 +205,10 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromMigration(d *Daemon, project string, req *api.InstancesPost) response.Response {
-	// Validate migration mode
+	// Validate migration mode.
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
-
-	var c instance.Instance
 
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
@@ -216,7 +216,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.BadRequest(err)
 	}
 
-	// Pre-fill default profile
+	// Pre-fill default profile.
 	if req.Profiles == nil {
 		req.Profiles = []string{"default"}
 	}
@@ -226,7 +226,11 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.BadRequest(err)
 	}
 
-	// Prepare the container creation request
+	if dbType != instancetype.Container {
+		return response.BadRequest(fmt.Errorf("Instance type not container"))
+	}
+
+	// Prepare the instance creation request.
 	args := db.InstanceArgs{
 		Project:      project,
 		Architecture: architecture,
@@ -241,7 +245,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		Stateful:     req.Stateful,
 	}
 
-	// Early profile validation
+	// Early profile validation.
 	profiles, err := d.cluster.Profiles(project)
 	if err != nil {
 		return response.InternalError(err)
@@ -259,12 +263,11 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	}
 
 	if storagePool == "" {
-		return response.BadRequest(fmt.Errorf("Can't find a storage pool for the container to use"))
+		return response.BadRequest(fmt.Errorf("Can't find a storage pool for the instance to use"))
 	}
 
 	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
-		// Give the container it's own local root disk device with a
-		// pool property.
+		// Give the container it's own local root disk device with a pool property.
 		rootDev := map[string]string{}
 		rootDev["type"] = "disk"
 		rootDev["path"] = "/"
@@ -273,8 +276,8 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 			args.Devices = deviceConfig.Devices{}
 		}
 
-		// Make sure that we do not overwrite a device the user
-		// is currently using under the name "root".
+		// Make sure that we do not overwrite a device the user is currently using under the
+		// name "root".
 		rootDevName := "root"
 		for i := 0; i < 100; i++ {
 			if args.Devices[rootDevName] == nil {
@@ -289,22 +292,25 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
-	// Early check for refresh
+	var inst instance.Instance
+
+	// Early check for refresh.
 	if req.Source.Refresh {
-		// Check if the container exists
-		inst, err := instanceLoadByProjectAndName(d.State(), project, req.Name)
+		// Check if the instance exists.
+		inst, err = instanceLoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
 		} else if inst.IsRunning() {
 			return response.BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
-
-		if inst.Type() != instancetype.Container {
-			return response.BadRequest(fmt.Errorf("Instance type not container"))
-		}
-
-		c = inst
 	}
+
+	revert := true
+	defer func() {
+		if revert && !req.Source.Refresh && inst != nil {
+			inst.Delete()
+		}
+	}()
 
 	if !req.Source.Refresh {
 		/* Only create a container from an image if we're going to
@@ -322,18 +328,18 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		 */
 		_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
 		if err != nil {
-			c, err = instanceCreateAsEmpty(d, args)
+			inst, err = instanceCreateAsEmpty(d, args)
 			if err != nil {
 				return response.InternalError(err)
 			}
 		} else {
-			// Retrieve the future storage pool
-			inst, err := instanceLoad(d.State(), args, nil)
+			// Retrieve the future storage pool.
+			tmpInst, err := instanceLoad(d.State(), args, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
 
-			_, rootDiskDevice, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+			_, rootDiskDevice, err := shared.GetRootDiskDevice(tmpInst.ExpandedDevices().CloneNative())
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -344,18 +350,36 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 
 			storagePool = rootDiskDevice["pool"]
 
-			ps, err := storagePoolInit(d.State(), storagePool)
-			if err != nil {
-				return response.InternalError(err)
+			var migrationType migration.MigrationFSType
+
+			// Check if we can load new storage layer for pool driver type.
+			pool, err := storagePools.GetPoolByName(d.State(), storagePool)
+			if err != storageDrivers.ErrUnknownDriver {
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				// Get preferred migration type from storage backend.
+				migrationTypes := pool.MigrationTypes(storagePools.InstanceContentType(tmpInst))
+				if len(migrationTypes) > 0 {
+					migrationType = migrationTypes[0].FSType
+				}
+			} else {
+				ps, err := storagePoolInit(d.State(), storagePool)
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				migrationType = ps.MigrationType()
 			}
 
-			if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-				c, err = instanceCreateFromImage(d, args, req.Source.BaseImage, nil)
+			if migrationType == migration.MigrationFSType_RSYNC {
+				inst, err = instanceCreateFromImage(d, args, req.Source.BaseImage, nil)
 				if err != nil {
 					return response.InternalError(err)
 				}
 			} else {
-				c, err = instanceCreateAsEmpty(d, args)
+				inst, err = instanceCreateAsEmpty(d, args)
 				if err != nil {
 					return response.InternalError(err)
 				}
@@ -367,26 +391,17 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	if req.Source.Certificate != "" {
 		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
 		if certBlock == nil {
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return response.InternalError(fmt.Errorf("Invalid certificate"))
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return response.InternalError(err)
 		}
 	}
 
 	config, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
-		if !req.Source.Refresh {
-			c.Delete()
-		}
 		return response.InternalError(err)
 	}
 
@@ -401,7 +416,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
 			NetDial:         shared.RFC3493Dialer},
-		Instance:     c,
+		Instance:     inst,
 		Secrets:      req.Source.Websockets,
 		Push:         push,
 		Live:         req.Source.Live,
@@ -411,34 +426,35 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 
 	sink, err := NewMigrationSink(&migrationArgs)
 	if err != nil {
-		c.Delete()
 		return response.InternalError(err)
 	}
 
 	run := func(op *operations.Operation) error {
+		opRevert := true
+		defer func() {
+			if opRevert && !req.Source.Refresh && inst != nil {
+				inst.Delete()
+			}
+		}()
+
 		// And finally run the migration.
 		err = sink.Do(op)
 		if err != nil {
-			logger.Error("Error during migration sink", log.Ctx{"err": err})
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
 
-		err = c.DeferTemplateApply("copy")
+		err = inst.DeferTemplateApply("copy")
 		if err != nil {
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return err
 		}
 
+		opRevert = false
 		return nil
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{req.Name}
+	resources["instances"] = []string{req.Name}
+	resources["containers"] = resources["instances"]
 
 	var op *operations.Operation
 	if push {
@@ -453,6 +469,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		}
 	}
 
+	revert = false
 	return operations.OperationResponse(op)
 }
 
