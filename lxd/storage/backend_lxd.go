@@ -330,8 +330,97 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	return nil
 }
 
-func (b *lxdBackend) CreateInstanceFromBackup(inst instance.Instance, sourcePath string, op *operations.Operation) error {
-	return ErrNotImplemented
+// CreateInstanceFromBackup restores a backup file onto the storage device. Because the backup file
+// is unpacked and restored onto the storage device before the instance is created in the database
+// it is necessary to return two functions; a post hook that can be run once the instance has been
+// created in the database to run any storage layer finalisations, and a revert hook that can be
+// run if the instance database load process fails that will remove anything created thus far.
+func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "hasBinaryFormat": srcBackup.HasBinaryFormat})
+	logger.Debug("CreateInstanceFromBackup started")
+	defer logger.Debug("CreateInstanceFromBackup finished")
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(srcBackup.Project, srcBackup.Name)
+
+	// Currently there is no concept of instance type in backups, so we assume container.
+	// We don't know the volume's config yet as tarball hasn't been unpacked.
+	// We will apply the config as part of the post hook function returned if driver needs to.
+	vol := b.newVolume(drivers.VolumeTypeContainer, drivers.ContentTypeFS, volStorageName, nil)
+
+	revertFuncs := []func(){}
+	defer func() {
+		for _, revertFunc := range revertFuncs {
+			revertFunc()
+		}
+	}()
+
+	// Unpack the backup into the new storage volume(s).
+	volPostHook, revertHook, err := b.driver.RestoreBackupVolume(vol, srcBackup.Snapshots, srcData, op)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if revertHook != nil {
+		revertFuncs = append(revertFuncs, revertHook)
+	}
+
+	err = b.ensureInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name, vol.MountPath())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	revertFuncs = append(revertFuncs, func() {
+		b.removeInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+	})
+
+	if len(srcBackup.Snapshots) > 0 {
+		err = b.ensureInstanceSnapshotSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		revertFuncs = append(revertFuncs, func() {
+			b.removeInstanceSnapshotSymlinkIfUnused(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		})
+	}
+
+	// Update pool information in the backup.yaml file.
+	vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		return backup.UpdateInstanceConfigStoragePool(b.state.Cluster, srcBackup, mountPath)
+	}, op)
+
+	var postHook func(instance.Instance) error
+	if volPostHook != nil {
+		// Create a post hook function that will use the instance (that will be created) to
+		// setup a new volume containing the instance's root disk device's config so that
+		// the driver's post hook function can access that config to perform any post
+		// instance creation setup.
+		postHook = func(inst instance.Instance) error {
+			// Get the root disk device config.
+			_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+			if err != nil {
+				return err
+			}
+
+			// Get the volume name on storage.
+			volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+			volType, err := InstanceTypeToVolumeType(inst.Type())
+			if err != nil {
+				return err
+			}
+
+			contentType := InstanceContentType(inst)
+
+			// Initialise new volume containing root disk config supplied in instance.
+			vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+			return volPostHook(vol)
+		}
+	}
+
+	revertFuncs = nil
+	return postHook, revertHook, nil
 }
 
 // CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
