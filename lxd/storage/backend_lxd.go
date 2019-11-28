@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -296,10 +297,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		b.DeleteInstance(inst, op)
 	}()
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Find the root device config for instance.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -330,8 +328,97 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	return nil
 }
 
-func (b *lxdBackend) CreateInstanceFromBackup(inst instance.Instance, sourcePath string, op *operations.Operation) error {
-	return ErrNotImplemented
+// CreateInstanceFromBackup restores a backup file onto the storage device. Because the backup file
+// is unpacked and restored onto the storage device before the instance is created in the database
+// it is necessary to return two functions; a post hook that can be run once the instance has been
+// created in the database to run any storage layer finalisations, and a revert hook that can be
+// run if the instance database load process fails that will remove anything created thus far.
+func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "hasBinaryFormat": srcBackup.HasBinaryFormat})
+	logger.Debug("CreateInstanceFromBackup started")
+	defer logger.Debug("CreateInstanceFromBackup finished")
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(srcBackup.Project, srcBackup.Name)
+
+	// Currently there is no concept of instance type in backups, so we assume container.
+	// We don't know the volume's config yet as tarball hasn't been unpacked.
+	// We will apply the config as part of the post hook function returned if driver needs to.
+	vol := b.newVolume(drivers.VolumeTypeContainer, drivers.ContentTypeFS, volStorageName, nil)
+
+	revertFuncs := []func(){}
+	defer func() {
+		for _, revertFunc := range revertFuncs {
+			revertFunc()
+		}
+	}()
+
+	// Unpack the backup into the new storage volume(s).
+	volPostHook, revertHook, err := b.driver.RestoreBackupVolume(vol, srcBackup.Snapshots, srcData, op)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if revertHook != nil {
+		revertFuncs = append(revertFuncs, revertHook)
+	}
+
+	err = b.ensureInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name, vol.MountPath())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	revertFuncs = append(revertFuncs, func() {
+		b.removeInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+	})
+
+	if len(srcBackup.Snapshots) > 0 {
+		err = b.ensureInstanceSnapshotSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		revertFuncs = append(revertFuncs, func() {
+			b.removeInstanceSnapshotSymlinkIfUnused(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		})
+	}
+
+	// Update pool information in the backup.yaml file.
+	vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		return backup.UpdateInstanceConfigStoragePool(b.state.Cluster, srcBackup, mountPath)
+	}, op)
+
+	var postHook func(instance.Instance) error
+	if volPostHook != nil {
+		// Create a post hook function that will use the instance (that will be created) to
+		// setup a new volume containing the instance's root disk device's config so that
+		// the driver's post hook function can access that config to perform any post
+		// instance creation setup.
+		postHook = func(inst instance.Instance) error {
+			// Get the root disk device config.
+			_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+			if err != nil {
+				return err
+			}
+
+			// Get the volume name on storage.
+			volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+			volType, err := InstanceTypeToVolumeType(inst.Type())
+			if err != nil {
+				return err
+			}
+
+			contentType := InstanceContentType(inst)
+
+			// Initialise new volume containing root disk config supplied in instance.
+			vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+			return volPostHook(vol)
+		}
+	}
+
+	revertFuncs = nil
+	return postHook, revertHook, nil
 }
 
 // CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
@@ -354,10 +441,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	if b.driver.HasVolume(volType, project.Prefix(inst.Project(), inst.Name())) {
 		return fmt.Errorf("Cannot create volume, already exists on target")
@@ -503,10 +587,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -660,10 +741,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	revert := true
 	defer func() {
@@ -734,10 +812,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	volExists := b.driver.HasVolume(volType, project.Prefix(inst.Project(), inst.Name()))
 	if args.Refresh && !volExists {
@@ -951,10 +1026,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -987,10 +1059,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, o
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
@@ -1286,10 +1355,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
-	contentType := drivers.ContentTypeFS
-	if inst.Type() == instancetype.VM {
-		contentType = drivers.ContentTypeBlock
-	}
+	contentType := InstanceContentType(inst)
 
 	// Find the root device config for source snapshot instance.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(src.ExpandedDevices().CloneNative())
@@ -1389,7 +1455,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	}
 
 	contentType := drivers.ContentTypeFS
-	if api.InstanceType(image.Type) == api.InstanceTypeVM {
+
+	// Image types are not the same as instance types, so don't use instance type constants.
+	if image.Type == "virtual-machine" {
 		contentType = drivers.ContentTypeBlock
 	}
 

@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -29,7 +30,7 @@ type Pool interface {
 
 	// Instances.
 	CreateInstance(inst instance.Instance, op *operations.Operation) error
-	CreateInstanceFromBackup(inst instance.Instance, sourcePath string, op *operations.Operation) error
+	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error)
 	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error
 	CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error
 	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
