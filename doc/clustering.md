@@ -231,6 +231,11 @@ lxc launch --target node2 ubuntu:16.04 xenial
 
 will launch an Ubuntu 16.04 container on node2.
 
+When you launch a container without defining a target, the container will be 
+launched on the server which has the lowest number of containers.
+If all the servers have the same amount of containers, it will choose one 
+at random.
+
 You can list all containers in the cluster with:
 
 ```bash
