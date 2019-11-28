@@ -736,7 +736,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		return nil, fmt.Errorf("Source instance and snapshot instance types do not match")
 	}
 
-	// Deal with state
+	// Deal with state.
 	if args.Stateful {
 		if !sourceInstance.IsRunning() {
 			return nil, fmt.Errorf("Unable to create a stateful snapshot. The instance isn't running")
@@ -781,7 +781,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		}
 	}
 
-	// Create the snapshot
+	// Create the snapshot.
 	inst, err := instanceCreateInternal(s, args)
 	if err != nil {
 		return nil, err
@@ -836,13 +836,13 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		return nil, fmt.Errorf("Instance type not supported")
 	}
 
-	// Attempt to update backup.yaml for instance
+	// Attempt to update backup.yaml for instance.
 	err = writeBackupFile(sourceInstance)
 	if err != nil {
 		return nil, err
 	}
 
-	// Once we're done, remove the state directory
+	// Once we're done, remove the state directory.
 	if args.Stateful {
 		os.RemoveAll(sourceInstance.StatePath())
 	}
@@ -1113,7 +1113,7 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 
 		ct := c.(*containerLXC)
 
-		// handle quota: at this point, storage is guaranteed to be ready
+		// handle quota: at this point, storage is guaranteed to be ready.
 		storage := ct.Storage()
 		if rootDiskDevice["size"] != "" {
 			storageTypeName := storage.GetStorageTypeName()
