@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -755,4 +756,14 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 	}
 
 	return nil
+}
+
+// InstanceContentType returns the instance's content type.
+func InstanceContentType(inst instance.Instance) drivers.ContentType {
+	contentType := drivers.ContentTypeFS
+	if inst.Type() == instancetype.VM {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	return contentType
 }
