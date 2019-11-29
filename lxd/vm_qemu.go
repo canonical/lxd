@@ -1459,7 +1459,8 @@ func (vm *vmQemu) Unfreeze() error {
 }
 
 func (vm *vmQemu) IsPrivileged() bool {
-	return shared.IsTrue(vm.expandedConfig["security.privileged"])
+	// Privileged mode doesn't apply to virtual machines
+	return false
 }
 
 func (vm *vmQemu) Restore(source instance.Instance, stateful bool) error {
