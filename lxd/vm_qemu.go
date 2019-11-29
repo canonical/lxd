@@ -1024,7 +1024,7 @@ chardev = "vserial"
 
 [chardev "vserial"]
 backend = "ringbuf"
-size = "16B"
+size = "%dB"
 
 # PCIe root
 [device "qemu_pcie1"]
@@ -1078,7 +1078,7 @@ addr = "0x0"
 # Console
 [chardev "console"]
 backend = "pty"
-`, qemuType, qemuConf))
+`, qemuType, qemuConf, qmp.RingbufSize))
 
 	// Now add the dynamic parts of the config.
 	err := vm.addMemoryConfig(sb)
