@@ -889,3 +889,6 @@ Add virtual machine support.
 
 ## image\_profiles
 Allows a list of profiles to be applied to an image when launching a new container. 
+
+## unix\_hotplug\_devices
+Adds support for unix char and block device hotplugging.
