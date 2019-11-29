@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/digitalocean/go-qemu/qmp"
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -34,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/qmp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
@@ -47,8 +47,6 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 )
-
-var vmVsockTimeout time.Duration = time.Second
 
 var vmConsole = map[int]bool{}
 var vmConsoleLock sync.Mutex
@@ -314,6 +312,37 @@ func (vm *vmQemu) getStoragePool() (storagePools.Pool, error) {
 	return vm.storagePool, nil
 }
 
+func (vm *vmQemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
+	id := vm.id
+	state := vm.state
+
+	return func(event string, data map[string]interface{}) {
+		if !shared.StringInSlice(event, []string{"SHUTDOWN"}) {
+			return
+		}
+
+		inst, err := instanceLoadById(state, id)
+		if err != nil {
+			logger.Errorf("Failed to load instance with id=%d", id)
+			return
+		}
+
+		if event == "SHUTDOWN" {
+			target := "stop"
+			entry, ok := data["reason"]
+			if ok && entry == "guest-reset" {
+				target = "reboot"
+			}
+
+			err = inst.(*vmQemu).OnStop(target)
+			if err != nil {
+				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Prefix(inst.Project(), inst.Name()), err)
+				return
+			}
+		}
+	}
+}
+
 // mount mounts the instance's config volume if needed.
 func (vm *vmQemu) mount() (ourMount bool, err error) {
 	var pool storagePools.Pool
@@ -402,61 +431,61 @@ func (vm *vmQemu) Freeze() error {
 	return nil
 }
 
+func (vm *vmQemu) OnStop(target string) error {
+	vm.cleanupDevices()
+	os.Remove(vm.pidFilePath())
+	os.Remove(vm.getMonitorPath())
+	vm.unmount()
+
+	if target == "reboot" {
+		return vm.Start(false)
+	}
+
+	return nil
+}
+
 func (vm *vmQemu) Shutdown(timeout time.Duration) error {
 	if !vm.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return err
 	}
 
-	err = monitor.Connect()
+	// Get the wait channel.
+	chDisconnect, err := monitor.Wait()
 	if err != nil {
+		if err == qmp.ErrMonitorDisconnect {
+			return nil
+		}
+
 		return err
 	}
-	defer monitor.Disconnect()
 
 	// Send the system_powerdown command.
-	_, err = monitor.Run([]byte("{'execute': 'system_powerdown'}"))
+	err = monitor.Powerdown()
 	if err != nil {
+		if err == qmp.ErrMonitorDisconnect {
+			return nil
+		}
+
 		return err
 	}
-	monitor.Disconnect()
-
-	// Deal with the timeout.
-	chShutdown := make(chan struct{}, 1)
-	go func() {
-		for {
-			// Connect to socket, check if still running, then disconnect so we don't
-			// block the qemu monitor socket for other users (such as lxc list).
-			if !vm.IsRunning() {
-				close(chShutdown)
-				return
-			}
-
-			time.Sleep(500 * time.Millisecond) // Don't consume too many resources.
-		}
-	}()
 
 	// If timeout provided, block until the VM is not running or the timeout has elapsed.
 	if timeout > 0 {
 		select {
-		case <-chShutdown:
+		case <-chDisconnect:
 			return nil
 		case <-time.After(timeout):
 			return fmt.Errorf("Instance was not shutdown after timeout")
 		}
 	} else {
-		<-chShutdown // Block until VM is not running if no timeout provided.
+		<-chDisconnect // Block until VM is not running if no timeout provided.
 	}
-
-	vm.cleanupDevices()
-	os.Remove(vm.pidFilePath())
-	os.Remove(vm.getMonitorPath())
-	vm.unmount()
 
 	return nil
 }
@@ -1353,49 +1382,34 @@ func (vm *vmQemu) Stop(stateful bool) error {
 	}
 
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
-		return err
-	}
-
-	err = monitor.Connect()
-	if err != nil {
-		return err
-	}
-	defer monitor.Disconnect()
-
-	// Send the quit command.
-	_, err = monitor.Run([]byte("{'execute': 'quit'}"))
-	if err != nil {
-		return err
-	}
-	monitor.Disconnect()
-
-	pid, err := vm.pid()
-	if err != nil {
-		return err
-	}
-
-	// No PID found, qemu not running.
-	if pid < 0 {
+		// If we fail to connect, it's most likely because the VM is already off.
 		return nil
 	}
 
-	// Check if qemu process still running, if so wait.
-	for {
-		procPath := fmt.Sprintf("/proc/%d", pid)
-		if shared.PathExists(procPath) {
-			time.Sleep(500 * time.Millisecond)
-			continue
+	// Get the wait channel.
+	chDisconnect, err := monitor.Wait()
+	if err != nil {
+		if err == qmp.ErrMonitorDisconnect {
+			return nil
 		}
 
-		break
+		return err
 	}
 
-	vm.cleanupDevices()
-	os.Remove(vm.pidFilePath())
-	os.Remove(vm.getMonitorPath())
-	vm.unmount()
+	// Send the quit command.
+	err = monitor.Quit()
+	if err != nil {
+		if err == qmp.ErrMonitorDisconnect {
+			return nil
+		}
+
+		return err
+	}
+
+	// Wait for QEMU to exit (can take a while if pending I/O).
+	<-chDisconnect
 
 	return nil
 }
@@ -2265,56 +2279,23 @@ func (vm *vmQemu) Console() (*os.File, chan error, error) {
 	vmConsoleLock.Unlock()
 
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, nil, err // The VM isn't running as no monitor socket available.
 	}
 
-	err = monitor.Connect()
-	if err != nil {
-		return nil, nil, err // The capabilities handshake failed.
-	}
-	defer monitor.Disconnect()
-
-	// Send the status command.
-	respRaw, err := monitor.Run([]byte("{'execute': 'query-chardev'}"))
-	if err != nil {
-		return nil, nil, err // Status command failed.
-	}
-
-	var respDecoded struct {
-		Return []struct {
-			Label    string `json:"label"`
-			Filename string `json:"filename"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return nil, nil, err // JSON decode failed.
-	}
-
-	var ptsPath string
-
-	for _, v := range respDecoded.Return {
-		if v.Label == "console" {
-			ptsPath = strings.TrimPrefix(v.Filename, "pty:")
-		}
-	}
-
-	if ptsPath == "" {
-		return nil, nil, fmt.Errorf("No PTS path found")
-	}
-
-	console, err := os.OpenFile(ptsPath, os.O_RDWR, 0600)
+	// Get the console.
+	console, err := monitor.Console("console")
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// Record the console is in use.
 	vmConsoleLock.Lock()
 	vmConsole[vm.id] = true
 	vmConsoleLock.Unlock()
 
+	// Handle console disconnection.
 	go func() {
 		<-chDisconnect
 
@@ -2791,38 +2772,22 @@ func (vm *vmQemu) InitPID() int {
 
 func (vm *vmQemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
-	monitor, err := qmp.NewSocketMonitor("unix", vm.getMonitorPath(), vmVsockTimeout)
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
-		return api.Stopped // The VM isn't running as no monitor socket available.
+		// If we fail to connect, chances are the VM isn't running.
+		return api.Stopped
 	}
 
-	err = monitor.Connect()
+	status, err := monitor.Status()
 	if err != nil {
-		return api.Error // The capabilities handshake failed.
-	}
-	defer monitor.Disconnect()
+		if err == qmp.ErrMonitorDisconnect {
+			return api.Stopped
+		}
 
-	// Send the status command.
-	respRaw, err := monitor.Run([]byte("{'execute': 'query-status'}"))
-	if err != nil {
-		return api.Error // Status command failed.
+		return api.Error
 	}
 
-	var respDecoded struct {
-		ID     string `json:"id"`
-		Return struct {
-			Running    bool   `json:"running"`
-			Singlestep bool   `json:"singlestep"`
-			Status     string `json:"status"`
-		} `json:"return"`
-	}
-
-	err = json.Unmarshal(respRaw, &respDecoded)
-	if err != nil {
-		return api.Error // JSON decode failed.
-	}
-
-	if respDecoded.Return.Status == "running" {
+	if status == "running" {
 		return api.Running
 	}
 
