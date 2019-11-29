@@ -16,6 +16,9 @@ import (
 var monitors = map[string]*Monitor{}
 var monitorsLock sync.Mutex
 
+// RingbufSize is the size of the agent serial ringbuffer in bytes
+var RingbufSize = 16
+
 // Monitor represents a QMP monitor.
 type Monitor struct {
 	path string
@@ -74,7 +77,7 @@ func (m *Monitor) run() error {
 	go func() {
 		for {
 			// Read the ringbuffer.
-			resp, err := m.qmp.Run([]byte(`{"execute": "ringbuf-read", "arguments": {"device": "vserial", "size": 16, "format": "utf8"}}`))
+			resp, err := m.qmp.Run([]byte(fmt.Sprintf(`{"execute": "ringbuf-read", "arguments": {"device": "vserial", "size": %d, "format": "utf8"}}`, RingbufSize)))
 			if err != nil {
 				m.Disconnect()
 				return
