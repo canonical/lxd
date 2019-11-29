@@ -586,6 +586,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 	}
 
 	args := []string{
+		"-S",
 		"-name", vm.Name(),
 		"-uuid", vmUUID,
 		"-daemonize",
@@ -593,6 +594,7 @@ func (vm *vmQemu) Start(stateful bool) error {
 		"-nographic",
 		"-serial", "chardev:console",
 		"-nodefaults",
+		"-no-reboot",
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
 	}
@@ -606,6 +608,18 @@ func (vm *vmQemu) Start(stateful bool) error {
 	}
 
 	_, err = shared.RunCommand(qemuBinary, args...)
+	if err != nil {
+		return err
+	}
+
+	// Start QMP monitoring.
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	// Start the VM.
+	err = monitor.Start()
 	if err != nil {
 		return err
 	}
