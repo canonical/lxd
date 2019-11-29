@@ -268,6 +268,11 @@ func (m *Monitor) Start() error {
 	return m.runCmd("cont")
 }
 
+// Pause tells QEMU to temporarily stop the emulation.
+func (m *Monitor) Pause() error {
+	return m.runCmd("stop")
+}
+
 // Quit tells QEMU to exit immediately.
 func (m *Monitor) Quit() error {
 	return m.runCmd("quit")
