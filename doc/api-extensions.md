@@ -902,3 +902,6 @@ This adds the ability to use LVM stripes on normal volumes and thin pool volumes
 
 ## vm\_boot\_priority
 Adds a `boot.priority` property on nic and disk devices to control the boot order.
+
+## unix\_hotplug\_devices
+Adds support for unix char and block device hotplugging.
