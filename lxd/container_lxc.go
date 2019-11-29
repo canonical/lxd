@@ -232,7 +232,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", storagePoolVolumeTypeContainer, false, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", storagePoolVolumeTypeContainer, c.IsSnapshot(), poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
