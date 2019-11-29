@@ -221,17 +221,18 @@ lxc profile device add <profile> <name> <type> [key=value]...
 ## Device types
 LXD supports the following device types:
 
-ID (database)   | Name                              | Condition     | Description
-:--             | :--                               | :--           | :--
-0               | [none](#type-none)                | -             | Inheritance blocker
-1               | [nic](#type-nic)                  | -             | Network interface
-2               | [disk](#type-disk)                | -             | Mountpoint inside the instance
-3               | [unix-char](#type-unix-char)      | container     | Unix character device
-4               | [unix-block](#type-unix-block)    | container     | Unix block device
-5               | [usb](#type-usb)                  | container     | USB device
-6               | [gpu](#type-gpu)                  | container     | GPU device
-7               | [infiniband](#type-infiniband)    | container     | Infiniband device
-8               | [proxy](#type-proxy)              | container     | Proxy device
+ID (database)   | Name                               | Condition     | Description
+:--             | :--                                | :--           | :--
+0               | [none](#type-none)                 | -             | Inheritance blocker
+1               | [nic](#type-nic)                   | -             | Network interface
+2               | [disk](#type-disk)                 | -             | Mountpoint inside the instance
+3               | [unix-char](#type-unix-char)       | container     | Unix character device
+4               | [unix-block](#type-unix-block)     | container     | Unix block device
+5               | [usb](#type-usb)                   | container     | USB device
+6               | [gpu](#type-gpu)                   | container     | GPU device
+7               | [infiniband](#type-infiniband)     | container     | Infiniband device
+8               | [proxy](#type-proxy)               | container     | Proxy device
+9               | [unix-hotplug](#type-unix-hotplug) | container     | Unix hotplug device
 
 ### Type: none
 A none type device doesn't have any property and doesn't create anything inside the instance.
@@ -665,6 +666,22 @@ nat             | bool      | false         | no        | Whether to optimize pr
 proxy\_protocol | bool      | false         | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
 security.uid    | int       | 0             | no        | What UID to drop privilege to
 security.gid    | int       | 0             | no        | What GID to drop privilege to
+
+### Type: unix-hotplug
+Unix hotplug device entries make the requested unix device
+appear in the container's `/dev` and allow read/write operations to it
+if the device exists on the host system.
+
+The following properties exist:
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :--
+vendorid    | string    | -                 | no        | The vendor id of the USB device.
+productid   | string    | -                 | no        | The product id of the USB device.
+uid         | int       | 0                 | no        | UID of the device owner in the container
+gid         | int       | 0                 | no        | GID of the device owner in the container
+mode        | int       | 0660              | no        | Mode of the device in the container
+required    | boolean   | false             | no        | Whether or not this device is required to start the container. (The default is false, and all devices are hot-pluggable)
 
 ```
 lxc config device add <instance> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/instance>
