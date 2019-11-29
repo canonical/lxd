@@ -990,6 +990,10 @@ driver = "virtio-scsi-pci"
 bus = "qemu_pcie1"
 addr = "0x0"
 
+# Graphics card
+[device]
+driver = "virtio-gpu"
+
 # Balloon driver
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
