@@ -430,6 +430,18 @@ func (vm *vmQemu) generateAgentCert() (string, string, string, string, error) {
 }
 
 func (vm *vmQemu) Freeze() error {
+	// Connect to the monitor.
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	// Send the stop command.
+	err = monitor.Pause()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1431,11 +1443,24 @@ func (vm *vmQemu) Stop(stateful bool) error {
 }
 
 func (vm *vmQemu) Unfreeze() error {
-	return fmt.Errorf("Unfreeze Not implemented")
+	// Connect to the monitor.
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	// Send the cont command.
+	err = monitor.Start()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (vm *vmQemu) IsPrivileged() bool {
-	return shared.IsTrue(vm.expandedConfig["security.privileged"])
+	// Privileged mode doesn't apply to virtual machines
+	return false
 }
 
 func (vm *vmQemu) Restore(source instance.Instance, stateful bool) error {
@@ -2280,7 +2305,25 @@ func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid 
 }
 
 func (vm *vmQemu) FileRemove(path string) error {
-	return fmt.Errorf("FileRemove Not implemented")
+	// Connect to the agent.
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to lxd-agent")
+	}
+	defer agent.Disconnect()
+
+	// Delete instance file.
+	err = agent.DeleteInstanceFile("", path)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (vm *vmQemu) Console() (*os.File, chan error, error) {
@@ -2812,6 +2855,8 @@ func (vm *vmQemu) statusCode() api.StatusCode {
 
 	if status == "running" {
 		return api.Running
+	} else if status == "paused" {
+		return api.Frozen
 	}
 
 	return api.Stopped

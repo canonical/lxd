@@ -1109,17 +1109,31 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 
 // DeleteInstanceFile deletes a file in the instance.
 func (r *ProtocolLXD) DeleteInstanceFile(instanceName string, filePath string) error {
-	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
-	if err != nil {
-		return err
-	}
-
 	if !r.HasExtension("file_delete") {
 		return fmt.Errorf("The server is missing the required \"file_delete\" API extension")
 	}
 
+	var requestURL string
+
+	if r.IsAgent() {
+		requestURL = fmt.Sprintf("/files?path=%s", url.QueryEscape(filePath))
+	} else {
+		path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+		if err != nil {
+			return err
+		}
+
+		// Prepare the HTTP request
+		requestURL = fmt.Sprintf("%s/%s/files?path=%s", path, url.PathEscape(instanceName), url.QueryEscape(filePath))
+	}
+
+	requestURL, err := r.setQueryAttributes(requestURL)
+	if err != nil {
+		return err
+	}
+
 	// Send the request
-	_, _, err = r.query("DELETE", fmt.Sprintf("%s/%s/files?path=%s", path, url.PathEscape(instanceName), url.QueryEscape(filePath)), nil, "")
+	_, _, err = r.query("DELETE", requestURL, nil, "")
 	if err != nil {
 		return err
 	}
