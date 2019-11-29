@@ -438,7 +438,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		}()
 
 		// And finally run the migration.
-		err = sink.Do(op)
+		err = sink.Do(d.State(), op)
 		if err != nil {
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
