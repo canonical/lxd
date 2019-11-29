@@ -886,3 +886,6 @@ This allows for existing a CEPH RDB or FS to be directly connected to a LXD cont
 
 ## virtual\_machines
 Add virtual machine support.
+
+## unix\_hotplug\_devices
+Adds support for unix char and block device hotplugging.
