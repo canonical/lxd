@@ -44,7 +44,7 @@ func init() {
 	// Expose instanceLoadNodeAll to the device package converting the response to a slice of Instances.
 	// This is because container types are defined in the main package and are not importable.
 	device.InstanceLoadNodeAll = func(s *state.State) ([]device.Instance, error) {
-		containers, err := instanceLoadNodeAll(s)
+		containers, err := instanceLoadNodeAll(s, instancetype.Any)
 		if err != nil {
 			return nil, err
 		}
@@ -1230,12 +1230,12 @@ func instanceLoadAll(s *state.State) ([]instance.Instance, error) {
 }
 
 // Load all instances of this nodes.
-func instanceLoadNodeAll(s *state.State) ([]instance.Instance, error) {
+func instanceLoadNodeAll(s *state.State, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
-	var cts []db.Instance
+	var insts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerNodeList()
+		insts, err = tx.ContainerNodeProjectList("", instanceType)
 		if err != nil {
 			return err
 		}
@@ -1246,7 +1246,7 @@ func instanceLoadNodeAll(s *state.State) ([]instance.Instance, error) {
 		return nil, err
 	}
 
-	return instanceLoadAllInternal(cts, s)
+	return instanceLoadAllInternal(insts, s)
 }
 
 // Load all instances of this nodes under the given project.
@@ -1342,7 +1342,7 @@ func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
-		allContainers, err := instanceLoadNodeAll(d.State())
+		allContainers, err := instanceLoadNodeAll(d.State(), instancetype.Any)
 		if err != nil {
 			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
 			return
@@ -1485,7 +1485,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
-		allInstances, err := instanceLoadNodeAll(d.State())
+		allInstances, err := instanceLoadNodeAll(d.State(), instancetype.Any)
 		if err != nil {
 			logger.Error("Failed to load instances for snapshot expiry", log.Ctx{"err": err})
 			return

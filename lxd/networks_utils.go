@@ -640,7 +640,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	}
 
 	// Get all the instances
-	insts, err := instanceLoadNodeAll(s)
+	insts, err := instanceLoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return err
 	}
