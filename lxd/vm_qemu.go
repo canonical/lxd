@@ -2305,7 +2305,25 @@ func (vm *vmQemu) FilePush(fileType string, srcPath string, dstPath string, uid 
 }
 
 func (vm *vmQemu) FileRemove(path string) error {
-	return fmt.Errorf("FileRemove Not implemented")
+	// Connect to the agent.
+	client, err := vm.getAgentClient()
+	if err != nil {
+		return err
+	}
+
+	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to lxd-agent")
+	}
+	defer agent.Disconnect()
+
+	// Delete instance file.
+	err = agent.DeleteInstanceFile("", path)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (vm *vmQemu) Console() (*os.File, chan error, error) {
