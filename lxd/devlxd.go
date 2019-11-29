@@ -394,7 +394,7 @@ func findContainerForPid(pid int32, s *state.State) (*containerLXC, error) {
 		return nil, err
 	}
 
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		return nil, err
 	}

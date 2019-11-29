@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -206,7 +207,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State) error {
 	// Get all the instances
-	result, err := instanceLoadNodeAll(s)
+	result, err := instanceLoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return err
 	}
@@ -242,6 +243,21 @@ func containersRestart(s *state.State) error {
 				time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
 			}
 		}
+	}
+
+	return nil
+}
+
+func vmMonitor(s *state.State) error {
+	// Get all the instances
+	insts, err := instanceLoadNodeAll(s, instancetype.VM)
+	if err != nil {
+		return err
+	}
+
+	for _, inst := range insts {
+		// Retrieve running state, this will re-connect to QMP
+		inst.IsRunning()
 	}
 
 	return nil
@@ -304,7 +320,7 @@ func containersShutdown(s *state.State) error {
 	dbAvailable := true
 
 	// Get all the instances
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
