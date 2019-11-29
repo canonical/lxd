@@ -48,6 +48,8 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+var vmQemuAgentOfflineErr = fmt.Errorf("LXD VM agent isn't currently running")
+
 var vmConsole = map[int]bool{}
 var vmConsoleLock sync.Mutex
 
@@ -2562,10 +2564,13 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 	if statusCode == api.Running {
 		status, err := vm.agentGetState()
 		if err != nil {
-			logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+			if err != vmQemuAgentOfflineErr {
+				logger.Warn("Could not get VM state from agent", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+			}
+
+			// Fallback data.
 			status = &api.InstanceState{}
 			status.Processes = -1
-
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
 				// We only care about nics.
@@ -2641,10 +2646,14 @@ func (vm *vmQemu) RenderState() (*api.InstanceState, error) {
 // agentGetState connects to the agent inside of the VM and does
 // an API call to get the current state.
 func (vm *vmQemu) agentGetState() (*api.InstanceState, error) {
-	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
-	err := util.LoadModule("vhost_vsock")
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		return nil, err
+	}
+
+	if !monitor.AgentReady() {
+		return nil, vmQemuAgentOfflineErr
 	}
 
 	client, err := vm.getAgentClient()
