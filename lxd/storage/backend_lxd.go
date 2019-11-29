@@ -533,7 +533,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationType,
-				TrackProgress: false, // Do not a progress tracker on receiver.
+				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
 			bEndErrCh <- err
@@ -675,7 +675,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				Snapshots:     snapshotNames,
 				MigrationType: migrationType,
 				Refresh:       true,  // Indicate to receiver volume should exist.
-				TrackProgress: false, // Do not a progress tracker on receiver.
+				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
 			bEndErrCh <- err
@@ -1686,7 +1686,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 			Config:        config,
 			Snapshots:     snapshotNames,
 			MigrationType: migrationType,
-			TrackProgress: false, // Do not a progress tracker on receiver.
+			TrackProgress: false, // Do not use a progress tracker on receiver.
 
 		}, op)
 
