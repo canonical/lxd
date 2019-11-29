@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -293,7 +294,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the instances
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		logger.Error("Problem loading instances list", log.Ctx{"err": err})
 		return
@@ -415,7 +416,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		return
 	}
@@ -493,7 +494,7 @@ func deviceEventListener(s *state.State) {
 
 // devicesRegister calls the Register() function on all supported devices so they receive events.
 func devicesRegister(s *state.State) {
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
