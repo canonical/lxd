@@ -1018,6 +1018,9 @@ func (d *Daemon) Ready() error {
 	// Restore containers
 	containersRestart(s)
 
+	// Start monitoring VMs again
+	vmMonitor(s)
+
 	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(s)
 
