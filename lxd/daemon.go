@@ -1253,11 +1253,18 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		return result, err
 	}
 
-	// Perform full sync
-	err = server.SyncProjects()
-	if err != nil {
-		return err
-	}
+	// Perform full sync when online
+	go func() {
+		for {
+			err = server.SyncProjects()
+			if err != nil {
+				time.Sleep(time.Minute)
+				continue
+			}
+
+			break
+		}
+	}()
 
 	server.StartStatusCheck()
 
