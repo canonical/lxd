@@ -835,12 +835,36 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	volStorageName := project.Prefix(inst.Project(), args.Name)
 
 	vol := b.newVolume(volType, contentType, volStorageName, args.Config)
+
+	revert := true
+	if !args.Refresh {
+		defer func() {
+			if !revert {
+				return
+			}
+			b.DeleteInstance(inst, op)
+		}()
+	}
+
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
 	if err != nil {
 		conn.Close()
 		return err
 	}
 
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	if len(args.Snapshots) > 0 {
+		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
+		if err != nil {
+			return err
+		}
+	}
+
+	revert = false
 	return nil
 }
 
