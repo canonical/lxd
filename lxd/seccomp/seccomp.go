@@ -1216,7 +1216,7 @@ var mountFlagsToOptMap = map[C.ulong]string{
 }
 
 func mountFlagsToOpts(flags C.ulong) string {
-	var currentBit C.ulong = 0
+	var currentBit C.ulong
 	opts := ""
 	var msRec C.ulong = (flags & C.MS_REC)
 
