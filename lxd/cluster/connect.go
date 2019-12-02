@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"time"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
@@ -20,6 +21,27 @@ import (
 // value 'lxd-cluster-notifier', which can be used in some cases to distinguish
 // between a regular client request and an internal cluster request.
 func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.InstanceServer, error) {
+	// Wait for a connection to the events API first for non-notify connections.
+	if !notify {
+		connected := false
+		for i := 0; i < 20; i++ {
+			listenersLock.Lock()
+			_, ok := listeners[address]
+			listenersLock.Unlock()
+
+			if ok {
+				connected = true
+				break
+			}
+
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		if !connected {
+			return nil, fmt.Errorf("Missing event connection with target cluster member")
+		}
+	}
+
 	args := &lxd.ConnectionArgs{
 		TLSServerCert: string(cert.PublicKey()),
 		TLSClientCert: string(cert.PublicKey()),
