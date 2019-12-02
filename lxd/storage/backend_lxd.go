@@ -844,6 +844,26 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			}
 			b.DeleteInstance(inst, op)
 		}()
+
+		// If the negotiated migration method is rsync and the instance's base image is
+		// already on the host then pre-create the instance's volume using the locla image
+		// to try and speed up the rsync of the incoming volume by avoiding the new to
+		// transfer the base image files too.
+		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
+			_, _, err = b.state.Cluster.ImageGet(inst.Project(), fingerprint, false, true)
+			if err != db.ErrNoSuchObject && err != nil {
+				return err
+			}
+
+			if err == nil {
+				logger.Debug("Using optimised migration from existing image", log.Ctx{"fingerprint": fingerprint})
+				err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
