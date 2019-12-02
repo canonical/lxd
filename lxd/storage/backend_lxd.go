@@ -533,7 +533,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationType,
-				TrackProgress: false, // Do not a progress tracker on receiver.
+				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
 			bEndErrCh <- err
@@ -675,7 +675,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				Snapshots:     snapshotNames,
 				MigrationType: migrationType,
 				Refresh:       true,  // Indicate to receiver volume should exist.
-				TrackProgress: false, // Do not a progress tracker on receiver.
+				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
 			bEndErrCh <- err
@@ -835,12 +835,56 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	volStorageName := project.Prefix(inst.Project(), args.Name)
 
 	vol := b.newVolume(volType, contentType, volStorageName, args.Config)
+
+	revert := true
+	if !args.Refresh {
+		defer func() {
+			if !revert {
+				return
+			}
+			b.DeleteInstance(inst, op)
+		}()
+
+		// If the negotiated migration method is rsync and the instance's base image is
+		// already on the host then pre-create the instance's volume using the locla image
+		// to try and speed up the rsync of the incoming volume by avoiding the new to
+		// transfer the base image files too.
+		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
+			_, _, err = b.state.Cluster.ImageGet(inst.Project(), fingerprint, false, true)
+			if err != db.ErrNoSuchObject && err != nil {
+				return err
+			}
+
+			if err == nil {
+				logger.Debug("Using optimised migration from existing image", log.Ctx{"fingerprint": fingerprint})
+				err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
 	if err != nil {
 		conn.Close()
 		return err
 	}
 
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	if len(args.Snapshots) > 0 {
+		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
+		if err != nil {
+			return err
+		}
+	}
+
+	revert = false
 	return nil
 }
 
@@ -1686,7 +1730,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 			Config:        config,
 			Snapshots:     snapshotNames,
 			MigrationType: migrationType,
-			TrackProgress: false, // Do not a progress tracker on receiver.
+			TrackProgress: false, // Do not use a progress tracker on receiver.
 
 		}, op)
 
