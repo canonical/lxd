@@ -22,6 +22,8 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -861,7 +863,84 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	// The migration header to be sent back to source with our target options.
 	var respHeader migration.MigrationHeader
 
-	if c.src.instance.Type() == instancetype.Container {
+	pool, err := storagePools.GetPoolByInstance(state, c.src.instance)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return err
+		}
+
+		// Extract the source's migration type and then match it against our pool's
+		// supported types and features. If a match is found the combined features list
+		// will be sent back to requester.
+		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance)))
+		if err != nil {
+			return err
+		}
+
+		// Convert response type to response header and copy snapshot info into it.
+		respHeader = migration.TypesToHeader(respType)
+		respHeader.SnapshotNames = offerHeader.SnapshotNames
+		respHeader.Snapshots = offerHeader.Snapshots
+
+		// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
+		// with the new storage layer.
+		myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
+			volTargetArgs := migration.VolumeTargetArgs{
+				Name:          args.Instance.Name(),
+				MigrationType: respType,
+				Refresh:       args.Refresh, // Indicate to receiver volume should exist.
+				TrackProgress: false,        // Do not use a progress tracker on receiver.
+			}
+
+			// At this point we have already figured out the parent container's root
+			// disk device so we can simply retrieve it from the expanded devices.
+			parentStoragePool := ""
+			parentExpandedDevices := args.Instance.ExpandedDevices()
+			parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+			if parentLocalRootDiskDeviceKey != "" {
+				parentStoragePool = parentLocalRootDiskDevice["pool"]
+			}
+
+			if parentStoragePool == "" {
+				return fmt.Errorf("Instance's root device is missing the pool property")
+			}
+
+			// A zero length Snapshots slice indicates volume only migration in
+			// VolumeTargetArgs. So if VoluneOnly was requested, do not populate them.
+			if !args.VolumeOnly {
+				volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
+				for _, snap := range args.Snapshots {
+					volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
+					snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
+
+					// Ensure that snapshot and parent container have the same
+					// storage pool in their local root disk device. If the root
+					// disk device for the snapshot comes from a profile on the
+					// new instance as well we don't need to do anything.
+					if snapArgs.Devices != nil {
+						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						if snapLocalRootDiskDeviceKey != "" {
+							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+						}
+					}
+
+					// Check if snapshot exists already and if not then create
+					// a new snapshot DB record so that the storage layer can
+					// populate the volume on the storage device.
+					_, err := instanceLoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
+					if err != nil {
+						// Create the snapshot as it doesn't seem to exist.
+						_, err := instanceCreateInternal(state, snapArgs)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+
+			return pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		}
+	} else if c.src.instance.Type() == instancetype.Container {
 		ct := c.src.instance.(*containerLXC)
 		myTarget = ct.Storage().MigrationSink
 		myType := ct.Storage().MigrationType()
@@ -1021,6 +1100,9 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				return
 			}
 
+			// For containers, the fs map of the source is sent as part of the migration
+			// stream, then at the end we need to record that map as last_state so that
+			// LXD can shift on startup if needed.
 			if c.src.instance.Type() == instancetype.Container {
 				ct := c.src.instance.(*containerLXC)
 				err = resetContainerDiskIdmap(ct, srcIdmap)
