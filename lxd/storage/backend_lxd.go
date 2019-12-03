@@ -34,10 +34,6 @@ type lxdBackend struct {
 	logger logger.Logger
 }
 
-func (b *lxdBackend) DaemonState() *state.State {
-	return b.state
-}
-
 // ID returns the storage pool ID.
 func (b *lxdBackend) ID() int64 {
 	return b.id
