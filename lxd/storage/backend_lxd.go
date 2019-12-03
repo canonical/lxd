@@ -71,7 +71,7 @@ func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *op
 		return err
 	}
 
-	// If dealing with a remote storage pool, we're done now
+	// If dealing with a remote storage pool, we're done now.
 	if b.driver.Info().Remote && localOnly {
 		return nil
 	}
