@@ -1925,6 +1925,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return response.ForwardedResponse(client, r)
 	}
 
@@ -2217,12 +2218,14 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch the leader node address")
 	}
+
 	var targetNodeAddress string
 	if shared.StringInSlice(leader, addresses) {
 		targetNodeAddress = leader
 	} else {
 		targetNodeAddress = addresses[0]
 	}
+
 	client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect node for image synchronization")

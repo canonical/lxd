@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 var operationCmd = APIEndpoint{
@@ -82,12 +81,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	body, _, err = client.GetOperation(id)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	return response.SyncResponse(true, body)
+	return response.ForwardedResponse(client, r)
 }
 
 func operationDelete(d *Daemon, r *http.Request) response.Response {
@@ -136,12 +130,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = client.DeleteOperation(id)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	return response.EmptySyncResponse
+	return response.ForwardedResponse(client, r)
 }
 
 func operationsGet(d *Daemon, r *http.Request) response.Response {
@@ -361,12 +350,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	apiOp, _, err := client.GetOperationWait(id, timeout)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	return response.SyncResponse(true, apiOp)
+	return response.ForwardedResponse(client, r)
 }
 
 type operationWebSocket struct {
@@ -447,7 +431,6 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	logger.Debugf("Forward operation websocket from node %s", address)
 	source, err := client.GetOperationWebsocket(id, secret)
 	if err != nil {
 		return response.SmartError(err)

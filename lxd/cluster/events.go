@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	lxd "github.com/lxc/lxd/client"
@@ -13,28 +14,28 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+var listeners = map[string]*lxd.EventListener{}
+var listenersLock sync.Mutex
+
 // Events starts a task that continuously monitors the list of cluster nodes and
 // maintains a pool of websocket connections against all of them, in order to
 // get notified about events.
 //
 // Whenever an event is received the given callback is invoked.
 func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, api.Event)) (task.Func, task.Schedule) {
-	listeners := map[int64]*lxd.EventListener{}
-
 	// Update our pool of event listeners. Since database queries are
 	// blocking, we spawn the actual logic in a goroutine, to abort
 	// immediately when we receive the stop signal.
 	update := func(ctx context.Context) {
 		ch := make(chan struct{})
 		go func() {
-			eventsUpdateListeners(endpoints, cluster, listeners, f)
+			eventsUpdateListeners(endpoints, cluster, f)
 			ch <- struct{}{}
 		}()
 		select {
 		case <-ch:
 		case <-ctx.Done():
 		}
-
 	}
 
 	schedule := task.Every(time.Second)
@@ -42,7 +43,7 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, a
 	return update, schedule
 }
 
-func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, listeners map[int64]*lxd.EventListener, f func(int64, api.Event)) {
+func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, api.Event)) {
 	// Get the current cluster nodes.
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
@@ -72,27 +73,31 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 	address := endpoints.NetworkAddress()
 
-	ids := make([]int, len(nodes))
+	addresses := make([]string, len(nodes))
 	for i, node := range nodes {
-		ids[i] = int(node.ID)
+		addresses[i] = node.Address
 
 		// Don't bother trying to connect to offline nodes, or to ourselves.
 		if node.IsOffline(offlineThreshold) || node.Address == address {
 			continue
 		}
 
-		_, ok := listeners[node.ID]
+		listenersLock.Lock()
+		listener, ok := listeners[node.Address]
 
 		// The node has already a listener associated to it.
 		if ok {
 			// Double check that the listener is still
 			// connected. If it is, just move on, other
 			// we'll try to connect again.
-			if listeners[node.ID].IsActive() {
+			if listeners[node.Address].IsActive() {
+				listenersLock.Unlock()
 				continue
 			}
-			delete(listeners, node.ID)
+
+			delete(listeners, node.Address)
 		}
+		listenersLock.Unlock()
 
 		listener, err := eventsConnect(node.Address, endpoints.NetworkCert())
 		if err != nil {
@@ -101,14 +106,20 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		}
 		logger.Debugf("Listening for events on node %s", node.Address)
 		listener.AddHandler(nil, func(event api.Event) { f(node.ID, event) })
-		listeners[node.ID] = listener
+
+		listenersLock.Lock()
+		listeners[node.Address] = listener
+		listenersLock.Unlock()
 	}
-	for id, listener := range listeners {
-		if !shared.IntInSlice(int(id), ids) {
+
+	listenersLock.Lock()
+	for address, listener := range listeners {
+		if !shared.StringInSlice(address, addresses) {
 			listener.Disconnect()
-			delete(listeners, id)
+			delete(listeners, address)
 		}
 	}
+	listenersLock.Unlock()
 }
 
 // Establish a client connection to get events from the given node.
