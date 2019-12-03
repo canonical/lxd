@@ -2316,7 +2316,7 @@ func (n *network) refreshForkdnsServerAddresses(heartbeatData *cluster.APIHeartb
 			continue
 		}
 
-		client, err := cluster.Connect(node.Address, cert, false)
+		client, err := cluster.Connect(node.Address, cert, true)
 		if err != nil {
 			return err
 		}
