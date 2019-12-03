@@ -206,18 +206,14 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-
-		if inst.Type() != instancetype.Container {
-			return response.SmartError(fmt.Errorf("Instance is not container type"))
-		}
-
 		ws, err := NewMigrationSource(inst, stateful, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
 		resources := map[string][]string{}
-		resources["containers"] = []string{name}
+		resources["instances"] = []string{name}
+		resources["containers"] = resources["instances"]
 
 		if req.Target != nil {
 			// Push mode
