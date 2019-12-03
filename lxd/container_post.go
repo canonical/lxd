@@ -297,7 +297,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 
 	run := func(*operations.Operation) error {
 		// Connect to the source host, i.e. ourselves (the node the container is running on).
-		source, err := cluster.Connect(sourceAddress, cert, false)
+		source, err := cluster.Connect(sourceAddress, cert, true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to source server")
 		}
