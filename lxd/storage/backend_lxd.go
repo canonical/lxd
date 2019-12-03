@@ -846,9 +846,13 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		}()
 
 		// If the negotiated migration method is rsync and the instance's base image is
-		// already on the host then pre-create the instance's volume using the locla image
-		// to try and speed up the rsync of the incoming volume by avoiding the new to
+		// already on the host then pre-create the instance's volume using the local image
+		// to try and speed up the rsync of the incoming volume by avoiding the need to
 		// transfer the base image files too.
+		// This is performed in the backendLXD rather than the driver because the driver
+		// should not have access to the database and we need to do an image record lookup
+		// in order to perform this optimisation when using storage drivers that do not
+		// managed their own volumes (such as directory).
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
 			_, _, err = b.state.Cluster.ImageGet(inst.Project(), fingerprint, false, true)
