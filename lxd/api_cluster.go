@@ -608,7 +608,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
 
-		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), false)
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
 		if err != nil {
 			return err
 		}
@@ -965,7 +965,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.Connect(address, cert, false)
+		client, err := cluster.Connect(address, cert, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1162,7 +1162,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	}
 
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, false)
+	client, err := cluster.Connect(address, cert, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
