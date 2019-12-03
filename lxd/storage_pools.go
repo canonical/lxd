@@ -124,7 +124,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.NotFound(err)
 		}
 
-		err = storagePoolCreateLocal(d.State(), poolID, req, true)
+		_, err = storagePoolCreateLocal(d.State(), poolID, req, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -239,9 +239,15 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return err
 	}
 
-	err = storagePoolCreateLocal(d.State(), poolID, req, false)
+	updatedConfig, err := storagePoolCreateLocal(d.State(), poolID, req, false)
 	if err != nil {
 		return err
+	}
+	req.Config = updatedConfig
+
+	// Strip local config keys from config.
+	for _, k := range db.StoragePoolNodeConfigKeys {
+		delete(req.Config, k)
 	}
 
 	// Notify all other nodes to create the pool.
