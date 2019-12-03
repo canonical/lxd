@@ -612,6 +612,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		if err != nil {
 			return err
 		}
+
 		err = clusterRebalance(client)
 		if err != nil {
 			return err
@@ -922,10 +923,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		networks, err := d.cluster.Networks()
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		for _, name := range networks {
 			err := client.DeleteNetwork(name)
 			if err != nil {
@@ -938,6 +941,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil && err != db.ErrNoSuchObject {
 			return response.SmartError(err)
 		}
+
 		for _, name := range pools {
 			err := client.DeleteStoragePool(name)
 			if err != nil {
@@ -965,6 +969,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		put := api.ClusterPut{}
 		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
@@ -982,17 +987,19 @@ func tryClusterRebalance(d *Daemon) error {
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		// This is not a fatal error, so let's just log it.
-		return errors.Wrap(err, "failed to get current leader member")
+		return errors.Wrap(err, "Failed to get current leader member")
 	}
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(leader, cert, true)
 	if err != nil {
-		return errors.Wrap(err, "failed to connect to leader member")
+		return errors.Wrap(err, "Failed to connect to leader member")
 	}
+
 	_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
 	if err != nil {
-		return errors.Wrap(err, "request to rebalance cluster failed")
+		return errors.Wrap(err, "Request to rebalance cluster failed")
 	}
+
 	return nil
 }
 
@@ -1159,6 +1166,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
 	if err != nil {
 		return response.SmartError(err)
