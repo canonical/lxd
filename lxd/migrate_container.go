@@ -334,6 +334,11 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 
 func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	<-s.allConnected
+	if s.instance.Type() != instancetype.Container {
+		return fmt.Errorf("Instance is not container type")
+	}
+
+	ct := s.instance.(*containerLXC)
 
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
@@ -342,12 +347,6 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 			criuType = migration.CRIUType_NONE.Enum()
 		}
 	}
-
-	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance is not container type")
-	}
-
-	c := s.instance.(*containerLXC)
 
 	// Storage needs to start unconditionally now, since we need to
 	// initialize a new storage interface.
@@ -360,8 +359,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 	}
 
 	idmaps := make([]*migration.IDMapType, 0)
-
-	idmapset, err := c.DiskIdmap()
+	idmapset, err := ct.DiskIdmap()
 	if err != nil {
 		return err
 	}
@@ -402,11 +400,6 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
-	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
-	}
-
-	ct := s.instance.(*containerLXC)
 
 	myType := ct.Storage().MigrationType()
 	hasFeature := true
@@ -650,7 +643,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 
 				// Do the final CRIU dump. This is needs no special
 				// handling if pre-dumps are used or not
-				dumpSuccess <- c.Migrate(&criuMigrationArgs)
+				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
@@ -675,7 +668,7 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 				preDumpDir:   "",
 			}
 
-			err = c.Migrate(&criuMigrationArgs)
+			err = ct.Migrate(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
