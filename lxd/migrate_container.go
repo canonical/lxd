@@ -332,7 +332,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	return final, nil
 }
 
-func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
+func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	<-s.allConnected
 	if s.instance.Type() != instancetype.Container {
 		return fmt.Errorf("Instance is not container type")
@@ -546,7 +546,6 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 				return abort(err)
 			}
 
-			state := s.instance.DaemonState()
 			actionScriptOp, err := operations.OperationCreate(
 				state,
 				s.instance.Project(),
