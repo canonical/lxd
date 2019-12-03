@@ -369,6 +369,10 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 		resources := map[string][]string{}
 		resources["containers"] = []string{containerName}
 
+		run := func(op *operations.Operation) error {
+			return ws.Do(d.State(), op)
+		}
+
 		if req.Target != nil {
 			// Push mode
 			err := ws.ConnectContainerTarget(*req.Target)
@@ -376,7 +380,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
+			op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotTransfer, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -385,7 +389,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), sc.Project(), operations.OperationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), run, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
