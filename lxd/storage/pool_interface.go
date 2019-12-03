@@ -7,16 +7,12 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
 )
 
 // Pool represents a LXD storage pool.
 type Pool interface {
-	// Internal.
-	DaemonState() *state.State
-
 	// Pool.
 	ID() int64
 	Name() string
