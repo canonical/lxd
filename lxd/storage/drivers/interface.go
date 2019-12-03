@@ -75,5 +75,5 @@ type Driver interface {
 
 	// Backup.
 	BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
-	RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error)
+	RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error)
 }

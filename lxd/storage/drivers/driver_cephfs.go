@@ -973,7 +973,7 @@ func (d *cephfs) BackupVolume(vol Volume, targetPath string, optimized bool, sna
 	return ErrNotImplemented
 }
 
-func (d *cephfs) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *cephfs) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	return nil, nil, ErrNotImplemented
 }
 
