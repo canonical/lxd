@@ -122,8 +122,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	offerHeader.SnapshotNames = snapshotNames
 	offerHeader.Snapshots = snapshots
 
-	// The protocol says we have to send a header no matter what, so let's
-	// do that, but then immediately send an error.
+	// Send offer to target.
 	err = s.send(&offerHeader)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume migration header")

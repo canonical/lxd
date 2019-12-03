@@ -206,18 +206,18 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-
-		if inst.Type() != instancetype.Container {
-			return response.SmartError(fmt.Errorf("Instance is not container type"))
-		}
-
 		ws, err := NewMigrationSource(inst, stateful, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
 		resources := map[string][]string{}
-		resources["containers"] = []string{name}
+		resources["instances"] = []string{name}
+		resources["containers"] = resources["instances"]
+
+		run := func(op *operations.Operation) error {
+			return ws.Do(d.State(), op)
+		}
 
 		if req.Target != nil {
 			// Push mode
@@ -226,7 +226,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
+			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -235,7 +235,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Pull mode
-		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}

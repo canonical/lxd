@@ -19,10 +19,6 @@ type mockBackend struct {
 	logger logger.Logger
 }
 
-func (b *mockBackend) DaemonState() *state.State {
-	return b.state
-}
-
 func (b *mockBackend) ID() int64 {
 	return -1
 }
