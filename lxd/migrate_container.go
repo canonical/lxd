@@ -340,6 +340,42 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	ct := s.instance.(*containerLXC)
 
+	var offerHeader migration.MigrationHeader
+
+	var pool storagePools.Pool // Placeholder for new storage pool.
+	if s.instance.Type() == instancetype.Container {
+		// Storage needs to start unconditionally now, since we need to initialize a new
+		// storage interface.
+		ourStart, err := s.instance.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer s.instance.StorageStop()
+		}
+
+		myType := ct.Storage().MigrationType()
+		hasFeature := true
+		offerHeader = migration.MigrationHeader{
+			Fs: &myType,
+			RsyncFeatures: &migration.RsyncFeatures{
+				Xattrs:        &hasFeature,
+				Delete:        &hasFeature,
+				Compress:      &hasFeature,
+				Bidirectional: &hasFeature,
+			},
+		}
+
+		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
+			offerHeader.ZfsFeatures = &migration.ZfsFeatures{
+				Compress: &hasFeature,
+			}
+		}
+	} else {
+		return fmt.Errorf("Instance type not supported")
+	}
+
+	// Add CRIO info to source header.
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
@@ -347,24 +383,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			criuType = migration.CRIUType_NONE.Enum()
 		}
 	}
+	offerHeader.Criu = criuType
 
-	// Storage needs to start unconditionally now, since we need to
-	// initialize a new storage interface.
-	ourStart, err := s.instance.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer s.instance.StorageStop()
-	}
-
+	// Add idmap info to source header.
 	idmaps := make([]*migration.IDMapType, 0)
 	idmapset, err := ct.DiskIdmap()
 	if err != nil {
 		return err
-	}
-
-	if idmapset != nil {
+	} else if idmapset != nil {
 		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := migration.IDMapType{
 				Isuid:    proto.Bool(ctnIdmap.Isuid),
@@ -378,9 +404,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 	}
 
+	offerHeader.Idmap = idmaps
+
+	// Add snapshot info to source header if needed.
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
-	// Only send snapshots when requested.
 	if !s.instanceOnly {
 		fullSnaps, err := s.instance.Snapshots()
 		if err == nil {
@@ -392,128 +420,117 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 	}
 
-	use_pre_dumps := false
-	max_iterations := 0
+	offerHeader.SnapshotNames = snapshotNames
+	offerHeader.Snapshots = snapshots
+
+	// Add predump info to source header.
+	usePreDumps := false
+	maxDumpIterations := 0
 	if s.live {
-		use_pre_dumps, max_iterations = s.checkForPreDumpSupport()
+		usePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
 	}
 
-	// The protocol says we have to send a header no matter what, so let's
-	// do that, but then immediately send an error.
+	offerHeader.Predump = proto.Bool(usePreDumps)
 
-	myType := ct.Storage().MigrationType()
-	hasFeature := true
-	header := migration.MigrationHeader{
-		Fs:            &myType,
-		Criu:          criuType,
-		Idmap:         idmaps,
-		SnapshotNames: snapshotNames,
-		Snapshots:     snapshots,
-		Predump:       proto.Bool(use_pre_dumps),
-		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:        &hasFeature,
-			Delete:        &hasFeature,
-			Compress:      &hasFeature,
-			Bidirectional: &hasFeature,
-		},
-	}
-
-	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-		header.ZfsFeatures = &migration.ZfsFeatures{
-			Compress: &hasFeature,
-		}
-	}
-
-	err = s.send(&header)
+	// Send offer to target.
+	err = s.send(&offerHeader)
 	if err != nil {
 		s.sendControl(err)
 		return err
 	}
 
-	err = s.recv(&header)
+	// Receive response from target.
+	var respHeader migration.MigrationHeader
+	err = s.recv(&respHeader)
 	if err != nil {
 		s.sendControl(err)
 		return err
 	}
 
-	// Handle rsync options
-	rsyncFeatures := header.GetRsyncFeaturesSlice()
+	var legacyDriver MigrationStorageSourceDriver
+	var abort func(err error) error
+	var bwlimit string
+
+	// Handle rsync options.
+	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
 	if !shared.StringInSlice("bidirectional", rsyncFeatures) {
-		// If no bi-directional support, assume LXD 3.7 level
-		// NOTE: Do NOT extend this list of arguments
+		// If no bi-directional support, assume LXD 3.7 level.
+		// NOTE: Do NOT extend this list of arguments.
 		rsyncFeatures = []string{"xattrs", "delete", "compress"}
 	}
 
-	// Handle zfs options
-	zfsFeatures := header.GetZfsFeaturesSlice()
+	if pool == nil {
+		// Handle zfs options.
+		zfsFeatures := respHeader.GetZfsFeaturesSlice()
 
-	// Set source args
-	sourceArgs := MigrationSourceArgs{
-		Instance:      s.instance,
-		InstanceOnly:  s.instanceOnly,
-		RsyncFeatures: rsyncFeatures,
-		ZfsFeatures:   zfsFeatures,
-	}
-
-	// Initialize storage driver
-	driver, fsErr := ct.Storage().MigrationSource(sourceArgs)
-	if fsErr != nil {
-		s.sendControl(fsErr)
-		return fsErr
-	}
-
-	bwlimit := ""
-	if header.GetRefresh() || *header.Fs != myType {
-		myType = migration.MigrationFSType_RSYNC
-		header.Fs = &myType
-
-		if header.GetRefresh() {
-			driver, _ = rsyncRefreshSource(header.GetSnapshotNames(), sourceArgs)
-		} else {
-			driver, _ = rsyncMigrationSource(sourceArgs)
+		// Set source args.
+		sourceArgs := MigrationSourceArgs{
+			Instance:      s.instance,
+			InstanceOnly:  s.instanceOnly,
+			RsyncFeatures: rsyncFeatures,
+			ZfsFeatures:   zfsFeatures,
 		}
 
-		// Check if this storage pool has a rate limit set for rsync.
-		poolwritable := ct.Storage().GetStoragePoolWritable()
-		if poolwritable.Config != nil {
-			bwlimit = poolwritable.Config["rsync.bwlimit"]
+		// Initialize storage driver.
+		var fsErr error
+		legacyDriver, fsErr = ct.Storage().MigrationSource(sourceArgs)
+		if fsErr != nil {
+			s.sendControl(fsErr)
+			return fsErr
+		}
+
+		if respHeader.GetRefresh() || *offerHeader.Fs != *respHeader.Fs {
+			myType := migration.MigrationFSType_RSYNC
+			respHeader.Fs = &myType
+
+			if respHeader.GetRefresh() {
+				legacyDriver, _ = rsyncRefreshSource(respHeader.GetSnapshotNames(), sourceArgs)
+			} else {
+				legacyDriver, _ = rsyncMigrationSource(sourceArgs)
+			}
+
+			// Check if this storage pool has a rate limit set for rsync.
+			poolwritable := ct.Storage().GetStoragePoolWritable()
+			if poolwritable.Config != nil {
+				bwlimit = poolwritable.Config["rsync.bwlimit"]
+			}
+		}
+
+		// All failure paths need to do a few things to correctly handle errors before
+		// returning. Unfortunately, handling errors is not well-suited to defer as the code
+		// depends on the status of driver and the error value. The error value is
+		// especially tricky due to the common case of creating a new err variable
+		// (intentional or not) due to scoping and use of ":=".  Capturing err in a closure
+		// for use in defer would be fragile, which defeats the purpose of using defer.
+		// An abort function reduces the odds of mishandling errors without introducing the
+		// fragility of closing on err.
+		abort = func(err error) error {
+			legacyDriver.Cleanup()
+			go s.sendControl(err)
+			return err
+		}
+
+		err = legacyDriver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.instanceOnly)
+		if err != nil {
+			return abort(err)
 		}
 	}
 
-	// Check if the other side knows about pre-dumping and
-	// the associated rsync protocol
-	use_pre_dumps = header.GetPredump()
-	if use_pre_dumps {
+	// Check if the other side knows about pre-dumping and the associated rsync protocol.
+	usePreDumps = respHeader.GetPredump()
+	if usePreDumps {
 		logger.Debugf("The other side does support pre-copy")
 	} else {
 		logger.Debugf("The other side does not support pre-copy")
-	}
-
-	// All failure paths need to do a few things to correctly handle errors before returning.
-	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
-	// status of driver and the error value.  The error value is especially tricky due to the
-	// common case of creating a new err variable (intentional or not) due to scoping and use
-	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
-	// the purpose of using defer.  An abort function reduces the odds of mishandling errors
-	// without introducing the fragility of closing on err.
-	abort := func(err error) error {
-		driver.Cleanup()
-		go s.sendControl(err)
-		return err
-	}
-
-	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.instanceOnly)
-	if err != nil {
-		return abort(err)
 	}
 
 	restoreSuccess := make(chan bool, 1)
 	dumpSuccess := make(chan error, 1)
 
 	if s.live {
-		if header.Criu == nil {
+		if respHeader.Criu == nil {
 			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
-		} else if *header.Criu != migration.CRIUType_CRIU_RSYNC {
+		} else if *respHeader.Criu != migration.CRIUType_CRIU_RSYNC {
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
@@ -523,22 +540,16 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 
 		if util.RuntimeLiblxcVersionAtLeast(2, 0, 4) {
-			/* What happens below is slightly convoluted. Due to various
-			 * complications with networking, there's no easy way for criu
-			 * to exit and leave the container in a frozen state for us to
-			 * somehow resume later.
-			 *
-			 * Instead, we use what criu calls an "action-script", which is
-			 * basically a callback that lets us know when the dump is
-			 * done. (Unfortunately, we can't pass arguments, just an
-			 * executable path, so we write a custom action script with the
-			 * real command we want to run.)
-			 *
-			 * This script then hangs until the migration operation either
-			 * finishes successfully or fails, and exits 1 or 0, which
-			 * causes criu to either leave the container running or kill it
-			 * as we asked.
-			 */
+			// What happens below is slightly convoluted. Due to various complications
+			// with networking, there's no easy way for criu to exit and leave the
+			// container in a frozen state for us to somehow resume later.
+			// Instead, we use what criu calls an "action-script", which is basically a
+			// callback that lets us know when the dump is done. (Unfortunately, we
+			// can't pass arguments, just an executable path, so we write a custom
+			// action script with the real command we want to run.)
+			// This script then hangs until the migration operation either finishes
+			// successfully or fails, and exits 1 or 0, which causes criu to either
+			// leave the container running or kill it as we asked.
 			dumpDone := make(chan bool, 1)
 			actionScriptOpSecret, err := shared.RandomCryptoString()
 			if err != nil {
@@ -595,17 +606,17 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 			preDumpCounter := 0
 			preDumpDir := ""
-			if use_pre_dumps {
+			if usePreDumps {
 				final := false
 				for !final {
 					preDumpCounter++
-					if preDumpCounter < max_iterations {
+					if preDumpCounter < maxDumpIterations {
 						final = false
 					} else {
 						final = true
 					}
 					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
-					loop_args := preDumpLoopArgs{
+					loopArgs := preDumpLoopArgs{
 						checkpointDir: checkpointDir,
 						bwlimit:       bwlimit,
 						preDumpDir:    preDumpDir,
@@ -613,7 +624,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 						final:         final,
 						rsyncFeatures: rsyncFeatures,
 					}
-					final, err = s.preDumpLoop(&loop_args)
+					final, err = s.preDumpLoop(&loopArgs)
 					if err != nil {
 						os.RemoveAll(checkpointDir)
 						return abort(err)
@@ -640,17 +651,17 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					function:     "migration",
 				}
 
-				// Do the final CRIU dump. This is needs no special
-				// handling if pre-dumps are used or not
+				// Do the final CRIU dump. This is needs no special handling if
+				// pre-dumps are used or not.
 				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
 			select {
-			/* the checkpoint failed, let's just abort */
+			// The checkpoint failed, let's just abort.
 			case err = <-dumpSuccess:
 				return abort(err)
-			/* the dump finished, let's continue on to the restore */
+			// The dump finished, let's continue on to the restore.
 			case <-dumpDone:
 				logger.Debugf("Dump finished, continuing with restore...")
 			}
@@ -673,13 +684,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			}
 		}
 
-		/*
-		 * We do the serially right now, but there's really no reason for us
-		 * to; since we have separate websockets, we can do it in parallel if
-		 * we wanted to. However, assuming we're network bound, there's really
-		 * no reason to do these in parallel. In the future when we're using
-		 * p.haul's protocol, it will make sense to do these in parallel.
-		 */
+		// We do the transger serially right now, but there's really no reason for us to;
+		// since we have separate websockets, we can do it in parallel if we wanted to.
+		// However assuming we're network bound, there's really no reason to do these in.
+		// parallel. In the future when we're using p.haul's protocol, it will make sense
+		// to do these in parallel.
 		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
 		state := s.instance.DaemonState()
 		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
@@ -688,14 +697,16 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 	}
 
-	if s.live || (header.Criu != nil && *header.Criu == migration.CRIUType_NONE) {
-		err = driver.SendAfterCheckpoint(s.fsConn, bwlimit)
-		if err != nil {
-			return abort(err)
+	if pool == nil {
+		if s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE) {
+			err = legacyDriver.SendAfterCheckpoint(s.fsConn, bwlimit)
+			if err != nil {
+				return abort(err)
+			}
 		}
-	}
 
-	driver.Cleanup()
+		legacyDriver.Cleanup()
+	}
 
 	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
