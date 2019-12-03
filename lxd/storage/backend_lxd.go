@@ -842,8 +842,8 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		}()
 
 		// If the negotiated migration method is rsync and the instance's base image is
-		// already on the host then pre-create the instance's volume using the locla image
-		// to try and speed up the rsync of the incoming volume by avoiding the new to
+		// already on the host then pre-create the instance's volume using the local image
+		// to try and speed up the rsync of the incoming volume by avoiding the need to
 		// transfer the base image files too.
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
