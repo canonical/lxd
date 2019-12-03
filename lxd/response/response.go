@@ -139,6 +139,7 @@ func Conflict(err error) Response {
 	if err != nil {
 		message = err.Error()
 	}
+
 	return &errorResponse{http.StatusConflict, message}
 }
 
@@ -148,6 +149,7 @@ func Forbidden(err error) Response {
 	if err != nil {
 		message = err.Error()
 	}
+
 	return &errorResponse{http.StatusForbidden, message}
 }
 
@@ -162,6 +164,7 @@ func NotFound(err error) Response {
 	if err != nil {
 		message = err.Error()
 	}
+
 	return &errorResponse{http.StatusNotFound, message}
 }
 
@@ -171,6 +174,7 @@ func NotImplemented(err error) Response {
 	if err != nil {
 		message = err.Error()
 	}
+
 	return &errorResponse{http.StatusNotImplemented, message}
 }
 
@@ -186,6 +190,7 @@ func Unavailable(err error) Response {
 	if err != nil {
 		message = err.Error()
 	}
+
 	return &errorResponse{http.StatusServiceUnavailable, message}
 }
 
@@ -308,6 +313,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 				return err
 			}
 			defer fd.Close()
+
 			rd = fd
 		} else {
 			rd = bytes.NewReader(entry.Buffer)
@@ -361,6 +367,7 @@ func (r *forwardedResponse) Render(w http.ResponseWriter) error {
 	if err != nil {
 		return err
 	}
+
 	for key := range r.request.Header {
 		forwarded.Header.Set(key, r.request.Header.Get(key))
 	}
@@ -369,6 +376,7 @@ func (r *forwardedResponse) Render(w http.ResponseWriter) error {
 	if err != nil {
 		return err
 	}
+
 	response, err := httpClient.Do(forwarded)
 	if err != nil {
 		return err
