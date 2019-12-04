@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/lxc/lxd/shared/logger"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -206,6 +208,8 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config["features.images"],
 		project.Config["features.profiles"],
+		project.Config["limits.containers"],
+		project.Config["limits.virtual-machines"],
 	}
 
 	return response.SyncResponseETag(true, project, etag)
@@ -235,6 +239,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config["features.images"],
 		project.Config["features.profiles"],
+		project.Config["limits.containers"],
+		project.Config["limits.virtual-machines"],
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -276,6 +282,8 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		project.Description,
 		project.Config["features.images"],
 		project.Config["features.profiles"],
+		project.Config["limits.containers"],
+		project.Config["limits.virtual-machines"],
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -316,17 +324,34 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		req.Config["features.images"] = project.Config["features.profiles"]
 	}
 
+	_, err = reqRaw.GetString("limits.containers")
+	if err != nil {
+		req.Config["limits.containers"] = project.Config["limits.containers"]
+	}
+
+	_, err = reqRaw.GetString("limits.virtual-machines")
+	if err != nil {
+		req.Config["limits.virtual-machines"] = project.Config["limits.virtual-machines"]
+	}
+
 	return projectChange(d, project, req)
 }
-
 // Common logic between PUT and PATCH.
 func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
 	// Flag indicating if any feature has changed.
 	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
+	// Flag indicating if any limit has changed.
+	containerLimitChanged := req.Config["limits.containers"] != project.Config["limits.containers"]
+	vmLimitChanged := req.Config["limits.virtual-machines"] != project.Config["limits.virtual-machines"]
+	limitsChanged := containerLimitChanged || vmLimitChanged
 
 	// Sanity checks
 	if project.Name == "default" && featuresChanged {
 		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
+	}
+
+	if project.Name == "default" && limitsChanged {
+		return response.BadRequest(fmt.Errorf("You can't change the limits of the default project"))
 	}
 
 	if !projectIsEmpty(project) && featuresChanged {
@@ -337,6 +362,56 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	err := projectValidateConfig(req.Config)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if containerLimitChanged {
+		var names []string
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			names, err = tx.ContainerNames(project.Name)
+			return err
+		})
+		if err != nil {
+			logger.Errorf("Failed to grab container names for current project")
+		}
+		numberOfContainers := uint64(len(names))
+
+		v, ok := req.Config["limits.containers"]
+		if ok && v != "" {
+			requestedContainerLimit, err := strconv.ParseUint(v, 10, 0)
+			if err != nil {
+				return response.SmartError(err)
+			}
+			if requestedContainerLimit < numberOfContainers {
+				return response.BadRequest(fmt.Errorf("You can't change the project container limit to less " +
+					"than the current number of containers"))
+			}
+		}
+	}
+
+	if vmLimitChanged {
+		var names []string
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			names, err = tx.VMNames(project.Name)
+			return err
+		})
+		if err != nil {
+			logger.Errorf("Failed to grab virtual-machine names for current project")
+		}
+		numberOfVMs := uint64(len(names))
+
+		v, ok := req.Config["limits.virtual-machines"]
+		if ok && v != "" {
+			requestedVMLimit, err := strconv.ParseUint(v, 10, 0)
+			if err != nil {
+				return response.SmartError(err)
+			}
+			if requestedVMLimit < numberOfVMs {
+				return response.BadRequest(fmt.Errorf("You can't change the project virtual machine limit to " +
+					"less than the current number of containers"))
+			}
+		}
 	}
 
 	// Update the database entry
@@ -495,6 +570,20 @@ func projectIsEmpty(project *api.Project) bool {
 var projectConfigKeys = map[string]func(value string) error{
 	"features.profiles": shared.IsBool,
 	"features.images":   shared.IsBool,
+	"limits.containers": func(value string) error {
+		if value == "" {
+			return nil
+		}
+		_, err := strconv.ParseUint(value, 10, 0)
+		return err
+	},
+	"limits.virtual-machines": func(value string) error {
+		if value == "" {
+			return nil
+		}
+		_, err := strconv.ParseUint(value, 10, 0)
+		return err
+	},
 }
 
 func projectValidateConfig(config map[string]string) error {

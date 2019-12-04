@@ -754,6 +754,8 @@ CREATE VIEW projects_config_ref (name, key, value) AS
 INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'limits.containers', '');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'limits.virtual-machines', '');
 
 -- Add a project_id column to all tables that need to be project-scoped.
 -- The column is added without the FOREIGN KEY constraint

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
@@ -39,6 +40,65 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 	hash, err := instance.ResolveImage(d.State(), project, req.Source)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if req.Source.Fingerprint != "" {
+		hash = req.Source.Fingerprint
+	} else if req.Source.Alias != "" {
+		if req.Source.Server != "" {
+			hash = req.Source.Alias
+		} else {
+			_, alias, err := d.cluster.ImageAliasGet(project, req.Source.Alias, true)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			hash = alias.Target
+		}
+	} else if req.Source.Properties != nil {
+		if req.Source.Server != "" {
+			return response.BadRequest(fmt.Errorf("Property match is only supported for local images"))
+		}
+
+		hashes, err := d.cluster.ImagesGet(project, false)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		var image *api.Image
+
+		for _, imageHash := range hashes {
+			_, img, err := d.cluster.ImageGet(project, imageHash, false, true)
+			if err != nil {
+				continue
+			}
+
+			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
+				continue
+			}
+
+			match := true
+			for key, value := range req.Source.Properties {
+				if img.Properties[key] != value {
+					match = false
+					break
+				}
+			}
+
+			if !match {
+				continue
+			}
+
+			image = img
+		}
+
+		if image == nil {
+			return response.BadRequest(fmt.Errorf("No matching image could be found"))
+		}
+
+		hash = image.Fingerprint
+	} else {
+		return response.BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -590,6 +650,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
+
 	// Create temporary file to store uploaded backup data.
 	backupFile, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
@@ -766,6 +827,15 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	lessInstancesThanLimit, err := instancesLessThanLimit(d, project, req.Type)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	if !lessInstancesThanLimit {
+		return response.BadRequest(fmt.Errorf("Instance limit reached, unable to create new container/VM"))
+	}
+
+
 	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		// If no target node was specified, pick the node with the
@@ -935,6 +1005,70 @@ func containerFindStoragePool(d *Daemon, project string, req *api.InstancesPost)
 	}
 
 	return storagePool, storagePoolProfile, localRootDiskDeviceKey, localRootDiskDevice, nil
+}
+//Check instance limit for project, if it exists
+func instancesLessThanLimit(d *Daemon, project string,  instance api.InstanceType) (bool, error) {
+	if instance == api.InstanceTypeAny {
+		err := errors.New("Any is not currently supported for this method!")
+		return false, err
+	}
+
+	var names []string
+
+	if instance == api.InstanceTypeContainer {
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			names, err = tx.ContainerNames(project)
+			return err
+		})
+		if err != nil {
+			logger.Errorf("Failed to grab container names for given project")
+		}
+	} else if instance == api.InstanceTypeVM {
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			names, err = tx.VMNames(project)
+			return err
+		})
+		if err != nil {
+			logger.Errorf("Failed to grab vm names for given project")
+		}
+	}
+
+	numberOfSpecifiedInstances := uint64(len(names))
+
+	var projectInstanceLimit string
+	if instance == api.InstanceTypeContainer {
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			projectInstanceLimit, err = tx.ProjectGetContainerLimit(project)
+			return err
+		})
+		if err != nil {
+			return false, err
+		}
+	} else if instance == api.InstanceTypeVM {
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			projectInstanceLimit, err = tx.ProjectGetVMLimit(project)
+			return err
+		})
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if projectInstanceLimit != "" {
+		limit, err := strconv.ParseUint(projectInstanceLimit, 10, 0)
+		if err != nil {
+			logger.Errorf("Failed to parse uint %s", err)
+			return false, err
+		}
+		return numberOfSpecifiedInstances < limit, nil
+	}
+
+	//project container limit not set therefore return true
+	return true, nil
 }
 
 func clusterCopyContainerInternal(d *Daemon, source instance.Instance, project string, req *api.InstancesPost) response.Response {

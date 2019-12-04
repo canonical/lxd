@@ -180,6 +180,16 @@ SELECT instances.name FROM instances
 	return query.SelectStrings(c.tx, stmt, project, instancetype.Container)
 }
 
+// vmNames returns the names of all virtual machines the given project
+func (c *ClusterTx) VMNames(project string) ([]string, error) {
+	stmt := `
+SELECT instances.name FROM instances
+  JOIN projects ON projects.id = instances.project_id
+  WHERE projects.name = ? AND instances.type = ?
+`
+	return query.SelectStrings(c.tx, stmt, project, instancetype.VM)
+}
+
 // ContainerNodeAddress returns the address of the node hosting the container
 // with the given name in the given project.
 //

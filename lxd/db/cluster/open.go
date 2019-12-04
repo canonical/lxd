@@ -184,6 +184,8 @@ INSERT INTO nodes(id, name, address, schema, api_extensions, arch) VALUES(1, 'no
 INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
 INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'limits.containers', '');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'limits.virtual-machines', '');
 `
 			_, err = tx.Exec(stmt)
 			if err != nil {
