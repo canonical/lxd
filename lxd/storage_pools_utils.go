@@ -228,7 +228,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 		dbStoragePoolDeleteAndUpdateCache(state.Cluster, req.Name)
 	}()
 
-	err = storagePoolCreateLocal(state, id, req, false)
+	_, err = storagePoolCreateLocal(state, id, req, false)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 }
 
 // This performs all non-db related work needed to create the pool.
-func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) error {
+func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) (map[string]string, error) {
 	tryUndo := true
 
 	// Make a copy of the req for later diff.
@@ -250,13 +250,13 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	pool, err := storagePools.CreatePool(state, id, &updatedReq, isNotification, nil)
 	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Mount the pool
 		_, err = pool.Mount()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Record the updated config.
@@ -274,7 +274,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// Load the old storage struct
 		s, err := storagePoolInit(state, req.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// If this is a clustering notification for a ceph storage, we don't
@@ -283,13 +283,13 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// create the storage pool directory.
 		if s, ok := s.(*storageCeph); ok && isNotification {
 			volumeMntPoint := storagePools.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-			return os.MkdirAll(volumeMntPoint, 0711)
+			return nil, os.MkdirAll(volumeMntPoint, 0711)
 		}
 
 		// Create the pool
 		err = s.StoragePoolCreate()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		updatedConfig = s.GetStoragePoolWritable().Config
@@ -313,14 +313,14 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// Create the database entry for the storage pool.
 		err = state.Cluster.StoragePoolUpdate(req.Name, req.Description, updatedConfig)
 		if err != nil {
-			return fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
+			return nil, fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
 		}
 	}
 
 	// Success, update the closure to mark that the changes should be kept.
 	tryUndo = false
 
-	return nil
+	return updatedConfig, nil
 }
 
 // Helper around the low-level DB API, which also updates the driver names cache.
