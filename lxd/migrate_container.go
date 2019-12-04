@@ -341,9 +341,27 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	ct := s.instance.(*containerLXC)
 
 	var offerHeader migration.MigrationHeader
+	var poolMigrationTypes []migration.Type
 
-	var pool storagePools.Pool // Placeholder for new storage pool.
-	if s.instance.Type() == instancetype.Container {
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(state, s.instance)
+	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+		if err != nil {
+			return err
+		}
+
+		poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance))
+		if len(poolMigrationTypes) < 0 {
+			return fmt.Errorf("No source migration types available")
+		}
+
+		// Convert the pool's migration type options to an offer header to target.
+		// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
+		offerHeader = migration.TypesToHeader(poolMigrationTypes...)
+	} else if s.instance.Type() == instancetype.Container {
+		// Fallback to legacy storage layer and populate the Fs, ZfsFeatures and
+		// RsyncFeatures fields.
+
 		// Storage needs to start unconditionally now, since we need to initialize a new
 		// storage interface.
 		ourStart, err := s.instance.StorageStart()
@@ -424,13 +442,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	offerHeader.Snapshots = snapshots
 
 	// Add predump info to source header.
-	usePreDumps := false
+	offerUsePreDumps := false
 	maxDumpIterations := 0
 	if s.live {
-		usePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
+		offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
 	}
 
-	offerHeader.Predump = proto.Bool(usePreDumps)
+	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
 	// Send offer to target.
 	err = s.send(&offerHeader)
@@ -448,8 +466,9 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	}
 
 	var legacyDriver MigrationStorageSourceDriver
-	var abort func(err error) error
-	var bwlimit string
+	var legacyCleanup func()         // Called after migration, to remove any temporary snapshots, etc.
+	var migrationType migration.Type // Negotiated migration type.
+	var rsyncBwlimit string          // Used for CRIU state and legacy storage rsync transfers.
 
 	// Handle rsync options.
 	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
@@ -459,7 +478,50 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		rsyncFeatures = []string{"xattrs", "delete", "compress"}
 	}
 
-	if pool == nil {
+	// All failure paths need to do a few things to correctly handle errors before returning.
+	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
+	// status of driver and the error value. The error value is especially tricky due to the
+	// common case of creating a new err variable (intentional or not) due to scoping and use
+	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
+	// the purpose of using defer. An abort function reduces the odds of mishandling errors
+	// without introducing the fragility of closing on err.
+	abort := func(err error) error {
+		if legacyCleanup != nil {
+			legacyCleanup()
+		}
+
+		go s.sendControl(err)
+		return err
+	}
+
+	if pool != nil {
+		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
+		migrationType, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+		if err != nil {
+			logger.Errorf("Failed to negotiate migration type: %v", err)
+			return abort(err)
+		}
+
+		sendSnapshotNames := snapshotNames
+
+		// If we are in refresh mode, only send the snapshots the target has asked for.
+		if respHeader.GetRefresh() {
+			sendSnapshotNames = respHeader.GetSnapshotNames()
+		}
+
+		volSourceArgs := migration.VolumeSourceArgs{
+			Name:          s.instance.Name(),
+			MigrationType: migrationType,
+			Snapshots:     sendSnapshotNames,
+			TrackProgress: true,
+			FinalSync:     false,
+		}
+
+		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+		if err != nil {
+			return abort(err)
+		}
+	} else {
 		// Handle zfs options.
 		zfsFeatures := respHeader.GetZfsFeaturesSlice()
 
@@ -472,12 +534,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 
 		// Initialize storage driver.
-		var fsErr error
-		legacyDriver, fsErr = ct.Storage().MigrationSource(sourceArgs)
-		if fsErr != nil {
-			s.sendControl(fsErr)
-			return fsErr
+		legacyDriver, err = ct.Storage().MigrationSource(sourceArgs)
+		if err != nil {
+			return abort(err)
 		}
+		legacyCleanup = legacyDriver.Cleanup
 
 		if respHeader.GetRefresh() || *offerHeader.Fs != *respHeader.Fs {
 			myType := migration.MigrationFSType_RSYNC
@@ -492,36 +553,16 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			// Check if this storage pool has a rate limit set for rsync.
 			poolwritable := ct.Storage().GetStoragePoolWritable()
 			if poolwritable.Config != nil {
-				bwlimit = poolwritable.Config["rsync.bwlimit"]
+				rsyncBwlimit = poolwritable.Config["rsync.bwlimit"]
 			}
 		}
 
-		// All failure paths need to do a few things to correctly handle errors before
-		// returning. Unfortunately, handling errors is not well-suited to defer as the code
-		// depends on the status of driver and the error value. The error value is
-		// especially tricky due to the common case of creating a new err variable
-		// (intentional or not) due to scoping and use of ":=".  Capturing err in a closure
-		// for use in defer would be fragile, which defeats the purpose of using defer.
-		// An abort function reduces the odds of mishandling errors without introducing the
-		// fragility of closing on err.
-		abort = func(err error) error {
-			legacyDriver.Cleanup()
-			go s.sendControl(err)
-			return err
-		}
-
-		err = legacyDriver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.instanceOnly)
+		logger.Debugf("SendWhileRunning starting")
+		err = legacyDriver.SendWhileRunning(s.fsConn, migrateOp, rsyncBwlimit, s.instanceOnly)
 		if err != nil {
 			return abort(err)
 		}
-	}
-
-	// Check if the other side knows about pre-dumping and the associated rsync protocol.
-	usePreDumps = respHeader.GetPredump()
-	if usePreDumps {
-		logger.Debugf("The other side does support pre-copy")
-	} else {
-		logger.Debugf("The other side does not support pre-copy")
+		logger.Debugf("SendWhileRunning finished")
 	}
 
 	restoreSuccess := make(chan bool, 1)
@@ -606,7 +647,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 			preDumpCounter := 0
 			preDumpDir := ""
-			if usePreDumps {
+
+			// Check if the other side knows about pre-dumping and the associated
+			// rsync protocol.
+			if respHeader.GetPredump() {
+				logger.Debugf("The other side does support pre-copy")
 				final := false
 				for !final {
 					preDumpCounter++
@@ -618,7 +663,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 					loopArgs := preDumpLoopArgs{
 						checkpointDir: checkpointDir,
-						bwlimit:       bwlimit,
+						bwlimit:       rsyncBwlimit,
 						preDumpDir:    preDumpDir,
 						dumpDir:       dumpDir,
 						final:         final,
@@ -632,6 +677,8 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
 					preDumpCounter++
 				}
+			} else {
+				logger.Debugf("The other side does not support pre-copy")
 			}
 
 			_, err = actionScriptOp.Run()
@@ -684,28 +731,47 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			}
 		}
 
-		// We do the transger serially right now, but there's really no reason for us to;
+		// We do the transfer serially right now, but there's really no reason for us to;
 		// since we have separate websockets, we can do it in parallel if we wanted to.
 		// However assuming we're network bound, there's really no reason to do these in.
 		// parallel. In the future when we're using p.haul's protocol, it will make sense
 		// to do these in parallel.
 		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
-		state := s.instance.DaemonState()
-		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
+		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}
 	}
 
-	if pool == nil {
-		if s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE) {
-			err = legacyDriver.SendAfterCheckpoint(s.fsConn, bwlimit)
+	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates
+	// that the source container is running and that we should do a two stage transfer
+	// to minimize downtime.
+	if s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE) {
+		if pool != nil {
+			volSourceArgs := migration.VolumeSourceArgs{
+				Name:          s.instance.Name(),
+				MigrationType: migrationType,
+				TrackProgress: true,
+				FinalSync:     true,
+			}
+
+			err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 			if err != nil {
 				return abort(err)
 			}
+		} else {
+			logger.Debugf("SendAfterCheckpoint starting")
+			err = legacyDriver.SendAfterCheckpoint(s.fsConn, rsyncBwlimit)
+			if err != nil {
+				return abort(err)
+			}
+			logger.Debugf("SendAfterCheckpoint finished")
 		}
+	}
 
-		legacyDriver.Cleanup()
+	// Perform any storage level cleanup, such as removing any temporary snapshots.
+	if legacyCleanup != nil {
+		legacyCleanup()
 	}
 
 	msg := migration.MigrationControl{}
