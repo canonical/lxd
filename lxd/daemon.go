@@ -620,7 +620,7 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	if util.LoadModule("shiftfs") == nil {
+	if util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil {
 		d.os.Shiftfs = true
 		logger.Infof(" - shiftfs support: yes")
 	} else {
