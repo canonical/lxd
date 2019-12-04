@@ -59,9 +59,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
-	destResource string, keepVolatile bool, ephemeral int, stateful bool,
-	containerOnly bool, mode string, pool string, move bool) error {
+func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, containerOnly bool, mode string, pool string, move bool) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -372,10 +370,13 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	progress.Done("")
 
 	if c.flagRefresh {
-		_, etag, err := dest.GetInstance(destName)
+		inst, etag, err := dest.GetInstance(destName)
 		if err != nil {
 			return fmt.Errorf("Failed to refresh target container '%s': %v", destName, err)
 		}
+
+		// Ensure we don't change the target's volatile.idmap.next value.
+		writable.Config["volatile.idmap.next"] = inst.Config["volatile.idmap.next"]
 
 		op, err := dest.UpdateInstance(destName, writable, etag)
 		if err != nil {
@@ -474,11 +475,9 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
-		return c.copyContainer(conf, args[0], "", keepVolatile, ephem,
-			stateful, instanceOnly, mode, c.flagStorage, false)
+		return c.copyContainer(conf, args[0], "", keepVolatile, ephem, stateful, instanceOnly, mode, c.flagStorage, false)
 	}
 
 	// Normal copy with a pre-determined name
-	return c.copyContainer(conf, args[0], args[1], keepVolatile, ephem,
-		stateful, instanceOnly, mode, c.flagStorage, false)
+	return c.copyContainer(conf, args[0], args[1], keepVolatile, ephem, stateful, instanceOnly, mode, c.flagStorage, false)
 }
