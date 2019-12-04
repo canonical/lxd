@@ -346,7 +346,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, 
 
 	// Update the DB record if needed
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +414,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, pro
 	}
 
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1143,6 +1143,11 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
+		err = d.cluster.ImageCopyDefaultProfiles(id, newId)
+		if err != nil {
+			logger.Error("Copying default profiles", log.Ctx{"err": err, "fp": hash})
+		}
+
 		// If we do have optimized pools, make sure we remove
 		// the volumes associated with the image.
 		if poolName != "" {
@@ -1596,7 +1601,22 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		info.ExpiresAt = req.ExpiresAt
 	}
 
-	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties)
+	// Get profile ids
+	if req.Profiles == nil {
+		req.Profiles = []string{"default"}
+	}
+	profileIds := make([]int64, len(req.Profiles))
+	for i, profile := range req.Profiles {
+		profileId, _, err := d.cluster.ProfileGet(project, profile)
+		if err == db.ErrNoSuchObject {
+			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+		profileIds[i] = profileId
+	}
+
+	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, project, profileIds)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1663,7 +1683,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 		info.Properties = properties
 	}
 
-	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
