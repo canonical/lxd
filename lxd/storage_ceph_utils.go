@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1684,7 +1685,7 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup.Ba
 	}
 
 	// Mount the volume
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getRBDMountOptions())
 	err = driver.TryMount(RBDDevPath, tmpContainerMntPoint, RBDFilesystem, mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf("Failed to mount RBD device %s onto %s: %s", RBDDevPath, tmpContainerMntPoint, err)
@@ -1771,7 +1772,7 @@ func (s *storageCeph) doContainerCreate(projectName, name string, privileged boo
 
 	// get filesystem
 	RBDFilesystem := s.getRBDFilesystem()
-	output, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+	output, err := drivers.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume for container "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, RBDDevPath, name, s.pool.Name, err, output)
 		return err
@@ -1838,7 +1839,7 @@ func (s *storageCeph) doContainerMount(projectName string, name string) (bool, e
 			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
 			volumeName, true, s.UserName)
 		if ret >= 0 {
-			mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+			mountFlags, mountOptions := drivers.ResolveMountOptions(s.getRBDMountOptions())
 			mounterr = driver.TryMount(RBDDevPath, containerMntPoint,
 				RBDFilesystem, mountFlags, mountOptions)
 			ourMount = true
