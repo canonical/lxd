@@ -50,7 +50,11 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 			return err
 		}
 
-		poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS)
+		// The refresh argument passed to MigrationTypes() is always set
+		// to false here. The migration source/sender doesn't need to care whether
+		// or not it's doing a refresh as the migration sink/receiver will know
+		// this, and adjust the migration types accordingly.
+		poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS, false)
 		if len(poolMigrationTypes) < 0 {
 			return fmt.Errorf("No source migration types available")
 		}
@@ -342,7 +346,7 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 		// Extract the source's migration type and then match it against our pool's
 		// supported types and features. If a match is found the combined features list
 		// will be sent back to requester.
-		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS))
+		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS, c.refresh))
 		if err != nil {
 			return err
 		}
