@@ -53,8 +53,8 @@ func (b *lxdBackend) Driver() drivers.Driver {
 
 // MigrationTypes returns the migration transport method preferred when sending a migration,
 // based on the migration method requested by the driver's ability.
-func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType) []migration.Type {
-	return b.driver.MigrationTypes(contentType)
+func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type {
+	return b.driver.MigrationTypes(contentType, refresh)
 }
 
 // create creates the storage pool layout on the storage device.
@@ -567,9 +567,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		aEnd, bEnd := memorypipe.NewPipePair()
 
 		// Negotiate the migration type to use.
-		offeredTypes := srcPool.MigrationTypes(contentType)
+		offeredTypes := srcPool.MigrationTypes(contentType, false)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType))
+		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, false))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
@@ -708,9 +708,9 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		aEnd, bEnd := memorypipe.NewPipePair()
 
 		// Negotiate the migration type to use.
-		offeredTypes := srcPool.MigrationTypes(contentType)
+		offeredTypes := srcPool.MigrationTypes(contentType, true)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType))
+		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, true))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
@@ -1801,9 +1801,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	aEnd, bEnd := memorypipe.NewPipePair()
 
 	// Negotiate the migration type to use.
-	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS)
+	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS, false)
 	offerHeader := migration.TypesToHeader(offeredTypes...)
-	migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS))
+	migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS, false))
 	if err != nil {
 		return fmt.Errorf("Failed to neogotiate copy migration type: %v", err)
 	}
