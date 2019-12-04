@@ -168,3 +168,15 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 
 	return nil
 }
+
+// ProjectLaunchWithoutImages updates the images_profiles table when a Project is created with features.images=false.
+func (c *ClusterTx) ProjectLaunchWithoutImages(project string) error {
+	defaultProfileID, err := c.ProfileID(project, "default")
+	if err != nil {
+		return errors.Wrap(err, "Fetch project ID")
+	}
+	stmt := `INSERT INTO images_profiles (image_id, profile_id) 
+	SELECT images.id, ? FROM images WHERE project_id=1`
+	_, err = c.tx.Exec(stmt, defaultProfileID)
+	return err
+}
