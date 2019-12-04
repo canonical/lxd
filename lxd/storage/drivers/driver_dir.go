@@ -431,7 +431,24 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
-		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+		err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+		if err != nil {
+			return err
+		}
+
+		// Receive the final main volume sync if needed.
+		if volTargetArgs.Live {
+			if volTargetArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+			}
+
+			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}, op)
 	if err != nil {
 		return err
