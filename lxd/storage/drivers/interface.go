@@ -21,6 +21,7 @@ type driver interface {
 // Driver represents a low-level storage driver.
 type Driver interface {
 	// Internal.
+	Config() map[string]string
 	Info() Info
 	HasVolume(volType VolumeType, volName string) bool
 

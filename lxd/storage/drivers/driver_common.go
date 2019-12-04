@@ -93,3 +93,13 @@ func (d *common) MigrationTypes(contentType ContentType) []migration.Type {
 		},
 	}
 }
+
+// Config returns the storage pool config (as a copy, so not modifiable).
+func (d *common) Config() map[string]string {
+	confCopy := make(map[string]string, len(d.config))
+	for k, v := range d.config {
+		confCopy[k] = v
+	}
+
+	return confCopy
+}

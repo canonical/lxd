@@ -1068,6 +1068,10 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 
 	contentType := InstanceContentType(inst)
 
+	if len(args.Snapshots) > 0 && args.FinalSync {
+		return fmt.Errorf("Snapshots should not be transferred during final sync")
+	}
+
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
