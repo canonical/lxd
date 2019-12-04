@@ -60,7 +60,7 @@ EOF
   MATCH=0
 
   # shellcheck disable=SC2034
-  for i in $(seq 5); do
+  for i in $(seq 10); do
     lxc config set devlxd user.foo bar
     lxc config set devlxd security.nesting true
 
@@ -72,7 +72,7 @@ EOF
     lxc config device remove devlxd mnt
 
     if [ "$(tr -d '\0' < "${TEST_DIR}/devlxd.log" | md5sum | cut -d' ' -f1)" != "$(md5sum "${TEST_DIR}/devlxd.expected" | cut -d' ' -f1)" ]; then
-      sleep 1
+      sleep 0.5
       continue
     fi
 
