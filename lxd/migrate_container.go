@@ -884,6 +884,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		respHeader = migration.TypesToHeader(respType)
 		respHeader.SnapshotNames = offerHeader.SnapshotNames
 		respHeader.Snapshots = offerHeader.Snapshots
+		respHeader.Refresh = &c.refresh
 
 		// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
 		// with the new storage layer.
@@ -893,6 +894,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				MigrationType: respType,
 				Refresh:       args.Refresh, // Indicate to receiver volume should exist.
 				TrackProgress: false,        // Do not use a progress tracker on receiver.
+				Live:          args.Live,    // Indicates we will get a final rootfs sync.
 			}
 
 			// At this point we have already figured out the parent container's root
@@ -909,7 +911,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			}
 
 			// A zero length Snapshots slice indicates volume only migration in
-			// VolumeTargetArgs. So if VoluneOnly was requested, do not populate them.
+			// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
 			if !args.VolumeOnly {
 				volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
 				for _, snap := range args.Snapshots {
@@ -950,7 +952,6 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 
 		respHeader = migration.MigrationHeader{
 			Fs:            &myType,
-			Criu:          criuType,
 			Snapshots:     offerHeader.Snapshots,
 			SnapshotNames: offerHeader.SnapshotNames,
 			Refresh:       &c.refresh,
@@ -984,6 +985,9 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	} else {
 		return fmt.Errorf("Instance type not supported")
 	}
+
+	// Add CRIU info to response.
+	respHeader.Criu = criuType
 
 	if c.refresh {
 		// Get our existing snapshots.
@@ -1078,7 +1082,12 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				fsConn = c.src.fsConn
 			}
 
+			// Default to not expecting to receive the final rootfs sync.
 			sendFinalFsDelta := false
+
+			// If we are doing a stateful live transfer or the CRIU type indicates we
+			// are doing a stateless transfer with a running instance then we should
+			// expect the source to send us a final rootfs sync.
 			if live {
 				sendFinalFsDelta = true
 			}
