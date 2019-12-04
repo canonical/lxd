@@ -884,6 +884,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		respHeader = migration.TypesToHeader(respType)
 		respHeader.SnapshotNames = offerHeader.SnapshotNames
 		respHeader.Snapshots = offerHeader.Snapshots
+		respHeader.Refresh = &c.refresh
 
 		// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
 		// with the new storage layer.
@@ -910,7 +911,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			}
 
 			// A zero length Snapshots slice indicates volume only migration in
-			// VolumeTargetArgs. So if VoluneOnly was requested, do not populate them.
+			// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
 			if !args.VolumeOnly {
 				volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
 				for _, snap := range args.Snapshots {
