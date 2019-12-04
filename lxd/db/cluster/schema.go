@@ -57,6 +57,12 @@ CREATE TABLE images_nodes (
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
+CREATE TABLE images_profiles (
+	image_id INTEGER NOT NULL,
+	profile_id INTEGER NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+);
 CREATE INDEX images_project_id_idx ON images (project_id);
 CREATE TABLE images_properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -488,5 +494,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (20, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (21, strftime("%s"))
 `
