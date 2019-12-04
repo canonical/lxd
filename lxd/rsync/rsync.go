@@ -164,15 +164,17 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 	select {
 	case conn = <-chConn:
 		if conn == nil {
+			output, _ := ioutil.ReadAll(stderr)
 			cmd.Process.Kill()
 			cmd.Wait()
-			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket")
+			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket (%s)", string(output))
 		}
 
 	case <-time.After(10 * time.Second):
+		output, _ := ioutil.ReadAll(stderr)
 		cmd.Process.Kill()
 		cmd.Wait()
-		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s")
+		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s (%s)", string(output))
 	}
 
 	return cmd, *conn, stderr, nil
