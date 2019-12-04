@@ -31,11 +31,6 @@ var baseDirectories = map[drivers.VolumeType][]string{
 // VolumeUsedByInstancesWithProfiles returns a slice containing the names of instances using a volume.
 var VolumeUsedByInstancesWithProfiles func(s *state.State, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error)
 
-// MkfsOptions represents options for filesystem creation.
-type MkfsOptions struct {
-	Label string
-}
-
 // Export the mount options map since we might find it useful in other parts of
 // LXD.
 type mountOptions struct {
@@ -71,32 +66,6 @@ var MountOptions = map[string]mountOptions{
 	"strictatime":   {true, unix.MS_STRICTATIME},
 	"suid":          {false, unix.MS_NOSUID},
 	"sync":          {true, unix.MS_SYNCHRONOUS},
-}
-
-// LXDResolveMountoptions resolves the provided mount options.
-func LXDResolveMountoptions(options string) (uintptr, string) {
-	mountFlags := uintptr(0)
-	tmp := strings.SplitN(options, ",", -1)
-	for i := 0; i < len(tmp); i++ {
-		opt := tmp[i]
-		do, ok := MountOptions[opt]
-		if !ok {
-			continue
-		}
-
-		if do.capture {
-			mountFlags |= do.flag
-		} else {
-			mountFlags &= ^do.flag
-		}
-
-		copy(tmp[i:], tmp[i+1:])
-		tmp[len(tmp)-1] = ""
-		tmp = tmp[:len(tmp)-1]
-		i--
-	}
-
-	return mountFlags, strings.Join(tmp, ",")
 }
 
 // TryMount tries mounting a filesystem multiple times. This is useful for unreliable backends.
@@ -223,33 +192,6 @@ func LXDUsesPool(dbObj *db.Cluster, onDiskPoolName string, driver string, onDisk
 	}
 
 	return false, "", nil
-}
-
-// MakeFSType creates the provided filesystem.
-func MakeFSType(path string, fsType string, options *MkfsOptions) (string, error) {
-	var err error
-	var msg string
-
-	fsOptions := options
-	if fsOptions == nil {
-		fsOptions = &MkfsOptions{}
-	}
-
-	cmd := []string{fmt.Sprintf("mkfs.%s", fsType), path}
-	if fsOptions.Label != "" {
-		cmd = append(cmd, "-L", fsOptions.Label)
-	}
-
-	if fsType == "ext4" {
-		cmd = append(cmd, "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0")
-	}
-
-	msg, err = shared.TryRunCommand(cmd[0], cmd[1:]...)
-	if err != nil {
-		return msg, err
-	}
-
-	return "", nil
 }
 
 // FSGenerateNewUUID generates a UUID for the given path for btrfs and xfs filesystems.
