@@ -84,7 +84,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrap(err, "Failed to get address of container's node")
 			}
 			if address == "" {
-				// Local node
+				// Local node.
 				sourceNodeOffline = false
 				return nil
 			}
@@ -129,7 +129,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	// Cases 1. and 2. are the ones for which the conditional will be true
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
-		// Handle requests targeted to a container on a different node
+		// Handle requests targeted to a container on a different node.
 		resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
@@ -164,7 +164,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check if stateful (backward compatibility)
+	// Check if stateful (backward compatibility).
 	stateful := true
 	_, err = reqRaw.GetBool("live")
 	if err == nil {
@@ -234,7 +234,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			return operations.OperationResponse(op)
 		}
 
-		// Pull mode
+		// Pull mode.
 		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
@@ -243,7 +243,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	// Check that the name isn't already in use
+	// Check that the name isn't already in use.
 	id, _ := d.cluster.ContainerID(project, req.Name)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
@@ -254,7 +254,8 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
 	if err != nil {
