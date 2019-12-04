@@ -143,6 +143,13 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
+			if project.Config["features.images"] == "false" {
+				err = tx.ProjectLaunchWithoutImages(project.Name)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		return nil

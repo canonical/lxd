@@ -409,6 +409,11 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
 
+	// Set the default profiles if necessary.
+	if args.Profiles == nil {
+		args.Profiles = img.Profiles
+	}
+
 	// Validate the type of the image matches the type of the instance.
 	imgType, err := instancetype.New(img.Type)
 	if err != nil {
