@@ -163,7 +163,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 			return fmt.Errorf("Failed to create sparse file %s: %s", source, err)
 		}
 
-		output, err := driver.MakeFSType(source, "btrfs", &driver.MkfsOptions{Label: s.pool.Name})
+		output, err := drivers.MakeFSType(source, "btrfs", &drivers.MkfsOptions{Label: s.pool.Name})
 		if err != nil {
 			return fmt.Errorf("Failed to create the BTRFS pool: %v (%s)", err, output)
 		}
@@ -174,7 +174,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		if filepath.IsAbs(source) {
 			isBlockDev = shared.IsBlockdevPath(source)
 			if isBlockDev {
-				output, err := driver.MakeFSType(source, "btrfs", &driver.MkfsOptions{Label: s.pool.Name})
+				output, err := drivers.MakeFSType(source, "btrfs", &drivers.MkfsOptions{Label: s.pool.Name})
 				if err != nil {
 					return fmt.Errorf("Failed to create the BTRFS pool: %v (%s)", err, output)
 				}
@@ -222,7 +222,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 	var err1 error
 	var devUUID string
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getBtrfsMountOptions())
+	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getBtrfsMountOptions())
 	mountFlags |= s.remount
 	if isBlockDev && filepath.IsAbs(source) {
 		devUUID, _ = shared.LookupUUIDByBlockDevPath(source)
@@ -415,7 +415,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, nil
 	}
 
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getBtrfsMountOptions())
+	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getBtrfsMountOptions())
 	mountSource := source
 	isBlockDev := shared.IsBlockdevPath(source)
 	if filepath.IsAbs(source) {

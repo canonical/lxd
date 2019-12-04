@@ -629,7 +629,7 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	var customerr error
 	ourMount := false
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getLvmMountOptions())
+		mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 		customerr = driver.TryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
@@ -1271,7 +1271,7 @@ func (s *storageLvm) doContainerMount(project, name string, snap bool) (bool, er
 	var mounterr error
 	ourMount := false
 	if !shared.IsMountPoint(containerMntPoint) {
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getLvmMountOptions())
+		mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 		if snap && lvFsType == "xfs" {
 			idx := strings.Index(mountOptions, "nouuid")
 			if idx < 0 {
@@ -1602,7 +1602,7 @@ func (s *storageLvm) ContainerSnapshotStart(container instance.Instance) (bool, 
 	containerMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, containerName)
 	if !shared.IsMountPoint(containerMntPoint) {
 		mntOptString := s.getLvmMountOptions()
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(mntOptString)
+		mountFlags, mountOptions := drivers.ResolveMountOptions(mntOptString)
 
 		if lvFsType == "xfs" {
 			idx := strings.Index(mountOptions, "nouuid")
@@ -2023,7 +2023,7 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getLvmMountOptions())
+	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 	err := driver.TryMount(lvmVolumePath, imageMntPoint, lvmFstype, mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf(fmt.Sprintf("Error mounting image LV for unpacking: %s", err))
