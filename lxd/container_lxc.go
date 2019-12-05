@@ -4758,11 +4758,8 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to update database")
 	}
 
-	/* we can call Update in some cases when the directory doesn't exist
-	 * yet before container creation; this is okay, because at the end of
-	 * container creation we write the backup file, so let's not worry about
-	 * ENOENT. */
-	if c.storage.ContainerStorageReady(c) {
+	// Only update the backup file if it already exists (indicating the instance is mounted).
+	if shared.PathExists(filepath.Join(c.Path(), "backup.yaml")) {
 		err := writeBackupFile(c)
 		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrap(err, "Failed to write backup file")
