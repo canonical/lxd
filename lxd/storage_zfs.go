@@ -1021,11 +1021,6 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target instance.Instance, source
 		}
 	}
 
-	err := target.DeferTemplateApply("copy")
-	if err != nil {
-		return err
-	}
-
 	revert = false
 
 	return nil
@@ -1282,7 +1277,12 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		err := s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		if err != nil {
+			return err
+		}
+
+		return target.DeferTemplateApply("copy")
 	}
 
 	snapshots, err := source.Snapshots()
@@ -1389,6 +1389,11 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 		if err != nil {
 			return err
 		}
+	}
+
+	err = target.DeferTemplateApply("copy")
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Copied ZFS container storage %s to %s", source.Name(), target.Name())
