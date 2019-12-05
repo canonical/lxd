@@ -41,6 +41,7 @@ type Pool interface {
 	SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error
 
 	MountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
+	MountInstanceReadOnly(inst instance.Instance, op *operations.Operation) (bool, error)
 	UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
 	GetInstanceDisk(inst instance.Instance) (string, error)
 
