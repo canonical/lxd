@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
-	storagedriver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -467,8 +466,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			return err
 		}
 
-		// Remove the our old server certificate from the trust store,
-		// since it's not needed anymore.
+		// Remove our old server certificate from the trust store, since it's not needed anymore.
 		_, err = d.cluster.CertificateGet(fingerprint)
 		if err != db.ErrNoSuchObject {
 			if err != nil {
@@ -481,31 +479,31 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			}
 		}
 
-		// For ceph pools we have to create the mount points too.
+		// For ceph pools we have to trigger the local mountpoint creation too.
 		poolNames, err = d.cluster.StoragePools()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
+
 		for _, name := range poolNames {
-			_, pool, err := d.cluster.StoragePoolGet(name)
+			id, pool, err := d.cluster.StoragePoolGet(name)
 			if err != nil {
 				return err
 			}
 
-			if pool.Driver != "ceph" {
+			if !shared.StringInSlice(pool.Driver, []string{"ceph", "cephfs"}) {
 				continue
 			}
 
-			storage, err := storagePoolInit(d.State(), name)
-			if err != nil {
-				return errors.Wrap(err, "Failed to init ceph pool for joining member")
-			}
+			// Re-assemble a StoragePoolsPost
+			req := api.StoragePoolsPost{}
+			req.StoragePoolPut = pool.StoragePoolPut
+			req.Name = pool.Name
+			req.Driver = pool.Driver
 
-			volumeMntPoint := storagedriver.GetStoragePoolVolumeMountPoint(
-				name, storage.(*storageCeph).volume.Name)
-			err = os.MkdirAll(volumeMntPoint, 0711)
+			_, err = storagePoolCreateLocal(d.State(), id, req, true)
 			if err != nil {
-				return errors.Wrap(err, "Failed to create ceph pool mount point")
+				return errors.Wrap(err, "Failed to init ceph/cephfs pool for joining member")
 			}
 		}
 
@@ -712,7 +710,7 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 
 		// Skip ceph pools since they have no node-specific key and
 		// don't need to be defined on joining nodes.
-		if pool.Driver == "ceph" {
+		if shared.StringInSlice(pool.Driver, []string{"ceph", "cephfs"}) {
 			continue
 		}
 
@@ -1240,12 +1238,14 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			if err != nil {
 				return err
 			}
+
 			// Ignore missing ceph pools, since they'll be shared
 			// and we don't require them to be defined on the
 			// joining node.
-			if pool.Driver == "ceph" {
+			if shared.StringInSlice(pool.Driver, []string{"ceph", "cephfs"}) {
 				continue
 			}
+
 			return fmt.Errorf("Missing storage pool %s", name)
 		}
 	}

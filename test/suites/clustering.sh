@@ -123,7 +123,7 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 30
+  sleep 15
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   #| grep "node3" | grep -q "OFFLINE"
 
@@ -284,7 +284,7 @@ test_clustering_containers() {
   # containers.
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 30
+  sleep 15
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
@@ -470,7 +470,7 @@ test_clustering_storage() {
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 30
+    sleep 15
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
@@ -985,7 +985,7 @@ test_clustering_shutdown_nodes() {
   wait "$(cat three.pid)"
 
   # Make sure the database is not available to the first node
-  sleep 30
+  sleep 15
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
   # Wait for LXD to terminate, otherwise the db will not be empty, and the
