@@ -1461,11 +1461,11 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 		return false, err
 	}
 
-	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	// Get the parent and snapshot name.
+	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
 
-	// Get the snapshot name.
-	_, snapName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), parentName)
 
 	return b.driver.MountVolumeSnapshot(volType, volStorageName, snapName, op)
 }
@@ -1486,11 +1486,11 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 		return false, err
 	}
 
-	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	// Get the parent and snapshot name.
+	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
 
-	// Get the snapshot name.
-	_, snapName, _ := shared.InstanceGetParentAndSnapshotName(inst.Name())
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), parentName)
 
 	return b.driver.UnmountVolumeSnapshot(volType, volStorageName, snapName, op)
 }
