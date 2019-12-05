@@ -317,7 +317,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := s.Cluster.StoragePoolGet(storagePool)
+	poolID, dbPool, err := s.Cluster.StoragePoolGet(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -325,7 +325,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 
 	// Fill in any default volume config
 	volumeConfig := map[string]string{}
-	err = storagePools.VolumeFillDefault(storagePool, volumeConfig, pool)
+	err = storagePools.VolumeFillDefault(storagePool, volumeConfig, dbPool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -339,14 +339,24 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 	}
 
 	// Initialize the container storage
-	cStorage, err := storagePoolVolumeContainerCreateInit(s, args.Project, storagePool, args.Name)
-	if err != nil {
-		c.Delete()
-		s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, storagePoolVolumeTypeContainer, poolID)
-		logger.Error("Failed to initialize container storage", ctxMap)
-		return nil, err
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByName(c.state, storagePool)
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return nil, err
+		}
+		c.storagePool = pool
+	} else {
+		// Fallback to legacy storage layer.
+		cStorage, err := storagePoolVolumeContainerCreateInit(s, args.Project, storagePool, args.Name)
+		if err != nil {
+			c.Delete()
+			s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, storagePoolVolumeTypeContainer, poolID)
+			logger.Error("Failed to initialize container storage", ctxMap)
+			return nil, err
+		}
+		c.storage = cStorage
 	}
-	c.storage = cStorage
 
 	// Setup initial idmap config
 	var idmap *idmap.IdmapSet
