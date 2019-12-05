@@ -761,7 +761,12 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	// If the driver doesn't support optimized image volumes then create a new empty volume and
 	// populate it with the contents of the image archive.
 	if !b.driver.Info().OptimizedImages {
-		err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+		volFiller := drivers.VolumeFiller{
+			Fingerprint: fingerprint,
+			Fill:        b.imageFiller(fingerprint, op),
+		}
+
+		err = b.driver.CreateVolume(vol, &volFiller, op)
 		if err != nil {
 			return err
 		}
@@ -832,7 +837,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	vol := b.newVolume(volType, contentType, volStorageName, args.Config)
 
+	var preFiller drivers.VolumeFiller
+
 	revert := true
+
 	if !args.Refresh {
 		defer func() {
 			if !revert {
@@ -842,7 +850,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		}()
 
 		// If the negotiated migration method is rsync and the instance's base image is
-		// already on the host then pre-create the instance's volume using the local image
+		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
 		// transfer the base image files too.
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
@@ -854,7 +862,18 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 			if err == nil {
 				logger.Debug("Using optimised migration from existing image", log.Ctx{"fingerprint": fingerprint})
-				err = b.driver.CreateVolume(vol, b.imageFiller(fingerprint, op), op)
+
+				// Populate the volume filler with the fingerprint and image filler
+				// function that can be used by the driver to pre-populate the
+				// volume with the contents of the image.
+				preFiller = drivers.VolumeFiller{
+					Fingerprint: fingerprint,
+					Fill:        b.imageFiller(fingerprint, op),
+				}
+
+				// Ensure if the image doesn't yet exist on a driver which supports
+				// optimized storage, then it gets created first.
+				err = b.EnsureImage(preFiller.Fingerprint, op)
 				if err != nil {
 					return err
 				}
@@ -862,7 +881,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		}
 	}
 
-	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
+	err = b.driver.CreateVolumeFromMigration(vol, conn, args, &preFiller, op)
 	if err != nil {
 		conn.Close()
 		return err
@@ -1507,7 +1526,13 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 	// Create the new image volume. No config for an image volume so set to nil.
 	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
-	err = b.driver.CreateVolume(imgVol, b.imageFiller(fingerprint, op), op)
+
+	volFiller := drivers.VolumeFiller{
+		Fingerprint: fingerprint,
+		Fill:        b.imageFiller(fingerprint, op),
+	}
+
+	err = b.driver.CreateVolume(imgVol, &volFiller, op)
 	if err != nil {
 		return err
 	}
@@ -1816,7 +1841,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	}
 
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config)
-	err = b.driver.CreateVolumeFromMigration(vol, conn, args, op)
+	err = b.driver.CreateVolumeFromMigration(vol, conn, args, nil, op)
 	if err != nil {
 		conn.Close()
 		return err
