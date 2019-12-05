@@ -1969,6 +1969,10 @@ func (c *containerLXC) DeviceEventHandler(runConf *deviceConfig.RunConfig) error
 
 // Initialize storage interface for this container
 func (c *containerLXC) initStorage() error {
+	if c.storagePool != nil {
+		logger.Warn("Use of old storage layer when new storage layer is initialised")
+	}
+
 	if c.storage != nil {
 		return nil
 	}
