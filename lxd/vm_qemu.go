@@ -54,7 +54,7 @@ var vmConsole = map[int]bool{}
 var vmConsoleLock sync.Mutex
 
 func vmQemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
-	// Create the container struct.
+	// Create the instance struct.
 	vm := vmQemuInstantiate(s, args)
 
 	// Expand config and devices.
@@ -2867,7 +2867,7 @@ func (vm *vmQemu) ExpiryDate() time.Time {
 		return vm.expiryDate
 	}
 
-	// Return zero time if the container is not a snapshot.
+	// Return zero time if the instance is not a snapshot.
 	return time.Time{}
 }
 
@@ -2938,10 +2938,10 @@ func (vm *vmQemu) DeferTemplateApply(trigger string) error {
 }
 
 func (vm *vmQemu) DaemonState() *state.State {
-	// FIXME: This function should go away, since the abstract container
+	// FIXME: This function should go away, since the abstract instance
 	//        interface should not be coupled with internal state details.
 	//        However this is not currently possible, because many
-	//        higher-level APIs use container variables as "implicit
+	//        higher-level APIs use instance variables as "implicit
 	//        handles" to database/OS state and then need a way to get a
 	//        reference to it.
 	return vm.state
