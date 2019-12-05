@@ -5198,7 +5198,18 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.cmd})
 	}
 
-	preservesInodes := c.storage.PreservesInodes()
+	var preservesInodes bool
+	pool, err := c.getStoragePool()
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return err
+		}
+
+		preservesInodes = pool.Driver().Info().PreservesInodes
+	} else {
+		preservesInodes = c.storage.PreservesInodes()
+	}
+
 	/* This feature was only added in 2.0.1, let's not ask for it
 	 * before then or migrations will fail.
 	 */
