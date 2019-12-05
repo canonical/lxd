@@ -329,23 +329,18 @@ func patchStorageApi(name string, d *Daemon) error {
 	lvmVgName := daemonConfig["storage.lvm_vg_name"]
 	zfsPoolName := daemonConfig["storage.zfs_pool_name"]
 	defaultPoolName := "default"
-	preStorageApiStorageType := storageTypeDir
+	preStorageApiStorageType := "dir"
 
 	if lvmVgName != "" {
-		preStorageApiStorageType = storageTypeLvm
+		preStorageApiStorageType = "lvm"
 		defaultPoolName = lvmVgName
 	} else if zfsPoolName != "" {
-		preStorageApiStorageType = storageTypeZfs
+		preStorageApiStorageType = "zfs"
 		defaultPoolName = zfsPoolName
 	} else if d.os.BackingFS == "btrfs" {
-		preStorageApiStorageType = storageTypeBtrfs
+		preStorageApiStorageType = "btrfs"
 	} else {
 		// Dir storage pool.
-	}
-
-	defaultStorageTypeName, err := storageTypeToString(preStorageApiStorageType)
-	if err != nil {
-		return err
 	}
 
 	// In case we detect that an lvm name or a zfs name exists it makes
@@ -392,13 +387,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	// If any of these are actually called, there's no way back.
 	poolName := defaultPoolName
 	switch preStorageApiStorageType {
-	case storageTypeBtrfs:
-		err = upgradeFromStorageTypeBtrfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeDir:
-		err = upgradeFromStorageTypeDir(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeLvm:
-		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeZfs:
+	case "btrfs":
+		err = upgradeFromStorageTypeBtrfs(name, d, defaultPoolName, preStorageApiStorageType, cRegular, cSnapshots, imgPublic, imgPrivate)
+	case "dir":
+		err = upgradeFromStorageTypeDir(name, d, defaultPoolName, preStorageApiStorageType, cRegular, cSnapshots, imgPublic, imgPrivate)
+	case "lvm":
+		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, preStorageApiStorageType, cRegular, cSnapshots, imgPublic, imgPrivate)
+	case "zfs":
 		// The user is using a zfs dataset. This case needs to be
 		// handled with care:
 
@@ -410,7 +405,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		if strings.Contains(defaultPoolName, "/") {
 			poolName = "default"
 		}
-		err = upgradeFromStorageTypeZfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, []string{}, imgPublic, imgPrivate)
+		err = upgradeFromStorageTypeZfs(name, d, defaultPoolName, preStorageApiStorageType, cRegular, []string{}, imgPublic, imgPrivate)
 	default: // Shouldn't happen.
 		return fmt.Errorf("Invalid storage type. Upgrading not possible")
 	}

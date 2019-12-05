@@ -102,7 +102,6 @@ type storageType int
 const (
 	storageTypeBtrfs storageType = iota
 	storageTypeCeph
-	storageTypeDir
 	storageTypeLvm
 	storageTypeMock
 	storageTypeZfs
@@ -116,8 +115,6 @@ func storageTypeToString(sType storageType) (string, error) {
 		return "btrfs", nil
 	case storageTypeCeph:
 		return "ceph", nil
-	case storageTypeDir:
-		return "dir", nil
 	case storageTypeLvm:
 		return "lvm", nil
 	case storageTypeMock:
@@ -135,8 +132,6 @@ func storageStringToType(sName string) (storageType, error) {
 		return storageTypeBtrfs, nil
 	case "ceph":
 		return storageTypeCeph, nil
-	case "dir":
-		return storageTypeDir, nil
 	case "lvm":
 		return storageTypeLvm, nil
 	case "mock":
@@ -268,13 +263,6 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &btrfs, nil
-	case storageTypeDir:
-		dir := storageDir{}
-		err = dir.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &dir, nil
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		err = ceph.StorageCoreInit()
@@ -324,9 +312,8 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
-	volumeID := int64(-1)
 	if volumeName != "" {
-		volumeID, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -349,18 +336,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &btrfs, nil
-	case storageTypeDir:
-		dir := storageDir{}
-		dir.poolID = poolID
-		dir.pool = pool
-		dir.volume = volume
-		dir.volumeID = volumeID
-		dir.s = s
-		err = dir.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &dir, nil
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		ceph.poolID = poolID
