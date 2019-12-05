@@ -451,6 +451,12 @@ func (vm *vmQemu) OnStop(target string) error {
 	os.Remove(vm.getMonitorPath())
 	vm.unmount()
 
+	// Record power state
+	err := vm.state.Cluster.ContainerSetState(vm.id, "STOPPED")
+	if err != nil {
+		return err
+	}
+
 	if target == "reboot" {
 		return vm.Start(false)
 	}
@@ -634,6 +640,26 @@ func (vm *vmQemu) Start(stateful bool) error {
 
 	// Start the VM.
 	err = monitor.Start()
+	if err != nil {
+		return err
+	}
+
+	// Database updates
+	err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Record current state
+		err = tx.ContainerSetState(vm.id, "RUNNING")
+		if err != nil {
+			return errors.Wrap(err, "Error updating instance state")
+		}
+
+		// Update time instance last started time
+		err = tx.ContainerLastUsedUpdate(vm.id, time.Now().UTC())
+		if err != nil {
+			return errors.Wrap(err, "Error updating instance last used")
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
