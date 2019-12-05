@@ -85,15 +85,15 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 // /1.0/containers/alp1/snapshots/snap0
 // /1.0/images/cedce20b5b236f1071134beba7a5fd2aa923fda49eea4c66454dd559a5d6e906
 // /1.0/profiles/default
-func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]string, error) {
+func storagePoolUsedByGet(state *state.State, project string, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := state.Cluster.StoragePoolNodeVolumesGet(poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom, storagePoolVolumeTypeVM})
+	volumes, err := state.Cluster.StoragePoolNodeVolumesGet(project, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom, storagePoolVolumeTypeVM})
 	if err != nil && err != db.ErrNoSuchObject {
 		return []string{}, err
 	}
 
 	// Retrieve all profiles that exist on this storage pool.
-	profiles, err := profilesUsingPoolGetNames(state.Cluster, poolName)
+	profiles, err := profilesUsingPoolGetNames(state.Cluster, project, poolName)
 
 	if err != nil {
 		return []string{}, err
@@ -140,16 +140,16 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 	return poolUsedBy, err
 }
 
-func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error) {
+func profilesUsingPoolGetNames(db *db.Cluster, project string, poolName string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles("default")
+	profiles, err := db.Profiles(project)
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet("default", pName)
+		_, profile, err := db.ProfileGet(project, pName)
 		if err != nil {
 			return usedBy, err
 		}
