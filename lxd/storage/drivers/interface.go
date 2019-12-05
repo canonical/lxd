@@ -34,7 +34,7 @@ type Driver interface {
 
 	// Volumes.
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
-	CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error
+	CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error
 	CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error
 	RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error
 	DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error
@@ -69,7 +69,7 @@ type Driver interface {
 	// Migration.
 	MigrationTypes(contentType ContentType) []migration.Type
 	MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error
-	CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, op *operations.Operation) error
+	CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error
 
 	// Backup.
 	BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
