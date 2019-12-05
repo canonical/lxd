@@ -63,7 +63,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePoolUsedByGet(d.State(), plID, pool)
+			poolUsedBy, err := storagePoolUsedByGet(d.State(), projectParam(r), plID, pool)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -303,7 +303,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get all users of the storage pool.
-	poolUsedBy, err := storagePoolUsedByGet(d.State(), poolID, poolName)
+	poolUsedBy, err := storagePoolUsedByGet(d.State(), projectParam(r), poolID, poolName)
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -686,7 +686,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	}
 
 	// Check if the storage pool is still referenced in any profiles.
-	profiles, err := profilesUsingPoolGetNames(cluster, poolName)
+	profiles, err := profilesUsingPoolGetNames(cluster, "default", poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
