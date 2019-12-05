@@ -350,7 +350,7 @@ func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migr
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, op *operations.Operation) error {
+func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
 		return fmt.Errorf("Content type not supported")
 	}
@@ -391,6 +391,16 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		path := shared.AddSlash(mountPath)
 
+		// Run the volume pre-filler function if supplied.
+		if preFiller != nil && preFiller.Fill != nil {
+			d.logger.Debug("Running pre-filler function", log.Ctx{"volume": vol.name, "path": path})
+			err = preFiller.Fill(path, "")
+			if err != nil {
+				return err
+			}
+			d.logger.Debug("Finished pre-filler function", log.Ctx{"volume": vol.name})
+		}
+
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
 			// Receive the snapshot
@@ -399,6 +409,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
 			}
 
+			d.logger.Debug("Receiving volume", log.Ctx{"volume": vol.name, "snapshot": snapName, "path": path})
 			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 			if err != nil {
 				return err
@@ -432,6 +443,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
+		d.logger.Debug("Receiving volume", log.Ctx{"volume": vol.name, "path": path})
 		err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 		if err != nil {
 			return err
@@ -443,6 +455,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 				wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 			}
 
+			d.logger.Debug("Receiving volume (final stage)", log.Ctx{"vol": vol.name, "path": path})
 			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 			if err != nil {
 				return err
