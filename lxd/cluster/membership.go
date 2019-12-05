@@ -396,14 +396,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if err != nil {
 				return errors.Wrap(err, "failed to get storage pool driver")
 			}
-			if driver == "ceph" {
+
+			if shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
 				// For ceph pools we have to create volume
 				// entries for the joining node.
 				err := tx.StoragePoolNodeJoinCeph(id, node.ID)
 				if err != nil {
 					return errors.Wrap(err, "failed to create ceph volumes for joining node")
 				}
-
 			} else {
 				// For other pools we add the config provided by the joining node.
 				config, ok := pools[name]

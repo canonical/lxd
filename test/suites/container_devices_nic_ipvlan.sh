@@ -35,7 +35,7 @@ test_container_devices_nic_ipvlan() {
     false
   fi
 
-  lxc stop "${ctName}"
+  lxc stop "${ctName}" --force
 
   # Check that MTU is inherited from parent device when not specified on device.
   ip link set "${ctName}" mtu 1405

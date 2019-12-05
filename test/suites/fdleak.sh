@@ -27,12 +27,12 @@ test_fdleak() {
     exit 0
   )
 
-  for i in $(seq 10); do
+  for i in $(seq 20); do
     afterfds=$(/bin/ls "/proc/${pid}/fd" | wc -l)
     leakedfds=$((afterfds - beforefds))
 
     [ "${leakedfds}" -gt 5 ] || break
-    sleep 1
+    sleep 0.5
   done
 
   bad=0
