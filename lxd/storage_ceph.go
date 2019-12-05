@@ -1118,7 +1118,12 @@ func (s *storageCeph) ContainerCopy(target instance.Instance, source instance.In
 	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		err := s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		if err != nil {
+			return err
+		}
+
+		return target.DeferTemplateApply("copy")
 	}
 
 	revert := true
