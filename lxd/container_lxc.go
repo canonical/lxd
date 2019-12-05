@@ -4879,63 +4879,51 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		"used":      c.lastUsedDate}
 
 	if c.IsRunning() {
-		return fmt.Errorf("Cannot export a running container as an image")
+		return fmt.Errorf("Cannot export a running instance as an image")
 	}
 
-	logger.Info("Exporting container", ctxMap)
+	logger.Info("Exporting instance", ctxMap)
 
-	// Start the storage
-	ourStart, err := c.StorageStart()
-	if err != nil {
-		logger.Error("Failed exporting container", ctxMap)
-		return err
-	}
-	if ourStart {
-		defer c.StorageStop()
-	}
-
-	// Unshift the container
-	idmap, err := c.DiskIdmap()
-	if err != nil {
-		logger.Error("Failed exporting container", ctxMap)
-		return err
-	}
-
-	if idmap != nil {
-		if !c.IsSnapshot() && shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
-			return fmt.Errorf("Container is protected against filesystem shifting")
-		}
-
-		var err error
-
-		if c.Storage().GetStorageType() == storageTypeZfs {
-			err = idmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
-		} else if c.Storage().GetStorageType() == storageTypeBtrfs {
-			err = UnshiftBtrfsRootfs(c.RootfsPath(), idmap)
-		} else {
-			err = idmap.UnshiftRootfs(c.RootfsPath(), nil)
-		}
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
 		if err != nil {
-			logger.Error("Failed exporting container", ctxMap)
+			return errors.Wrap(err, "Load instance storage pool")
+		}
+
+		ourStart, err := pool.MountInstance(c, nil)
+		if err != nil {
+
+		}
+		if ourStart {
+			defer pool.UnmountInstance(c, nil)
+		}
+	} else {
+		// Start the storage.
+		ourStart, err := c.StorageStart()
+		if err != nil {
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
-
-		if c.Storage().GetStorageType() == storageTypeZfs {
-			defer idmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
-		} else if c.Storage().GetStorageType() == storageTypeBtrfs {
-			defer ShiftBtrfsRootfs(c.RootfsPath(), idmap)
-		} else {
-			defer idmap.ShiftRootfs(c.RootfsPath(), nil)
+		if ourStart {
+			defer c.StorageStop()
 		}
 	}
 
-	// Create the tarball
+	// Unshift the instance.
+	idmap, err := c.DiskIdmap()
+	if err != nil {
+		logger.Error("Failed exporting instance", ctxMap)
+		return err
+	}
+
+	// Create the tarball.
 	ctw := containerwriter.NewContainerTarWriter(w, idmap)
 
-	// Keep track of the first path we saw for each path with nlink>1
+	// Keep track of the first path we saw for each path with nlink>1.
 	cDir := c.Path()
 
-	// Path inside the tar image is the pathname starting after cDir
+	// Path inside the tar image is the pathname starting after cDir.
 	offset := len(cDir) + 1
 
 	writeToTar := func(path string, fi os.FileInfo, err error) error {
@@ -4951,26 +4939,26 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		return nil
 	}
 
-	// Look for metadata.yaml
+	// Look for metadata.yaml.
 	fnam := filepath.Join(cDir, "metadata.yaml")
 	if !shared.PathExists(fnam) {
-		// Generate a new metadata.yaml
+		// Generate a new metadata.yaml.
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
 			ctw.Close()
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 		defer os.RemoveAll(tempDir)
 
-		// Get the container's architecture
+		// Get the instance's architecture.
 		var arch string
 		if c.IsSnapshot() {
 			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
 			parent, err := instanceLoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
 				ctw.Close()
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 
@@ -4982,12 +4970,12 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		if arch == "" {
 			arch, err = osarch.ArchitectureName(c.state.OS.Architectures[0])
 			if err != nil {
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 		}
 
-		// Fill in the metadata
+		// Fill in the metadata.
 		meta := api.ImageMetadata{}
 		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
@@ -4996,23 +4984,23 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
 			ctw.Close()
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
-		// Write the actual file
+		// Write the actual file.
 		fnam = filepath.Join(tempDir, "metadata.yaml")
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
 			ctw.Close()
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			ctw.Close()
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
@@ -5020,16 +5008,16 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		if err := ctw.WriteFile(tmpOffset, fnam, fi); err != nil {
 			ctw.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 	} else {
 		if properties != nil {
-			// Parse the metadata
+			// Parse the metadata.
 			content, err := ioutil.ReadFile(fnam)
 			if err != nil {
 				ctw.Close()
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 
@@ -5037,16 +5025,16 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			err = yaml.Unmarshal(content, &metadata)
 			if err != nil {
 				ctw.Close()
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 			metadata.Properties = properties
 
-			// Generate a new metadata.yaml
+			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
 				ctw.Close()
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 			defer os.RemoveAll(tempDir)
@@ -5054,26 +5042,26 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 			data, err := yaml.Marshal(&metadata)
 			if err != nil {
 				ctw.Close()
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 
-			// Write the actual file
+			// Write the actual file.
 			fnam = filepath.Join(tempDir, "metadata.yaml")
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
 				ctw.Close()
-				logger.Error("Failed exporting container", ctxMap)
+				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
 		}
 
-		// Include metadata.yaml in the tarball
+		// Include metadata.yaml in the tarball.
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			ctw.Close()
 			logger.Debugf("Error statting %s during export", fnam)
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
@@ -5086,36 +5074,36 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		if err != nil {
 			ctw.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 	}
 
-	// Include all the rootfs files
+	// Include all the rootfs files.
 	fnam = c.RootfsPath()
 	err = filepath.Walk(fnam, writeToTar)
 	if err != nil {
-		logger.Error("Failed exporting container", ctxMap)
+		logger.Error("Failed exporting instance", ctxMap)
 		return err
 	}
 
-	// Include all the templates
+	// Include all the templates.
 	fnam = c.TemplatesPath()
 	if shared.PathExists(fnam) {
 		err = filepath.Walk(fnam, writeToTar)
 		if err != nil {
-			logger.Error("Failed exporting container", ctxMap)
+			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 	}
 
 	err = ctw.Close()
 	if err != nil {
-		logger.Error("Failed exporting container", ctxMap)
+		logger.Error("Failed exporting instance", ctxMap)
 		return err
 	}
 
-	logger.Info("Exported container", ctxMap)
+	logger.Info("Exported instance", ctxMap)
 	return nil
 }
 
