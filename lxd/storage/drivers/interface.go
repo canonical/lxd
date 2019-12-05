@@ -45,8 +45,9 @@ type Driver interface {
 	GetVolumeDiskPath(volType VolumeType, volName string) (string, error)
 
 	// MountVolume mounts a storage volume, returns true if we caused a new mount, false if
-	// already mounted.
+	// already mounted or doesn't need to be unmounted.
 	MountVolume(volType VolumeType, volName string, op *operations.Operation) (bool, error)
+	MountVolumeReadOnly(volType VolumeType, volName string, op *operations.Operation) (bool, error)
 
 	// MountVolumeSnapshot mounts a storage volume snapshot as readonly, returns true if we
 	// caused a new mount, false if already mounted.
