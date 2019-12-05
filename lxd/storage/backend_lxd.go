@@ -1178,6 +1178,24 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	return b.driver.MountVolume(volType, volStorageName, op)
 }
 
+// MountInstanceReadOnly mounts the instance's root volume read-only.
+func (b *lxdBackend) MountInstanceReadOnly(inst instance.Instance, op *operations.Operation) (bool, error) {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("MountInstanceReadOnly started")
+	defer logger.Debug("MountInstanceReadOnly finished")
+
+	// Check we can convert the instance to the volume type needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return false, err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	return b.driver.MountVolumeReadOnly(volType, volStorageName, op)
+}
+
 // UnmountInstance unmounts the instance's root volume.
 func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
