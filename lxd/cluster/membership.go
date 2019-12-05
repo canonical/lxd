@@ -811,6 +811,11 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
 		result[i].Database = shared.StringInSlice(string(db.ClusterRoleDatabase), node.Roles)
 		result[i].Roles = node.Roles
+		result[i].Architecture, err = osarch.ArchitectureName(node.Architecture)
+		if err != nil {
+			return nil, err
+		}
+
 		if node.IsOffline(offlineThreshold) {
 			result[i].Status = "Offline"
 			result[i].Message = fmt.Sprintf(
