@@ -541,7 +541,10 @@ type containerLXC struct {
 	idmapset *idmap.IdmapSet
 
 	// Storage
-	storage storage
+	// Do not use these variables directly, instead use their associated get functions so they
+	// will be initialised on demand.
+	storage     storage
+	storagePool storagePools.Pool
 
 	// Clustering
 	node string
@@ -2083,38 +2086,43 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		logger.Debugf("Container idmap changed, remapping")
 		c.updateProgress("Remapping container filesystem")
 
-		ourStart, err = c.StorageStart()
+		ourStart, err = c.mount()
 		if err != nil {
 			return "", postStartHooks, errors.Wrap(err, "Storage start")
 		}
 
+		storageType, err := c.getStorageType()
+		if err != nil {
+			return "", postStartHooks, errors.Wrap(err, "Storage type")
+		}
+
 		if diskIdmap != nil {
-			if c.Storage().GetStorageType() == storageTypeZfs {
+			if storageType == "zfs" {
 				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
-			} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+			} else if storageType == "btrfs" {
 				err = UnshiftBtrfsRootfs(c.RootfsPath(), diskIdmap)
 			} else {
 				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), nil)
 			}
 			if err != nil {
 				if ourStart {
-					c.StorageStop()
+					c.unmount()
 				}
 				return "", postStartHooks, err
 			}
 		}
 
 		if nextIdmap != nil && !c.state.OS.Shiftfs {
-			if c.Storage().GetStorageType() == storageTypeZfs {
+			if storageType == "zfs" {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
-			} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+			} else if storageType == "btrfs" {
 				err = ShiftBtrfsRootfs(c.RootfsPath(), nextIdmap)
 			} else {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), nil)
 			}
 			if err != nil {
 				if ourStart {
-					c.StorageStop()
+					c.unmount()
 				}
 				return "", postStartHooks, err
 			}
@@ -2327,7 +2335,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	}
 
 	// Storage is guaranteed to be mountable now (must be called after devices setup).
-	ourStart, err = c.StorageStart()
+	ourStart, err = c.mount()
 	if err != nil {
 		return "", postStartHooks, err
 	}
@@ -2344,7 +2352,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	currentIdmapset, err := c.CurrentIdmap()
 	if err != nil {
 		if ourStart {
-			c.StorageStop()
+			c.unmount()
 		}
 		return "", postStartHooks, err
 	}
@@ -2357,7 +2365,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	err = os.Chown(c.Path(), int(uid), 0)
 	if err != nil {
 		if ourStart {
-			c.StorageStop()
+			c.unmount()
 		}
 		return "", postStartHooks, err
 	}
@@ -2366,7 +2374,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	err = os.Chmod(c.Path(), 0100)
 	if err != nil {
 		if ourStart {
-			c.StorageStop()
+			c.unmount()
 		}
 		return "", postStartHooks, err
 	}
@@ -2375,7 +2383,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	err = writeBackupFile(c)
 	if err != nil {
 		if ourStart {
-			c.StorageStop()
+			c.unmount()
 		}
 		return "", postStartHooks, err
 	}
@@ -2437,7 +2445,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	}
 
 	// Ensure that the container storage volume is mounted.
-	_, err = c.StorageStart()
+	_, err = c.mount()
 	if err != nil {
 		return errors.Wrap(err, "Storage start")
 	}
@@ -2581,7 +2589,7 @@ func (c *containerLXC) OnStart() error {
 	err = apparmor.LoadProfile(c)
 	if err != nil {
 		if ourStart {
-			c.StorageStop()
+			c.unmount()
 		}
 		return err
 	}
@@ -2594,7 +2602,7 @@ func (c *containerLXC) OnStart() error {
 		if err != nil {
 			apparmor.Destroy(c)
 			if ourStart {
-				c.StorageStop()
+				c.unmount()
 			}
 			return err
 		}
@@ -2604,7 +2612,7 @@ func (c *containerLXC) OnStart() error {
 		if err != nil {
 			apparmor.Destroy(c)
 			if ourStart {
-				c.StorageStop()
+				c.unmount()
 			}
 			return err
 		}
@@ -2614,7 +2622,7 @@ func (c *containerLXC) OnStart() error {
 	if err != nil {
 		apparmor.Destroy(c)
 		if ourStart {
-			c.StorageStop()
+			c.unmount()
 		}
 		return err
 	}
@@ -2905,7 +2913,7 @@ func (c *containerLXC) OnStop(target string) error {
 	}
 
 	// Stop the storage for this container
-	_, err = c.StorageStop()
+	_, err = c.unmount()
 	if err != nil {
 		if op != nil {
 			op.Done(err)
@@ -3342,12 +3350,12 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 			return err
 		}
 
-		ourStart, err := c.StorageStart()
+		ourStart, err := c.mount()
 		if err != nil {
 			return err
 		}
 		if ourStart {
-			defer c.StorageStop()
+			defer c.unmount()
 		}
 	}
 
@@ -3407,12 +3415,12 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 				defer pool.UnmountInstance(c, nil)
 			}
 		} else {
-			ourStart, err := c.StorageStart()
+			ourStart, err := c.mount()
 			if err != nil {
 				return err
 			}
 			if ourStart {
-				defer c.StorageStop()
+				defer c.unmount()
 			}
 		}
 	}
@@ -4884,33 +4892,17 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 
 	logger.Info("Exporting instance", ctxMap)
 
-	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return errors.Wrap(err, "Load instance storage pool")
-		}
-
-		ourStart, err := pool.MountInstance(c, nil)
-		if err != nil {
-
-		}
-		if ourStart {
-			defer pool.UnmountInstance(c, nil)
-		}
-	} else {
-		// Start the storage.
-		ourStart, err := c.StorageStart()
-		if err != nil {
-			logger.Error("Failed exporting instance", ctxMap)
-			return err
-		}
-		if ourStart {
-			defer c.StorageStop()
-		}
+	// Start the storage.
+	ourStart, err := c.mount()
+	if err != nil {
+		logger.Error("Failed exporting instance", ctxMap)
+		return err
+	}
+	if ourStart {
+		defer c.unmount()
 	}
 
-	// Unshift the instance.
+	// Get IDMap to unshift container as the tarball is created.
 	idmap, err := c.DiskIdmap()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
@@ -5219,20 +5211,25 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		}
 
 		if idmapset != nil {
-			ourStart, err := c.StorageStart()
+			ourStart, err := c.mount()
 			if err != nil {
 				return err
 			}
 
-			if c.Storage().GetStorageType() == storageTypeZfs {
+			storageType, err := c.getStorageType()
+			if err != nil {
+				return errors.Wrap(err, "Storage type")
+			}
+
+			if storageType == "zfs" {
 				err = idmapset.ShiftRootfs(args.stateDir, zfsIdmapSetSkipper)
-			} else if c.Storage().GetStorageType() == storageTypeBtrfs {
+			} else if storageType == "btrfs" {
 				err = ShiftBtrfsRootfs(args.stateDir, idmapset)
 			} else {
 				err = idmapset.ShiftRootfs(args.stateDir, nil)
 			}
 			if ourStart {
-				_, err2 := c.StorageStop()
+				_, err2 := c.unmount()
 				if err != nil {
 					return err
 				}
@@ -5502,7 +5499,7 @@ func (c *containerLXC) FileExists(path string) error {
 	var ourStart bool
 	var err error
 	if !c.IsRunning() {
-		ourStart, err = c.StorageStart()
+		ourStart, err = c.mount()
 		if err != nil {
 			return err
 		}
@@ -5521,7 +5518,7 @@ func (c *containerLXC) FileExists(path string) error {
 
 	// Tear down container storage if needed
 	if !c.IsRunning() && ourStart {
-		_, err := c.StorageStop()
+		_, err := c.unmount()
 		if err != nil {
 			return err
 		}
@@ -5550,7 +5547,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	var err error
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		ourStart, err = c.StorageStart()
+		ourStart, err = c.mount()
 		if err != nil {
 			return -1, -1, 0, "", nil, err
 		}
@@ -5570,7 +5567,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 
 	// Tear down container storage if needed
 	if !c.IsRunning() && ourStart {
-		_, err := c.StorageStop()
+		_, err := c.unmount()
 		if err != nil {
 			return -1, -1, 0, "", nil, err
 		}
@@ -5690,7 +5687,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	var err error
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		ourStart, err = c.StorageStart()
+		ourStart, err = c.mount()
 		if err != nil {
 			return err
 		}
@@ -5723,7 +5720,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 
 	// Tear down container storage if needed
 	if !c.IsRunning() && ourStart {
-		_, err := c.StorageStop()
+		_, err := c.unmount()
 		if err != nil {
 			return err
 		}
@@ -5765,7 +5762,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Setup container storage if needed
 	if !c.IsRunning() {
-		ourStart, err = c.StorageStart()
+		ourStart, err = c.mount()
 		if err != nil {
 			return err
 		}
@@ -5784,7 +5781,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Tear down container storage if needed
 	if !c.IsRunning() && ourStart {
-		_, err := c.StorageStop()
+		_, err := c.unmount()
 		if err != nil {
 			return err
 		}
@@ -6188,8 +6185,13 @@ func (c *containerLXC) processesState() int64 {
 	return int64(len(pids))
 }
 
-// Storage functions
+// Storage gets instance's legacy storage pool. Deprecated.
 func (c *containerLXC) Storage() storage {
+	return c.legacyStorage()
+}
+
+// legacyStorage returns the instance's legacy storage pool. Deprecated.
+func (c *containerLXC) legacyStorage() storage {
 	if c.storage == nil {
 		c.initStorage()
 	}
@@ -6197,9 +6199,70 @@ func (c *containerLXC) Storage() storage {
 	return c.storage
 }
 
+// getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
+// function is called, the handle is cached internally in the vmQemu struct.
+func (c *containerLXC) getStoragePool() (storagePools.Pool, error) {
+	if c.storagePool != nil {
+		return c.storagePool, nil
+	}
+
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != nil {
+		return nil, err
+	}
+	c.storagePool = pool
+
+	return c.storagePool, nil
+}
+
+// getStorageType returns the storage type of the instance's storage pool.
+func (c *containerLXC) getStorageType() (string, error) {
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := c.getStoragePool()
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return "", err
+		}
+
+		return pool.Driver().Info().Name, nil
+	}
+
+	return storageTypeToString(c.legacyStorage().GetStorageType())
+}
+
+// StorageStart mounts the instance's rootfs volume. Deprecated.
 func (c *containerLXC) StorageStart() (bool, error) {
-	// Initialize storage interface for the container.
-	err := c.initStorage()
+	return c.mount()
+}
+
+// mount the instance's rootfs volume if needed.
+func (c *containerLXC) mount() (bool, error) {
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := c.getStoragePool()
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return false, err
+		}
+
+		if c.IsSnapshot() {
+			ourMount, err := pool.MountInstanceSnapshot(c, nil)
+			if err != nil {
+				return false, err
+			}
+
+			return ourMount, nil
+		}
+
+		ourMount, err := pool.MountInstance(c, nil)
+		if err != nil {
+			return false, err
+		}
+
+		return ourMount, nil
+	}
+
+	// Initialize legacy storage interface for the container.
+	err = c.initStorage()
 	if err != nil {
 		return false, err
 	}
@@ -6231,9 +6294,39 @@ func (c *containerLXC) storageStartSensitive() (bool, error) {
 	return isOurOperation, err
 }
 
+// StorageStop unmounts the instance's rootfs volume. Deprecated.
 func (c *containerLXC) StorageStop() (bool, error) {
-	// Initialize storage interface for the container.
-	err := c.initStorage()
+	return c.unmount()
+}
+
+// unmount the instance's rootfs volume if needed.
+func (c *containerLXC) unmount() (bool, error) {
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := c.getStoragePool()
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return false, err
+		}
+
+		if c.IsSnapshot() {
+			unmounted, err := pool.UnmountInstanceSnapshot(c, nil)
+			if err != nil {
+				return false, err
+			}
+
+			return unmounted, nil
+		}
+
+		unmounted, err := pool.UnmountInstance(c, nil)
+		if err != nil {
+			return false, err
+		}
+
+		return unmounted, nil
+	}
+
+	// Initialize legacy storage interface for the container.
+	err = c.initStorage()
 	if err != nil {
 		return false, err
 	}
