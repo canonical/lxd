@@ -37,6 +37,7 @@ type NodeInfo struct {
 	APIExtensions int       // Number of API extensions of the LXD code running on the node
 	Heartbeat     time.Time // Timestamp of the last heartbeat
 	Roles         []string  // List of cluster roles
+	Architecture  int       // Node architecture
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -270,6 +271,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			&nodes[i].Schema,
 			&nodes[i].APIExtensions,
 			&nodes[i].Heartbeat,
+			&nodes[i].Architecture,
 		}
 	}
 	if pending {
@@ -279,7 +281,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	}
 
 	// Get the node entries
-	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes WHERE pending=?"
+	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat, arch FROM nodes WHERE pending=?"
 	if where != "" {
 		sql += fmt.Sprintf("AND %s ", where)
 	}
@@ -584,6 +586,7 @@ func (c *ClusterTx) NodeWithLeastContainers() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
 	}
+
 	nodes, err := c.Nodes()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get current nodes")
