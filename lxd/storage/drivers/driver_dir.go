@@ -220,7 +220,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
-func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
+func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
 	err := vol.CreateMountPath()
 	if err != nil {
@@ -258,8 +258,9 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 	}
 
 	// Run the volume filler function if supplied.
-	if filler != nil {
-		err = filler(volPath, rootBlockPath)
+	if filler != nil && filler.Fill != nil {
+		d.logger.Debug("Running filler function")
+		err = filler.Fill(volPath, rootBlockPath)
 		if err != nil {
 			return err
 		}
