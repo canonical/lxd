@@ -316,136 +316,67 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 		return fmt.Errorf("Instance type must be container")
 	}
 
-	ct := args.Instance.(*containerLXC)
+	if !args.InstanceOnly {
+		for _, snap := range args.Snapshots {
+			isSnapshotOutdated := true
 
-	isDirBackend := ct.Storage().GetStorageType() == storageTypeDir
-	if isDirBackend {
-		if !args.InstanceOnly {
-			for _, snap := range args.Snapshots {
-				isSnapshotOutdated := true
-
-				for _, localSnap := range localSnapshots {
-					if localSnap.Name() == snap.GetName() {
-						if localSnap.CreationDate().Unix() > snap.GetCreationDate() {
-							isSnapshotOutdated = false
-							break
-						}
-					}
-				}
-
-				// Only copy snapshot if it's outdated
-				if !isSnapshotOutdated {
-					continue
-				}
-
-				snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
-
-				// Ensure that snapshot and parent container have the
-				// same storage pool in their local root disk device.
-				// If the root disk device for the snapshot comes from a
-				// profile on the new instance as well we don't need to
-				// do anything.
-				if snapArgs.Devices != nil {
-					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
-					if snapLocalRootDiskDeviceKey != "" {
-						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
-					}
-				}
-
-				// Try and a load instance
-				s, err := instance.LoadByProjectAndName(args.Instance.DaemonState(),
-					args.Instance.Project(), snapArgs.Name)
-				if err != nil {
-					// Create the snapshot since it doesn't seem to exist
-					s, err = containerCreateEmptySnapshot(args.Instance.DaemonState(), snapArgs)
-					if err != nil {
-						return err
-					}
-				}
-
-				wrapper := migration.ProgressTracker(op, "fs_progress", s.Name())
-				if err := rsync.Recv(shared.AddSlash(s.Path()), &shared.WebsocketIO{Conn: conn}, wrapper, args.RsyncFeatures); err != nil {
-					return err
-				}
-
-				if args.Instance.Type() == instancetype.Container {
-					c := args.Instance.(*containerLXC)
-					err = resetContainerDiskIdmap(c, args.Idmap)
-					if err != nil {
-						return err
+			for _, localSnap := range localSnapshots {
+				if localSnap.Name() == snap.GetName() {
+					if localSnap.CreationDate().Unix() > snap.GetCreationDate() {
+						isSnapshotOutdated = false
+						break
 					}
 				}
 			}
-		}
 
-		wrapper := migration.ProgressTracker(op, "fs_progress", args.Instance.Name())
-		err = rsync.Recv(shared.AddSlash(args.Instance.Path()), &shared.WebsocketIO{Conn: conn}, wrapper, args.RsyncFeatures)
-		if err != nil {
-			return err
-		}
-	} else {
-		if !args.InstanceOnly {
-			for _, snap := range args.Snapshots {
-				isSnapshotOutdated := true
+			// Only copy snapshot if it's outdated
+			if !isSnapshotOutdated {
+				continue
+			}
 
-				for _, localSnap := range localSnapshots {
-					if localSnap.Name() == snap.GetName() {
-						if localSnap.CreationDate().Unix() > snap.GetCreationDate() {
-							isSnapshotOutdated = false
-							break
-						}
-					}
+			snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
+
+			// Ensure that snapshot and parent container have the
+			// same storage pool in their local root disk device.
+			// If the root disk device for the snapshot comes from a
+			// profile on the new instance as well we don't need to
+			// do anything.
+			if snapArgs.Devices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+				if snapLocalRootDiskDeviceKey != "" {
+					snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				}
+			}
 
-				// Only copy snapshot if it's outdated
-				if !isSnapshotOutdated {
-					continue
-				}
+			wrapper := migration.ProgressTracker(op, "fs_progress", snap.GetName())
+			err := rsync.Recv(shared.AddSlash(args.Instance.Path()), &shared.WebsocketIO{Conn: conn}, wrapper, args.RsyncFeatures)
+			if err != nil {
+				return err
+			}
 
-				snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
-
-				// Ensure that snapshot and parent container have the
-				// same storage pool in their local root disk device.
-				// If the root disk device for the snapshot comes from a
-				// profile on the new instance as well we don't need to
-				// do anything.
-				if snapArgs.Devices != nil {
-					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
-					if snapLocalRootDiskDeviceKey != "" {
-						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
-					}
-				}
-
-				wrapper := migration.ProgressTracker(op, "fs_progress", snap.GetName())
-				err := rsync.Recv(shared.AddSlash(args.Instance.Path()), &shared.WebsocketIO{Conn: conn}, wrapper, args.RsyncFeatures)
+			if args.Instance.Type() == instancetype.Container {
+				c := args.Instance.(*containerLXC)
+				err = resetContainerDiskIdmap(c, args.Idmap)
 				if err != nil {
 					return err
 				}
+			}
 
-				if args.Instance.Type() == instancetype.Container {
-					c := args.Instance.(*containerLXC)
-					err = resetContainerDiskIdmap(c, args.Idmap)
-					if err != nil {
-						return err
-					}
-				}
-
-				_, err = instance.LoadByProjectAndName(args.Instance.DaemonState(),
-					args.Instance.Project(), snapArgs.Name)
+			_, err = instance.LoadByProjectAndName(args.Instance.DaemonState(),
+				args.Instance.Project(), snapArgs.Name)
+			if err != nil {
+				_, err = instanceCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance, op)
 				if err != nil {
-					_, err = instanceCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance, op)
-					if err != nil {
-						return err
-					}
+					return err
 				}
 			}
 		}
+	}
 
-		wrapper := migration.ProgressTracker(op, "fs_progress", args.Instance.Name())
-		err = rsync.Recv(shared.AddSlash(args.Instance.Path()), &shared.WebsocketIO{Conn: conn}, wrapper, args.RsyncFeatures)
-		if err != nil {
-			return err
-		}
+	wrapper := migration.ProgressTracker(op, "fs_progress", args.Instance.Name())
+	err = rsync.Recv(shared.AddSlash(args.Instance.Path()), &shared.WebsocketIO{Conn: conn}, wrapper, args.RsyncFeatures)
+	if err != nil {
+		return err
 	}
 
 	if args.Live {
