@@ -621,6 +621,10 @@ func (d *cephfs) MountVolume(volType VolumeType, volName string, op *operations.
 	return false, nil
 }
 
+func (d *cephfs) MountVolumeReadOnly(volType VolumeType, volName string, op *operations.Operation) (bool, error) {
+	return false, ErrNotImplemented
+}
+
 func (d *cephfs) MountVolumeSnapshot(volType VolumeType, VolName, snapshotName string, op *operations.Operation) (bool, error) {
 	if volType != VolumeTypeCustom {
 		return false, fmt.Errorf("Volume type not supported")
