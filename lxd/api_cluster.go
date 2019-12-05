@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -806,6 +807,11 @@ func clusterAcceptMember(
 	name, address string, schema, apiExt int,
 	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
 
+	architecture, err := osarch.ArchitectureGetLocalID()
+	if err != nil {
+		return nil, err
+	}
+
 	req := internalClusterPostAcceptRequest{
 		Name:         name,
 		Address:      address,
@@ -813,6 +819,7 @@ func clusterAcceptMember(
 		API:          apiExt,
 		StoragePools: pools,
 		Networks:     networks,
+		Architecture: architecture,
 	}
 	info := &internalClusterPostAcceptResponse{}
 	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", req, "")
@@ -1046,7 +1053,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API)
+	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API, req.Architecture)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1069,6 +1076,7 @@ type internalClusterPostAcceptRequest struct {
 	API          int               `json:"api" yaml:"api"`
 	StoragePools []api.StoragePool `json:"storage_pools" yaml:"storage_pools"`
 	Networks     []api.Network     `json:"networks" yaml:"networks"`
+	Architecture int               `json:"architecture" yaml:"architecture"`
 }
 
 // A Response for the /internal/cluster/accept endpoint.
