@@ -108,6 +108,10 @@ func (b *mockBackend) MountInstance(inst instance.Instance, op *operations.Opera
 	return true, nil
 }
 
+func (b *mockBackend) MountInstanceReadOnly(inst instance.Instance, op *operations.Operation) (bool, error) {
+	return true, nil
+}
+
 func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
