@@ -620,11 +620,16 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	if util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil {
-		d.os.Shiftfs = true
-		logger.Infof(" - shiftfs support: yes")
+	// Detect shiftfs support.
+	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
+		logger.Infof(" - shiftfs support: disabled")
 	} else {
-		logger.Infof(" - shiftfs support: no")
+		if util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil {
+			d.os.Shiftfs = true
+			logger.Infof(" - shiftfs support: yes")
+		} else {
+			logger.Infof(" - shiftfs support: no")
+		}
 	}
 
 	// Detect LXC features
