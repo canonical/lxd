@@ -27,19 +27,6 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	return d, nil
 }
 
-// Info represents information about a storage driver.
-type Info struct {
-	Name                  string
-	Version               string
-	VolumeTypes           []VolumeType // Supported volume types.
-	Remote                bool         // Whether the driver uses a remote backing store.
-	OptimizedImages       bool         // Whether driver stores images as separate volume.
-	PreservesInodes       bool         // Whether driver preserves inodes when volumes are moved hosts.
-	BlockBacking          bool         // Whether driver uses block devices as backing store.
-	RunningQuotaResize    bool         // Whether quota resize is supported whilst instance running.
-	RunningSnapshotFreeze bool         // Whether instance should be frozen during snapshot if running.
-}
-
 // SupportedDrivers returns a list of supported storage drivers.
 func SupportedDrivers() []Info {
 	supportedDrivers := []Info{}
