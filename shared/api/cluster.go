@@ -60,4 +60,7 @@ type ClusterMember struct {
 
 	// API extension: clustering_roles
 	Roles []string `json:"roles" yaml:"roles"`
+
+	// API extension: multi_architecture_clustering
+	Architecture string `json:"architecture" yaml:"architecture"`
 }
