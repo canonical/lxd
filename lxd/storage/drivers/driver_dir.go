@@ -768,16 +768,24 @@ func (d *dir) MountVolume(volType VolumeType, volName string, op *operations.Ope
 	return false, nil
 }
 
+// MountVolumeReadOnly bind-mounts the volume as read-only. It may return true meaning that this
+// volume will need to be unmounted later.
+func (d *dir) MountVolumeReadOnly(volType VolumeType, volName string, op *operations.Operation) (bool, error) {
+	volPath := GetVolumeMountPath(d.name, volType, volName)
+	return mountReadOnly(volPath, volPath)
+}
+
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
 func (d *dir) MountVolumeSnapshot(volType VolumeType, volName, snapshotName string, op *operations.Operation) (bool, error) {
 	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
 	return mountReadOnly(snapPath, snapPath)
 }
 
-// UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
-// returns false indicating the volume was already unmounted.
+// UnmountVolume simulates unmounting a volume. Although we don't normally mount dir volumes, if it
+// was mounted in read-only mode we will need to unmount the bind-mount that was created.
 func (d *dir) UnmountVolume(volType VolumeType, volName string, op *operations.Operation) (bool, error) {
-	return false, nil
+	volPath := GetVolumeMountPath(d.name, volType, volName)
+	return forceUnmount(volPath) // This is safe to call even if dir volume isn't bind-mounted.
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
