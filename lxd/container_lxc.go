@@ -3577,15 +3577,20 @@ func (c *containerLXC) Delete() error {
 		return err
 	}
 
-	// Check if we're dealing with "lxd import".
-	// "lxd import" is used for disaster recovery, where you already have a container and
-	// snapshots on disk but no DB entry. As such if something has gone wrong during the
-	// creation of the instance and we are now being asked to delete the instance, we should
-	// not remove the storage volumes themselves as this would cause data loss.
-	isImport := false
-	if c.storage != nil {
-		_, poolName, _ := c.storage.GetContainerPoolInfo()
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+		if err != nil {
+			return err
+		}
 
+		// Check if we're dealing with "lxd import".
+		// "lxd import" is used for disaster recovery, where you already have a container
+		// and snapshots on disk but no DB entry. As such if something has gone wrong during
+		// the creation of the instance and we are now being asked to delete the instance,
+		// we should not remove the storage volumes themselves as this would cause data loss.
+		isImport := false
+		poolName := pool.Name()
 		if c.IsSnapshot() {
 			cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
 			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", cName, ".importing")) {
@@ -3595,14 +3600,6 @@ func (c *containerLXC) Delete() error {
 			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", c.name, ".importing")) {
 				isImport = true
 			}
-		}
-	}
-
-	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
-		if err != nil {
-			return err
 		}
 
 		if c.IsSnapshot() {
@@ -3637,6 +3634,27 @@ func (c *containerLXC) Delete() error {
 			logger.Warnf("Failed to init storage: %v", err)
 		}
 
+		// Get the name and ID of the storage pool the container is attached to. This
+		// reverse-engineering works because container names are globally unique.
+		poolID, poolName, _ := c.storage.GetContainerPoolInfo()
+
+		// Check if we're dealing with "lxd import".
+		// "lxd import" is used for disaster recovery, where you already have a container
+		// and snapshots on disk but no DB entry. As such if something has gone wrong during
+		// the creation of the instance and we are now being asked to delete the instance,
+		// we should not remove the storage volumes themselves as this would cause data loss.
+		isImport := false
+		if c.IsSnapshot() {
+			cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
+			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", cName, ".importing")) {
+				isImport = true
+			}
+		} else {
+			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", c.name, ".importing")) {
+				isImport = true
+			}
+		}
+
 		if c.IsSnapshot() {
 			// Remove the snapshot.
 			if c.storage != nil && !isImport {
@@ -3669,18 +3687,10 @@ func (c *containerLXC) Delete() error {
 			}
 		}
 
-		// Remove the database entry for the pool device.
-		if c.storage != nil {
-			// Get the name of the storage pool the container is attached to. This
-			// reverse-engineering works because container names are globally
-			// unique.
-			poolID, _, _ := c.storage.GetContainerPoolInfo()
-
-			// Remove volume from storage pool.
-			err := c.state.Cluster.StoragePoolVolumeDelete(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
-			if err != nil {
-				return err
-			}
+		// Remove volume from storage pool.
+		err = c.state.Cluster.StoragePoolVolumeDelete(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
+		if err != nil {
+			return err
 		}
 	}
 
