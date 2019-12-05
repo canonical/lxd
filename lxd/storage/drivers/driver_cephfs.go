@@ -313,7 +313,7 @@ func (d *cephfs) GetVolumeDiskPath(volType VolumeType, volName string) (string, 
 	return "", ErrNotImplemented
 }
 
-func (d *cephfs) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
+func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	if vol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
@@ -336,8 +336,9 @@ func (d *cephfs) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath s
 		}
 	}()
 
-	if filler != nil {
-		err = filler(volPath, "")
+	if filler != nil && filler.Fill != nil {
+		d.logger.Debug("Running filler function")
+		err = filler.Fill(volPath, "")
 		if err != nil {
 			return err
 		}
@@ -824,7 +825,7 @@ func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs m
 	}, op)
 }
 
-func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, op *operations.Operation) error {
+func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	if vol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
