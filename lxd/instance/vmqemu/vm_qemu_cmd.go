@@ -1,4 +1,4 @@
-package main
+package vmqemu
 
 import (
 	"golang.org/x/sys/unix"
@@ -6,8 +6,8 @@ import (
 	lxdClient "github.com/lxc/lxd/client"
 )
 
-// VMQemuCmd represents a running command for an Qemu VM.
-type VMQemuCmd struct {
+// Cmd represents a running command for an Qemu VM.
+type Cmd struct {
 	attachedChildPid int
 	cmd              lxdClient.Operation
 	dataDone         chan bool
@@ -17,18 +17,18 @@ type VMQemuCmd struct {
 }
 
 // PID returns the attached child's process ID.
-func (c *VMQemuCmd) PID() int {
+func (c *Cmd) PID() int {
 	return c.attachedChildPid
 }
 
 // Signal sends a signal to the command.
-func (c *VMQemuCmd) Signal(sig unix.Signal) error {
+func (c *Cmd) Signal(sig unix.Signal) error {
 	c.signalSendCh <- sig
 	return <-c.signalResCh
 }
 
 // Wait for the command to end and returns its exit code and any error.
-func (c *VMQemuCmd) Wait() (int, error) {
+func (c *Cmd) Wait() (int, error) {
 	if c.cleanupFunc != nil {
 		defer c.cleanupFunc()
 	}
