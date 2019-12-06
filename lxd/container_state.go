@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
@@ -33,7 +34,7 @@ func containerState(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -76,7 +77,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 	// Don't mess with containers while in setup mode
 	<-d.readyChan
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -138,7 +138,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			return resp
 		}
 
-		inst, err = instanceLoadByProjectAndName(d.State(), project, name)
+		inst, err = instance.LoadByProjectAndName(d.State(), project, name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -533,7 +533,7 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Resp
 // Used after to create the appropriate mounts point after a container has been
 // moved.
 func containerPostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
-	c, err := instanceLoadByProjectAndName(d.State(), project, containerName)
+	c, err := instance.LoadByProjectAndName(d.State(), project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to load moved container on target node")
 	}

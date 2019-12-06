@@ -10,6 +10,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
@@ -122,7 +123,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, container := range containers {
-		c, err := instanceLoadByProjectAndName(d.State(), container.Project, container.Name)
+		c, err := instance.LoadByProjectAndName(d.State(), container.Project, container.Name)
 		if err != nil {
 			sqldb.Close()
 			return err

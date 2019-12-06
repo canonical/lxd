@@ -38,7 +38,7 @@ func containerMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -99,7 +99,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -153,7 +153,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -247,7 +247,7 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -320,7 +320,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Load the container
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}

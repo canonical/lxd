@@ -32,7 +32,7 @@ func containerFileHandler(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"crypto/rand"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path"
 	"sort"
@@ -531,22 +528,4 @@ func devicesRegister(s *state.State) {
 			}
 		}
 	}
-}
-
-func deviceNextInterfaceHWAddr() (string, error) {
-	// Generate a new random MAC address using the usual prefix
-	ret := bytes.Buffer{}
-	for _, c := range "00:16:3e:xx:xx:xx" {
-		if c == 'x' {
-			c, err := rand.Int(rand.Reader, big.NewInt(16))
-			if err != nil {
-				return "", err
-			}
-			ret.WriteString(fmt.Sprintf("%x", c.Int64()))
-		} else {
-			ret.WriteString(string(c))
-		}
-	}
-
-	return ret.String(), nil
 }

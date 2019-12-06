@@ -297,7 +297,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	// Early check for refresh.
 	if req.Source.Refresh {
 		// Check if the instance exists.
-		inst, err = instanceLoadByProjectAndName(d.State(), project, req.Name)
+		inst, err = instance.LoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
 		} else if inst.IsRunning() {
@@ -489,7 +489,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	}
 	targetProject := project
 
-	source, err := instanceLoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
+	source, err := instance.LoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -594,7 +594,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	// Early check for refresh
 	if req.Source.Refresh {
 		// Check if the container exists
-		c, err := instanceLoadByProjectAndName(d.State(), targetProject, req.Name)
+		c, err := instance.LoadByProjectAndName(d.State(), targetProject, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
 		} else if c.IsRunning() {
@@ -776,7 +776,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
-		c, err := instanceLoadByProjectAndName(d.State(), project, bInfo.Name)
+		c, err := instance.LoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
 			return errors.Wrap(err, "Load instance")
 		}

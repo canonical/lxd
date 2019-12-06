@@ -356,7 +356,7 @@ func findContainerForPid(pid int32, s *state.State) (*containerLXC, error) {
 				name = fields[1]
 			}
 
-			inst, err := instanceLoadByProjectAndName(s, project, name)
+			inst, err := instance.LoadByProjectAndName(s, project, name)
 			if err != nil {
 				return nil, err
 			}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -133,7 +134,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	defer c.Delete()
 
 	// Load the container and trigger initLXC()
-	c2, err := instanceLoadByProjectAndName(suite.d.State(), "default", "testFoo")
+	c2, err := instance.LoadByProjectAndName(suite.d.State(), "default", "testFoo")
 	c2.IsRunning()
 	suite.Req.Nil(err)
 	_, err = c2.StorageStart()
