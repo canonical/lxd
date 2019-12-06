@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
@@ -103,7 +104,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := containerValidConfig(d.os, req.Config, true, false)
+	err := instance.ValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return response.BadRequest(err)
 	}

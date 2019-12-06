@@ -1203,12 +1203,12 @@ func (s *storageLvm) doContainerCopy(target instance.Instance, source instance.I
 
 		logger.Debugf("Copying LVM container storage for snapshot %s to %s", snap.Name(), newSnapName)
 
-		sourceSnapshot, err := instanceLoadByProjectAndName(srcState, source.Project(), snap.Name())
+		sourceSnapshot, err := instance.LoadByProjectAndName(srcState, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
-		targetSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), newSnapName)
+		targetSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), newSnapName)
 		if err != nil {
 			return err
 		}

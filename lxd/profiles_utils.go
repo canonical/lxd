@@ -7,6 +7,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -15,7 +16,7 @@ import (
 
 func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Sanity checks
-	err := containerValidConfig(d.os, req.Config, true, false)
+	err := instance.ValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return err
 	}

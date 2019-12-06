@@ -49,7 +49,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	}()
 
 	// Get the backup struct.
-	b, err := backup.LoadByName(s, sourceInst.Project(), args.Name)
+	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
 	if err != nil {
 		return errors.Wrap(err, "Load backup object")
 	}
@@ -280,7 +280,7 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	}
 
 	for _, b := range backups {
-		inst, err := instanceLoadById(d.State(), b.InstanceID)
+		inst, err := instance.LoadByID(d.State(), b.InstanceID)
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting container backup %s", b.Name)
 		}
