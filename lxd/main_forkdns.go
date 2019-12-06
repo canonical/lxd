@@ -261,9 +261,6 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 	// If we get here, then the recursion desired flag was set, meaning we cannot answer the
 	// query locally and need to relay it to the other forkdns instances.
 
-	// This tells the remote node we only want to query their local data (to stop loops).
-	r.RecursionDesired = false
-
 	// Get current list of servers safely.
 	dnsServersFileLock.Lock()
 	servers := dnsServersList
@@ -271,7 +268,12 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 
 	// Query all the servers.
 	for _, server := range servers {
-		resp, err := dns.Exchange(r, fmt.Sprintf("%s:1053", server))
+		req := dns.Msg{}
+		req.Question = r.Question
+		req.RecursionDesired = false
+		req.Id = r.Id
+
+		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
 			continue
@@ -358,9 +360,6 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 	// If we get here, then the recursion desired flag was set, meaning we cannot answer the
 	// query locally and need to relay it to the other forkdns instances.
 
-	// This tells the remote node we only want to query their local data (to stop loops).
-	r.RecursionDesired = false
-
 	// Get current list of servers safely.
 	dnsServersFileLock.Lock()
 	servers := dnsServersList
@@ -368,7 +367,12 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 
 	// Query all the servers.
 	for _, server := range servers {
-		resp, err := dns.Exchange(r, fmt.Sprintf("%s:1053", server))
+		req := dns.Msg{}
+		req.Question = r.Question
+		req.RecursionDesired = false
+		req.Id = r.Id
+
+		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
 			continue
