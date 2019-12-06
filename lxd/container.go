@@ -23,7 +23,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/instance/vmqemu"
+	"github.com/lxc/lxd/lxd/instance/qemu"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -126,9 +126,9 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 		if expanded {
 			// The devices being validated are already expanded, so just use the same
 			// devices clone as we used for the main devices config.
-			inst = vmqemu.Instantiate(state, instArgs, instArgs.Devices)
+			inst = qemu.Instantiate(state, instArgs, instArgs.Devices)
 		} else {
-			inst = vmqemu.Instantiate(state, instArgs, nil)
+			inst = qemu.Instantiate(state, instArgs, nil)
 		}
 	} else {
 		return fmt.Errorf("Invalid instance type")
@@ -934,7 +934,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCCreate(s, args)
 	} else if args.Type == instancetype.VM {
-		inst, err = vmqemu.Create(s, args)
+		inst, err = qemu.Create(s, args)
 	} else {
 		return nil, fmt.Errorf("Instance type invalid")
 	}
@@ -1171,7 +1171,7 @@ func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) 
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCLoad(s, args, profiles)
 	} else if args.Type == instancetype.VM {
-		inst, err = vmqemu.Load(s, args, profiles)
+		inst, err = qemu.Load(s, args, profiles)
 	} else {
 		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
 	}
