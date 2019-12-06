@@ -33,11 +33,12 @@ import (
 func init() {
 	// Expose storageVolumeMount to the device package as StorageVolumeMount.
 	device.StorageVolumeMount = storageVolumeMount
+
 	// Expose storageVolumeUmount to the device package as StorageVolumeUmount.
 	device.StorageVolumeUmount = storageVolumeUmount
+
 	// Expose storageRootFSApplyQuota to the device package as StorageRootFSApplyQuota.
 	device.StorageRootFSApplyQuota = storageRootFSApplyQuota
-
 }
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
@@ -413,18 +414,24 @@ func storagePoolInit(s *state.State, poolName string) (storage, error) {
 	return storageInit(s, "default", poolName, "", -1)
 }
 
-func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) (storage, error) {
-	st, err := storageInit(s, "default", poolName, volumeName, volumeType)
+func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) error {
+	// Load the DB records
+	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	poolVolumePut := st.GetStoragePoolVolumeWritable()
+	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volumeName, volumeType, poolID)
+	if err != nil {
+		return err
+	}
+
+	poolVolumePut := volume.Writable()
 
 	// Check if unmapped
 	if shared.IsTrue(poolVolumePut.Config["security.unmapped"]) {
 		// No need to look at containers and maps for unmapped volumes
-		return st, nil
+		return nil
 	}
 
 	// Get the on-disk idmap for the volume
@@ -433,7 +440,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		lastIdmap, err = idmapsetFromString(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
 			logger.Errorf("Failed to unmarshal last idmapping: %s", poolVolumePut.Config["volatile.idmap.last"])
-			return nil, err
+			return err
 		}
 	}
 
@@ -447,19 +454,19 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 			nextIdmap, err = c.NextIdmap()
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if nextIdmap != nil {
 			nextJsonMap, err = idmapsetToJSON(nextIdmap)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
 	poolVolumePut.Config["volatile.idmap.next"] = nextJsonMap
 
-	// get mountpoint of storage volume
+	// Get mountpoint of storage volume
 	remapPath := storagePools.GetStoragePoolVolumeMountPoint(poolName, volumeName)
 
 	if !nextIdmap.Equals(lastIdmap) {
@@ -468,7 +475,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy, err := storagePoolVolumeUsedByInstancesGet(s, "default", poolName, volumeName)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			if len(volumeUsedBy) > 1 {
@@ -491,11 +498,11 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 						ctNextIdmap, err = ct.NextIdmap()
 					}
 					if err != nil {
-						return nil, fmt.Errorf("Failed to retrieve idmap of container")
+						return fmt.Errorf("Failed to retrieve idmap of container")
 					}
 
 					if !nextIdmap.Equals(ctNextIdmap) {
-						return nil, fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctName, volumeName)
+						return fmt.Errorf("Idmaps of container %v and storage volume %v are not identical", ctName, volumeName)
 					}
 				}
 			} else if len(volumeUsedBy) == 1 {
@@ -503,54 +510,44 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 				// we can shift the storage volume.
 				// I'm not sure if we want some locking here.
 				if volumeUsedBy[0] != c.Name() {
-					return nil, fmt.Errorf("idmaps of container and storage volume are not identical")
+					return fmt.Errorf("idmaps of container and storage volume are not identical")
 				}
 			}
 		}
 
-		// mount storage volume
-		ourMount, err := st.StoragePoolVolumeMount()
-		if err != nil {
-			return nil, err
-		}
-		if ourMount {
-			defer func() {
-				_, err := st.StoragePoolVolumeUmount()
-				if err != nil {
-					logger.Warnf("Failed to unmount storage volume")
-				}
-			}()
-		}
-
-		// unshift rootfs
+		// Unshift rootfs
 		if lastIdmap != nil {
 			var err error
 
-			if st.GetStorageType() == storageTypeZfs {
+			if pool.Driver == "zfs" {
 				err = lastIdmap.UnshiftRootfs(remapPath, zfsIdmapSetSkipper)
 			} else {
 				err = lastIdmap.UnshiftRootfs(remapPath, nil)
 			}
+
 			if err != nil {
 				logger.Errorf("Failed to unshift \"%s\"", remapPath)
-				return nil, err
+				return err
 			}
+
 			logger.Debugf("Unshifted \"%s\"", remapPath)
 		}
 
-		// shift rootfs
+		// Shift rootfs
 		if nextIdmap != nil {
 			var err error
 
-			if st.GetStorageType() == storageTypeZfs {
+			if pool.Driver == "zfs" {
 				err = nextIdmap.ShiftRootfs(remapPath, zfsIdmapSetSkipper)
 			} else {
 				err = nextIdmap.ShiftRootfs(remapPath, nil)
 			}
+
 			if err != nil {
 				logger.Errorf("Failed to shift \"%s\"", remapPath)
-				return nil, err
+				return err
 			}
+
 			logger.Debugf("Shifted \"%s\"", remapPath)
 		}
 		logger.Debugf("Shifted storage volume")
@@ -562,25 +559,19 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		jsonIdmap, err = idmapsetToJSON(nextIdmap)
 		if err != nil {
 			logger.Errorf("Failed to marshal idmap")
-			return nil, err
+			return err
 		}
 	}
 
-	// update last idmap
+	// Update last idmap
 	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
 
-	st.SetStoragePoolVolumeWritable(&poolVolumePut)
-
-	poolID, err := s.Cluster.StoragePoolGetID(poolName)
-	if err != nil {
-		return nil, err
-	}
 	err = s.Cluster.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return st, nil
+	return nil
 }
 
 func storagePoolVolumeInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
@@ -834,14 +825,63 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 	}
 
 	volumeType, _ := storagePools.VolumeTypeNameToType(volumeTypeName)
-	s, err := storagePoolVolumeAttachInit(state, poolName, volumeName, volumeType, c)
-	if err != nil {
-		return err
-	}
+	pool, err := storagePools.GetPoolByName(state, poolName)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		// Mount the storage volume
+		ourMount, err := pool.MountCustomVolume(volumeName, nil)
+		if err != nil {
+			return err
+		}
 
-	_, err = s.StoragePoolVolumeMount()
-	if err != nil {
-		return err
+		revert := true
+		if ourMount {
+			defer func() {
+				if !revert {
+					return
+				}
+
+				pool.UnmountCustomVolume(volumeName, nil)
+			}()
+		}
+
+		// Custom storage volumes do not currently support projects, so hardcode "default" project.
+		err = storagePoolVolumeAttachPrepare(state, poolName, volumeName, volumeType, c)
+		if err != nil {
+			return err
+		}
+
+		revert = false
+	} else {
+		// Load the volume
+		s, err := storageInit(state, "default", poolName, volumeName, volumeType)
+		if err != nil {
+			return err
+		}
+
+		// Mount the storage volume
+		ourMount, err := s.StoragePoolVolumeMount()
+		if err != nil {
+			return err
+		}
+
+		revert := true
+		if ourMount {
+			defer func() {
+				if !revert {
+					return
+				}
+
+				s.StoragePoolVolumeUmount()
+			}()
+		}
+
+		// Custom storage volumes do not currently support projects, so hardcode "default" project.
+		err = storagePoolVolumeAttachPrepare(state, poolName, volumeName, volumeType, c)
+		if err != nil {
+			return err
+		}
+
+		revert = false
 	}
 
 	return nil
@@ -849,15 +889,23 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 
 // storageVolumeUmount unmounts a storage volume on a pool.
 func storageVolumeUmount(state *state.State, poolName string, volumeName string, volumeType int) error {
-	// Custom storage volumes do not currently support projects, so hardcode "default" project.
-	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
-	if err != nil {
-		return err
-	}
+	pool, err := storagePools.GetPoolByName(state, poolName)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		_, err = pool.UnmountCustomVolume(volumeName, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Custom storage volumes do not currently support projects, so hardcode "default" project.
+		s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
+		if err != nil {
+			return err
+		}
 
-	_, err = s.StoragePoolVolumeUmount()
-	if err != nil {
-		return err
+		_, err = s.StoragePoolVolumeUmount()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
