@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/project"
@@ -17,9 +16,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
-
-// InstanceLoadByID returns instance config by ID.
-var InstanceLoadByID func(s *state.State, id int) (Instance, error)
 
 // Instance represents the backup relevant subset of a LXD instance.
 type Instance interface {
@@ -124,6 +120,20 @@ type Backup struct {
 	compressionAlgorithm string
 }
 
+// New instantiates a new Backup struct.
+func New(state *state.State, inst Instance, ID int, name string, creationDate, expiryDate time.Time, instanceOnly, optimizedStorage bool) *Backup {
+	return &Backup{
+		state:            state,
+		instance:         inst,
+		id:               ID,
+		name:             name,
+		creationDate:     creationDate,
+		expiryDate:       expiryDate,
+		instanceOnly:     instanceOnly,
+		optimizedStorage: optimizedStorage,
+	}
+}
+
 // CompressionAlgorithm returns the compression used for the tarball.
 func (b *Backup) CompressionAlgorithm() string {
 	return b.compressionAlgorithm
@@ -203,32 +213,6 @@ func (b *Backup) Render() *api.InstanceBackup {
 		ContainerOnly:    b.instanceOnly,
 		OptimizedStorage: b.optimizedStorage,
 	}
-}
-
-// LoadByName load a backup from the database.
-func LoadByName(s *state.State, project, name string) (*Backup, error) {
-	// Get the backup database record
-	args, err := s.Cluster.ContainerGetBackup(project, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "Load backup from database")
-	}
-
-	// Load the instance it belongs to
-	instance, err := InstanceLoadByID(s, args.InstanceID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Load container from database")
-	}
-
-	return &Backup{
-		state:            s,
-		instance:         instance,
-		id:               args.ID,
-		name:             name,
-		creationDate:     args.CreationDate,
-		expiryDate:       args.ExpiryDate,
-		instanceOnly:     args.InstanceOnly,
-		optimizedStorage: args.OptimizedStorage,
-	}, nil
 }
 
 // DoBackupDelete deletes a backup.
