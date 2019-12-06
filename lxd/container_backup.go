@@ -10,8 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -41,7 +41,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, cname)
+	c, err := instance.LoadByProjectAndName(d.State(), project, cname)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -90,7 +90,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -212,7 +212,7 @@ func containerBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backup.LoadByName(d.State(), project, fullName)
+	backup, err := instance.BackupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -251,7 +251,7 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backup.LoadByName(d.State(), project, oldName)
+	backup, err := instance.BackupLoadByName(d.State(), project, oldName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -299,7 +299,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backup.LoadByName(d.State(), project, fullName)
+	backup, err := instance.BackupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -345,7 +345,7 @@ func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backup.LoadByName(d.State(), proj, fullName)
+	backup, err := instance.BackupLoadByName(d.State(), proj, fullName)
 	if err != nil {
 		return response.SmartError(err)
 	}

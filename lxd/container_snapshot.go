@@ -62,7 +62,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	} else {
-		c, err := instanceLoadByProjectAndName(d.State(), project, cname)
+		c, err := instance.LoadByProjectAndName(d.State(), project, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -113,7 +113,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -206,7 +206,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	inst, err := instanceLoadByProjectAndName(
+	inst, err := instance.LoadByProjectAndName(
 		d.State(),
 		project, containerName+
 			shared.SnapshotDelimiter+

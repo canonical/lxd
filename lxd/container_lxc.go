@@ -49,12 +49,11 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/containerwriter"
 	"github.com/lxc/lxd/shared/idmap"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 // Helper functions
@@ -117,105 +116,6 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 	err := c.SetConfigItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set LXC config: %s=%s", key, value)
-	}
-
-	return nil
-}
-
-func lxcParseRawLXC(line string) (string, string, error) {
-	// Ignore empty lines
-	if len(line) == 0 {
-		return "", "", nil
-	}
-
-	// Skip whitespace {"\t", " "}
-	line = strings.TrimLeft(line, "\t ")
-
-	// Ignore comments
-	if strings.HasPrefix(line, "#") {
-		return "", "", nil
-	}
-
-	// Ensure the format is valid
-	membs := strings.SplitN(line, "=", 2)
-	if len(membs) != 2 {
-		return "", "", fmt.Errorf("Invalid raw.lxc line: %s", line)
-	}
-
-	key := strings.ToLower(strings.Trim(membs[0], " \t"))
-	val := strings.Trim(membs[1], " \t")
-	return key, val, nil
-}
-
-func lxcValidConfig(rawLxc string) error {
-	for _, line := range strings.Split(rawLxc, "\n") {
-		key, _, err := lxcParseRawLXC(line)
-		if err != nil {
-			return err
-		}
-
-		if key == "" {
-			continue
-		}
-
-		unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
-		if shared.IsTrue(unprivOnly) {
-			if key == "lxc.idmap" || key == "lxc.id_map" || key == "lxc.include" {
-				return fmt.Errorf("%s can't be set in raw.lxc as LXD was configured to only allow unprivileged containers", key)
-			}
-		}
-
-		// Blacklist some keys
-		if key == "lxc.logfile" || key == "lxc.log.file" {
-			return fmt.Errorf("Setting lxc.logfile is not allowed")
-		}
-
-		if key == "lxc.syslog" || key == "lxc.log.syslog" {
-			return fmt.Errorf("Setting lxc.log.syslog is not allowed")
-		}
-
-		if key == "lxc.ephemeral" {
-			return fmt.Errorf("Setting lxc.ephemeral is not allowed")
-		}
-
-		if strings.HasPrefix(key, "lxc.prlimit.") {
-			return fmt.Errorf(`Process limits should be set via ` +
-				`"limits.kernel.[limit name]" and not ` +
-				`directly via "lxc.prlimit.[limit name]"`)
-		}
-
-		networkKeyPrefix := "lxc.net."
-		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-			networkKeyPrefix = "lxc.network."
-		}
-
-		if strings.HasPrefix(key, networkKeyPrefix) {
-			fields := strings.Split(key, ".")
-
-			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-				// lxc.network.X.ipv4 or lxc.network.X.ipv6
-				if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
-					continue
-				}
-
-				// lxc.network.X.ipv4.gateway or lxc.network.X.ipv6.gateway
-				if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
-					continue
-				}
-			} else {
-				// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
-				if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
-					continue
-				}
-
-				// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
-				if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
-					continue
-				}
-			}
-
-			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
-		}
 	}
 
 	return nil
@@ -288,7 +188,7 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 	}
 
 	// Validate expanded config
-	err = containerValidConfig(s.OS, c.expandedConfig, false, true)
+	err = instance.ValidConfig(s.OS, c.expandedConfig, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -600,99 +500,13 @@ func idmapSize(state *state.State, isolatedStr string, size string) (int64, erro
 
 var idmapLock sync.Mutex
 
-func parseRawIdmap(value string) ([]idmap.IdmapEntry, error) {
-	getRange := func(r string) (int64, int64, error) {
-		entries := strings.Split(r, "-")
-		if len(entries) > 2 {
-			return -1, -1, fmt.Errorf("invalid raw.idmap range %s", r)
-		}
-
-		base, err := strconv.ParseInt(entries[0], 10, 64)
-		if err != nil {
-			return -1, -1, err
-		}
-
-		size := int64(1)
-		if len(entries) > 1 {
-			size, err = strconv.ParseInt(entries[1], 10, 64)
-			if err != nil {
-				return -1, -1, err
-			}
-
-			size -= base
-			size += 1
-		}
-
-		return base, size, nil
-	}
-
-	ret := idmap.IdmapSet{}
-
-	for _, line := range strings.Split(value, "\n") {
-		if line == "" {
-			continue
-		}
-
-		entries := strings.Split(line, " ")
-		if len(entries) != 3 {
-			return nil, fmt.Errorf("invalid raw.idmap line %s", line)
-		}
-
-		outsideBase, outsideSize, err := getRange(entries[1])
-		if err != nil {
-			return nil, err
-		}
-
-		insideBase, insideSize, err := getRange(entries[2])
-		if err != nil {
-			return nil, err
-		}
-
-		if insideSize != outsideSize {
-			return nil, fmt.Errorf("idmap ranges of different sizes %s", line)
-		}
-
-		entry := idmap.IdmapEntry{
-			Hostid:   outsideBase,
-			Nsid:     insideBase,
-			Maprange: insideSize,
-		}
-
-		switch entries[0] {
-		case "both":
-			entry.Isuid = true
-			entry.Isgid = true
-			err := ret.AddSafe(entry)
-			if err != nil {
-				return nil, err
-			}
-		case "uid":
-			entry.Isuid = true
-			err := ret.AddSafe(entry)
-			if err != nil {
-				return nil, err
-			}
-		case "gid":
-			entry.Isgid = true
-			err := ret.AddSafe(entry)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("invalid raw.idmap type %s", line)
-		}
-	}
-
-	return ret.Idmap, nil
-}
-
 func findIdmap(state *state.State, cName string, isolatedStr string, configBase string, configSize string, rawIdmap string) (*idmap.IdmapSet, int64, error) {
 	isolated := false
 	if shared.IsTrue(isolatedStr) {
 		isolated = true
 	}
 
-	rawMaps, err := parseRawIdmap(rawIdmap)
+	rawMaps, err := instance.ParseRawIdmap(rawIdmap)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -2394,7 +2208,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	}
 
 	// Update the backup.yaml file
-	err = writeBackupFile(c)
+	err = instance.WriteBackupFile(c.state, c)
 	if err != nil {
 		if ourStart {
 			c.unmount()
@@ -3327,7 +3141,7 @@ func (c *containerLXC) Backups() ([]backup.Backup, error) {
 	// Build the backup list
 	backups := []backup.Backup{}
 	for _, backupName := range backupNames {
-		backup, err := backup.LoadByName(c.state, c.project, backupName)
+		backup, err := instance.BackupLoadByName(c.state, c.project, backupName)
 		if err != nil {
 			return nil, err
 		}
@@ -3484,7 +3298,7 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 
 	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
 	// the container listed); let's write a new one to be safe.
-	err = writeBackupFile(c)
+	err = instance.WriteBackupFile(c.state, c)
 	if err != nil {
 		return err
 	}
@@ -3613,7 +3427,7 @@ func (c *containerLXC) Delete() error {
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
 			// calling its Delete function.
-			err := instanceDeleteSnapshots(c.state, c.Project(), c.Name())
+			err := instance.DeleteSnapshots(c.state, c.Project(), c.Name())
 			if err != nil {
 				logger.Error("Failed to delete instance snapshots", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 				return err
@@ -3666,7 +3480,7 @@ func (c *containerLXC) Delete() error {
 			}
 		} else {
 			// Remove all snapshots.
-			err := instanceDeleteSnapshots(c.state, c.Project(), c.Name())
+			err := instance.DeleteSnapshots(c.state, c.Project(), c.Name())
 			if err != nil {
 				logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 				return err
@@ -4029,96 +3843,6 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 	return nil
 }
 
-func writeBackupFile(c instance.Instance) error {
-	// We only write backup files out for actual containers
-	if c.IsSnapshot() {
-		return nil
-	}
-
-	// Immediately return if the container directory doesn't exist yet
-	if !shared.PathExists(c.Path()) {
-		return os.ErrNotExist
-	}
-
-	// Generate the YAML
-	ci, _, err := c.Render()
-	if err != nil {
-		return errors.Wrap(err, "Failed to render container metadata")
-	}
-
-	snapshots, err := c.Snapshots()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get snapshots")
-	}
-
-	var sis []*api.InstanceSnapshot
-
-	for _, s := range snapshots {
-		si, _, err := s.Render()
-		if err != nil {
-			return err
-		}
-
-		sis = append(sis, si.(*api.InstanceSnapshot))
-	}
-
-	poolName, err := c.StoragePool()
-	if err != nil {
-		return err
-	}
-
-	s := c.DaemonState()
-	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
-	if err != nil {
-		return err
-	}
-
-	dbType := db.StoragePoolVolumeTypeContainer
-	if c.Type() == instancetype.VM {
-		dbType = db.StoragePoolVolumeTypeVM
-	}
-
-	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.Project(), c.Name(), dbType, poolID)
-	if err != nil {
-		return err
-	}
-
-	data, err := yaml.Marshal(&backup.InstanceConfig{
-		Container: ci.(*api.Instance),
-		Snapshots: sis,
-		Pool:      pool,
-		Volume:    volume,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Ensure the container is currently mounted
-	if !shared.PathExists(c.RootfsPath()) {
-		logger.Debug("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name(), "project": c.Project()})
-		return nil
-	}
-
-	// Write the YAML
-	f, err := os.Create(filepath.Join(c.Path(), "backup.yaml"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	err = f.Chmod(0400)
-	if err != nil {
-		return err
-	}
-
-	err = shared.WriteAll(f, data)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	// Set sane defaults for unset keys
 	if args.Project == "" {
@@ -4142,7 +3866,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := containerValidConfig(c.state.OS, args.Config, false, false)
+	err := instance.ValidConfig(c.state.OS, args.Config, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid config")
 	}
@@ -4333,7 +4057,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	})
 
 	// Do some validation of the config diff
-	err = containerValidConfig(c.state.OS, c.expandedConfig, false, true)
+	err = instance.ValidConfig(c.state.OS, c.expandedConfig, false, true)
 	if err != nil {
 		return errors.Wrap(err, "Invalid expanded config")
 	}
@@ -4760,7 +4484,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Only update the backup file if it already exists (indicating the instance is mounted).
 	if shared.PathExists(filepath.Join(c.Path(), "backup.yaml")) {
-		err := writeBackupFile(c)
+		err := instance.WriteBackupFile(c.state, c)
 		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrap(err, "Failed to write backup file")
 		}
@@ -4968,7 +4692,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		var arch string
 		if c.IsSnapshot() {
 			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
-			parent, err := instanceLoadByProjectAndName(c.state, c.project, parentName)
+			parent, err := instance.LoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
 				ctw.Close()
 				logger.Error("Failed exporting instance", ctxMap)
@@ -5957,7 +5681,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	// Mitigation for CVE-2019-5736
 	useRexec := false
 	if c.expandedConfig["raw.idmap"] != "" {
-		err := allowedUnprivilegedOnlyMap(c.expandedConfig["raw.idmap"])
+		err := instance.AllowedUnprivilegedOnlyMap(c.expandedConfig["raw.idmap"])
 		if err != nil {
 			useRexec = true
 		}
@@ -6232,7 +5956,7 @@ func (c *containerLXC) legacyStorage() storage {
 }
 
 // getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
-// function is called, the handle is cached internally in the vmQemu struct.
+// function is called, the handle is cached internally in the VMQemu struct.
 func (c *containerLXC) getStoragePool() (storagePools.Pool, error) {
 	if c.storagePool != nil {
 		return c.storagePool, nil
@@ -6673,7 +6397,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (de
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
 			// Generate a new MAC address
-			volatileHwaddr, err = deviceNextInterfaceHWAddr()
+			volatileHwaddr, err = instance.DeviceNextInterfaceHWAddr()
 			if err != nil {
 				return nil, err
 			}

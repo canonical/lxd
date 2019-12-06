@@ -1318,7 +1318,7 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
+			sourceSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), snap.Name())
 			if err != nil {
 				return err
 			}
@@ -1326,7 +1326,7 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 			prevSnapOnlyName = snapOnlyName
 			newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-			targetSnapshot, err := instanceLoadByProjectAndName(s.s, target.Project(), newSnapName)
+			targetSnapshot, err := instance.LoadByProjectAndName(s.s, target.Project(), newSnapName)
 			if err != nil {
 				return err
 			}
@@ -1955,7 +1955,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
+			sourceSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), snap.Name())
 			if err != nil {
 				return err
 			}
@@ -2566,7 +2566,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", args.Instance.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		snapshot, err := instanceLoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
+		snapshot, err := instance.LoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
 		if err != nil {
 			return nil, err
 		}

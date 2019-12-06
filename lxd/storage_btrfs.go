@@ -1187,14 +1187,14 @@ func (s *storageBtrfs) ContainerCopy(target instance.Instance, source instance.I
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
+		sourceSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := instanceLoadByProjectAndName(s.s, target.Project(), newSnapName)
+		targetSnapshot, err := instance.LoadByProjectAndName(s.s, target.Project(), newSnapName)
 		if err != nil {
 			return err
 		}

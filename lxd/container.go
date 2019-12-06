@@ -23,13 +23,12 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/vmqemu"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -57,10 +56,10 @@ func init() {
 		return identifiers, nil
 	}
 
-	// Expose instanceLoadByProjectAndName to the device package converting the response to an Instance.
+	// Expose instance.LoadByProjectAndName to the device package converting the response to an Instance.
 	// This is because container types are defined in the main package and are not importable.
 	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (device.Instance, error) {
-		container, err := instanceLoadByProjectAndName(s, project, name)
+		container, err := instance.LoadByProjectAndName(s, project, name)
 		if err != nil {
 			return nil, err
 		}
@@ -68,16 +67,13 @@ func init() {
 		return device.Instance(container), nil
 	}
 
-	// Expose instanceLoadById to the backup package converting the response to an Instance.
-	// This is because container types are defined in the main package and are not importable.
-	backup.InstanceLoadByID = func(s *state.State, id int) (backup.Instance, error) {
-		instance, err := instanceLoadById(s, id)
-		if err != nil {
-			return nil, err
-		}
+	// Expose instanceValidDevices to the instance package. This is because it relies on
+	// containerLXC which cannot be moved out of main package at this time.
+	instance.ValidDevices = instanceValidDevices
 
-		return backup.Instance(instance), nil
-	}
+	// Expose instanceLoad to the instance package. This is because it relies on containerLXC
+	// which cannot be moved out of main package this time.
+	instance.Load = instanceLoad
 }
 
 // Helper functions
@@ -91,105 +87,6 @@ func containerValidName(name string) error {
 
 	if !shared.ValidHostname(name) {
 		return fmt.Errorf("Container name isn't a valid hostname")
-	}
-
-	return nil
-}
-
-func containerValidConfigKey(os *sys.OS, key string, value string) error {
-	f, err := shared.ConfigKeyChecker(key)
-	if err != nil {
-		return err
-	}
-	if err = f(value); err != nil {
-		return err
-	}
-	if key == "raw.lxc" {
-		return lxcValidConfig(value)
-	}
-	if key == "security.syscalls.blacklist_compat" {
-		for _, arch := range os.Architectures {
-			if arch == osarch.ARCH_64BIT_INTEL_X86 ||
-				arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
-				arch == osarch.ARCH_64BIT_POWERPC_BIG_ENDIAN {
-				return nil
-			}
-		}
-		return fmt.Errorf("security.syscalls.blacklist_compat isn't supported on this architecture")
-	}
-	return nil
-}
-
-func allowedUnprivilegedOnlyMap(rawIdmap string) error {
-	rawMaps, err := parseRawIdmap(rawIdmap)
-	if err != nil {
-		return err
-	}
-
-	for _, ent := range rawMaps {
-		if ent.Hostid == 0 {
-			return fmt.Errorf("Cannot map root user into container as LXD was configured to only allow unprivileged containers")
-		}
-	}
-
-	return nil
-}
-
-func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded bool) error {
-	if config == nil {
-		return nil
-	}
-
-	for k, v := range config {
-		if profile && strings.HasPrefix(k, "volatile.") {
-			return fmt.Errorf("Volatile keys can only be set on containers")
-		}
-
-		if profile && strings.HasPrefix(k, "image.") {
-			return fmt.Errorf("Image keys can only be set on containers")
-		}
-
-		err := containerValidConfigKey(sysOS, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	_, rawSeccomp := config["raw.seccomp"]
-	_, whitelist := config["security.syscalls.whitelist"]
-	_, blacklist := config["security.syscalls.blacklist"]
-	blacklistDefault := shared.IsTrue(config["security.syscalls.blacklist_default"])
-	blacklistCompat := shared.IsTrue(config["security.syscalls.blacklist_compat"])
-
-	if rawSeccomp && (whitelist || blacklist || blacklistDefault || blacklistCompat) {
-		return fmt.Errorf("raw.seccomp is mutually exclusive with security.syscalls*")
-	}
-
-	if whitelist && (blacklist || blacklistDefault || blacklistCompat) {
-		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
-	}
-
-	_, err := seccomp.SyscallInterceptMountFilter(config)
-	if err != nil {
-		return err
-	}
-
-	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && sysOS.IdmapSet == nil {
-		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported")
-	}
-
-	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
-	if shared.IsTrue(unprivOnly) {
-		if config["raw.idmap"] != "" {
-			err := allowedUnprivilegedOnlyMap(config["raw.idmap"])
-			if err != nil {
-				return err
-			}
-		}
-
-		if shared.IsTrue(config["security.privileged"]) {
-			return fmt.Errorf("LXD was configured to only allow unprivileged containers")
-		}
 	}
 
 	return nil
@@ -220,17 +117,19 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 
 		inst = c
 	} else if instanceType == instancetype.VM {
-		vm := &vmQemu{
-			dbType:       instancetype.VM,
-			name:         instanceName,
-			localDevices: devices.Clone(), // Prevent devices from modifying their config.
+		instArgs := db.InstanceArgs{
+			Name:    instanceName,
+			Type:    instancetype.VM,
+			Devices: devices.Clone(), // Prevent devices from modifying their config.
 		}
 
 		if expanded {
-			vm.expandedDevices = vm.localDevices // Avoid another clone.
+			// The devices being validated are already expanded, so just use the same
+			// devices clone as we used for the main devices config.
+			inst = vmqemu.Instantiate(state, instArgs, instArgs.Devices)
+		} else {
+			inst = vmqemu.Instantiate(state, instArgs, nil)
 		}
-
-		inst = vm
 	} else {
 		return fmt.Errorf("Invalid instance type")
 	}
@@ -531,7 +430,7 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 
 	if refresh {
 		// Load the target instance.
-		inst, err = instanceLoadByProjectAndName(s, args.Project, args.Name)
+		inst, err = instance.LoadByProjectAndName(s, args.Project, args.Name)
 		if err != nil {
 			refresh = false // Instance doesn't exist, so switch to copy mode.
 		}
@@ -808,7 +707,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	}
 
 	// Attempt to update backup.yaml for instance.
-	err = writeBackupFile(sourceInstance)
+	err = instance.WriteBackupFile(s, sourceInstance)
 	if err != nil {
 		return nil, err
 	}
@@ -867,7 +766,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	}
 
 	// Validate container config.
-	err := containerValidConfig(s.OS, args.Config, false, false)
+	err := instance.ValidConfig(s.OS, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1035,7 +934,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCCreate(s, args)
 	} else if args.Type == instancetype.VM {
-		inst, err = vmQemuCreate(s, args)
+		inst, err = vmqemu.Create(s, args)
 	} else {
 		return nil, fmt.Errorf("Instance type invalid")
 	}
@@ -1113,67 +1012,12 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 		return fmt.Errorf("Instance type not supported")
 	}
 
-	err = writeBackupFile(c)
+	err = instance.WriteBackupFile(state, c)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func instanceLoadById(s *state.State, id int) (instance.Instance, error) {
-	// Get the DB record
-	project, name, err := s.Cluster.ContainerProjectAndName(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return instanceLoadByProjectAndName(s, project, name)
-}
-
-func instanceLoadByProjectAndName(s *state.State, project, name string) (instance.Instance, error) {
-	// Get the DB record
-	var container *db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-
-		if strings.Contains(name, shared.SnapshotDelimiter) {
-			parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-			instanceName := parts[0]
-			snapshotName := parts[1]
-
-			instance, err := tx.InstanceGet(project, instanceName)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
-			}
-
-			snapshot, err := tx.InstanceSnapshotGet(project, instanceName, snapshotName)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fetch snapshot %q of instance %q in project %q", snapshotName, instanceName, project)
-			}
-
-			c := db.InstanceSnapshotToInstance(instance, snapshot)
-			container = &c
-		} else {
-			container, err = tx.InstanceGet(project, name)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	args := db.ContainerToArgs(container)
-	inst, err := instanceLoad(s, args, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to load container")
-	}
-
-	return inst, nil
 }
 
 func instanceLoadByProject(s *state.State, project string) ([]instance.Instance, error) {
@@ -1327,7 +1171,7 @@ func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) 
 	if args.Type == instancetype.Container {
 		inst, err = containerLXCLoad(s, args, profiles)
 	} else if args.Type == instancetype.VM {
-		inst, err = vmQemuLoad(s, args, profiles)
+		inst, err = vmqemu.Load(s, args, profiles)
 	} else {
 		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
 	}
