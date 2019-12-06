@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/canonical/go-dqlite"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/lxd/daemon"
@@ -35,6 +36,16 @@ type cmdGlobal struct {
 }
 
 func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
+	// Configure dqlite to *not* disable internal SQLite locking, since we
+	// use SQLite both through dqlite and through go-dqlite, potentially
+	// from different threads at the same time. We need to call this
+	// function as early as possible since this is a global setting in
+	// SQLite, which can't be changed afterwise.
+	err := dqlite.ConfigMultiThread()
+	if err != nil {
+		return err
+	}
+
 	// Set logging global variables
 	daemon.Debug = c.flagLogDebug
 	daemon.Verbose = c.flagLogVerbose
