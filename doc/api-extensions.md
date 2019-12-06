@@ -889,3 +889,7 @@ Add virtual machine support.
 
 ## image\_profiles
 Allows a list of profiles to be applied to an image when launching a new container. 
+
+## multi\_architecture\_clustering
+This adds a new `architecture` attribute to cluster entries which indicates a cluster 
+node's architecture.
