@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
@@ -34,6 +35,11 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
+
+func init() {
+	// Link networkGetLeaseAddresses into instance package.
+	instance.NetworkGetLeaseAddresses = networkGetLeaseAddresses
+}
 
 // Lock to prevent concurent networks creation
 var networkCreateLock sync.Mutex
