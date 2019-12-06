@@ -277,7 +277,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 		return operations.ForwardedOperationResponse(project, &opAPI)
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -345,7 +345,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -399,7 +399,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}

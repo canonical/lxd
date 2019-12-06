@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -125,7 +126,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.LoadByID(d.State(), id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -156,7 +157,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	}
 	netns := queryParam(r, "netns")
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.LoadByID(d.State(), id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -186,7 +187,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		target = "unknown"
 	}
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.LoadByID(d.State(), id)
 	if err != nil {
 		return response.SmartError(err)
 	}

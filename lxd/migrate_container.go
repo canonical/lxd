@@ -998,7 +998,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 					// Check if snapshot exists already and if not then create
 					// a new snapshot DB record so that the storage layer can
 					// populate the volume on the storage device.
-					_, err := instanceLoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
+					_, err := instance.LoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
 					if err != nil {
 						// Create the snapshot as it doesn't seem to exist.
 						_, err := instanceCreateInternal(state, snapArgs)

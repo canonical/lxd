@@ -2867,7 +2867,7 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", instanceName, shared.SnapshotDelimiter, snap[len("snapshot_"):])
-		snapshot, err := instanceLoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
+		snapshot, err := instance.LoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
 		if err != nil {
 			logger.Errorf(`Failed to load snapshot "%s" for RBD storage volume "%s" on storage pool "%s": %s`, lxdName, instanceName, s.pool.Name, err)
 			return nil, err

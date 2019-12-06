@@ -14,8 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var instancesCmd = APIEndpoint{
@@ -403,28 +401,6 @@ func containersShutdown(s *state.State) error {
 		}
 	}
 	wg.Wait()
-
-	return nil
-}
-
-// instanceDeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
-func instanceDeleteSnapshots(s *state.State, projectName, instanceName string) error {
-	results, err := s.Cluster.ContainerGetSnapshots(projectName, instanceName)
-	if err != nil {
-		return err
-	}
-
-	for _, snapName := range results {
-		snapInst, err := instanceLoadByProjectAndName(s, projectName, snapName)
-		if err != nil {
-			logger.Error("instanceDeleteSnapshots: Failed to load the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
-			continue
-		}
-
-		if err := snapInst.Delete(); err != nil {
-			logger.Error("instanceDeleteSnapshots: Failed to delete the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
-		}
-	}
 
 	return nil
 }

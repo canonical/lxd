@@ -798,14 +798,14 @@ func (s *storageDir) doContainerCopy(target instance.Instance, source instance.I
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := instanceLoadByProjectAndName(srcState, source.Project(), snap.Name())
+		sourceSnapshot, err := instance.LoadByProjectAndName(srcState, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), newSnapName)
+		targetSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), newSnapName)
 		if err != nil {
 			return err
 		}
