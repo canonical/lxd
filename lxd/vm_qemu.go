@@ -346,35 +346,35 @@ func (vm *vmQemu) getMonitorEventHandler() func(event string, data map[string]in
 }
 
 // mount the instance's config volume if needed.
-func (vm *vmQemu) mount() (ourMount bool, err error) {
+func (vm *vmQemu) mount() (bool, error) {
 	var pool storagePools.Pool
-	pool, err = vm.getStoragePool()
+	pool, err := vm.getStoragePool()
 	if err != nil {
-		return
+		return false, err
 	}
 
-	ourMount, err = pool.MountInstance(vm, nil)
+	ourMount, err := pool.MountInstance(vm, nil)
 	if err != nil {
-		return
+		return false, err
 	}
 
-	return
+	return ourMount, nil
 }
 
 // unmount the instance's config volume if needed.
-func (vm *vmQemu) unmount() (unmounted bool, err error) {
+func (vm *vmQemu) unmount() (bool, error) {
 	var pool storagePools.Pool
-	pool, err = vm.getStoragePool()
+	pool, err := vm.getStoragePool()
 	if err != nil {
-		return
+		return false, err
 	}
 
-	unmounted, err = pool.UnmountInstance(vm, nil)
+	unmounted, err := pool.UnmountInstance(vm, nil)
 	if err != nil {
-		return
+		return false, err
 	}
 
-	return
+	return unmounted, nil
 }
 
 // generateAgentCert creates the necessary server key and certificate if needed.
