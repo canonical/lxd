@@ -1814,7 +1814,7 @@ func (vm *Qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			err = db.ContainerUpdate(tx, vm.id, vm.description, vm.architecture, vm.ephemeral, vm.expiryDate)
 			if err != nil {
 				tx.Rollback()
-				return errors.Wrap(err, "Container update")
+				return errors.Wrap(err, "Instance update")
 			}
 
 		}
