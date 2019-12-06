@@ -24,7 +24,6 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/response"
@@ -750,16 +749,8 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				}
 
 				// Fill in the hwaddr from volatile
-				if inst.Type() == instancetype.Container {
-					d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
-					if err != nil {
-						continue
-					}
-				} else if inst.Type() == instancetype.VM {
-					d, err = inst.(*vmQemu).fillNetworkDevice(k, d)
-					if err != nil {
-						continue
-					}
+				if d["hwaddr"] == "" {
+					d["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", k)]
 				}
 
 				// Record the MAC
