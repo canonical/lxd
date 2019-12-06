@@ -443,7 +443,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	log, err := logging.GetLogger("lxd-forkdns", "", false, false, nil)
+	log, err := logging.GetLogger("lxd-forkdns", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
 		return err
 	}
@@ -461,10 +461,6 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to setup fsnotify watch on %s: %s", path, err)
 	}
-
-	os.Stdin.Close()
-	os.Stderr.Close()
-	os.Stdout.Close()
 
 	// Run the server list monitor concurrently waiting for file changes.
 	go serversFileMonitor(watcher, networkName)
