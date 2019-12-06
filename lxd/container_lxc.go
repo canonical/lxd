@@ -5956,7 +5956,7 @@ func (c *containerLXC) legacyStorage() storage {
 }
 
 // getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
-// function is called, the handle is cached internally in the VMQemu struct.
+// function is called, the handle is cached internally in the containerLXC struct.
 func (c *containerLXC) getStoragePool() (storagePools.Pool, error) {
 	if c.storagePool != nil {
 		return c.storagePool, nil
