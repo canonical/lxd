@@ -85,8 +85,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(fmt.Errorf("Volumes used by LXD itself cannot have snapshots"))
 	}
 
-	// Retrieve ID of the storage pool (and check if the storage pool
-	// exists).
+	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -102,13 +101,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return resp
 	}
 
-	// Ensure that the storage volume exists.
-	storage, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Ensure that the snapshot doesn't already exist
+	// Ensure that the snapshot doesn't already exist.
 	_, _, err = d.cluster.StoragePoolNodeVolumeGetType(fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
@@ -131,6 +124,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 				return err
 			}
 		} else {
+			// Ensure that the storage volume exists.
+			storage, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
+			if err != nil {
+				return err
+			}
+
 			// Start the storage.
 			ourMount, err := storage.StoragePoolVolumeMount()
 			if err != nil {
@@ -310,11 +309,6 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return resp
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
 	snapshotRename := func(op *operations.Operation) error {
 		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -325,6 +319,12 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 
 			err = pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
 		} else {
+			var s storage
+			s, err = storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
+			if err != nil {
+				return err
+			}
+
 			err = s.StoragePoolVolumeSnapshotRename(req.Name)
 		}
 
@@ -522,11 +522,6 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return resp
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
-	if err != nil {
-		return response.NotFound(err)
-	}
-
 	snapshotDelete := func(op *operations.Operation) error {
 		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -537,6 +532,12 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 
 			err = pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
 		} else {
+			var s storage
+			s, err = storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
+			if err != nil {
+				return err
+			}
+
 			err = s.StoragePoolVolumeSnapshotDelete()
 		}
 
