@@ -172,7 +172,7 @@ test_security_protection() {
     lxc start c1
     lxc stop c1 --force
 
-    ! lxc publish c1 --alias=protected || false
+    lxc publish c1 --alias=protected
     lxc snapshot c1
     lxc publish c1/snap0 --alias=protected
     lxc image delete protected
