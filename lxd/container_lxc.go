@@ -4079,12 +4079,6 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Initialize LXC")
 	}
 
-	// Initialize storage interface for the container.
-	err = c.initStorage()
-	if err != nil {
-		return errors.Wrap(err, "Initialize storage")
-	}
-
 	// If apparmor changed, re-validate the apparmor profile
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
 		err = apparmor.ParseProfile(c)
