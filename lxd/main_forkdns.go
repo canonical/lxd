@@ -412,7 +412,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 func (c *cmdForkDNS) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkdns <pid path> <listen address> <domain> <network name>"
+	cmd.Use = "forkdns <log path> <pid path> <listen address> <domain> <network name>"
 	cmd.Short = "Internal DNS proxy for clustering"
 	cmd.Long = `Description:
   Spawns a specialised DNS server designed for relaying A and PTR queries that cannot be answered by
