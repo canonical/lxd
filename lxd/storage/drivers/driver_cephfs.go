@@ -132,22 +132,13 @@ func (d *cephfs) Create() error {
 		return err
 	}
 
-	connected := false
-	for _, monAddress := range monAddresses {
-		uri := fmt.Sprintf("%s:6789:/", monAddress)
-		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
-		if err != nil {
-			continue
-		}
-
-		connected = true
-		defer forceUnmount(mountPoint)
-		break
-	}
-
-	if !connected {
+	// Mount the pool.
+	uri := fmt.Sprintf("%s:6789:/", strings.Join(monAddresses, ","))
+	err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	if err != nil {
 		return err
 	}
+	defer forceUnmount(mountPoint)
 
 	// Create the path if missing.
 	err = os.MkdirAll(filepath.Join(mountPoint, fsPath), 0755)
@@ -197,22 +188,13 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		return err
 	}
 
-	connected := false
-	for _, monAddress := range monAddresses {
-		uri := fmt.Sprintf("%s:6789:/", monAddress)
-		err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
-		if err != nil {
-			continue
-		}
-
-		connected = true
-		defer forceUnmount(mountPoint)
-		break
-	}
-
-	if !connected {
+	// Mount the pool.
+	uri := fmt.Sprintf("%s:6789:/", strings.Join(monAddresses, ","))
+	err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	if err != nil {
 		return err
 	}
+	defer forceUnmount(mountPoint)
 
 	if shared.PathExists(filepath.Join(mountPoint, fsPath)) {
 		// Delete the usual directories.
@@ -270,25 +252,15 @@ func (d *cephfs) Mount() (bool, error) {
 	}
 
 	// Get the credentials and host.
-	monAddresses, secret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
+	monAddresses, userSecret, err := d.getConfig(d.config["cephfs.cluster_name"], d.config["cephfs.user.name"])
 	if err != nil {
 		return false, err
 	}
 
-	// Do the actual mount.
-	connected := false
-	for _, monAddress := range monAddresses {
-		uri := fmt.Sprintf("%s:6789:/%s", monAddress, fsPath)
-		err = tryMount(uri, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], secret, fsName))
-		if err != nil {
-			continue
-		}
-
-		connected = true
-		break
-	}
-
-	if !connected {
+	// Mount the pool.
+	uri := fmt.Sprintf("%s:6789:/%s", strings.Join(monAddresses, ","), fsPath)
+	err = tryMount(uri, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	if err != nil {
 		return false, err
 	}
 
