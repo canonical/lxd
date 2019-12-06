@@ -1,4 +1,4 @@
-package vmqemu
+package qemu
 
 import (
 	"golang.org/x/sys/unix"
