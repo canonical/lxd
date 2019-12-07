@@ -121,7 +121,7 @@ func evaluateField (field string, value string, op string, container instance.In
 		case "name":
 			result = value == container.Name()
 			break
-
+		
 		default:
 			result = false
 	}
@@ -268,7 +268,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	if filterStr != "" {
 		result = doFilter(filterStr, result, d)
 	}	
-	
+
 	logger.Warnf("JackieError: result after filter %s", result)
 
 	// Get the data
