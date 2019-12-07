@@ -1005,7 +1005,7 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 		'F': {i18n.G("FINGERPRINT"), c.fingerprintFullColumnData},
 		'p': {i18n.G("PUBLIC"), c.publicColumnData},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
-		'a': {i18n.G("ARCH"), c.architectureColumnData},
+		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData},
 		's': {i18n.G("SIZE"), c.sizeColumnData},
 		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
 		't': {i18n.G("TYPE"), c.typeColumnData},
