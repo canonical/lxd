@@ -43,14 +43,41 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	return instancetype.Any, nil
 }
 
-func doFilter (fstr string, result interface{}) interface{} {
+// func doFilter(fstr string, container *api.InstanceFull) bool {
+// 	return applyFilter(fstr, &(container.Instance))
+// }
+
+func doFilter (fstr string, result map[string][]string, d *Daemon) map[string][]string {
 	// if matches filter, return true
 	logger.Warnf("JackieError: %s", result)
-	applyFilter(fstr, result)
-	return result
+	newResult := map[string][]string{}
+	for address, containers := range result {
+		// if address == "" {
+		// 	address = "default"
+		// }
+
+		newContainers := []string{}
+		logger.Warnf("JackieError: %s", address)
+		for _,container := range containers {
+			logger.Warnf("\tJackieError: %s", container)
+			inst, err := instanceLoadByProjectAndName(d.State(), address, container)
+
+			if err != nil {
+				continue
+			}
+
+			if applyFilter(fstr, inst) {
+				newContainers = append(newContainers, container)
+			}
+		}
+
+		newResult[address] = newContainers
+	}
+
+	return newResult
 }
 
-func applyFilter (fstr string, container interface{}) bool {
+func applyFilter (fstr string, container instance.Instance) bool {
 	filterSplit := strings.Fields(fstr)
 
 	index := 0
@@ -67,10 +94,8 @@ func applyFilter (fstr string, container interface{}) bool {
 
 		// eval 
 		logger.Warnf("JackieError: evaluating %s %s %s", field, operator, value)
-		curResult := evaluateField(field, value, operator, "first");
-		if operator == "neq" {
-			curResult = !curResult
-		}
+
+		curResult := evaluateField(field, value, operator, container);
 
 		logger.Warnf("JackieError: %s", prevLogical)
 		if prevLogical == "and" {
@@ -90,8 +115,22 @@ func applyFilter (fstr string, container interface{}) bool {
 	return result
 }
 
-func evaluateField (field string, value string, op string, container string) bool {
-	return true
+func evaluateField (field string, value string, op string, container instance.Instance) bool {
+	result := false
+	switch(field) {
+		case "name":
+			result = value == container.Name()
+			break
+
+		default:
+			result = false
+	}
+
+	if op == "neq" {
+		result = !result
+	}
+
+	return result
 }
 
 
@@ -99,9 +138,9 @@ func containersGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
 		if err == nil {
-			filterStr := r.FormValue("filter")
+			// filterStr := r.FormValue("filter")
 			// if filterStr != "" {
-			result = doFilter(filterStr, result)
+			// result = doFilter(filterStr, result)
 			// }
 			return response.SyncResponse(true, result)
 		}
@@ -138,7 +177,6 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	if filterStr != "" {
 		logger.Warnf("JackieError: %s", filterStr)
-
 	}
 
 	recursion, err := strconv.Atoi(recursionStr)
@@ -148,6 +186,14 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	// Parse the project field
 	project := projectParam(r)
+	// logger.Warnf("JackieError: Project param: %s", project)
+
+
+	inst, err := instanceLoadByProjectAndName(d.State(), project, "first")
+	// doFilter(filterStr, inst)
+	// c,_,_ := inst.Render()
+	// c.ExtendedConfig
+	logger.Warnf("GOT INSTANCE: %d", inst.ID)
 
 	// Get the list and location of all containers
 	var result map[string][]string // Containers by node address
@@ -195,7 +241,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			}
 		}
 		// doFilter("filterStr", c)
-		logger.Warnf("JackieError: CHECK 1")
+		logger.Warnf("JackieError: CHECK 1 - c = %s", c)
 		resultMu.Lock()
 		resultList = append(resultList, &c)
 		resultMu.Unlock()
@@ -216,6 +262,14 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		resultFullList = append(resultFullList, &c)
 		resultMu.Unlock()
 	}
+
+	// TIME TO FILTER
+	logger.Warnf("JackieError: RESULT2 %s", result)
+	if filterStr != "" {
+		result = doFilter(filterStr, result, d)
+	}	
+	
+	logger.Warnf("JackieError: result after filter %s", result)
 
 	// Get the data
 	wg := sync.WaitGroup{}
@@ -360,7 +414,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			return resultList[i].Name < resultList[j].Name
 		})
 
-		logger.Warnf("JackieError: Result List %s", resultList)
+		// logger.Warnf("JackieError: Result List %s", resultList)
 		return resultList, nil
 	}
 
