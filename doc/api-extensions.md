@@ -886,3 +886,6 @@ This allows for existing a CEPH RDB or FS to be directly connected to a LXD cont
 
 ## virtual\_machines
 Add virtual machine support.
+
+## image\_profiles
+Allows a list of profiles to be applied to an image when launching a new container. 

@@ -44,6 +44,9 @@ type ImagePut struct {
 
 	// API extension: images_expiry
 	ExpiresAt time.Time `json:"expires_at" yaml:"expires_at"`
+
+	// API extension: image_profiles
+	Profiles []string `json:"profiles" yaml:"profiles"`
 }
 
 // Image represents a LXD image

@@ -23,7 +23,8 @@ ensure_import_testimage() {
                 exit 1
             fi
 
-            deps/import-busybox --alias testimage
+            project=$(lxc project list | grep '(current)' | cut -d' ' -f2)
+            deps/import-busybox --alias testimage --project "$project"
         fi
     fi
 }
