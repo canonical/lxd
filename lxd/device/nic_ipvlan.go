@@ -6,6 +6,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -72,8 +73,8 @@ func (d *nicIPVLAN) validateEnvironment() error {
 
 	if d.config["ipv4.address"] != "" {
 		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
-		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", d.config["parent"])
-		sysctlVal, err := NetworkSysctlGet(ipv4FwdPath)
+		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", d.config["parent"])
+		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
 		if err != nil || sysctlVal != "1\n" {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
 		}
@@ -84,8 +85,8 @@ func (d *nicIPVLAN) validateEnvironment() error {
 
 	if d.config["ipv6.address"] != "" {
 		// Check necessary sysctls are configured for use with l2proxy parent in IPVLAN l3s mode.
-		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", d.config["parent"])
-		sysctlVal, err := NetworkSysctlGet(ipv6FwdPath)
+		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.config["parent"])
+		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
@@ -93,8 +94,8 @@ func (d *nicIPVLAN) validateEnvironment() error {
 			return fmt.Errorf("IPVLAN in L3S mode requires sysctl net.ipv6.conf.%s.forwarding=1", d.config["parent"])
 		}
 
-		ipv6ProxyNdpPath := fmt.Sprintf("ipv6/conf/%s/proxy_ndp", d.config["parent"])
-		sysctlVal, err = NetworkSysctlGet(ipv6ProxyNdpPath)
+		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.config["parent"])
+		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}
@@ -186,8 +187,8 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 	if d.config["ipv4.address"] != "" {
 		// Set necessary sysctls for use with l2proxy parent in IPVLAN l3s mode.
-		ipv4FwdPath := fmt.Sprintf("ipv4/conf/%s/forwarding", parentName)
-		err := NetworkSysctlSet(ipv4FwdPath, "1")
+		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", parentName)
+		err := util.SysctlSet(ipv4FwdPath, "1")
 		if err != nil {
 			return fmt.Errorf("Error setting net sysctl %s: %v", ipv4FwdPath, err)
 		}
@@ -195,14 +196,14 @@ func (d *nicIPVLAN) setupParentSysctls(parentName string) error {
 
 	if d.config["ipv6.address"] != "" {
 		// Set necessary sysctls use with l2proxy parent in IPVLAN l3s mode.
-		ipv6FwdPath := fmt.Sprintf("ipv6/conf/%s/forwarding", parentName)
-		err := NetworkSysctlSet(ipv6FwdPath, "1")
+		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", parentName)
+		err := util.SysctlSet(ipv6FwdPath, "1")
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
 
-		ipv6ProxyNdpPath := fmt.Sprintf("ipv6/conf/%s/proxy_ndp", parentName)
-		err = NetworkSysctlSet(ipv6ProxyNdpPath, "1")
+		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", parentName)
+		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
 		}

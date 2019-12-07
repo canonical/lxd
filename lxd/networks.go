@@ -1184,12 +1184,12 @@ func (n *network) Setup(oldConfig map[string]string) error {
 			return fmt.Errorf("Network has ipv6.address but kernel IPv6 support is missing")
 		}
 
-		err := device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
+		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/autoconf", n.name), "0")
 		if err != nil {
 			return err
 		}
 
-		err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_dad", n.name), "0")
+		err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_dad", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -1357,7 +1357,7 @@ func (n *network) Setup(oldConfig map[string]string) error {
 
 		// Allow forwarding
 		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
-			err = device.NetworkSysctlSet("ipv4/ip_forward", "1")
+			err = util.SysctlSet("net/ipv4/ip_forward", "1")
 			if err != nil {
 				return err
 			}
@@ -1530,7 +1530,7 @@ func (n *network) Setup(oldConfig map[string]string) error {
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		// Enable IPv6 for the subnet
-		err := device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
+		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -1604,7 +1604,7 @@ func (n *network) Setup(oldConfig map[string]string) error {
 					continue
 				}
 
-				err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
+				err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", entry.Name()), "2")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -1612,7 +1612,7 @@ func (n *network) Setup(oldConfig map[string]string) error {
 
 			// Then set forwarding for all of them
 			for _, entry := range entries {
-				err = device.NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
+				err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/forwarding", entry.Name()), "1")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
