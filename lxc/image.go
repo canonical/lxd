@@ -939,6 +939,15 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
 	}
 
+	if len(info.Profiles) == 0 {
+		fmt.Printf(i18n.G("Profiles: ") + "[]\n")
+	} else {
+		fmt.Println(i18n.G("Profiles:"))
+		for _, name := range info.Profiles {
+			fmt.Printf("    - %s\n", name)
+		}
+	}
+
 	return nil
 }
 
