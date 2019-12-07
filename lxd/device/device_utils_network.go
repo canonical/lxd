@@ -15,6 +15,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -22,29 +23,6 @@ import (
 
 // Instances can be started in parallel, so lock the creation of VLANs.
 var networkCreateSharedDeviceLock sync.Mutex
-
-// NetworkSysctlGet retrieves the value of a sysctl file in /proc/sys/net.
-func NetworkSysctlGet(path string) (string, error) {
-	// Read the current content
-	content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/%s", path))
-	if err != nil {
-		return "", err
-	}
-
-	return string(content), nil
-}
-
-// NetworkSysctlSet writes a value to a sysctl file in /proc/sys/net.
-func NetworkSysctlSet(path string, value string) error {
-	// Get current value
-	current, err := NetworkSysctlGet(path)
-	if err == nil && current == value {
-		// Nothing to update
-		return nil
-	}
-
-	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
-}
 
 // NetworkGetDevMTU retrieves the current MTU setting for a named network device.
 func NetworkGetDevMTU(devName string) (uint64, error) {
@@ -201,7 +179,7 @@ func NetworkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevi
 			}
 
 			// Attempt to disable IPv6 router advertisement acceptance.
-			NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", vlanDevice), "0")
+			util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", vlanDevice), "0")
 
 			// We created a new vlan interface, return true.
 			return "created", nil
