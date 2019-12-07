@@ -43,10 +43,66 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	return instancetype.Any, nil
 }
 
+func doFilter (fstr string, result interface{}) interface{} {
+	// if matches filter, return true
+	logger.Warnf("JackieError: %s", result)
+	applyFilter(fstr, result)
+	return result
+}
+
+func applyFilter (fstr string, container interface{}) bool {
+	filterSplit := strings.Fields(fstr)
+
+	index := 0
+	result := true
+	prevLogical := "and"
+
+	queryLen := len(filterSplit)
+
+	for index < queryLen {
+		field := filterSplit[index]
+		operator := filterSplit[index+1]
+		value := filterSplit[index+2]
+		index+=3
+
+		// eval 
+		logger.Warnf("JackieError: evaluating %s %s %s", field, operator, value)
+		curResult := evaluateField(field, value, operator, "first");
+		if operator == "neq" {
+			curResult = !curResult
+		}
+
+		logger.Warnf("JackieError: %s", prevLogical)
+		if prevLogical == "and" {
+			logger.Warnf("JackieError: Logical AND")
+			result = curResult && result
+		} else {
+			logger.Warnf("JackieError: Logical OR")
+			result = curResult || result
+		}
+
+		if index < queryLen {
+			prevLogical = filterSplit[index]
+			index++
+		}
+	}
+
+	return result
+}
+
+func evaluateField (field string, value string, op string, container string) bool {
+	return true
+}
+
+
 func containersGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
 		if err == nil {
+			filterStr := r.FormValue("filter")
+			// if filterStr != "" {
+			result = doFilter(filterStr, result)
+			// }
 			return response.SyncResponse(true, result)
 		}
 		if !query.IsRetriableError(err) {
@@ -77,6 +133,14 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Parse the recursion field
 	recursionStr := r.FormValue("recursion")
 
+	// // Parse filter value
+	filterStr := r.FormValue("filter")
+
+	if filterStr != "" {
+		logger.Warnf("JackieError: %s", filterStr)
+
+	}
+
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		recursion = 0
@@ -106,7 +170,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	if err != nil {
 		return []string{}, err
 	}
-
+	logger.Warnf("JackieError: RESULT %s", result)
 	// Get the local instances
 	nodeCts := map[string]instance.Instance{}
 	if recursion > 0 {
@@ -130,6 +194,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				Location:   nodes[name],
 			}
 		}
+		// doFilter("filterStr", c)
+		logger.Warnf("JackieError: CHECK 1")
 		resultMu.Lock()
 		resultList = append(resultList, &c)
 		resultMu.Unlock()
@@ -144,6 +210,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				Location:   nodes[name],
 			}}
 		}
+		// doFilter("filterStr", c)
+		logger.Warnf("JackieError: CHECK 2")
 		resultMu.Lock()
 		resultFullList = append(resultFullList, &c)
 		resultMu.Unlock()
@@ -223,6 +291,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 					instancePath = "virtual-machines"
 				}
 				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container)
+				logger.Warnf("JackieError: CHECK 3")
 				resultString = append(resultString, url)
 			}
 		} else {
@@ -275,7 +344,13 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 	wg.Wait()
 
+	// if recursion == 2 {
+	// 	return []string{"Hello!!!!!!!"}, nil
+	// }
+
 	if recursion == 0 {
+		logger.Warnf("JackieError: CHECK 4")
+		logger.Warnf("JackieError: Result String %s", resultList)
 		return resultString, nil
 	}
 
@@ -285,6 +360,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			return resultList[i].Name < resultList[j].Name
 		})
 
+		logger.Warnf("JackieError: Result List %s", resultList)
 		return resultList, nil
 	}
 
@@ -293,6 +369,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
+	logger.Warnf("JackieError: Result Full List %s", resultList)
 	return resultFullList, nil
 }
 
