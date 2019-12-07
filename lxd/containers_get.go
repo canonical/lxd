@@ -61,6 +61,7 @@ func doFilter (fstr string, result map[string][]string, d *Daemon) map[string][]
 		for _,container := range containers {
 			logger.Warnf("\tJackieError: %s", container)
 			inst, err := instanceLoadByProjectAndName(d.State(), address, container)
+			// logger.Warnf("\tJackieError: %s", inst.Config())
 
 			if err != nil {
 				continue
@@ -117,11 +118,19 @@ func applyFilter (fstr string, container instance.Instance) bool {
 
 func evaluateField (field string, value string, op string, container instance.Instance) bool {
 	result := false
-	switch(field) {
-		case "name":
+	// logger.Warnf("JackieError %q", container.ExpandedConfig())
+	switch {
+		case field == "name":
 			result = value == container.Name()
 			break
-		
+
+		case strings.HasPrefix(field, "config"):
+			fieldCut := field[7:len(field)]
+			logger.Warnf("Field chopped: %s", fieldCut)
+			config := container.ExpandedConfig()
+			result = config[fieldCut] == value
+			break
+
 		default:
 			result = false
 	}
