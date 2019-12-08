@@ -49,50 +49,47 @@ test_storage_local_volume_handling() {
     #  zfs   |   x   |   x   |   x   |   x   |   x   |
     # -------|-------|-------|-------|-------|-------|
 
-    for driver in "btrfs" "ceph" "dir" "lvm" "zfs"; do
-      if [ "$lxd_backend" = "$driver" ]; then
-        pool_opts=
+    driver="${lxd_backend}"
+    pool_opts=
 
-        if [ "$driver" = "btrfs" ] || [ "$driver" = "zfs" ]; then
-          pool_opts="size=100GB"
-        fi
+    if [ "$driver" = "btrfs" ] || [ "$driver" = "zfs" ]; then
+      pool_opts="size=100GB"
+    fi
 
-        if [ "$driver" = "ceph" ]; then
-          pool_opts="volume.size=25MB ceph.osd.pg_num=1"
-        fi
+    if [ "$driver" = "ceph" ]; then
+      pool_opts="volume.size=25MB ceph.osd.pg_num=1"
+    fi
 
-        if [ "$driver" = "lvm" ]; then
-          pool_opts="volume.size=25MB"
-        fi
+    if [ "$driver" = "lvm" ]; then
+      pool_opts="volume.size=25MB"
+    fi
 
-        if [ -n "${pool_opts}" ]; then
-          # shellcheck disable=SC2086
-          lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" $pool_opts
-        else
-          lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}"
-        fi
+    if [ -n "${pool_opts}" ]; then
+      # shellcheck disable=SC2086
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" $pool_opts
+    else
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}"
+    fi
 
-        lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
-        # This will create the snapshot vol1/snap0
-        lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
-        # Copy volume with snapshots
-        lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-        # Ensure the target snapshot is there
-        lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap0
-        # Copy volume only
-        lxc storage volume copy --volume-only "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol2"
-        # Copy snapshot to volume
-        lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1/snap0" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol3"
-        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
-        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2
-        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
-        lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-        ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 || false
-        lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
-        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
-        lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
-      fi
-    done
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+    # This will create the snapshot vol1/snap0
+    lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+    # Copy volume with snapshots
+    lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
+    # Ensure the target snapshot is there
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1/snap0
+    # Copy volume only
+    lxc storage volume copy --volume-only "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol2"
+    # Copy snapshot to volume
+    lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1/snap0" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol3"
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol2
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol3
+    lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
+    ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 || false
+    lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
+    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
 
     for source_driver in "btrfs" "ceph" "dir" "lvm" "zfs"; do
       for target_driver in "btrfs" "ceph" "dir" "lvm" "zfs"; do
