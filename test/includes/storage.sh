@@ -5,7 +5,15 @@ storage_backend_available() {
     # shellcheck disable=2039
     local backends
     backends="$(available_storage_backends)"
-    [ "${backends#*$1}" != "$backends" ]
+    if [ "${backends#*$1}" != "$backends" ]; then
+        true
+        return
+    elif [ "${1}" = "cephfs" ] && [ "${backends#*"ceph"}" != "$backends" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
+        true
+        return
+    fi
+
+    false
 }
 
 # Choose a random available backend, excluding LXD_BACKEND
