@@ -26,6 +26,8 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -518,29 +520,39 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	initPool, err := storagePoolInit(d.State(), backup.Pool.Name)
-	if err != nil {
-		err = errors.Wrap(err, "Initialize storage")
-		return response.InternalError(err)
-	}
+	var poolName string
+	_, err = storagePools.GetPoolByName(d.State(), backup.Pool.Name)
+	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+		if err != nil {
+			return response.InternalError(err)
+		}
 
-	ourMount, err := initPool.StoragePoolMount()
-	if err != nil {
-		return response.InternalError(err)
-	}
-	if ourMount {
-		defer initPool.StoragePoolUmount()
+		// FIXME: In the new world, we don't expose the on-disk pool
+		// name, instead we need to change the per-driver logic below to using
+		// clean storage functions.
+		poolName = backup.Pool.Name
+	} else {
+		initPool, err := storagePoolInit(d.State(), backup.Pool.Name)
+		if err != nil {
+			err = errors.Wrap(err, "Initialize storage")
+			return response.InternalError(err)
+		}
+
+		ourMount, err := initPool.StoragePoolMount()
+		if err != nil {
+			return response.InternalError(err)
+		}
+		if ourMount {
+			defer initPool.StoragePoolUmount()
+		}
+
+		// retrieve on-disk pool name
+		_, _, poolName = initPool.GetContainerPoolInfo()
 	}
 
 	existingSnapshots := []*api.InstanceSnapshot{}
 	needForce := fmt.Errorf(`The snapshot does not exist on disk. Pass ` +
 		`"force" to discard non-existing snapshots`)
-
-	// retrieve on-disk pool name
-	_, _, poolName := initPool.GetContainerPoolInfo()
-	if err != nil {
-		return response.InternalError(err)
-	}
 
 	// Retrieve all snapshots that exist on disk.
 	onDiskSnapshots := []string{}
