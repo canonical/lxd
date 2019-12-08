@@ -1274,8 +1274,16 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 	srcCt := source.(*containerLXC)
 	targetCt := target.(*containerLXC)
 
-	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
-	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
+	sourcePool, err := srcCt.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	targetPool, err := targetCt.StoragePool()
+	if err != nil {
+		return err
+	}
+
 	if sourcePool != targetPool {
 		err := s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 		if err != nil {
