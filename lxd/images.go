@@ -916,8 +916,87 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func evaluateFieldImage(field string, value string, operator string , obj *api.Image) bool {
-	return true
+func evaluateFieldImage(field string, value string, op string , image *api.Image) bool {
+	result := false
+
+	logger.Warnf("IN EVAL IMAGE: %s", image)
+
+	switch {
+		case strings.EqualFold(field, "architecture"):
+			result = value == image.Architecture
+			break
+
+		case strings.EqualFold(field, "filename"):
+			result = value == image.Filename
+			break
+
+		case strings.EqualFold(field,"type"):
+			result = image.Type == value
+			break
+
+		case strings.EqualFold(field,"fingerprint"):
+			result = image.Fingerprint == value
+			break
+
+		case strings.EqualFold(field,"public"):
+			imagePut := image.ImagePut
+			if strings.EqualFold(value,"true"){
+				result = imagePut.Public
+			} else {
+				result = !imagePut.Public
+			}
+			break
+
+		case strings.EqualFold(field,"autoupdate"):
+			imagePut := image.ImagePut
+			if strings.EqualFold(value,"true"){
+				result = imagePut.AutoUpdate
+			} else {
+				result = !imagePut.AutoUpdate
+			}
+			break
+
+		case strings.HasPrefix(field, "UpdateSource"):
+			fieldCut := field[13:len(field)]
+			source := image.UpdateSource
+			switch (fieldCut) {
+				case "Alias":
+					result = source.Alias == value
+					break
+				case "Certificate":
+					result = source.Certificate == value
+					break
+				case "Protocol":
+					result = source.Protocol == value
+					break
+				case "Server":
+					result = source.Server == value
+					break
+				case "ImageType":
+					result = source.ImageType == value
+					break
+				default:
+					result = false
+					break
+			}
+			
+			break
+
+		case strings.HasPrefix(field, "Properties"):
+			fieldCut := field[11:len(field)]
+			imagePut := image.ImagePut
+			result = value == imagePut.Properties[fieldCut]
+			break
+
+		default:
+			return false
+	}
+
+	if strings.EqualFold(op, "ne") {
+		result = !result
+	}
+
+	return result
 }
 
 func doImagesGet(d *Daemon, recursion bool, project string, public bool, filterStr string) (interface{}, error) {

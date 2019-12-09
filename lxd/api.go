@@ -173,7 +173,7 @@ func applyFilterNew (fstr string, obj interface{}) bool {
 	queryLen := len(filterSplit)
 
 	for index < queryLen {
-		if (filterSplit[index] == "not") {
+		if strings.EqualFold(filterSplit[index], "not") {
 			not = true
 			index++
 		}
@@ -208,10 +208,12 @@ func applyFilterNew (fstr string, obj interface{}) bool {
 			curResult = !curResult
 		}
 
-		if prevLogical == "and" {
+		if strings.EqualFold (prevLogical, "and") {
 			result = curResult && result
 		} else {
-			result = curResult || result
+			if strings.EqualFold(prevLogical, "or") {
+				result = curResult || result
+			}
 		}
 
 		if index < queryLen {
