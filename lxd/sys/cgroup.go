@@ -3,13 +3,14 @@
 package sys
 
 import (
+	"bufio"
 	"fmt"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
 	"os"
 	"path"
-	"bufio"
 	"strings"
+
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Detect CGroup support.
@@ -41,12 +42,13 @@ func (s *OS) initCGroup() {
 			//v1
 			*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
 			*flags_v2[j] = false
-			j++
 			//then set flag for flags_v2 to be false
 			//v2
 			if !*flag  {
 				//read this file to check which controllers are supported for v2
-				path := path.Join("/sys/fs/cgroup", "unified", "cgroup.controllers")
+				//path := path.Join("/sys/fs/cgroup", "unified", "cgroup.controllers")
+				//TODO-our: need to change this path for hybrid 
+				path := path.Join("/sys/fs/cgroup",  "cgroup.controllers")
 				file, err := os.Open(path)
 				if err != nil {
 					logger.Debugf("Can't open file")
@@ -60,11 +62,10 @@ func (s *OS) initCGroup() {
 					if strings.Contains(line_controllers, cGroups[i].path) {
 						*flag = true
 						*flags_v2[j] = true
-						j++
 					}
 
 				}
-
+				j++
 				if err := scanner.Err(); err != nil {
 					logger.Debugf("Can't something")
 				}
