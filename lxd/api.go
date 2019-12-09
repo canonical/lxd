@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"reflect"
 
 	log "github.com/lxc/lxd/shared/log15"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // RestServer creates an http.Server capable of handling requests against the LXD REST
@@ -148,4 +150,75 @@ func queryParam(request *http.Request, key string) string {
 	}
 
 	return values.Get(key)
+}
+
+func doFilterNew (fstr string, result []interface{}) []interface{} {
+	newResult := result[:0]
+	for _,obj := range result {
+		if applyFilterNew(fstr, obj) {
+			newResult = append(newResult, obj)
+		}
+	}
+	return newResult
+}
+
+func applyFilterNew (fstr string, obj interface{}) bool {
+	filterSplit := strings.Fields(fstr)
+
+	index := 0
+	result := true
+	prevLogical := "and"
+	not := false
+
+	queryLen := len(filterSplit)
+
+	for index < queryLen {
+		if (filterSplit[index] == "not") {
+			not = true
+			index++
+		}
+		field := filterSplit[index]
+		operator := filterSplit[index+1]
+		value := filterSplit[index+2]
+		index+=3
+		// eval 
+
+		curResult := false
+		
+		logger.Warnf("JackieError: %s", reflect.TypeOf(obj))
+		objType := reflect.TypeOf(obj).String()
+		switch (objType) {
+			case "*api.Instance":
+				curResult = evaluateFieldInstance(field, value, operator, obj.(*api.Instance))
+				break
+			case "*api.InstanceFull":
+				curResult = evaluateFieldInstanceFull(field, value, operator, obj.(*api.InstanceFull))
+				break
+			case "*api.Image":
+				curResult = evaluateFieldImage(field, value, operator, obj.(*api.Image))
+				break
+			default:
+				logger.Warnf("Unable to identify type")
+				break
+
+		}
+
+		if not {
+			not = false
+			curResult = !curResult
+		}
+
+		if prevLogical == "and" {
+			result = curResult && result
+		} else {
+			result = curResult || result
+		}
+
+		if index < queryLen {
+			prevLogical = filterSplit[index]
+			index++
+		}
+	}
+
+	return result
 }

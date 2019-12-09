@@ -22,7 +22,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/lxc/lxd/shared/osarch"
+	// "github.com/lxc/lxd/shared/osarch"
 )
 
 // urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either
@@ -44,107 +44,116 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	return instancetype.Any, nil
 }
 
+// func doFilterNew (fstr string, result []interface{}) []interface{} {
+// 	newResult := result[:0]
+// 	for _,obj := range result {
+// 		if applyFilterNew(fstr, obj) {
+// 			newResult = append(newResult, obj)
+// 		}
+// 	}
+// 	return newResult
+// }
 
-func doFilter (fstr string, result map[string][]string, d *Daemon) map[string][]string {
-	newResult := map[string][]string{}
-	for address, containers := range result {
-		newContainers := []string{}
-		for _,container := range containers {
-			inst, err := instanceLoadByProjectAndName(d.State(), address, container)
+// func doFilter (fstr string, result map[string][]string, d *Daemon) map[string][]string {
+// 	newResult := map[string][]string{}
+// 	for address, containers := range result {
+// 		newContainers := []string{}
+// 		for _,container := range containers {
+// 			inst, err := instanceLoadByProjectAndName(d.State(), address, container)
 
-			if err != nil {
-				continue
-			}
+// 			if err != nil {
+// 				continue
+// 			}
 
-			if applyFilter(fstr, inst) {
-				newContainers = append(newContainers, container)
-			}
-		}
+// 			if applyFilter(fstr, inst) {
+// 				newContainers = append(newContainers, container)
+// 			}
+// 		}
 
-		newResult[address] = newContainers
-	}
+// 		newResult[address] = newContainers
+// 	}
 
-	return newResult
+// 	return newResult
+// }
+
+// func applyFilter (fstr string, container instance.Instance) bool {
+// 	filterSplit := strings.Fields(fstr)
+
+// 	index := 0
+// 	result := true
+// 	prevLogical := "and"
+// 	not := false
+
+// 	queryLen := len(filterSplit)
+
+// 	for index < queryLen {
+// 		if (filterSplit[index] == "not") {
+// 			not = true
+// 			index++
+// 		}
+// 		field := filterSplit[index]
+// 		operator := filterSplit[index+1]
+// 		value := filterSplit[index+2]
+// 		index+=3
+
+// 		// eval 
+// 		curResult := evaluateField(field, value, operator, container);
+
+// 		if not {
+// 			not = false
+// 			curResult = !curResult
+// 		}
+
+// 		if prevLogical == "and" {
+// 			result = curResult && result
+// 		} else {
+// 			result = curResult || result
+// 		}
+
+// 		if index < queryLen {
+// 			prevLogical = filterSplit[index]
+// 			index++
+// 		}
+// 	}
+
+// 	return result
+// }
+
+func evaluateFieldInstanceFull(field string, value string, op string, instFull *api.InstanceFull) bool {
+	return evaluateFieldInstance(field, value, op, &instFull.Instance)
 }
 
-func applyFilter (fstr string, container instance.Instance) bool {
-	filterSplit := strings.Fields(fstr)
-
-	index := 0
-	result := true
-	prevLogical := "and"
-	not := false
-
-	queryLen := len(filterSplit)
-
-	for index < queryLen {
-		if (filterSplit[index] == "not") {
-			not = true
-			index++
-		}
-		field := filterSplit[index]
-		operator := filterSplit[index+1]
-		value := filterSplit[index+2]
-		index+=3
-
-		// eval 
-		curResult := evaluateField(field, value, operator, container);
-
-		if not {
-			not = false
-			curResult = !curResult
-		}
-
-		if prevLogical == "and" {
-			result = curResult && result
-		} else {
-			result = curResult || result
-		}
-
-		if index < queryLen {
-			prevLogical = filterSplit[index]
-			index++
-		}
-	}
-
-	return result
-}
-
-func evaluateField (field string, value string, op string, container instance.Instance) bool {
+func evaluateFieldInstance(field string, value string, op string, container *api.Instance) bool {
 	result := false
 
 	switch {
 		case strings.EqualFold(field, "name"):
-			result = value == container.Name()
-			break
-
-		case strings.EqualFold(field, "architecture"):
-			archName, _:= osarch.ArchitectureName(container.Architecture())
-			result = value == archName
+			logger.Warnf("In name eval, %s == %s", value, container.Name)
+			result = value == container.Name
 			break
 
 		case strings.EqualFold(field, "location"):
-			result = value == container.Location()
+			result = value == container.Location
 			break
 
 		case strings.EqualFold(field,"status") || strings.EqualFold(field, "state"):
-			result = container.State() == value
+			result = container.Status == value
 			break
 
-		case strings.EqualFold(field, "project"):
-			result = container.Project() == value
+		case strings.EqualFold(field,"type"):
+			result = container.Type == value
 			break
 
 		case strings.HasPrefix(field, "config"):
 			fieldCut := field[7:len(field)]
-			config := container.ExpandedConfig()
+			config := container.ExpandedConfig
 			result = config[fieldCut] == value
 			break
 
 		case strings.HasPrefix(field, "device"):
 			fieldSplit := strings.Split(field,".")
 			valSplit := strings.Split(value,".")
-			devices := container.ExpandedDevices()
+			devices := container.ExpandedDevices
 			dev := devices[valSplit[0]]
 			result = dev != nil
 			if len(fieldSplit) > 1 && result {
@@ -163,10 +172,69 @@ func evaluateField (field string, value string, op string, container instance.In
 	return result
 }
 
+// func evaluateField (field string, value string, op string, container instance.Instance) bool {
+// 	result := false
+
+// 	switch {
+// 		case strings.EqualFold(field, "name"):
+// 			result = value == container.Name()
+// 			break
+
+// 		case strings.EqualFold(field, "architecture"):
+// 			archName, _:= osarch.ArchitectureName(container.Architecture())
+// 			result = value == archName
+// 			break
+
+// 		case strings.EqualFold(field, "location"):
+// 			result = value == container.Location()
+// 			break
+
+// 		case strings.EqualFold(field,"status") || strings.EqualFold(field, "state"):
+// 			result = container.State() == value
+// 			break
+
+// 		case strings.EqualFold(field, "project"):
+// 			result = container.Project() == value
+// 			break
+
+// 		case strings.HasPrefix(field, "config"):
+// 			fieldCut := field[7:len(field)]
+// 			config := container.ExpandedConfig()
+// 			result = config[fieldCut] == value
+// 			break
+
+// 		case strings.HasPrefix(field, "device"):
+// 			fieldSplit := strings.Split(field,".")
+// 			valSplit := strings.Split(value,".")
+// 			devices := container.ExpandedDevices()
+// 			dev := devices[valSplit[0]]
+// 			result = dev != nil
+// 			if len(fieldSplit) > 1 && result {
+// 				result = dev[fieldSplit[1]] == valSplit[1]
+// 			}
+// 			break
+
+// 		default:
+// 			return false
+// 	}
+
+// 	if op == "ne" {
+// 		result = !result
+// 	}
+
+// 	return result
+// }
+
 
 func containersGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doContainersGet(d, r)
+
+		// filterStr := r.FormValue("filter")
+		// if filterStr != "" {
+		// 	result = doFilterNew(filterStr, result)
+		// }
+
 		if err == nil {
 			return response.SyncResponse(true, result)
 		}
@@ -204,7 +272,12 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		recursion = 0
+
+		if filterStr != "" {
+			recursion = 1
+		}
 	}
+
 
 	// Parse the project field
 	project := projectParam(r)
@@ -274,9 +347,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 
 	// Filter the results
-	if filterStr != "" {
-		result = doFilter(filterStr, result, d)
-	}	
+	// if filterStr != "" {
+	// 	result = doFilter(filterStr, result, d)
+	// }	
 
 
 	// Get the data
@@ -415,7 +488,13 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		sort.Slice(resultList, func(i, j int) bool {
 			return resultList[i].Name < resultList[j].Name
 		})
-
+		if filterStr != "" {
+			intList := make([]interface{}, len(resultList))
+			for i := range resultList {
+			    intList[i] = resultList[i]
+			}
+			return doFilterNew(filterStr, intList), nil
+		}
 		return resultList, nil
 	}
 
@@ -424,6 +503,13 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
+	if filterStr != "" { 
+		intList := make([]interface{}, len(resultFullList))
+		for i := range resultFullList {
+		    intList[i] = resultFullList[i]
+		}
+		return doFilterNew(filterStr, intList), nil
+	}
 	return resultFullList, nil
 }
 

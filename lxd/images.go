@@ -916,10 +916,18 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interface{}, error) {
+func evaluateFieldImage(field string, value string, operator string , obj *api.Image) bool {
+	return true
+}
+
+func doImagesGet(d *Daemon, recursion bool, project string, public bool, filterStr string) (interface{}, error) {
 	results, err := d.cluster.ImagesGet(project, public)
 	if err != nil {
 		return []string{}, err
+	}
+
+	if filterStr != "" {
+		recursion = true
 	}
 
 	resultString := make([]string, len(results))
@@ -930,7 +938,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interf
 			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
-			image, response := doImageGet(d.cluster, project, name, public)
+			image, response := doImageGet(d.cluster, project, name, public, filterStr)
 			if response != nil {
 				continue
 			}
@@ -943,15 +951,22 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interf
 	if !recursion {
 		return resultString, nil
 	}
-
+	if filterStr != "" { 
+		intList := make([]interface{}, len(resultMap))
+		for i := range resultMap {
+		    intList[i] = resultMap[i]
+		}
+		return doFilterNew(filterStr, intList), nil
+	}
 	return resultMap, nil
 }
 
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
+	filter := r.FormValue("filter")
 	public := d.checkTrustedClient(r) != nil || AllowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
-	result, err := doImagesGet(d, util.IsRecursionRequest(r), project, public)
+	result, err := doImagesGet(d, util.IsRecursionRequest(r), project, public, filter)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1513,8 +1528,10 @@ func imageDeleteFromDisk(fingerprint string) {
 	}
 }
 
-func doImageGet(db *db.Cluster, project, fingerprint string, public bool) (*api.Image, response.Response) {
+func doImageGet(db *db.Cluster, project, fingerprint string, public bool, filter string) (*api.Image, response.Response) {
 	_, imgInfo, err := db.ImageGet(project, fingerprint, public, false)
+
+	logger.Warnf("############Jackieerror: %s", imgInfo)
 	if err != nil {
 		return nil, response.SmartError(err)
 	}
@@ -1557,8 +1574,9 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 	public := d.checkTrustedClient(r) != nil || AllowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 	secret := r.FormValue("secret")
+	filter := r.FormValue("filter")
 
-	info, resp := doImageGet(d.cluster, project, fingerprint, false)
+	info, resp := doImageGet(d.cluster, project, fingerprint, false, filter)
 	if resp != nil {
 		return resp
 	}
