@@ -2979,7 +2979,7 @@ func (vm *Qemu) LogPath() string {
 
 // LogFilePath returns the instance's log path.
 func (vm *Qemu) LogFilePath() string {
-	return filepath.Join(vm.LogPath(), "lxvm.log") // tomp TODO is this correct?
+	return filepath.Join(vm.LogPath(), "qemu.log")
 }
 
 // ConsoleBufferLogPath returns the instance's console buffer log path.
