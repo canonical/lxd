@@ -3,19 +3,18 @@
 package sys
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"path"
+	"io/ioutil"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
+
 // Detect CGroup support.
 func (s *OS) initCGroup() {
-	flags := []*bool{
+	cgroupsinfo := []*CGroupInfo{
 		&s.CGroupBlkioController,
 		&s.CGroupBlkioWeightController,
 		&s.CGroupCPUController,
@@ -29,54 +28,22 @@ func (s *OS) initCGroup() {
 		&s.CGroupSwapAccounting,
 	}
 
-	flags_v2 := []*bool{
-		//tell us if it's a v1 or v2 controller
-		&s.CGroupMemoryControllerV2,
-		&s.CGroupCPUControllerV2,
-		&s.CGroupPidsControllerV2,
+	// Read all v2 controllers for later parsing
+	v2controllers := ""
+	contents, err := ioutil.ReadFile("/sys/fs/cgroup/cgroup.controllers")
+	if err != nil {
+		v2controllers = string(contents)
 	}
-	var j int = 0
-	for i,flag := range flags  {
-		if cGroups[i].path == "memory" || cGroups[i].path == "pids" || cGroups[i].path == "cpu" {
-			//have to check v1 and v2
-			//v1
-			*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
-			*flags_v2[j] = false
-			//then set flag for flags_v2 to be false
-			//v2
-			if !*flag  {
-				//read this file to check which controllers are supported for v2
-				//path := path.Join("/sys/fs/cgroup", "unified", "cgroup.controllers")
-				//TODO-our: need to change this path for hybrid 
-				path := path.Join("/sys/fs/cgroup",  "cgroup.controllers")
-				file, err := os.Open(path)
-				if err != nil {
-					logger.Debugf("Can't open file")
-				}
-				defer file.Close()
 
-				scanner := bufio.NewScanner(file)
-				for scanner.Scan() {
-					line_controllers:= scanner.Text()
-					//if controller is within file, version will be 2
-					if strings.Contains(line_controllers, cGroups[i].path) {
-						*flag = true
-						*flags_v2[j] = true
-					}
-
-				}
-				j++
-				if err := scanner.Err(); err != nil {
-					logger.Debugf("Can't something")
-				}
-
-			}
+	for i, info := range cgroupsinfo  {
+		if shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path) {
+			// Check v1 support
+			*info = CGroupV1
+		} else if strings.Contains(v2controllers, cGroups[i].path) {
+			// Check v2 support
+			*info = CGroupV2
 		} else {
-
-			*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
-		}
-
-		if !*flag {
+			*info = CGroupDisabled
 			logger.Warnf(cGroups[i].warn)
 		}
 	}

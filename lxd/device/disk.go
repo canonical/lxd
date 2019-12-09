@@ -16,6 +16,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -468,7 +469,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	// Disk priority limits.
 	diskPriority := d.instance.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
-		if d.state.OS.CGroupBlkioWeightController {
+		if d.state.OS.CGroupBlkioWeightController != sys.CGroupDisabled {
 			priorityInt, err := strconv.Atoi(diskPriority)
 			if err != nil {
 				return err
@@ -503,7 +504,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	}
 
 	if hasDiskLimits {
-		if !d.state.OS.CGroupBlkioController {
+		if d.state.OS.CGroupBlkioController == sys.CGroupDisabled {
 			return fmt.Errorf("Cannot apply disk limits as blkio cgroup controller is missing")
 		}
 

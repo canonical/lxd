@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -229,7 +230,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Don't bother running when CGroup support isn't there
-	if !s.OS.CGroupCPUsetController {
+	if s.OS.CGroupCPUsetController == sys.CGroupDisabled {
 		return
 	}
 
@@ -409,7 +410,7 @@ func deviceTaskBalance(s *state.State) {
 
 func deviceNetworkPriority(s *state.State, netif string) {
 	// Don't bother running when CGroup support isn't there
-	if !s.OS.CGroupNetPrioController {
+	if s.OS.CGroupNetPrioController == sys.CGroupDisabled {
 		return
 	}
 
@@ -452,7 +453,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGroupCPUsetController {
+			if s.OS.CGroupCPUsetController == sys.CGroupDisabled {
 				continue
 			}
 
@@ -464,7 +465,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGroupNetPrioController {
+			if s.OS.CGroupNetPrioController == sys.CGroupDisabled {
 				continue
 			}
 
@@ -479,7 +480,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGroupCPUsetController {
+			if s.OS.CGroupCPUsetController == sys.CGroupDisabled {
 				continue
 			}
 

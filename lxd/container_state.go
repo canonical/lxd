@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/lxd/sys"
 )
 
 func containerState(d *Daemon, r *http.Request) response.Response {
@@ -190,7 +191,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 	case shared.Freeze:
-		if !d.os.CGroupFreezerController {
+		if d.os.CGroupFreezerController == sys.CGroupDisabled {
 			return response.BadRequest(fmt.Errorf("This system doesn't support freezing containers"))
 		}
 
@@ -200,7 +201,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
-		if !d.os.CGroupFreezerController {
+		if d.os.CGroupFreezerController == sys.CGroupDisabled {
 			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing containers"))
 		}
 
