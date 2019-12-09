@@ -51,10 +51,5 @@ func IsRetriableError(err error) bool {
 		return true
 	}
 
-	// Despite the description this is usually a lost leadership error.
-	if strings.Contains(err.Error(), "disk I/O error") {
-		return true
-	}
-
 	return false
 }
