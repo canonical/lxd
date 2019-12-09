@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -40,8 +41,10 @@ type Instance interface {
 	Export(w io.Writer, properties map[string]string) error
 
 	// Live configuration
-	CGroupGet(key string) (string, error)
-	CGroupSet(key string, value string) error
+	CGroupGet(property cgroup.Property) (string, error)
+	CGroupGetV1(key string) (string, error)
+	CGroupSet(property cgroup.Property, value string) error
+	CGroupSetV1(key string, value string) error
 	VolatileSet(changes map[string]string) error
 
 	// File handling

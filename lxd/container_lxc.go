@@ -1405,7 +1405,7 @@ func (c *containerLXC) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem
 		}
 
 		// Add the new device cgroup rule.
-		err := c.CGroupSet(rule.Key, rule.Value)
+		err := c.CGroupSetV1(rule.Key, rule.Value)
 		if err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
 		}
@@ -2592,7 +2592,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	// Fork-bomb mitigation, prevent forking from this point on
 	if c.state.OS.CGroupPidsController {
 		// Attempt to disable forking new processes
-		c.CGroupSet("pids.max", "0")
+		c.CGroupSet(cgroup.PidsMax, "0")
 	} else if c.state.OS.CGroupFreezerController {
 		// Attempt to freeze the container
 		freezer := make(chan bool, 1)
@@ -3769,7 +3769,27 @@ func (c *containerLXC) Rename(newName string) error {
 	return nil
 }
 
-func (c *containerLXC) CGroupGet(key string) (string, error) {
+// CGroupGet gets the value of a supported property on a hybrid v1/v2 controller system
+func (c *containerLXC) CGroupGet(property cgroup.Property) (string, error) {
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return "", err
+	}
+
+	// Make sure the container is running
+	if !c.IsRunning() {
+		return "", fmt.Errorf("Can't get cgroups on a stopped container")
+	}
+
+	value, err := cgroup.Get(c.c, property)
+	if err != nil {
+		return "", err
+	}
+	return strings.Join(value, "\n"), nil
+}
+
+func (c *containerLXC) CGroupGetV1(key string) (string, error) {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
@@ -3785,7 +3805,28 @@ func (c *containerLXC) CGroupGet(key string) (string, error) {
 	return strings.Join(value, "\n"), nil
 }
 
-func (c *containerLXC) CGroupSet(key string, value string) error {
+// CGroupSet sets a supported property on a hybrid v1/v2 controller system
+func (c *containerLXC) CGroupSet(property cgroup.Property, value string) error {
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return err
+	}
+
+	// Make sure the container is running
+	if !c.IsRunning() {
+		return fmt.Errorf("Can't set cgroups on a stopped container")
+	}
+
+	err = cgroup.Set(c.c, property, value)
+	if err != nil {
+		return fmt.Errorf("Failed to set cgroup item %d=\"%s\": %s", property, value, err)
+	}
+
+	return nil
+}
+
+func (c *containerLXC) CGroupSetV1(key string, value string) error {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
@@ -4208,7 +4249,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					priority = 10
 				}
 
-				err = c.CGroupSet("blkio.weight", fmt.Sprintf("%d", priority))
+				err = c.CGroupSetV1("blkio.weight", fmt.Sprintf("%d", priority))
 				if err != nil {
 					return err
 				}
@@ -4249,52 +4290,52 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				// Store the old values for revert
 				oldMemswLimit := ""
 				if c.state.OS.CGroupSwapAccounting {
-					oldMemswLimit, err = c.CGroupGet("memory.memsw.limit_in_bytes")
+					oldMemswLimit, err = c.CGroupGetV1("memory.memsw.limit_in_bytes")
 					if err != nil {
 						oldMemswLimit = ""
 					}
 				}
 
-				oldLimit, err := c.CGroupGet("memory.limit_in_bytes")
+				oldLimit, err := c.CGroupGetV1("memory.limit_in_bytes")
 				if err != nil {
 					oldLimit = ""
 				}
 
-				oldSoftLimit, err := c.CGroupGet("memory.soft_limit_in_bytes")
+				oldSoftLimit, err := c.CGroupGetV1("memory.soft_limit_in_bytes")
 				if err != nil {
 					oldSoftLimit = ""
 				}
 
 				revertMemory := func() {
 					if oldSoftLimit != "" {
-						c.CGroupSet("memory.soft_limit_in_bytes", oldSoftLimit)
+						c.CGroupSetV1("memory.soft_limit_in_bytes", oldSoftLimit)
 					}
 
 					if oldLimit != "" {
-						c.CGroupSet("memory.limit_in_bytes", oldLimit)
+						c.CGroupSetV1("memory.limit_in_bytes", oldLimit)
 					}
 
 					if oldMemswLimit != "" {
-						c.CGroupSet("memory.memsw.limit_in_bytes", oldMemswLimit)
+						c.CGroupSetV1("memory.memsw.limit_in_bytes", oldMemswLimit)
 					}
 				}
 
 				// Reset everything
 				if c.state.OS.CGroupSwapAccounting {
-					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
+					err = c.CGroupSetV1("memory.memsw.limit_in_bytes", "-1")
 					if err != nil {
 						revertMemory()
 						return err
 					}
 				}
 
-				err = c.CGroupSet("memory.limit_in_bytes", "-1")
+				err = c.CGroupSetV1("memory.limit_in_bytes", "-1")
 				if err != nil {
 					revertMemory()
 					return err
 				}
 
-				err = c.CGroupSet("memory.soft_limit_in_bytes", "-1")
+				err = c.CGroupSetV1("memory.soft_limit_in_bytes", "-1")
 				if err != nil {
 					revertMemory()
 					return err
@@ -4303,26 +4344,26 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				// Set the new values
 				if memoryEnforce == "soft" {
 					// Set new limit
-					err = c.CGroupSet("memory.soft_limit_in_bytes", memory)
+					err = c.CGroupSetV1("memory.soft_limit_in_bytes", memory)
 					if err != nil {
 						revertMemory()
 						return err
 					}
 				} else {
 					if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-						err = c.CGroupSet("memory.limit_in_bytes", memory)
+						err = c.CGroupSetV1("memory.limit_in_bytes", memory)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 
-						err = c.CGroupSet("memory.memsw.limit_in_bytes", memory)
+						err = c.CGroupSetV1("memory.memsw.limit_in_bytes", memory)
 						if err != nil {
 							revertMemory()
 							return err
 						}
 					} else {
-						err = c.CGroupSet("memory.limit_in_bytes", memory)
+						err = c.CGroupSetV1("memory.limit_in_bytes", memory)
 						if err != nil {
 							revertMemory()
 							return err
@@ -4336,7 +4377,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.CGroupSet("memory.soft_limit_in_bytes", fmt.Sprintf("%.0f", float64(valueInt)*0.9))
+					err = c.CGroupSetV1("memory.soft_limit_in_bytes", fmt.Sprintf("%.0f", float64(valueInt)*0.9))
 					if err != nil {
 						revertMemory()
 						return err
@@ -4348,7 +4389,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					memorySwap := c.expandedConfig["limits.memory.swap"]
 					memorySwapPriority := c.expandedConfig["limits.memory.swap.priority"]
 					if memorySwap != "" && !shared.IsTrue(memorySwap) {
-						err = c.CGroupSet("memory.swappiness", "0")
+						err = c.CGroupSetV1("memory.swappiness", "0")
 						if err != nil {
 							return err
 						}
@@ -4361,7 +4402,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 							}
 						}
 
-						err = c.CGroupSet("memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
+						err = c.CGroupSetV1("memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
 						if err != nil {
 							return err
 						}
@@ -4387,17 +4428,17 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					return err
 				}
 
-				err = c.CGroupSet("cpu.shares", cpuShares)
+				err = c.CGroupSetV1("cpu.shares", cpuShares)
 				if err != nil {
 					return err
 				}
 
-				err = c.CGroupSet("cpu.cfs_period_us", cpuCfsPeriod)
+				err = c.CGroupSetV1("cpu.cfs_period_us", cpuCfsPeriod)
 				if err != nil {
 					return err
 				}
 
-				err = c.CGroupSet("cpu.cfs_quota_us", cpuCfsQuota)
+				err = c.CGroupSetV1("cpu.cfs_quota_us", cpuCfsQuota)
 				if err != nil {
 					return err
 				}
@@ -4407,7 +4448,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				if value == "" {
-					err = c.CGroupSet("pids.max", "max")
+					err = c.CGroupSet(cgroup.PidsCurrent, "max")
 					if err != nil {
 						return err
 					}
@@ -4417,7 +4458,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.CGroupSet("pids.max", fmt.Sprintf("%d", valueInt))
+					err = c.CGroupSet(cgroup.PidsMax, fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
 					}
@@ -5732,7 +5773,7 @@ func (c *containerLXC) cpuState() api.InstanceStateCPU {
 	}
 
 	// CPU usage in seconds
-	value, err := c.CGroupGet("cpuacct.usage")
+	value, err := c.CGroupGetV1("cpuacct.usage")
 	if err != nil {
 		cpu.Usage = -1
 		return cpu
@@ -5803,14 +5844,14 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	}
 
 	// Memory in bytes
-	value, err := c.CGroupGet("memory.usage_in_bytes")
+	value, err := c.CGroupGetV1("memory.usage_in_bytes")
 	valueInt, err1 := strconv.ParseInt(value, 10, 64)
 	if err == nil && err1 == nil {
 		memory.Usage = valueInt
 	}
 
 	// Memory peak in bytes
-	value, err = c.CGroupGet("memory.max_usage_in_bytes")
+	value, err = c.CGroupGetV1("memory.max_usage_in_bytes")
 	valueInt, err1 = strconv.ParseInt(value, 10, 64)
 	if err == nil && err1 == nil {
 		memory.UsagePeak = valueInt
@@ -5819,7 +5860,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	if c.state.OS.CGroupSwapAccounting {
 		// Swap in bytes
 		if memory.Usage > 0 {
-			value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
+			value, err := c.CGroupGetV1("memory.memsw.usage_in_bytes")
 			valueInt, err1 := strconv.ParseInt(value, 10, 64)
 			if err == nil && err1 == nil {
 				memory.SwapUsage = valueInt - memory.Usage
@@ -5828,7 +5869,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 
 		// Swap peak in bytes
 		if memory.UsagePeak > 0 {
-			value, err = c.CGroupGet("memory.memsw.max_usage_in_bytes")
+			value, err = c.CGroupGetV1("memory.memsw.max_usage_in_bytes")
 			valueInt, err1 = strconv.ParseInt(value, 10, 64)
 			if err == nil && err1 == nil {
 				memory.SwapUsagePeak = valueInt - memory.UsagePeak
@@ -5905,7 +5946,7 @@ func (c *containerLXC) processesState() int64 {
 	}
 
 	if c.state.OS.CGroupPidsController {
-		value, err := c.CGroupGet("pids.current")
+		value, err := c.CGroupGet(cgroup.PidsCurrent)
 		if err != nil {
 			return -1
 		}
@@ -6527,7 +6568,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	success := false
 	var last_error error
 	for _, netif := range netifs {
-		err = c.CGroupSet("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif.Name, networkInt))
+		err = c.CGroupSetV1("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif.Name, networkInt))
 		if err == nil {
 			success = true
 		} else {
