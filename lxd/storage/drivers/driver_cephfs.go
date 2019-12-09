@@ -778,7 +778,7 @@ func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs m
 			}
 
 			path := shared.AddSlash(mountPath)
-			return rsync.Send(snapshot.name, path, conn, wrapper, nil, bwlimit, d.state.OS.ExecPath)
+			return rsync.Send(snapshot.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
 		}, op)
 		if err != nil {
 			return err
@@ -793,7 +793,7 @@ func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs m
 		}
 
 		path := shared.AddSlash(mountPath)
-		return rsync.Send(vol.name, path, conn, wrapper, nil, bwlimit, d.state.OS.ExecPath)
+		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
 	}, op)
 }
 
@@ -844,7 +844,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
 			}
 
-			err = rsync.Recv(path, conn, wrapper, nil)
+			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 			if err != nil {
 				return err
 			}
@@ -871,7 +871,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
-		return rsync.Recv(path, conn, wrapper, nil)
+		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 	}, op)
 	if err != nil {
 		return err
@@ -967,4 +967,18 @@ func (d *cephfs) BackupVolume(vol Volume, targetPath string, optimized bool, sna
 
 func (d *cephfs) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	return nil, nil, ErrNotImplemented
+}
+
+func (d *cephfs) MigrationTypes(contentType ContentType) []migration.Type {
+	if contentType != ContentTypeFS {
+		return nil
+	}
+
+	// Do not support xattr transfer on cephfs
+	return []migration.Type{
+		{
+			FSType:   migration.MigrationFSType_RSYNC,
+			Features: []string{"delete", "compress", "bidirectional"},
+		},
+	}
 }
