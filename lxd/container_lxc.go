@@ -693,6 +693,12 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
+	// Load cgroup abstraction
+	cg, err := c.cgroup(cc)
+	if err != nil {
+		return err
+	}
+
 	freeContainer := true
 	defer func() {
 		if freeContainer {
@@ -1197,7 +1203,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				return err
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.cgroup.pids.max", fmt.Sprintf("%d", valueInt))
+			err = cg.SetMaxProcesses(valueInt)
 			if err != nil {
 				return err
 			}
@@ -2589,10 +2595,16 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 	}
 
+	// Load cgroup abstraction
+	cg, err := c.cgroup(nil)
+	if err != nil {
+		return err
+	}
+
 	// Fork-bomb mitigation, prevent forking from this point on
 	if c.state.OS.CGroupPidsController {
 		// Attempt to disable forking new processes
-		c.CGroupSet("pids.max", "0")
+		cg.SetMaxProcesses(0)
 	} else if c.state.OS.CGroupFreezerController {
 		// Attempt to freeze the container
 		freezer := make(chan bool, 1)
@@ -4079,6 +4091,12 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Initialize LXC")
 	}
 
+	// Load cgroup abstraction
+	cg, err := c.cgroup(nil)
+	if err != nil {
+		return err
+	}
+
 	// If apparmor changed, re-validate the apparmor profile
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
 		err = apparmor.ParseProfile(c)
@@ -4401,7 +4419,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				if value == "" {
-					err = c.CGroupSet("pids.max", "max")
+					err = cg.SetMaxProcesses(-1)
 					if err != nil {
 						return err
 					}
@@ -4411,7 +4429,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 
-					err = c.CGroupSet("pids.max", fmt.Sprintf("%d", valueInt))
+					err = cg.SetMaxProcesses(valueInt)
 					if err != nil {
 						return err
 					}
