@@ -1739,7 +1739,7 @@ func (s *storageLvm) ContainerBackupCreate(path string, backup backup.Backup, so
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	_, err = s.createSnapshotLV(source.Project(), poolName, source.Name(),
+	_, err = s.createSnapshotLV(source.Project(), poolName, containerNameToLVName(source.Name()),
 		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(sourceLvmDatasetSnapshot),
 		storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
 	if err != nil {
@@ -1843,7 +1843,7 @@ func (s *storageLvm) doContainerBackupLoad(projectName, containerName string, pr
 			storagePoolVolumeAPIEndpointContainers, s.useThinpool)
 	} else {
 		cname, _, _ := shared.InstanceGetParentAndSnapshotName(containerName)
-		_, err = s.createSnapshotLV(projectName, poolName, cname, storagePoolVolumeAPIEndpointContainers,
+		_, err = s.createSnapshotLV(projectName, poolName, containerNameToLVName(cname), storagePoolVolumeAPIEndpointContainers,
 			containerLvmName, storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
 	}
 	if err != nil {
