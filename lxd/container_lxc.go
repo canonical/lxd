@@ -3820,7 +3820,7 @@ func (c *containerLXC) CGroupSet(property cgroup.Property, value string) error {
 		return fmt.Errorf("Can't set cgroups on a stopped container")
 	}
 
-	err = cgroup.Set(c.c, property, value)
+	err = cgroup.Set(c.c, property, value, c.state.OS)
 	if err != nil {
 		return fmt.Errorf("Failed to set cgroup item %d=\"%s\": %s", property, value, err)
 	}
@@ -4251,7 +4251,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					priority = 10
 				}
 
-				err = c.CGroupSetV1("blkio.weight", fmt.Sprintf("%d", priority))
+				err = c.CGroupSet(cgroup.BlkioWeight, fmt.Sprintf("%d", priority))
 				if err != nil {
 					return err
 				}
@@ -4298,12 +4298,12 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 
-				oldLimit, err := c.CGroupGetV1("memory.limit_in_bytes")
+				oldLimit, err := c.CGroupGet(cgroup.MemoryLimitInBytes)
 				if err != nil {
 					oldLimit = ""
 				}
 
-				oldSoftLimit, err := c.CGroupGetV1("memory.soft_limit_in_bytes")
+				oldSoftLimit, err := c.CGroupGet(cgroup.MemorySoftLimitInBytes)
 				if err != nil {
 					oldSoftLimit = ""
 				}
@@ -4430,17 +4430,17 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					return err
 				}
 
-				err = c.CGroupSetV1("cpu.shares", cpuShares)
+				err = c.CGroupSet(cgroup.CpuShares, cpuShares)
 				if err != nil {
 					return err
 				}
 
-				err = c.CGroupSetV1("cpu.cfs_period_us", cpuCfsPeriod)
+				err = c.CGroupSet(cgroup.CpuCfsPeriodUs, cpuCfsPeriod)
 				if err != nil {
 					return err
 				}
 
-				err = c.CGroupSetV1("cpu.cfs_quota_us", cpuCfsQuota)
+				err = c.CGroupSet(cgroup.CpuCfsQuotaUs, cpuCfsQuota)
 				if err != nil {
 					return err
 				}
@@ -5775,7 +5775,7 @@ func (c *containerLXC) cpuState() api.InstanceStateCPU {
 	}
 
 	// CPU usage in seconds
-	value, err := c.CGroupGetV1("cpuacct.usage")
+	value, err := c.CGroupGet(cgroup.CpuacctUsage)
 	if err != nil {
 		cpu.Usage = -1
 		return cpu
@@ -6570,7 +6570,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	success := false
 	var last_error error
 	for _, netif := range netifs {
-		err = c.CGroupSetV1("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif.Name, networkInt))
+		err = c.CGroupSet(cgroup.NetPrioIfPrioMap, fmt.Sprintf("%s %d", netif.Name, networkInt))
 		if err == nil {
 			success = true
 		} else {
