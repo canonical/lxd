@@ -68,6 +68,14 @@ type OS struct {
 	CGroupPidsController        bool
 	CGroupSwapAccounting        bool
 
+	//detect if controller is v1 or v2
+	CGroupMemoryControllerV2 bool
+	CGroupCPUControllerV2 bool
+	CGroupPidsControllerV2 bool
+
+	CGroupUnifiedHierarchy bool
+
+
 	// Kernel features
 	NetnsGetifaddrs         bool
 	SeccompListener         bool

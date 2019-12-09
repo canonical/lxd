@@ -4,9 +4,12 @@ package sys
 
 import (
 	"fmt"
-
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"os"
+	"path"
+	"bufio"
+	"strings"
 )
 
 // Detect CGroup support.
@@ -24,8 +27,54 @@ func (s *OS) initCGroup() {
 		&s.CGroupPidsController,
 		&s.CGroupSwapAccounting,
 	}
-	for i, flag := range flags {
-		*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
+
+	flags_v2 := []*bool{
+		//tell us if it's a v1 or v2 controller
+		&s.CGroupMemoryControllerV2,
+		&s.CGroupCPUControllerV2,
+		&s.CGroupPidsControllerV2,
+	}
+	var j int = 0
+	for i,flag := range flags  {
+		if cGroups[i].path == "memory" || cGroups[i].path == "pids" || cGroups[i].path == "cpu" {
+			//have to check v1 and v2
+			//v1
+			*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
+			*flags_v2[j] = false
+			j++
+			//then set flag for flags_v2 to be false
+			//v2
+			if !*flag  {
+				//read this file to check which controllers are supported for v2
+				path := path.Join("/sys/fs/cgroup", "unified", "cgroup.controllers")
+				file, err := os.Open(path)
+				if err != nil {
+					logger.Debugf("Can't open file")
+				}
+				defer file.Close()
+
+				scanner := bufio.NewScanner(file)
+				for scanner.Scan() {
+					line_controllers:= scanner.Text()
+					//if controller is within file, version will be 2
+					if strings.Contains(line_controllers, cGroups[i].path) {
+						*flag = true
+						*flags_v2[j] = true
+						j++
+					}
+
+				}
+
+				if err := scanner.Err(); err != nil {
+					logger.Debugf("Can't something")
+				}
+
+			}
+		} else {
+
+			*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
+		}
+
 		if !*flag {
 			logger.Warnf(cGroups[i].warn)
 		}
