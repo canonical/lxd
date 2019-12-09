@@ -31,6 +31,8 @@ type storageLvm struct {
 	vgName       string
 	thinPoolName string
 	useThinpool  bool
+	stripes		 uint64
+	stripesSize  string
 	loopInfo     *os.File
 	storageShared
 }
@@ -333,6 +335,12 @@ func (s *storageLvm) StoragePoolCreate() error {
 		return err
 	}
 
+	s.stripes, err = s.getNumberOfStripes()
+	if err != nil {
+		return err
+	}
+
+	s.stripesSize = s.getSizeOfStripes()
 	// Deregister cleanup.
 	tryUndo = false
 
@@ -506,14 +514,20 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 		return err
 	}
 
+	stripes, err := s.getNumberOfStripes()
+	if err != nil {
+		return err
+	}
+	stripesSize := s.getSizeOfStripes()
+
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType, stripes, stripesSize)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = lvmCreateLv("default", poolName, thinPoolName, volumeLvmName, lvFsType, lvSize, volumeType, s.useThinpool)
+	err = lvmCreateLv("default", poolName, thinPoolName, volumeLvmName, lvFsType, lvSize, volumeType, s.useThinpool, stripes, stripesSize)
 	if err != nil {
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 	}
@@ -948,14 +962,21 @@ func (s *storageLvm) ContainerCreate(container instance.Instance) error {
 	}
 
 	poolName := s.getOnDiskPoolName()
+
+	stripes, err := s.getNumberOfStripes()
+	if err != nil {
+		return err
+	}
+	stripesSize := s.getSizeOfStripes()
+
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType, stripes, stripesSize)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = lvmCreateLv(container.Project(), poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeAPIEndpointContainers, s.useThinpool)
+	err = lvmCreateLv(container.Project(), poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeAPIEndpointContainers, s.useThinpool, stripes, stripesSize)
 	if err != nil {
 		return err
 	}
@@ -1831,8 +1852,15 @@ func (s *storageLvm) doContainerBackupLoad(projectName, containerName string, pr
 	}
 
 	poolName := s.getOnDiskPoolName()
+
+	stripes, err := s.getNumberOfStripes()
+	if err != nil {
+		return "", err
+	}
+	stripesSize := s.getSizeOfStripes()
+
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType, stripes, stripesSize)
 		if err != nil {
 			return "", err
 		}
@@ -1840,7 +1868,7 @@ func (s *storageLvm) doContainerBackupLoad(projectName, containerName string, pr
 
 	if !snapshot {
 		err = lvmCreateLv(projectName, poolName, thinPoolName, containerLvmName, lvFsType, lvSize,
-			storagePoolVolumeAPIEndpointContainers, s.useThinpool)
+			storagePoolVolumeAPIEndpointContainers, s.useThinpool, stripes, stripesSize)
 	} else {
 		cname, _, _ := shared.InstanceGetParentAndSnapshotName(containerName)
 		_, err = s.createSnapshotLV(projectName, poolName, containerNameToLVName(cname), storagePoolVolumeAPIEndpointContainers,
@@ -1920,12 +1948,19 @@ func (s *storageLvm) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 	}()
 
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		stripes, err := s.getNumberOfStripes()
+		if err != nil {
+			return err
+		}
+		stripesSize := s.getSizeOfStripes()
+
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType, stripes, stripesSize)
 		if err != nil {
 			return err
 		}
 
-		err = lvmCreateLv("default", poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeAPIEndpointImages, true)
+		err = lvmCreateLv("default", poolName, thinPoolName, fingerprint, lvFsType, lvSize,
+			storagePoolVolumeAPIEndpointImages, true, stripes, stripesSize)
 		if err != nil {
 			return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 		}

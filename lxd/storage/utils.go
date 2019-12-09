@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -486,6 +487,21 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.mount_options": func(value string) ([]string, error) {
 		return []string{"ceph", "lvm"}, shared.IsAny(value)
 	},
+	"lvm.stripes": func(value string) ([]string, error) {
+		return SupportedPoolTypes, shared.IsUint32(value)
+	},
+	"lvm.stripes.size": func(value string) ([]string, error){
+		if value == "" {
+			return SupportedPoolTypes, nil
+		}
+
+		_, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return nil, err
+		}
+
+		return SupportedPoolTypes, nil
+	},
 	"security.shifted": func(value string) ([]string, error) {
 		return SupportedPoolTypes, shared.IsBool(value)
 	},
@@ -556,6 +572,16 @@ func VolumeValidateConfig(name string, config map[string]string, parentPool *api
 			return err
 		}
 
+		if parentPool.Driver != "lvm" {
+			if config["lvm.stripes"] != "" {
+				return fmt.Errorf("the key lvm.stripes cannot be used with non lvm storage volumes")
+			}
+
+			if config["lvm.stripes.size"] != "" {
+				return fmt.Errorf("the key lvm.stripes.size cannot be used with non lvm storage volumes")
+			}
+		}
+
 		if parentPool.Driver != "zfs" || parentPool.Driver == "dir" {
 			if config["zfs.use_refquota"] != "" {
 				return fmt.Errorf("the key volume.zfs.use_refquota cannot be used with non zfs storage volumes")
@@ -597,6 +623,19 @@ func VolumeFillDefault(name string, config map[string]string, parentPool *api.St
 		if config["block.mount_options"] == "" {
 			// Unchangeable volume property: Set unconditionally.
 			config["block.mount_options"] = "discard"
+		}
+
+		if parentPool.Driver == "lvm" {
+			if parentPool.Config["volume.lvm.stripes"] != "1" {
+				config["lvm.stripes"] = parentPool.Config["volume.lvm.stripes"]
+			} else {
+				config["lvm.stripes"] = strconv.FormatUint(uint64(1), 10)
+			}
+			if parentPool.Config["volume.lvm.stripes.size"] != "" {
+				config["lvm.stripes.size"] = parentPool.Config["volume.lvm.stripes.size"]
+			} else {
+				config["lvm.stripes"] = ""
+			}
 		}
 
 		// Does the pool request a default size for new storage volumes?

@@ -44,6 +44,8 @@ var changeableStoragePoolVolumeProperties = map[string][]string{
 		"security.shifted",
 		"security.unmapped",
 		"size",
+		"lvm.stripes",
+		"lvm.stripes.size",
 	},
 
 	"zfs": {

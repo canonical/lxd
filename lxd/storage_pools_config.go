@@ -37,6 +37,8 @@ var changeableStoragePoolProperties = map[string][]string{
 		"lvm.vg_name",
 		"volume.block.filesystem",
 		"volume.block.mount_options",
+		"volume.lvm.stripes",
+		"volume.lvm.stripes.size",
 		"volume.size"},
 
 	"zfs": {
@@ -117,6 +119,17 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 		return err
 	},
 
+	//valid drivers: lvm
+	"volume.lvm.stripes": shared.IsUint32,
+	"volume.lvm.stripes.size": func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		_, err := units.ParseByteSizeString(value)
+		return err
+	},
+
 	// valid drivers: zfs
 	"volume.zfs.remove_snapshots": shared.IsBool,
 	"volume.zfs.use_refquota":     shared.IsBool,
@@ -171,7 +184,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 
 		if driver != "lvm" {
-			if prfx(key, "lvm.") {
+			if prfx(key, "volume.lvm.") || prfx(key, "lvm.") {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
@@ -244,6 +257,10 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		if useThinpool && config["lvm.thinpool_name"] == "" {
 			// Unchangeable pool property: Set unconditionally.
 			config["lvm.thinpool_name"] = "LXDThinPool"
+		}
+
+		if config["volume.lvm.stripes"] == "" {
+			config["volume.lvm.stripes"] = strconv.FormatUint(uint64(1), 10)
 		}
 	}
 

@@ -131,10 +131,12 @@ _have lxc && {
       lvm.vg_name rsync.bwlimit volatile.initial_source \
       volatile.pool.pristine volume.block.filesystem \
       volume.block.mount_options volume.size volume.zfs.remove_snapshots \
-      volume.zfs.use_refquota zfs.clone_copy zfs.pool_name"
+      volume.lvm.stripes volume.lvm.stripes.size volume.zfs.use_refquota \
+      zfs.clone_copy zfs.pool_name"
 
     storage_volume_keys="size block.filesystem block.mount_options \
-      security.unmapped security.shifted zfs.remove_snapshots zfs.use_refquota"
+      lvm.stripes lvm.stripes.size security.unmapped security.shifted \
+      zfs.remove_snapshots zfs.use_refquota"
 
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
