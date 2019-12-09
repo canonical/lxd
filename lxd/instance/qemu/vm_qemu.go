@@ -23,6 +23,7 @@ import (
 
 	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -2208,14 +2209,24 @@ func (vm *Qemu) Export(w io.Writer, properties map[string]string) error {
 	return fmt.Errorf("Export Not implemented")
 }
 
-// CGroupGet is not implemented for VMs.
-func (vm *Qemu) CGroupGet(key string) (string, error) {
+// CGroupGetV1 is not implemented for VMs.
+func (vm *Qemu) CGroupGet(property cgroup.Property) (string, error) {
 	return "", fmt.Errorf("CGroupGet Not implemented")
 }
 
+// CGroupGetV1 is not implemented for VMs.
+func (vm *Qemu) CGroupGetV1(key string) (string, error) {
+	return "", fmt.Errorf("CGroupGetV1 Not implemented")
+}
+
 // CGroupSet is not implemented for VMs.
-func (vm *Qemu) CGroupSet(key string, value string) error {
+func (vm *Qemu) CGroupSet(property cgroup.Property, value string) error {
 	return fmt.Errorf("CGroupSet Not implemented")
+}
+
+// CGroupSetV1 is not implemented for VMs.
+func (vm *Qemu) CGroupSetV1(key string, value string) error {
+	return fmt.Errorf("CGroupSetV1 Not implemented")
 }
 
 // VolatileSet sets one or more volatile config keys.
