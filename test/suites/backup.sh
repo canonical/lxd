@@ -237,6 +237,16 @@ test_backup_import_with_project() {
     lxc delete --force c2
   fi
 
+  # Test hyphenated container and snapshot names
+  lxc launch testimage c1-foo
+  lxc snapshot c1-foo c1-foo-snap0
+
+  lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
+  lxc delete --force c1-foo
+
+  lxc import "${LXD_DIR}/c1-foo.tar.gz"
+  lxc delete --force c1-foo
+
   default_pool="$(lxc profile device get default root pool)"
 
   # Create new storage pools
@@ -351,6 +361,14 @@ test_backup_export_with_project() {
 
   lxc delete --force c1
   rm -rf "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
+
+  # Check if hyphens cause issues when creating backups
+  lxc launch testimage c1-foo
+  lxc snapshot c1-foo
+
+  lxc export c1-foo "${LXD_DIR}/c1-foo.tar.gz"
+
+  lxc delete --force c1-foo
 
   if [ "$#" -ne 0 ]; then
     lxc image rm testimage
