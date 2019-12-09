@@ -65,12 +65,13 @@ func (s *OS) initCGroup() {
 					}
 
 				}
-				j++
+				
 				if err := scanner.Err(); err != nil {
 					logger.Debugf("Can't something")
 				}
 
 			}
+			j++
 		} else {
 
 			*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
