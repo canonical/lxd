@@ -6926,3 +6926,46 @@ func (c *containerLXC) maasDelete() error {
 
 	return c.state.MAAS.DeleteContainer(project.Prefix(c.project, c.name))
 }
+
+func (c *containerLXC) cgroup(cc *lxc.Container) (*cgroup.CGroup, error) {
+	rw := lxcCgroupReadWriter{}
+	if cc != nil {
+		rw.cc = cc
+		rw.conf = true
+	} else {
+		rw.cc = c.c
+	}
+
+	return cgroup.New(&rw)
+}
+
+type lxcCgroupReadWriter struct {
+	cc   *lxc.Container
+	conf bool
+}
+
+func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
+	if rw.conf {
+		lxcKey := fmt.Sprintf("lxc.cgroup.%s", key)
+
+		if version == cgroup.V2 {
+			lxcKey = fmt.Sprintf("lxc.cgroup2.%s", key)
+		}
+
+		return strings.Join(rw.cc.ConfigItem(lxcKey), "\n"), nil
+	}
+
+	return strings.Join(rw.cc.CgroupItem(key), "\n"), nil
+}
+
+func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, key string, value string) error {
+	if rw.conf {
+		if version == cgroup.V1 {
+			return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup.%s", key), value)
+		}
+
+		return lxcSetConfigItem(rw.cc, fmt.Sprintf("lxc.cgroup2.%s", key), value)
+	}
+
+	return rw.cc.SetCgroupItem(key, value)
+}
