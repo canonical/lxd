@@ -26,6 +26,8 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -203,12 +205,10 @@ func createFromNone(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromMigration(d *Daemon, project string, req *api.InstancesPost) response.Response {
-	// Validate migration mode
+	// Validate migration mode.
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
-
-	var c instance.Instance
 
 	// Parse the architecture name
 	architecture, err := osarch.ArchitectureId(req.Architecture)
@@ -216,7 +216,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.BadRequest(err)
 	}
 
-	// Pre-fill default profile
+	// Pre-fill default profile.
 	if req.Profiles == nil {
 		req.Profiles = []string{"default"}
 	}
@@ -226,7 +226,11 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.BadRequest(err)
 	}
 
-	// Prepare the container creation request
+	if dbType != instancetype.Container {
+		return response.BadRequest(fmt.Errorf("Instance type not container"))
+	}
+
+	// Prepare the instance creation request.
 	args := db.InstanceArgs{
 		Project:      project,
 		Architecture: architecture,
@@ -241,7 +245,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		Stateful:     req.Stateful,
 	}
 
-	// Early profile validation
+	// Early profile validation.
 	profiles, err := d.cluster.Profiles(project)
 	if err != nil {
 		return response.InternalError(err)
@@ -259,12 +263,11 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	}
 
 	if storagePool == "" {
-		return response.BadRequest(fmt.Errorf("Can't find a storage pool for the container to use"))
+		return response.BadRequest(fmt.Errorf("Can't find a storage pool for the instance to use"))
 	}
 
 	if localRootDiskDeviceKey == "" && storagePoolProfile == "" {
-		// Give the container it's own local root disk device with a
-		// pool property.
+		// Give the container it's own local root disk device with a pool property.
 		rootDev := map[string]string{}
 		rootDev["type"] = "disk"
 		rootDev["path"] = "/"
@@ -273,8 +276,8 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 			args.Devices = deviceConfig.Devices{}
 		}
 
-		// Make sure that we do not overwrite a device the user
-		// is currently using under the name "root".
+		// Make sure that we do not overwrite a device the user is currently using under the
+		// name "root".
 		rootDevName := "root"
 		for i := 0; i < 100; i++ {
 			if args.Devices[rootDevName] == nil {
@@ -289,75 +292,102 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
-	// Early check for refresh
+	var inst instance.Instance
+
+	// Early check for refresh.
 	if req.Source.Refresh {
-		// Check if the container exists
-		inst, err := instanceLoadByProjectAndName(d.State(), project, req.Name)
+		// Check if the instance exists.
+		inst, err = instance.LoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
 		} else if inst.IsRunning() {
 			return response.BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
-
-		if inst.Type() != instancetype.Container {
-			return response.BadRequest(fmt.Errorf("Instance type not container"))
-		}
-
-		c = inst
 	}
 
+	revert := true
+	defer func() {
+		if revert && !req.Source.Refresh && inst != nil {
+			inst.Delete()
+		}
+	}()
+
+	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
+
 	if !req.Source.Refresh {
-		/* Only create a container from an image if we're going to
-		 * rsync over the top of it. In the case of a better file
-		 * transfer mechanism, let's just use that.
-		 *
-		 * TODO: we could invent some negotiation here, where if the
-		 * source and sink both have the same image, we can clone from
-		 * it, but we have to know before sending the snapshot that
-		 * we're sending the whole thing or just a delta from the
-		 * image, so one extra negotiation round trip is needed. An
-		 * alternative is to move actual container object to a later
-		 * point and just negotiate it over the migration control
-		 * socket. Anyway, it'll happen later :)
-		 */
-		_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
-		if err != nil {
-			c, err = instanceCreateAsEmpty(d, args)
+		// Check if we can load new storage layer for pool driver type.
+		_, err := storagePools.GetPoolByName(d.State(), storagePool)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			// Create the instance DB records only and let the storage layer populate
+			// the storage devices. Note: At this stage we do not yet know if snapshots
+			// are going to be received and so we cannot create their DB records. This
+			// will be done if needed in the migrationSink.Do() function called as part
+			// of the operation below.
+			inst, err = instanceCreateInternal(d.State(), args)
 			if err != nil {
 				return response.InternalError(err)
 			}
 		} else {
-			// Retrieve the future storage pool
-			inst, err := instanceLoad(d.State(), args, nil)
+			/* Only create a container from an image if we're going to
+			 * rsync over the top of it. In the case of a better file
+			 * transfer mechanism, let's just use that.
+			 *
+			 * TODO: we could invent some negotiation here, where if the
+			 * source and sink both have the same image, we can clone from
+			 * it, but we have to know before sending the snapshot that
+			 * we're sending the whole thing or just a delta from the
+			 * image, so one extra negotiation round trip is needed. An
+			 * alternative is to move actual container object to a later
+			 * point and just negotiate it over the migration control
+			 * socket. Anyway, it'll happen later :)
+			 */
+			_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
 			if err != nil {
-				return response.InternalError(err)
-			}
-
-			_, rootDiskDevice, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if rootDiskDevice["pool"] == "" {
-				return response.BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
-			}
-
-			storagePool = rootDiskDevice["pool"]
-
-			ps, err := storagePoolInit(d.State(), storagePool)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-				c, err = instanceCreateFromImage(d, args, req.Source.BaseImage, nil)
+				inst, err = instanceCreateAsEmpty(d, args)
 				if err != nil {
 					return response.InternalError(err)
 				}
 			} else {
-				c, err = instanceCreateAsEmpty(d, args)
+				// Retrieve the future storage pool.
+				tmpInst, err := instanceLoad(d.State(), args, nil)
 				if err != nil {
 					return response.InternalError(err)
+				}
+
+				_, rootDiskDevice, err := shared.GetRootDiskDevice(tmpInst.ExpandedDevices().CloneNative())
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				if rootDiskDevice["pool"] == "" {
+					return response.BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
+				}
+
+				storagePool = rootDiskDevice["pool"]
+
+				var migrationType migration.MigrationFSType
+
+				ps, err := storagePoolInit(d.State(), storagePool)
+				if err != nil {
+					return response.InternalError(err)
+				}
+
+				migrationType = ps.MigrationType()
+
+				if migrationType == migration.MigrationFSType_RSYNC {
+					inst, err = instanceCreateFromImage(d, args, req.Source.BaseImage, nil)
+					if err != nil {
+						return response.InternalError(err)
+					}
+				} else {
+					inst, err = instanceCreateAsEmpty(d, args)
+					if err != nil {
+						return response.InternalError(err)
+					}
 				}
 			}
 		}
@@ -367,26 +397,17 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	if req.Source.Certificate != "" {
 		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
 		if certBlock == nil {
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return response.InternalError(fmt.Errorf("Invalid certificate"))
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return response.InternalError(err)
 		}
 	}
 
 	config, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
-		if !req.Source.Refresh {
-			c.Delete()
-		}
 		return response.InternalError(err)
 	}
 
@@ -395,13 +416,12 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		push = true
 	}
 
-	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 	migrationArgs := MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig: config,
 			NetDial:         shared.RFC3493Dialer},
-		Instance:     c,
+		Instance:     inst,
 		Secrets:      req.Source.Websockets,
 		Push:         push,
 		Live:         req.Source.Live,
@@ -411,34 +431,35 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 
 	sink, err := NewMigrationSink(&migrationArgs)
 	if err != nil {
-		c.Delete()
 		return response.InternalError(err)
 	}
 
 	run := func(op *operations.Operation) error {
-		// And finally run the migration.
-		err = sink.Do(op)
-		if err != nil {
-			logger.Error("Error during migration sink", log.Ctx{"err": err})
-			if !req.Source.Refresh {
-				c.Delete()
+		opRevert := true
+		defer func() {
+			if opRevert && !req.Source.Refresh && inst != nil {
+				inst.Delete()
 			}
+		}()
+
+		// And finally run the migration.
+		err = sink.Do(d.State(), op)
+		if err != nil {
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
 
-		err = c.DeferTemplateApply("copy")
+		err = inst.DeferTemplateApply("copy")
 		if err != nil {
-			if !req.Source.Refresh {
-				c.Delete()
-			}
 			return err
 		}
 
+		opRevert = false
 		return nil
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{req.Name}
+	resources["instances"] = []string{req.Name}
+	resources["containers"] = resources["instances"]
 
 	var op *operations.Operation
 	if push {
@@ -453,6 +474,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		}
 	}
 
+	revert = false
 	return operations.OperationResponse(op)
 }
 
@@ -467,7 +489,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	}
 	targetProject := project
 
-	source, err := instanceLoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
+	source, err := instance.LoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -572,7 +594,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 	// Early check for refresh
 	if req.Source.Refresh {
 		// Check if the container exists
-		c, err := instanceLoadByProjectAndName(d.State(), targetProject, req.Name)
+		c, err := instance.LoadByProjectAndName(d.State(), targetProject, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
 		} else if c.IsRunning() {
@@ -625,49 +647,120 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
-	// Write the data to a temp file
-	f, err := ioutil.TempFile("", "lxd_backup_")
+	// Create temporary file to store uploaded backup data.
+	backupFile, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer os.Remove(f.Name())
+	defer os.Remove(backupFile.Name())
 
-	_, err = io.Copy(f, data)
+	// Stream uploaded backup data into temporary file.
+	_, err = io.Copy(backupFile, data)
 	if err != nil {
-		f.Close()
+		backupFile.Close()
 		return response.InternalError(err)
 	}
 
-	// Parse the backup information
-	f.Seek(0, 0)
-	bInfo, err := backup.GetInfo(f)
+	// Detect squashfs compression and convert to tarball.
+	backupFile.Seek(0, 0)
+	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
 	if err != nil {
-		f.Close()
+		backupFile.Close()
+		return response.InternalError(err)
+	}
+
+	if algo == ".squashfs" {
+		// Pass the temporary file as program argument to the decompression command.
+		decomArgs := append(decomArgs, backupFile.Name())
+
+		// Create temporary file to store the decompressed tarball in.
+		tarFile, err := ioutil.TempFile("", "lxd_decompress_")
+		if err != nil {
+			backupFile.Close()
+			return response.InternalError(err)
+		}
+		defer os.Remove(tarFile.Name())
+
+		// Decompress to tarData temporary file.
+		err = shared.RunCommandWithFds(nil, tarFile, decomArgs[0], decomArgs[1:]...)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		// We don't need the original squashfs file anymore.
+		backupFile.Close()
+		os.Remove(backupFile.Name())
+
+		// Replace the backup file handle with the handle to the tar file.
+		backupFile = tarFile
+	}
+
+	// Parse the backup information.
+	backupFile.Seek(0, 0)
+	bInfo, err := backup.GetInfo(backupFile)
+	if err != nil {
+		backupFile.Close()
 		return response.BadRequest(err)
 	}
 	bInfo.Project = project
 
-	// Override pool
+	// Override pool.
 	if pool != "" {
 		bInfo.Pool = pool
 	}
 
-	run := func(op *operations.Operation) error {
-		defer f.Close()
-
-		// Dump tarball to storage
-		f.Seek(0, 0)
-		cPool, err := containerCreateFromBackup(d.State(), *bInfo, f, pool != "")
-		if err != nil {
-			return errors.Wrap(err, "Create container from backup")
+	// Check storage pool exists.
+	_, _, err = d.State().Cluster.StoragePoolGet(bInfo.Pool)
+	if errors.Cause(err) == db.ErrNoSuchObject {
+		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
+		// the backup.yaml) or the pool has been specified directly from the user restoring
+		// the backup then we cannot proceed so return an error.
+		if bInfo.HasBinaryFormat || pool != "" {
+			return response.InternalError(errors.Wrap(err, "Storage pool not found"))
 		}
+
+		// Otherwise try and restore to the project's default profile pool.
+		_, profile, err := d.State().Cluster.ProfileGet(bInfo.Project, "default")
+		if err != nil {
+			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
+		}
+
+		_, v, err := shared.GetRootDiskDevice(profile.Devices)
+		if err != nil {
+			return response.InternalError(errors.Wrap(err, "Failed to get root disk device"))
+		}
+
+		// Use the default-profile's root pool.
+		bInfo.Pool = v["pool"]
+	} else if err != nil {
+		return response.InternalError(err)
+	}
+
+	run := func(op *operations.Operation) error {
+		defer backupFile.Close()
+
+		// Dump tarball to storage.
+		postHook, revertHook, err := instanceCreateFromBackup(d.State(), *bInfo, backupFile)
+		if err != nil {
+			return errors.Wrap(err, "Create instance from backup")
+		}
+
+		revert := true
+		defer func() {
+			if !revert {
+				return
+			}
+
+			if revertHook != nil {
+				revertHook()
+			}
+		}()
 
 		body, err := json.Marshal(&internalImportPost{
 			Name:  bInfo.Name,
 			Force: true,
 		})
 		if err != nil {
-			cPool.ContainerDelete(&containerLXC{name: bInfo.Name, project: project})
 			return errors.Wrap(err, "Marshal internal import request")
 		}
 
@@ -680,29 +773,35 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		resp := internalImport(d, req)
 
 		if resp.String() != "success" {
-			cPool.ContainerDelete(&containerLXC{name: bInfo.Name, project: project})
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
-		c, err := instanceLoadByProjectAndName(d.State(), project, bInfo.Name)
+		c, err := instance.LoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
-			return errors.Wrap(err, "Load container")
+			return errors.Wrap(err, "Load instance")
 		}
 
-		_, err = c.StorageStop()
-		if err != nil {
-			return errors.Wrap(err, "Stop storage pool")
+		// Run the storage post hook to perform any final actions now that the instance
+		// has been created in the database.
+		if postHook != nil {
+			err = postHook(c)
+			if err != nil {
+				return errors.Wrap(err, "Post hook")
+			}
 		}
 
+		revert = false
 		return nil
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{bInfo.Name}
+	resources["instances"] = []string{bInfo.Name}
+	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
 	if err != nil {
+		backupFile.Close()
 		return response.InternalError(err)
 	}
 

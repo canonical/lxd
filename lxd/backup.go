@@ -19,6 +19,8 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -26,9 +28,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Create a new backup
-func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer instance.Instance) error {
-	// Create the database entry
+// Create a new backup.
+func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instance.Instance) error {
+	// Create the database entry.
 	err := s.Cluster.ContainerBackupCreate(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
@@ -38,137 +40,65 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceContainer in
 		return errors.Wrap(err, "Insert backup info into database")
 	}
 
-	// Get the backup struct
-	b, err := backup.LoadByName(s, sourceContainer.Project(), args.Name)
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+		s.Cluster.ContainerBackupRemove(args.Name)
+	}()
+
+	// Get the backup struct.
+	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
 	if err != nil {
 		return errors.Wrap(err, "Load backup object")
 	}
 
 	b.SetCompressionAlgorithm(args.CompressionAlgorithm)
 
-	ourStart, err := sourceContainer.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer sourceContainer.StorageStop()
-	}
-
-	// Create a temporary path for the backup
+	// Create a temporary path for the backup.
 	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmpPath)
 
-	if sourceContainer.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
-	}
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return errors.Wrap(err, "Load instance storage pool")
+		}
 
-	ct := sourceContainer.(*containerLXC)
-
-	// Now create the empty snapshot
-	err = ct.Storage().ContainerBackupCreate(tmpPath, *b, sourceContainer)
-	if err != nil {
-		s.Cluster.ContainerBackupRemove(args.Name)
-		return errors.Wrap(err, "Backup storage")
-	}
-
-	// Pack the backup
-	return backupCreateTarball(s, tmpPath, *b, sourceContainer)
-}
-
-// fixBackupStoragePool changes the pool information in the backup.yaml. This
-// is done only if the provided pool doesn't exist. In this case, the pool of
-// the default profile will be used.
-func backupFixStoragePool(c *db.Cluster, b backup.Info, useDefaultPool bool) error {
-	var poolName string
-
-	if useDefaultPool {
-		// Get the default profile
-		_, profile, err := c.ProfileGet("default", "default")
+		err = pool.BackupInstance(sourceInst, tmpPath, b.OptimizedStorage(), !b.InstanceOnly(), nil)
+		if err != nil {
+			return errors.Wrap(err, "Backup create")
+		}
+	} else if sourceInst.Type() == instancetype.Container {
+		ourStart, err := sourceInst.StorageStart()
 		if err != nil {
 			return err
 		}
-
-		_, v, err := shared.GetRootDiskDevice(profile.Devices)
-		if err != nil {
-			return err
+		if ourStart {
+			defer sourceInst.StorageStop()
 		}
 
-		poolName = v["pool"]
+		ct := sourceInst.(*containerLXC)
+		err = ct.Storage().ContainerBackupCreate(tmpPath, *b, sourceInst)
+		if err != nil {
+			return errors.Wrap(err, "Backup create")
+		}
 	} else {
-		poolName = b.Pool
+		return fmt.Errorf("Instance type not supported")
 	}
 
-	// Get the default's profile pool
-	_, pool, err := c.StoragePoolGet(poolName)
+	// Pack the backup.
+	err = backupCreateTarball(s, tmpPath, *b, sourceInst)
 	if err != nil {
 		return err
 	}
 
-	f := func(path string) error {
-		// Read in the backup.yaml file.
-		backup, err := slurpBackupFile(path)
-		if err != nil {
-			return err
-		}
-
-		rootDiskDeviceFound := false
-
-		// Change the pool in the backup.yaml
-		backup.Pool = pool
-		if backup.Container.Devices != nil {
-			devName, _, err := shared.GetRootDiskDevice(backup.Container.Devices)
-			if err == nil {
-				backup.Container.Devices[devName]["pool"] = poolName
-				rootDiskDeviceFound = true
-			}
-		}
-
-		if backup.Container.ExpandedDevices != nil {
-			devName, _, err := shared.GetRootDiskDevice(backup.Container.ExpandedDevices)
-			if err == nil {
-				backup.Container.ExpandedDevices[devName]["pool"] = poolName
-				rootDiskDeviceFound = true
-			}
-		}
-
-		if !rootDiskDeviceFound {
-			return fmt.Errorf("No root device could be found")
-		}
-
-		file, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		data, err := yaml.Marshal(&backup)
-		if err != nil {
-			return err
-		}
-
-		_, err = file.Write(data)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	err = f(shared.VarPath("storage-pools", pool.Name, "containers", project.Prefix(b.Project, b.Name), "backup.yaml"))
-	if err != nil {
-		return err
-	}
-
-	for _, snap := range b.Snapshots {
-		err = f(shared.VarPath("storage-pools", pool.Name, "containers-snapshots", project.Prefix(b.Project, b.Name), snap,
-			"backup.yaml"))
-		if err != nil {
-			return err
-		}
-	}
+	revert = false
 	return nil
 }
 
@@ -350,7 +280,7 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	}
 
 	for _, b := range backups {
-		inst, err := instanceLoadById(d.State(), b.InstanceID)
+		inst, err := instance.LoadByID(d.State(), b.InstanceID)
 		if err != nil {
 			return errors.Wrapf(err, "Error deleting container backup %s", b.Name)
 		}

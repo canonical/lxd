@@ -726,6 +726,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
+	imageType := "container"
 	if strings.HasPrefix(imageFile, "https://") {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
@@ -760,6 +761,16 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			defer rootfs.Close()
+
+			_, ext, _, err := shared.DetectCompressionFile(rootfs)
+			if err != nil {
+				return err
+			}
+			rootfs.(*os.File).Seek(0, 0)
+
+			if ext == ".qcow2" {
+				imageType = "virtual-machine"
+			}
 		}
 
 		createArgs = &lxd.ImageCreateArgs{
@@ -768,6 +779,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 			RootfsFile:      rootfs,
 			RootfsName:      filepath.Base(rootfsFile),
 			ProgressHandler: progress.UpdateProgress,
+			Type:            imageType,
 		}
 		image.Filename = createArgs.MetaName
 	}
@@ -927,6 +939,15 @@ func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
 	}
 
+	if len(info.Profiles) == 0 {
+		fmt.Printf(i18n.G("Profiles: ") + "[]\n")
+	} else {
+		fmt.Println(i18n.G("Profiles:"))
+		for _, name := range info.Profiles {
+			fmt.Printf("    - %s\n", name)
+		}
+	}
+
 	return nil
 }
 
@@ -984,7 +1005,7 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 		'F': {i18n.G("FINGERPRINT"), c.fingerprintFullColumnData},
 		'p': {i18n.G("PUBLIC"), c.publicColumnData},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
-		'a': {i18n.G("ARCH"), c.architectureColumnData},
+		'a': {i18n.G("ARCHITECTURE"), c.architectureColumnData},
 		's': {i18n.G("SIZE"), c.sizeColumnData},
 		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
 		't': {i18n.G("TYPE"), c.typeColumnData},

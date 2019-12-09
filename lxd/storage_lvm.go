@@ -1203,12 +1203,12 @@ func (s *storageLvm) doContainerCopy(target instance.Instance, source instance.I
 
 		logger.Debugf("Copying LVM container storage for snapshot %s to %s", snap.Name(), newSnapName)
 
-		sourceSnapshot, err := instanceLoadByProjectAndName(srcState, source.Project(), snap.Name())
+		sourceSnapshot, err := instance.LoadByProjectAndName(srcState, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
-		targetSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), newSnapName)
+		targetSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), newSnapName)
 		if err != nil {
 			return err
 		}
@@ -2074,13 +2074,13 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 	}
 
 	poolName := s.getOnDiskPoolName()
-	var c container
+	var c instance.Instance
 	fsType := s.getLvmFilesystem()
 	lvDevPath := ""
 	mountpoint := ""
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		ctName := c.Name()
 		if c.IsRunning() {
 			msg := fmt.Sprintf(`Cannot resize LVM storage volume `+

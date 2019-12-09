@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,13 +14,14 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -126,7 +126,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.LoadByID(d.State(), id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -135,7 +135,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(container)
+	c := inst.(*containerLXC)
 	err = c.OnStart()
 	if err != nil {
 		logger.Error("The start hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -157,7 +157,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	}
 	netns := queryParam(r, "netns")
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.LoadByID(d.State(), id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -166,7 +166,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(container)
+	c := inst.(*containerLXC)
 	err = c.OnStopNS(target, netns)
 	if err != nil {
 		logger.Error("The stopns hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -187,7 +187,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		target = "unknown"
 	}
 
-	inst, err := instanceLoadById(d.State(), id)
+	inst, err := instance.LoadByID(d.State(), id)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -196,7 +196,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(container)
+	c := inst.(*containerLXC)
 	err = c.OnStop(target)
 	if err != nil {
 		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -390,21 +390,6 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 	return nil
 }
 
-func slurpBackupFile(path string) (*backupFile, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	backup := backupFile{}
-
-	if err := yaml.Unmarshal(data, &backup); err != nil {
-		return nil, err
-	}
-
-	return &backup, nil
-}
-
 type internalImportPost struct {
 	Name  string `json:"name" yaml:"name"`
 	Force bool   `json:"force" yaml:"force"`
@@ -476,7 +461,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	// Read in the backup.yaml file.
 	backupYamlPath := filepath.Join(containerMntPoint, "backup.yaml")
-	backup, err := slurpBackupFile(backupYamlPath)
+	backup, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return response.SmartError(err)
 	}

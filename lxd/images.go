@@ -28,6 +28,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
@@ -122,14 +123,13 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		defer os.Remove(tempfile.Name())
 
 		// Prepare 'tar2sqfs' arguments
-		args := []string{"tar2sqfs", "--no-skip", "--force",
-			"--compressor", "xz", tempfile.Name()}
+		args := []string{"tar2sqfs", "--no-skip", "--force", "--compressor", "xz", tempfile.Name()}
 		cmd = exec.Command(args[0], args[1:]...)
 		cmd.Stdin = infile
 
-		err = cmd.Run()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return err
+			return fmt.Errorf("tar2sqfs: %v (%v)", err, strings.TrimSpace(string(output)))
 		}
 		// Replay the result to outfile
 		tempfile.Seek(0, 0)
@@ -189,7 +189,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		info.Public = false
 	}
 
-	c, err := instanceLoadByProjectAndName(d.State(), project, name)
+	c, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, 
 
 	// Update the DB record if needed
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -415,7 +415,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operations.Operation, pro
 	}
 
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.cluster.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1144,6 +1144,11 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
+		err = d.cluster.ImageCopyDefaultProfiles(id, newId)
+		if err != nil {
+			logger.Error("Copying default profiles", log.Ctx{"err": err, "fp": hash})
+		}
+
 		// If we do have optimized pools, make sure we remove
 		// the volumes associated with the image.
 		if poolName != "" {
@@ -1244,7 +1249,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func pruneLeftoverImages(d *Daemon) {
 	opRun := func(op *operations.Operation) error {
 		// Get all images
-		images, err := d.cluster.ImagesGet("default", false)
+		images, err := d.cluster.ImagesGetLocal()
 		if err != nil {
 			return errors.Wrap(err, "Unable to retrieve the list of images")
 		}
@@ -1597,7 +1602,22 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		info.ExpiresAt = req.ExpiresAt
 	}
 
-	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties)
+	// Get profile ids
+	if req.Profiles == nil {
+		req.Profiles = []string{"default"}
+	}
+	profileIds := make([]int64, len(req.Profiles))
+	for i, profile := range req.Profiles {
+		profileId, _, err := d.cluster.ProfileGet(project, profile)
+		if err == db.ErrNoSuchObject {
+			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
+		} else if err != nil {
+			return response.SmartError(err)
+		}
+		profileIds[i] = profileId
+	}
+
+	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, project, profileIds)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1664,7 +1684,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 		info.Properties = properties
 	}
 
-	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1926,6 +1946,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		return response.ForwardedResponse(client, r)
 	}
 
@@ -1953,7 +1974,11 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 		filename = fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
 
-		files[1].Identifier = "rootfs"
+		if imgInfo.Type == "virtual-machine" {
+			files[1].Identifier = "rootfs.img"
+		} else {
+			files[1].Identifier = "rootfs"
+		}
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
 
@@ -2214,12 +2239,14 @@ func imageSyncBetweenNodes(d *Daemon, project string, fingerprint string) error 
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch the leader node address")
 	}
+
 	var targetNodeAddress string
 	if shared.StringInSlice(leader, addresses) {
 		targetNodeAddress = leader
 	} else {
 		targetNodeAddress = addresses[0]
 	}
+
 	client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect node for image synchronization")

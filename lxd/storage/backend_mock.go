@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 
+	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -16,10 +17,6 @@ type mockBackend struct {
 	name   string
 	state  *state.State
 	logger logger.Logger
-}
-
-func (b *mockBackend) DaemonState() *state.State {
-	return b.state
 }
 
 func (b *mockBackend) ID() int64 {
@@ -59,35 +56,35 @@ func (b *mockBackend) Unmount() (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) CreateInstance(i Instance, op *operations.Operation) error {
+func (b *mockBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromBackup(i Instance, sourcePath string, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
+	return nil, nil, nil
+}
+
+func (b *mockBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromCopy(i Instance, src Instance, snapshots bool, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromImage(i Instance, fingerprint string, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromMigration(inst Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+func (b *mockBackend) RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) RenameInstance(i Instance, newName string, op *operations.Operation) error {
+func (b *mockBackend) DeleteInstance(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) DeleteInstance(i Instance, op *operations.Operation) error {
-	return nil
-}
-
-func (b *mockBackend) MigrateInstance(inst Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }
 
@@ -95,51 +92,51 @@ func (b *mockBackend) RefreshInstance(i instance.Instance, src instance.Instance
 	return nil
 }
 
-func (b *mockBackend) BackupInstance(i Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+func (b *mockBackend) BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) GetInstanceUsage(i Instance) (int64, error) {
+func (b *mockBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	return 0, nil
 }
 
-func (b *mockBackend) SetInstanceQuota(i Instance, size string, op *operations.Operation) error {
+func (b *mockBackend) SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) MountInstance(i Instance, op *operations.Operation) (bool, error) {
+func (b *mockBackend) MountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) UnmountInstance(i Instance, op *operations.Operation) (bool, error) {
+func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) GetInstanceDisk(i Instance) (string, error) {
+func (b *mockBackend) GetInstanceDisk(inst instance.Instance) (string, error) {
 	return "", nil
 }
 
-func (b *mockBackend) CreateInstanceSnapshot(i Instance, name string, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) RenameInstanceSnapshot(i Instance, newName string, op *operations.Operation) error {
+func (b *mockBackend) RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) DeleteInstanceSnapshot(i Instance, op *operations.Operation) error {
+func (b *mockBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) RestoreInstanceSnapshot(i Instance, op *operations.Operation) error {
+func (b *mockBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) MountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error) {
+func (b *mockBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) UnmountInstanceSnapshot(i Instance, op *operations.Operation) (bool, error) {
+func (b *mockBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 

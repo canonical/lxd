@@ -22,6 +22,30 @@ var ImageSourceProtocol = map[int]string{
 	2: "simplestreams",
 }
 
+// ImagesGetLocal returns the names of all local images.
+func (c *Cluster) ImagesGetLocal() ([]string, error) {
+	q := `
+SELECT images.fingerprint
+  FROM images_nodes
+  JOIN images ON images.id = images_nodes.image_id
+ WHERE node_id = ?
+`
+	var fp string
+	inargs := []interface{}{c.nodeID}
+	outfmt := []interface{}{fp}
+	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	if err != nil {
+		return []string{}, err
+	}
+
+	results := []string{}
+	for _, r := range dbResults {
+		results = append(results, r[0].(string))
+	}
+
+	return results, nil
+}
+
 // ImagesGet returns the names of all images (optionally only the public ones).
 func (c *Cluster) ImagesGet(project string, public bool) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -282,6 +306,7 @@ SELECT COUNT(*) > 0
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
 func (c *Cluster) ImageGet(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
+	profileProject := project
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -363,6 +388,11 @@ SELECT COUNT(images.id)
 	err = c.imageFill(id, &image, create, expire, used, upload, arch, imageType)
 	if err != nil {
 		return -1, nil, errors.Wrapf(err, "Fill image details")
+	}
+
+	err = c.imageFillProfiles(id, &image, profileProject)
+	if err != nil {
+		return -1, nil, errors.Wrapf(err, "Fill image profiles")
 	}
 
 	return id, &image, nil
@@ -481,6 +511,47 @@ func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, uplo
 		image.UpdateSource = &source
 	}
 
+	return nil
+}
+
+func (c *Cluster) imageFillProfiles(id int, image *api.Image, project string) error {
+	// Check which project name to use
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has profiles")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get the profiles
+	q := `
+SELECT profiles.name FROM profiles 
+	JOIN images_profiles ON images_profiles.profile_id = profiles.id
+	JOIN projects ON profiles.project_id = projects.id
+WHERE images_profiles.image_id = ? AND projects.name = ?
+`
+	var name string
+	inargs := []interface{}{id, project}
+	outfmt := []interface{}{name}
+	results, err := queryScan(c.db, q, inargs, outfmt)
+	if err != nil {
+		return err
+	}
+
+	profiles := make([]string, 0)
+	for _, r := range results {
+		name = r[0].(string)
+		profiles = append(profiles, name)
+	}
+
+	image.Profiles = profiles
 	return nil
 }
 
@@ -721,6 +792,14 @@ func (c *Cluster) ImageAliasUpdate(id int, imageID int, desc string) error {
 	return err
 }
 
+// ImageCopyDefaultProfiles copies default profiles from id to new_id.
+func (c *Cluster) ImageCopyDefaultProfiles(id int, newID int) error {
+	stmt := `INSERT INTO images_profiles (image_id, profile_id) 
+	SELECT ?, profile_id FROM images_profiles WHERE image_id=?`
+	err := exec(c.db, stmt, newID, id)
+	return err
+}
+
 // ImageLastAccessUpdate updates the last_use_date field of the image with the
 // given fingerprint.
 func (c *Cluster) ImageLastAccessUpdate(fingerprint string, date time.Time) error {
@@ -737,7 +816,7 @@ func (c *Cluster) ImageLastAccessInit(fingerprint string) error {
 }
 
 // ImageUpdate updates the image with the given ID.
-func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, project string, profileIds []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -783,6 +862,39 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 			}
 		}
 
+		if project != "" && profileIds != nil {
+			enabled, err := tx.ProjectHasProfiles(project)
+			if err != nil {
+				return err
+			}
+			if !enabled {
+				project = "default"
+			}
+			q := `DELETE FROM images_profiles 
+				WHERE image_id = ? AND profile_id IN (
+					SELECT profiles.id FROM profiles
+					JOIN projects ON profiles.project_id = projects.id
+					WHERE projects.name = ?
+				)`
+			_, err = tx.tx.Exec(q, id, project)
+			if err != nil {
+				return err
+			}
+
+			stmt3, err := tx.tx.Prepare(`INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`)
+			if err != nil {
+				return err
+			}
+			defer stmt3.Close()
+
+			for _, profileID := range profileIds {
+				_, err = stmt3.Exec(id, profileID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		return nil
 	})
 	return err
@@ -790,6 +902,7 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 
 // ImageInsert inserts a new image.
 func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
+	profileProject := project
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
@@ -820,6 +933,11 @@ func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public
 
 	if imageType == -1 {
 		return fmt.Errorf("Invalid image type: %v", typeName)
+	}
+
+	defaultProfileID, _, err := c.ProfileGet(profileProject, "default")
+	if err != nil {
+		return err
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
@@ -866,6 +984,11 @@ func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public
 				}
 			}
 
+		}
+
+		_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, defaultProfileID)
+		if err != nil {
+			return err
 		}
 
 		_, err = tx.tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.nodeID)

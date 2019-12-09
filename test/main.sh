@@ -252,6 +252,10 @@ run_test test_backup_export "backup export"
 run_test test_backup_rename "backup rename"
 run_test test_container_local_cross_pool_handling "container local cross pool handling"
 run_test test_incremental_copy "incremental container copy"
+run_test test_profiles_project_default "profiles in default project"
+run_test test_profiles_project_images_profiles "profiles in project with images and profiles enabled"
+run_test test_profiles_project_images "profiles in project with images enabled and profiles disabled"
+run_test test_profiles_project_profiles "profiles in project with images disabled and profiles enabled"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success

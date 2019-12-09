@@ -112,7 +112,7 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 	<-s.allConnected
 
 	// Get console from instance.
-	console, err := s.instance.Console()
+	console, consoleDisconnectCh, err := s.instance.Console()
 	if err != nil {
 		return err
 	}
@@ -204,14 +204,15 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 		<-readDone
 		logger.Debugf("Finished mirroring console to websocket")
 		<-writeDone
-		conn.Close()
 		close(mirrorDoneCh)
 	}()
 
 	// Wait until either the console or the websocket is done.
 	select {
 	case <-mirrorDoneCh:
+		close(consoleDisconnectCh)
 	case <-consoleDoneCh:
+		close(consoleDisconnectCh)
 	}
 
 	// Write a reset escape sequence to the console to cancel any ongoing reads to the handle
@@ -222,9 +223,10 @@ func (s *consoleWs) Do(op *operations.Operation) error {
 
 	// Get the console websocket and close it.
 	s.connsLock.Lock()
-	consolConn := s.conns[0]
+	consoleConn := s.conns[0]
 	s.connsLock.Unlock()
-	consolConn.Close()
+	consoleConn.WriteMessage(websocket.BinaryMessage, []byte("\n\r"))
+	consoleConn.Close()
 
 	// Get the control websocket and close it.
 	s.connsLock.Lock()
@@ -275,7 +277,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 		return operations.ForwardedOperationResponse(project, &opAPI)
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -343,7 +345,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -352,7 +354,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(container)
+	c := inst.(*containerLXC)
 	ent := response.FileResponseEntry{}
 	if !c.IsRunning() {
 		// Hand back the contents of the console ringbuffer logfile.
@@ -397,7 +399,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 	project := projectParam(r)
 
-	inst, err := instanceLoadByProjectAndName(d.State(), project, name)
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -406,7 +408,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(container)
+	c := inst.(*containerLXC)
 
 	truncateConsoleLogFile := func(path string) error {
 		// Check that this is a regular file. We don't want to try and unlink

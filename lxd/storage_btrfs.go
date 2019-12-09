@@ -1158,7 +1158,12 @@ func (s *storageBtrfs) ContainerCopy(target instance.Instance, source instance.I
 	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		err = s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		if err != nil {
+			return err
+		}
+
+		return target.DeferTemplateApply("copy")
 	}
 
 	err = s.copyContainer(target, source)
@@ -1182,14 +1187,14 @@ func (s *storageBtrfs) ContainerCopy(target instance.Instance, source instance.I
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
+		sourceSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := instanceLoadByProjectAndName(s.s, target.Project(), newSnapName)
+		targetSnapshot, err := instance.LoadByProjectAndName(s.s, target.Project(), newSnapName)
 		if err != nil {
 			return err
 		}
@@ -2701,11 +2706,11 @@ func (s *storageBtrfs) btrfsLookupFsUUID(fs string) (string, error) {
 func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
 	logger.Debugf(`Setting BTRFS quota for "%s"`, s.volume.Name)
 
-	var c container
+	var c instance.Instance
 	var subvol string
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		subvol = driver.GetContainerMountPoint(c.Project(), s.pool.Name, c.Name())
 	case storagePoolVolumeTypeCustom:
 		subvol = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)

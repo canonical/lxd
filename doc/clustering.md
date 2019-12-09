@@ -20,10 +20,13 @@ networks. The only configuration that can be node-specific are the
 `source` and `size` keys for storage pools and the
 `bridge.external_interfaces` key for networks.
 
-It is recommended that the number of nodes in the cluster be at least
-three, so the cluster can survive the loss of at least one node and
-still be able to establish quorum for its distributed state (which is
-kept in a SQLite database replicated using the Raft algorithm).
+It is strongly recommended that the number of nodes in the cluster be 
+at least three, so the cluster can survive the loss of at least one node 
+and still be able to establish quorum for its distributed state (which is
+kept in a SQLite database replicated using the Raft algorithm). If the 
+number of nodes is less than three, then only one node in the cluster
+will store the SQLite database. When the third node joins the cluster,
+both the second and third nodes will receive a replica of the database.
 
 ### Interactively
 
@@ -227,6 +230,11 @@ lxc launch --target node2 ubuntu:16.04 xenial
 ```
 
 will launch an Ubuntu 16.04 container on node2.
+
+When you launch a container without defining a target, the container will be 
+launched on the server which has the lowest number of containers.
+If all the servers have the same amount of containers, it will choose one 
+at random.
 
 You can list all containers in the cluster with:
 

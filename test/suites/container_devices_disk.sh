@@ -109,7 +109,7 @@ test_container_devices_disk_ceph() {
   lxc launch testimage ceph-disk -c security.privileged=true
   lxc config device add ceph-disk rbd disk source=ceph:"${RBD_POOL_NAME}"/my-volume ceph.user_name=admin ceph.cluster_name=ceph path=/ceph
   lxc exec ceph-disk -- stat /ceph/lost+found
-  lxc restart ceph-disk
+  lxc restart ceph-disk --force
   lxc exec ceph-disk -- stat /ceph/lost+found
   lxc delete -f ceph-disk
 }
@@ -126,7 +126,7 @@ test_container_devices_disk_cephfs() {
   lxc launch testimage ceph-fs -c security.privileged=true
   lxc config device add ceph-fs fs disk source=cephfs:"${LXD_CEPH_CEPHFS}"/ ceph.user_name=admin ceph.cluster_name=ceph path=/cephfs
   lxc exec ceph-fs -- stat /cephfs
-  lxc restart ceph-fs
+  lxc restart ceph-fs --force
   lxc exec ceph-fs -- stat /cephfs
   lxc delete -f ceph-fs
 }

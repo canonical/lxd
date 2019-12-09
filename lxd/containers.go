@@ -10,11 +10,10 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var instancesCmd = APIEndpoint{
@@ -206,7 +205,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State) error {
 	// Get all the instances
-	result, err := instanceLoadNodeAll(s)
+	result, err := instanceLoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return err
 	}
@@ -242,6 +241,21 @@ func containersRestart(s *state.State) error {
 				time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
 			}
 		}
+	}
+
+	return nil
+}
+
+func vmMonitor(s *state.State) error {
+	// Get all the instances
+	insts, err := instanceLoadNodeAll(s, instancetype.VM)
+	if err != nil {
+		return err
+	}
+
+	for _, inst := range insts {
+		// Retrieve running state, this will re-connect to QMP
+		inst.IsRunning()
 	}
 
 	return nil
@@ -304,7 +318,7 @@ func containersShutdown(s *state.State) error {
 	dbAvailable := true
 
 	// Get all the instances
-	instances, err := instanceLoadNodeAll(s)
+	instances, err := instanceLoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
@@ -387,28 +401,6 @@ func containersShutdown(s *state.State) error {
 		}
 	}
 	wg.Wait()
-
-	return nil
-}
-
-// instanceDeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
-func instanceDeleteSnapshots(s *state.State, projectName, instanceName string) error {
-	results, err := s.Cluster.ContainerGetSnapshots(projectName, instanceName)
-	if err != nil {
-		return err
-	}
-
-	for _, snapName := range results {
-		snapInst, err := instanceLoadByProjectAndName(s, projectName, snapName)
-		if err != nil {
-			logger.Error("instanceDeleteSnapshots: Failed to load the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
-			continue
-		}
-
-		if err := snapInst.Delete(); err != nil {
-			logger.Error("instanceDeleteSnapshots: Failed to delete the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
-		}
-	}
 
 	return nil
 }

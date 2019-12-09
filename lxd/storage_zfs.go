@@ -118,16 +118,15 @@ func (s *storageZfs) StoragePoolCheck() error {
 	logger.Debugf("ZFS storage pool \"%s\" does not exist, trying to import it", poolName)
 
 	var err error
-	var msg string
 	if filepath.IsAbs(source) {
 		disksPath := shared.VarPath("disks")
-		msg, err = shared.RunCommand("zpool", "import", "-d", disksPath, poolName)
+		_, err = shared.RunCommand("zpool", "import", "-f", "-d", disksPath, poolName)
 	} else {
-		msg, err = shared.RunCommand("zpool", "import", purePoolName)
+		_, err = shared.RunCommand("zpool", "import", purePoolName)
 	}
 
 	if err != nil {
-		return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s", poolName, msg)
+		return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s", poolName, err)
 	}
 
 	logger.Debugf("ZFS storage pool \"%s\" successfully imported", poolName)
@@ -1022,11 +1021,6 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target instance.Instance, source
 		}
 	}
 
-	err := target.DeferTemplateApply("copy")
-	if err != nil {
-		return err
-	}
-
 	revert = false
 
 	return nil
@@ -1283,7 +1277,12 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		err := s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		if err != nil {
+			return err
+		}
+
+		return target.DeferTemplateApply("copy")
 	}
 
 	snapshots, err := source.Snapshots()
@@ -1319,7 +1318,7 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
+			sourceSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), snap.Name())
 			if err != nil {
 				return err
 			}
@@ -1327,7 +1326,7 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
 			prevSnapOnlyName = snapOnlyName
 			newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-			targetSnapshot, err := instanceLoadByProjectAndName(s.s, target.Project(), newSnapName)
+			targetSnapshot, err := instance.LoadByProjectAndName(s.s, target.Project(), newSnapName)
 			if err != nil {
 				return err
 			}
@@ -1390,6 +1389,11 @@ func (s *storageZfs) ContainerCopy(target instance.Instance, source instance.Ins
 		if err != nil {
 			return err
 		}
+	}
+
+	err = target.DeferTemplateApply("copy")
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Copied ZFS container storage %s to %s", source.Name(), target.Name())
@@ -1951,7 +1955,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := instanceLoadByProjectAndName(s.s, source.Project(), snap.Name())
+			sourceSnapshot, err := instance.LoadByProjectAndName(s.s, source.Project(), snap.Name())
 			if err != nil {
 				return err
 			}
@@ -2562,7 +2566,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", args.Instance.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		snapshot, err := instanceLoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
+		snapshot, err := instance.LoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
 		if err != nil {
 			return nil, err
 		}
@@ -2743,11 +2747,11 @@ func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data inte
 		return fmt.Errorf("Invalid storage type")
 	}
 
-	var c container
+	var c instance.Instance
 	var fs string
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		fs = fmt.Sprintf("containers/%s", project.Prefix(c.Project(), c.Name()))
 	case storagePoolVolumeTypeCustom:
 		fs = fmt.Sprintf("custom/%s", s.volume.Name)

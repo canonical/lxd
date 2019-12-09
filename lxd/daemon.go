@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -619,11 +620,16 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	if util.LoadModule("shiftfs") == nil {
-		d.os.Shiftfs = true
-		logger.Infof(" - shiftfs support: yes")
+	// Detect shiftfs support.
+	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
+		logger.Infof(" - shiftfs support: disabled")
 	} else {
-		logger.Infof(" - shiftfs support: no")
+		if util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil {
+			d.os.Shiftfs = true
+			logger.Infof(" - shiftfs support: yes")
+		} else {
+			logger.Infof(" - shiftfs support: no")
+		}
 	}
 
 	// Detect LXC features
@@ -1017,6 +1023,9 @@ func (d *Daemon) Ready() error {
 	// Restore containers
 	containersRestart(s)
 
+	// Start monitoring VMs again
+	vmMonitor(s)
+
 	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(s)
 
@@ -1027,7 +1036,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := instanceLoadNodeAll(d.State())
+	results, err := instanceLoadNodeAll(d.State(), instancetype.Container)
 	if err != nil {
 		return 0, err
 	}
@@ -1249,11 +1258,18 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 		return result, err
 	}
 
-	// Perform full sync
-	err = server.SyncProjects()
-	if err != nil {
-		return err
-	}
+	// Perform full sync when online
+	go func() {
+		for {
+			err = server.SyncProjects()
+			if err != nil {
+				time.Sleep(time.Minute)
+				continue
+			}
+
+			break
+		}
+	}()
 
 	server.StartStatusCheck()
 

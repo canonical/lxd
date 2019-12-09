@@ -4,13 +4,11 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/project"
@@ -18,9 +16,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
-
-// InstanceLoadByID returns instance config by ID.
-var InstanceLoadByID func(s *state.State, id int) (Instance, error)
 
 // Instance represents the backup relevant subset of a LXD instance.
 type Instance interface {
@@ -48,7 +43,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 
 	// Extract
 	r.Seek(0, 0)
-	_, algo, unpacker, err := shared.DetectCompressionFile(r)
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
 		return nil, err
 	}
@@ -59,26 +54,6 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	}
 
 	if len(unpacker) > 0 {
-		if algo == ".squashfs" {
-			// 'sqfs2tar' tool does not support reading from stdin. So
-			// create a temporary file to write the compressed data and
-			// pass it as program argument
-			tempfile, err := ioutil.TempFile("", "lxd_decompress_")
-			if err != nil {
-				return nil, err
-			}
-			defer tempfile.Close()
-			defer os.Remove(tempfile.Name())
-
-			// Write compressed data
-			_, err = io.Copy(tempfile, r)
-			if err != nil {
-				return nil, err
-			}
-
-			// Prepare to pass the temporary file as program argument
-			unpacker = append(unpacker, tempfile.Name())
-		}
 		cmd := exec.Command(unpacker[0], unpacker[1:]...)
 		cmd.Stdin = r
 
@@ -143,6 +118,20 @@ type Backup struct {
 	instanceOnly         bool
 	optimizedStorage     bool
 	compressionAlgorithm string
+}
+
+// New instantiates a new Backup struct.
+func New(state *state.State, inst Instance, ID int, name string, creationDate, expiryDate time.Time, instanceOnly, optimizedStorage bool) *Backup {
+	return &Backup{
+		state:            state,
+		instance:         inst,
+		id:               ID,
+		name:             name,
+		creationDate:     creationDate,
+		expiryDate:       expiryDate,
+		instanceOnly:     instanceOnly,
+		optimizedStorage: optimizedStorage,
+	}
 }
 
 // CompressionAlgorithm returns the compression used for the tarball.
@@ -224,32 +213,6 @@ func (b *Backup) Render() *api.InstanceBackup {
 		ContainerOnly:    b.instanceOnly,
 		OptimizedStorage: b.optimizedStorage,
 	}
-}
-
-// LoadByName load a backup from the database.
-func LoadByName(s *state.State, project, name string) (*Backup, error) {
-	// Get the backup database record
-	args, err := s.Cluster.ContainerGetBackup(project, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "Load backup from database")
-	}
-
-	// Load the instance it belongs to
-	instance, err := InstanceLoadByID(s, args.InstanceID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Load container from database")
-	}
-
-	return &Backup{
-		state:            s,
-		instance:         instance,
-		id:               args.ID,
-		name:             name,
-		creationDate:     args.CreationDate,
-		expiryDate:       args.ExpiryDate,
-		instanceOnly:     args.InstanceOnly,
-		optimizedStorage: args.OptimizedStorage,
-	}, nil
 }
 
 // DoBackupDelete deletes a backup.

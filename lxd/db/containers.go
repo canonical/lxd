@@ -533,20 +533,6 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	return nil
 }
 
-// ContainerNodeList returns all container objects on the local node.
-func (c *ClusterTx) ContainerNodeList() ([]Instance, error) {
-	node, err := c.NodeName()
-	if err != nil {
-		return nil, errors.Wrap(err, "Local node name")
-	}
-	filter := InstanceFilter{
-		Node: node,
-		Type: instancetype.Container,
-	}
-
-	return c.InstanceList(filter)
-}
-
 // ContainerNodeProjectList returns all container objects on the local node within the given project.
 func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instancetype.Type) ([]Instance, error) {
 	node, err := c.NodeName()

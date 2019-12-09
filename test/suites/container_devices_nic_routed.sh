@@ -30,7 +30,8 @@ test_container_devices_nic_routed() {
     if ! ip -6 a show dev "${ctName}" | grep "tentative" ; then
       break
     fi
-    sleep 2
+
+    sleep 0.5
   done
 
   # Create dummy vlan parent.
@@ -66,7 +67,7 @@ test_container_devices_nic_routed() {
     false
   fi
 
-  lxc stop "${ctName}"
+  lxc stop "${ctName}" --force
 
   # Check that MTU is inherited from parent device when not specified on device.
   ip link set "${ctName}" mtu 1605
@@ -96,7 +97,8 @@ test_container_devices_nic_routed() {
     if ! lxc exec "${ctName}" -- ip -6 a show dev eth0 | grep "tentative" ; then
       break
     fi
-    sleep 2
+
+    sleep 0.5
   done
 
   while true
@@ -104,7 +106,8 @@ test_container_devices_nic_routed() {
     if ! lxc exec "${ctName}2" -- ip -6 a show dev eth0 | grep "tentative" ; then
       break
     fi
-    sleep 2
+
+    sleep 0.5
   done
 
   # Check comms between containers.

@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
-	storagedriver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -467,8 +466,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			return err
 		}
 
-		// Remove the our old server certificate from the trust store,
-		// since it's not needed anymore.
+		// Remove our old server certificate from the trust store, since it's not needed anymore.
 		_, err = d.cluster.CertificateGet(fingerprint)
 		if err != db.ErrNoSuchObject {
 			if err != nil {
@@ -481,31 +479,31 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			}
 		}
 
-		// For ceph pools we have to create the mount points too.
+		// For ceph pools we have to trigger the local mountpoint creation too.
 		poolNames, err = d.cluster.StoragePools()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
+
 		for _, name := range poolNames {
-			_, pool, err := d.cluster.StoragePoolGet(name)
+			id, pool, err := d.cluster.StoragePoolGet(name)
 			if err != nil {
 				return err
 			}
 
-			if pool.Driver != "ceph" {
+			if !shared.StringInSlice(pool.Driver, []string{"ceph", "cephfs"}) {
 				continue
 			}
 
-			storage, err := storagePoolInit(d.State(), name)
-			if err != nil {
-				return errors.Wrap(err, "Failed to init ceph pool for joining member")
-			}
+			// Re-assemble a StoragePoolsPost
+			req := api.StoragePoolsPost{}
+			req.StoragePoolPut = pool.StoragePoolPut
+			req.Name = pool.Name
+			req.Driver = pool.Driver
 
-			volumeMntPoint := storagedriver.GetStoragePoolVolumeMountPoint(
-				name, storage.(*storageCeph).volume.Name)
-			err = os.MkdirAll(volumeMntPoint, 0711)
+			_, err = storagePoolCreateLocal(d.State(), id, req, true)
 			if err != nil {
-				return errors.Wrap(err, "Failed to create ceph pool mount point")
+				return errors.Wrap(err, "Failed to init ceph/cephfs pool for joining member")
 			}
 		}
 
@@ -608,6 +606,16 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
 
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
+		if err != nil {
+			return err
+		}
+
+		err = clusterRebalance(client)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -702,7 +710,7 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 
 		// Skip ceph pools since they have no node-specific key and
 		// don't need to be defined on joining nodes.
-		if pool.Driver == "ceph" {
+		if shared.StringInSlice(pool.Driver, []string{"ceph", "cephfs"}) {
 			continue
 		}
 
@@ -820,6 +828,14 @@ func clusterAcceptMember(
 	return info, nil
 }
 
+func clusterRebalance(client lxd.InstanceServer) error {
+	_, _, err := client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
+	if err != nil {
+		return errors.Wrap(err, "Failed cluster rebalance request")
+	}
+	return nil
+}
+
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -905,10 +921,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		networks, err := d.cluster.Networks()
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		for _, name := range networks {
 			err := client.DeleteNetwork(name)
 			if err != nil {
@@ -921,6 +939,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil && err != db.ErrNoSuchObject {
 			return response.SmartError(err)
 		}
+
 		for _, name := range pools {
 			err := client.DeleteStoragePool(name)
 			if err != nil {
@@ -944,10 +963,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.Connect(address, cert, false)
+		client, err := cluster.Connect(address, cert, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
+
 		put := api.ClusterPut{}
 		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
@@ -965,17 +985,19 @@ func tryClusterRebalance(d *Daemon) error {
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		// This is not a fatal error, so let's just log it.
-		return errors.Wrap(err, "failed to get current leader member")
+		return errors.Wrap(err, "Failed to get current leader member")
 	}
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(leader, cert, true)
 	if err != nil {
-		return errors.Wrap(err, "failed to connect to leader member")
+		return errors.Wrap(err, "Failed to connect to leader member")
 	}
+
 	_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
 	if err != nil {
-		return errors.Wrap(err, "request to rebalance cluster failed")
+		return errors.Wrap(err, "Request to rebalance cluster failed")
 	}
+
 	return nil
 }
 
@@ -1138,10 +1160,11 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	}
 
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, false)
+	client, err := cluster.Connect(address, cert, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
 	if err != nil {
 		return response.SmartError(err)
@@ -1215,12 +1238,14 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			if err != nil {
 				return err
 			}
+
 			// Ignore missing ceph pools, since they'll be shared
 			// and we don't require them to be defined on the
 			// joining node.
-			if pool.Driver == "ceph" {
+			if shared.StringInSlice(pool.Driver, []string{"ceph", "cephfs"}) {
 				continue
 			}
+
 			return fmt.Errorf("Missing storage pool %s", name)
 		}
 	}

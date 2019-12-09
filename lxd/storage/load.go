@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -151,7 +152,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 // GetPoolByInstance retrieves the pool from the database using the instance's pool.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotImplemented is returned.
-func GetPoolByInstance(s *state.State, inst Instance) (Pool, error) {
+func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	poolName, err := s.Cluster.InstancePool(inst.Project(), inst.Name())
 	if err != nil {
 		return nil, err

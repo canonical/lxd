@@ -84,7 +84,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrap(err, "Failed to get address of container's node")
 			}
 			if address == "" {
-				// Local node
+				// Local node.
 				sourceNodeOffline = false
 				return nil
 			}
@@ -129,7 +129,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	// Cases 1. and 2. are the ones for which the conditional will be true
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
-		// Handle requests targeted to a container on a different node
+		// Handle requests targeted to a container on a different node.
 		resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
@@ -138,7 +138,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			return resp
 		}
 
-		inst, err = instanceLoadByProjectAndName(d.State(), project, name)
+		inst, err = instance.LoadByProjectAndName(d.State(), project, name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -164,7 +164,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check if stateful (backward compatibility)
+	// Check if stateful (backward compatibility).
 	stateful := true
 	_, err = reqRaw.GetBool("live")
 	if err == nil {
@@ -206,19 +206,18 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-
-		if inst.Type() != instancetype.Container {
-			return response.SmartError(fmt.Errorf("Instance is not container type"))
-		}
-
-		c := inst.(container)
-		ws, err := NewMigrationSource(c, stateful, instanceOnly)
+		ws, err := NewMigrationSource(inst, stateful, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
 		resources := map[string][]string{}
-		resources["containers"] = []string{name}
+		resources["instances"] = []string{name}
+		resources["containers"] = resources["instances"]
+
+		run := func(op *operations.Operation) error {
+			return ws.Do(d.State(), op)
+		}
 
 		if req.Target != nil {
 			// Push mode
@@ -227,7 +226,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(err)
 			}
 
-			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
+			op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -235,8 +234,8 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			return operations.OperationResponse(op)
 		}
 
-		// Pull mode
-		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		// Pull mode.
+		op, err := operations.OperationCreate(d.State(), project, operations.OperationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), run, nil, ws.Connect)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -244,7 +243,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return operations.OperationResponse(op)
 	}
 
-	// Check that the name isn't already in use
+	// Check that the name isn't already in use.
 	id, _ := d.cluster.ContainerID(project, req.Name)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
@@ -255,7 +254,8 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["containers"] = []string{name}
+	resources["instances"] = []string{name}
+	resources["containers"] = resources["instances"]
 
 	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
 	if err != nil {
@@ -298,7 +298,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 
 	run := func(*operations.Operation) error {
 		// Connect to the source host, i.e. ourselves (the node the container is running on).
-		source, err := cluster.Connect(sourceAddress, cert, false)
+		source, err := cluster.Connect(sourceAddress, cert, true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to source server")
 		}
@@ -533,7 +533,7 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Resp
 // Used after to create the appropriate mounts point after a container has been
 // moved.
 func containerPostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
-	c, err := instanceLoadByProjectAndName(d.State(), project, containerName)
+	c, err := instance.LoadByProjectAndName(d.State(), project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to load moved container on target node")
 	}

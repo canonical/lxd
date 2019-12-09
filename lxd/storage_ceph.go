@@ -1118,7 +1118,12 @@ func (s *storageCeph) ContainerCopy(target instance.Instance, source instance.In
 	_, sourcePool, _ := srcCt.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := targetCt.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		err := s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
+		if err != nil {
+			return err
+		}
+
+		return target.DeferTemplateApply("copy")
 	}
 
 	revert := true
@@ -2379,14 +2384,14 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 	}
 
 	var ret int
-	var c container
+	var c instance.Instance
 	fsType := s.getRBDFilesystem()
 	mountpoint := ""
 	RBDDevPath := ""
 	volumeName := ""
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c = data.(container)
+		c = data.(instance.Instance)
 		ctName := c.Name()
 		if c.IsRunning() {
 			msg := fmt.Sprintf(`Cannot resize RBD storage volume `+
@@ -2862,7 +2867,7 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", instanceName, shared.SnapshotDelimiter, snap[len("snapshot_"):])
-		snapshot, err := instanceLoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
+		snapshot, err := instance.LoadByProjectAndName(s.s, args.Instance.Project(), lxdName)
 		if err != nil {
 			logger.Errorf(`Failed to load snapshot "%s" for RBD storage volume "%s" on storage pool "%s": %s`, lxdName, instanceName, s.pool.Name, err)
 			return nil, err

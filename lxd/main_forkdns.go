@@ -261,9 +261,6 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 	// If we get here, then the recursion desired flag was set, meaning we cannot answer the
 	// query locally and need to relay it to the other forkdns instances.
 
-	// This tells the remote node we only want to query their local data (to stop loops).
-	r.RecursionDesired = false
-
 	// Get current list of servers safely.
 	dnsServersFileLock.Lock()
 	servers := dnsServersList
@@ -271,7 +268,12 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 
 	// Query all the servers.
 	for _, server := range servers {
-		resp, err := dns.Exchange(r, fmt.Sprintf("%s:1053", server))
+		req := dns.Msg{}
+		req.Question = r.Question
+		req.RecursionDesired = false
+		req.Id = r.Id
+
+		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
 			continue
@@ -358,9 +360,6 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 	// If we get here, then the recursion desired flag was set, meaning we cannot answer the
 	// query locally and need to relay it to the other forkdns instances.
 
-	// This tells the remote node we only want to query their local data (to stop loops).
-	r.RecursionDesired = false
-
 	// Get current list of servers safely.
 	dnsServersFileLock.Lock()
 	servers := dnsServersList
@@ -368,7 +367,12 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 
 	// Query all the servers.
 	for _, server := range servers {
-		resp, err := dns.Exchange(r, fmt.Sprintf("%s:1053", server))
+		req := dns.Msg{}
+		req.Question = r.Question
+		req.RecursionDesired = false
+		req.Id = r.Id
+
+		resp, err := dns.Exchange(&req, fmt.Sprintf("%s:1053", server))
 		if err != nil || len(resp.Answer) == 0 {
 			// Error or empty response, try the next one
 			continue
@@ -412,7 +416,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 func (c *cmdForkDNS) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkdns <pid path> <listen address> <domain> <network name>"
+	cmd.Use = "forkdns <log path> <pid path> <listen address> <domain> <network name>"
 	cmd.Short = "Internal DNS proxy for clustering"
 	cmd.Long = `Description:
   Spawns a specialised DNS server designed for relaying A and PTR queries that cannot be answered by
@@ -443,7 +447,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	log, err := logging.GetLogger("lxd-forkdns", "", false, false, nil)
+	log, err := logging.GetLogger("lxd-forkdns", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
 		return err
 	}
@@ -461,10 +465,6 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to setup fsnotify watch on %s: %s", path, err)
 	}
-
-	os.Stdin.Close()
-	os.Stderr.Close()
-	os.Stdout.Close()
 
 	// Run the server list monitor concurrently waiting for file changes.
 	go serversFileMonitor(watcher, networkName)

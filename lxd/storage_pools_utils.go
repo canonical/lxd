@@ -85,15 +85,15 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 // /1.0/containers/alp1/snapshots/snap0
 // /1.0/images/cedce20b5b236f1071134beba7a5fd2aa923fda49eea4c66454dd559a5d6e906
 // /1.0/profiles/default
-func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]string, error) {
+func storagePoolUsedByGet(state *state.State, project string, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := state.Cluster.StoragePoolNodeVolumesGet(poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
+	volumes, err := state.Cluster.StoragePoolNodeVolumesGet(project, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom, storagePoolVolumeTypeVM})
 	if err != nil && err != db.ErrNoSuchObject {
 		return []string{}, err
 	}
 
 	// Retrieve all profiles that exist on this storage pool.
-	profiles, err := profilesUsingPoolGetNames(state.Cluster, poolName)
+	profiles, err := profilesUsingPoolGetNames(state.Cluster, project, poolName)
 
 	if err != nil {
 		return []string{}, err
@@ -116,6 +116,13 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 			} else {
 				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, volumes[i].Name)
 			}
+		case storagePoolVolumeAPIEndpointVMs:
+			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
+				parentName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(volumes[i].Name)
+				poolUsedBy[i] = fmt.Sprintf("/%s/virtual-machines/%s/snapshots/%s", version.APIVersion, parentName, snapOnlyName)
+			} else {
+				poolUsedBy[i] = fmt.Sprintf("/%s/virtual-machines/%s", version.APIVersion, volumes[i].Name)
+			}
 		case storagePoolVolumeAPIEndpointImages:
 			poolUsedBy[i] = fmt.Sprintf("/%s/images/%s", version.APIVersion, volumes[i].Name)
 		case storagePoolVolumeAPIEndpointCustom:
@@ -133,16 +140,16 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 	return poolUsedBy, err
 }
 
-func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error) {
+func profilesUsingPoolGetNames(db *db.Cluster, project string, poolName string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles("default")
+	profiles, err := db.Profiles(project)
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet("default", pName)
+		_, profile, err := db.ProfileGet(project, pName)
 		if err != nil {
 			return usedBy, err
 		}
@@ -228,7 +235,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 		dbStoragePoolDeleteAndUpdateCache(state.Cluster, req.Name)
 	}()
 
-	err = storagePoolCreateLocal(state, id, req, false)
+	_, err = storagePoolCreateLocal(state, id, req, false)
 	if err != nil {
 		return err
 	}
@@ -238,7 +245,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 }
 
 // This performs all non-db related work needed to create the pool.
-func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) error {
+func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPost, isNotification bool) (map[string]string, error) {
 	tryUndo := true
 
 	// Make a copy of the req for later diff.
@@ -250,13 +257,13 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	pool, err := storagePools.CreatePool(state, id, &updatedReq, isNotification, nil)
 	if err != storageDrivers.ErrUnknownDriver {
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Mount the pool
 		_, err = pool.Mount()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Record the updated config.
@@ -274,7 +281,7 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// Load the old storage struct
 		s, err := storagePoolInit(state, req.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// If this is a clustering notification for a ceph storage, we don't
@@ -283,13 +290,13 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// create the storage pool directory.
 		if s, ok := s.(*storageCeph); ok && isNotification {
 			volumeMntPoint := storagePools.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-			return os.MkdirAll(volumeMntPoint, 0711)
+			return nil, os.MkdirAll(volumeMntPoint, 0711)
 		}
 
 		// Create the pool
 		err = s.StoragePoolCreate()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		updatedConfig = s.GetStoragePoolWritable().Config
@@ -313,14 +320,14 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 		// Create the database entry for the storage pool.
 		err = state.Cluster.StoragePoolUpdate(req.Name, req.Description, updatedConfig)
 		if err != nil {
-			return fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
+			return nil, fmt.Errorf("Error inserting %s into database: %s", req.Name, err)
 		}
 	}
 
 	// Success, update the closure to mark that the changes should be kept.
 	tryUndo = false
 
-	return nil
+	return updatedConfig, nil
 }
 
 // Helper around the low-level DB API, which also updates the driver names cache.

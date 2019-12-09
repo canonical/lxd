@@ -122,8 +122,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	offerHeader.SnapshotNames = snapshotNames
 	offerHeader.Snapshots = snapshots
 
-	// The protocol says we have to send a header no matter what, so let's
-	// do that, but then immediately send an error.
+	// Send offer to target.
 	err = s.send(&offerHeader)
 	if err != nil {
 		logger.Errorf("Failed to send storage volume migration header")
@@ -427,12 +426,10 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 	restore := make(chan error)
 
 	go func(c *migrationSink) {
-		/* We do the fs receive in parallel so we don't have to reason
-		 * about when to receive what. The sending side is smart enough
-		 * to send the filesystem bits that it can before it seizes the
-		 * container to start checkpointing, so the total transfer time
-		 * will be minimized even if we're dumb here.
-		 */
+		// We do the fs receive in parallel so we don't have to reason about when to receive
+		// what. The sending side is smart enough to send the filesystem bits that it can
+		// before it seizes the container to start checkpointing, so the total transfer time
+		// will be minimized even if we're dumb here.
 		fsTransfer := make(chan error)
 
 		go func() {
@@ -498,12 +495,12 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 			if !*msg.Success {
 				disconnector()
 				return fmt.Errorf(*msg.Message)
-			} else {
-				// The source can only tell us it failed (e.g. if
-				// checkpointing failed). We have to tell the source
-				// whether or not the restore was successful.
-				logger.Debugf("Unknown message %v from source", msg)
 			}
+
+			// The source can only tell us it failed (e.g. if
+			// checkpointing failed). We have to tell the source
+			// whether or not the restore was successful.
+			logger.Debugf("Unknown message %v from source", msg)
 		}
 	}
 }

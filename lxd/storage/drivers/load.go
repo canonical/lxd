@@ -27,18 +27,6 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	return d, nil
 }
 
-// Info represents information about a storage driver.
-type Info struct {
-	Name               string
-	Version            string
-	Remote             bool
-	OptimizedImages    bool
-	PreservesInodes    bool
-	VolumeTypes        []VolumeType
-	BlockBacking       bool
-	RunningQuotaResize bool
-}
-
 // SupportedDrivers returns a list of supported storage drivers.
 func SupportedDrivers() []Info {
 	supportedDrivers := []Info{}

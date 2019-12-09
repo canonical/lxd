@@ -21,6 +21,9 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
+	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -142,8 +145,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		return false, 0
 	}
 
-	c := s.instance.(container)
-
+	c := s.instance.(*containerLXC)
 	err := c.Migrate(&criuMigrationArgs)
 
 	if err != nil {
@@ -255,11 +257,10 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	final := args.final
 
 	if s.instance.Type() != instancetype.Container {
-		return false, fmt.Errorf("Instance not container type")
+		return false, fmt.Errorf("Instance is not container type")
 	}
 
-	c := s.instance.(container)
-
+	c := s.instance.(*containerLXC)
 	err := c.Migrate(&criuMigrationArgs)
 	if err != nil {
 		return final, err
@@ -331,9 +332,68 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	return final, nil
 }
 
-func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
+func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	<-s.allConnected
+	if s.instance.Type() != instancetype.Container {
+		return fmt.Errorf("Instance is not container type")
+	}
 
+	ct := s.instance.(*containerLXC)
+
+	var offerHeader migration.MigrationHeader
+	var poolMigrationTypes []migration.Type
+
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(state, s.instance)
+	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+		if err != nil {
+			return err
+		}
+
+		poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance))
+		if len(poolMigrationTypes) < 0 {
+			return fmt.Errorf("No source migration types available")
+		}
+
+		// Convert the pool's migration type options to an offer header to target.
+		// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
+		offerHeader = migration.TypesToHeader(poolMigrationTypes...)
+	} else if s.instance.Type() == instancetype.Container {
+		// Fallback to legacy storage layer and populate the Fs, ZfsFeatures and
+		// RsyncFeatures fields.
+
+		// Storage needs to start unconditionally now, since we need to initialize a new
+		// storage interface.
+		ourStart, err := s.instance.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer s.instance.StorageStop()
+		}
+
+		myType := ct.Storage().MigrationType()
+		hasFeature := true
+		offerHeader = migration.MigrationHeader{
+			Fs: &myType,
+			RsyncFeatures: &migration.RsyncFeatures{
+				Xattrs:        &hasFeature,
+				Delete:        &hasFeature,
+				Compress:      &hasFeature,
+				Bidirectional: &hasFeature,
+			},
+		}
+
+		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
+			offerHeader.ZfsFeatures = &migration.ZfsFeatures{
+				Compress: &hasFeature,
+			}
+		}
+	} else {
+		return fmt.Errorf("Instance type not supported")
+	}
+
+	// Add CRIO info to source header.
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
@@ -341,31 +401,14 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 			criuType = migration.CRIUType_NONE.Enum()
 		}
 	}
+	offerHeader.Criu = criuType
 
-	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance not container type")
-	}
-
-	c := s.instance.(container)
-
-	// Storage needs to start unconditionally now, since we need to
-	// initialize a new storage interface.
-	ourStart, err := s.instance.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer s.instance.StorageStop()
-	}
-
+	// Add idmap info to source header.
 	idmaps := make([]*migration.IDMapType, 0)
-
-	idmapset, err := c.DiskIdmap()
+	idmapset, err := ct.DiskIdmap()
 	if err != nil {
 		return err
-	}
-
-	if idmapset != nil {
+	} else if idmapset != nil {
 		for _, ctnIdmap := range idmapset.Idmap {
 			idmap := migration.IDMapType{
 				Isuid:    proto.Bool(ctnIdmap.Isuid),
@@ -379,9 +422,11 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		}
 	}
 
+	offerHeader.Idmap = idmaps
+
+	// Add snapshot info to source header if needed.
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
-	// Only send snapshots when requested.
 	if !s.instanceOnly {
 		fullSnaps, err := s.instance.Snapshots()
 		if err == nil {
@@ -393,133 +438,140 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		}
 	}
 
-	use_pre_dumps := false
-	max_iterations := 0
+	offerHeader.SnapshotNames = snapshotNames
+	offerHeader.Snapshots = snapshots
+
+	// Add predump info to source header.
+	offerUsePreDumps := false
+	maxDumpIterations := 0
 	if s.live {
-		use_pre_dumps, max_iterations = s.checkForPreDumpSupport()
+		offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
 	}
 
-	// The protocol says we have to send a header no matter what, so let's
-	// do that, but then immediately send an error.
-	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
-	}
+	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
-	ct := s.instance.(*containerLXC)
-
-	myType := ct.Storage().MigrationType()
-	hasFeature := true
-	header := migration.MigrationHeader{
-		Fs:            &myType,
-		Criu:          criuType,
-		Idmap:         idmaps,
-		SnapshotNames: snapshotNames,
-		Snapshots:     snapshots,
-		Predump:       proto.Bool(use_pre_dumps),
-		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:        &hasFeature,
-			Delete:        &hasFeature,
-			Compress:      &hasFeature,
-			Bidirectional: &hasFeature,
-		},
-	}
-
-	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-		header.ZfsFeatures = &migration.ZfsFeatures{
-			Compress: &hasFeature,
-		}
-	}
-
-	err = s.send(&header)
+	// Send offer to target.
+	err = s.send(&offerHeader)
 	if err != nil {
 		s.sendControl(err)
 		return err
 	}
 
-	err = s.recv(&header)
+	// Receive response from target.
+	var respHeader migration.MigrationHeader
+	err = s.recv(&respHeader)
 	if err != nil {
 		s.sendControl(err)
 		return err
 	}
 
-	// Handle rsync options
-	rsyncFeatures := header.GetRsyncFeaturesSlice()
+	var legacyDriver MigrationStorageSourceDriver
+	var legacyCleanup func()         // Called after migration, to remove any temporary snapshots, etc.
+	var migrationType migration.Type // Negotiated migration type.
+	var rsyncBwlimit string          // Used for CRIU state and legacy storage rsync transfers.
+
+	// Handle rsync options.
+	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
 	if !shared.StringInSlice("bidirectional", rsyncFeatures) {
-		// If no bi-directional support, assume LXD 3.7 level
-		// NOTE: Do NOT extend this list of arguments
+		// If no bi-directional support, assume LXD 3.7 level.
+		// NOTE: Do NOT extend this list of arguments.
 		rsyncFeatures = []string{"xattrs", "delete", "compress"}
-	}
-
-	// Handle zfs options
-	zfsFeatures := header.GetZfsFeaturesSlice()
-
-	// Set source args
-	sourceArgs := MigrationSourceArgs{
-		Instance:      s.instance,
-		InstanceOnly:  s.instanceOnly,
-		RsyncFeatures: rsyncFeatures,
-		ZfsFeatures:   zfsFeatures,
-	}
-
-	// Initialize storage driver
-	driver, fsErr := ct.Storage().MigrationSource(sourceArgs)
-	if fsErr != nil {
-		s.sendControl(fsErr)
-		return fsErr
-	}
-
-	bwlimit := ""
-	if header.GetRefresh() || *header.Fs != myType {
-		myType = migration.MigrationFSType_RSYNC
-		header.Fs = &myType
-
-		if header.GetRefresh() {
-			driver, _ = rsyncRefreshSource(header.GetSnapshotNames(), sourceArgs)
-		} else {
-			driver, _ = rsyncMigrationSource(sourceArgs)
-		}
-
-		// Check if this storage pool has a rate limit set for rsync.
-		poolwritable := ct.Storage().GetStoragePoolWritable()
-		if poolwritable.Config != nil {
-			bwlimit = poolwritable.Config["rsync.bwlimit"]
-		}
-	}
-
-	// Check if the other side knows about pre-dumping and
-	// the associated rsync protocol
-	use_pre_dumps = header.GetPredump()
-	if use_pre_dumps {
-		logger.Debugf("The other side does support pre-copy")
-	} else {
-		logger.Debugf("The other side does not support pre-copy")
 	}
 
 	// All failure paths need to do a few things to correctly handle errors before returning.
 	// Unfortunately, handling errors is not well-suited to defer as the code depends on the
-	// status of driver and the error value.  The error value is especially tricky due to the
+	// status of driver and the error value. The error value is especially tricky due to the
 	// common case of creating a new err variable (intentional or not) due to scoping and use
 	// of ":=".  Capturing err in a closure for use in defer would be fragile, which defeats
-	// the purpose of using defer.  An abort function reduces the odds of mishandling errors
+	// the purpose of using defer. An abort function reduces the odds of mishandling errors
 	// without introducing the fragility of closing on err.
 	abort := func(err error) error {
-		driver.Cleanup()
+		if legacyCleanup != nil {
+			legacyCleanup()
+		}
+
 		go s.sendControl(err)
 		return err
 	}
 
-	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.instanceOnly)
-	if err != nil {
-		return abort(err)
+	if pool != nil {
+		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
+		migrationType, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+		if err != nil {
+			logger.Errorf("Failed to negotiate migration type: %v", err)
+			return abort(err)
+		}
+
+		sendSnapshotNames := snapshotNames
+
+		// If we are in refresh mode, only send the snapshots the target has asked for.
+		if respHeader.GetRefresh() {
+			sendSnapshotNames = respHeader.GetSnapshotNames()
+		}
+
+		volSourceArgs := migration.VolumeSourceArgs{
+			Name:          s.instance.Name(),
+			MigrationType: migrationType,
+			Snapshots:     sendSnapshotNames,
+			TrackProgress: true,
+			FinalSync:     false,
+		}
+
+		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+		if err != nil {
+			return abort(err)
+		}
+	} else {
+		// Handle zfs options.
+		zfsFeatures := respHeader.GetZfsFeaturesSlice()
+
+		// Set source args.
+		sourceArgs := MigrationSourceArgs{
+			Instance:      s.instance,
+			InstanceOnly:  s.instanceOnly,
+			RsyncFeatures: rsyncFeatures,
+			ZfsFeatures:   zfsFeatures,
+		}
+
+		// Initialize storage driver.
+		legacyDriver, err = ct.Storage().MigrationSource(sourceArgs)
+		if err != nil {
+			return abort(err)
+		}
+		legacyCleanup = legacyDriver.Cleanup
+
+		if respHeader.GetRefresh() || *offerHeader.Fs != *respHeader.Fs {
+			myType := migration.MigrationFSType_RSYNC
+			respHeader.Fs = &myType
+
+			if respHeader.GetRefresh() {
+				legacyDriver, _ = rsyncRefreshSource(respHeader.GetSnapshotNames(), sourceArgs)
+			} else {
+				legacyDriver, _ = rsyncMigrationSource(sourceArgs)
+			}
+
+			// Check if this storage pool has a rate limit set for rsync.
+			poolwritable := ct.Storage().GetStoragePoolWritable()
+			if poolwritable.Config != nil {
+				rsyncBwlimit = poolwritable.Config["rsync.bwlimit"]
+			}
+		}
+
+		logger.Debugf("SendWhileRunning starting")
+		err = legacyDriver.SendWhileRunning(s.fsConn, migrateOp, rsyncBwlimit, s.instanceOnly)
+		if err != nil {
+			return abort(err)
+		}
+		logger.Debugf("SendWhileRunning finished")
 	}
 
 	restoreSuccess := make(chan bool, 1)
 	dumpSuccess := make(chan error, 1)
 
 	if s.live {
-		if header.Criu == nil {
+		if respHeader.Criu == nil {
 			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
-		} else if *header.Criu != migration.CRIUType_CRIU_RSYNC {
+		} else if *respHeader.Criu != migration.CRIUType_CRIU_RSYNC {
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
@@ -529,22 +581,16 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 		}
 
 		if util.RuntimeLiblxcVersionAtLeast(2, 0, 4) {
-			/* What happens below is slightly convoluted. Due to various
-			 * complications with networking, there's no easy way for criu
-			 * to exit and leave the container in a frozen state for us to
-			 * somehow resume later.
-			 *
-			 * Instead, we use what criu calls an "action-script", which is
-			 * basically a callback that lets us know when the dump is
-			 * done. (Unfortunately, we can't pass arguments, just an
-			 * executable path, so we write a custom action script with the
-			 * real command we want to run.)
-			 *
-			 * This script then hangs until the migration operation either
-			 * finishes successfully or fails, and exits 1 or 0, which
-			 * causes criu to either leave the container running or kill it
-			 * as we asked.
-			 */
+			// What happens below is slightly convoluted. Due to various complications
+			// with networking, there's no easy way for criu to exit and leave the
+			// container in a frozen state for us to somehow resume later.
+			// Instead, we use what criu calls an "action-script", which is basically a
+			// callback that lets us know when the dump is done. (Unfortunately, we
+			// can't pass arguments, just an executable path, so we write a custom
+			// action script with the real command we want to run.)
+			// This script then hangs until the migration operation either finishes
+			// successfully or fails, and exits 1 or 0, which causes criu to either
+			// leave the container running or kill it as we asked.
 			dumpDone := make(chan bool, 1)
 			actionScriptOpSecret, err := shared.RandomCryptoString()
 			if err != nil {
@@ -552,7 +598,6 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 				return abort(err)
 			}
 
-			state := s.instance.DaemonState()
 			actionScriptOp, err := operations.OperationCreate(
 				state,
 				s.instance.Project(),
@@ -602,25 +647,29 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 
 			preDumpCounter := 0
 			preDumpDir := ""
-			if use_pre_dumps {
+
+			// Check if the other side knows about pre-dumping and the associated
+			// rsync protocol.
+			if respHeader.GetPredump() {
+				logger.Debugf("The other side does support pre-copy")
 				final := false
 				for !final {
 					preDumpCounter++
-					if preDumpCounter < max_iterations {
+					if preDumpCounter < maxDumpIterations {
 						final = false
 					} else {
 						final = true
 					}
 					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
-					loop_args := preDumpLoopArgs{
+					loopArgs := preDumpLoopArgs{
 						checkpointDir: checkpointDir,
-						bwlimit:       bwlimit,
+						bwlimit:       rsyncBwlimit,
 						preDumpDir:    preDumpDir,
 						dumpDir:       dumpDir,
 						final:         final,
 						rsyncFeatures: rsyncFeatures,
 					}
-					final, err = s.preDumpLoop(&loop_args)
+					final, err = s.preDumpLoop(&loopArgs)
 					if err != nil {
 						os.RemoveAll(checkpointDir)
 						return abort(err)
@@ -628,6 +677,8 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
 					preDumpCounter++
 				}
+			} else {
+				logger.Debugf("The other side does not support pre-copy")
 			}
 
 			_, err = actionScriptOp.Run()
@@ -647,17 +698,17 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 					function:     "migration",
 				}
 
-				// Do the final CRIU dump. This is needs no special
-				// handling if pre-dumps are used or not
-				dumpSuccess <- c.Migrate(&criuMigrationArgs)
+				// Do the final CRIU dump. This is needs no special handling if
+				// pre-dumps are used or not.
+				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
 			select {
-			/* the checkpoint failed, let's just abort */
+			// The checkpoint failed, let's just abort.
 			case err = <-dumpSuccess:
 				return abort(err)
-			/* the dump finished, let's continue on to the restore */
+			// The dump finished, let's continue on to the restore.
 			case <-dumpDone:
 				logger.Debugf("Dump finished, continuing with restore...")
 			}
@@ -674,35 +725,54 @@ func (s *migrationSourceWs) Do(migrateOp *operations.Operation) error {
 				preDumpDir:   "",
 			}
 
-			err = c.Migrate(&criuMigrationArgs)
+			err = ct.Migrate(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
 		}
 
-		/*
-		 * We do the serially right now, but there's really no reason for us
-		 * to; since we have separate websockets, we can do it in parallel if
-		 * we wanted to. However, assuming we're network bound, there's really
-		 * no reason to do these in parallel. In the future when we're using
-		 * p.haul's protocol, it will make sense to do these in parallel.
-		 */
+		// We do the transfer serially right now, but there's really no reason for us to;
+		// since we have separate websockets, we can do it in parallel if we wanted to.
+		// However assuming we're network bound, there's really no reason to do these in.
+		// parallel. In the future when we're using p.haul's protocol, it will make sense
+		// to do these in parallel.
 		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
-		state := s.instance.DaemonState()
-		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
+		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}
 	}
 
-	if s.live || (header.Criu != nil && *header.Criu == migration.CRIUType_NONE) {
-		err = driver.SendAfterCheckpoint(s.fsConn, bwlimit)
-		if err != nil {
-			return abort(err)
+	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates
+	// that the source container is running and that we should do a two stage transfer
+	// to minimize downtime.
+	if s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE) {
+		if pool != nil {
+			volSourceArgs := migration.VolumeSourceArgs{
+				Name:          s.instance.Name(),
+				MigrationType: migrationType,
+				TrackProgress: true,
+				FinalSync:     true,
+			}
+
+			err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+			if err != nil {
+				return abort(err)
+			}
+		} else {
+			logger.Debugf("SendAfterCheckpoint starting")
+			err = legacyDriver.SendAfterCheckpoint(s.fsConn, rsyncBwlimit)
+			if err != nil {
+				return abort(err)
+			}
+			logger.Debugf("SendAfterCheckpoint finished")
 		}
 	}
 
-	driver.Cleanup()
+	// Perform any storage level cleanup, such as removing any temporary snapshots.
+	if legacyCleanup != nil {
+		legacyCleanup()
+	}
 
 	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
@@ -785,13 +855,7 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) Do(migrateOp *operations.Operation) error {
-	if c.src.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
-	}
-
-	ct := c.src.instance.(*containerLXC)
-
+func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) error {
 	var err error
 
 	if c.push {
@@ -842,14 +906,11 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 		controller = c.dest.sendControl
 	}
 
-	header := migration.MigrationHeader{}
-	if err := receiver(&header); err != nil {
+	offerHeader := migration.MigrationHeader{}
+	if err := receiver(&offerHeader); err != nil {
 		controller(err)
 		return err
 	}
-
-	// Handle rsync options
-	rsyncFeatures := header.GetRsyncFeaturesSlice()
 
 	live := c.src.live
 	if c.push {
@@ -857,7 +918,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 	}
 
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
-	if header.Criu != nil && *header.Criu == migration.CRIUType_NONE {
+	if offerHeader.Criu != nil && *offerHeader.Criu == migration.CRIUType_NONE {
 		criuType = migration.CRIUType_NONE.Enum()
 	} else {
 		if !live {
@@ -865,64 +926,150 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 		}
 	}
 
-	mySink := ct.Storage().MigrationSink
-	if c.refresh {
-		mySink = rsyncMigrationSink
-	}
+	// The function that will be executed to receive the sender's migration data.
+	var myTarget func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 
-	myType := ct.Storage().MigrationType()
-	resp := migration.MigrationHeader{
-		Fs:            &myType,
-		Criu:          criuType,
-		Snapshots:     header.Snapshots,
-		SnapshotNames: header.SnapshotNames,
-		Refresh:       &c.refresh,
-	}
+	// The migration header to be sent back to source with our target options.
+	var respHeader migration.MigrationHeader
 
-	// Return those rsync features we know about (with the value sent by the remote)
-	if header.RsyncFeatures != nil {
-		resp.RsyncFeatures = &migration.RsyncFeatures{}
-		if resp.RsyncFeatures.Xattrs != nil {
-			resp.RsyncFeatures.Xattrs = header.RsyncFeatures.Xattrs
+	pool, err := storagePools.GetPoolByInstance(state, c.src.instance)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return err
 		}
 
-		if resp.RsyncFeatures.Delete != nil {
-			resp.RsyncFeatures.Delete = header.RsyncFeatures.Delete
+		// Extract the source's migration type and then match it against our pool's
+		// supported types and features. If a match is found the combined features list
+		// will be sent back to requester.
+		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance)))
+		if err != nil {
+			return err
 		}
 
-		if resp.RsyncFeatures.Compress != nil {
-			resp.RsyncFeatures.Compress = header.RsyncFeatures.Compress
+		// Convert response type to response header and copy snapshot info into it.
+		respHeader = migration.TypesToHeader(respType)
+		respHeader.SnapshotNames = offerHeader.SnapshotNames
+		respHeader.Snapshots = offerHeader.Snapshots
+		respHeader.Refresh = &c.refresh
+
+		// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
+		// with the new storage layer.
+		myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
+			volTargetArgs := migration.VolumeTargetArgs{
+				Name:          args.Instance.Name(),
+				MigrationType: respType,
+				Refresh:       args.Refresh, // Indicate to receiver volume should exist.
+				TrackProgress: false,        // Do not use a progress tracker on receiver.
+				Live:          args.Live,    // Indicates we will get a final rootfs sync.
+			}
+
+			// At this point we have already figured out the parent container's root
+			// disk device so we can simply retrieve it from the expanded devices.
+			parentStoragePool := ""
+			parentExpandedDevices := args.Instance.ExpandedDevices()
+			parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+			if parentLocalRootDiskDeviceKey != "" {
+				parentStoragePool = parentLocalRootDiskDevice["pool"]
+			}
+
+			if parentStoragePool == "" {
+				return fmt.Errorf("Instance's root device is missing the pool property")
+			}
+
+			// A zero length Snapshots slice indicates volume only migration in
+			// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+			if !args.VolumeOnly {
+				volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
+				for _, snap := range args.Snapshots {
+					volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
+					snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
+
+					// Ensure that snapshot and parent container have the same
+					// storage pool in their local root disk device. If the root
+					// disk device for the snapshot comes from a profile on the
+					// new instance as well we don't need to do anything.
+					if snapArgs.Devices != nil {
+						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+						if snapLocalRootDiskDeviceKey != "" {
+							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+						}
+					}
+
+					// Check if snapshot exists already and if not then create
+					// a new snapshot DB record so that the storage layer can
+					// populate the volume on the storage device.
+					_, err := instance.LoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
+					if err != nil {
+						// Create the snapshot as it doesn't seem to exist.
+						_, err := instanceCreateInternal(state, snapArgs)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+
+			return pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		}
+	} else if c.src.instance.Type() == instancetype.Container {
+		ct := c.src.instance.(*containerLXC)
+		myTarget = ct.Storage().MigrationSink
+		myType := ct.Storage().MigrationType()
+
+		respHeader = migration.MigrationHeader{
+			Fs:            &myType,
+			Snapshots:     offerHeader.Snapshots,
+			SnapshotNames: offerHeader.SnapshotNames,
+			Refresh:       &c.refresh,
 		}
 
-		if resp.RsyncFeatures.Bidirectional != nil {
-			resp.RsyncFeatures.Bidirectional = header.RsyncFeatures.Bidirectional
-		}
-	}
-
-	// Return those ZFS features we know about (with the value sent by the remote)
-	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-		if header.ZfsFeatures != nil && header.ZfsFeatures.Compress != nil {
-			resp.ZfsFeatures = &migration.ZfsFeatures{
-				Compress: header.ZfsFeatures.Compress,
+		// Return those rsync features we know about (with the value sent by the remote).
+		if offerHeader.RsyncFeatures != nil {
+			respHeader.RsyncFeatures = &migration.RsyncFeatures{
+				Xattrs:        offerHeader.RsyncFeatures.Xattrs,
+				Delete:        offerHeader.RsyncFeatures.Delete,
+				Compress:      offerHeader.RsyncFeatures.Compress,
+				Bidirectional: offerHeader.RsyncFeatures.Bidirectional,
 			}
 		}
+
+		// Return those ZFS features we know about (with the value sent by the remote).
+		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
+			if offerHeader.ZfsFeatures != nil && offerHeader.ZfsFeatures.Compress != nil {
+				respHeader.ZfsFeatures = &migration.ZfsFeatures{
+					Compress: offerHeader.ZfsFeatures.Compress,
+				}
+			}
+		}
+
+		// If refresh mode or the storage type the source has doesn't match what we have,
+		// then we have to use rsync.
+		if c.refresh || *offerHeader.Fs != *respHeader.Fs {
+			myTarget = rsyncMigrationSink
+			myType = migration.MigrationFSType_RSYNC
+		}
+	} else {
+		return fmt.Errorf("Instance type not supported")
 	}
 
+	// Add CRIU info to response.
+	respHeader.Criu = criuType
+
 	if c.refresh {
-		// Get our existing snapshots
+		// Get our existing snapshots.
 		targetSnapshots, err := c.src.instance.Snapshots()
 		if err != nil {
 			controller(err)
 			return err
 		}
 
-		// Get the remote snapshots
-		sourceSnapshots := header.GetSnapshots()
+		// Get the remote snapshots.
+		sourceSnapshots := offerHeader.GetSnapshots()
 
-		// Compare the two sets
+		// Compare the two sets.
 		syncSnapshots, deleteSnapshots := migrationCompareSnapshots(sourceSnapshots, targetSnapshots)
 
-		// Delete the extra local ones
+		// Delete the extra local ones.
 		for _, snap := range deleteSnapshots {
 			err := snap.Delete()
 			if err != nil {
@@ -936,29 +1083,24 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 			snapshotNames = append(snapshotNames, snap.GetName())
 		}
 
-		resp.Snapshots = syncSnapshots
-		resp.SnapshotNames = snapshotNames
-		header.Snapshots = syncSnapshots
-		header.SnapshotNames = snapshotNames
+		respHeader.Snapshots = syncSnapshots
+		respHeader.SnapshotNames = snapshotNames
+		offerHeader.Snapshots = syncSnapshots
+		offerHeader.SnapshotNames = snapshotNames
 	}
 
-	// If the storage type the source has doesn't match what we have, then
-	// we have to use rsync.
-	if c.refresh || *header.Fs != *resp.Fs {
-		mySink = rsyncMigrationSink
-		myType = migration.MigrationFSType_RSYNC
-		resp.Fs = &myType
-	}
-
-	if header.GetPredump() == true {
-		// If the other side wants pre-dump and if
-		// this side supports it, let's use it.
-		resp.Predump = proto.Bool(true)
+	if offerHeader.GetPredump() == true {
+		// If the other side wants pre-dump and if this side supports it, let's use it.
+		respHeader.Predump = proto.Bool(true)
 	} else {
-		resp.Predump = proto.Bool(false)
+		respHeader.Predump = proto.Bool(false)
 	}
 
-	err = sender(&resp)
+	// Get rsync options from sender, these are passed into mySink function as part of
+	// MigrationSinkArgs below.
+	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
+
+	err = sender(&respHeader)
 	if err != nil {
 		controller(err)
 		return err
@@ -969,7 +1111,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 		imagesDir := ""
 		srcIdmap := new(idmap.IdmapSet)
 
-		for _, idmapSet := range header.Idmap {
+		for _, idmapSet := range offerHeader.Idmap {
 			e := idmap.IdmapEntry{
 				Isuid:    *idmapSet.Isuid,
 				Isgid:    *idmapSet.Isgid,
@@ -979,28 +1121,24 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 			srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
 		}
 
-		/* We do the fs receive in parallel so we don't have to reason
-		 * about when to receive what. The sending side is smart enough
-		 * to send the filesystem bits that it can before it seizes the
-		 * container to start checkpointing, so the total transfer time
-		 * will be minimized even if we're dumb here.
-		 */
+		// We do the fs receive in parallel so we don't have to reason about when to receive
+		// what. The sending side is smart enough to send the filesystem bits that it can
+		// before it seizes the container to start checkpointing, so the total transfer time
+		// will be minimized even if we're dumb here.
 		fsTransfer := make(chan error)
 		go func() {
 			snapshots := []*migration.Snapshot{}
 
-			/* Legacy: we only sent the snapshot names, so we just
-			 * copy the container's config over, same as we used to
-			 * do.
-			 */
-			if len(header.SnapshotNames) != len(header.Snapshots) {
-				for _, name := range header.SnapshotNames {
+			// Legacy: we only sent the snapshot names, so we just copy the container's
+			// config over, same as we used to do.
+			if len(offerHeader.SnapshotNames) != len(offerHeader.Snapshots) {
+				for _, name := range offerHeader.SnapshotNames {
 					base := snapshotToProtobuf(c.src.instance)
 					base.Name = &name
 					snapshots = append(snapshots, base)
 				}
 			} else {
-				snapshots = header.Snapshots
+				snapshots = offerHeader.Snapshots
 			}
 
 			var fsConn *websocket.Conn
@@ -1010,7 +1148,12 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				fsConn = c.src.fsConn
 			}
 
+			// Default to not expecting to receive the final rootfs sync.
 			sendFinalFsDelta := false
+
+			// If we are doing a stateful live transfer or the CRIU type indicates we
+			// are doing a stateless transfer with a running instance then we should
+			// expect the source to send us a final rootfs sync.
 			if live {
 				sendFinalFsDelta = true
 			}
@@ -1029,16 +1172,22 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				Snapshots:     snapshots,
 			}
 
-			err = mySink(fsConn, migrateOp, args)
+			err = myTarget(fsConn, migrateOp, args)
 			if err != nil {
 				fsTransfer <- err
 				return
 			}
 
-			err = resetContainerDiskIdmap(ct, srcIdmap)
-			if err != nil {
-				fsTransfer <- err
-				return
+			// For containers, the fs map of the source is sent as part of the migration
+			// stream, then at the end we need to record that map as last_state so that
+			// LXD can shift on startup if needed.
+			if c.src.instance.Type() == instancetype.Container {
+				ct := c.src.instance.(*containerLXC)
+				err = resetContainerDiskIdmap(ct, srcIdmap)
+				if err != nil {
+					fsTransfer <- err
+					return
+				}
 			}
 
 			fsTransfer <- nil
@@ -1065,10 +1214,10 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				FinalPreDump: proto.Bool(false),
 			}
 
-			if resp.GetPredump() {
+			if respHeader.GetPredump() {
 				for !sync.GetFinalPreDump() {
 					logger.Debugf("About to receive rsync")
-					// Transfer a CRIU pre-dump
+					// Transfer a CRIU pre-dump.
 					err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
 					if err != nil {
 						restore <- err
@@ -1077,8 +1226,8 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 					logger.Debugf("Done receiving from rsync")
 
 					logger.Debugf("About to receive header")
-					// Check if this was the last pre-dump
-					// Only the FinalPreDump element if of interest
+					// Check if this was the last pre-dump.
+					// Only the FinalPreDump element if of interest.
 					mtype, data, err := criuConn.ReadMessage()
 					if err != nil {
 						restore <- err
@@ -1096,7 +1245,7 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				}
 			}
 
-			// Final CRIU dump
+			// Final CRIU dump.
 			err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
 			if err != nil {
 				restore <- err
@@ -1121,15 +1270,16 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 				preDumpDir:   "",
 			}
 
-			// Currently we only do a single CRIU pre-dump so we
-			// can hardcode "final" here since we know that "final" is the
-			// folder for CRIU's final dump.
-			err = ct.Migrate(&criuMigrationArgs)
-			if err != nil {
-				restore <- err
-				return
+			// Currently we only do a single CRIU pre-dump so we can hardcode "final"
+			// here since we know that "final" is the folder for CRIU's final dump.
+			if c.src.instance.Type() == instancetype.Container {
+				ct := c.src.instance.(*containerLXC)
+				err = ct.Migrate(&criuMigrationArgs)
+				if err != nil {
+					restore <- err
+					return
+				}
 			}
-
 		}
 
 		restore <- nil
@@ -1159,12 +1309,11 @@ func (c *migrationSink) Do(migrateOp *operations.Operation) error {
 			if !*msg.Success {
 				disconnector()
 				return fmt.Errorf(*msg.Message)
-			} else {
-				// The source can only tell us it failed (e.g. if
-				// checkpointing failed). We have to tell the source
-				// whether or not the restore was successful.
-				logger.Debugf("Unknown message %v from source", msg)
 			}
+
+			// The source can only tell us it failed (e.g. if checkpointing failed).
+			// We have to tell the source whether or not the restore was successful.
+			logger.Debugf("Unknown message %v from source", msg)
 		}
 	}
 }

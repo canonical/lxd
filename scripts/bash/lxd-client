@@ -84,16 +84,17 @@ _have lxc && {
       boot.host_shutdown_timeout environment. \
       limits.cpu limits.cpu.allowance limits.cpu.priority \
       limits.disk.priority limits.memory limits.memory.enforce \
-      limits.kernel \
+      limits.memory.hugepages limits.kernel \
       limits.memory.swap limits.memory.swap.priority limits.network.priority \
       limits.processes linux.kernel_modules migration.incremental.memory \
       migration.incremental.memory.goal nvidia.runtime \
       nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver \
-      migration.incremental.memory.iterations raw.apparmor raw.idmap raw.lxc \
-      raw.seccomp security.idmap.base security.idmap.isolated \
+      migration.incremental.memory.iterations raw.apparmor raw.idmap raw.qemu \
+      raw.lxc raw.seccomp security.idmap.base security.idmap.isolated \
       security.idmap.size security.devlxd security.devlxd.images \
       security.nesting security.privileged security.protection.delete \
-      security.protection.shift security.syscalls.blacklist \
+      security.protection.shift security.secureboot \
+      security.syscalls.blacklist \
       security.syscalls.blacklist_compat security.syscalls.blacklist_default \
       security.syscalls.intercept.mknod security.syscalls.intercept.mount \
       security.syscalls.intercept.mount.allowed \

@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
 )
 
@@ -53,6 +54,103 @@ var updates = map[int]schema.Update{
 	16: updateFromV15,
 	17: updateFromV16,
 	18: updateFromV17,
+	19: updateFromV18,
+	20: updateFromV19,
+	21: updateFromV20,
+}
+
+// Add "images_profiles" table
+func updateFromV20(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE images_profiles (
+	image_id INTEGER NOT NULL,
+	profile_id INTEGER NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+);
+INSERT INTO images_profiles (image_id, profile_id) 
+	SELECT images.id, profiles.id FROM images
+	JOIN profiles ON images.project_id = profiles.project_id
+	WHERE profiles.name = 'default';
+INSERT INTO images_profiles (image_id, profile_id)
+	SELECT images.id, profiles.id FROM projects_config AS R 
+	JOIN projects_config AS S ON R.project_id = S.project_id
+	JOIN images ON images.project_id = R.project_id
+	JOIN profiles ON profiles.project_id = 1 AND profiles.name = "default"
+	WHERE R.key = "features.images" AND S.key = "features.profiles" AND R.value = "true" AND S.value != "true";
+INSERT INTO images_profiles (image_id, profile_id)
+	SELECT images.id, profiles.id FROM projects_config AS R
+	JOIN projects_config AS S ON R.project_id = S.project_id
+	JOIN profiles ON profiles.project_id = R.project_id
+	JOIN images ON images.project_id = 1
+	WHERE R.key = "features.images" AND S.key = "features.profiles" AND R.value != "true" AND S.value = "true"
+		AND profiles.name = "default";
+`
+	_, err := tx.Exec(stmts)
+	return err
+}
+
+// Add a new "arch" column to the "nodes" table.
+func updateFromV19(tx *sql.Tx) error {
+	// The column has a not-null constraint and a default value of
+	// 0. However, leaving the 0 default won't effectively be accepted when
+	// creating a new, due to the check constraint, so we are sure to end
+	// up with a valid value.
+	_, err := tx.Exec("ALTER TABLE nodes ADD COLUMN arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0)")
+	if err != nil {
+		return err
+	}
+	arch, err := osarch.ArchitectureGetLocalID()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("UPDATE nodes SET arch = ?", arch)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Rename 'containers' to 'instances' in *_used_by_ref views.
+func updateFromV18(tx *sql.Tx) error {
+	stmts := `
+DROP VIEW profiles_used_by_ref;
+CREATE VIEW profiles_used_by_ref (project,
+    name,
+    value) AS
+  SELECT projects.name,
+    profiles.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    instances_projects.name)
+    FROM profiles
+    JOIN projects ON projects.id=profiles.project_id
+    JOIN "instances_profiles"
+      ON "instances_profiles".profile_id=profiles.id
+    JOIN "instances"
+      ON "instances".id="instances_profiles".instance_id
+    JOIN projects AS instances_projects
+      ON instances_projects.id="instances".project_id;
+DROP VIEW projects_used_by_ref;
+CREATE VIEW projects_used_by_ref (name,
+    value) AS
+  SELECT projects.name,
+    printf('/1.0/instances/%s?project=%s',
+    "instances".name,
+    projects.name)
+    FROM "instances" JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/images/%s',
+    images.fingerprint)
+    FROM images JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name,
+    printf('/1.0/profiles/%s?project=%s',
+    profiles.name,
+    projects.name)
+    FROM profiles JOIN projects ON project_id=projects.id;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // Add nodes_roles table

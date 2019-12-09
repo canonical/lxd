@@ -28,14 +28,15 @@ type dir struct {
 // Info returns info about the driver and its environment.
 func (d *dir) Info() Info {
 	return Info{
-		Name:               "dir",
-		Version:            "1",
-		OptimizedImages:    false,
-		PreservesInodes:    false,
-		Remote:             false,
-		VolumeTypes:        []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
-		BlockBacking:       false,
-		RunningQuotaResize: true,
+		Name:                  "dir",
+		Version:               "1",
+		OptimizedImages:       false,
+		PreservesInodes:       false,
+		Remote:                false,
+		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:          false,
+		RunningQuotaResize:    true,
+		RunningSnapshotFreeze: true,
 	}
 }
 
@@ -172,19 +173,58 @@ func (d *dir) GetVolumeDiskPath(volType VolumeType, volName string) (string, err
 	return filepath.Join(GetVolumeMountPath(d.name, volType, volName), "root.img"), nil
 }
 
-// CreateVolume creates an empty volume and can optionally fill it by executing the supplied
-// filler function.
-func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath string) error, op *operations.Operation) error {
-	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
-	if err != nil {
-		return err
-	}
-
+// setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
+// Returns a revert function that can be used to remove the quota if there is a subsequent error.
+func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	// Extract specified size from pool or volume config.
 	size := d.config["volume.size"]
 	if vol.config["size"] != "" {
 		size = vol.config["size"]
+	}
+
+	volPath := vol.MountPath()
+
+	// Get the volume ID for the new volume, which is used to set project quota.
+	volID, err := d.getVolID(vol.volType, vol.name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Define a function to revert the quota being setup.
+	revertFunc := func() {
+		d.deleteQuota(volPath, volID)
+	}
+
+	// Initialise the volume's quota using the volume ID.
+	err = d.initQuota(volPath, volID)
+	if err != nil {
+		return nil, err
+	}
+
+	revert := true
+	defer func() {
+		if revert {
+			revertFunc()
+		}
+	}()
+
+	// Set the quota.
+	err = d.setQuota(volPath, volID, size)
+	if err != nil {
+		return nil, err
+	}
+
+	revert = false
+	return revertFunc, nil
+}
+
+// CreateVolume creates an empty volume and can optionally fill it by executing the supplied
+// filler function.
+func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
+	volPath := vol.MountPath()
+	err := vol.CreateMountPath()
+	if err != nil {
+		return err
 	}
 
 	revertPath := true
@@ -203,34 +243,24 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 			return err
 		}
 	} else {
-		// Get the volume ID for the new volume, which is used to set project quota.
-		volID, err := d.getVolID(vol.volType, vol.name)
+		revertFunc, err := d.setupInitialQuota(vol)
 		if err != nil {
 			return err
 		}
 
-		// Initialise the volume's quota using the volume ID.
-		err = d.initQuota(volPath, volID)
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			if revertPath {
-				d.deleteQuota(volPath, volID)
-			}
-		}()
-
-		// Set the quota.
-		err = d.setQuota(volPath, volID, size)
-		if err != nil {
-			return err
+		if revertFunc != nil {
+			defer func() {
+				if revertPath {
+					revertFunc()
+				}
+			}()
 		}
 	}
 
 	// Run the volume filler function if supplied.
-	if filler != nil {
-		err = filler(volPath, rootBlockPath)
+	if filler != nil && filler.Fill != nil {
+		d.logger.Debug("Running filler function")
+		err = filler.Fill(volPath, rootBlockPath)
 		if err != nil {
 			return err
 		}
@@ -239,7 +269,12 @@ func (d *dir) CreateVolume(vol Volume, filler func(mountPath, rootBlockPath stri
 	// If we are creating a block volume, resize it to the requested size or 10GB.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		blockSize := size
+		// Extract specified size from pool or volume config.
+		blockSize := d.config["volume.size"]
+		if vol.config["size"] != "" {
+			blockSize = vol.config["size"]
+		}
+
 		if blockSize == "" {
 			blockSize = "10GB"
 		}
@@ -315,7 +350,7 @@ func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migr
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, op *operations.Operation) error {
+func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
 		return fmt.Errorf("Content type not supported")
 	}
@@ -356,6 +391,16 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		path := shared.AddSlash(mountPath)
 
+		// Run the volume pre-filler function if supplied.
+		if preFiller != nil && preFiller.Fill != nil {
+			d.logger.Debug("Running pre-filler function", log.Ctx{"volume": vol.name, "path": path})
+			err = preFiller.Fill(path, "")
+			if err != nil {
+				return err
+			}
+			d.logger.Debug("Finished pre-filler function", log.Ctx{"volume": vol.name})
+		}
+
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
 			// Receive the snapshot
@@ -364,6 +409,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
 			}
 
+			d.logger.Debug("Receiving volume", log.Ctx{"volume": vol.name, "snapshot": snapName, "path": path})
 			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 			if err != nil {
 				return err
@@ -397,7 +443,26 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
-		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+		d.logger.Debug("Receiving volume", log.Ctx{"volume": vol.name, "path": path})
+		err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+		if err != nil {
+			return err
+		}
+
+		// Receive the final main volume sync if needed.
+		if volTargetArgs.Live {
+			if volTargetArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+			}
+
+			d.logger.Debug("Receiving volume (final stage)", log.Ctx{"vol": vol.name, "path": path})
+			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}, op)
 	if err != nil {
 		return err
@@ -656,9 +721,9 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 	// Restore using rsync.
 	bwlimit := d.config["rsync.bwlimit"]
-	output, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
+	_, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync volume: %s: %s", string(output), err)
+		return fmt.Errorf("Failed to rsync volume: %s", err)
 	}
 
 	return nil
@@ -891,4 +956,142 @@ func (d *dir) RenameVolumeSnapshot(volType VolumeType, volName string, snapshotN
 	}
 
 	return nil
+}
+
+// BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
+// This driver does not support optimized backups.
+func (d *dir) BackupVolume(vol Volume, targetPath string, _, snapshots bool, op *operations.Operation) error {
+	bwlimit := d.config["rsync.bwlimit"]
+
+	var parentVolDir string
+
+	// Backups only implemented for containers currently.
+	if vol.volType == VolumeTypeContainer {
+		parentVolDir = "container"
+	} else {
+		return ErrNotImplemented
+	}
+
+	// Handle snapshots.
+	if snapshots {
+		snapshotsPath := filepath.Join(targetPath, "snapshots")
+		snapshots, err := vol.Snapshots(op)
+		if err != nil {
+			return err
+		}
+
+		// Create the snapshot path.
+		if len(snapshots) > 0 {
+			err = os.MkdirAll(snapshotsPath, 0711)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, snap := range snapshots {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+			target := filepath.Join(snapshotsPath, snapName)
+
+			// Copy the snapshot.
+			_, err := rsync.LocalCopy(snap.MountPath(), target, bwlimit, true)
+			if err != nil {
+				return fmt.Errorf("Failed to rsync: %s", err)
+			}
+		}
+	}
+
+	// Copy the parent volume itself.
+	target := filepath.Join(targetPath, parentVolDir)
+	_, err := rsync.LocalCopy(vol.MountPath(), target, bwlimit, true)
+	if err != nil {
+		return fmt.Errorf("Failed to rsync: %s", err)
+	}
+
+	return nil
+}
+
+// RestoreBackupVolume restores a backup tarball onto the storage device.
+func (d *dir) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+	revert := true
+	revertPaths := []string{}
+
+	// Define a revert function that will be used both to revert if an error occurs inside this
+	// function but also return it for use from the calling functions if no error internally.
+	revertHook := func() {
+		for _, revertPath := range revertPaths {
+			os.RemoveAll(revertPath)
+		}
+	}
+
+	// Only execute the revert function if we have had an error internally and revert is true.
+	defer func() {
+		if revert {
+			revertHook()
+		}
+	}()
+
+	volPath := vol.MountPath()
+	err := vol.CreateMountPath()
+	if err != nil {
+		return nil, nil, err
+	}
+	revertPaths = append(revertPaths, volPath)
+
+	// Find the compression algorithm used for backup source data.
+	srcData.Seek(0, 0)
+	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Prepare tar extraction arguments.
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", volPath, "backup/container",
+	}...)
+
+	// Extract instance.
+	srcData.Seek(0, 0)
+	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(snapshots) > 0 {
+		// Create new snapshots directory.
+		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+		err := os.MkdirAll(snapshotDir, 0711)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		revertPaths = append(revertPaths, snapshotDir)
+
+		// Prepare tar arguments.
+		args := append(tarArgs, []string{
+			"-",
+			"--strip-components=2",
+			"--xattrs-include=*",
+			"-C", snapshotDir, "backup/snapshots",
+		}...)
+
+		// Extract snapshots.
+		srcData.Seek(0, 0)
+		err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Define a post hook function that can be run once the backup config has been restored.
+	// This will setup the quota using the restored config.
+	postHook := func(vol Volume) error {
+		_, err := d.setupInitialQuota(vol)
+		return err
+	}
+
+	revert = false
+	return postHook, revertHook, nil
 }

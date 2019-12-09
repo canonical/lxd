@@ -101,7 +101,6 @@ type storageType int
 const (
 	storageTypeBtrfs storageType = iota
 	storageTypeCeph
-	storageTypeCephFs
 	storageTypeDir
 	storageTypeLvm
 	storageTypeMock
@@ -116,8 +115,6 @@ func storageTypeToString(sType storageType) (string, error) {
 		return "btrfs", nil
 	case storageTypeCeph:
 		return "ceph", nil
-	case storageTypeCephFs:
-		return "cephfs", nil
 	case storageTypeDir:
 		return "dir", nil
 	case storageTypeLvm:
@@ -128,7 +125,7 @@ func storageTypeToString(sType storageType) (string, error) {
 		return "zfs", nil
 	}
 
-	return "", fmt.Errorf("invalid storage type")
+	return "", fmt.Errorf("Invalid storage type")
 }
 
 func storageStringToType(sName string) (storageType, error) {
@@ -137,8 +134,6 @@ func storageStringToType(sName string) (storageType, error) {
 		return storageTypeBtrfs, nil
 	case "ceph":
 		return storageTypeCeph, nil
-	case "cephfs":
-		return storageTypeCephFs, nil
 	case "dir":
 		return storageTypeDir, nil
 	case "lvm":
@@ -149,7 +144,7 @@ func storageStringToType(sName string) (storageType, error) {
 		return storageTypeZfs, nil
 	}
 
-	return -1, fmt.Errorf("invalid storage type name")
+	return -1, fmt.Errorf("Invalid storage type name")
 }
 
 // The storage interface defines the functions needed to implement a storage
@@ -286,13 +281,6 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &ceph, nil
-	case storageTypeCephFs:
-		cephfs := storageCephFs{}
-		err = cephfs.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &cephfs, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		err = lvm.StorageCoreInit()
@@ -383,17 +371,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &ceph, nil
-	case storageTypeCephFs:
-		cephfs := storageCephFs{}
-		cephfs.poolID = poolID
-		cephfs.pool = pool
-		cephfs.volume = volume
-		cephfs.s = s
-		err = cephfs.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &cephfs, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
@@ -436,7 +413,7 @@ func storagePoolInit(s *state.State, poolName string) (storage, error) {
 	return storageInit(s, "default", poolName, "", -1)
 }
 
-func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c container) (storage, error) {
+func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) (storage, error) {
 	st, err := storageInit(s, "default", poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
@@ -496,7 +473,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 			if len(volumeUsedBy) > 1 {
 				for _, ctName := range volumeUsedBy {
-					instt, err := instanceLoadByProjectAndName(s, c.Project(), ctName)
+					instt, err := instance.LoadByProjectAndName(s, c.Project(), ctName)
 					if err != nil {
 						continue
 					}
@@ -505,7 +482,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 						continue
 					}
 
-					ct := instt.(container)
+					ct := instt.(*containerLXC)
 
 					var ctNextIdmap *idmap.IdmapSet
 					if ct.IsRunning() {
@@ -712,7 +689,7 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 	return nil
 }
 
-func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) error {
+func resetContainerDiskIdmap(container *containerLXC, srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := container.DiskIdmap()
 	if err != nil {
 		return err

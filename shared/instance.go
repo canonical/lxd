@@ -266,6 +266,7 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	},
 	"limits.memory.swap":          IsBool,
 	"limits.memory.swap.priority": IsPriority,
+	"limits.memory.hugepages":     IsBool,
 
 	"limits.network.priority": IsPriority,
 
@@ -293,6 +294,8 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.idmap.base":     IsUint32,
 	"security.idmap.isolated": IsBool,
 	"security.idmap.size":     IsUint32,
+
+	"security.secureboot": IsBool,
 
 	"security.syscalls.blacklist_default":       IsBool,
 	"security.syscalls.blacklist_compat":        IsBool,
@@ -331,9 +334,10 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 	// Caller is responsible for full validation of any raw.* value
 	"raw.apparmor": IsAny,
-	"raw.lxc":      IsAny,
-	"raw.seccomp":  IsAny,
 	"raw.idmap":    IsAny,
+	"raw.lxc":      IsAny,
+	"raw.qemu":     IsAny,
+	"raw.seccomp":  IsAny,
 
 	"volatile.apply_template":   IsAny,
 	"volatile.base_image":       IsAny,

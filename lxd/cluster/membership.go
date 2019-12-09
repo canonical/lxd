@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -172,8 +173,15 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 			return err
 		}
 
+		// TODO: when fixing #6380 this should be replaced with the
+		// actual architecture of the foreign node.
+		arch, err := osarch.ArchitectureGetLocalID()
+		if err != nil {
+			return err
+		}
+
 		// Add the new node
-		id, err := tx.NodeAdd(name, address)
+		id, err := tx.NodeAddWithArch(name, address, arch)
 		if err != nil {
 			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
@@ -198,8 +206,11 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get raft nodes from the log")
 	}
-
-	if len(nodes) < membershipMaxRaftNodes {
+	count, err := Count(state)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch cluster members count")
+	}
+	if count != 2 && len(nodes) < membershipMaxRaftNodes {
 		err = state.Node.Transaction(func(tx *db.NodeTx) error {
 			id, err := tx.RaftNodeAdd(address)
 			if err != nil {
@@ -385,14 +396,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if err != nil {
 				return errors.Wrap(err, "failed to get storage pool driver")
 			}
-			if driver == "ceph" {
+
+			if shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
 				// For ceph pools we have to create volume
 				// entries for the joining node.
 				err := tx.StoragePoolNodeJoinCeph(id, node.ID)
 				if err != nil {
 					return errors.Wrap(err, "failed to create ceph volumes for joining node")
 				}
-
 			} else {
 				// For other pools we add the config provided by the joining node.
 				config, ok := pools[name]
@@ -482,8 +493,8 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	if err != nil {
 		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
 	}
-	if len(currentRaftNodes) >= membershipMaxRaftNodes {
-		// We're already at full capacity.
+	if len(currentRaftNodes) >= membershipMaxRaftNodes || len(currentRaftNodes) == 1 {
+		// We're already at full capacity or would have a two-member cluster.
 		return "", nil, nil
 	}
 

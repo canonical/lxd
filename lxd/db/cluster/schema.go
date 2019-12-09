@@ -57,6 +57,12 @@ CREATE TABLE images_nodes (
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
+CREATE TABLE images_profiles (
+	image_id INTEGER NOT NULL,
+	profile_id INTEGER NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+);
 CREATE INDEX images_project_id_idx ON images (project_id);
 CREATE TABLE images_properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -303,6 +309,7 @@ CREATE TABLE nodes (
     api_extensions INTEGER NOT NULL,
     heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
     pending INTEGER NOT NULL DEFAULT 0,
+    arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
     UNIQUE (name),
     UNIQUE (address)
 );
@@ -389,7 +396,7 @@ CREATE VIEW profiles_used_by_ref (project,
     value) AS
   SELECT projects.name,
     profiles.name,
-    printf('/1.0/containers/%s?project=%s',
+    printf('/1.0/instances/%s?project=%s',
     "instances".name,
     instances_projects.name)
     FROM profiles
@@ -425,7 +432,7 @@ CREATE VIEW projects_config_ref (name,
 CREATE VIEW projects_used_by_ref (name,
     value) AS
   SELECT projects.name,
-    printf('/1.0/containers/%s?project=%s',
+    printf('/1.0/instances/%s?project=%s',
     "instances".name,
     projects.name)
     FROM "instances" JOIN projects ON project_id=projects.id UNION
@@ -487,5 +494,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (18, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (21, strftime("%s"))
 `

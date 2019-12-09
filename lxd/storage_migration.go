@@ -353,7 +353,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 				}
 
 				// Try and a load instance
-				s, err := instanceLoadByProjectAndName(args.Instance.DaemonState(),
+				s, err := instance.LoadByProjectAndName(args.Instance.DaemonState(),
 					args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					// Create the snapshot since it doesn't seem to exist
@@ -369,7 +369,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 				}
 
 				if args.Instance.Type() == instancetype.Container {
-					c := args.Instance.(container)
+					c := args.Instance.(*containerLXC)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
 						return err
@@ -423,17 +423,17 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 				}
 
 				if args.Instance.Type() == instancetype.Container {
-					c := args.Instance.(container)
+					c := args.Instance.(*containerLXC)
 					err = resetContainerDiskIdmap(c, args.Idmap)
 					if err != nil {
 						return err
 					}
 				}
 
-				_, err = instanceLoadByProjectAndName(args.Instance.DaemonState(),
+				_, err = instance.LoadByProjectAndName(args.Instance.DaemonState(),
 					args.Instance.Project(), snapArgs.Name)
 				if err != nil {
-					_, err = containerCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance)
+					_, err = instanceCreateAsSnapshot(args.Instance.DaemonState(), snapArgs, args.Instance, op)
 					if err != nil {
 						return err
 					}
@@ -458,7 +458,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operations.Operation, args Mig
 	}
 
 	if args.Instance.Type() == instancetype.Container {
-		c := args.Instance.(container)
+		c := args.Instance.(*containerLXC)
 		err = resetContainerDiskIdmap(c, args.Idmap)
 		if err != nil {
 			return err

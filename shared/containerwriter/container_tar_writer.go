@@ -61,12 +61,12 @@ func (ctw *ContainerTarWriter) WriteFile(offset int, path string, fi os.FileInfo
 		return fmt.Errorf("failed to get file stat: %s", err)
 	}
 
-	// Unshift the id under /rootfs/ for unpriv containers
-	if strings.HasPrefix(hdr.Name, "/rootfs") {
+	// Unshift the id under rootfs/ for unpriv containers
+	if strings.HasPrefix(hdr.Name, "rootfs") {
 		if ctw.idmapSet != nil {
-			hUid, hGid := ctw.idmapSet.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
-			hdr.Uid = int(hUid)
-			hdr.Gid = int(hGid)
+			hUID, hGID := ctw.idmapSet.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
+			hdr.Uid = int(hUID)
+			hdr.Gid = int(hGID)
 			if hdr.Uid == -1 || hdr.Gid == -1 {
 				return nil
 			}
