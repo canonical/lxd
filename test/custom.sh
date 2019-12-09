@@ -13,6 +13,7 @@ cp -R /usr/share/easy-rsa "${TEST_DIR}/pki"
   cd "${TEST_DIR}/pki"
   # shellcheck disable=SC1091
   if [ -e pkitool ]; then
+      ln -s openssl-1.0.0.cnf openssl.cnf
       . ./vars
       ./clean-all
       ./pkitool --initca
