@@ -3783,7 +3783,7 @@ func (c *containerLXC) CGroupGet(property cgroup.Property) (string, error) {
 		return "", fmt.Errorf("Can't get cgroups on a stopped container")
 	}
 
-	value, err := cgroup.Get(c.c, property)
+	value, err := cgroup.Get(c.c, c.state.OS, property)
 
 	if err != nil {
 		return "", err
@@ -5846,7 +5846,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	}
 
 	// Memory in bytes
-	value, err := c.CGroupGetV1("memory.usage_in_bytes")
+	value, err := c.CGroupGet(cgroup.MemoryCurrent)
 	valueInt, err1 := strconv.ParseInt(value, 10, 64)
 	if err == nil && err1 == nil {
 		memory.Usage = valueInt
