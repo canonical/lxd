@@ -2408,7 +2408,7 @@ func (c *containerLXC) OnStart() error {
 	c.fromHook = true
 
 	// Start the storage for this container
-	ourStart, err := c.storageStartSensitive()
+	ourStart, err := c.mount()
 	if err != nil {
 		return err
 	}
@@ -4077,12 +4077,6 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	err = c.initLXC(true)
 	if err != nil {
 		return errors.Wrap(err, "Initialize LXC")
-	}
-
-	// Initialize storage interface for the container.
-	err = c.initStorage()
-	if err != nil {
-		return errors.Wrap(err, "Initialize storage")
 	}
 
 	// If apparmor changed, re-validate the apparmor profile
@@ -6017,25 +6011,8 @@ func (c *containerLXC) mount() (bool, error) {
 		return ourMount, nil
 	}
 
-	// Initialize legacy storage interface for the container.
-	err = c.initStorage()
-	if err != nil {
-		return false, err
-	}
-
-	isOurOperation, err := c.storageStartSensitive()
-	// Remove this as soon as zfs is fixed
-	if c.storage.GetStorageType() == storageTypeZfs && err == unix.EBUSY {
-		return isOurOperation, nil
-	}
-
-	return isOurOperation, err
-}
-
-// Kill this function as soon as zfs is fixed.
-func (c *containerLXC) storageStartSensitive() (bool, error) {
 	// Initialize storage interface for the container.
-	err := c.initStorage()
+	err = c.initStorage()
 	if err != nil {
 		return false, err
 	}
