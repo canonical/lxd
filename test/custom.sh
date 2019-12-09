@@ -1,6 +1,6 @@
 #!/bin/sh -eu
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
-export "TEST_DIR=~"
+export "TEST_DIR=."
 if [ ! -d "/usr/share/easy-rsa/" ]; then
   echo "==> SKIP: The pki test requires easy-rsa to be installed"
   return
