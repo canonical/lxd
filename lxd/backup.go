@@ -104,7 +104,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 
 func backupCreateTarball(s *state.State, path string, b backup.Backup, c instance.Instance) error {
 	// Create the index
-	pool, err := c.StoragePool()
+	poolName, err := c.StoragePool()
 	if err != nil {
 		return err
 	}
@@ -113,14 +113,24 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 		return fmt.Errorf("Instance type must be container")
 	}
 
-	ct := c.(*containerLXC)
-
 	indexFile := backup.Info{
 		Name:       c.Name(),
-		Backend:    ct.Storage().GetStorageTypeName(),
 		Privileged: c.IsPrivileged(),
-		Pool:       pool,
+		Pool:       poolName,
 		Snapshots:  []string{},
+	}
+
+	pool, err := storagePools.GetPoolByInstance(s, c)
+	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+		if err != nil {
+			return err
+		}
+
+		info := pool.Driver().Info()
+		indexFile.Backend = info.Name
+	} else {
+		ct := c.(*containerLXC)
+		indexFile.Backend = ct.Storage().GetStorageTypeName()
 	}
 
 	if !b.InstanceOnly() {
