@@ -333,6 +333,21 @@ func (r *ProtocolLXD) GetImageAliasType(imageType string, name string) (*api.Ima
 	return alias, etag, nil
 }
 
+// GetImageAliasArchitectures returns a map of architectures / targets
+func (r *ProtocolLXD) GetImageAliasArchitectures(imageType string, name string) (map[string]*api.ImageAliasesEntry, error) {
+	alias, _, err := r.GetImageAliasType(imageType, name)
+	if err != nil {
+		return nil, err
+	}
+
+	img, _, err := r.GetImage(alias.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]*api.ImageAliasesEntry{img.Architecture: alias}, nil
+}
+
 // CreateImage requests that LXD creates, copies or import a new image
 func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (Operation, error) {
 	if image.CompressionAlgorithm != "" {
