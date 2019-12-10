@@ -128,5 +128,5 @@ test_database_no_disk_space(){
   )
 
   shutdown_lxd "${LXD_NOSPACE_DIR}"
-  umount "${GLOBAL_DB_DIR}"
+  umount -l "${GLOBAL_DB_DIR}"
 }

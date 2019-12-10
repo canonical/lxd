@@ -5,8 +5,7 @@ test_image_nil_profile_list() {
   lxc info c1 | grep -q "Profiles: default" || false
 
   # Cleanup
-  lxc stop c1
-  lxc delete c1
+  lxc delete c1 -f
   lxc image delete testimage
 }
 
@@ -25,8 +24,7 @@ test_image_empty_profile_list() {
   lxc info c1 | grep -q "Profiles: $" || false
 
   # Cleanup
-  lxc stop c1
-  lxc delete c1
+  lxc delete c1 -f
   lxc image delete testimage
 }
 
@@ -51,8 +49,7 @@ test_image_alternate_profile_list() {
   lxc info c1 | grep -q "Profiles: p1, p2, p3" || false
 
   # Cleanup
-  lxc stop c1
-  lxc delete c1
+  lxc delete c1 -f
   lxc profile delete p1
   lxc profile delete p2
   lxc profile delete p3
