@@ -596,3 +596,68 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, err
 
 	return backup.New(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil
 }
+
+// ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
+func ResolveImage(s *state.State, project string, source api.InstanceSource) (string, error) {
+	if source.Fingerprint != "" {
+		return source.Fingerprint, nil
+	}
+
+	if source.Alias != "" {
+		if source.Server != "" {
+			return source.Alias, nil
+		}
+
+		_, alias, err := s.Cluster.ImageAliasGet(project, source.Alias, true)
+		if err != nil {
+			return "", err
+		}
+
+		return alias.Target, nil
+	}
+
+	if source.Properties != nil {
+		if source.Server != "" {
+			return "", fmt.Errorf("Property match is only supported for local images")
+		}
+
+		hashes, err := s.Cluster.ImagesGet(project, false)
+		if err != nil {
+			return "", err
+		}
+
+		var image *api.Image
+		for _, imageHash := range hashes {
+			_, img, err := s.Cluster.ImageGet(project, imageHash, false, true)
+			if err != nil {
+				continue
+			}
+
+			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
+				continue
+			}
+
+			match := true
+			for key, value := range source.Properties {
+				if img.Properties[key] != value {
+					match = false
+					break
+				}
+			}
+
+			if !match {
+				continue
+			}
+
+			image = img
+		}
+
+		if image != nil {
+			return image.Fingerprint, nil
+		}
+
+		return "", fmt.Errorf("No matching image could be found")
+	}
+
+	return "", fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image")
+}
