@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
@@ -50,6 +51,10 @@ type ConnectionArgs struct {
 
 	// Skip automatic GetServer request upon connection
 	SkipGetServer bool
+
+	// Caching support for image servers
+	CachePath   string
+	CacheExpiry time.Duration
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
