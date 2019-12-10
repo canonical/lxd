@@ -25,7 +25,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 		osCleanup()
 	}
 
-	state := NewState(node, cluster, nil, os, nil, nil, nil)
+	state := NewState(node, cluster, nil, os, nil, nil, nil, nil)
 
 	return state, cleanup
 }
