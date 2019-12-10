@@ -253,3 +253,20 @@ func (r *ProtocolSimpleStreams) GetImageAliasType(imageType string, name string)
 
 	return alias, "", err
 }
+
+// GetImageAliasArchitectures returns a map of architectures / targets
+func (r *ProtocolSimpleStreams) GetImageAliasArchitectures(imageType string, name string) (map[string]*api.ImageAliasesEntry, error) {
+	if imageType == "" {
+		aliases, err := r.ssClient.GetAliasArchitectures("container", name)
+		if err != nil {
+			aliases, err = r.ssClient.GetAliasArchitectures("virtual-machine", name)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return aliases, nil
+	}
+
+	return r.ssClient.GetAliasArchitectures(imageType, name)
+}
