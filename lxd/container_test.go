@@ -127,14 +127,15 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 				"parent":  "unknownbr0"}},
 		Name: "testFoo",
 	}
+	state := suite.d.State()
 
 	// Create the container
-	c, err := instanceCreateInternal(suite.d.State(), args)
+	c, err := instanceCreateInternal(state, args)
 	suite.Req.Nil(err)
 	defer c.Delete()
 
 	// Load the container and trigger initLXC()
-	c2, err := instance.LoadByProjectAndName(suite.d.State(), "default", "testFoo")
+	c2, err := instance.LoadByProjectAndName(state, "default", "testFoo")
 	c2.IsRunning()
 	suite.Req.Nil(err)
 	_, err = c2.StorageStart()
