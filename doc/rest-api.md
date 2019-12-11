@@ -172,9 +172,10 @@ For filtering on device attributes you would pass:
 ?filter=device.field_name+eq+device_name.desired_field_assignment
 
 Here are a few GET query examples of the different filtering methods mentioned above:
-curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=name+eq+first+and+status+eq+Running
-curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=config.image.os+eq+ubuntu+and+device.nictype+eq+eth0.bridged
-curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/images?filter=Properties.os+eq+Centos+and+UpdateSource.Protocol+eq+simplestreams
+
+* [`/`]curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=name+eq+first+and+status+eq+Running
+* [`/`]curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=config.image.os+eq+ubuntu+and+device.nictype+eq+eth0.bridged
+* [`/`]curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/images?filter=Properties.os+eq+Centos+and+UpdateSource.Protocol+eq+simplestreams
 
 Filter is implemented by simply finding the results returned by a normal GET
 query and only returning the ones that match the information given.
