@@ -149,6 +149,25 @@ they point to (typically a dict).
 Recursion is implemented by simply replacing any pointer to an job (URL)
 by the object itself.
 
+## Filter
+To filter your results on certain values, filter is implemented for collections.
+A `filter` argument can be passed to a GET query against a collection.
+
+There is no default value for filter which means that all results found will
+be returned. The following is the language used for the filter argument:
+
+?filter=field_name+eq+desired_field_assignment
+
+The language follows the OData conventions for structuring REST API filtering
+logic. Logical operators are also supported for filtering: not(not), equals(eq),
+not equals(ne), and(and), or(or). Nesting filtering is also supported. For
+instance to filter on a field in a device config you would pass:
+
+?filter=config.field_name+eq+desired_field_assignment
+
+Filter is implemented by simply finding the results returned by a normal GET
+query and only returning the ones that match the information given.
+
 ## Async operations
 Any operation which may take more than a second to be done must be done
 in the background, returning a background operation ID to the client.
