@@ -781,8 +781,13 @@ func (c *containerLXC) initLXC(config bool) error {
 		mounts = append(mounts, "sys:rw")
 	}
 
-	if !shared.PathExists("/proc/self/ns/cgroup") {
-		mounts = append(mounts, "cgroup:mixed")
+	cgInfo := cgroup.GetInfo()
+	if cgInfo.Namespacing {
+		if cgInfo.Layout == cgroup.CgroupsUnified {
+			mounts = append(mounts, "cgroup:rw:force")
+		} else {
+			mounts = append(mounts, "cgroup:mixed")
+		}
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.mount.auto", strings.Join(mounts, " "))
