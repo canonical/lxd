@@ -22,8 +22,9 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/iptables"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -158,7 +159,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Attempt to disable router advertisement acceptance.
-	err = NetworkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
 	if err != nil && !os.IsNotExist(err) {
 		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
@@ -397,7 +398,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	}
 
 	// Remove any IPv6 filters used for this instance.
-	err := iptables.ContainerClear("ipv6", fmt.Sprintf("%s - ipv6_filtering", d.instance.Name()), "filter")
+	err := d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.instance.Name()))
 	if err != nil {
 		return fmt.Errorf("Failed to clear ip6tables ipv6_filter rules for %s: %v", m["name"], err)
 	}
@@ -411,47 +412,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 		}
 	}
 
-	// Get a current list of rules active on the host.
-	out, err := shared.RunCommand("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
-	if err != nil {
-		return fmt.Errorf("Failed to remove network filters for %s: %v", m["name"], err)
-	}
-
-	// Get a list of rules that we would have applied on instance start.
-	rules := d.generateFilterEbtablesRules(m, IPv4.IP, IPv6.IP)
-
-	errs := []error{}
-	// Iterate through each active rule on the host and try and match it to one the LXD rules.
-	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		fields := strings.Fields(line)
-		fieldsLen := len(fields)
-
-		for _, rule := range rules {
-			// Rule doesn't match if the field lenths aren't the same, move on.
-			if len(rule) != fieldsLen {
-				continue
-			}
-
-			// Check whether active rule matches one of our rules to delete.
-			if !d.matchEbtablesRule(fields, rule, true) {
-				continue
-			}
-
-			// If we get this far, then the current host rule matches one of our LXD
-			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommand(fields[0], append([]string{"--concurrent"}, fields[1:]...)...)
-			if err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("Failed to remove network filters rule for %s: %v", m["name"], errs)
-	}
-
-	return nil
+	return d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4.IP, IPv6.IP)
 }
 
 // getDHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a instance.
@@ -574,8 +535,8 @@ func (d *nicBridged) setFilters() (err error) {
 
 	if shared.IsTrue(d.config["security.ipv6_filtering"]) {
 		// Check br_netfilter is loaded and enabled for IPv6.
-		sysctlPath := "bridge/bridge-nf-call-ip6tables"
-		sysctlVal, err := NetworkSysctlGet(sysctlPath)
+		sysctlPath := "net/bridge/bridge-nf-call-ip6tables"
+		sysctlVal, err := util.SysctlGet(sysctlPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", sysctlPath, err)
 		}
@@ -615,27 +576,7 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}()
 
-	rules := d.generateFilterEbtablesRules(d.config, IPv4, IPv6)
-	for _, rule := range rules {
-		_, err = shared.RunCommand(rule[0], append([]string{"--concurrent"}, rule[1:]...)...)
-		if err != nil {
-			return err
-		}
-	}
-
-	rules, err = d.generateFilterIptablesRules(d.config, IPv6)
-	if err != nil {
-		return err
-	}
-
-	for _, rule := range rules {
-		err = iptables.ContainerPrepend(rule[0], fmt.Sprintf("%s - %s_filtering", d.instance.Name(), rule[0]), "filter", rule[1], rule[2:]...)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return d.state.Firewall.InstanceNicBridgedSetFilters(d.config, IPv4, IPv6, d.instance.Name())
 }
 
 // networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.

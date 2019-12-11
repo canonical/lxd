@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
@@ -57,6 +58,7 @@ type Daemon struct {
 	clientCerts  map[string]x509.Certificate
 	os           *sys.OS
 	db           *db.Node
+	firewall     firewall.Firewall
 	maas         *maas.Controller
 	rbac         *rbac.Server
 	cluster      *db.Cluster
@@ -333,7 +335,7 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 
 // State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.proxy)
+	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.firewall, d.proxy)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
@@ -772,6 +774,8 @@ func (d *Daemon) init() error {
 		}
 		return errors.Wrap(err, "failed to open cluster database")
 	}
+
+	d.firewall = firewall.New()
 
 	err = cluster.NotifyUpgradeCompleted(d.State(), certInfo)
 	if err != nil {

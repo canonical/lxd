@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/sys"
 )
 
@@ -25,7 +26,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 		osCleanup()
 	}
 
-	state := NewState(node, cluster, nil, os, nil, nil, nil, nil)
+	state := NewState(node, cluster, nil, os, nil, nil, nil, firewall.New(), nil)
 
 	return state, cleanup
 }

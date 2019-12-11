@@ -16,8 +16,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/iptables"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 )
@@ -227,8 +227,8 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 // Stop is run when the device is removed from the instance.
 func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
-	iptables.ContainerClear("ipv4", fmt.Sprintf("%s (%s)", d.instance.Name(), d.name), "nat")
-	iptables.ContainerClear("ipv6", fmt.Sprintf("%s (%s)", d.instance.Name(), d.name), "nat")
+	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.instance.Name(), d.name))
+	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.instance.Name(), d.name))
 
 	devFileName := fmt.Sprintf("proxy.%s", d.name)
 	devPath := filepath.Join(d.instance.DevicesPath(), devFileName)
@@ -262,8 +262,8 @@ func (d *proxy) setupNAT() error {
 		return err
 	}
 
-	var IPv4Addr string
-	var IPv6Addr string
+	var IPv4Addr net.IP
+	var IPv6Addr net.IP
 
 	for _, devConfig := range d.instance.ExpandedDevices() {
 		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig["nictype"] != "bridged") {
@@ -274,31 +274,31 @@ func (d *proxy) setupNAT() error {
 		ip := devConfig["ipv4.address"]
 		// Ensure that the provided IP address matches the container's IP
 		// address otherwise we could mess with other containers.
-		if ip != "" && IPv4Addr == "" && (address == ip || address == "0.0.0.0") {
-			IPv4Addr = ip
+		if ip != "" && IPv4Addr == nil && (address == ip || address == "0.0.0.0") {
+			IPv4Addr = net.ParseIP(ip)
 		}
 
 		ip = devConfig["ipv6.address"]
-		if ip != "" && IPv6Addr == "" && (address == ip || address == "::") {
-			IPv6Addr = ip
+		if ip != "" && IPv6Addr == nil && (address == ip || address == "::") {
+			IPv6Addr = net.ParseIP(ip)
 		}
 	}
 
-	if IPv4Addr == "" && IPv6Addr == "" {
+	if IPv4Addr == nil && IPv6Addr == nil {
 		return fmt.Errorf("NIC IP doesn't match proxy target IP")
 	}
 
-	iptablesComment := fmt.Sprintf("%s (%s)", d.instance.Name(), d.name)
+	firewallComment := fmt.Sprintf("%s (%s)", d.instance.Name(), d.name)
 
 	revert := true
 	defer func() {
 		if revert {
-			if IPv4Addr != "" {
-				iptables.ContainerClear("ipv4", iptablesComment, "nat")
+			if IPv4Addr != nil {
+				d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, firewallComment)
 			}
 
-			if IPv6Addr != "" {
-				iptables.ContainerClear("ipv6", iptablesComment, "nat")
+			if IPv6Addr != nil {
+				d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, firewallComment)
 			}
 		}
 	}()
@@ -315,41 +315,15 @@ func (d *proxy) setupNAT() error {
 			_, cPort, _ = net.SplitHostPort(connectAddr.Addr[i])
 		}
 
-		if IPv4Addr != "" {
-			// outbound <-> container
-			err := iptables.ContainerPrepend("ipv4", iptablesComment, "nat",
-				"PREROUTING", "-p", listenAddr.ConnType, "--destination",
-				address, "--dport", port, "-j", "DNAT",
-				"--to-destination", fmt.Sprintf("%s:%s", IPv4Addr, cPort))
-			if err != nil {
-				return err
-			}
-
-			// host <-> container
-			err = iptables.ContainerPrepend("ipv4", iptablesComment, "nat",
-				"OUTPUT", "-p", listenAddr.ConnType, "--destination",
-				address, "--dport", port, "-j", "DNAT",
-				"--to-destination", fmt.Sprintf("%s:%s", IPv4Addr, cPort))
+		if IPv4Addr != nil {
+			err := d.state.Firewall.InstanceProxySetupNAT(firewallConsts.FamilyIPv4, listenAddr.ConnType, address, port, IPv4Addr, cPort, firewallComment)
 			if err != nil {
 				return err
 			}
 		}
 
-		if IPv6Addr != "" {
-			// outbound <-> container
-			err := iptables.ContainerPrepend("ipv6", iptablesComment, "nat",
-				"PREROUTING", "-p", listenAddr.ConnType, "--destination",
-				address, "--dport", port, "-j", "DNAT",
-				"--to-destination", fmt.Sprintf("[%s]:%s", IPv6Addr, cPort))
-			if err != nil {
-				return err
-			}
-
-			// host <-> container
-			err = iptables.ContainerPrepend("ipv6", iptablesComment, "nat",
-				"OUTPUT", "-p", listenAddr.ConnType, "--destination",
-				address, "--dport", port, "-j", "DNAT",
-				"--to-destination", fmt.Sprintf("[%s]:%s", IPv6Addr, cPort))
+		if IPv6Addr != nil {
+			err := d.state.Firewall.InstanceProxySetupNAT(firewallConsts.FamilyIPv6, listenAddr.ConnType, address, port, IPv6Addr, cPort, firewallComment)
 			if err != nil {
 				return err
 			}
