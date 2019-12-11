@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -44,15 +48,58 @@ type SimpleStreams struct {
 	cachedProducts map[string]*Products
 	cachedImages   []api.Image
 	cachedAliases  []extendedAlias
+
+	cachePath   string
+	cacheExpiry time.Duration
 }
 
-func (s *SimpleStreams) parseStream() (*Stream, error) {
-	if s.cachedStream != nil {
-		return s.cachedStream, nil
+// SetCache configures the on-disk cache
+func (s *SimpleStreams) SetCache(path string, expiry time.Duration) {
+	s.cachePath = path
+	s.cacheExpiry = expiry
+}
+
+func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
+	cacheName := filepath.Join(s.cachePath, path)
+
+	if s.cachePath == "" {
+		return nil, false
 	}
 
-	url := fmt.Sprintf("%s/streams/v1/index.json", s.url)
-	req, err := http.NewRequest("GET", url, nil)
+	if !shared.PathExists(cacheName) {
+		return nil, false
+	}
+
+	fi, err := os.Stat(cacheName)
+	if err != nil {
+		os.Remove(cacheName)
+		return nil, false
+	}
+
+	body, err := ioutil.ReadFile(cacheName)
+	if err != nil {
+		os.Remove(cacheName)
+		return nil, false
+	}
+
+	expired := time.Now().Sub(fi.ModTime()) > s.cacheExpiry
+
+	return body, expired
+}
+
+func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
+	fields := strings.Split(path, "/")
+	fileName := fields[len(fields)-1]
+
+	// Attempt to get from the cache
+	cachedBody, expired := s.readCache(fileName)
+	if cachedBody != nil && !expired {
+		return cachedBody, nil
+	}
+
+	// Download from the source
+	uri := fmt.Sprintf("%s/%s", s.url, path)
+	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,15 +110,43 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 
 	r, err := s.http.Do(req)
 	if err != nil {
+		// On local connectivity error, return from cache anyway
+		if cachedBody != nil {
+			return cachedBody, nil
+		}
+
 		return nil, err
 	}
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
+		// On local connectivity error, return from cache anyway
+		if cachedBody != nil {
+			return cachedBody, nil
+		}
+
+		return nil, fmt.Errorf("Unable to fetch %s: %s", uri, r.Status)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attempt to store in cache
+	cacheName := filepath.Join(s.cachePath, fileName)
+	os.Remove(cacheName)
+	ioutil.WriteFile(cacheName, body, 0644)
+
+	return body, nil
+}
+
+func (s *SimpleStreams) parseStream() (*Stream, error) {
+	if s.cachedStream != nil {
+		return s.cachedStream, nil
+	}
+
+	body, err := s.cachedDownload("/streams/v1/index.json")
 	if err != nil {
 		return nil, err
 	}
@@ -93,27 +168,7 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 		return s.cachedProducts[path], nil
 	}
 
-	url := fmt.Sprintf("%s/%s", s.url, path)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.useragent != "" {
-		req.Header.Set("User-Agent", s.useragent)
-	}
-
-	r, err := s.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Body.Close()
-
-	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
-	}
-
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := s.cachedDownload(path)
 	if err != nil {
 		return nil, err
 	}
