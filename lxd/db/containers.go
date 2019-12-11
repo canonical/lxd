@@ -170,14 +170,14 @@ type InstanceBackupArgs struct {
 	CompressionAlgorithm string
 }
 
-// ContainerNames returns the names of all containers the given project.
-func (c *ClusterTx) ContainerNames(project string) ([]string, error) {
+// InstanceNames returns the names of all containers the given project.
+func (c *ClusterTx) InstanceNames(project string) ([]string, error) {
 	stmt := `
 SELECT instances.name FROM instances
   JOIN projects ON projects.id = instances.project_id
   WHERE projects.name = ? AND instances.type = ?
 `
-	return query.SelectStrings(c.tx, stmt, project, instancetype.Container)
+	return query.SelectStrings(c.tx, stmt, project, instancetype.Any)
 }
 
 // ContainerNodeAddress returns the address of the node hosting the container

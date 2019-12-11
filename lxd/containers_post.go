@@ -876,7 +876,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		var names []string
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			names, err = tx.ContainerNames(project)
+			names, err = tx.InstanceNames(project)
 			return err
 		})
 		if err != nil {
@@ -892,9 +892,10 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if i > 100 {
-				return response.InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
+				return response.InternalError(fmt.Errorf("Couldn't generate a new unique name after 100 tries"))
 			}
 		}
+
 		logger.Debugf("No name provided, creating %s", req.Name)
 	}
 
