@@ -333,7 +333,7 @@ func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w h
 
 // State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents)
+	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints, d.events, d.devlxdEvents, d.proxy)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is

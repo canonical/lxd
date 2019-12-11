@@ -36,66 +36,9 @@ import (
 )
 
 func createFromImage(d *Daemon, project string, req *api.InstancesPost) response.Response {
-	var hash string
-	var err error
-
-	if req.Source.Fingerprint != "" {
-		hash = req.Source.Fingerprint
-	} else if req.Source.Alias != "" {
-		if req.Source.Server != "" {
-			hash = req.Source.Alias
-		} else {
-			_, alias, err := d.cluster.ImageAliasGet(project, req.Source.Alias, true)
-			if err != nil {
-				return response.SmartError(err)
-			}
-
-			hash = alias.Target
-		}
-	} else if req.Source.Properties != nil {
-		if req.Source.Server != "" {
-			return response.BadRequest(fmt.Errorf("Property match is only supported for local images"))
-		}
-
-		hashes, err := d.cluster.ImagesGet(project, false)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		var image *api.Image
-
-		for _, imageHash := range hashes {
-			_, img, err := d.cluster.ImageGet(project, imageHash, false, true)
-			if err != nil {
-				continue
-			}
-
-			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
-				continue
-			}
-
-			match := true
-			for key, value := range req.Source.Properties {
-				if img.Properties[key] != value {
-					match = false
-					break
-				}
-			}
-
-			if !match {
-				continue
-			}
-
-			image = img
-		}
-
-		if image == nil {
-			return response.BadRequest(fmt.Errorf("No matching image could be found"))
-		}
-
-		hash = image.Fingerprint
-	} else {
-		return response.BadRequest(fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image"))
+	hash, err := instance.ResolveImage(d.State(), project, req.Source)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -933,7 +876,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 	case "copy":
 		return createFromCopy(d, project, &req)
 	default:
-		return response.BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
+		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
 }
 

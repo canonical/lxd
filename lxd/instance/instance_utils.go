@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -28,6 +29,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // ValidDevices is linked from main.instanceValidDevices to validate device config. Currently
@@ -595,4 +597,209 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, err
 	}
 
 	return backup.New(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil
+}
+
+// ResolveImage takes an instance source and returns a hash suitable for instance creation or download.
+func ResolveImage(s *state.State, project string, source api.InstanceSource) (string, error) {
+	if source.Fingerprint != "" {
+		return source.Fingerprint, nil
+	}
+
+	if source.Alias != "" {
+		if source.Server != "" {
+			return source.Alias, nil
+		}
+
+		_, alias, err := s.Cluster.ImageAliasGet(project, source.Alias, true)
+		if err != nil {
+			return "", err
+		}
+
+		return alias.Target, nil
+	}
+
+	if source.Properties != nil {
+		if source.Server != "" {
+			return "", fmt.Errorf("Property match is only supported for local images")
+		}
+
+		hashes, err := s.Cluster.ImagesGet(project, false)
+		if err != nil {
+			return "", err
+		}
+
+		var image *api.Image
+		for _, imageHash := range hashes {
+			_, img, err := s.Cluster.ImageGet(project, imageHash, false, true)
+			if err != nil {
+				continue
+			}
+
+			if image != nil && img.CreatedAt.Before(image.CreatedAt) {
+				continue
+			}
+
+			match := true
+			for key, value := range source.Properties {
+				if img.Properties[key] != value {
+					match = false
+					break
+				}
+			}
+
+			if !match {
+				continue
+			}
+
+			image = img
+		}
+
+		if image != nil {
+			return image.Fingerprint, nil
+		}
+
+		return "", fmt.Errorf("No matching image could be found")
+	}
+
+	return "", fmt.Errorf("Must specify one of alias, fingerprint or properties for init from image")
+}
+
+// SuitableArchitectures returns a slice of architecture ids based on an instance create request.
+//
+// An empty list indicates that the request may be handled by any architecture.
+// A nil list indicates that we can't tell at this stage, typically for private images.
+func SuitableArchitectures(s *state.State, project string, req api.InstancesPost) ([]int, error) {
+	// Handle cases where the architecture is already provided.
+	if shared.StringInSlice(req.Source.Type, []string{"migration", "none"}) && req.Architecture != "" {
+		id, err := osarch.ArchitectureId(req.Architecture)
+		if err != nil {
+			return nil, err
+		}
+
+		return []int{id}, nil
+	}
+
+	// For migration, an architecture must be specified in the req.
+	if req.Source.Type == "migration" && req.Architecture == "" {
+		return nil, fmt.Errorf("An architecture must be specified in migration requests")
+	}
+
+	// For none, allow any architecture.
+	if req.Source.Type == "none" {
+		return []int{}, nil
+	}
+
+	// For copy, always use the source architecture.
+	if req.Source.Type == "copy" {
+		srcProject := req.Source.Project
+		if srcProject == "" {
+			srcProject = project
+		}
+
+		var inst *db.Instance
+		err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+
+			inst, err = tx.InstanceGet(srcProject, req.Source.Source)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to fetch instance %s in project %s", req.Source.Source, srcProject)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return []int{inst.Architecture}, nil
+	}
+
+	// For image, things get a bit more complicated.
+	if req.Source.Type == "image" {
+		// Resolve the image.
+		hash, err := ResolveImage(s, project, req.Source)
+		if err != nil {
+			return nil, err
+		}
+
+		// Handle local images.
+		if req.Source.Server == "" {
+			_, img, err := s.Cluster.ImageGet(project, hash, false, false)
+			if err != nil {
+				return nil, err
+			}
+
+			id, err := osarch.ArchitectureId(img.Architecture)
+			if err != nil {
+				return nil, err
+			}
+
+			return []int{id}, nil
+		}
+
+		// Handle remote images.
+		if req.Source.Server != "" {
+			// Detect image type based on instance type requested.
+			imgType := "container"
+			if req.Type == "virtual-machine" {
+				imgType = "virtual-machine"
+			}
+
+			if req.Source.Secret != "" {
+				// We can't retrieve a private image, defer to later processing.
+				return nil, nil
+			}
+
+			var remote lxd.ImageServer
+			if shared.StringInSlice(req.Source.Protocol, []string{"", "lxd"}) {
+				// Remote LXD image server.
+				remote, err = lxd.ConnectPublicLXD(req.Source.Server, &lxd.ConnectionArgs{
+					TLSServerCert: req.Source.Certificate,
+					UserAgent:     version.UserAgent,
+					Proxy:         s.Proxy,
+					CachePath:     s.OS.CacheDir,
+					CacheExpiry:   time.Hour,
+				})
+				if err != nil {
+					return nil, err
+				}
+			} else if req.Source.Protocol == "simplestreams" {
+				// Remote simplestreams image server.
+			} else {
+				return nil, fmt.Errorf("Unsupported remote image server protocol: %s", req.Source.Protocol)
+			}
+
+			// Look for a matching alias.
+			entries, err := remote.GetImageAliasArchitectures(imgType, hash)
+			if err != nil {
+				// Look for a matching image by fingerprint.
+				img, _, err := remote.GetImage(hash)
+				if err != nil {
+					return nil, err
+				}
+
+				id, err := osarch.ArchitectureId(img.Architecture)
+				if err != nil {
+					return nil, err
+				}
+
+				return []int{id}, nil
+			}
+
+			architectures := []int{}
+			for arch := range entries {
+				id, err := osarch.ArchitectureId(arch)
+				if err != nil {
+					return nil, err
+				}
+
+				architectures = append(architectures, id)
+			}
+
+			return architectures, nil
+		}
+	}
+
+	// No other known types
+	return nil, fmt.Errorf("Unknown instance source type: %s", req.Source.Type)
 }

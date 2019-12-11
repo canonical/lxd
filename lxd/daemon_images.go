@@ -4,21 +4,16 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -31,53 +26,8 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-// Simplestream cache
-type imageStreamCacheEntry struct {
-	Aliases      []api.ImageAliasesEntry `yaml:"aliases"`
-	Certificate  string                  `yaml:"certificate"`
-	Expiry       time.Time               `yaml:"expiry"`
-	Fingerprints []string                `yaml:"fingerprints"`
-}
-
-var imageStreamCacheLock sync.Mutex
-
 var imagesDownloading = map[string]chan bool{}
 var imagesDownloadingLock sync.Mutex
-
-func imageSaveStreamCache(os *sys.OS, imageStreamCache map[string]*imageStreamCacheEntry) error {
-	data, err := yaml.Marshal(&imageStreamCache)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(filepath.Join(os.CacheDir, "simplestreams.yaml"), data, 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func imageGetStreamCache(d *Daemon) (map[string]*imageStreamCacheEntry, error) {
-	imageStreamCache := map[string]*imageStreamCacheEntry{}
-
-	simplestreamsPath := filepath.Join(d.os.CacheDir, "simplestreams.yaml")
-	if !shared.PathExists(simplestreamsPath) {
-		return imageStreamCache, nil
-	}
-
-	content, err := ioutil.ReadFile(simplestreamsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	err = yaml.Unmarshal(content, imageStreamCache)
-	if err != nil {
-		return nil, err
-	}
-
-	return imageStreamCache, nil
-}
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
 func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol string, certificate string, secret string, alias string, imageType string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool, project string) (*api.Image, error) {
@@ -96,120 +46,27 @@ func (d *Daemon) ImageDownload(op *operations.Operation, server string, protocol
 	fp := alias
 
 	// Attempt to resolve the alias
-	if protocol == "simplestreams" {
-		imageStreamCacheLock.Lock()
-		imageStreamCache, err := imageGetStreamCache(d)
-		if err != nil {
-			imageStreamCacheLock.Unlock()
-			return nil, err
-		}
-
-		entry, _ := imageStreamCache[server]
-		if entry == nil || entry.Expiry.Before(time.Now()) {
-			// Add a new entry to the cache
-			refresh := func() (*imageStreamCacheEntry, error) {
-				// Setup simplestreams client
-				remote, err = lxd.ConnectSimpleStreams(server, &lxd.ConnectionArgs{
-					TLSServerCert: certificate,
-					UserAgent:     version.UserAgent,
-					Proxy:         d.proxy,
-				})
-				if err != nil {
-					return nil, err
-				}
-
-				// Get all aliases
-				aliases, err := remote.GetImageAliases()
-				if err != nil {
-					return nil, err
-				}
-
-				// Get all fingerprints
-				images, err := remote.GetImages()
-				if err != nil {
-					return nil, err
-				}
-
-				fingerprints := []string{}
-				for _, image := range images {
-					fingerprints = append(fingerprints, image.Fingerprint)
-				}
-
-				// Generate cache entry
-				entry = &imageStreamCacheEntry{Aliases: aliases, Certificate: certificate, Fingerprints: fingerprints, Expiry: time.Now().Add(time.Hour)}
-				imageStreamCache[server] = entry
-				imageSaveStreamCache(d.os, imageStreamCache)
-
-				return entry, nil
-			}
-
-			newEntry, err := refresh()
-			if err == nil {
-				// Cache refreshed
-				entry = newEntry
-			} else if entry != nil {
-				// Failed to fetch entry but existing cache
-				logger.Warn("Unable to refresh cache, using stale entry", log.Ctx{"server": server})
-				entry.Expiry = time.Now().Add(time.Hour)
-			} else {
-				// Failed to fetch entry and nothing in cache
-				imageStreamCacheLock.Unlock()
-				return nil, err
-			}
-		} else {
-			// use the existing entry
-			logger.Debug("Using SimpleStreams cache entry", log.Ctx{"server": server, "expiry": entry.Expiry})
-
-			remote, err = lxd.ConnectSimpleStreams(server, &lxd.ConnectionArgs{
-				TLSServerCert: entry.Certificate,
-				UserAgent:     version.UserAgent,
-				Proxy:         d.proxy,
-			})
-			if err != nil {
-				imageStreamCacheLock.Unlock()
-				return nil, err
-			}
-		}
-		imageStreamCacheLock.Unlock()
-
-		// Look for a matching alias
-		for _, entry := range entry.Aliases {
-			if entry.Name != fp {
-				continue
-			}
-
-			if imageType != "" && entry.Type != imageType {
-				continue
-			}
-
-			fp = entry.Target
-			break
-		}
-
-		// Expand partial fingerprints
-		matches := []string{}
-		for _, entry := range entry.Fingerprints {
-			if strings.HasPrefix(entry, fp) {
-				matches = append(matches, entry)
-			}
-		}
-
-		if len(matches) == 1 {
-			fp = matches[0]
-		} else if len(matches) > 1 {
-			return nil, fmt.Errorf("Provided partial image fingerprint matches more than one image")
-		} else {
-			return nil, fmt.Errorf("The requested image couldn't be found")
-		}
-	} else if protocol == "lxd" {
-		// Setup LXD client
-		remote, err = lxd.ConnectPublicLXD(server, &lxd.ConnectionArgs{
+	if shared.StringInSlice(protocol, []string{"lxd", "simplestreams"}) {
+		args := &lxd.ConnectionArgs{
 			TLSServerCert: certificate,
 			UserAgent:     version.UserAgent,
 			Proxy:         d.proxy,
-		})
-		if err != nil {
-			return nil, err
+			CachePath:     d.os.CacheDir,
+			CacheExpiry:   time.Hour,
+		}
+
+		if protocol == "lxd" {
+			// Setup LXD client
+			remote, err = lxd.ConnectPublicLXD(server, args)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Setup simplestreams client
+			remote, err = lxd.ConnectSimpleStreams(server, args)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// For public images, handle aliases and initial metadata
