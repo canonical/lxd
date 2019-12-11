@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -43,16 +47,59 @@ type SimpleStreams struct {
 	cachedStream   *Stream
 	cachedProducts map[string]*Products
 	cachedImages   []api.Image
-	cachedAliases  map[string]map[string]*api.ImageAliasesEntry
+	cachedAliases  []extendedAlias
+
+	cachePath   string
+	cacheExpiry time.Duration
 }
 
-func (s *SimpleStreams) parseStream() (*Stream, error) {
-	if s.cachedStream != nil {
-		return s.cachedStream, nil
+// SetCache configures the on-disk cache
+func (s *SimpleStreams) SetCache(path string, expiry time.Duration) {
+	s.cachePath = path
+	s.cacheExpiry = expiry
+}
+
+func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
+	cacheName := filepath.Join(s.cachePath, path)
+
+	if s.cachePath == "" {
+		return nil, false
 	}
 
-	url := fmt.Sprintf("%s/streams/v1/index.json", s.url)
-	req, err := http.NewRequest("GET", url, nil)
+	if !shared.PathExists(cacheName) {
+		return nil, false
+	}
+
+	fi, err := os.Stat(cacheName)
+	if err != nil {
+		os.Remove(cacheName)
+		return nil, false
+	}
+
+	body, err := ioutil.ReadFile(cacheName)
+	if err != nil {
+		os.Remove(cacheName)
+		return nil, false
+	}
+
+	expired := time.Now().Sub(fi.ModTime()) > s.cacheExpiry
+
+	return body, expired
+}
+
+func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
+	fields := strings.Split(path, "/")
+	fileName := fields[len(fields)-1]
+
+	// Attempt to get from the cache
+	cachedBody, expired := s.readCache(fileName)
+	if cachedBody != nil && !expired {
+		return cachedBody, nil
+	}
+
+	// Download from the source
+	uri := fmt.Sprintf("%s/%s", s.url, path)
+	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,15 +110,43 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 
 	r, err := s.http.Do(req)
 	if err != nil {
+		// On local connectivity error, return from cache anyway
+		if cachedBody != nil {
+			return cachedBody, nil
+		}
+
 		return nil, err
 	}
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
+		// On local connectivity error, return from cache anyway
+		if cachedBody != nil {
+			return cachedBody, nil
+		}
+
+		return nil, fmt.Errorf("Unable to fetch %s: %s", uri, r.Status)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attempt to store in cache
+	cacheName := filepath.Join(s.cachePath, fileName)
+	os.Remove(cacheName)
+	ioutil.WriteFile(cacheName, body, 0644)
+
+	return body, nil
+}
+
+func (s *SimpleStreams) parseStream() (*Stream, error) {
+	if s.cachedStream != nil {
+		return s.cachedStream, nil
+	}
+
+	body, err := s.cachedDownload("/streams/v1/index.json")
 	if err != nil {
 		return nil, err
 	}
@@ -93,27 +168,7 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 		return s.cachedProducts[path], nil
 	}
 
-	url := fmt.Sprintf("%s/%s", s.url, path)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.useragent != "" {
-		req.Header.Set("User-Agent", s.useragent)
-	}
-
-	r, err := s.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Body.Close()
-
-	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
-	}
-
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := s.cachedDownload(path)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +185,15 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 	return &products, nil
 }
 
-func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[string]map[string]*api.ImageAliasesEntry, error) {
-	aliases := map[string]map[string]*api.ImageAliasesEntry{}
+type extendedAlias struct {
+	Name         string
+	Alias        *api.ImageAliasesEntry
+	Type         string
+	Architecture string
+}
+
+func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, []extendedAlias, error) {
+	aliasesList := []extendedAlias{}
 
 	// Sort the images so we tag the preferred ones
 	sort.Sort(sortedImages(images))
@@ -145,24 +207,30 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 		}
 	}
 
-	addAlias := func(imageType string, name string, fingerprint string) *api.ImageAlias {
-		if aliases[imageType] == nil {
-			aliases[imageType] = map[string]*api.ImageAliasesEntry{}
-		}
-
+	addAlias := func(imageType string, architecture string, name string, fingerprint string) *api.ImageAlias {
 		if defaultOS != "" {
 			name = strings.TrimPrefix(name, fmt.Sprintf("%s/", defaultOS))
 		}
 
-		if aliases[imageType][name] != nil {
-			return nil
+		for _, entry := range aliasesList {
+			if entry.Name == name && entry.Type == imageType && entry.Architecture == architecture {
+				return nil
+			}
 		}
 
 		alias := api.ImageAliasesEntry{}
 		alias.Name = name
 		alias.Target = fingerprint
 		alias.Type = imageType
-		aliases[imageType][name] = &alias
+
+		entry := extendedAlias{
+			Name:         name,
+			Type:         imageType,
+			Alias:        &alias,
+			Architecture: architecture,
+		}
+
+		aliasesList = append(aliasesList, entry)
 
 		return &api.ImageAlias{Name: name}
 	}
@@ -178,15 +246,13 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 
 			for _, entry := range aliases {
 				// Short
-				if image.Architecture == architectureName {
-					alias := addAlias(image.Type, fmt.Sprintf("%s", entry.Name), image.Fingerprint)
-					if alias != nil {
-						image.Aliases = append(image.Aliases, *alias)
-					}
+				alias := addAlias(image.Type, image.Architecture, fmt.Sprintf("%s", entry.Name), image.Fingerprint)
+				if alias != nil && architectureName == image.Architecture {
+					image.Aliases = append(image.Aliases, *alias)
 				}
 
 				// Medium
-				alias := addAlias(image.Type, fmt.Sprintf("%s/%s", entry.Name, image.Properties["architecture"]), image.Fingerprint)
+				alias = addAlias(image.Type, image.Architecture, fmt.Sprintf("%s/%s", entry.Name, image.Properties["architecture"]), image.Fingerprint)
 				if alias != nil {
 					image.Aliases = append(image.Aliases, *alias)
 				}
@@ -196,10 +262,10 @@ func (s *SimpleStreams) applyAliases(images []api.Image) ([]api.Image, map[strin
 		newImages = append(newImages, image)
 	}
 
-	return newImages, aliases, nil
+	return newImages, aliasesList, nil
 }
 
-func (s *SimpleStreams) getImages() ([]api.Image, map[string]map[string]*api.ImageAliasesEntry, error) {
+func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 	if s.cachedImages != nil && s.cachedAliases != nil {
 		return s.cachedImages, s.cachedAliases, nil
 	}
@@ -301,17 +367,21 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 
 // ListAliases returns a list of image aliases for the provided image fingerprint
 func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
-	_, aliasesMap, err := s.getImages()
+	_, aliasesList, err := s.getImages()
 	if err != nil {
 		return nil, err
 	}
 
 	aliases := []api.ImageAliasesEntry{}
 
-	for _, entries := range aliasesMap {
-		for _, alias := range entries {
-			aliases = append(aliases, *alias)
+	architectureName, _ := osarch.ArchitectureGetLocal()
+
+	for _, entry := range aliasesList {
+		if entry.Architecture != architectureName {
+			continue
 		}
+
+		aliases = append(aliases, *entry.Alias)
 	}
 
 	return aliases, nil
@@ -325,22 +395,32 @@ func (s *SimpleStreams) ListImages() ([]api.Image, error) {
 
 // GetAlias returns a LXD ImageAliasesEntry for the provided alias name
 func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAliasesEntry, error) {
-	_, aliasesMap, err := s.getImages()
+	_, aliasesList, err := s.getImages()
 	if err != nil {
 		return nil, err
 	}
 
-	var match *api.ImageAliasesEntry
-	for entryType, entries := range aliasesMap {
-		for aliasName, alias := range entries {
-			if aliasName == name && (entryType == imageType || imageType == "") {
-				if match != nil {
-					return nil, fmt.Errorf("More than one match for alias '%s'", name)
-				}
+	architectureName, _ := osarch.ArchitectureGetLocal()
 
-				match = alias
-			}
+	var match *api.ImageAliasesEntry
+	for _, entry := range aliasesList {
+		if entry.Name != name {
+			continue
 		}
+
+		if entry.Architecture != architectureName {
+			continue
+		}
+
+		if entry.Type != imageType && imageType != "" {
+			continue
+		}
+
+		if match != nil {
+			return nil, fmt.Errorf("More than one match for alias '%s'", name)
+		}
+
+		match = entry.Alias
 	}
 
 	if match == nil {
@@ -348,6 +428,38 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 	}
 
 	return match, nil
+}
+
+// GetAliasArchitectures returns a map of architecture / alias entries for an alias
+func (s *SimpleStreams) GetAliasArchitectures(imageType string, name string) (map[string]*api.ImageAliasesEntry, error) {
+	aliases := map[string]*api.ImageAliasesEntry{}
+
+	_, aliasesList, err := s.getImages()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range aliasesList {
+		if entry.Name != name {
+			continue
+		}
+
+		if entry.Type != imageType && imageType != "" {
+			continue
+		}
+
+		if aliases[entry.Architecture] != nil {
+			return nil, fmt.Errorf("More than one match for alias '%s'", name)
+		}
+
+		aliases[entry.Architecture] = entry.Alias
+	}
+
+	if len(aliases) == 0 {
+		return nil, fmt.Errorf("Alias '%s' doesn't exist", name)
+	}
+
+	return aliases, nil
 }
 
 // GetImage returns a LXD image for the provided image fingerprint

@@ -1,14 +1,18 @@
 package lxd
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
 )
@@ -50,6 +54,10 @@ type ConnectionArgs struct {
 
 	// Skip automatic GetServer request upon connection
 	SkipGetServer bool
+
+	// Caching support for image servers
+	CachePath   string
+	CacheExpiry time.Duration
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
@@ -201,6 +209,30 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	// Get simplestreams client
 	ssClient := simplestreams.NewClient(url, *httpClient, args.UserAgent)
 	server.ssClient = ssClient
+
+	// Setup the cache
+	if args.CachePath != "" {
+		if !shared.PathExists(args.CachePath) {
+			return nil, fmt.Errorf("Cache directory '%s' doesn't exist", args.CachePath)
+		}
+
+		hashedURL := fmt.Sprintf("%x", sha256.Sum256([]byte(url)))
+
+		cachePath := filepath.Join(args.CachePath, hashedURL)
+		cacheExpiry := args.CacheExpiry
+		if cacheExpiry == 0 {
+			cacheExpiry = time.Hour
+		}
+
+		if !shared.PathExists(cachePath) {
+			err := os.Mkdir(cachePath, 0755)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		ssClient.SetCache(cachePath, cacheExpiry)
+	}
 
 	return &server, nil
 }

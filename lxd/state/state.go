@@ -3,6 +3,9 @@
 package state
 
 import (
+	"net/http"
+	"net/url"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
@@ -22,7 +25,8 @@ type State struct {
 	MAAS *maas.Controller
 
 	// OS access
-	OS *sys.OS
+	OS    *sys.OS
+	Proxy func(req *http.Request) (*url.URL, error)
 
 	// LXD server
 	Endpoints *endpoints.Endpoints
@@ -34,7 +38,7 @@ type State struct {
 
 // NewState returns a new State object with the given database and operating
 // system components.
-func NewState(node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server) *State {
+func NewState(node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, proxy func(req *http.Request) (*url.URL, error)) *State {
 	return &State{
 		Node:         node,
 		Cluster:      cluster,
@@ -43,5 +47,6 @@ func NewState(node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys
 		Endpoints:    endpoints,
 		DevlxdEvents: devlxdEvents,
 		Events:       events,
+		Proxy:        proxy,
 	}
 }
