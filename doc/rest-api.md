@@ -153,6 +153,8 @@ by the object itself.
 To filter your results on certain values, filter is implemented for collections.
 A `filter` argument can be passed to a GET query against a collection.
 
+FIltering is available for the container and image endpoints.
+
 There is no default value for filter which means that all results found will
 be returned. The following is the language used for the filter argument:
 
@@ -164,6 +166,15 @@ not equals(ne), and(and), or(or). Nesting filtering is also supported. For
 instance to filter on a field in a device config you would pass:
 
 ?filter=config.field_name+eq+desired_field_assignment
+
+For filtering on device attributes you would pass:
+
+?filter=device.field_name+eq+device_name.desired_field_assignment
+
+Here are a few GET query examples of the different filtering methods mentioned above:
+curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=name+eq+first+and+status+eq+Running
+curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=config.image.os+eq+ubuntu+and+device.nictype+eq+eth0.bridged
+curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/images?filter=Properties.os+eq+Centos+and+UpdateSource.Protocol+eq+simplestreams
 
 Filter is implemented by simply finding the results returned by a normal GET
 query and only returning the ones that match the information given.
