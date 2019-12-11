@@ -152,17 +152,17 @@ func queryParam(request *http.Request, key string) string {
 	return values.Get(key)
 }
 
-func doFilterNew (fstr string, result []interface{}) []interface{} {
+func doFilter (fstr string, result []interface{}) []interface{} {
 	newResult := result[:0]
 	for _,obj := range result {
-		if applyFilterNew(fstr, obj) {
+		if applyFilter(fstr, obj) {
 			newResult = append(newResult, obj)
 		}
 	}
 	return newResult
 }
 
-func applyFilterNew (fstr string, obj interface{}) bool {
+func applyFilter (fstr string, obj interface{}) bool {
 	filterSplit := strings.Fields(fstr)
 
 	index := 0

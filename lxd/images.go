@@ -1035,7 +1035,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, filterS
 		for i := range resultMap {
 		    intList[i] = resultMap[i]
 		}
-		return doFilterNew(filterStr, intList), nil
+		return doFilter(filterStr, intList), nil
 	}
 	return resultMap, nil
 }
