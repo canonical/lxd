@@ -125,8 +125,9 @@ test_database_no_disk_space(){
     # Removing the big file makes the database happy again.
     rm "${BIG_FILE}"
     lxc config set c "user.propZ" - < "${DATA}"
+    lxc delete -f c
   )
 
-  shutdown_lxd "${LXD_NOSPACE_DIR}"
   umount -l "${GLOBAL_DB_DIR}"
+  kill_lxd "${LXD_NOSPACE_DIR}"
 }
