@@ -68,31 +68,75 @@ To run the testsuite, you'll also need:
 sudo apt install curl gettext jq sqlite3 uuid-runtime bzr socat
 ```
 
+### From Source: Building the latest version
 
-### Building the tools
-LXD consists of two binaries, a client called `lxc` and a server called `lxd`.
-These live in the source tree in the `lxc/` and `lxd/` dirs, respectively.
-To get the code, set up your go environment:
+These instructions for building from source are suitable for individual developers who want to build the latest version
+of LXD, or build a specific release of LXD which may not be offered by their Linux distribution. Source builds for
+integration into Linux distributions are not covered here and may be covered in detail in a separate document in the
+future.
+
+When building from source, it is customary to configure a `GOPATH` which contains the to-be-built source code. When 
+the sources are done building, the `lxc` and `lxd` binaries will be available at `$GOPATH/bin`, and with a little
+`LD_LIBRARY_PATH` magic (described later), these binaries can be run directly from the built source tree. 
+
+The following lines demonstrate how to configure a `GOPATH` with the most recent LXD sources from GitHub:
 
 ```bash
 mkdir -p ~/go
 export GOPATH=~/go
-```
-
-And then download it as usual:
-
-```bash
 go get -d -v github.com/lxc/lxd/lxd
 cd $GOPATH/src/github.com/lxc/lxd
+```
+
+When the build process starts, the Makefile will use `go get` and `git clone` to grab all necessary dependencies 
+needed for building.
+
+### From Source: Building a Release
+
+To build an official release of LXD, download and extract a release tarball, and then set up GOPATH to point to the
+`_dist` directory inside it, which is configured to be used as a GOPATH and contains snapshots of all necessary sources. LXD
+will then build using these snapshots rather than grabbing 'live' sources using `go get` and `git clone`. Once the release
+tarball is downloaded and extracted, set the `GOPATH` as follows:
+
+```bash
+cd lxd-3.18
+export GOPATH=$(pwd)/_dist
+```
+
+### Starting the Build
+
+Once the `GOPATH` is configured, either to build the latest GitHub version or an official release, the following steps
+can be used to build LXD.
+
+The actual building is done by two separate invocations of the Makefile: `make deps` -- which builds libraries required 
+by LXD -- and `make`, which builds LXD itself. At the end of `make deps`, a message will be displayed which will specify environment variables that should be set prior to invoking `make`. As new versions of LXD are released, these environment
+variable settings may change, so be sure to use the ones displayed at the end of the `make deps` process, as the ones
+below (shown for example purposes) may not exactly match what your version of LXD requires:
+
+```bash
 make deps
+# Use the export statements printed in the output of 'make deps' -- these are examples: 
 export CGO_CFLAGS="${CGO_CFLAGS} -I${GOPATH}/deps/sqlite/ -I${GOPATH}/deps/dqlite/include/ -I${GOPATH}/deps/raft/include/ -I${GOPATH}/deps/libco/"
 export CGO_LDFLAGS="${CGO_LDFLAGS} -L${GOPATH}/deps/sqlite/.libs/ -L${GOPATH}/deps/dqlite/.libs/ -L${GOPATH}/deps/raft/.libs -L${GOPATH}/deps/libco/"
 export LD_LIBRARY_PATH="${GOPATH}/deps/sqlite/.libs/:${GOPATH}/deps/dqlite/.libs/:${GOPATH}/deps/raft/.libs:${GOPATH}/deps/libco/:${LD_LIBRARY_PATH}"
 make
 ```
 
-...which will give you two binaries in `$GOPATH/bin`, `lxd` the daemon binary,
-and `lxc` a command line client to that daemon.
+### From Source: Installing
+
+Once the build completes, you simply keep the source tree, add the directory referenced by `$GOPATH/bin` to 
+your shell path, and set the `LD_LIBRARY_PATH` variable printed by `make deps` to your environment. This might look
+something like this for a `~/.bashrc` file:
+
+```bash
+# No need to export GOPATH:
+GOPATH=~/go
+# But we need to export these:
+export PATH="$PATH:$GOPATH/bin"
+export LD_LIBRARY_PATH="${GOPATH}/deps/sqlite/.libs/:${GOPATH}/deps/dqlite/.libs/:${GOPATH}/deps/raft/.libs:${GOPATH}/deps/libco/:${LD_LIBRARY_PATH}"
+```
+
+Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `$GOPATH/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
 
 ### Machine Setup
 You'll need sub{u,g}ids for root, so that LXD can create the unprivileged
