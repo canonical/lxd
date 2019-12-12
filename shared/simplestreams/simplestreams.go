@@ -134,9 +134,11 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 	}
 
 	// Attempt to store in cache
-	cacheName := filepath.Join(s.cachePath, fileName)
-	os.Remove(cacheName)
-	ioutil.WriteFile(cacheName, body, 0644)
+	if s.cachePath != "" {
+		cacheName := filepath.Join(s.cachePath, fileName)
+		os.Remove(cacheName)
+		ioutil.WriteFile(cacheName, body, 0644)
+	}
 
 	return body, nil
 }
