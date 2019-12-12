@@ -72,6 +72,7 @@ func init() {
 	hasV2 := false
 	// Go through the file line by line.
 	scanSelfCg := bufio.NewScanner(selfCg)
+	logger.Warnf(selfCg.Name() +"path being read")
 	for scanSelfCg.Scan() {
 		line := strings.TrimSpace(scanSelfCg.Text())
 		fields := strings.SplitN(line, ":", 3)
@@ -90,8 +91,9 @@ func init() {
 		// Parse V2 controllers.
 		path := fields[2]
 		hybridPath := filepath.Join(cgPath, "unified", path, "cgroup.controllers")
+		logger.Warnf(hybridPath + "hybrid")
 		dedicatedPath := filepath.Join(cgPath, path, "cgroup.controllers")
-
+		logger.Warnf(dedicatedPath + "dedicated")
 		controllers, err := os.Open(hybridPath)
 		if err != nil {
 			if !os.IsNotExist(err) {

@@ -1120,13 +1120,13 @@ func (c *containerLXC) initLXC(config bool) error {
 			}
 
 			if memoryEnforce == "soft" {
-				err = lxcSetConfigItem(cc, "lxc.cgroup.memory.soft_limit_in_bytes", fmt.Sprintf("%d", valueInt))
+				err = cg.SetMemorySoftLimit(fmt.Sprintf("%d", valueInt))
 				if err != nil {
 					return err
 				}
 			} else {
 				if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
+					err = cg.SetMemoryMax(fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
 					}
@@ -1135,13 +1135,13 @@ func (c *containerLXC) initLXC(config bool) error {
 						return err
 					}
 				} else {
-					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
+					err = cg.SetMemoryMax(fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
 					}
 				}
 				// Set soft limit to value 10% less than hard limit
-				err = lxcSetConfigItem(cc, "lxc.cgroup.memory.soft_limit_in_bytes", fmt.Sprintf("%.0f", float64(valueInt)*0.9))
+				err = cg.SetMemorySoftLimit( fmt.Sprintf("%.0f", float64(valueInt)*0.9))
 				if err != nil {
 					return err
 				}
@@ -4271,24 +4271,22 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						oldMemswLimit = ""
 					}
 				}
-
-				oldLimit, err := c.CGroupGet("memory.limit_in_bytes")
+				oldLimit,err := cg.GetMaxMemory()
 				if err != nil {
 					oldLimit = ""
 				}
-
-				oldSoftLimit, err := c.CGroupGet("memory.soft_limit_in_bytes")
+				oldSoftLimit, err := cg.GetMemorySoftLimit()
 				if err != nil {
 					oldSoftLimit = ""
 				}
 
 				revertMemory := func() {
 					if oldSoftLimit != "" {
-						c.CGroupSet("memory.soft_limit_in_bytes", oldSoftLimit)
+						cg.SetMemorySoftLimit(oldSoftLimit)
 					}
 
 					if oldLimit != "" {
-						c.CGroupSet("memory.limit_in_bytes", oldLimit)
+						cg.SetMemoryMax(oldLimit)
 					}
 
 					if oldMemswLimit != "" {
@@ -4304,14 +4302,12 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				}
-
-				err = c.CGroupSet("memory.limit_in_bytes", "-1")
+				err = cg.SetMemoryMax("-1")
 				if err != nil {
 					revertMemory()
 					return err
 				}
-
-				err = c.CGroupSet("memory.soft_limit_in_bytes", "-1")
+				err = cg.SetMemorySoftLimit("-1")
 				if err != nil {
 					revertMemory()
 					return err
@@ -4320,14 +4316,14 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				// Set the new values
 				if memoryEnforce == "soft" {
 					// Set new limit
-					err = c.CGroupSet("memory.soft_limit_in_bytes", memory)
+					err = cg.SetMemorySoftLimit(memory)
 					if err != nil {
 						revertMemory()
 						return err
 					}
 				} else {
 					if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
-						err = c.CGroupSet("memory.limit_in_bytes", memory)
+						err = cg.SetMemoryMax(memory)
 						if err != nil {
 							revertMemory()
 							return err
@@ -4339,7 +4335,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 							return err
 						}
 					} else {
-						err = c.CGroupSet("memory.limit_in_bytes", memory)
+						err = cg.SetMemoryMax(memory)
 						if err != nil {
 							revertMemory()
 							return err
@@ -4352,8 +4348,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						revertMemory()
 						return err
 					}
-
-					err = c.CGroupSet("memory.soft_limit_in_bytes", fmt.Sprintf("%.0f", float64(valueInt)*0.9))
+					err = cg.SetMemorySoftLimit(fmt.Sprintf("%.0f", float64(valueInt)*0.9))
 					if err != nil {
 						revertMemory()
 						return err
@@ -5749,7 +5744,9 @@ func (c *containerLXC) cpuState() api.InstanceStateCPU {
 	}
 
 	// CPU usage in seconds
-	value, err := c.CGroupGet("cpuacct.usage")
+	cg , err := c.cgroup(c.c)
+
+	value, err := cg.GetCpuAcctUsage()
 	if err != nil {
 		cpu.Usage = -1
 		return cpu
@@ -5820,7 +5817,8 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	}
 
 	// Memory in bytes
-	value, err := c.CGroupGet("memory.usage_in_bytes")
+	cg, err := c.cgroup(c.c)
+	value, err := cg.GetCurrentMemory()
 	valueInt, err1 := strconv.ParseInt(value, 10, 64)
 	if err == nil && err1 == nil {
 		memory.Usage = valueInt
@@ -5922,7 +5920,11 @@ func (c *containerLXC) processesState() int64 {
 	}
 
 	if c.state.OS.CGroupPidsController {
-		value, err := c.CGroupGet("pids.current")
+		cg, err := c.cgroup(nil)
+		if err!= nil {
+			return 0
+		}
+		value, err := cg.GetCurrentProcesses()
 		if err != nil {
 			return -1
 		}
