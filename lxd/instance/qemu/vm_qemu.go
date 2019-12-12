@@ -634,6 +634,35 @@ func (vm *Qemu) Start(stateful bool) error {
 		"-chroot", vm.Path(),
 	}
 
+	// Attempt to drop privileges.
+	if vm.state.OS.UnprivUser != "" {
+		args = append(args, "-runas", vm.state.OS.UnprivUser)
+
+		// Change ownership of config directory files so they are accessible to the
+		// unprivileged qemu process so that the 9p share can work.
+		//
+		// Security note: The 9P share will present the UID owner of these files on the host
+		// to the VM. In order to ensure that non-root users in the VM cannot access these
+		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
+		// only root user in VM to access the mounted share.
+		err := filepath.Walk(filepath.Join(vm.Path(), "config"),
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+
+				err = os.Chown(path, vm.state.OS.UnprivUID, -1)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+		if err != nil {
+			return err
+		}
+	}
+
 	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
 		args = append(args, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
 	}
@@ -987,8 +1016,8 @@ Before=cloud-init.target
 
 [Service]
 Type=simple
-WorkingDirectory=/run/lxd_config
-ExecStart=/run/lxd_config/lxd-agent
+WorkingDirectory=/run/lxd_config/9p
+ExecStart=/run/lxd_config/9p/lxd-agent
 
 [Install]
 WantedBy=multi-user.target
@@ -1007,8 +1036,9 @@ ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=-/sbin/modprobe 9pnet_virtio
-ExecStartPre=/bin/mkdir -p /run/lxd_config
-ExecStart=/bin/mount -t 9p config /run/lxd_config
+ExecStartPre=/bin/mkdir -p /run/lxd_config/9p
+ExecStartPre=/bin/chmod 0700 /run/lxd_config/
+ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0
 
 [Install]
 WantedBy=multi-user.target
