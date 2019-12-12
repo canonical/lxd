@@ -1933,14 +1933,8 @@ func (n *network) Setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
 
 		// Attempt to drop privileges
-		for _, user := range []string{"lxd", "nobody"} {
-			_, err := shared.UserId(user)
-			if err != nil {
-				continue
-			}
-
-			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", user}...)
-			break
+		if n.state.OS.UnprivUser != "" {
+			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", n.state.OS.UnprivUser}...)
 		}
 
 		// Create DHCP hosts directory
