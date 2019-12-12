@@ -712,7 +712,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		switch backup.Pool.Driver {
 		case "btrfs":
 			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
-			if !shared.PathExists(snpMntPt) || !isBtrfsSubVolume(snpMntPt) {
+			if !shared.PathExists(snpMntPt) || !btrfsIsSubVolume(snpMntPt) {
 				if req.Force {
 					continue
 				}
