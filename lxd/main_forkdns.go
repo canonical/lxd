@@ -270,6 +270,7 @@ func (h *dnsHandler) handlePTR(r *dns.Msg) (dns.Msg, error) {
 	for _, server := range servers {
 		req := dns.Msg{}
 		req.Question = r.Question
+		// Tell the remote node we only want to query their local data (to stop loops).
 		req.RecursionDesired = false
 		req.Id = r.Id
 
@@ -369,6 +370,7 @@ func (h *dnsHandler) handleA(r *dns.Msg) (dns.Msg, error) {
 	for _, server := range servers {
 		req := dns.Msg{}
 		req.Question = r.Question
+		// Tell the remote node we only want to query their local data (to stop loops).
 		req.RecursionDesired = false
 		req.Id = r.Id
 
