@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -372,7 +373,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	RBDFilesystem := s.getRBDFilesystem()
 	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume "%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name, s.pool.Name)
 
-	output, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+	output, err := storageDrivers.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, RBDDevPath, s.volume.Name, s.pool.Name, err, output)
 		return err
@@ -522,7 +523,7 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameCustom, s.volume.Name, true,
 			s.UserName)
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+		mountFlags, mountOptions := storageDrivers.ResolveMountOptions(s.getRBDMountOptions())
 		customerr = driver.TryMount(
 			RBDDevPath,
 			volumeMntPoint,
@@ -1833,7 +1834,7 @@ func (s *storageCeph) ContainerSnapshotStart(c instance.Instance) (bool, error) 
 
 	containerMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getRBDMountOptions())
+	mountFlags, mountOptions := storageDrivers.ResolveMountOptions(s.getRBDMountOptions())
 	if RBDFilesystem == "xfs" {
 		idx := strings.Index(mountOptions, "nouuid")
 		if idx < 0 {
@@ -2105,7 +2106,7 @@ func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.Progre
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
-		output, err := driver.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+		output, err := storageDrivers.MakeFSType(RBDDevPath, RBDFilesystem, nil)
 		if err != nil {
 			logger.Errorf(`Failed to create filesystem "%s" for RBD storage volume for image "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, fingerprint, s.pool.Name, err, output)
 			return err
@@ -2340,7 +2341,7 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 
 	RBDFilesystem := s.getRBDFilesystem()
 	RBDMountOptions := s.getRBDMountOptions()
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(RBDMountOptions)
+	mountFlags, mountOptions := storageDrivers.ResolveMountOptions(RBDMountOptions)
 	RBDDevPath, ret := getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 		storagePoolVolumeTypeNameImage, fingerprint, true, s.UserName)
 	errMsg := fmt.Sprintf("Failed to mount RBD device %s onto %s",
