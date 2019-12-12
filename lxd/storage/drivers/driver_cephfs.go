@@ -67,8 +67,8 @@ func (d *cephfs) Info() Info {
 	}
 }
 
-func (d *cephfs) HasVolume(volType VolumeType, volName string) bool {
-	if shared.PathExists(GetVolumeMountPath(d.name, volType, volName)) {
+func (d *cephfs) HasVolume(vol Volume) bool {
+	if shared.PathExists(vol.MountPath()) {
 		return true
 	}
 
@@ -289,7 +289,7 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 }
 
 // GetVolumeDiskPath returns the location of a root disk block device.
-func (d *cephfs) GetVolumeDiskPath(volType VolumeType, volName string) (string, error) {
+func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", ErrNotImplemented
 }
 
@@ -355,7 +355,10 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 
 		// Remove any paths created if we are reverting.
 		for _, snapName := range revertSnaps {
-			d.DeleteVolumeSnapshot(vol.volType, vol.name, snapName, op)
+			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
+
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
 		os.RemoveAll(volPath)
@@ -382,7 +385,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 				}, op)
 
 				// Create the snapshot itself.
-				err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
+				err = d.CreateVolumeSnapshot(srcSnapshot, op)
 				if err != nil {
 					return err
 				}
@@ -393,7 +396,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol.volType, vol.name, vol.config["size"], op)
+		err = d.SetVolumeQuota(vol, vol.config["size"], op)
 		if err != nil {
 			return err
 		}
@@ -416,12 +419,12 @@ func (d *cephfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume,
 	return ErrNotImplemented
 }
 
-func (d *cephfs) DeleteVolume(volType VolumeType, volName string, op *operations.Operation) error {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
+	if vol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
 
-	snapshots, err := d.VolumeSnapshots(volType, volName, op)
+	snapshots, err := d.VolumeSnapshots(vol, op)
 	if err != nil {
 		return err
 	}
@@ -430,7 +433,7 @@ func (d *cephfs) DeleteVolume(volType VolumeType, volName string, op *operations
 		return fmt.Errorf("Cannot remove a volume that has snapshots")
 	}
 
-	volPath := GetVolumeMountPath(d.name, volType, volName)
+	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
 
 	// If the volume doesn't exist, then nothing more to do.
 	if !shared.PathExists(volPath) {
@@ -445,7 +448,7 @@ func (d *cephfs) DeleteVolume(volType VolumeType, volName string, op *operations
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
 	// to just in case the top-level directory is left.
-	snapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
+	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 
 	err = os.RemoveAll(snapshotDir)
 	if err != nil {
@@ -455,15 +458,13 @@ func (d *cephfs) DeleteVolume(volType VolumeType, volName string, op *operations
 	return nil
 }
 
-func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string, op *operations.Operation) error {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operation) error {
+	if vol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
 
-	vol := NewVolume(d, d.name, volType, ContentTypeFS, volName, nil)
-
 	// Create new snapshots directory.
-	snapshotDir := GetVolumeSnapshotDir(d.name, volType, newName)
+	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
 
 	err := os.MkdirAll(snapshotDir, 0711)
 	if err != nil {
@@ -495,10 +496,10 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 	}()
 
 	// Rename the snapshot directory first.
-	srcSnapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
+	srcSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 
 	if shared.PathExists(srcSnapshotDir) {
-		targetSnapshotDir := GetVolumeSnapshotDir(d.name, volType, newName)
+		targetSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
 
 		err = os.Rename(srcSnapshotDir, targetSnapshotDir)
 		if err != nil {
@@ -517,16 +518,16 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 		return err
 	}
 
-	sourcePath := GetVolumeMountPath(d.name, volType, newName)
-	targetPath := GetVolumeMountPath(d.name, volType, newName)
+	sourcePath := GetVolumeMountPath(d.name, vol.volType, newName)
+	targetPath := GetVolumeMountPath(d.name, vol.volType, newName)
 
 	for _, snapshot := range snapshots {
 		// Figure out the snapshot paths.
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.name)
 		oldCephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 		newCephSnapPath := filepath.Join(targetPath, ".snap", snapName)
-		oldPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapName))
-		newPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(newName, snapName))
+		oldPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(vol.name, snapName))
+		newPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(newName, snapName))
 
 		// Update the symlink.
 		err = os.Symlink(newCephSnapPath, newPath)
@@ -541,8 +542,8 @@ func (d *cephfs) RenameVolume(volType VolumeType, volName string, newName string
 		})
 	}
 
-	oldPath := GetVolumeMountPath(d.name, volType, volName)
-	newPath := GetVolumeMountPath(d.name, volType, newName)
+	oldPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	newPath := GetVolumeMountPath(d.name, vol.volType, newName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
 		return err
@@ -563,11 +564,11 @@ func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error
 		return nil
 	}
 
-	return d.SetVolumeQuota(vol.volType, vol.name, value, nil)
+	return d.SetVolumeQuota(vol, value, nil)
 }
 
-func (d *cephfs) GetVolumeUsage(volType VolumeType, volName string) (int64, error) {
-	out, err := shared.RunCommand("getfattr", "-n", "ceph.quota.max_bytes", "--only-values", GetVolumeMountPath(d.name, volType, volName))
+func (d *cephfs) GetVolumeUsage(vol Volume) (int64, error) {
+	out, err := shared.RunCommand("getfattr", "-n", "ceph.quota.max_bytes", "--only-values", GetVolumeMountPath(d.name, vol.volType, vol.name))
 	if err != nil {
 		return -1, err
 	}
@@ -580,7 +581,7 @@ func (d *cephfs) GetVolumeUsage(volType VolumeType, volName string) (int64, erro
 	return size, nil
 }
 
-func (d *cephfs) SetVolumeQuota(volType VolumeType, volName, size string, op *operations.Operation) error {
+func (d *cephfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	if size == "" || size == "0" {
 		size = d.config["volume.size"]
 	}
@@ -590,57 +591,59 @@ func (d *cephfs) SetVolumeQuota(volType VolumeType, volName, size string, op *op
 		return err
 	}
 
-	_, err = shared.RunCommand("setfattr", "-n", "ceph.quota.max_bytes", "-v", fmt.Sprintf("%d", sizeBytes), GetVolumeMountPath(d.name, volType, volName))
+	_, err = shared.RunCommand("setfattr", "-n", "ceph.quota.max_bytes", "-v", fmt.Sprintf("%d", sizeBytes), GetVolumeMountPath(d.name, vol.volType, vol.name))
 	return err
 }
 
-func (d *cephfs) MountVolume(volType VolumeType, volName string, op *operations.Operation) (bool, error) {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	if vol.volType != VolumeTypeCustom {
 		return false, fmt.Errorf("Volume type not supported")
 	}
 
 	return false, nil
 }
 
-func (d *cephfs) MountVolumeSnapshot(volType VolumeType, VolName, snapshotName string, op *operations.Operation) (bool, error) {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	if snapVol.volType != VolumeTypeCustom {
 		return false, fmt.Errorf("Volume type not supported")
 	}
 
 	return false, nil
 }
 
-func (d *cephfs) UnmountVolume(volType VolumeType, volName string, op *operations.Operation) (bool, error) {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	if vol.volType != VolumeTypeCustom {
 		return false, fmt.Errorf("Volume type not supported")
 	}
 
 	return false, nil
 }
 
-func (d *cephfs) UnmountVolumeSnapshot(volType VolumeType, volName, snapshotName string, op *operations.Operation) (bool, error) {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+	if snapVol.volType != VolumeTypeCustom {
 		return false, fmt.Errorf("Volume type not supported")
 	}
 
 	return false, nil
 }
 
-func (d *cephfs) CreateVolumeSnapshot(volType VolumeType, volName string, newSnapshotName string, op *operations.Operation) error {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	if snapVol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
 
+	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+
 	// Create the snapshot.
-	sourcePath := GetVolumeMountPath(d.name, volType, volName)
-	cephSnapPath := filepath.Join(sourcePath, ".snap", newSnapshotName)
+	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
+	cephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 
 	err := os.Mkdir(cephSnapPath, 0711)
 	if err != nil {
 		return err
 	}
 
-	targetPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, newSnapshotName))
+	targetPath := snapVol.MountPath()
 
 	err = os.MkdirAll(filepath.Dir(targetPath), 0711)
 	if err != nil {
@@ -655,14 +658,16 @@ func (d *cephfs) CreateVolumeSnapshot(volType VolumeType, volName string, newSna
 	return nil
 }
 
-func (d *cephfs) DeleteVolumeSnapshot(volType VolumeType, volName string, snapshotName string, op *operations.Operation) error {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	if snapVol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
 
+	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+
 	// Delete the snapshot itself.
-	sourcePath := GetVolumeMountPath(d.name, volType, volName)
-	cephSnapPath := filepath.Join(sourcePath, ".snap", snapshotName)
+	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
+	cephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 
 	err := os.Remove(cephSnapPath)
 	if err != nil {
@@ -670,7 +675,7 @@ func (d *cephfs) DeleteVolumeSnapshot(volType VolumeType, volName string, snapsh
 	}
 
 	// Remove the symlink.
-	snapPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
+	snapPath := snapVol.MountPath()
 	err = os.Remove(snapPath)
 	if err != nil {
 		return err
@@ -679,13 +684,14 @@ func (d *cephfs) DeleteVolumeSnapshot(volType VolumeType, volName string, snapsh
 	return nil
 }
 
-func (d *cephfs) RenameVolumeSnapshot(volType VolumeType, volName string, snapshotName string, newSnapshotName string, op *operations.Operation) error {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+	if snapVol.volType != VolumeTypeCustom {
 		return fmt.Errorf("Volume type not supported")
 	}
 
-	sourcePath := GetVolumeMountPath(d.name, volType, volName)
-	oldCephSnapPath := filepath.Join(sourcePath, ".snap", snapshotName)
+	parentName, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
+	oldCephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 	newCephSnapPath := filepath.Join(sourcePath, ".snap", newSnapshotName)
 
 	err := os.Rename(oldCephSnapPath, newCephSnapPath)
@@ -694,13 +700,13 @@ func (d *cephfs) RenameVolumeSnapshot(volType VolumeType, volName string, snapsh
 	}
 
 	// Re-generate the snapshot symlink.
-	oldPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, snapshotName))
+	oldPath := snapVol.MountPath()
 	err = os.Remove(oldPath)
 	if err != nil {
 		return err
 	}
 
-	newPath := GetVolumeMountPath(d.name, volType, GetSnapshotVolumeName(volName, newSnapshotName))
+	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
 	err = os.Symlink(newCephSnapPath, newPath)
 	if err != nil {
 		return err
@@ -709,12 +715,12 @@ func (d *cephfs) RenameVolumeSnapshot(volType VolumeType, volName string, snapsh
 	return nil
 }
 
-func (d *cephfs) VolumeSnapshots(volType VolumeType, volName string, op *operations.Operation) ([]string, error) {
-	if volType != VolumeTypeCustom {
+func (d *cephfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+	if vol.volType != VolumeTypeCustom {
 		return nil, fmt.Errorf("Volume type not supported")
 	}
 
-	snapshotDir := GetVolumeSnapshotDir(d.name, volType, volName)
+	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 	snapshots := []string{}
 
 	ents, err := ioutil.ReadDir(snapshotDir)
@@ -834,7 +840,10 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 
 		// Remove any paths created if we are reverting.
 		for _, snapName := range revertSnaps {
-			d.DeleteVolumeSnapshot(vol.volType, vol.name, snapName, op)
+			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+
+			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
 		os.RemoveAll(volPath)
@@ -857,8 +866,11 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 				return err
 			}
 
+			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+
 			// Create the snapshot itself.
-			err = d.CreateVolumeSnapshot(vol.volType, vol.name, snapName, op)
+			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
 				return err
 			}
@@ -868,7 +880,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol.volType, vol.name, vol.config["size"], op)
+		err = d.SetVolumeQuota(vol, vol.config["size"], op)
 		if err != nil {
 			return err
 		}
