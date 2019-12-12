@@ -29,6 +29,7 @@ import (
 type lxdBackend struct {
 	driver drivers.Driver
 	id     int64
+	db     api.StoragePool
 	name   string
 	state  *state.State
 	logger logger.Logger

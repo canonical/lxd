@@ -94,6 +94,11 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 	pool := lxdBackend{}
 	pool.driver = driver
 	pool.id = poolID
+	pool.db = api.StoragePool{
+		StoragePoolPut: dbPool.StoragePoolPut,
+		Name:           dbPool.Name,
+		Driver:         dbPool.Driver,
+	}
 	pool.name = dbPool.Name
 	pool.state = state
 	pool.logger = logger
@@ -142,6 +147,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	pool := lxdBackend{}
 	pool.driver = driver
 	pool.id = poolID
+	pool.db = *dbPool
 	pool.name = dbPool.Name
 	pool.state = state
 	pool.logger = logger
