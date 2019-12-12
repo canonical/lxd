@@ -44,10 +44,13 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 	return instancetype.Any, nil
 }
 
+// Pull out the Instance in order to filter
 func evaluateFieldInstanceFull(field string, value string, op string, instFull *api.InstanceFull) bool {
 	return evaluateFieldInstance(field, value, op, &instFull.Instance)
 }
 
+
+// Evaluate a field of a filter on an instance
 func evaluateFieldInstance(field string, value string, op string, container *api.Instance) bool {
 	result := false
 

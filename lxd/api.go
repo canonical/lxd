@@ -152,6 +152,7 @@ func queryParam(request *http.Request, key string) string {
 	return values.Get(key)
 }
 
+// Process a filter over a set about to be returned
 func doFilter (fstr string, result []interface{}) []interface{} {
 	newResult := result[:0]
 	for _,obj := range result {
@@ -162,6 +163,7 @@ func doFilter (fstr string, result []interface{}) []interface{} {
 	return newResult
 }
 
+// Apply a filter to a single object
 func applyFilter (fstr string, obj interface{}) bool {
 	filterSplit := strings.Fields(fstr)
 
@@ -181,11 +183,22 @@ func applyFilter (fstr string, obj interface{}) bool {
 		operator := filterSplit[index+1]
 		value := filterSplit[index+2]
 		index+=3
-		// eval 
+
+		// support strings with spaces that are quoted
+		if strings.HasPrefix(value, "\"") {
+			value = value[1:len(value)]
+			for !strings.HasSuffix(filterSplit[index], "\"") {
+				value = value + " " + filterSplit[index]
+				index++
+			}
+			end := filterSplit[index]
+			value = value + " " + end[0:len(end)-1]
+			index++
+		}
 
 		curResult := false
 		
-		logger.Warnf("JackieError: %s", reflect.TypeOf(obj))
+		// Pass to eval function of correct type
 		objType := reflect.TypeOf(obj).String()
 		switch (objType) {
 			case "*api.Instance":
@@ -198,11 +211,12 @@ func applyFilter (fstr string, obj interface{}) bool {
 				curResult = evaluateFieldImage(field, value, operator, obj.(*api.Image))
 				break
 			default:
-				logger.Warnf("Unable to identify type")
+				logger.Error("Error while filtering: unable to identify type")
 				break
-
 		}
 
+
+		// Finish out logic
 		if not {
 			not = false
 			curResult = !curResult

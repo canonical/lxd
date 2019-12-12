@@ -153,29 +153,32 @@ by the object itself.
 To filter your results on certain values, filter is implemented for collections.
 A `filter` argument can be passed to a GET query against a collection.
 
-FIltering is available for the container and image endpoints.
+FIltering is available for the instance and image endpoints.
 
 There is no default value for filter which means that all results found will
 be returned. The following is the language used for the filter argument:
 
-?filter=field_name+eq+desired_field_assignment
+?filter=field_name eq desired_field_assignment
 
 The language follows the OData conventions for structuring REST API filtering
 logic. Logical operators are also supported for filtering: not(not), equals(eq),
-not equals(ne), and(and), or(or). Nesting filtering is also supported. For
-instance to filter on a field in a device config you would pass:
+not equals(ne), and(and), or(or). Values with spaces can be surrounded with quotes.
+Nesting filtering is also supported. For instance, to filter on a field in a 
+device config you would pass:
 
-?filter=config.field_name+eq+desired_field_assignment
+?filter=config.field_name eq desired_field_assignment
 
 For filtering on device attributes you would pass:
 
-?filter=device.field_name+eq+device_name.desired_field_assignment
+?filter=device.field_name eq device_name.desired_field_assignment
 
 Here are a few GET query examples of the different filtering methods mentioned above:
 
-* curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=name+eq+first+and+status+eq+Running
-* curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/containers?filter=config.image.os+eq+ubuntu+and+device.nictype+eq+eth0.bridged
-* curl --unix-socket /var/lib/lxd/unix.socket -X GET lxd/1.0/images?filter=Properties.os+eq+Centos+and+UpdateSource.Protocol+eq+simplestreams
+containers?filter=name eq "my container" and status eq Running
+
+containers?filter=config.image.os eq ubuntu or device.nictype eq eth0.bridged
+
+images?filter=Properties.os eq Centos and not UpdateSource.Protocol eq simplestreams
 
 Filter is implemented by simply finding the results returned by a normal GET
 query and only returning the ones that match the information given.
