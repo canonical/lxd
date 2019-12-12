@@ -152,35 +152,36 @@ func queryParam(request *http.Request, key string) string {
 	return values.Get(key)
 }
 
-// Process a filter over a set about to be returned
-func doFilter (fstr string, result []interface{}) []interface{} {
-	newResult := result[:0]
-	for _,obj := range result {
-		if applyFilter(fstr, obj) {
-			newResult = append(newResult, obj)
-		}
-	}
-	return newResult
+type FilterEntry struct {
+	PrevLogical string
+	Not bool
+	Field string
+	Operator string
+	Value string
 }
 
-// Apply a filter to a single object
-func applyFilter (fstr string, obj interface{}) bool {
+// Parse a filter, and then apply over list of structs
+func doFilter (fstr string, result []interface{}) []interface{} {
+	filter := []*FilterEntry{}
+
 	filterSplit := strings.Fields(fstr)
 
 	index := 0
-	result := true
 	prevLogical := "and"
-	not := false
 
 	queryLen := len(filterSplit)
 
 	for index < queryLen {
+		entry := FilterEntry{}
 		if strings.EqualFold(filterSplit[index], "not") {
-			not = true
+			entry.Not = true
 			index++
+		} else {
+			entry.Not = false
 		}
-		field := filterSplit[index]
-		operator := filterSplit[index+1]
+
+		entry.Field = filterSplit[index]
+		entry.Operator = filterSplit[index+1]
 		value := filterSplit[index+2]
 		index+=3
 
@@ -195,44 +196,62 @@ func applyFilter (fstr string, obj interface{}) bool {
 			value = value + " " + end[0:len(end)-1]
 			index++
 		}
+		entry.Value = value
 
+		entry.PrevLogical = prevLogical
+		if index < queryLen {
+			prevLogical = filterSplit[index]
+			index++
+		}
+		filter = append(filter, &entry)
+	}
+
+	// Apply filter over list
+	newResult := result[:0]
+	for _,obj := range result {
+		if applyFilter(filter, obj) {
+			newResult = append(newResult, obj)
+		}
+	}
+	return newResult
+}
+
+// Apply a filter to a single object
+func applyFilter (filter []*FilterEntry, obj interface{}) bool {
+	result := true
+
+	for _,entry := range filter {
 		curResult := false
 		
 		// Pass to eval function of correct type
 		objType := reflect.TypeOf(obj).String()
 		switch (objType) {
 			case "*api.Instance":
-				curResult = evaluateFieldInstance(field, value, operator, obj.(*api.Instance))
+				curResult = evaluateFieldInstance(*entry, obj.(*api.Instance))
 				break
 			case "*api.InstanceFull":
-				curResult = evaluateFieldInstanceFull(field, value, operator, obj.(*api.InstanceFull))
+				curResult = evaluateFieldInstanceFull(*entry, obj.(*api.InstanceFull))
 				break
 			case "*api.Image":
-				curResult = evaluateFieldImage(field, value, operator, obj.(*api.Image))
+				curResult = evaluateFieldImage(*entry, obj.(*api.Image))
 				break
 			default:
 				logger.Error("Error while filtering: unable to identify type")
-				break
+				return false
 		}
 
 
 		// Finish out logic
-		if not {
-			not = false
+		if entry.Not {
 			curResult = !curResult
 		}
 
-		if strings.EqualFold (prevLogical, "and") {
+		if strings.EqualFold (entry.PrevLogical, "and") {
 			result = curResult && result
 		} else {
-			if strings.EqualFold(prevLogical, "or") {
+			if strings.EqualFold(entry.PrevLogical, "or") {
 				result = curResult || result
 			}
-		}
-
-		if index < queryLen {
-			prevLogical = filterSplit[index]
-			index++
 		}
 	}
 

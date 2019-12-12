@@ -45,15 +45,16 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 }
 
 // Pull out the Instance in order to filter
-func evaluateFieldInstanceFull(field string, value string, op string, instFull *api.InstanceFull) bool {
-	return evaluateFieldInstance(field, value, op, &instFull.Instance)
+func evaluateFieldInstanceFull(entry FilterEntry, instFull *api.InstanceFull) bool {
+	return evaluateFieldInstance(entry, &instFull.Instance)
 }
 
 
 // Evaluate a field of a filter on an instance
-func evaluateFieldInstance(field string, value string, op string, container *api.Instance) bool {
+func evaluateFieldInstance(entry FilterEntry, container *api.Instance) bool {
 	result := false
-
+	field := entry.Field
+	value := entry.Value
 	switch {
 		case strings.EqualFold(field, "name"):
 			logger.Warnf("In name eval, %s == %s", value, container.Name)
@@ -93,7 +94,7 @@ func evaluateFieldInstance(field string, value string, op string, container *api
 			return false
 	}
 
-	if op == "ne" {
+	if entry.Operator == "ne" {
 		result = !result
 	}
 

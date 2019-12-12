@@ -916,9 +916,10 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func evaluateFieldImage(field string, value string, op string , image *api.Image) bool {
+func evaluateFieldImage(entry FilterEntry, image *api.Image) bool {
 	result := false
-
+	value := entry.Value
+	field := entry.Field
 	logger.Warnf("IN EVAL IMAGE: %s", image)
 
 	switch {
@@ -992,7 +993,7 @@ func evaluateFieldImage(field string, value string, op string , image *api.Image
 			return false
 	}
 
-	if strings.EqualFold(op, "ne") {
+	if strings.EqualFold(entry.Operator, "ne") {
 		result = !result
 	}
 
