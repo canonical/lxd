@@ -634,6 +634,35 @@ func (vm *Qemu) Start(stateful bool) error {
 		"-chroot", vm.Path(),
 	}
 
+	// Attempt to drop privileges.
+	if vm.state.OS.UnprivUser != "" {
+		args = append(args, "-runas", vm.state.OS.UnprivUser)
+
+		// Change ownership of config directory files so they are accessible to the
+		// unprivileged qemu process so that the 9p share can work.
+		//
+		// Security note: The 9P share will present the UID owner of these files on the host
+		// to the VM. In order to ensure that non-root users in the VM cannot access these
+		// files be sure to mount the 9P share in the VM with the "access=0" option to allow
+		// only root user in VM to access the mounted share.
+		err := filepath.Walk(filepath.Join(vm.Path(), "config"),
+			func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+
+				err = os.Chown(path, vm.state.OS.UnprivUID, -1)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+		if err != nil {
+			return err
+		}
+	}
+
 	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
 		args = append(args, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
 	}
