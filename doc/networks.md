@@ -1,8 +1,4 @@
 # Network configuration
-LXD supports creating and managing bridges, below is a list of the
-configuration options supported for those bridges.
-
-Note that this feature was introduced as part of API extension "network".
 
 The key/value configuration is namespaced with the following namespaces
 currently supported:
@@ -16,8 +12,44 @@ currently supported:
  - `raw` (raw configuration file content)
  - `user` (free form key/value for user metadata)
 
-It is expected that IP addresses and subnets are given using CIDR notation (`1.1.1.1/24` or `fd80:1234::1/64`).
-The exception being tunnel local and remote addresses which are just plain addresses (`1.1.1.1` or `fd80:1234::1`).
+## Bridges
+
+As one of the possible network configuration types under LXD,
+LXD supports creating and managing network bridges. LXD bridges 
+can leverage underlying native Linux bridges and Open vSwitch. 
+
+Creation and management of LXD bridges is performed via the `lxc network`
+command. A bridge created by LXD is by default "managed" which 
+means that LXD also will additionally set up a local `dnsmasq` 
+DHCP server and if desired also perform NAT for the bridge (this 
+is the default.)
+
+When a bridge is managed by LXD, configuration values
+under the `bridge` namespace can be used to configure it.
+
+Additionally, LXD can utilize a pre-existing Linux
+bridge. In this case, the bridge does not need to be created via
+`lxd network` and can simply be referenced in a container or
+profile device configuration as follows:
+
+```
+devices:
+  eth0:
+     name: eth0
+     nictype: bridged
+     parent: br0
+     type: nic
+```
+
+## Configuration Settings
+
+A complete list of configuration settings for LXD networks can
+be found below.
+
+It is expected that IP addresses and subnets are given using CIDR 
+notation (`1.1.1.1/24` or `fd80:1234::1/64`). The exception being 
+tunnel local and remote addresses which are just plain addresses 
+(`1.1.1.1` or `fd80:1234::1`).
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
