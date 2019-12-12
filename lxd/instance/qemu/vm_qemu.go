@@ -628,6 +628,7 @@ func (vm *Qemu) Start(stateful bool) error {
 		"-serial", "chardev:console",
 		"-nodefaults",
 		"-no-reboot",
+		"-no-user-config",
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
 	}
