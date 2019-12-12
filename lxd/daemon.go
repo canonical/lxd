@@ -28,6 +28,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
@@ -621,6 +622,9 @@ func (d *Daemon) init() error {
 		idmap.VFS3Fscaps = idmap.VFS3FscapsUnsupported
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
+
+	cgroups := cgroup.GetInfo()
+	logger.Infof(" - cgroup layout: %s", cgroups.Mode())
 
 	// Detect shiftfs support.
 	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
