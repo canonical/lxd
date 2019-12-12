@@ -631,7 +631,9 @@ func (vm *Qemu) Start(stateful bool) error {
 		"-no-user-config",
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
+		"-chroot", vm.Path(),
 	}
+
 	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
 		args = append(args, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
 	}
