@@ -2199,11 +2199,30 @@ func (vm *Qemu) Delete() error {
 }
 
 func (vm *Qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
-	return nil
+	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+	if err != nil {
+		return err
+	}
+
+	return d.Add()
 }
 
 func (vm *Qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
-	return nil
+	d, _, err := vm.deviceLoad(deviceName, rawConfig)
+
+	// If deviceLoad fails with unsupported device type then return.
+	if err == device.ErrUnsupportedDevType {
+		return err
+	}
+
+	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
+	// scenario that a new version of LXD has additional validation restrictions than older
+	// versions we still need to allow previously valid devices to be stopped.
+	if err != nil {
+		logger.Errorf("Device remove validation failed for '%s': %v", deviceName, err)
+	}
+
+	return d.Remove()
 }
 
 // Export publishes the instance.
