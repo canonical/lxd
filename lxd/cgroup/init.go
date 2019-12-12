@@ -48,6 +48,22 @@ func GetInfo() Info {
 	return info
 }
 
+// Mode returns the cgroup layout name
+func (info *Info) Mode() string {
+	switch info.Layout {
+	case CgroupsDisabled:
+		return "disabled"
+	case CgroupsUnified:
+		return "cgroup2"
+	case CgroupsHybrid:
+		return "hybrid"
+	case CgroupsLegacy:
+		return "legacy"
+	}
+
+	return "unknown"
+}
+
 func init() {
 	_, err := os.Stat("/proc/self/ns/cgroup")
 	if err == nil {
