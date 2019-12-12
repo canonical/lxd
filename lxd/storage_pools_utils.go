@@ -15,6 +15,17 @@ import (
 )
 
 func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
+	// Handle the new logic
+	pool, err := storagePools.GetPoolByName(state, name)
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return err
+		}
+
+		return pool.Update(!withDB, newDescription, newConfig, nil)
+	}
+
+	// Old logic
 	s, err := storagePoolInit(state, name)
 	if err != nil {
 		return err

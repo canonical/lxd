@@ -29,6 +29,7 @@ import (
 type lxdBackend struct {
 	driver drivers.Driver
 	id     int64
+	db     api.StoragePool
 	name   string
 	state  *state.State
 	logger logger.Logger
@@ -124,6 +125,68 @@ func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	defer logger.Debug("GetResources finished")
 
 	return b.driver.GetResources()
+}
+
+// Update updates the pool config.
+func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("Update started")
+	defer logger.Debug("Update finished")
+
+	// Validate config.
+	err := b.driver.Validate(newConfig)
+	if err != nil {
+		return err
+	}
+
+	// Diff the configurations.
+	changedConfig := make(map[string]string)
+	userOnly := true
+	for key := range b.db.Config {
+		if b.db.Config[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
+		}
+	}
+
+	for key := range newConfig {
+		if b.db.Config[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key]
+		}
+	}
+
+	// Apply config changes if there are any.
+	if len(changedConfig) != 0 {
+		if !userOnly {
+			err = b.driver.Update(changedConfig)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// If only dealing with driver changes, we're done now.
+	if driverOnly {
+		return nil
+	}
+
+	// Update the database if something changed.
+	if len(changedConfig) != 0 || newDesc != b.db.Description {
+		err = b.state.Cluster.StoragePoolUpdate(b.name, newDesc, newConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }
 
 // Delete removes the pool.
