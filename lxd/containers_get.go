@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	// "github.com/lxc/lxd/shared/osarch"
 )
 
 // urlInstanceTypeDetect detects what sort of instance type filter is being requested. Either
@@ -147,7 +146,6 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			recursion = 1
 		}
 	}
-
 
 	// Parse the project field
 	project := projectParam(r)
@@ -341,7 +339,6 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 	}
 	wg.Wait()
-
 
 	if recursion == 0 {
 		return resultString, nil

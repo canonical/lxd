@@ -1610,7 +1610,6 @@ func imageDeleteFromDisk(fingerprint string) {
 func doImageGet(db *db.Cluster, project, fingerprint string, public bool, filter string) (*api.Image, response.Response) {
 	_, imgInfo, err := db.ImageGet(project, fingerprint, public, false)
 
-	logger.Warnf("############Jackieerror: %s", imgInfo)
 	if err != nil {
 		return nil, response.SmartError(err)
 	}
