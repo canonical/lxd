@@ -116,7 +116,7 @@ func init() {
 			}
 
 			controllers, err = os.Open(dedicatedPath)
-			if !os.IsNotExist(err) {
+			if err != nil && !os.IsNotExist(err) {
 				logger.Errorf("Unable to load cgroup.controllers")
 				return
 			}
