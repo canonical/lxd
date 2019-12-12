@@ -47,6 +47,8 @@ type OS struct {
 	LxcPath         string // Path to the $LXD_DIR/containers directory
 	MockMode        bool   // If true some APIs will be mocked (for testing)
 	RunningInUserNS bool
+	UnprivUser      string
+	UnprivUID       int
 
 	// Apparmor features
 	AppArmorAdmin     bool
@@ -109,6 +111,18 @@ func (s *OS) Init() error {
 	s.BackingFS, err = util.FilesystemDetect(s.LxcPath)
 	if err != nil {
 		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
+	}
+
+	// Detect if it is possible to run daemons as an unprivileged user.
+	for _, user := range []string{"lxd", "nobody"} {
+		uid, err := shared.UserId(user)
+		if err != nil {
+			continue
+		}
+
+		s.UnprivUser = user
+		s.UnprivUID = uid
+		break
 	}
 
 	s.IdmapSet = util.GetIdmapSet()
