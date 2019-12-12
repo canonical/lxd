@@ -1150,7 +1150,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 		// Configure the swappiness
 		if memorySwap != "" && !shared.IsTrue(memorySwap) {
-			err = lxcSetConfigItem(cc, "lxc.cgroup.memory.swappiness", "0")
+			err = cg.SetMemorySwappiness("0")
 			if err != nil {
 				return err
 			}
@@ -1159,8 +1159,7 @@ func (c *containerLXC) initLXC(config bool) error {
 			if err != nil {
 				return err
 			}
-
-			err = lxcSetConfigItem(cc, "lxc.cgroup.memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
+			err = cg.SetMemorySwappiness(fmt.Sprintf("%d", 60-10+priority))
 			if err != nil {
 				return err
 			}
@@ -1178,21 +1177,21 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 
 		if cpuShares != "1024" {
-			err = lxcSetConfigItem(cc, "lxc.cgroup.cpu.shares", cpuShares)
+			err = cg.SetCpusShare(cpuShares)
 			if err != nil {
 				return err
 			}
 		}
 
 		if cpuCfsPeriod != "-1" {
-			err = lxcSetConfigItem(cc, "lxc.cgroup.cpu.cfs_period_us", cpuCfsPeriod)
+			err = cg.SetCpuCfsPeriod(cpuCfsPeriod)
 			if err != nil {
 				return err
 			}
 		}
 
 		if cpuCfsQuota != "-1" {
-			err = lxcSetConfigItem(cc, "lxc.cgroup.cpu.cfs_quota_us", cpuCfsQuota)
+			err = cg.SetCpuCfsQuota(cpuCfsQuota)
 			if err != nil {
 				return err
 			}
@@ -3861,6 +3860,10 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 }
 
 func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
+	cg, err := c.cgroup(c.c)
+	if err != nil {
+		return err
+	}
 	// Set sane defaults for unset keys
 	if args.Project == "" {
 		args.Project = "default"
@@ -3883,7 +3886,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := instance.ValidConfig(c.state.OS, args.Config, false, false)
+	err = instance.ValidConfig(c.state.OS, args.Config, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid config")
 	}
@@ -4097,10 +4100,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Load cgroup abstraction
-	cg, err := c.cgroup(nil)
-	if err != nil {
-		return err
-	}
+
 
 	// If apparmor changed, re-validate the apparmor profile
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
@@ -4224,8 +4224,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				if priority == 0 {
 					priority = 10
 				}
-
-				err = c.CGroupSet("blkio.weight", fmt.Sprintf("%d", priority))
+				cg.SetBlkioWeight(fmt.Sprintf("%d", priority))
 				if err != nil {
 					return err
 				}
@@ -4266,7 +4265,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				// Store the old values for revert
 				oldMemswLimit := ""
 				if c.state.OS.CGroupSwapAccounting {
-					oldMemswLimit, err = c.CGroupGet("memory.memsw.limit_in_bytes")
+					oldMemswLimit, err = cg.GetMemorySwapLimit()
 					if err != nil {
 						oldMemswLimit = ""
 					}
@@ -4290,13 +4289,13 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 
 					if oldMemswLimit != "" {
-						c.CGroupSet("memory.memsw.limit_in_bytes", oldMemswLimit)
+						cg.SetMemorySwapMax(oldMemswLimit)
 					}
 				}
 
 				// Reset everything
 				if c.state.OS.CGroupSwapAccounting {
-					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
+					err = cg.SetMemorySwapMax("-1")
 					if err != nil {
 						revertMemory()
 						return err
@@ -4328,8 +4327,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 							revertMemory()
 							return err
 						}
-
-						err = c.CGroupSet("memory.memsw.limit_in_bytes", memory)
+						err = cg.SetMemorySwapMax(memory)
 						if err != nil {
 							revertMemory()
 							return err
@@ -4360,7 +4358,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					memorySwap := c.expandedConfig["limits.memory.swap"]
 					memorySwapPriority := c.expandedConfig["limits.memory.swap.priority"]
 					if memorySwap != "" && !shared.IsTrue(memorySwap) {
-						err = c.CGroupSet("memory.swappiness", "0")
+						err = cg.SetMemorySwappiness("0")
 						if err != nil {
 							return err
 						}
@@ -4372,8 +4370,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 								return err
 							}
 						}
-
-						err = c.CGroupSet("memory.swappiness", fmt.Sprintf("%d", 60-10+priority))
+						err = cg.SetMemorySwappiness(fmt.Sprintf("%d", 60-10+priority))
 						if err != nil {
 							return err
 						}
@@ -4398,18 +4395,16 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
-
-				err = c.CGroupSet("cpu.shares", cpuShares)
+				err = cg.SetCpusShare(cpuShares)
+				if err != nil {
+					return err
+				}
+				err = cg.SetCpuCfsPeriod(cpuCfsPeriod)
 				if err != nil {
 					return err
 				}
 
-				err = c.CGroupSet("cpu.cfs_period_us", cpuCfsPeriod)
-				if err != nil {
-					return err
-				}
-
-				err = c.CGroupSet("cpu.cfs_quota_us", cpuCfsQuota)
+				err = cg.SetCpuCfsQuota(cpuCfsQuota)
 				if err != nil {
 					return err
 				}
@@ -5811,21 +5806,21 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 
 func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
+	cg, err := c.cgroup(c.c)
 
 	if !c.state.OS.CGroupMemoryController {
 		return memory
 	}
 
 	// Memory in bytes
-	cg, err := c.cgroup(c.c)
-	value, err := cg.GetCurrentMemory()
+	value, err := cg.GetMemoryUsage()
 	valueInt, err1 := strconv.ParseInt(value, 10, 64)
 	if err == nil && err1 == nil {
 		memory.Usage = valueInt
 	}
 
 	// Memory peak in bytes
-	value, err = c.CGroupGet("memory.max_usage_in_bytes")
+	value, err = cg.GetMemoryMaxUsage()
 	valueInt, err1 = strconv.ParseInt(value, 10, 64)
 	if err == nil && err1 == nil {
 		memory.UsagePeak = valueInt
@@ -5834,7 +5829,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	if c.state.OS.CGroupSwapAccounting {
 		// Swap in bytes
 		if memory.Usage > 0 {
-			value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
+			value, err := cg.GetMemorySwapUsage()
 			valueInt, err1 := strconv.ParseInt(value, 10, 64)
 			if err == nil && err1 == nil {
 				memory.SwapUsage = valueInt - memory.Usage
@@ -5843,7 +5838,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 
 		// Swap peak in bytes
 		if memory.UsagePeak > 0 {
-			value, err = c.CGroupGet("memory.memsw.max_usage_in_bytes")
+			value, err = cg.GetMemorySwMaxUsage()
 			valueInt, err1 = strconv.ParseInt(value, 10, 64)
 			if err == nil && err1 == nil {
 				memory.SwapUsagePeak = valueInt - memory.UsagePeak
@@ -5924,7 +5919,7 @@ func (c *containerLXC) processesState() int64 {
 		if err!= nil {
 			return 0
 		}
-		value, err := cg.GetCurrentProcesses()
+		value, err := cg.GetProcessesUsage()
 		if err != nil {
 			return -1
 		}
@@ -6498,6 +6493,11 @@ func (c *containerLXC) removeDiskDevices() error {
 
 // Network I/O limits
 func (c *containerLXC) setNetworkPriority() error {
+	cg, err := c.cgroup(c.c)
+	if err != nil {
+		return err
+	}
+
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't set network priority on stopped container")
@@ -6529,7 +6529,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	success := false
 	var last_error error
 	for _, netif := range netifs {
-		err = c.CGroupSet("net_prio.ifpriomap", fmt.Sprintf("%s %d", netif.Name, networkInt))
+		err = cg.SetNetIfPrio(fmt.Sprintf("%s %d", netif.Name, networkInt))
 		if err == nil {
 			success = true
 		} else {
