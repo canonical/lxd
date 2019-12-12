@@ -31,6 +31,8 @@ type Driver interface {
 	Mount() (bool, error)
 	Unmount() (bool, error)
 	GetResources() (*api.ResourcesStoragePool, error)
+	Validate(config map[string]string) error
+	Update(changedConfig map[string]string) error
 
 	// Volumes.
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error

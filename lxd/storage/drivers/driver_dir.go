@@ -88,6 +88,14 @@ func (d *dir) Delete(op *operations.Operation) error {
 	return nil
 }
 
+func (d *dir) Validate(config map[string]string) error {
+	return nil
+}
+
+func (d *dir) Update(changedConfig map[string]string) error {
+	return nil
+}
+
 // Mount mounts the storage pool.
 func (d *dir) Mount() (bool, error) {
 	path := GetPoolMountPath(d.name)
