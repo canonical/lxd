@@ -57,6 +57,25 @@ var updates = map[int]schema.Update{
 	19: updateFromV18,
 	20: updateFromV19,
 	21: updateFromV20,
+	22: updateFromV21,
+}
+
+// Fix "images_profiles" table (missing UNIQUE)
+func updateFromV21(tx *sql.Tx) error {
+	stmts := `
+ALTER TABLE images_profiles RENAME TO old_images_profiles;
+CREATE TABLE images_profiles (
+	image_id INTEGER NOT NULL,
+	profile_id INTEGER NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+	UNIQUE (image_id, profile_id)
+);
+INSERT INTO images_profiles SELECT * FROM old_images_profiles;
+DROP TABLE old_images_profiles;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // Add "images_profiles" table
