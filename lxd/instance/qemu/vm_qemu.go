@@ -987,8 +987,8 @@ Before=cloud-init.target
 
 [Service]
 Type=simple
-WorkingDirectory=/run/lxd_config
-ExecStart=/run/lxd_config/lxd-agent
+WorkingDirectory=/run/lxd_config/9p
+ExecStart=/run/lxd_config/9p/lxd-agent
 
 [Install]
 WantedBy=multi-user.target
@@ -1007,8 +1007,9 @@ ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=-/sbin/modprobe 9pnet_virtio
-ExecStartPre=/bin/mkdir -p /run/lxd_config
-ExecStart=/bin/mount -t 9p config /run/lxd_config
+ExecStartPre=/bin/mkdir -p /run/lxd_config/9p
+ExecStartPre=/bin/chmod 0700 /run/lxd_config/
+ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0
 
 [Install]
 WantedBy=multi-user.target
