@@ -1600,6 +1600,11 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		return err
 	}
 
+	err = VolumeDBCreate(b.state, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

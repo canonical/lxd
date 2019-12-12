@@ -1367,6 +1367,21 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 }
 
 func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool string) error {
+	// New storage pool handling.
+	pool, err := storagePools.GetPoolByName(state, storagePool)
+	if err != storageDrivers.ErrUnknownDriver {
+		if err != nil {
+			return err
+		}
+
+		err = pool.DeleteImage(fingerprint, nil)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// Initialize a new storage interface.
 	s, err := storagePoolVolumeImageInit(state, storagePool, fingerprint)
 	if err != nil {

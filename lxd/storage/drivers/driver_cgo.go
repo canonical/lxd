@@ -1,7 +1,7 @@
 // +build linux
 // +build cgo
 
-package storage
+package drivers
 
 import (
 	"fmt"
@@ -29,8 +29,8 @@ import (
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "../include/macro.h"
-#include "../include/memory_utils.h"
+#include "../../include/macro.h"
+#include "../../include/memory_utils.h"
 
 #define LXD_MAXPATH 4096
 #define LXD_NUMSTRLEN64 21

@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -397,7 +398,7 @@ func (s *storageLvm) StoragePoolDelete() error {
 	if s.loopInfo != nil {
 		// Set LO_FLAGS_AUTOCLEAR before we remove the loop file
 		// otherwise we will get EBADF.
-		err = driver.SetAutoclearOnLoopDev(int(s.loopInfo.Fd()))
+		err = drivers.SetAutoclearOnLoopDev(int(s.loopInfo.Fd()))
 		if err != nil {
 			logger.Warnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s, manual cleanup needed", err)
 		}
@@ -469,12 +470,12 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
 		// Try to prepare new loop device.
-		loopF, loopErr := driver.PrepareLoopDev(source, 0)
+		loopF, loopErr := drivers.PrepareLoopDev(source, 0)
 		if loopErr != nil {
 			return false, loopErr
 		}
 		// Make sure that LO_FLAGS_AUTOCLEAR is unset.
-		loopErr = driver.UnsetAutoclearOnLoopDev(int(loopF.Fd()))
+		loopErr = drivers.UnsetAutoclearOnLoopDev(int(loopF.Fd()))
 		if loopErr != nil {
 			return false, loopErr
 		}
@@ -628,7 +629,7 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	var customerr error
 	ourMount := false
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getLvmMountOptions())
+		mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 		customerr = driver.TryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
@@ -1270,7 +1271,7 @@ func (s *storageLvm) doContainerMount(project, name string, snap bool) (bool, er
 	var mounterr error
 	ourMount := false
 	if !shared.IsMountPoint(containerMntPoint) {
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getLvmMountOptions())
+		mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 		if snap && lvFsType == "xfs" {
 			idx := strings.Index(mountOptions, "nouuid")
 			if idx < 0 {
@@ -1601,7 +1602,7 @@ func (s *storageLvm) ContainerSnapshotStart(container instance.Instance) (bool, 
 	containerMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, containerName)
 	if !shared.IsMountPoint(containerMntPoint) {
 		mntOptString := s.getLvmMountOptions()
-		mountFlags, mountOptions := driver.LXDResolveMountoptions(mntOptString)
+		mountFlags, mountOptions := drivers.ResolveMountOptions(mntOptString)
 
 		if lvFsType == "xfs" {
 			idx := strings.Index(mountOptions, "nouuid")
@@ -2022,7 +2023,7 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
-	mountFlags, mountOptions := driver.LXDResolveMountoptions(s.getLvmMountOptions())
+	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 	err := driver.TryMount(lvmVolumePath, imageMntPoint, lvmFstype, mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf(fmt.Sprintf("Error mounting image LV for unpacking: %s", err))
