@@ -920,7 +920,6 @@ func evaluateFieldImage(entry FilterEntry, image *api.Image) bool {
 	result := false
 	value := entry.Value
 	field := entry.Field
-	logger.Warnf("IN EVAL IMAGE: %s", image)
 
 	switch {
 		case strings.EqualFold(field, "architecture"):
