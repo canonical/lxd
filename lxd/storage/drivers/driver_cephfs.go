@@ -237,6 +237,14 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	return nil
 }
 
+func (d *cephfs) Validate(config map[string]string) error {
+	return nil
+}
+
+func (d *cephfs) Update(changedConfig map[string]string) error {
+	return nil
+}
+
 func (d *cephfs) Mount() (bool, error) {
 	// Check if already mounted.
 	if shared.IsMountPoint(GetPoolMountPath(d.name)) {
