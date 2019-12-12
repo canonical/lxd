@@ -61,7 +61,8 @@ CREATE TABLE images_profiles (
 	image_id INTEGER NOT NULL,
 	profile_id INTEGER NOT NULL,
 	FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
-	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
+	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
+	UNIQUE (image_id, profile_id)
 );
 CREATE INDEX images_project_id_idx ON images (project_id);
 CREATE TABLE images_properties (
