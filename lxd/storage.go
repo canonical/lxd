@@ -58,10 +58,6 @@ func getPoolMountLockID(poolName string) string {
 	return fmt.Sprintf("mount/pool/%s", poolName)
 }
 
-func getPoolUmountLockID(poolName string) string {
-	return fmt.Sprintf("umount/pool/%s", poolName)
-}
-
 func getImageCreateLockID(poolName string, fingerprint string) string {
 	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
 }
@@ -100,8 +96,7 @@ func readStoragePoolDriversCache() map[string]string {
 type storageType int
 
 const (
-	storageTypeBtrfs storageType = iota
-	storageTypeCeph
+	storageTypeCeph storageType = iota
 	storageTypeLvm
 	storageTypeMock
 	storageTypeZfs
@@ -111,8 +106,6 @@ var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "cephfs", "dir", "lv
 
 func storageTypeToString(sType storageType) (string, error) {
 	switch sType {
-	case storageTypeBtrfs:
-		return "btrfs", nil
 	case storageTypeCeph:
 		return "ceph", nil
 	case storageTypeLvm:
@@ -128,8 +121,6 @@ func storageTypeToString(sType storageType) (string, error) {
 
 func storageStringToType(sName string) (storageType, error) {
 	switch sName {
-	case "btrfs":
-		return storageTypeBtrfs, nil
 	case "ceph":
 		return storageTypeCeph, nil
 	case "lvm":
@@ -256,13 +247,6 @@ func storageCoreInit(driver string) (storage, error) {
 	}
 
 	switch sType {
-	case storageTypeBtrfs:
-		btrfs := storageBtrfs{}
-		err = btrfs.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &btrfs, nil
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		err = ceph.StorageCoreInit()
@@ -325,17 +309,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 	}
 
 	switch sType {
-	case storageTypeBtrfs:
-		btrfs := storageBtrfs{}
-		btrfs.poolID = poolID
-		btrfs.pool = pool
-		btrfs.volume = volume
-		btrfs.s = s
-		err = btrfs.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &btrfs, nil
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		ceph.poolID = poolID
