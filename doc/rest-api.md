@@ -162,9 +162,9 @@ be returned. The following is the language used for the filter argument:
 
 The language follows the OData conventions for structuring REST API filtering
 logic. Logical operators are also supported for filtering: not(not), equals(eq),
-not equals(ne), and(and), or(or). Values with spaces can be surrounded with quotes.
-Nesting filtering is also supported. For instance, to filter on a field in a 
-device config you would pass:
+not equals(ne), and(and), or(or). Filters are evaluated with left associativity.
+Values with spaces can be surrounded with quotes. Nesting filtering is also supported. 
+For instance, to filter on a field in a device config you would pass:
 
 ?filter=config.field_name eq desired_field_assignment
 
