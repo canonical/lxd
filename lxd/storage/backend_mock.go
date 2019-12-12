@@ -48,6 +48,10 @@ func (b *mockBackend) Delete(localOnly bool, op *operations.Operation) error {
 	return nil
 }
 
+func (b *mockBackend) Update(localOnly bool, newDescription string, newConfig map[string]string, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) Mount() (bool, error) {
 	return true, nil
 }

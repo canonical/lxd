@@ -20,6 +20,7 @@ type Pool interface {
 
 	GetResources() (*api.ResourcesStoragePool, error)
 	Delete(localOnly bool, op *operations.Operation) error
+	Update(driverOnly bool, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	Mount() (bool, error)
 	Unmount() (bool, error)
