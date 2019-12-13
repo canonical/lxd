@@ -658,7 +658,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
 		// the backup then we cannot proceed so return an error.
-		if bInfo.HasBinaryFormat || pool != "" {
+		if bInfo.OptimizedStorage || pool != "" {
 			return response.InternalError(errors.Wrap(err, "Storage pool not found"))
 		}
 

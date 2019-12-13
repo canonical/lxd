@@ -25,20 +25,20 @@ type Instance interface {
 
 // Info represents exported backup information.
 type Info struct {
-	Project         string   `json:"project" yaml:"project"`
-	Name            string   `json:"name" yaml:"name"`
-	Backend         string   `json:"backend" yaml:"backend"`
-	Privileged      bool     `json:"privileged" yaml:"privileged"`
-	Pool            string   `json:"pool" yaml:"pool"`
-	Snapshots       []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
-	HasBinaryFormat bool     `json:"-" yaml:"-"`
+	Project          string   `json:"project" yaml:"project"`
+	Name             string   `json:"name" yaml:"name"`
+	Backend          string   `json:"backend" yaml:"backend"`
+	Privileged       bool     `json:"privileged" yaml:"privileged"`
+	Pool             string   `json:"pool" yaml:"pool"`
+	Snapshots        []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
+	OptimizedStorage bool     `json:"-" yaml:"-"`
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
 func GetInfo(r io.ReadSeeker) (*Info, error) {
 	var tr *tar.Reader
 	result := Info{}
-	hasBinaryFormat := false
+	optimizedStorage := false
 	hasIndexFile := false
 
 	// Extract
@@ -93,7 +93,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 		}
 
 		if hdr.Name == "backup/container.bin" {
-			hasBinaryFormat = true
+			optimizedStorage = true
 		}
 	}
 
@@ -101,7 +101,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 		return nil, fmt.Errorf("Backup is missing index.yaml")
 	}
 
-	result.HasBinaryFormat = hasBinaryFormat
+	result.OptimizedStorage = optimizedStorage
 	return &result, nil
 }
 
