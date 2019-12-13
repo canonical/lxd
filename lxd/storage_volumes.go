@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
@@ -872,7 +873,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the storage volume.
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -908,6 +909,8 @@ func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) response.Response
 // This function does allow limited functionality for non-custom volume types, specifically you
 // can modify the volume's description only.
 func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) response.Response {
+	project := projectParam(r)
+
 	// Get the name of the storage volume.
 	volumeName, err := storageGetVolumeNameFromURL(r)
 	if err != nil {
@@ -945,7 +948,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the existing storage volume.
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -981,31 +984,42 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 				}
 			}
 
-			// Handle update requests.
+			// Handle custom volume update requests.
 			err = pool.UpdateCustomVolume(vol.Name, req.Description, req.Config, nil)
 			if err != nil {
 				return response.SmartError(err)
 			}
-		} else {
-			// You are only allowed to modify the description for non-custom volumes.
-			// This is a special case because the rootfs devices do not provide a way
-			// to update a non-custom volume's description.
-			if len(req.Config) > 0 {
-				return response.BadRequest(fmt.Errorf("Only description can be modified for volume type %s", volumeTypeName))
+		} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
+			inst, err := instance.LoadByProjectAndName(d.State(), project, vol.Name)
+			if err != nil {
+				return response.NotFound(err)
 			}
 
 			// There is a bug in the lxc client (lxc/storage_volume.go#L829-L865) which
-			// means that modifying a snapshot's description gets routed here rather
-			// than the dedicated snapshot editing route. So need to handle snapshot
-			// volumes here too.
-
-			// Update the database if description changed.
-			if req.Description != vol.Description {
-				err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, vol.Config)
+			// means that modifying an instance snapshot's description gets routed here
+			// rather than the dedicated snapshot editing route. So need to handle
+			// snapshot volumes here too.
+			if inst.IsSnapshot() {
+				// Handle instance snapshot volume update requests.
+				err = pool.UpdateInstanceSnapshot(inst, req.Description, req.Config, nil)
 				if err != nil {
-					response.SmartError(err)
+					return response.SmartError(err)
+				}
+			} else {
+				// Handle instance volume update requests.
+				err = pool.UpdateInstance(inst, req.Description, req.Config, nil)
+				if err != nil {
+					return response.SmartError(err)
 				}
 			}
+		} else if volumeType == db.StoragePoolVolumeTypeImage {
+			// Handle image update requests.
+			err = pool.UpdateImage(vol.Name, req.Description, req.Config, nil)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		} else {
+			return response.SmartError(fmt.Errorf("Invalid volume type"))
 		}
 	} else {
 

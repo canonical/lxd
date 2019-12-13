@@ -59,8 +59,8 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 
 // create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
-func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"args": dbPool})
+func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "localOnly": localOnly})
 	logger.Debug("create started")
 	defer logger.Debug("created finished")
 
@@ -120,6 +120,7 @@ func (b *lxdBackend) newVolume(volType drivers.VolumeType, contentType drivers.C
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig)
 }
 
+// GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	logger := logging.AddContext(b.logger, nil)
 	logger.Debug("GetResources started")
@@ -141,27 +142,7 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 	}
 
 	// Diff the configurations.
-	changedConfig := make(map[string]string)
-	userOnly := true
-	for key := range b.db.Config {
-		if b.db.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
-		}
-	}
-
-	for key := range newConfig {
-		if b.db.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key]
-		}
-	}
+	changedConfig, userOnly := b.detectChangedConfig(b.db.Config, newConfig)
 
 	// Apply config changes if there are any.
 	if len(changedConfig) != 0 {
@@ -1146,6 +1127,95 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	return nil
 }
 
+// UpdateInstance updates an instance volume's config.
+func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateInstance started")
+	defer logger.Debug("UpdateInstance finished")
+
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance cannot be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	contentType := InstanceContentType(inst)
+
+	// Validate config.
+	newVol := b.newVolume(volType, contentType, volStorageName, newConfig)
+	err = b.driver.ValidateVolume(newVol, false)
+	if err != nil {
+		return err
+	}
+
+	// Get current config to compare what has changed.
+	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), volStorageName, volDBType, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	// Apply config changes if there are any.
+	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
+	if len(changedConfig) != 0 {
+		curVol := b.newVolume(volType, contentType, volStorageName, curVol.Config)
+		if !userOnly {
+			err = b.driver.UpdateVolume(curVol, changedConfig)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Update the database if something changed.
+	if len(changedConfig) != 0 || newDesc != curVol.Description {
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(inst.Project(), volStorageName, volDBType, b.ID(), newDesc, newConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// UpdateInstanceSnapshot updates an instance snapshot volume's description.
+// Volume config is not allowed to be updated and will return an error.
+func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateInstanceSnapshot started")
+	defer logger.Debug("UpdateInstanceSnapshot finished")
+
+	if !inst.IsSnapshot() {
+		return fmt.Errorf("Instance must be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig)
+}
+
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
@@ -1733,6 +1803,47 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	return nil
 }
 
+// updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
+// that only allow their descriptions to be updated. If any config supplied differs from the
+// current volume's config then an error is returned.
+func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
+	// Get current config to compare what has changed.
+	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volName, dbVolType, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	if newConfig != nil {
+		changedConfig, _ := b.detectChangedConfig(curVol.Config, newConfig)
+		if len(changedConfig) != 0 {
+			return fmt.Errorf("Volume config is not editable")
+		}
+	}
+
+	// Update the database if description changed. Use current config.
+	if newDesc != curVol.Description {
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(project, volName, dbVolType, b.ID(), newDesc, curVol.Config)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// UpdateImage updates image config.
+func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint, "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateImage started")
+	defer logger.Debug("UpdateImage finished")
+
+	return b.updateVolumeDescriptionOnly("default", fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig)
+}
+
 // CreateCustomVolume creates an empty custom volume.
 func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName, "desc": desc, "config": config})
@@ -2087,6 +2198,36 @@ func (b *lxdBackend) RenameCustomVolume(volName string, newVolName string, op *o
 	return nil
 }
 
+// detectChangedConfig returns the config that has changed between current and new config maps.
+// Also returns a boolean indicating whether all of the changed keys start with "user.".
+// Deleted keys will be returned as having an empty string value.
+func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string) (map[string]string, bool) {
+	// Diff the configurations.
+	changedConfig := make(map[string]string)
+	userOnly := true
+	for key := range curConfig {
+		if curConfig[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
+		}
+	}
+
+	for key := range newConfig {
+		if curConfig[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key]
+		}
+	}
+
+	return changedConfig, userOnly
+}
+
 // UpdateCustomVolume applies the supplied config to the custom volume.
 func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName, "newDesc": newDesc, "newConfig": newConfig})
@@ -2114,30 +2255,8 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 		return err
 	}
 
-	// Diff the configurations.
-	changedConfig := make(map[string]string)
-	userOnly := true
-	for key := range curVol.Config {
-		if curVol.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
-		}
-	}
-
-	for key := range newConfig {
-		if curVol.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key]
-		}
-	}
-
 	// Apply config changes if there are any.
+	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
 	if len(changedConfig) != 0 {
 		curVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, curVol.Config)
 		if !userOnly {
@@ -2173,13 +2292,27 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.Cluster.StoragePoolVolumeUpdate(volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// UpdateCustomVolumeSnapshot updates the description of a custom volume snapshot.
+// Volume config is not allowd to be updated and will return an error.
+func (b *lxdBackend) UpdateCustomVolumeSnapshot(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName, "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateCustomVolumeSnapshot started")
+	defer logger.Debug("UpdateCustomVolumeSnapshot finished")
+
+	if !shared.IsSnapshot(volName) {
+		return fmt.Errorf("Volume must be a snapshot")
+	}
+
+	return b.updateVolumeDescriptionOnly("default", volName, db.StoragePoolVolumeTypeCustom, newDesc, newConfig)
 }
 
 // DeleteCustomVolume removes a custom volume and its snapshots.

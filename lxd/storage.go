@@ -566,7 +566,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 	// Update last idmap
 	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
 
-	err = s.Cluster.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = s.Cluster.StoragePoolVolumeUpdateByProject("default", volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return err
 	}

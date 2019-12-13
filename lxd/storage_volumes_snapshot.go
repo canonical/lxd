@@ -459,11 +459,25 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	do := func(op *operations.Operation) error {
-		// Update the database if description changed.
-		if req.Description != vol.Description {
-			err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, vol.Config)
+		// Check if we can load new storage layer for pool driver type.
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
 			if err != nil {
 				return err
+			}
+
+			// Handle custom volume update requests.
+			err = pool.UpdateCustomVolumeSnapshot(vol.Name, req.Description, nil, op)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Update the database if description changed. Use current config.
+			if req.Description != vol.Description {
+				err = d.cluster.StoragePoolVolumeUpdateByProject("default", vol.Name, volumeType, poolID, req.Description, vol.Config)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

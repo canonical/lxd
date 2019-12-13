@@ -76,6 +76,11 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		}
 	}
 
+	// If volume type is not custom, don't allow "size" property.
+	if vol.volType != VolumeTypeCustom && vol.config["size"] != "" {
+		return fmt.Errorf("Volume 'size' property is only valid for custom volume types")
+	}
+
 	return nil
 }
 
