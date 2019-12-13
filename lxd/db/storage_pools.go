@@ -871,16 +871,15 @@ func (c *Cluster) StoragePoolNodeVolumeGetTypeByProject(project, volumeName stri
 	return c.StoragePoolVolumeGetType(project, volumeName, volumeType, poolID, c.nodeID)
 }
 
-// StoragePoolVolumeUpdate updates the storage volume attached to a given storage
-// pool.
-func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	volumeID, _, err := c.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+// StoragePoolVolumeUpdateByProject updates the storage volume attached to a given storage pool.
+func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
+	volumeID, _, err := c.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, "default", volumeName, volumeType, poolID, func(volumeID int64) error {
+		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
 			err = StorageVolumeConfigClear(tx.tx, volumeID)
 			if err != nil {
 				return err

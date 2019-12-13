@@ -88,6 +88,10 @@ func (b *mockBackend) DeleteInstance(inst instance.Instance, op *operations.Oper
 	return nil
 }
 
+func (b *mockBackend) UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }
@@ -144,11 +148,19 @@ func (b *mockBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operat
 	return true, nil
 }
 
+func (b *mockBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
 	return nil
 }
 
 func (b *mockBackend) DeleteImage(fingerprint string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	return nil
 }
 
@@ -201,6 +213,10 @@ func (b *mockBackend) RenameCustomVolumeSnapshot(volName string, newName string,
 }
 
 func (b *mockBackend) DeleteCustomVolumeSnapshot(volName string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) UpdateCustomVolumeSnapshot(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	return nil
 }
 
