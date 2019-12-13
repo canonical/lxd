@@ -1191,6 +1191,31 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	return nil
 }
 
+// UpdateInstanceSnapshot updates an instance snapshot volume's description.
+// Volume config is not allowed to be updated and will return an error.
+func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateInstanceSnapshot started")
+	defer logger.Debug("UpdateInstanceSnapshot finished")
+
+	if !inst.IsSnapshot() {
+		return fmt.Errorf("Instance must be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig)
+}
+
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
