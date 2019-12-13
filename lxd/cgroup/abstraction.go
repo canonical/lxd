@@ -151,6 +151,8 @@ func (cg *CGroup) GetCPUAcctUsage() (string, error) {
 		return "", ErrControllerMissing
 	case V1:
 		return cg.rw.Get(version, "cpuacct", "cpuacct.usage")
+	case V2:
+		return "", ErrControllerMissing
 	}
 	return "", ErrUnknownVersion
 }
@@ -163,6 +165,8 @@ func (cg *CGroup) GetMemoryMaxUsage() (string, error) {
 		return "", ErrControllerMissing
 	case V1:
 		return cg.rw.Get(version, "memory", "memory.max_usage_in_bytes")
+	case V2:
+		return "", ErrControllerMissing
 	}
 	return "", ErrUnknownVersion
 }
@@ -175,6 +179,8 @@ func (cg *CGroup) GetMemorySwMaxUsage() (string, error) {
 		return "", ErrControllerMissing
 	case V1:
 		return cg.rw.Get(version, "memory", "memory.memsw.max_usage_in_bytes")
+	case V2:
+		return "", ErrControllerMissing
 	}
 	return "", ErrUnknownVersion
 }
@@ -188,6 +194,8 @@ func (cg *CGroup) SetMemorySwappiness(value string) error {
 		return ErrControllerMissing
 	case V1:
 		return cg.rw.Set(version, "memory", "memory.swappiness", value)
+	case V2:
+		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
 }
@@ -229,6 +237,8 @@ func (cg *CGroup) GetBlkioWeight() (string, error) {
 		return "", ErrControllerMissing
 	case V1:
 		return cg.rw.Get(version, "blkio", "blkio.weight")
+	case V2:
+		return "", ErrControllerMissing
 	}
 	return "", ErrUnknownVersion
 }
@@ -241,6 +251,8 @@ func (cg *CGroup) SetBlkioWeight(value string) error {
 		return ErrControllerMissing
 	case V1:
 		return cg.rw.Set(version, "blkio", "blkio.weight", value)
+	case V2:
+		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
 
@@ -255,6 +267,8 @@ func (cg *CGroup) SetCPUShare(value string) error {
 		return ErrControllerMissing
 	case V1:
 		return cg.rw.Set(version, "cpu", "cpu.shares", value)
+	case V2:
+		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
 }
@@ -268,6 +282,8 @@ func (cg *CGroup) SetCPUCfsPeriod(value string) error {
 		return ErrControllerMissing
 	case V1:
 		return cg.rw.Set(version, "cpu", "cpu.cfs_period_us", value)
+	case V2:
+		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
 }
@@ -282,6 +298,8 @@ func (cg *CGroup) SetCPUCfsQuota(value string) error {
 		return ErrControllerMissing
 	case V1:
 		return cg.rw.Set(version, "cpu", "cpu.cfs_quota_us", value)
+	case V2:
+		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
 }
@@ -294,6 +312,8 @@ func (cg *CGroup) SetNetIfPrio(value string) error {
 		return ErrControllerMissing
 	case V1:
 		return cg.rw.Set(version, "net_prio", "net_prio.ifpriomap", value)
+	case V2:
+		return ErrControllerMissing
 	}
 	return ErrUnknownVersion
 }
