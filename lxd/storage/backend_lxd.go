@@ -142,27 +142,7 @@ func (b *lxdBackend) Update(driverOnly bool, newDesc string, newConfig map[strin
 	}
 
 	// Diff the configurations.
-	changedConfig := make(map[string]string)
-	userOnly := true
-	for key := range b.db.Config {
-		if b.db.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
-		}
-	}
-
-	for key := range newConfig {
-		if b.db.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key]
-		}
-	}
+	changedConfig, userOnly := b.detectChangedConfig(b.db.Config, newConfig)
 
 	// Apply config changes if there are any.
 	if len(changedConfig) != 0 {
