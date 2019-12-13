@@ -2301,6 +2301,20 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 	return nil
 }
 
+// UpdateCustomVolumeSnapshot updates the description of a custom volume snapshot.
+// Volume config is not allowd to be updated and will return an error.
+func (b *lxdBackend) UpdateCustomVolumeSnapshot(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName, "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateCustomVolumeSnapshot started")
+	defer logger.Debug("UpdateCustomVolumeSnapshot finished")
+
+	if !shared.IsSnapshot(volName) {
+		return fmt.Errorf("Volume must be a snapshot")
+	}
+
+	return b.updateVolumeDescriptionOnly("default", volName, db.StoragePoolVolumeTypeCustom, newDesc, newConfig)
+}
+
 // DeleteCustomVolume removes a custom volume and its snapshots.
 func (b *lxdBackend) DeleteCustomVolume(volName string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName})
