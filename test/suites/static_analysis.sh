@@ -115,6 +115,7 @@ test_static_analysis() {
       golint -set_exit_status shared/logger/
       golint -set_exit_status shared/logging/
       golint -set_exit_status shared/simplestreams/
+      golint -set_exit_status shared/subprocess/
       golint -set_exit_status shared/subtest/
       golint -set_exit_status shared/termios/
       golint -set_exit_status shared/version/
