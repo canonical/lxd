@@ -99,12 +99,13 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 		Name:           dbPool.Name,
 		Driver:         dbPool.Driver,
 	}
+
 	pool.name = dbPool.Name
 	pool.state = state
 	pool.logger = logger
 
 	// Create the pool itself on the storage device..
-	err = pool.create(dbPool, localOnly, op)
+	err = pool.create(localOnly, op)
 	if err != nil {
 		return nil, err
 	}
