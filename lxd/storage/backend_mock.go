@@ -31,7 +31,7 @@ func (b *mockBackend) Driver() drivers.Driver {
 	return nil
 }
 
-func (b *mockBackend) MigrationTypes(contentType drivers.ContentType) []migration.Type {
+func (b *mockBackend) MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type {
 	return []migration.Type{
 		{
 			FSType:   migration.MigrationFSType_RSYNC,

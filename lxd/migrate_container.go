@@ -350,7 +350,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return err
 		}
 
-		poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance))
+		// The refresh argument passed to MigrationTypes() is always set
+		// to false here. The migration source/sender doesn't need to care whether
+		// or not it's doing a refresh as the migration sink/receiver will know
+		// this, and adjust the migration types accordingly.
+		poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
 		if len(poolMigrationTypes) < 0 {
 			return fmt.Errorf("No source migration types available")
 		}
@@ -941,7 +945,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		// Extract the source's migration type and then match it against our pool's
 		// supported types and features. If a match is found the combined features list
 		// will be sent back to requester.
-		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance)))
+		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
 		if err != nil {
 			return err
 		}

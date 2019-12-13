@@ -977,7 +977,7 @@ func (d *cephfs) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.
 	return nil, nil, ErrNotImplemented
 }
 
-func (d *cephfs) MigrationTypes(contentType ContentType) []migration.Type {
+func (d *cephfs) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
 	if contentType != ContentTypeFS {
 		return nil
 	}
