@@ -2122,7 +2122,8 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 
 	// Update the database
 	s.volume.Config["size"] = units.GetByteSizeString(size, 0)
-	err = s.s.Cluster.StoragePoolVolumeUpdate(
+	err = s.s.Cluster.StoragePoolVolumeUpdateByProject(
+		"default",
 		s.volume.Name,
 		volumeType,
 		s.poolID,

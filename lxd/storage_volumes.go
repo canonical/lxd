@@ -873,7 +873,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	// Get the storage volume.
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -461,7 +461,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	do := func(op *operations.Operation) error {
 		// Update the database if description changed.
 		if req.Description != vol.Description {
-			err = d.cluster.StoragePoolVolumeUpdate(vol.Name, volumeType, poolID, req.Description, vol.Config)
+			err = d.cluster.StoragePoolVolumeUpdateByProject("default", vol.Name, volumeType, poolID, req.Description, vol.Config)
 			if err != nil {
 				return err
 			}

@@ -202,7 +202,7 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = state.Cluster.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, newDescription, newConfig)
+		err = state.Cluster.StoragePoolVolumeUpdateByProject("default", volumeName, volumeType, poolID, newDescription, newConfig)
 		if err != nil {
 			return err
 		}

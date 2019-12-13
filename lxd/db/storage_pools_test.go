@@ -184,7 +184,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 
 	// Update the volume
 	config["k"] = "v2"
-	err = cluster.StoragePoolVolumeUpdate("v1", 1, poolID, "volume 1", config)
+	err = cluster.StoragePoolVolumeUpdateByProject("default", "v1", 1, poolID, "volume 1", config)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1", 1, poolID, nodeID)
