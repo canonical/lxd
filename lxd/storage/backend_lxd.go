@@ -59,8 +59,8 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 
 // create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
-func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"args": dbPool})
+func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description})
 	logger.Debug("create started")
 	defer logger.Debug("created finished")
 
@@ -87,6 +87,12 @@ func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *op
 		os.RemoveAll(path)
 	}()
 
+	// Create copy of original config before creating pool so we can detect any changes later.
+	originalConfig := make(map[string]string, len(b.db.Config))
+	for k, v := range b.db.Config {
+		originalConfig[k] = v
+	}
+
 	// Create the storage pool on the storage device.
 	err = b.driver.Create()
 	if err != nil {
@@ -109,6 +115,20 @@ func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *op
 	err = b.createStorageStructure(path)
 	if err != nil {
 		return err
+	}
+
+	// In case the storage pool config was changed during the pool creation, we need to update
+	// the database to reflect this change. This can e.g. happen, when we create a loop file
+	// image. This means we append ".img" to the path the user gave us and update the config in
+	// the storage callback. So diff the config here to see if something like this has happened.
+	configDiff, _ := ConfigDiff(originalConfig, b.db.Config)
+	if len(configDiff) > 0 {
+		logger.Debug("Updating changed config", log.Ctx{"changedFields": configDiff})
+		// Update the database entry for the storage pool.
+		err = b.state.Cluster.StoragePoolUpdate(b.db.Name, b.db.Description, b.db.Config)
+		if err != nil {
+			return err
+		}
 	}
 
 	revertPath = false
