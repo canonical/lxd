@@ -2161,6 +2161,36 @@ func (b *lxdBackend) RenameCustomVolume(volName string, newVolName string, op *o
 	return nil
 }
 
+// detectChangedConfig returns the config that has changed between current and new config maps.
+// Also returns a boolean indicating whether all of the changed keys start with "user.".
+// Deleted keys will be returned as having an empty string value.
+func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string) (map[string]string, bool) {
+	// Diff the configurations.
+	changedConfig := make(map[string]string)
+	userOnly := true
+	for key := range curConfig {
+		if curConfig[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
+		}
+	}
+
+	for key := range newConfig {
+		if curConfig[key] != newConfig[key] {
+			if !strings.HasPrefix(key, "user.") {
+				userOnly = false
+			}
+
+			changedConfig[key] = newConfig[key]
+		}
+	}
+
+	return changedConfig, userOnly
+}
+
 // UpdateCustomVolume applies the supplied config to the custom volume.
 func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName, "newDesc": newDesc, "newConfig": newConfig})
@@ -2188,30 +2218,8 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 		return err
 	}
 
-	// Diff the configurations.
-	changedConfig := make(map[string]string)
-	userOnly := true
-	for key := range curVol.Config {
-		if curVol.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key] // Will be empty string on deleted keys.
-		}
-	}
-
-	for key := range newConfig {
-		if curVol.Config[key] != newConfig[key] {
-			if !strings.HasPrefix(key, "user.") {
-				userOnly = false
-			}
-
-			changedConfig[key] = newConfig[key]
-		}
-	}
-
 	// Apply config changes if there are any.
+	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
 	if len(changedConfig) != 0 {
 		curVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, curVol.Config)
 		if !userOnly {
