@@ -1019,7 +1019,7 @@ func (d *dir) BackupVolume(vol Volume, targetPath string, _, snapshots bool, op 
 }
 
 // RestoreBackupVolume restores a backup tarball onto the storage device.
-func (d *dir) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *dir) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	revert := true
 	revertPaths := []string{}
 

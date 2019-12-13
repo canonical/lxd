@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/lxd/storage/memorypipe"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -393,7 +394,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 // created in the database to run any storage layer finalisations, and a revert hook that can be
 // run if the instance database load process fails that will remove anything created thus far.
 func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "hasBinaryFormat": srcBackup.HasBinaryFormat})
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": srcBackup.OptimizedStorage})
 	logger.Debug("CreateInstanceFromBackup started")
 	defer logger.Debug("CreateInstanceFromBackup finished")
 
@@ -413,7 +414,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}()
 
 	// Unpack the backup into the new storage volume(s).
-	volPostHook, revertHook, err := b.driver.RestoreBackupVolume(vol, srcBackup.Snapshots, srcData, op)
+	volPostHook, revertHook, err := b.driver.RestoreBackupVolume(vol, srcBackup.Snapshots, srcData, srcBackup.OptimizedStorage, op)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1568,6 +1569,11 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	if !b.driver.Info().OptimizedImages {
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
+
+	// We need to lock this operation to ensure that the image is not being
+	// created multiple times.
+	unlock := locking.Lock(b.name, string(drivers.VolumeTypeImage), fingerprint)
+	defer unlock()
 
 	// Check if we already have a suitable volume.
 	if b.driver.HasVolume(drivers.VolumeTypeImage, fingerprint) {
