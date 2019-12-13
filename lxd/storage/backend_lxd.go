@@ -2255,7 +2255,7 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.Cluster.StoragePoolVolumeUpdate(volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, newConfig)
 		if err != nil {
 			return err
 		}
