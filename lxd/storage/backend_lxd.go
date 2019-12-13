@@ -120,6 +120,7 @@ func (b *lxdBackend) newVolume(volType drivers.VolumeType, contentType drivers.C
 	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig)
 }
 
+// GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
 	logger := logging.AddContext(b.logger, nil)
 	logger.Debug("GetResources started")
