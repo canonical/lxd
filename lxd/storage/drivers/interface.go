@@ -28,7 +28,12 @@ type Driver interface {
 	// Pool.
 	Create() error
 	Delete(op *operations.Operation) error
+	// Mount mounts a storage pool if needed, returns true if we caused a new mount, false if
+	// already mounted.
 	Mount() (bool, error)
+
+	// Unmount unmounts a storage pool if needed, returns true if unmounted, false if was not
+	// mounted.
 	Unmount() (bool, error)
 	GetResources() (*api.ResourcesStoragePool, error)
 	Validate(config map[string]string) error
