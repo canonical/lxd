@@ -2310,7 +2310,7 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backup.Info, data io.Read
 func (s *storageZfs) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	logger.Debugf("Loading ZFS storage volume for backup \"%s\" on storage pool \"%s\"", info.Name, s.pool.Name)
 
-	if info.HasBinaryFormat {
+	if info.OptimizedStorage {
 		return s.doContainerBackupLoadOptimized(info, data, tarArgs)
 	}
 

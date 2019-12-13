@@ -1974,7 +1974,7 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backup.Info, data io.Re
 func (s *storageBtrfs) ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error {
 	logger.Debugf("Loading BTRFS storage volume for backup \"%s\" on storage pool \"%s\"", info.Name, s.pool.Name)
 
-	if info.HasBinaryFormat {
+	if info.OptimizedStorage {
 		return s.doContainerBackupLoadOptimized(info, data, tarArgs)
 	}
 
