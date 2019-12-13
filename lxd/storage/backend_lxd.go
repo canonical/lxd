@@ -1147,6 +1147,70 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	return nil
 }
 
+// UpdateInstance updates an instance volume's config.
+func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateInstance started")
+	defer logger.Debug("UpdateInstance finished")
+
+	if inst.IsSnapshot() {
+		return fmt.Errorf("Instance cannot be a snapshot")
+	}
+
+	// Check we can convert the instance to the volume types needed.
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	contentType := InstanceContentType(inst)
+
+	// Validate config.
+	newVol := b.newVolume(volType, contentType, volStorageName, newConfig)
+	err = b.driver.ValidateVolume(newVol, false)
+	if err != nil {
+		return err
+	}
+
+	// Get current config to compare what has changed.
+	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), volStorageName, volDBType, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	// Apply config changes if there are any.
+	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
+	if len(changedConfig) != 0 {
+		curVol := b.newVolume(volType, contentType, volStorageName, curVol.Config)
+		if !userOnly {
+			err = b.driver.UpdateVolume(curVol, changedConfig)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Update the database if something changed.
+	if len(changedConfig) != 0 || newDesc != curVol.Description {
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(inst.Project(), volStorageName, volDBType, b.ID(), newDesc, newConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
