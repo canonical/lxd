@@ -59,8 +59,8 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 
 // create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
-func (b *lxdBackend) create(dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"args": dbPool})
+func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "localOnly": localOnly})
 	logger.Debug("create started")
 	defer logger.Debug("created finished")
 
