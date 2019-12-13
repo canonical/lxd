@@ -1798,6 +1798,15 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	return nil
 }
 
+// UpdateImage updates image config.
+func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint, "newDesc": newDesc, "newConfig": newConfig})
+	logger.Debug("UpdateImage started")
+	defer logger.Debug("UpdateImage finished")
+
+	return b.updateVolumeDescriptionOnly("default", fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig)
+}
+
 // CreateCustomVolume creates an empty custom volume.
 func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"volName": volName, "desc": desc, "config": config})
