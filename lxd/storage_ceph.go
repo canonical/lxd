@@ -2443,7 +2443,8 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 
 	// Update the database
 	s.volume.Config["size"] = units.GetByteSizeString(size, 0)
-	err = s.s.Cluster.StoragePoolVolumeUpdate(
+	err = s.s.Cluster.StoragePoolVolumeUpdateByProject(
+		"default",
 		s.volume.Name,
 		volumeType,
 		s.poolID,
