@@ -1803,6 +1803,38 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	return nil
 }
 
+// updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
+// that only allow their descriptions to be updated. If any config supplied differs from the
+// current volume's config then an error is returned.
+func (b *lxdBackend) updateVolumeDescriptionOnly(project, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
+	// Get current config to compare what has changed.
+	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volName, dbVolType, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	if newConfig != nil {
+		changedConfig, _ := b.detectChangedConfig(curVol.Config, newConfig)
+		if len(changedConfig) != 0 {
+			return fmt.Errorf("Volume config is not editable")
+		}
+	}
+
+	// Update the database if description changed. Use current config.
+	if newDesc != curVol.Description {
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(project, volName, dbVolType, b.ID(), newDesc, curVol.Config)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // UpdateImage updates image config.
 func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint, "newDesc": newDesc, "newConfig": newConfig})
