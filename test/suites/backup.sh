@@ -270,10 +270,10 @@ test_backup_import_with_project() {
   lxc profile device remove default root
 
   # This should fail as the expected storage is not available, and there is no default
-  ! lxc import "${LXD_DIR}/c3.tar.gz"
+  ! lxc import "${LXD_DIR}/c3.tar.gz" || false
 
   # Specify pool explicitly; this should fails as the pool doesn't exist
-  ! lxc import "${LXD_DIR}/c3.tar.gz" -s pool_1
+  ! lxc import "${LXD_DIR}/c3.tar.gz" -s pool_1 || false
 
   # Specify pool explicitly
   lxc import "${LXD_DIR}/c3.tar.gz" -s pool_2
