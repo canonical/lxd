@@ -246,6 +246,9 @@ func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, erro
 		resp.Type = "unknown"
 	}
 
+	if(checkRev(resp.Certificate)) {
+		return resp, error("Certification is revoked")
+	}
 	return resp, nil
 }
 

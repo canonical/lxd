@@ -1,6 +1,7 @@
-// Package revoke provides functionality for checking the validity of
-// a cert. Specifically, the temporal validity of the certificate is
-// checked first, then any CRL and OCSP url in the cert is checked.
+// Provides functionality for checking the validity of
+// a cert, if it's revoked
+// Referenced https://github.com/shawnhankim/cori-sample/blob/2ad89204b81b30e56a91fbfa9e7908522e081a91/go/cert/x.509_validation/07_cert_revokation/revoke.go
+
 package revoke
 
 import (
@@ -19,79 +20,38 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/ocsp"
+  "github.com/gorilla/mux"
+  "github.com/pkg/errors"
 
-	"github.com/cloudflare/cfssl/helpers"
-	"github.com/cloudflare/cfssl/log"
+  lxd "github.com/lxc/lxd/client"
+  "github.com/lxc/lxd/lxd/cluster"
+  "github.com/lxc/lxd/lxd/db"
+  "github.com/lxc/lxd/lxd/response"
+  "github.com/lxc/lxd/lxd/util"
+  "github.com/lxc/lxd/shared"
+  "github.com/lxc/lxd/shared/api"
+  "github.com/lxc/lxd/shared/logger"
+  "github.com/lxc/lxd/shared/version"
+  "github.com/lxc/lxd/vsock/certificates"
 )
 
-// HardFail determines whether the failure to check the revocation
-// status of a certificate (i.e. due to network failure) causes
-// verification to fail (a hard failure).
 var HardFail = false
 
-// CRLSet associates a PKIX certificate list with the URL the CRL is
-// fetched from.
 var CRLSet = map[string]*pkix.CertificateList{}
 var crlLock = new(sync.Mutex)
 
-// We can't handle LDAP certificates, so this checks to see if the
-// URL string points to an LDAP resource so that we can ignore it.
-func ldapURL(url string) bool {
-	u, err := neturl.Parse(url)
-	if err != nil {
-		log.Warningf("error parsing url %s: %v", url, err)
-		return false
-	}
-	if u.Scheme == "ldap" {
-		return true
-	}
-	return false
-}
-
-// revCheck should check the certificate for any revocations. It
-// returns a pair of booleans: the first indicates whether the certificate
-// is revoked, the second indicates whether the revocations were
-// successfully checked.. This leads to the following combinations:
-//
-//  false, false: an error was encountered while checking revocations.
-//
-//  false, true:  the certificate was checked successfully and
-//                  it is not revoked.
-//
-//  true, true:   the certificate was checked successfully and
-//                  it is revoked.
-//
-//  true, false:  failure to check revocation status causes
-//                  verification to fail
 func revCheck(cert *x509.Certificate) (revoked, ok bool, err error) {
 	for _, url := range cert.CRLDistributionPoints {
-		if ldapURL(url) {
-			log.Infof("skipping LDAP CRL: %s", url)
-			continue
-		}
-
 		if revoked, ok, err := certIsRevokedCRL(cert, url); !ok {
-			log.Warning("error checking revocation via CRL")
+			errors.Wrap(err, "error checking revocation via CRL")
 			if HardFail {
 				return true, false, err
 			}
 			return false, false, err
 		} else if revoked {
-			log.Info("certificate is revoked via CRL")
+			errors.Wrap(err, "certificate is revoked via CRL")
 			return true, true, err
 		}
-	}
-
-	if revoked, ok, err := certIsRevokedOCSP(cert, HardFail); !ok {
-		log.Warning("error checking revocation via OCSP")
-		if HardFail {
-			return true, false, err
-		}
-		return false, false, err
-	} else if revoked {
-		log.Info("certificate is revoked via OCSP")
-		return true, true, err
 	}
 
 	return false, true, nil
@@ -130,8 +90,6 @@ func getIssuer(cert *x509.Certificate) *x509.Certificate {
 
 }
 
-// check a cert against a specific CRL. Returns the same bool pair
-// as revCheck, plus an error if one occurred.
 func certIsRevokedCRL(cert *x509.Certificate, url string) (revoked, ok bool, err error) {
 	crl, ok := CRLSet[url]
 	if ok && crl == nil {
@@ -154,7 +112,7 @@ func certIsRevokedCRL(cert *x509.Certificate, url string) (revoked, ok bool, err
 		var err error
 		crl, err = fetchCRL(url)
 		if err != nil {
-			log.Warningf("failed to fetch CRL: %v", err)
+			errors.Wrap(err, failed to fetch CRL: %v", err)
 			return false, false, err
 		}
 
@@ -162,7 +120,7 @@ func certIsRevokedCRL(cert *x509.Certificate, url string) (revoked, ok bool, err
 		if issuer != nil {
 			err = issuer.CheckCRLSignature(crl)
 			if err != nil {
-				log.Warningf("failed to verify CRL: %v", err)
+				errors.Wrap(err, "failed to verify CRL: %v", err)
 				return false, false, err
 			}
 		}
@@ -174,23 +132,18 @@ func certIsRevokedCRL(cert *x509.Certificate, url string) (revoked, ok bool, err
 
 	for _, revoked := range crl.TBSCertList.RevokedCertificates {
 		if cert.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
-			log.Info("Serial number match: intermediate is revoked.")
-			return true, true, err
+				return true, true, err
 		}
 	}
 
 	return false, true, err
 }
 
-// VerifyCertificate ensures that the certificate passed in hasn't
-// expired and checks the CRL for the server.
 func VerifyCertificate(cert *x509.Certificate) (revoked, ok bool) {
 	revoked, ok, _ = VerifyCertificateError(cert)
 	return revoked, ok
 }
 
-// VerifyCertificateError ensures that the certificate passed in hasn't
-// expired and checks the CRL for the server.
 func VerifyCertificateError(cert *x509.Certificate) (revoked, ok bool, err error) {
 	if !time.Now().Before(cert.NotAfter) {
 		msg := fmt.Sprintf("Certificate expired %s\n", cert.NotAfter)
@@ -222,115 +175,4 @@ func fetchRemote(url string) (*x509.Certificate, error) {
 	}
 
 	return x509.ParseCertificate(in)
-}
-
-var ocspOpts = ocsp.RequestOptions{
-	Hash: crypto.SHA1,
-}
-
-func certIsRevokedOCSP(leaf *x509.Certificate, strict bool) (revoked, ok bool, e error) {
-	var err error
-
-	ocspURLs := leaf.OCSPServer
-	if len(ocspURLs) == 0 {
-		// OCSP not enabled for this certificate.
-		return false, true, nil
-	}
-
-	issuer := getIssuer(leaf)
-
-	if issuer == nil {
-		return false, false, nil
-	}
-
-	ocspRequest, err := ocsp.CreateRequest(leaf, issuer, &ocspOpts)
-	if err != nil {
-		return revoked, ok, err
-	}
-
-	for _, server := range ocspURLs {
-		resp, err := sendOCSPRequest(server, ocspRequest, leaf, issuer)
-		if err != nil {
-			if strict {
-				return revoked, ok, err
-			}
-			continue
-		}
-
-		// There wasn't an error fetching the OCSP status.
-		ok = true
-
-		if resp.Status != ocsp.Good {
-			// The certificate was revoked.
-			revoked = true
-		}
-
-		return revoked, ok, err
-	}
-	return revoked, ok, err
-}
-
-// sendOCSPRequest attempts to request an OCSP response from the
-// server. The error only indicates a failure to *fetch* the
-// certificate, and *does not* mean the certificate is valid.
-func sendOCSPRequest(server string, req []byte, leaf, issuer *x509.Certificate) (*ocsp.Response, error) {
-	var resp *http.Response
-	var err error
-	if len(req) > 256 {
-		buf := bytes.NewBuffer(req)
-		resp, err = http.Post(server, "application/ocsp-request", buf)
-	} else {
-		reqURL := server + "/" + neturl.QueryEscape(base64.StdEncoding.EncodeToString(req))
-		resp, err = http.Get(reqURL)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to retrieve OSCP")
-	}
-
-	body, err := ocspRead(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	resp.Body.Close()
-
-	switch {
-	case bytes.Equal(body, ocsp.UnauthorizedErrorResponse):
-		return nil, errors.New("OSCP unauthorized")
-	case bytes.Equal(body, ocsp.MalformedRequestErrorResponse):
-		return nil, errors.New("OSCP malformed")
-	case bytes.Equal(body, ocsp.InternalErrorErrorResponse):
-		return nil, errors.New("OSCP internal error")
-	case bytes.Equal(body, ocsp.TryLaterErrorResponse):
-		return nil, errors.New("OSCP try later")
-	case bytes.Equal(body, ocsp.SigRequredErrorResponse):
-		return nil, errors.New("OSCP signature required")
-	}
-
-	return ocsp.ParseResponseForCert(body, leaf, issuer)
-}
-
-var crlRead = ioutil.ReadAll
-
-// SetCRLFetcher sets the function to use to read from the http response body
-func SetCRLFetcher(fn func(io.Reader) ([]byte, error)) {
-	crlRead = fn
-}
-
-var remoteRead = ioutil.ReadAll
-
-// SetRemoteFetcher sets the function to use to read from the http response body
-func SetRemoteFetcher(fn func(io.Reader) ([]byte, error)) {
-	remoteRead = fn
-}
-
-var ocspRead = ioutil.ReadAll
-
-// SetOCSPFetcher sets the function to use to read from the http response body
-func SetOCSPFetcher(fn func(io.Reader) ([]byte, error)) {
-	ocspRead = fn
 }

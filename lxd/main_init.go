@@ -30,6 +30,7 @@ type cmdInit struct {
 	flagStorageLoopSize int
 	flagStoragePool     string
 	flagTrustPassword   string
+	flagTrustCertificate string
 }
 
 func (c *cmdInit) Command() *cobra.Command {
@@ -42,7 +43,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Example = `  init --preseed
   init --auto [--network-address=IP] [--network-port=8443] [--storage-backend=dir]
               [--storage-create-device=DEVICE] [--storage-create-loop=SIZE]
-              [--storage-pool=POOL] [--trust-password=PASSWORD]
+              [--storage-pool=POOL] [--trust-password=PASSWORD] [--trust-certificate=CERTIFICATE]
   init --dump
 `
 	cmd.RunE = c.Run
@@ -70,14 +71,15 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	if !c.flagAuto && (c.flagNetworkAddress != "" || c.flagNetworkPort != -1 ||
 		c.flagStorageBackend != "" || c.flagStorageDevice != "" ||
 		c.flagStorageLoopSize != -1 || c.flagStoragePool != "" ||
-		c.flagTrustPassword != "") {
+		c.flagTrustPassword != ""||c.flagTrustCertificate != "") {
 		return fmt.Errorf("Configuration flags require --auto")
 	}
 
 	if c.flagDump && (c.flagAuto || c.flagPreseed || c.flagNetworkAddress != "" ||
 		c.flagNetworkPort != -1 || c.flagStorageBackend != "" ||
 		c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 ||
-		c.flagStoragePool != "" || c.flagTrustPassword != "") {
+		c.flagStoragePool != "" || c.flagTrustPassword != ""
+		||c.flagTrustCertificate != "") {
 		return fmt.Errorf("Can't use --dump with other flags")
 	}
 

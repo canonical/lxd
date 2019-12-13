@@ -39,6 +39,10 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		if c.flagTrustPassword != "" {
 			return nil, fmt.Errorf("--trust-password can't be used without --network-address")
 		}
+
+		if c.flagTrustCertificate != "" {
+			return nil, fmt.Errorf("--trust-certificate can't be used without --network-address")
+		}
 	}
 
 	storagePools, err := d.GetStoragePoolNames()
@@ -69,6 +73,10 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 
 		if c.flagTrustPassword != "" {
 			config.Config["core.trust_password"] = c.flagTrustPassword
+		}
+
+		if c.flagTrustCertificate != "" {
+			config.Config["core.trust_certificate"] = c.flagTrustCertificate
 		}
 	}
 
