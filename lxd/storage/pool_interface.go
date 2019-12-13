@@ -33,6 +33,7 @@ type Pool interface {
 	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error
 	DeleteInstance(inst instance.Instance, op *operations.Operation) error
+	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error
@@ -52,10 +53,12 @@ type Pool interface {
 	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
 	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
 	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
+	UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	// Images.
 	EnsureImage(fingerprint string, op *operations.Operation) error
 	DeleteImage(fingerprint string, op *operations.Operation) error
+	UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	// Custom volumes.
 	CreateCustomVolume(volName, desc string, config map[string]string, op *operations.Operation) error
@@ -71,6 +74,7 @@ type Pool interface {
 	CreateCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error
 	RenameCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error
 	DeleteCustomVolumeSnapshot(volName string, op *operations.Operation) error
+	UpdateCustomVolumeSnapshot(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	RestoreCustomVolume(volName string, snapshotName string, op *operations.Operation) error
 
 	// Custom volume migration.
