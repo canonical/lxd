@@ -2,10 +2,16 @@ package drivers
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -107,4 +113,107 @@ func (d *common) Config() map[string]string {
 	}
 
 	return confCopy
+}
+
+// vfsGetResources is a generic GetResources implementation for VFS-only drivers.
+func (d *common) vfsGetResources() (*api.ResourcesStoragePool, error) {
+	// Get the VFS information
+	st, err := shared.Statvfs(GetPoolMountPath(d.name))
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill in the struct
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = st.Blocks * uint64(st.Bsize)
+	res.Space.Used = (st.Blocks - st.Bfree) * uint64(st.Bsize)
+
+	// Some filesystems don't report inodes since they allocate them
+	// dynamically e.g. btrfs.
+	if st.Files > 0 {
+		res.Inodes.Total = st.Files
+		res.Inodes.Used = st.Files - st.Ffree
+	}
+
+	return &res, nil
+}
+
+// vfsRenameVolume is a generic RenameVolume implementation for VFS-only drivers.
+func (d *common) vfsRenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
+	// Rename the volume itself.
+	srcVolumePath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	dstVolumePath := GetVolumeMountPath(d.name, vol.volType, newVolName)
+
+	err := os.Rename(srcVolumePath, dstVolumePath)
+	if err != nil {
+		return err
+	}
+
+	revertRename := true
+	defer func() {
+		if !revertRename {
+			return
+		}
+
+		os.Rename(dstVolumePath, srcVolumePath)
+	}()
+
+	// And if present, the snapshots too.
+	srcSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+	dstSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
+
+	if shared.PathExists(srcSnapshotDir) {
+		err = os.Rename(srcSnapshotDir, dstSnapshotDir)
+		if err != nil {
+			return err
+		}
+	}
+
+	revertRename = false
+	return nil
+}
+
+// vfsVolumeSnapshots is a generic VolumeSnapshots implementation for VFS-only drivers.
+func (d *common) vfsVolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
+	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
+	snapshots := []string{}
+
+	ents, err := ioutil.ReadDir(snapshotDir)
+	if err != nil {
+		// If the snapshots directory doesn't exist, there are no snapshots.
+		if os.IsNotExist(err) {
+			return snapshots, nil
+		}
+
+		return nil, err
+	}
+
+	for _, ent := range ents {
+		fileInfo, err := os.Stat(filepath.Join(snapshotDir, ent.Name()))
+		if err != nil {
+			return nil, err
+		}
+
+		if !fileInfo.IsDir() {
+			continue
+		}
+
+		snapshots = append(snapshots, ent.Name())
+	}
+
+	return snapshots, nil
+}
+
+// vfsRenameVolumeSnapshot is a generic RenameVolumeSnapshot implementation for VFS-only drivers.
+func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	oldPath := snapVol.MountPath()
+	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
+
+	err := os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
