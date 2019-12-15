@@ -175,6 +175,18 @@ func GetSnapshotVolumeName(parentName, snapshotName string) string {
 	return fmt.Sprintf("%s%s%s", parentName, shared.SnapshotDelimiter, snapshotName)
 }
 
+// createParentSnapshotDirIfMissing creates the parent directory for volume snapshots
+func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volName string) error {
+	snapshotsPath := GetVolumeSnapshotDir(poolName, volType, volName)
+
+	// If it's missing, create it.
+	if !shared.PathExists(snapshotsPath) {
+		return os.Mkdir(snapshotsPath, 0700)
+	}
+
+	return nil
+}
+
 // deleteParentSnapshotDirIfEmpty removes the parent snapshot directory if it is empty.
 // It accepts the pool name, volume type and parent volume name.
 func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName string) error {
