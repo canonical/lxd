@@ -280,8 +280,7 @@ func (d *cephfs) Unmount() (bool, error) {
 }
 
 func (d *cephfs) GetResources() (*api.ResourcesStoragePool, error) {
-	// Use the generic VFS resources.
-	return vfsResources(GetPoolMountPath(d.name))
+	return d.vfsGetResources()
 }
 
 func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {

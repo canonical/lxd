@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -133,13 +132,12 @@ func (d *dir) Unmount() (bool, error) {
 }
 
 func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
-	// Use the generic VFS resources.
-	return vfsResources(GetPoolMountPath(d.name))
+	return d.vfsGetResources()
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := vol.MountPath()
 	ok, err := quota.Supported(volPath)
 	if err != nil || !ok {
 		return 0, nil
@@ -169,7 +167,7 @@ func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *dir) HasVolume(vol Volume) bool {
-	if shared.PathExists(GetVolumeMountPath(d.name, vol.volType, vol.name)) {
+	if shared.PathExists(vol.MountPath()) {
 		return true
 	}
 
@@ -178,7 +176,7 @@ func (d *dir) HasVolume(vol Volume) bool {
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
-	return filepath.Join(GetVolumeMountPath(d.name, vol.volType, vol.name), "root.img"), nil
+	return filepath.Join(vol.MountPath(), "root.img"), nil
 }
 
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
@@ -600,33 +598,7 @@ func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *o
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *dir) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-	snapshots := []string{}
-
-	ents, err := ioutil.ReadDir(snapshotDir)
-	if err != nil {
-		// If the snapshots directory doesn't exist, there are no snapshots.
-		if os.IsNotExist(err) {
-			return snapshots, nil
-		}
-
-		return nil, err
-	}
-
-	for _, ent := range ents {
-		fileInfo, err := os.Stat(filepath.Join(snapshotDir, ent.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		if !fileInfo.IsDir() {
-			continue
-		}
-
-		snapshots = append(snapshots, ent.Name())
-	}
-
-	return snapshots, nil
+	return d.vfsVolumeSnapshots(vol, op)
 }
 
 // UpdateVolume applies config changes to the volume.
@@ -653,77 +625,7 @@ func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // RenameVolume renames a volume and its snapshots.
 func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
-	// Create new snapshots directory.
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
-
-	err := os.MkdirAll(snapshotDir, 0711)
-	if err != nil {
-		return err
-	}
-
-	type volRevert struct {
-		oldPath string
-		newPath string
-	}
-
-	// Create slice to record paths renamed if revert needed later.
-	revertPaths := []volRevert{}
-	defer func() {
-		// Remove any paths rename if we are reverting.
-		for _, vol := range revertPaths {
-			os.Rename(vol.newPath, vol.oldPath)
-		}
-
-		// Remove the new snapshot directory if we are reverting.
-		if len(revertPaths) > 0 {
-			err = os.RemoveAll(snapshotDir)
-		}
-	}()
-
-	// Rename any snapshots of the volume too.
-	snapshots, err := vol.Snapshots(op)
-	if err != nil {
-		return err
-	}
-
-	for _, snapshot := range snapshots {
-		oldPath := snapshot.MountPath()
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.name)
-		newPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(newVolName, snapName))
-
-		err := os.Rename(oldPath, newPath)
-		if err != nil {
-			return err
-		}
-
-		revertPaths = append(revertPaths, volRevert{
-			oldPath: oldPath,
-			newPath: newPath,
-		})
-	}
-
-	oldPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
-	newPath := GetVolumeMountPath(d.name, vol.volType, newVolName)
-	err = os.Rename(oldPath, newPath)
-	if err != nil {
-		return err
-	}
-
-	revertPaths = append(revertPaths, volRevert{
-		oldPath: oldPath,
-		newPath: newPath,
-	})
-
-	// Remove old snapshots directory.
-	oldSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-
-	err = os.RemoveAll(oldSnapshotDir)
-	if err != nil {
-		return err
-	}
-
-	revertPaths = nil
-	return nil
+	return d.vfsRenameVolume(vol, newVolName, op)
 }
 
 // RestoreVolume restores a volume from a snapshot.
@@ -757,7 +659,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 		return fmt.Errorf("Cannot remove a volume that has snapshots")
 	}
 
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := vol.MountPath()
 
 	// If the volume doesn't exist, then nothing more to do.
 	if !shared.PathExists(volPath) {
@@ -818,7 +720,7 @@ func (d *dir) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 // SetVolumeQuota sets the quota on the volume.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := vol.MountPath()
 	volID, err := d.getVolID(vol.volType, vol.name)
 	if err != nil {
 		return err
@@ -965,16 +867,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *dir) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
-	oldPath := snapVol.MountPath()
-	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
-
-	err := os.Rename(oldPath, newPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.vfsRenameVolumeSnapshot(snapVol, newSnapshotName, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.

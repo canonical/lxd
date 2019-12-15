@@ -12,7 +12,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 )
 
 // MkfsOptions represents options for filesystem creation.
@@ -146,28 +145,6 @@ func tryMount(src string, dst string, fs string, flags uintptr, options string) 
 	}
 
 	return nil
-}
-
-func vfsResources(path string) (*api.ResourcesStoragePool, error) {
-	// Get the VFS information
-	st, err := shared.Statvfs(path)
-	if err != nil {
-		return nil, err
-	}
-
-	// Fill in the struct
-	res := api.ResourcesStoragePool{}
-	res.Space.Total = st.Blocks * uint64(st.Bsize)
-	res.Space.Used = (st.Blocks - st.Bfree) * uint64(st.Bsize)
-
-	// Some filesystems don't report inodes since they allocate them
-	// dynamically e.g. btrfs.
-	if st.Files > 0 {
-		res.Inodes.Total = st.Files
-		res.Inodes.Used = st.Files - st.Ffree
-	}
-
-	return &res, nil
 }
 
 // GetPoolMountPath returns the mountpoint of the given pool.
