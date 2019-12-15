@@ -139,7 +139,7 @@ func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := vol.MountPath()
 	ok, err := quota.Supported(volPath)
 	if err != nil || !ok {
 		return 0, nil
@@ -169,7 +169,7 @@ func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *dir) HasVolume(vol Volume) bool {
-	if shared.PathExists(GetVolumeMountPath(d.name, vol.volType, vol.name)) {
+	if shared.PathExists(vol.MountPath()) {
 		return true
 	}
 
@@ -178,7 +178,7 @@ func (d *dir) HasVolume(vol Volume) bool {
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
-	return filepath.Join(GetVolumeMountPath(d.name, vol.volType, vol.name), "root.img"), nil
+	return filepath.Join(vol.MountPath(), "root.img"), nil
 }
 
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
@@ -757,7 +757,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 		return fmt.Errorf("Cannot remove a volume that has snapshots")
 	}
 
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := vol.MountPath()
 
 	// If the volume doesn't exist, then nothing more to do.
 	if !shared.PathExists(volPath) {
@@ -818,7 +818,7 @@ func (d *dir) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 // SetVolumeQuota sets the quota on the volume.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	volPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
+	volPath := vol.MountPath()
 	volID, err := d.getVolID(vol.volType, vol.name)
 	if err != nil {
 		return err
