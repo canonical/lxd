@@ -2,17 +2,8 @@ package main
 
 // verify which imports are needed
 import (
-	"net/http"
-	"net/url"
 	"strings"
 	"reflect"
-
-	log "github.com/lxc/lxd/shared/log15"
-
-	"github.com/gorilla/mux"
-	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/api"
 )

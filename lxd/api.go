@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"reflect"
 
 	log "github.com/lxc/lxd/shared/log15"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/api"
 )
 
 // RestServer creates an http.Server capable of handling requests against the LXD REST
