@@ -818,8 +818,14 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	srcPath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
 	snapPath := snapVol.MountPath()
 
+	// Create the parent directory.
+	err := createParentSnapshotDirIfMissing(d.name, snapVol.volType, parentName)
+	if err != nil {
+		return err
+	}
+
 	// Create snapshot directory.
-	err := snapVol.CreateMountPath()
+	err = snapVol.CreateMountPath()
 	if err != nil {
 		return err
 	}
