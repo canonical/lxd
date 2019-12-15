@@ -867,16 +867,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *dir) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
-	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
-	oldPath := snapVol.MountPath()
-	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
-
-	err := os.Rename(oldPath, newPath)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.vfsRenameVolumeSnapshot(snapVol, newSnapshotName, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
