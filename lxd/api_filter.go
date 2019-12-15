@@ -84,7 +84,7 @@ func applyFilter (filter []*FilterEntry, obj interface{}) bool {
 				curResult = evaluateFieldImage(*entry, obj.(*api.Image))
 				break
 			default:
-				logger.Error("Error while filtering: unable to identify type")
+				logger.Error("Error while filtering: unable to identify type: %s", objType)
 				return false
 		}
 

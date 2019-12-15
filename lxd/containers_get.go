@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"reflect"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -56,7 +57,6 @@ func evaluateFieldInstance(entry FilterEntry, container *api.Instance) bool {
 	value := entry.Value
 	switch {
 		case strings.EqualFold(field, "name"):
-			logger.Warnf("In name eval, %s == %s", value, container.Name)
 			result = value == container.Name
 			break
 
@@ -135,16 +135,16 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Parse the recursion field
 	recursionStr := r.FormValue("recursion")
 
-	// // Parse filter value
+	// Parse filter value
 	filterStr := r.FormValue("filter")
+	filtering := false
+	if filterStr != "" {
+		filtering = true
+	}
 
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		recursion = 0
-
-		if filterStr != "" {
-			recursion = 1
-		}
 	}
 
 	// Parse the project field
@@ -174,7 +174,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	// Get the local instances
 	nodeCts := map[string]instance.Instance{}
-	if recursion > 0 {
+	if recursion > 0  || (recursion == 0 && filtering) {
 		cts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
 		if err != nil {
 			return nil, err
@@ -225,7 +225,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 
 		// Mark containers on unavailable nodes as down
-		if recursion > 0 && address == "0.0.0.0" {
+		if (recursion > 0  || (recursion == 0 && filtering)) && address == "0.0.0.0" {
 			for _, container := range containers {
 				if recursion == 1 {
 					resultListAppend(container, api.Instance{}, fmt.Errorf("unavailable"))
@@ -278,8 +278,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 			continue
 		}
-
-		if recursion == 0 {
+		if recursion == 0 && !filtering {
 			for _, container := range containers {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
@@ -308,7 +307,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 							break
 						}
 
-						if recursion == 1 {
+						if recursion == 1  || (recursion == 0 && filtering){
 							c, _, err := nodeCts[container].Render()
 							if err != nil {
 								resultListAppend(container, api.Instance{}, err)
@@ -341,6 +340,23 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	wg.Wait()
 
 	if recursion == 0 {
+		if filtering {
+			intList := make([]interface{}, len(resultList))
+			for i := range resultList {
+			    intList[i] = resultList[i]
+			}
+			newResultList := doFilter(filterStr, intList)
+			for _, container := range newResultList {
+				instancePath := "instances"
+				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+					instancePath = "containers"
+				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+					instancePath = "virtual-machines"
+				}
+				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container.(*api.Instance).Name)
+				resultString = append(resultString, url)
+			}
+		}
 		return resultString, nil
 	}
 
@@ -349,7 +365,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		sort.Slice(resultList, func(i, j int) bool {
 			return resultList[i].Name < resultList[j].Name
 		})
-		if filterStr != "" {
+		if filtering {
 			intList := make([]interface{}, len(resultList))
 			for i := range resultList {
 			    intList[i] = resultList[i]
@@ -364,10 +380,10 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
-	if filterStr != "" { 
+	if filtering { 
 		intList := make([]interface{}, len(resultFullList))
 		for i := range resultFullList {
-		    intList[i] = resultFullList[i]
+		    intList[i] = resultFullList[i].Instance
 		}
 		return doFilter(filterStr, intList), nil
 	}
