@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -599,33 +598,7 @@ func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *o
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *dir) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-	snapshots := []string{}
-
-	ents, err := ioutil.ReadDir(snapshotDir)
-	if err != nil {
-		// If the snapshots directory doesn't exist, there are no snapshots.
-		if os.IsNotExist(err) {
-			return snapshots, nil
-		}
-
-		return nil, err
-	}
-
-	for _, ent := range ents {
-		fileInfo, err := os.Stat(filepath.Join(snapshotDir, ent.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		if !fileInfo.IsDir() {
-			continue
-		}
-
-		snapshots = append(snapshots, ent.Name())
-	}
-
-	return snapshots, nil
+	return d.vfsVolumeSnapshots(vol, op)
 }
 
 // UpdateVolume applies config changes to the volume.
