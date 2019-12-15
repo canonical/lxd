@@ -6,6 +6,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -107,4 +109,27 @@ func (d *common) Config() map[string]string {
 	}
 
 	return confCopy
+}
+
+// vfsGetResources is a generic GetResources implementation for VFS-only drivers.
+func (d *common) vfsGetResources() (*api.ResourcesStoragePool, error) {
+	// Get the VFS information
+	st, err := shared.Statvfs(GetPoolMountPath(d.name))
+	if err != nil {
+		return nil, err
+	}
+
+	// Fill in the struct
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = st.Blocks * uint64(st.Bsize)
+	res.Space.Used = (st.Blocks - st.Bfree) * uint64(st.Bsize)
+
+	// Some filesystems don't report inodes since they allocate them
+	// dynamically e.g. btrfs.
+	if st.Files > 0 {
+		res.Inodes.Total = st.Files
+		res.Inodes.Used = st.Files - st.Ffree
+	}
+
+	return &res, nil
 }

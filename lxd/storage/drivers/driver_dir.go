@@ -133,8 +133,7 @@ func (d *dir) Unmount() (bool, error) {
 }
 
 func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
-	// Use the generic VFS resources.
-	return vfsResources(GetPoolMountPath(d.name))
+	return d.vfsGetResources()
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
