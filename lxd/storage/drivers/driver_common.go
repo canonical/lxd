@@ -243,3 +243,17 @@ func (d *common) vfsVolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 
 	return snapshots, nil
 }
+
+// vfsRenameVolumeSnapshot is a generic RenameVolumeSnapshot implementation for VFS-only drivers.
+func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
+	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+	oldPath := snapVol.MountPath()
+	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
+
+	err := os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
