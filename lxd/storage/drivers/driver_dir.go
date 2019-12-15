@@ -652,77 +652,7 @@ func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // RenameVolume renames a volume and its snapshots.
 func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
-	// Create new snapshots directory.
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newVolName)
-
-	err := os.MkdirAll(snapshotDir, 0711)
-	if err != nil {
-		return err
-	}
-
-	type volRevert struct {
-		oldPath string
-		newPath string
-	}
-
-	// Create slice to record paths renamed if revert needed later.
-	revertPaths := []volRevert{}
-	defer func() {
-		// Remove any paths rename if we are reverting.
-		for _, vol := range revertPaths {
-			os.Rename(vol.newPath, vol.oldPath)
-		}
-
-		// Remove the new snapshot directory if we are reverting.
-		if len(revertPaths) > 0 {
-			err = os.RemoveAll(snapshotDir)
-		}
-	}()
-
-	// Rename any snapshots of the volume too.
-	snapshots, err := vol.Snapshots(op)
-	if err != nil {
-		return err
-	}
-
-	for _, snapshot := range snapshots {
-		oldPath := snapshot.MountPath()
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.name)
-		newPath := GetVolumeMountPath(d.name, vol.volType, GetSnapshotVolumeName(newVolName, snapName))
-
-		err := os.Rename(oldPath, newPath)
-		if err != nil {
-			return err
-		}
-
-		revertPaths = append(revertPaths, volRevert{
-			oldPath: oldPath,
-			newPath: newPath,
-		})
-	}
-
-	oldPath := GetVolumeMountPath(d.name, vol.volType, vol.name)
-	newPath := GetVolumeMountPath(d.name, vol.volType, newVolName)
-	err = os.Rename(oldPath, newPath)
-	if err != nil {
-		return err
-	}
-
-	revertPaths = append(revertPaths, volRevert{
-		oldPath: oldPath,
-		newPath: newPath,
-	})
-
-	// Remove old snapshots directory.
-	oldSnapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-
-	err = os.RemoveAll(oldSnapshotDir)
-	if err != nil {
-		return err
-	}
-
-	revertPaths = nil
-	return nil
+	return d.vfsRenameVolume(vol, newVolName, op)
 }
 
 // RestoreVolume restores a volume from a snapshot.
