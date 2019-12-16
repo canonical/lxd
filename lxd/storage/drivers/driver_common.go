@@ -16,19 +16,19 @@ import (
 )
 
 type common struct {
-	name           string
-	config         map[string]string
-	getVolID       func(volType VolumeType, volName string) (int64, error)
-	getCommonRules func() map[string]func(string) error
-	state          *state.State
-	logger         logger.Logger
+	name                 string
+	config               map[string]string
+	getVolID             func(volType VolumeType, volName string) (int64, error)
+	getCommonVolumeRules func(vol Volume) map[string]func(string) error
+	state                *state.State
+	logger               logger.Logger
 }
 
-func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) error {
+func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonVolRulesFunc func(vol Volume) map[string]func(string) error) error {
 	d.name = name
 	d.config = config
 	d.getVolID = volIDFunc
-	d.getCommonRules = commonRulesFunc
+	d.getCommonVolumeRules = commonVolRulesFunc
 	d.state = state
 	d.logger = logger
 
@@ -47,7 +47,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 	checkedFields := map[string]struct{}{}
 
 	// Get rules common for all drivers.
-	rules := d.getCommonRules()
+	rules := d.getCommonVolumeRules(vol)
 
 	// Merge driver specific rules into common rules.
 	for field, validator := range driverRules {
