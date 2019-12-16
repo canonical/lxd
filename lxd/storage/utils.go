@@ -470,7 +470,7 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	},
 }
 
-// VolumeValidateConfig validations volume config.
+// VolumeValidateConfig validations volume config. Deprecated.
 func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
 	// Validate volume config using the new driver interface if supported.
 	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, nil, validateVolumeCommonRules)
@@ -611,11 +611,12 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 
 // validateVolumeCommonRules returns a map of volume config rules common to all drivers.
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
-	return map[string]func(string) error{
-		"security.shifted":    shared.IsBool,
-		"security.unmapped":   shared.IsBool,
+	rules := map[string]func(string) error{
 		"volatile.idmap.last": shared.IsAny,
 		"volatile.idmap.next": shared.IsAny,
+
+		// Note: size should not be modifiable for non-custom volumes and should be checked
+		// in the relevant volume update functions.
 		"size": func(value string) error {
 			if value == "" {
 				return nil
@@ -629,6 +630,24 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 			return nil
 		},
 	}
+
+	// block.mount_options is only relevant for drivers that are block backed and when there
+	// is a filesystem to actually mount.
+	if vol.IsBlockBacked() && vol.ContentType() == drivers.ContentTypeFS {
+		rules["block.mount_options"] = shared.IsAny
+
+		// Note: block.filesystem should not be modifiable after volume created. This should
+		// be checked in the relevant volume update functions.
+		rules["block.filesystem"] = shared.IsAny
+	}
+
+	// security.shifted and security.unmapped are only relevant for custom volumes.
+	if vol.Type() == drivers.VolumeTypeCustom {
+		rules["security.shifted"] = shared.IsBool
+		rules["security.unmapped"] = shared.IsBool
+	}
+
+	return rules
 }
 
 // ImageUnpack unpacks a filesystem image into the destination path.
