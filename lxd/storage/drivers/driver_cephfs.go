@@ -192,11 +192,13 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 
 	if shared.PathExists(filepath.Join(mountPoint, fsPath)) {
 		// Delete the usual directories.
-		for _, dir := range []string{"custom", "custom-snapshots"} {
-			if shared.PathExists(filepath.Join(mountPoint, fsPath, dir)) {
-				err = os.Remove(filepath.Join(mountPoint, fsPath, dir))
-				if err != nil {
-					return err
+		for _, volType := range d.Info().VolumeTypes {
+			for _, dir := range BaseDirectories[volType] {
+				if shared.PathExists(filepath.Join(mountPoint, fsPath, dir)) {
+					err = os.Remove(filepath.Join(mountPoint, fsPath, dir))
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
