@@ -365,7 +365,7 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 }
 
 // VolumeDBCreate creates a volume in the database.
-func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
+func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
@@ -380,7 +380,7 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 
 	// Check that a storage volume of the same storage volume type does not
 	// already exist.
-	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeID(volumeName, volumeType, poolID)
+	volumeID, _ := s.Cluster.StoragePoolNodeVolumeGetTypeIDByProject(project, volumeName, volumeType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("A storage volume of type %s already exists", volumeTypeName)
 	}
@@ -402,7 +402,7 @@ func VolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescripti
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = s.Cluster.StoragePoolVolumeCreate("default", volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(project, volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
