@@ -190,25 +190,14 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	}
 	defer forceUnmount(mountPoint)
 
+	// On delete, wipe everything in the directory.
+	err = wipeDirectory(GetPoolMountPath(d.name))
+	if err != nil {
+		return err
+	}
+
+	// Delete the pool from the parent.
 	if shared.PathExists(filepath.Join(mountPoint, fsPath)) {
-		// Delete the usual directories.
-		for _, volType := range d.Info().VolumeTypes {
-			for _, dir := range BaseDirectories[volType] {
-				if shared.PathExists(filepath.Join(mountPoint, fsPath, dir)) {
-					err = os.Remove(filepath.Join(mountPoint, fsPath, dir))
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-
-		// Confirm that the path is now empty.
-		ok, _ := shared.PathIsEmpty(filepath.Join(mountPoint, fsPath))
-		if !ok {
-			return fmt.Errorf("Only empty CEPHFS paths can be used as a LXD storage pool")
-		}
-
 		// Delete the path itself.
 		if fsPath != "" && fsPath != "/" {
 			err = os.Remove(filepath.Join(mountPoint, fsPath))
@@ -216,12 +205,6 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 				return err
 			}
 		}
-	}
-
-	// On delete, wipe everything in the directory.
-	err = wipeDirectory(GetPoolMountPath(d.name))
-	if err != nil {
-		return err
 	}
 
 	// Make sure the existing pool is unmounted.
