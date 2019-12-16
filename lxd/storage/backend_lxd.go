@@ -2560,7 +2560,7 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 
 func (b *lxdBackend) createStorageStructure(path string) error {
 	for _, volType := range b.driver.Info().VolumeTypes {
-		for _, name := range baseDirectories[volType] {
+		for _, name := range drivers.BaseDirectories[volType] {
 			err := os.MkdirAll(filepath.Join(path, name), 0711)
 			if err != nil && !os.IsExist(err) {
 				return err
