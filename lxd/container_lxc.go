@@ -3860,10 +3860,6 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 }
 
 func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
-	cg, err := c.cgroup(c.c)
-	if err != nil {
-		return err
-	}
 	// Set sane defaults for unset keys
 	if args.Project == "" {
 		args.Project = "default"
@@ -3886,7 +3882,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err = instance.ValidConfig(c.state.OS, args.Config, false, false)
+	err := instance.ValidConfig(c.state.OS, args.Config, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid config")
 	}
@@ -4097,6 +4093,11 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	err = c.initLXC(true)
 	if err != nil {
 		return errors.Wrap(err, "Initialize LXC")
+	}
+
+	cg, err := c.cgroup(c.c)
+	if err != nil {
+		return err
 	}
 
 	// If apparmor changed, re-validate the apparmor profile
