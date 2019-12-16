@@ -1048,6 +1048,12 @@ func (c *Cluster) StoragePoolNodeVolumeGetTypeID(volumeName string, volumeType i
 	return c.StoragePoolVolumeGetTypeID("default", volumeName, volumeType, poolID, c.nodeID)
 }
 
+// StoragePoolNodeVolumeGetTypeIDByProject gets the ID of a storage volume on a given storage pool
+// of a given storage volume type and project, on the current node.
+func (c *Cluster) StoragePoolNodeVolumeGetTypeIDByProject(project, volumeName string, volumeType int, poolID int64) (int64, error) {
+	return c.StoragePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, c.nodeID)
+}
+
 // XXX: this was extracted from lxd/storage_volume_utils.go, we find a way to
 //      factor it independently from both the db and main packages.
 const (

@@ -526,7 +526,7 @@ func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol 
 	}
 
 	// Create database entry for new storage volume.
-	err := storagePools.VolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, false, volumeConfig)
+	err := storagePools.VolumeDBCreate(state, "default", poolName, volumeName, volumeDescription, volumeTypeName, false, volumeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -635,7 +635,7 @@ func storagePoolVolumeSnapshotCopyInternal(state *state.State, poolName string, 
 
 func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (storage, error) {
 	// Create database entry for new storage volume.
-	err := storagePools.VolumeDBCreate(state, dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, true, dbArgs.Config)
+	err := storagePools.VolumeDBCreate(state, "default", dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, true, dbArgs.Config)
 	if err != nil {
 		return nil, err
 	}

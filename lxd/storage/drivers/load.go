@@ -11,7 +11,7 @@ var drivers = map[string]func() driver{
 }
 
 // Load returns a Driver for an existing low-level storage pool.
-func Load(state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func() map[string]func(string) error) (Driver, error) {
+func Load(state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonVolRulesFunc func(vol Volume) map[string]func(string) error) (Driver, error) {
 	// Locate the driver loader.
 	driverFunc, ok := drivers[driverName]
 	if !ok {
@@ -19,7 +19,7 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	}
 
 	d := driverFunc()
-	err := d.init(state, name, config, logger, volIDFunc, commonRulesFunc)
+	err := d.init(state, name, config, logger, volIDFunc, commonVolRulesFunc)
 	if err != nil {
 		return nil, err
 	}
