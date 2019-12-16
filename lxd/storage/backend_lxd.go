@@ -1171,6 +1171,16 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	// Apply config changes if there are any.
 	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
 	if len(changedConfig) != 0 {
+		// Check that the volume's size property isn't being changed.
+		if changedConfig["size"] != "" {
+			return fmt.Errorf("Instance volume 'size' property cannot be changed")
+		}
+
+		// Check that the volume's block.filesystem property isn't being changed.
+		if changedConfig["block.filesystem"] != "" {
+			return fmt.Errorf("Instance volume 'block.filesystem' property cannot be changed")
+		}
+
 		curVol := b.newVolume(volType, contentType, volStorageName, curVol.Config)
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
@@ -2258,6 +2268,11 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 	// Apply config changes if there are any.
 	changedConfig, userOnly := b.detectChangedConfig(curVol.Config, newConfig)
 	if len(changedConfig) != 0 {
+		// Check that the volume's block.filesystem property isn't being changed.
+		if changedConfig["block.filesystem"] != "" {
+			return fmt.Errorf("Custom volume 'block.filesystem' property cannot be changed")
+		}
+
 		curVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, curVol.Config)
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
