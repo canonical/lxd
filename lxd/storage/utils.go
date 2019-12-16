@@ -610,7 +610,7 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 }
 
 // validateVolumeCommonRules returns a map of volume config rules common to all drivers.
-func validateVolumeCommonRules() map[string]func(string) error {
+func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	return map[string]func(string) error{
 		"security.shifted":    shared.IsBool,
 		"security.unmapped":   shared.IsBool,
