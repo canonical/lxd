@@ -468,7 +468,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	// Disk priority limits.
 	diskPriority := d.instance.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
-		if d.state.OS.CGroupBlkioWeightController {
+		if d.state.OS.CGInfo.Supports("blkio.weight") {
 			priorityInt, err := strconv.Atoi(diskPriority)
 			if err != nil {
 				return err
@@ -503,7 +503,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	}
 
 	if hasDiskLimits {
-		if !d.state.OS.CGroupBlkioController {
+		if !d.state.OS.CGInfo.Supports("blkio") {
 			return fmt.Errorf("Cannot apply disk limits as blkio cgroup controller is missing")
 		}
 

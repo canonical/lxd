@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	lxc "gopkg.in/lxc/go-lxc.v2"
+
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -13,6 +16,7 @@ var cgCgroup2SuperMagic int64 = 0x63677270
 
 var cgControllers = map[string]Backend{}
 var cgNamespace bool
+var lxcCgroup2Support bool
 
 // Layout determines the cgroup layout on this system
 type Layout int
@@ -44,7 +48,6 @@ func GetInfo() Info {
 	info := Info{}
 	info.Namespacing = cgNamespace
 	info.Layout = cgLayout
-
 	return info
 }
 
@@ -62,6 +65,76 @@ func (info *Info) Mode() string {
 	}
 
 	return "unknown"
+}
+
+// Supports indicates whether or not a given cgroup control knob is available.
+// Note, we use "knob" instead of "controller" because this map holds
+// controllers as well as new features for a given controller, i.e. you can
+// have "blkio" which is a controller and "blkio.weight" which is a feature of
+// the blkio controller.
+func (info *Info) Supports(knob string) bool {
+	_, ok := cgControllers[knob]
+	return ok
+}
+
+// SupportsV1 indicated whether a given controller knob is available in the
+// legacy hierarchy. Once we're fully ported this should be removed.
+func (info *Info) SupportsV1(knob string) bool {
+	val, ok := cgControllers[knob]
+	if ok && val == V1 {
+		return true
+	}
+
+	return false
+}
+
+// Log logs cgroup info
+func (info *Info) Log() {
+	logger.Infof(" - cgroup layout: %s", info.Mode())
+
+	if !info.Supports("blkio") {
+		logger.Warnf(" - Couldn't find the CGroup blkio, I/O limits will be ignored")
+	}
+
+	if !info.Supports("blkio.weight") {
+		logger.Warnf(" - Couldn't find the CGroup blkio.weight, I/O weight limits will be ignored")
+	}
+
+	if !info.Supports("cpu") {
+		logger.Warnf(" - Couldn't find the CGroup CPU controller, CPU time limits will be ignored")
+	}
+
+	if !info.Supports("cpuacct") {
+		logger.Warnf(" - Couldn't find the CGroup CPUacct controller, CPU accounting will not be available")
+	}
+
+	if !info.Supports("cpuset") {
+		logger.Warnf(" - Couldn't find the CGroup CPUset controller, CPU pinning will be ignored")
+	}
+
+	if !info.Supports("devices") {
+		logger.Warnf(" - Couldn't find the CGroup devices controller, device access control won't work")
+	}
+
+	if !info.Supports("freezer") {
+		logger.Warnf(" - Couldn't find the CGroup freezer controller, pausing/resuming containers won't work")
+	}
+
+	if !info.Supports("memory") {
+		logger.Warnf(" - Couldn't find the CGroup memory controller, memory limits will be ignored")
+	}
+
+	if !info.Supports("net_prio") {
+		logger.Warnf(" - Couldn't find the CGroup network class controller, network limits will be ignored")
+	}
+
+	if !info.Supports("pids") {
+		logger.Warnf(" - Couldn't find the CGroup pids controller, process limits will be ignored")
+	}
+
+	if !info.Supports("memory.memsw.limit_in_bytes") {
+		logger.Warnf(" - Couldn't find the CGroup memory swap accounting, swap limits will be ignored")
+	}
 }
 
 func init() {
@@ -135,11 +208,24 @@ func init() {
 		}
 	}
 
+	// Check for additional legacy cgroup features
+	val, ok := cgControllers["blkio"]
+	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/blkio/blkio.weight") {
+		cgControllers["blkio.weight"] = V1
+	}
+
+	val, ok = cgControllers["memory"]
+	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes") {
+		cgControllers["memory.memsw.limit_in_bytes"] = V2
+	}
+
 	if hasV1 && hasV2 {
 		cgLayout = CgroupsHybrid
+		lxcCgroup2Support = lxc.HasApiExtension("cgroup2")
 	} else if hasV1 {
 		cgLayout = CgroupsLegacy
 	} else if hasV2 {
 		cgLayout = CgroupsUnified
+		lxcCgroup2Support = lxc.HasApiExtension("cgroup2")
 	}
 }
