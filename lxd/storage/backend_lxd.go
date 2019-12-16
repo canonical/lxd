@@ -377,7 +377,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	contentType := InstanceContentType(inst)
 
 	// Find the root device config for instance.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -473,7 +473,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		// instance creation setup.
 		postHook = func(inst instance.Instance) error {
 			// Get the root disk device config.
-			_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+			rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 			if err != nil {
 				return err
 			}
@@ -521,7 +521,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -667,7 +667,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -829,7 +829,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	}()
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -897,7 +897,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	contentType := InstanceContentType(inst)
 
 	// Find the root device config for instance.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -1281,7 +1281,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	}
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -1314,7 +1314,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, o
 	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -1391,7 +1391,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	}
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return false, err
 	}
@@ -1418,7 +1418,7 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	}
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return false, err
 	}
@@ -1668,7 +1668,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	contentType := InstanceContentType(inst)
 
 	// Find the root device config for source snapshot instance.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(src.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return err
 	}
@@ -1711,7 +1711,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	contentType := InstanceContentType(inst)
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return false, err
 	}
@@ -1742,7 +1742,7 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	}
 
 	// Get the root disk device config.
-	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 	if err != nil {
 		return false, err
 	}
