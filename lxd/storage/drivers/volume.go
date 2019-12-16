@@ -178,3 +178,13 @@ func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 func (v Volume) IsBlockBacked() bool {
 	return v.driver.Info().BlockBacking
 }
+
+// Type returns the volume type.
+func (v Volume) Type() VolumeType {
+	return v.volType
+}
+
+// ContentType returns the content type.
+func (v Volume) ContentType() ContentType {
+	return v.contentType
+}
