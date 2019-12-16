@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -468,7 +469,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	// Disk priority limits.
 	diskPriority := d.instance.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
-		if d.state.OS.CGroupBlkioWeightController {
+		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
 			priorityInt, err := strconv.Atoi(diskPriority)
 			if err != nil {
 				return err
@@ -503,7 +504,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	}
 
 	if hasDiskLimits {
-		if !d.state.OS.CGroupBlkioController {
+		if !d.state.OS.CGInfo.Supports(cgroup.Blkio, nil) {
 			return fmt.Errorf("Cannot apply disk limits as blkio cgroup controller is missing")
 		}
 

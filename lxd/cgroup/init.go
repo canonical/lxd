@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -19,7 +20,7 @@ type Layout int
 
 const (
 	// CgroupsDisabled indicates that cgroups are not supported
-	CgroupsDisabled = iota
+	CgroupsDisabled Layout = iota
 	// CgroupsUnified indicates that this is a pure cgroup2 layout
 	CgroupsUnified
 	// CgroupsHybrid indicates that this is a mixed cgroup1 and cgroup2 layout
@@ -62,6 +63,224 @@ func (info *Info) Mode() string {
 	}
 
 	return "unknown"
+}
+
+// Resource is a generic type used to abstract resource control features
+// support for the legacy and unified hierarchy.
+type Resource int
+
+const (
+	// Blkio resource control
+	Blkio Resource = iota
+
+	// BlkioWeight resource control
+	BlkioWeight
+
+	// CPU resource control
+	CPU
+
+	// CPUAcct resource control
+	CPUAcct
+
+	// CPUSet resource control
+	CPUSet
+
+	// Devices resource control
+	Devices
+
+	// Freezer resource control
+	Freezer
+
+	// Memory resource control
+	Memory
+
+	// MemoryMaxUsage resource control
+	MemoryMaxUsage
+
+	// MemorySwap resource control
+	MemorySwap
+
+	// MemorySwapMaxUsage resource control
+	MemorySwapMaxUsage
+
+	// MemorySwapUsage resource control
+	MemorySwapUsage
+
+	// MemorySwappiness resource control
+	MemorySwappiness
+
+	// NetPrio resource control
+	NetPrio
+
+	// Pids resource control
+	Pids
+)
+
+// SupportsVersion indicates whether or not a given cgroup resource is
+// controllable and in which type of cgroup filesystem.
+func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
+	switch resource {
+	case Blkio:
+		val, ok := cgControllers["blkio"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case BlkioWeight:
+		val, ok := cgControllers["blkio.weight"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case CPU:
+		val, ok := cgControllers["cpu"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case CPUAcct:
+		val, ok := cgControllers["cpuacct"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case CPUSet:
+		val, ok := cgControllers["cpuset"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case Devices:
+		val, ok := cgControllers["devices"]
+		return val, ok
+	case Freezer:
+		val, ok := cgControllers["freezer"]
+		return val, ok
+	case Memory:
+		val, ok := cgControllers["memory"]
+		return val, ok
+	case MemoryMaxUsage:
+		val, ok := cgControllers["memory.max_usage_in_bytes"]
+		return val, ok
+	case MemorySwap:
+		val, ok := cgControllers["memory.memsw.limit_in_bytes"]
+		if ok {
+			return val, ok
+		}
+
+		val, ok = cgControllers["memory.swap.max"]
+		if ok {
+			return val, ok
+		}
+
+		return Unavailable, false
+	case MemorySwapMaxUsage:
+		val, ok := cgControllers["memory.memsw.max_usage_in_bytes"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case MemorySwapUsage:
+		val, ok := cgControllers["memory.memsw.usage_in_bytes"]
+		if ok {
+			return val, ok
+		}
+
+		val, ok = cgControllers["memory.swap.current"]
+		if ok {
+			return val, ok
+		}
+
+		return Unavailable, false
+	case MemorySwappiness:
+		val, ok := cgControllers["memory.swappiness"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case NetPrio:
+		val, ok := cgControllers["net_prio"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	case Pids:
+		val, ok := cgControllers["pids"]
+		if ok && val == V1 {
+			return V1, ok
+		}
+
+		return Unavailable, false
+	}
+
+	return Unavailable, false
+}
+
+// Supports indicates whether or not a given resource is controllable.
+func (info *Info) Supports(resource Resource, cgroup *CGroup) bool {
+	val, ok := info.SupportsVersion(resource)
+	if val == V2 && cgroup != nil && !cgroup.UnifiedCapable {
+		ok = false
+	}
+
+	return ok
+}
+
+// Log logs cgroup info
+func (info *Info) Log() {
+	logger.Infof(" - cgroup layout: %s", info.Mode())
+
+	if !info.Supports(Blkio, nil) {
+		logger.Warnf(" - Couldn't find the CGroup blkio, I/O limits will be ignored")
+	}
+
+	if !info.Supports(BlkioWeight, nil) {
+		logger.Warnf(" - Couldn't find the CGroup blkio.weight, I/O weight limits will be ignored")
+	}
+
+	if !info.Supports(CPU, nil) {
+		logger.Warnf(" - Couldn't find the CGroup CPU controller, CPU time limits will be ignored")
+	}
+
+	if !info.Supports(CPUAcct, nil) {
+		logger.Warnf(" - Couldn't find the CGroup CPUacct controller, CPU accounting will not be available")
+	}
+
+	if !info.Supports(CPUSet, nil) {
+		logger.Warnf(" - Couldn't find the CGroup CPUset controller, CPU pinning will be ignored")
+	}
+
+	if !info.Supports(Devices, nil) {
+		logger.Warnf(" - Couldn't find the CGroup devices controller, device access control won't work")
+	}
+
+	if !info.Supports(Freezer, nil) {
+		logger.Warnf(" - Couldn't find the CGroup freezer controller, pausing/resuming containers won't work")
+	}
+
+	if !info.Supports(Memory, nil) {
+		logger.Warnf(" - Couldn't find the CGroup memory controller, memory limits will be ignored")
+	}
+
+	if !info.Supports(NetPrio, nil) {
+		logger.Warnf(" - Couldn't find the CGroup network class controller, network limits will be ignored")
+	}
+
+	if !info.Supports(Pids, nil) {
+		logger.Warnf(" - Couldn't find the CGroup pids controller, process limits will be ignored")
+	}
+
+	if !info.Supports(MemorySwap, nil) {
+		logger.Warnf(" - Couldn't find the CGroup memory swap accounting, swap limits will be ignored")
+	}
 }
 
 func init() {
@@ -132,6 +351,28 @@ func init() {
 				cgControllers[line] = V2
 			}
 			hasV2 = true
+		}
+	}
+
+	// Check for additional legacy cgroup features
+	val, ok := cgControllers["blkio"]
+	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/blkio/blkio.weight") {
+		cgControllers["blkio.weight"] = V1
+	}
+
+	val, ok = cgControllers["memory"]
+	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes") {
+		cgControllers["memory.memsw.limit_in_bytes"] = V2
+	}
+
+	val, ok = cgControllers["memory"]
+	if ok && val == V2 {
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.swap.max") {
+			cgControllers["memory.swap.max"] = V2
+		}
+
+		if shared.PathExists("/sys/fs/cgroup/memory/memory.swap.current") {
+			cgControllers["memory.swap.current"] = V2
 		}
 	}
 

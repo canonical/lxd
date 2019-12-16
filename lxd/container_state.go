@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
@@ -190,7 +191,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return nil
 		}
 	case shared.Freeze:
-		if !d.os.CGroupFreezerController {
+		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
 			return response.BadRequest(fmt.Errorf("This system doesn't support freezing containers"))
 		}
 
@@ -200,7 +201,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
-		if !d.os.CGroupFreezerController {
+		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
 			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing containers"))
 		}
 
