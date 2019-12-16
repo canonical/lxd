@@ -8,6 +8,7 @@ import (
 
 	log "github.com/lxc/lxd/shared/log15"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -58,17 +59,7 @@ type OS struct {
 	AppArmorStacking  bool
 
 	// Cgroup features
-	CGroupBlkioController       bool
-	CGroupBlkioWeightController bool
-	CGroupCPUacctController     bool
-	CGroupCPUController         bool
-	CGroupCPUsetController      bool
-	CGroupDevicesController     bool
-	CGroupFreezerController     bool
-	CGroupMemoryController      bool
-	CGroupNetPrioController     bool
-	CGroupPidsController        bool
-	CGroupSwapAccounting        bool
+	CGInfo cgroup.Info
 
 	// Kernel features
 	NetnsGetifaddrs         bool
@@ -130,7 +121,7 @@ func (s *OS) Init() error {
 	s.RunningInUserNS = shared.RunningInUserNS()
 
 	s.initAppArmor()
-	s.initCGroup()
+	s.CGInfo = cgroup.GetInfo()
 
 	return nil
 }

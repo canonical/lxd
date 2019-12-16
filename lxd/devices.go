@@ -229,7 +229,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Don't bother running when CGroup support isn't there
-	if !s.OS.CGroupCPUsetController {
+	if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 		return
 	}
 
@@ -409,7 +409,7 @@ func deviceTaskBalance(s *state.State) {
 
 func deviceNetworkPriority(s *state.State, netif string) {
 	// Don't bother running when CGroup support isn't there
-	if !s.OS.CGroupNetPrioController {
+	if !s.OS.CGInfo.Supports(cgroup.NetPrio, nil) {
 		return
 	}
 
@@ -452,7 +452,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGroupCPUsetController {
+			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 				continue
 			}
 
@@ -464,7 +464,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGroupNetPrioController {
+			if !s.OS.CGInfo.Supports(cgroup.NetPrio, nil) {
 				continue
 			}
 
@@ -479,7 +479,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !s.OS.CGroupCPUsetController {
+			if !s.OS.CGInfo.Supports(cgroup.CPUSet, nil) {
 				continue
 			}
 

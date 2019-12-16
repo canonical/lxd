@@ -856,7 +856,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Configure devices cgroup
-	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGInfo.Supports(cgroup.Devices, cg) {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
 		if err != nil {
 			return err
@@ -1091,7 +1091,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Memory limits
-	if c.state.OS.CGroupMemoryController {
+	if c.state.OS.CGInfo.Supports(cgroup.Memory, cg) {
 		memory := c.expandedConfig["limits.memory"]
 		memoryEnforce := c.expandedConfig["limits.memory.enforce"]
 		memorySwap := c.expandedConfig["limits.memory.swap"]
@@ -1125,7 +1125,7 @@ func (c *containerLXC) initLXC(config bool) error {
 					return err
 				}
 			} else {
-				if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 					err = cg.SetMemoryMaxUsage(fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
@@ -1148,20 +1148,22 @@ func (c *containerLXC) initLXC(config bool) error {
 			}
 		}
 
-		// Configure the swappiness
-		if memorySwap != "" && !shared.IsTrue(memorySwap) {
-			err = cg.SetMemorySwappiness("0")
-			if err != nil {
-				return err
-			}
-		} else if memorySwapPriority != "" {
-			priority, err := strconv.Atoi(memorySwapPriority)
-			if err != nil {
-				return err
-			}
-			err = cg.SetMemorySwappiness(fmt.Sprintf("%d", 60-10+priority))
-			if err != nil {
-				return err
+		if c.state.OS.CGInfo.Supports(cgroup.MemorySwappiness, cg) {
+			// Configure the swappiness
+			if memorySwap != "" && !shared.IsTrue(memorySwap) {
+				err = cg.SetMemorySwappiness("0")
+				if err != nil {
+					return err
+				}
+			} else if memorySwapPriority != "" {
+				priority, err := strconv.Atoi(memorySwapPriority)
+				if err != nil {
+					return err
+				}
+				err = cg.SetMemorySwappiness(fmt.Sprintf("%d", 60-10+priority))
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -1170,7 +1172,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	cpuPriority := c.expandedConfig["limits.cpu.priority"]
 	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
 
-	if (cpuPriority != "" || cpuAllowance != "") && c.state.OS.CGroupCPUController {
+	if (cpuPriority != "" || cpuAllowance != "") && c.state.OS.CGInfo.Supports(cgroup.CPU, cg) {
 		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := cgroup.ParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
 			return err
@@ -1199,7 +1201,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Processes
-	if c.state.OS.CGroupPidsController {
+	if c.state.OS.CGInfo.Supports(cgroup.Pids, cg) {
 		processes := c.expandedConfig["limits.processes"]
 		if processes != "" {
 			valueInt, err := strconv.ParseInt(processes, 10, 64)
@@ -1408,9 +1410,14 @@ func (c *containerLXC) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryI
 
 // deviceAddCgroupRules live adds cgroup rules to a container.
 func (c *containerLXC) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
+	cg, err := c.cgroup(nil)
+	if err != nil {
+		return err
+	}
+
 	for _, rule := range cgroups {
 		// Only apply devices cgroup rules if container is running privileged and host has devices cgroup controller.
-		if strings.HasPrefix(rule.Key, "devices.") && (!c.isCurrentlyPrivileged() || c.state.OS.RunningInUserNS || !c.state.OS.CGroupDevicesController) {
+		if strings.HasPrefix(rule.Key, "devices.") && (!c.isCurrentlyPrivileged() || c.state.OS.RunningInUserNS || !c.state.OS.CGInfo.Supports(cgroup.Devices, cg)) {
 			continue
 		}
 
@@ -2606,10 +2613,10 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	// Fork-bomb mitigation, prevent forking from this point on
-	if c.state.OS.CGroupPidsController {
+	if c.state.OS.CGInfo.Supports(cgroup.Pids, cg) {
 		// Attempt to disable forking new processes
 		cg.SetMaxProcesses(0)
-	} else if c.state.OS.CGroupFreezerController {
+	} else if c.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
 		// Attempt to freeze the container
 		freezer := make(chan bool, 1)
 		go func() {
@@ -2862,8 +2869,13 @@ func (c *containerLXC) Freeze() error {
 		return fmt.Errorf("The container isn't running")
 	}
 
+	cg, err := c.cgroup(nil)
+	if err != nil {
+		return err
+	}
+
 	// Check if the CGroup is available
-	if !c.state.OS.CGroupFreezerController {
+	if !c.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
 		logger.Info("Unable to freeze container (lack of kernel support)", ctxMap)
 		return nil
 	}
@@ -2876,7 +2888,7 @@ func (c *containerLXC) Freeze() error {
 	logger.Info("Freezing container", ctxMap)
 
 	// Load the go-lxc struct
-	err := c.initLXC(false)
+	err = c.initLXC(false)
 	if err != nil {
 		ctxMap["err"] = err
 		logger.Error("Failed freezing container", ctxMap)
@@ -2910,8 +2922,13 @@ func (c *containerLXC) Unfreeze() error {
 		return fmt.Errorf("The container isn't running")
 	}
 
+	cg, err := c.cgroup(nil)
+	if err != nil {
+		return err
+	}
+
 	// Check if the CGroup is available
-	if !c.state.OS.CGroupFreezerController {
+	if !c.state.OS.CGInfo.Supports(cgroup.Freezer, cg) {
 		logger.Info("Unable to unfreeze container (lack of kernel support)", ctxMap)
 		return nil
 	}
@@ -2924,7 +2941,7 @@ func (c *containerLXC) Unfreeze() error {
 	logger.Info("Unfreezing container", ctxMap)
 
 	// Load the go-lxc struct
-	err := c.initLXC(false)
+	err = c.initLXC(false)
 	if err != nil {
 		logger.Error("Failed unfreezing container", ctxMap)
 		return err
@@ -4203,7 +4220,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "limits.disk.priority" {
-				if !c.state.OS.CGroupBlkioController {
+				if !c.state.OS.CGInfo.Supports(cgroup.Blkio, cg) {
 					continue
 				}
 
@@ -4228,7 +4245,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 			} else if key == "limits.memory" || strings.HasPrefix(key, "limits.memory.") {
 				// Skip if no memory CGroup
-				if !c.state.OS.CGroupMemoryController {
+				if !c.state.OS.CGInfo.Supports(cgroup.Memory, cg) {
 					continue
 				}
 
@@ -4262,7 +4279,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 
 				// Store the old values for revert
 				oldMemswLimit := ""
-				if c.state.OS.CGroupSwapAccounting {
+				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 					oldMemswLimit, err = cg.GetMemorySwapLimit()
 					if err != nil {
 						oldMemswLimit = ""
@@ -4292,7 +4309,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				}
 
 				// Reset everything
-				if c.state.OS.CGroupSwapAccounting {
+				if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) {
 					err = cg.SetMemorySwapMax("-1")
 					if err != nil {
 						revertMemory()
@@ -4319,7 +4336,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+					if c.state.OS.CGInfo.Supports(cgroup.MemorySwap, cg) && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = cg.SetMemoryMaxUsage(memory)
 						if err != nil {
 							revertMemory()
@@ -4349,6 +4366,10 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						revertMemory()
 						return err
 					}
+				}
+
+				if !c.state.OS.CGInfo.Supports(cgroup.MemorySwappiness, cg) {
+					continue
 				}
 
 				// Configure the swappiness
@@ -4384,7 +4405,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 				cgroup.TaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
-				if !c.state.OS.CGroupCPUController {
+				if !c.state.OS.CGInfo.Supports(cgroup.CPU, cg) {
 					continue
 				}
 
@@ -4407,7 +4428,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "limits.processes" {
-				if !c.state.OS.CGroupPidsController {
+				if !c.state.OS.CGInfo.Supports(cgroup.Pids, cg) {
 					continue
 				}
 
@@ -5732,14 +5753,13 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 func (c *containerLXC) cpuState() api.InstanceStateCPU {
 	cpu := api.InstanceStateCPU{}
 
-	if !c.state.OS.CGroupCPUacctController {
-		return cpu
-	}
-
 	// CPU usage in seconds
 	cg, err := c.cgroup(c.c)
 	if err != nil {
-		cpu.Usage = -1
+		return cpu
+	}
+
+	if !c.state.OS.CGInfo.Supports(cgroup.CPUAcct, cg) {
 		return cpu
 	}
 
@@ -5813,7 +5833,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 		return memory
 	}
 
-	if !c.state.OS.CGroupMemoryController {
+	if !c.state.OS.CGInfo.Supports(cgroup.Memory, cg) {
 		return memory
 	}
 
@@ -5825,13 +5845,15 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	}
 
 	// Memory peak in bytes
-	value, err = cg.GetMemoryMaxUsage()
-	valueInt, err1 = strconv.ParseInt(value, 10, 64)
-	if err == nil && err1 == nil {
-		memory.UsagePeak = valueInt
+	if c.state.OS.CGInfo.Supports(cgroup.MemoryMaxUsage, cg) {
+		value, err = cg.GetMemoryMaxUsage()
+		valueInt, err1 = strconv.ParseInt(value, 10, 64)
+		if err == nil && err1 == nil {
+			memory.UsagePeak = valueInt
+		}
 	}
 
-	if c.state.OS.CGroupSwapAccounting {
+	if c.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		// Swap in bytes
 		if memory.Usage > 0 {
 			value, err := cg.GetMemorySwapUsage()
@@ -5919,11 +5941,12 @@ func (c *containerLXC) processesState() int64 {
 		return 0
 	}
 
-	if c.state.OS.CGroupPidsController {
-		cg, err := c.cgroup(nil)
-		if err != nil {
-			return 0
-		}
+	cg, err := c.cgroup(c.c)
+	if err != nil {
+		return 0
+	}
+
+	if c.state.OS.CGInfo.Supports(cgroup.Pids, cg) {
 		value, err := cg.GetProcessesUsage()
 		if err != nil {
 			return -1
@@ -6509,7 +6532,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	}
 
 	// Don't bother if the cgroup controller doesn't exist
-	if !c.state.OS.CGroupNetPrioController {
+	if !c.state.OS.CGInfo.Supports(cgroup.NetPrio, cg) {
 		return nil
 	}
 
@@ -6966,12 +6989,19 @@ func (c *containerLXC) cgroup(cc *lxc.Container) (*cgroup.CGroup, error) {
 		rw.cc = c.c
 	}
 
-	return cgroup.New(&rw)
+	cg, err := cgroup.New(&rw)
+	if err != nil {
+		return nil, err
+	}
+
+	cg.UnifiedCapable = lxc.HasApiExtension("cgroup2")
+	return cg, nil
 }
 
 type lxcCgroupReadWriter struct {
-	cc   *lxc.Container
-	conf bool
+	cc      *lxc.Container
+	conf    bool
+	cgroup2 bool
 }
 
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {
