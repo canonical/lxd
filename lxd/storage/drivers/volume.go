@@ -173,3 +173,8 @@ func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 
 	return snapVols, nil
 }
+
+// IsBlockBacked indicates whether storage device is block backed.
+func (v Volume) IsBlockBacked() bool {
+	return v.driver.Info().BlockBacking
+}
