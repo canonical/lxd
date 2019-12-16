@@ -2424,7 +2424,7 @@ func (b *lxdBackend) MountCustomVolume(volName string, op *operations.Operation)
 	logger.Debug("MountCustomVolume started")
 	defer logger.Debug("MountCustomVolume finished")
 
-	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetType(volName, db.StoragePoolVolumeTypeCustom, b.id)
+	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
 		return false, err
 	}
@@ -2440,7 +2440,7 @@ func (b *lxdBackend) UnmountCustomVolume(volName string, op *operations.Operatio
 	logger.Debug("UnmountCustomVolume started")
 	defer logger.Debug("UnmountCustomVolume finished")
 
-	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetType(volName, db.StoragePoolVolumeTypeCustom, b.id)
+	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
 		return false, err
 	}
