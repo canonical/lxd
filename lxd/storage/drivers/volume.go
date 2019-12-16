@@ -34,6 +34,14 @@ const ContentTypeFS = ContentType("fs")
 // know which filesystem(s) (if any) are in use.
 const ContentTypeBlock = ContentType("block")
 
+// BaseDirectories maps volume types to the expected directories.
+var BaseDirectories = map[VolumeType][]string{
+	VolumeTypeContainer: {"containers", "containers-snapshots"},
+	VolumeTypeCustom:    {"custom", "custom-snapshots"},
+	VolumeTypeImage:     {"images"},
+	VolumeTypeVM:        {"virtual-machines", "virtual-machines-snapshots"},
+}
+
 // Volume represents a storage volume, and provides functions to mount and unmount it.
 type Volume struct {
 	name        string
