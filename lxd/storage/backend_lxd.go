@@ -1195,7 +1195,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 	}
 
 	// Get current config to compare what has changed.
-	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), volStorageName, volDBType, b.ID())
+	_, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Volume doesn't exist")
@@ -1228,7 +1228,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 
 	// Update the database if something changed.
 	if len(changedConfig) != 0 || newDesc != curVol.Description {
-		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(inst.Project(), volStorageName, volDBType, b.ID(), newDesc, newConfig)
+		err = b.state.Cluster.StoragePoolVolumeUpdateByProject(inst.Project(), inst.Name(), volDBType, b.ID(), newDesc, newConfig)
 		if err != nil {
 			return err
 		}
