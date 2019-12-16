@@ -319,6 +319,42 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 	return nil
 }
 
+// instanceRootVolumeConfig returns the instance's root volume config.
+func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[string]string, error) {
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get volume config.
+	_, vol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), volDBType, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return nil, fmt.Errorf("Volume doesn't exist")
+		}
+
+		return nil, err
+	}
+
+	// Get the root disk device config.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return nil, err
+	}
+
+	// Override size property from instance root device config.
+	if rootDiskConf["size"] != "" {
+		vol.Config["size"] = rootDiskConf["size"]
+	}
+
+	return vol.Config, nil
+}
+
 // CreateInstance creates an empty instance.
 func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
