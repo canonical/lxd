@@ -1773,7 +1773,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		return err
 	}
 
-	err = VolumeDBCreate(b.state, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil)
+	err = VolumeDBCreate(b.state, "default", b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil)
 	if err != nil {
 		return err
 	}
@@ -1867,7 +1867,7 @@ func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+	err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
 	if err != nil {
 		return err
 	}
@@ -1975,7 +1975,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+		err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
 		if err != nil {
 			return err
 		}
@@ -1987,7 +1987,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, config)
+				err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, config)
 				if err != nil {
 					return err
 				}
@@ -2105,7 +2105,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, args.Config)
+	err = VolumeDBCreate(b.state, "default", b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, args.Config)
 	if err != nil {
 		return err
 	}
@@ -2117,7 +2117,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, args.Config)
+			err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, args.Config)
 			if err != nil {
 				return err
 			}
@@ -2451,7 +2451,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(volName string, newSnapshotName 
 	}
 
 	// Create database entry for new storage volume snapshot.
-	err = VolumeDBCreate(b.state, b.name, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config)
+	err = VolumeDBCreate(b.state, "default", b.name, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config)
 	if err != nil {
 		return err
 	}
