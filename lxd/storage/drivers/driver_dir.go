@@ -928,8 +928,8 @@ func (d *dir) BackupVolume(vol Volume, targetPath string, _, snapshots bool, op 
 	return nil
 }
 
-// RestoreBackupVolume restores a backup tarball onto the storage device.
-func (d *dir) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
+// CreateVolumeFromBackup restores a backup tarball onto the storage device.
+func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	revert := true
 	revertPaths := []string{}
 
