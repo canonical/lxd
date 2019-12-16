@@ -52,8 +52,8 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	return nil
 }
 
-// RestoreBackupVolume re-creates a volume from its exported state.
-func (d *cephfs) RestoreBackupVolume(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
+// CreateVolumeFromBackup re-creates a volume from its exported state.
+func (d *cephfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	return nil, nil, ErrNotImplemented
 }
 
