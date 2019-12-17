@@ -554,7 +554,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 
 	volumeLvmName := containerNameToLVName(s.volume.Name)
 	poolName := s.getOnDiskPoolName()
-	customLvmDevPath := getLvmDevPath("default", poolName,
+	customLvmDevPath := drivers.LVMDevPath("default", poolName,
 		storagePoolVolumeAPIEndpointCustom, volumeLvmName)
 	lvExists, _ := storageLVExists(customLvmDevPath)
 
@@ -609,7 +609,7 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	lvmVolumePath := getLvmDevPath("default", poolName, volumeType, volumeLvmName)
+	lvmVolumePath := drivers.LVMDevPath("default", poolName, volumeType, volumeLvmName)
 
 	customMountLockID := getCustomMountLockID(s.pool.Name, s.volume.Name)
 	lxdStorageMapLock.Lock()
@@ -929,8 +929,8 @@ func (s *storageLvm) StoragePoolVolumeRename(newName string) error {
 func (s *storageLvm) ContainerStorageReady(container instance.Instance) bool {
 	containerLvmName := containerNameToLVName(container.Name())
 	poolName := s.getOnDiskPoolName()
-	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
-	ok, _ := storageLVExists(containerLvmPath)
+	containerLvmPath := drivers.LVMDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	ok, _ := drivers.LVMVolumeExists(containerLvmPath)
 	return ok
 }
 
@@ -1035,7 +1035,7 @@ func (s *storageLvm) ContainerCreateFromImage(container instance.Instance, finge
 	}
 
 	poolName := s.getOnDiskPoolName()
-	containerLvDevPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	containerLvDevPath := drivers.LVMDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 	// Generate a new xfs's UUID
 	lvFsType := s.getLvmFilesystem()
 	msg, err := driver.FSGenerateNewUUID(lvFsType, containerLvDevPath)
@@ -1086,7 +1086,7 @@ func lvmContainerDeleteInternal(projectName, poolName string, ctName string, isS
 		}
 	}
 
-	containerLvmDevPath := getLvmDevPath(projectName, vgName,
+	containerLvmDevPath := drivers.LVMDevPath(projectName, vgName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
 	lvExists, _ := storageLVExists(containerLvmDevPath)
@@ -1247,7 +1247,7 @@ func (s *storageLvm) doContainerMount(project, name string, snap bool) (bool, er
 	containerLvmName := containerNameToLVName(name)
 	lvFsType := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
-	containerLvmPath := getLvmDevPath(project, poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	containerLvmPath := drivers.LVMDevPath(project, poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 	containerMntPoint := driver.GetContainerMountPoint(project, s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = driver.GetSnapshotMountPoint(project, s.pool.Name, name)
@@ -1583,7 +1583,7 @@ func (s *storageLvm) ContainerSnapshotStart(container instance.Instance) (bool, 
 	poolName := s.getOnDiskPoolName()
 	containerName := container.Name()
 	containerLvmName := containerNameToLVName(containerName)
-	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	containerLvmPath := drivers.LVMDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
 	wasWritableAtCheck, err := lvmLvIsWritable(containerLvmPath)
 	if err != nil {
@@ -1642,7 +1642,7 @@ func (s *storageLvm) ContainerSnapshotStop(container instance.Instance) (bool, e
 		}
 	}
 
-	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerNameToLVName(containerName))
+	containerLvmPath := drivers.LVMDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerNameToLVName(containerName))
 	wasWritableAtCheck, err := lvmLvIsWritable(containerLvmPath)
 	if err != nil {
 		return false, err
@@ -1973,7 +1973,7 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 
 	if s.useThinpool {
 		poolName := s.getOnDiskPoolName()
-		imageLvmDevPath := getLvmDevPath("default", poolName,
+		imageLvmDevPath := drivers.LVMDevPath("default", poolName,
 			storagePoolVolumeAPIEndpointImages, fingerprint)
 		lvExists, _ := storageLVExists(imageLvmDevPath)
 
@@ -2022,7 +2022,7 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	lvmVolumePath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
+	lvmVolumePath := drivers.LVMDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
 	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
 	err := driver.TryMount(lvmVolumePath, imageMntPoint, lvmFstype, mountFlags, mountOptions)
 	if err != nil {
@@ -2092,11 +2092,11 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 		}
 
 		ctLvmName := containerNameToLVName(ctName)
-		lvDevPath = getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointContainers, ctLvmName)
+		lvDevPath = drivers.LVMDevPath("default", poolName, storagePoolVolumeAPIEndpointContainers, ctLvmName)
 		mountpoint = driver.GetContainerMountPoint(c.Project(), s.pool.Name, ctName)
 	default:
 		customLvmName := containerNameToLVName(s.volume.Name)
-		lvDevPath = getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, customLvmName)
+		lvDevPath = drivers.LVMDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, customLvmName)
 		mountpoint = driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
@@ -2306,8 +2306,8 @@ func (s *storageLvm) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	snapshotLVDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
-	lvExists, _ := storageLVExists(snapshotLVDevPath)
+	snapshotLVDevPath := drivers.LVMDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
+	lvExists, _ := drivers.LVMVolumeExists(snapshotLVDevPath)
 	if lvExists {
 		err := removeLV("default", poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
 		if err != nil {
