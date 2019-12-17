@@ -556,7 +556,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 	poolName := s.getOnDiskPoolName()
 	customLvmDevPath := drivers.LVMDevPath("default", poolName,
 		storagePoolVolumeAPIEndpointCustom, volumeLvmName)
-	lvExists, _ := storageLVExists(customLvmDevPath)
+	lvExists, _ := drivers.LVMVolumeExists(customLvmDevPath)
 
 	if lvExists {
 		_, err := s.StoragePoolVolumeUmount()
@@ -1089,7 +1089,7 @@ func lvmContainerDeleteInternal(projectName, poolName string, ctName string, isS
 	containerLvmDevPath := drivers.LVMDevPath(projectName, vgName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
-	lvExists, _ := storageLVExists(containerLvmDevPath)
+	lvExists, _ := drivers.LVMVolumeExists(containerLvmDevPath)
 	if lvExists {
 		err := removeLV(projectName, vgName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 		if err != nil {
@@ -1975,7 +1975,7 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 		poolName := s.getOnDiskPoolName()
 		imageLvmDevPath := drivers.LVMDevPath("default", poolName,
 			storagePoolVolumeAPIEndpointImages, fingerprint)
-		lvExists, _ := storageLVExists(imageLvmDevPath)
+		lvExists, _ := drivers.LVMVolumeExists(imageLvmDevPath)
 
 		if lvExists {
 			_, err := s.ImageUmount(fingerprint)
