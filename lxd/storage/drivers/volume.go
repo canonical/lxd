@@ -89,23 +89,26 @@ func (v Volume) MountPath() string {
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
 }
 
-// CreateMountPath creates the volume's mount path and sets the correct permission for the type.
-func (v Volume) CreateMountPath() error {
+// EnsureMountPath creates the volume's mount path if missing, then sets the correct permission for the type.
+func (v Volume) EnsureMountPath() error {
 	volPath := v.MountPath()
 
 	// Create volume's mount path, with any created directories set to 0711.
-	err := os.MkdirAll(volPath, 0711)
-	if err != nil {
+	err := os.Mkdir(volPath, 0711)
+	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
 	// Set very restrictive mode 0100 for non-custom and non-image volumes.
+	mode := os.FileMode(0711)
 	if v.volType != VolumeTypeCustom && v.volType != VolumeTypeImage {
-		// Set mode of actual volume's mount path.
-		err = os.Chmod(volPath, 0100)
-		if err != nil {
-			return err
-		}
+		mode = os.FileMode(0100)
+	}
+
+	// Set mode of actual volume's mount path.
+	err = os.Chmod(volPath, mode)
+	if err != nil {
+		return err
 	}
 
 	return nil
