@@ -9,6 +9,8 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+var defaultBlockSize = "10GB"
+
 // VolumeType represents a storage volume type.
 type VolumeType string
 

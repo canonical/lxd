@@ -64,14 +64,14 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 	}
 
-	// If we are creating a block volume, resize it to the requested size or 10GB.
+	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
 		// Extract specified size from pool or volume config.
 		blockSize := vol.config["size"]
 
 		if blockSize == "" {
-			blockSize = "10GB"
+			blockSize = defaultBlockSize
 		}
 
 		blockSizeBytes, err := units.ParseByteSizeString(blockSize)
