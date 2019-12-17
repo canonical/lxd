@@ -79,11 +79,13 @@ func parseMountinfo(name string) int {
 }
 
 func IsMountPoint(name string) bool {
+	// If we find a mount entry, it is obviously a mount point.
 	ret := parseMountinfo(name)
 	if ret == 1 {
 		return true
 	}
 
+	// Get the stat details.
 	stat, err := os.Stat(name)
 	if err != nil {
 		return false
@@ -93,8 +95,21 @@ func IsMountPoint(name string) bool {
 	if err != nil {
 		return false
 	}
+
 	// If the directory has the same device as parent, then it's not a mountpoint.
-	return stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev
+	if stat.Sys().(*syscall.Stat_t).Dev == rootStat.Sys().(*syscall.Stat_t).Dev {
+		return false
+	}
+
+	// Btrfs annoyingly uses a different Dev id for different subvolumes on the same mount.
+	// So for btrfs, we require a matching mount entry in mountinfo.
+	fs := unix.Statfs_t{}
+	err = unix.Statfs(name, &fs)
+	if err == nil && fs.Type == filesystemSuperMagicBtrfs {
+		return false
+	}
+
+	return true
 }
 
 func SetSize(fd int, width int, height int) (err error) {

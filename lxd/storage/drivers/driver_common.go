@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,9 +10,11 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -216,4 +219,40 @@ func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string,
 	}
 
 	return nil
+}
+
+func (d *common) vfsMigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
+	bwlimit := d.config["rsync.bwlimit"]
+
+	for _, snapName := range volSrcArgs.Snapshots {
+		snapshot, err := vol.NewSnapshot(snapName)
+		if err != nil {
+			return err
+		}
+
+		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
+		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
+			var wrapper *ioprogress.ProgressTracker
+			if volSrcArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
+			}
+
+			path := shared.AddSlash(mountPath)
+			return rsync.Send(snapshot.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
+		}, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Send volume to recipient (ensure local volume is mounted if needed).
+	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		var wrapper *ioprogress.ProgressTracker
+		if volSrcArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+		}
+
+		path := shared.AddSlash(mountPath)
+		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
+	}, op)
 }
