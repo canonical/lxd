@@ -656,34 +656,6 @@ func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 	return results, nil
 }
 
-func storageLVMValidateThinPoolName(s *state.State, vgName string, value string) error {
-	users, err := storageLVMGetThinPoolUsers(s)
-	if err != nil {
-		return fmt.Errorf("error checking if a pool is already in use: %v", err)
-	}
-
-	if len(users) > 0 {
-		return fmt.Errorf("can not change LVM config. Images or containers are still using LVs: %v", users)
-	}
-
-	if value != "" {
-		if vgName == "" {
-			return fmt.Errorf("can not set lvm.thinpool_name without lvm.vg_name set")
-		}
-
-		poolExists, err := storageDrivers.LVMThinpoolExists(vgName, value)
-		if err != nil {
-			return fmt.Errorf("error checking for thin pool \"%s\" in \"%s\": %v", value, vgName, err)
-		}
-
-		if !poolExists {
-			return fmt.Errorf("pool \"'%s\" does not exist in Volume Group \"%s\"", value, vgName)
-		}
-	}
-
-	return nil
-}
-
 func lvmVGRename(oldName string, newName string) error {
 	_, err := shared.TryRunCommand("vgrename", oldName, newName)
 	if err != nil {
