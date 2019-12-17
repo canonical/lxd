@@ -1079,7 +1079,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return err
 	}
 
-	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), newName, drivers.GetVolumeMountPath(b.name, volType, newName))
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), newName, drivers.GetVolumeMountPath(b.name, volType, newVolStorageName))
 	if err != nil {
 		return err
 	}
