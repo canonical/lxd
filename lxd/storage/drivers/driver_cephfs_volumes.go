@@ -329,10 +329,8 @@ func (d *cephfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, erro
 
 // RenameVolume renames the volume and all related filesystem entries.
 func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operation) error {
-	// Create new snapshots directory.
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
-
-	err := os.MkdirAll(snapshotDir, 0711)
+	// Create the parent directory.
+	err := createParentSnapshotDirIfMissing(d.name, vol.volType, newName)
 	if err != nil {
 		return err
 	}
@@ -357,6 +355,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 
 		// Remove the new snapshot directory if we are reverting.
 		if len(revertPaths) > 0 {
+			snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
 			err = os.RemoveAll(snapshotDir)
 		}
 	}()
@@ -451,13 +450,14 @@ func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 		return err
 	}
 
-	targetPath := snapVol.MountPath()
-
-	err = os.MkdirAll(filepath.Dir(targetPath), 0711)
+	// Create the parent directory.
+	err = createParentSnapshotDirIfMissing(d.name, snapVol.volType, parentName)
 	if err != nil {
 		return err
 	}
 
+	// Create the symlink.
+	targetPath := snapVol.MountPath()
 	err = os.Symlink(cephSnapPath, targetPath)
 	if err != nil {
 		return err
