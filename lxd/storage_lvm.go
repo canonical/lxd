@@ -508,7 +508,7 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 	}
 
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = drivers.LVMCreateThinpool(s.sTypeVersion, poolName, thinPoolName)
 		if err != nil {
 			return err
 		}
@@ -1833,7 +1833,7 @@ func (s *storageLvm) doContainerBackupLoad(projectName, containerName string, pr
 
 	poolName := s.getOnDiskPoolName()
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = drivers.LVMCreateThinpool(s.sTypeVersion, poolName, thinPoolName)
 		if err != nil {
 			return "", err
 		}
@@ -1921,7 +1921,7 @@ func (s *storageLvm) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 	}()
 
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = drivers.LVMCreateThinpool(s.sTypeVersion, poolName, thinPoolName)
 		if err != nil {
 			return err
 		}
