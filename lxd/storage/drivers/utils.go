@@ -10,7 +10,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -149,20 +148,19 @@ func GetPoolMountPath(poolName string) string {
 }
 
 // GetVolumeMountPath returns the mount path for a specific volume based on its pool and type and
-// whether it is a snapshot or not.
-// For VolumeTypeImage the volName is the image fingerprint.
+// whether it is a snapshot or not. For VolumeTypeImage the volName is the image fingerprint.
 func GetVolumeMountPath(poolName string, volType VolumeType, volName string) string {
 	if shared.IsSnapshot(volName) {
-		return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", volName))
+		return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), volName)
 	}
 
-	return shared.VarPath("storage-pools", poolName, string(volType), project.Prefix("default", volName))
+	return shared.VarPath("storage-pools", poolName, string(volType), volName)
 }
 
 // GetVolumeSnapshotDir gets the snapshot mount directory for the parent volume.
 func GetVolumeSnapshotDir(poolName string, volType VolumeType, volName string) string {
 	parent, _, _ := shared.InstanceGetParentAndSnapshotName(volName)
-	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), project.Prefix("default", parent))
+	return shared.VarPath("storage-pools", poolName, fmt.Sprintf("%s-snapshots", string(volType)), parent)
 }
 
 // GetSnapshotVolumeName returns the full volume name for a parent volume and snapshot name.
