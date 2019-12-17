@@ -285,7 +285,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 	if vgExisted {
 		// Check that the volume group is empty.
 		// Otherwise we will refuse to use it.
-		count, err := lvmGetLVCount(poolName)
+		count, err := drivers.LVMGetLVCount(poolName)
 		if err != nil {
 			logger.Errorf("Failed to determine whether the volume group \"%s\" is empty", poolName)
 			return err
@@ -381,7 +381,7 @@ func (s *storageLvm) StoragePoolDelete() error {
 	// assume that other users are using the volume group, so don't remove
 	// it. This actually goes against policy since we explicitly state: our
 	// pool, and nothing but our pool but still, let's not hurt users.
-	count, err := lvmGetLVCount(poolName)
+	count, err := drivers.LVMGetLVCount(poolName)
 	if err != nil {
 		return err
 	}
