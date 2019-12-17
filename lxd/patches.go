@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -162,7 +163,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 			oldName := fmt.Sprintf("%s/custom_%s", vgName, volume)
 			newName := fmt.Sprintf("%s/custom_%s", vgName, containerNameToLVName(volume))
 
-			exists, err := storageLVExists(newName)
+			exists, err := storageDrivers.LVMVolumeExists(newName)
 			if err != nil {
 				return err
 			}
