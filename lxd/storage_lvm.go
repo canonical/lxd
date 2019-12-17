@@ -204,7 +204,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 
 		// Check if the physical volume already exists.
 		pvName = s.loopInfo.Name()
-		pvExisted, globalErr = storagePVExists(pvName)
+		pvExisted, globalErr = drivers.LVMPysicalVolumeExists(pvName)
 		if globalErr != nil {
 			return globalErr
 		}
@@ -230,7 +230,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 			s.pool.Config["source"] = poolName
 
 			// Check if the physical volume already exists.
-			pvExisted, globalErr = storagePVExists(pvName)
+			pvExisted, globalErr = drivers.LVMPysicalVolumeExists(pvName)
 			if globalErr != nil {
 				return globalErr
 			}
