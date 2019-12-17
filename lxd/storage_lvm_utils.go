@@ -671,7 +671,7 @@ func storageLVMValidateThinPoolName(s *state.State, vgName string, value string)
 			return fmt.Errorf("can not set lvm.thinpool_name without lvm.vg_name set")
 		}
 
-		poolExists, err := storageLVMThinpoolExists(vgName, value)
+		poolExists, err := storageDrivers.LVMThinpoolExists(vgName, value)
 		if err != nil {
 			return fmt.Errorf("error checking for thin pool \"%s\" in \"%s\": %v", value, vgName, err)
 		}
