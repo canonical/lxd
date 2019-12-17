@@ -163,6 +163,19 @@ func TryUnmount(path string, flags int) error {
 	return nil
 }
 
+func tryExists(path string) bool {
+	// Attempt 20 checks over 10s
+	for i := 0; i < 20; i++ {
+		if shared.PathExists(path) {
+			return true
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return false
+}
+
 func fsUUID(path string) (string, error) {
 	return shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
 }
