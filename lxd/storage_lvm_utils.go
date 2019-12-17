@@ -371,7 +371,7 @@ func (s *storageLvm) copySnapshot(target instance.Instance, source instance.Inst
 
 // Copy a container on a storage pool that does not use a thinpool.
 func (s *storageLvm) copyContainerLv(target instance.Instance, source instance.Instance, readonly bool, refresh bool) error {
-	exists, err := storageLVExists(getLvmDevPath(target.Project(), s.getOnDiskPoolName(),
+	exists, err := storageDrivers.LVMVolumeExists(storageDrivers.LVMDevPath(target.Project(), s.getOnDiskPoolName(),
 		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(target.Name())))
 	if err != nil {
 		return err
@@ -532,7 +532,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c instance.Instance, fp stri
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		ok, _ := storageLVExists(imageLvmDevPath)
+		ok, _ := storageDrivers.LVMVolumeExists(imageLvmDevPath)
 		if ok {
 			_, volume, err := s.s.Cluster.StoragePoolNodeVolumeGetType(fp, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
