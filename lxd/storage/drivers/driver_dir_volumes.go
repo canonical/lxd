@@ -153,12 +153,12 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 
 	if len(snapshots) > 0 {
 		// Create new snapshots directory.
-		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-		err := os.MkdirAll(snapshotDir, 0711)
+		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
 		if err != nil {
 			return nil, nil, err
 		}
 
+		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 		revertPaths = append(revertPaths, snapshotDir)
 
 		// Prepare tar arguments.
