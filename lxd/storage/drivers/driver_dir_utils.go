@@ -28,7 +28,7 @@ func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *o
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err = vol.CreateMountPath()
+	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}

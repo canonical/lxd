@@ -25,13 +25,14 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 		return fmt.Errorf("Content type not supported")
 	}
 
+	// Create the main volume path.
 	volPath := vol.MountPath()
-
-	err := os.MkdirAll(volPath, 0711)
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
 
+	// Setup for revert.
 	revertPath := true
 	defer func() {
 		if revertPath {
@@ -39,6 +40,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 		}
 	}()
 
+	// Fill the volume.
 	if filler != nil && filler.Fill != nil {
 		d.logger.Debug("Running filler function")
 		err = filler.Fill(volPath, "")
@@ -62,7 +64,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -144,7 +146,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}

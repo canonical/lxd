@@ -20,7 +20,7 @@ import (
 // filler function.
 func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	}()
 
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -222,7 +222,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err = vol.CreateMountPath()
+	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	}
 
 	// Create snapshot directory.
-	err = snapVol.CreateMountPath()
+	err = snapVol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
