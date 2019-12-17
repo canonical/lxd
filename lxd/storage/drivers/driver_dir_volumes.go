@@ -454,7 +454,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
-	return filepath.Join(vol.MountPath(), "root.img"), nil
+	return d.vfsGetVolumeDiskPath(vol)
 }
 
 // MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns

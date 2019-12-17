@@ -264,3 +264,12 @@ func (d *common) vfsHasVolume(vol Volume) bool {
 
 	return false
 }
+
+// vfsGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.
+func (d *common) vfsGetVolumeDiskPath(vol Volume) (string, error) {
+	if vol.contentType != ContentTypeBlock {
+		return "", fmt.Errorf("No disk paths for filesystems")
+	}
+
+	return filepath.Join(vol.MountPath(), "root.img"), nil
+}
