@@ -177,7 +177,7 @@ func (s *storageLvm) renameLVByPath(project, oldName string, newName string, vol
 }
 
 func removeLV(project, vgName string, volumeType string, lvName string) error {
-	lvmVolumePath := getLvmDevPath(project, vgName, volumeType, lvName)
+	lvmVolumePath := storageDrivers.LVMDevPath(project, vgName, volumeType, lvName)
 
 	_, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
 	if err != nil {
@@ -195,8 +195,8 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 		sourceProject = "default"
 	}
 
-	sourceLvmVolumePath := getLvmDevPath(sourceProject, vgName, origVolumeType, origLvName)
-	isRecent, err := lvmVersionIsAtLeast(s.sTypeVersion, "2.02.99")
+	sourceLvmVolumePath := storageDrivers.LVMDevPath(sourceProject, vgName, origVolumeType, origLvName)
+	isRecent, err := storageDrivers.LVMVersionIsAtLeast(s.sTypeVersion, "2.02.99")
 	if err != nil {
 		return "", fmt.Errorf("Error checking LVM version: %v", err)
 	}
@@ -241,7 +241,7 @@ func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string,
 		return "", fmt.Errorf("Could not create snapshot LV named %s: %v", lvName, err)
 	}
 
-	targetLvmVolumePath := getLvmDevPath(project, vgName, volumeType, lvName)
+	targetLvmVolumePath := storageDrivers.LVMDevPath(project, vgName, volumeType, lvName)
 	if makeThinLv {
 		// Snapshots of thin logical volumes can be directly activated.
 		// Normal snapshots will complain about changing the origin
@@ -315,7 +315,7 @@ func (s *storageLvm) copyContainerThinpool(target instance.Instance, source inst
 	poolName := s.getOnDiskPoolName()
 	containerName := target.Name()
 	containerLvmName := containerNameToLVName(containerName)
-	containerLvDevPath := getLvmDevPath(target.Project(), poolName,
+	containerLvDevPath := storageDrivers.LVMDevPath(target.Project(), poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
 	// If btrfstune sees two btrfs filesystems with the same UUID it
@@ -518,7 +518,7 @@ func (s *storageLvm) containerCreateFromImageLv(c instance.Instance, fp string) 
 func (s *storageLvm) containerCreateFromImageThinLv(c instance.Instance, fp string) error {
 	poolName := s.getOnDiskPoolName()
 	// Check if the image already exists.
-	imageLvmDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fp)
+	imageLvmDevPath := storageDrivers.LVMDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fp)
 
 	imageStoragePoolLockID := getImageCreateLockID(poolName, fp)
 	lxdStorageMapLock.Lock()
@@ -847,7 +847,7 @@ func (s *storageLvm) copyVolumeThinpool(source string, target string, readOnly b
 		return err
 	}
 
-	lvDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName)
+	lvDevPath := storageDrivers.LVMDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, targetLvmName)
 
 	msg, err := driver.FSGenerateNewUUID(lvFsType, lvDevPath)
 	if err != nil {
