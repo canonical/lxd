@@ -262,11 +262,7 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *cephfs) HasVolume(vol Volume) bool {
-	if shared.PathExists(vol.MountPath()) {
-		return true
-	}
-
-	return false
+	return d.vfsHasVolume(vol)
 }
 
 // ValidateVolume validates the supplied volume config.
