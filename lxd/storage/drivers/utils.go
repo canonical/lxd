@@ -14,11 +14,6 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// MkfsOptions represents options for filesystem creation.
-type MkfsOptions struct {
-	Label string
-}
-
 func wipeDirectory(path string) error {
 	// List all entries
 	entries, err := ioutil.ReadDir(path)
@@ -229,6 +224,11 @@ func createSparseFile(filePath string, sizeBytes int64) error {
 	}
 
 	return nil
+}
+
+// MkfsOptions represents options for filesystem creation.
+type MkfsOptions struct {
+	Label string
 }
 
 // MakeFSType creates the provided filesystem.
