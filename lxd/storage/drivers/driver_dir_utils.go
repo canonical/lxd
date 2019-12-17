@@ -107,12 +107,6 @@ func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *o
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
 // Returns a revert function that can be used to remove the quota if there is a subsequent error.
 func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
-	// Extract specified size from pool or volume config.
-	size := d.config["volume.size"]
-	if vol.config["size"] != "" {
-		size = vol.config["size"]
-	}
-
 	volPath := vol.MountPath()
 
 	// Get the volume ID for the new volume, which is used to set project quota.
@@ -140,7 +134,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	}()
 
 	// Set the quota.
-	err = d.setQuota(volPath, volID, size)
+	err = d.setQuota(volPath, volID, vol.config["size"])
 	if err != nil {
 		return nil, err
 	}

@@ -299,6 +299,7 @@ func (d *cephfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 func (d *cephfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+	// If size not specified in volume config, then use pool's default volume.size setting.
 	if size == "" || size == "0" {
 		size = d.config["volume.size"]
 	}
