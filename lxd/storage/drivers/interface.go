@@ -14,7 +14,7 @@ import (
 type driver interface {
 	Driver
 
-	init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func(vol Volume) map[string]func(string) error) error
+	init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRulesFunc func(vol Volume) map[string]func(string) error)
 	load() error
 }
 
