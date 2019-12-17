@@ -163,6 +163,10 @@ func TryUnmount(path string, flags int) error {
 	return nil
 }
 
+func fsUUID(path string) (string, error) {
+	return shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
+}
+
 // GetPoolMountPath returns the mountpoint of the given pool.
 // {LXD_DIR}/storage-pools/<pool>
 func GetPoolMountPath(poolName string) string {
