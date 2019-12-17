@@ -514,7 +514,7 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 		}
 	}
 
-	err = lvmCreateLv("default", poolName, thinPoolName, volumeLvmName, lvFsType, lvSize, volumeType, s.useThinpool)
+	err = drivers.LVMCreateLogicalVolume("default", poolName, thinPoolName, volumeLvmName, lvFsType, lvSize, volumeType, s.useThinpool)
 	if err != nil {
 		return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 	}
@@ -950,13 +950,13 @@ func (s *storageLvm) ContainerCreate(container instance.Instance) error {
 
 	poolName := s.getOnDiskPoolName()
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = drivers.LVMCreateThinpool(s.sTypeVersion, poolName, thinPoolName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = lvmCreateLv(container.Project(), poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeAPIEndpointContainers, s.useThinpool)
+	err = drivers.LVMCreateLogicalVolume(container.Project(), poolName, thinPoolName, containerLvmName, lvFsType, lvSize, storagePoolVolumeAPIEndpointContainers, s.useThinpool)
 	if err != nil {
 		return err
 	}
@@ -1840,7 +1840,7 @@ func (s *storageLvm) doContainerBackupLoad(projectName, containerName string, pr
 	}
 
 	if !snapshot {
-		err = lvmCreateLv(projectName, poolName, thinPoolName, containerLvmName, lvFsType, lvSize,
+		err = drivers.LVMCreateLogicalVolume(projectName, poolName, thinPoolName, containerLvmName, lvFsType, lvSize,
 			storagePoolVolumeAPIEndpointContainers, s.useThinpool)
 	} else {
 		cname, _, _ := shared.InstanceGetParentAndSnapshotName(containerName)
@@ -1926,7 +1926,7 @@ func (s *storageLvm) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 			return err
 		}
 
-		err = lvmCreateLv("default", poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeAPIEndpointImages, true)
+		err = drivers.LVMCreateLogicalVolume("default", poolName, thinPoolName, fingerprint, lvFsType, lvSize, storagePoolVolumeAPIEndpointImages, true)
 		if err != nil {
 			return fmt.Errorf("Error Creating LVM LV for new image: %v", err)
 		}
