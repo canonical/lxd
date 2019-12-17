@@ -219,6 +219,7 @@ func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string,
 	return nil
 }
 
+// vfsMigrateVolume is a generic MigrateVolume implementation for VFS-only drivers.
 func (d *common) vfsMigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
 	bwlimit := d.config["rsync.bwlimit"]
 
@@ -253,4 +254,13 @@ func (d *common) vfsMigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArg
 		path := shared.AddSlash(mountPath)
 		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
 	}, op)
+}
+
+// vfsHasVolume is a generic HasVolume implementation for VFS-only drivers.
+func (d *common) vfsHasVolume(vol Volume) bool {
+	if shared.PathExists(vol.MountPath()) {
+		return true
+	}
+
+	return false
 }
