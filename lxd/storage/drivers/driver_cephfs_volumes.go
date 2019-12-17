@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -433,39 +432,7 @@ func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs m
 		return fmt.Errorf("Migration type not supported")
 	}
 
-	bwlimit := d.config["rsync.bwlimit"]
-
-	for _, snapName := range volSrcArgs.Snapshots {
-		snapshot, err := vol.NewSnapshot(snapName)
-		if err != nil {
-			return err
-		}
-
-		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
-		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			var wrapper *ioprogress.ProgressTracker
-			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
-
-			path := shared.AddSlash(mountPath)
-			return rsync.Send(snapshot.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
-		}, op)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Send volume to recipient (ensure local volume is mounted if needed).
-	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		var wrapper *ioprogress.ProgressTracker
-		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
-		}
-
-		path := shared.AddSlash(mountPath)
-		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
-	}, op)
+	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume creates an exported version of a volume.
@@ -536,33 +503,7 @@ func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation)
 
 // VolumeSnapshots returns a list of snapshot names for the volume.
 func (d *cephfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-	snapshots := []string{}
-
-	ents, err := ioutil.ReadDir(snapshotDir)
-	if err != nil {
-		// If the snapshots directory doesn't exist, there are no snapshots.
-		if os.IsNotExist(err) {
-			return snapshots, nil
-		}
-
-		return nil, err
-	}
-
-	for _, ent := range ents {
-		fileInfo, err := os.Stat(filepath.Join(snapshotDir, ent.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		if !fileInfo.IsDir() {
-			continue
-		}
-
-		snapshots = append(snapshots, ent.Name())
-	}
-
-	return snapshots, nil
+	return d.vfsVolumeSnapshots(vol, op)
 }
 
 // RestoreVolume resets a volume to its snapshotted state.
