@@ -180,6 +180,21 @@ func fsUUID(path string) (string, error) {
 	return shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
 }
 
+func hasFilesystem(path string, fsType int64) bool {
+	fs := unix.Statfs_t{}
+
+	err := unix.Statfs(path, &fs)
+	if err != nil {
+		return false
+	}
+
+	if int64(fs.Type) != fsType {
+		return false
+	}
+
+	return true
+}
+
 // GetPoolMountPath returns the mountpoint of the given pool.
 // {LXD_DIR}/storage-pools/<pool>
 func GetPoolMountPath(poolName string) string {
