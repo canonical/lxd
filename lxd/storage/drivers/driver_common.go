@@ -27,15 +27,13 @@ type common struct {
 	logger               logger.Logger
 }
 
-func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonVolRulesFunc func(vol Volume) map[string]func(string) error) error {
+func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonVolRulesFunc func(vol Volume) map[string]func(string) error) {
 	d.name = name
 	d.config = config
 	d.getVolID = volIDFunc
 	d.getCommonVolumeRules = commonVolRulesFunc
 	d.state = state
 	d.logger = logger
-
-	return d.load()
 }
 
 func (d *common) load() error {

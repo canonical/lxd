@@ -28,7 +28,7 @@ func (d *cephfs) load() error {
 	}
 
 	// Validate the required binaries.
-	for _, tool := range []string{"ceph", "rdb"} {
+	for _, tool := range []string{"ceph", "rbd"} {
 		_, err := exec.LookPath(tool)
 		if err != nil {
 			return fmt.Errorf("Required tool '%s' is missing", tool)
