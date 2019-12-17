@@ -752,7 +752,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			ctLvName := getLVName(poolName,
 				storagePoolVolumeAPIEndpointContainers,
 				ctLvmName)
-			exists, err := storageLVExists(ctLvName)
+			exists, err := storageDrivers.LVMVolumeExists(ctLvName)
 			if err != nil {
 				return response.InternalError(err)
 			}
