@@ -177,6 +177,11 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 	logger.Debug("Delete started")
 	defer logger.Debug("Delete finished")
 
+	// If completely gone, just return
+	if !shared.PathExists(shared.VarPath("storage-pools", b.name)) {
+		return nil
+	}
+
 	// Delete the low-level storage.
 	if !localOnly || !b.driver.Info().Remote {
 		err := b.driver.Delete(op)
