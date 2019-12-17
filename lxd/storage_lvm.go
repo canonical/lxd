@@ -297,7 +297,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 
 		if count > 0 && s.useThinpool {
-			ok, err := storageLVMThinpoolExists(poolName, s.thinPoolName)
+			ok, err := drivers.LVMThinpoolExists(poolName, s.thinPoolName)
 			if err != nil {
 				logger.Errorf("Failed to determine whether thinpool \"%s\" exists in volume group \"%s\": %s", poolName, s.thinPoolName, err)
 				return err
