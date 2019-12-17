@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,13 +25,14 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 		return fmt.Errorf("Content type not supported")
 	}
 
+	// Create the main volume path.
 	volPath := vol.MountPath()
-
-	err := os.MkdirAll(volPath, 0711)
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
 
+	// Setup for revert.
 	revertPath := true
 	defer func() {
 		if revertPath {
@@ -40,6 +40,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 		}
 	}()
 
+	// Fill the volume.
 	if filler != nil && filler.Fill != nil {
 		d.logger.Debug("Running filler function")
 		err = filler.Fill(volPath, "")
@@ -63,7 +64,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -145,7 +146,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -263,11 +264,7 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *cephfs) HasVolume(vol Volume) bool {
-	if shared.PathExists(vol.MountPath()) {
-		return true
-	}
-
-	return false
+	return d.vfsHasVolume(vol)
 }
 
 // ValidateVolume validates the supplied volume config.
@@ -332,10 +329,8 @@ func (d *cephfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, erro
 
 // RenameVolume renames the volume and all related filesystem entries.
 func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operation) error {
-	// Create new snapshots directory.
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
-
-	err := os.MkdirAll(snapshotDir, 0711)
+	// Create the parent directory.
+	err := createParentSnapshotDirIfMissing(d.name, vol.volType, newName)
 	if err != nil {
 		return err
 	}
@@ -360,6 +355,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 
 		// Remove the new snapshot directory if we are reverting.
 		if len(revertPaths) > 0 {
+			snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
 			err = os.RemoveAll(snapshotDir)
 		}
 	}()
@@ -433,39 +429,7 @@ func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs m
 		return fmt.Errorf("Migration type not supported")
 	}
 
-	bwlimit := d.config["rsync.bwlimit"]
-
-	for _, snapName := range volSrcArgs.Snapshots {
-		snapshot, err := vol.NewSnapshot(snapName)
-		if err != nil {
-			return err
-		}
-
-		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
-		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			var wrapper *ioprogress.ProgressTracker
-			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
-
-			path := shared.AddSlash(mountPath)
-			return rsync.Send(snapshot.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
-		}, op)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Send volume to recipient (ensure local volume is mounted if needed).
-	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		var wrapper *ioprogress.ProgressTracker
-		if volSrcArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
-		}
-
-		path := shared.AddSlash(mountPath)
-		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, d.state.OS.ExecPath)
-	}, op)
+	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume creates an exported version of a volume.
@@ -486,13 +450,14 @@ func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 		return err
 	}
 
-	targetPath := snapVol.MountPath()
-
-	err = os.MkdirAll(filepath.Dir(targetPath), 0711)
+	// Create the parent directory.
+	err = createParentSnapshotDirIfMissing(d.name, snapVol.volType, parentName)
 	if err != nil {
 		return err
 	}
 
+	// Create the symlink.
+	targetPath := snapVol.MountPath()
 	err = os.Symlink(cephSnapPath, targetPath)
 	if err != nil {
 		return err
@@ -536,33 +501,7 @@ func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation)
 
 // VolumeSnapshots returns a list of snapshot names for the volume.
 func (d *cephfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-	snapshots := []string{}
-
-	ents, err := ioutil.ReadDir(snapshotDir)
-	if err != nil {
-		// If the snapshots directory doesn't exist, there are no snapshots.
-		if os.IsNotExist(err) {
-			return snapshots, nil
-		}
-
-		return nil, err
-	}
-
-	for _, ent := range ents {
-		fileInfo, err := os.Stat(filepath.Join(snapshotDir, ent.Name()))
-		if err != nil {
-			return nil, err
-		}
-
-		if !fileInfo.IsDir() {
-			continue
-		}
-
-		snapshots = append(snapshots, ent.Name())
-	}
-
-	return snapshots, nil
+	return d.vfsVolumeSnapshots(vol, op)
 }
 
 // RestoreVolume resets a volume to its snapshotted state.

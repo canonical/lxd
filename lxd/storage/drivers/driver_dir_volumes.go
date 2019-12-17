@@ -20,7 +20,7 @@ import (
 // filler function.
 func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	}()
 
 	volPath := vol.MountPath()
-	err := vol.CreateMountPath()
+	err := vol.EnsureMountPath()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -153,12 +153,12 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 
 	if len(snapshots) > 0 {
 		// Create new snapshots directory.
-		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-		err := os.MkdirAll(snapshotDir, 0711)
+		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
 		if err != nil {
 			return nil, nil, err
 		}
 
+		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 		revertPaths = append(revertPaths, snapshotDir)
 
 		// Prepare tar arguments.
@@ -222,7 +222,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 	// Create the main volume path.
 	volPath := vol.MountPath()
-	err = vol.CreateMountPath()
+	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -386,11 +386,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *dir) HasVolume(vol Volume) bool {
-	if shared.PathExists(vol.MountPath()) {
-		return true
-	}
-
-	return false
+	return d.vfsHasVolume(vol)
 }
 
 // ValidateVolume validates the supplied volume config.
@@ -458,7 +454,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
-	return filepath.Join(vol.MountPath(), "root.img"), nil
+	return d.vfsGetVolumeDiskPath(vol)
 }
 
 // MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
@@ -556,7 +552,7 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	}
 
 	// Create snapshot directory.
-	err = snapVol.CreateMountPath()
+	err = snapVol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
