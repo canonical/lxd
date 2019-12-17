@@ -1039,7 +1039,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 			}
 		} else {
 			// Validate the configuration
-			err = storagePools.VolumeValidateConfig(volumeName, req.Config, poolRow)
+			err = storagePools.VolumeValidateConfig(d.State(), volumeName, req.Config, poolRow)
 			if err != nil {
 				return response.BadRequest(err)
 			}
@@ -1153,7 +1153,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		}
 	} else {
 		// Validate the configuration.
-		err = storagePools.VolumeValidateConfig(volumeName, req.Config, poolRow)
+		err = storagePools.VolumeValidateConfig(d.State(), volumeName, req.Config, poolRow)
 		if err != nil {
 			return response.BadRequest(err)
 		}

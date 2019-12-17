@@ -17,7 +17,9 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -384,7 +386,7 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	}
 
 	// Validate the requested storage volume configuration.
-	err = VolumeValidateConfig(poolName, volumeConfig, poolStruct)
+	err = VolumeValidateConfig(s, poolName, volumeConfig, poolStruct)
 	if err != nil {
 		return err
 	}
@@ -464,9 +466,11 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 }
 
 // VolumeValidateConfig validations volume config. Deprecated.
-func VolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
+func VolumeValidateConfig(s *state.State, name string, config map[string]string, parentPool *api.StoragePool) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": parentPool.Driver, "pool": parentPool.Name})
+
 	// Validate volume config using the new driver interface if supported.
-	driver, err := drivers.Load(nil, parentPool.Driver, parentPool.Name, parentPool.Config, nil, nil, validateVolumeCommonRules)
+	driver, err := drivers.Load(s, parentPool.Driver, parentPool.Name, parentPool.Config, logger, nil, validateVolumeCommonRules)
 	if err != drivers.ErrUnknownDriver {
 		// Note: This legacy validation function doesn't have the concept of validating
 		// different volumes types, so the types are hard coded as Custom and FS.
