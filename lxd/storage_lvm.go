@@ -95,7 +95,7 @@ func (s *storageLvm) StoragePoolInit() error {
 	}
 
 	if source != "" && !filepath.IsAbs(source) {
-		ok, err := storageVGExists(source)
+		ok, err := drivers.LVMVolumeGroupExists(source)
 		if err != nil {
 			// Internal error.
 			return err
@@ -210,7 +210,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 
 		// Check if the volume group already exists.
-		vgExisted, globalErr = storageVGExists(poolName)
+		vgExisted, globalErr = drivers.LVMVolumeGroupExists(poolName)
 		if globalErr != nil {
 			return globalErr
 		}
@@ -236,7 +236,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 			}
 
 			// Check if the volume group already exists.
-			vgExisted, globalErr = storageVGExists(poolName)
+			vgExisted, globalErr = drivers.LVMVolumeGroupExists(poolName)
 			if globalErr != nil {
 				return globalErr
 			}
@@ -252,7 +252,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 			s.pool.Config["lvm.vg_name"] = vgName
 			s.vgName = vgName
 
-			vgExisted, globalErr = storageVGExists(vgName)
+			vgExisted, globalErr = drivers.LVMVolumeGroupExists(vgName)
 			if globalErr != nil {
 				return globalErr
 			}
@@ -359,15 +359,15 @@ func (s *storageLvm) StoragePoolDelete() error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	poolExists, _ := storageVGExists(poolName)
+	poolExists, _ := drivers.LVMVolumeGroupExists(poolName)
 
 	// Delete the thinpool.
 	if s.useThinpool && poolExists {
 		// Check that the thinpool actually exists. For example, it
 		// won't when the user has never created a storage volume in the
 		// storage pool.
-		devPath := getLvmDevPath("default", poolName, "", s.thinPoolName)
-		ok, _ := storageLVExists(devPath)
+		devPath := drivers.LVMDevPath("default", poolName, "", s.thinPoolName)
+		ok, _ := drivers.LVMVolumeExists(devPath)
 		if ok {
 			msg, err := shared.TryRunCommand("lvremove", "-f", devPath)
 			if err != nil {
