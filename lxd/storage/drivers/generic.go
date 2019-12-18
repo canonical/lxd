@@ -197,7 +197,7 @@ func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (fun
 }
 
 // genericBackupUnpack unpacks a non-optimized backup tarball through a storage driver.
-func genericBackupUnpack(d Driver, poolName string, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	revert := true
 
 	// Define a revert function that will be used both to revert if an error occurs inside this
@@ -205,7 +205,7 @@ func genericBackupUnpack(d Driver, poolName string, vol Volume, snapshots []stri
 	revertHook := func() {
 		for _, snapName := range snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, poolName, vol.volType, vol.contentType, fullSnapshotName, vol.config)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
@@ -235,7 +235,7 @@ func genericBackupUnpack(d Driver, poolName string, vol Volume, snapshots []stri
 
 	if len(snapshots) > 0 {
 		// Create new snapshots directory.
-		err := createParentSnapshotDirIfMissing(poolName, vol.volType, vol.name)
+		err := createParentSnapshotDirIfMissing(d.Name(), vol.volType, vol.name)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -259,7 +259,7 @@ func genericBackupUnpack(d Driver, poolName string, vol Volume, snapshots []stri
 		}
 
 		fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-		snapVol := NewVolume(d, poolName, vol.volType, vol.contentType, fullSnapshotName, vol.config)
+		snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config)
 		err = d.CreateVolumeSnapshot(snapVol, op)
 		if err != nil {
 			return nil, nil, err
