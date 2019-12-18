@@ -28,7 +28,6 @@ import (
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
-	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
@@ -623,8 +622,7 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
-	cgroups := cgroup.GetInfo()
-	logger.Infof(" - cgroup layout: %s", cgroups.Mode())
+	d.os.CGInfo.Log()
 
 	// Detect shiftfs support.
 	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
@@ -648,6 +646,7 @@ func (d *Daemon) init() error {
 		"network_gateway_device_route",
 		"network_phys_macvlan_mtu",
 		"network_veth_router",
+		"cgroup2",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = lxc.HasApiExtension(extension)
