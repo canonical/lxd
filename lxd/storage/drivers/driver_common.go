@@ -106,6 +106,16 @@ func (d *common) MigrationTypes(contentType ContentType, refresh bool) []migrati
 	}
 }
 
+// Name returns the pool name.
+func (d *common) Name() string {
+	return d.name
+}
+
+// Logger returns the current logger.
+func (d *common) Logger() logger.Logger {
+	return d.logger
+}
+
 // Config returns the storage pool config (as a copy, so not modifiable).
 func (d *common) Config() map[string]string {
 	confCopy := make(map[string]string, len(d.config))
