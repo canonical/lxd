@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/lxd/storage/drivers"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -398,7 +398,7 @@ func (s *storageLvm) StoragePoolDelete() error {
 	if s.loopInfo != nil {
 		// Set LO_FLAGS_AUTOCLEAR before we remove the loop file
 		// otherwise we will get EBADF.
-		err = drivers.SetAutoclearOnLoopDev(int(s.loopInfo.Fd()))
+		err = storageDrivers.SetAutoclearOnLoopDev(int(s.loopInfo.Fd()))
 		if err != nil {
 			logger.Warnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s, manual cleanup needed", err)
 		}
@@ -470,12 +470,12 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 
 	if filepath.IsAbs(source) && !shared.IsBlockdevPath(source) {
 		// Try to prepare new loop device.
-		loopF, loopErr := drivers.PrepareLoopDev(source, 0)
+		loopF, loopErr := storageDrivers.PrepareLoopDev(source, 0)
 		if loopErr != nil {
 			return false, loopErr
 		}
 		// Make sure that LO_FLAGS_AUTOCLEAR is unset.
-		loopErr = drivers.UnsetAutoclearOnLoopDev(int(loopF.Fd()))
+		loopErr = storageDrivers.UnsetAutoclearOnLoopDev(int(loopF.Fd()))
 		if loopErr != nil {
 			return false, loopErr
 		}
@@ -629,8 +629,8 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	var customerr error
 	ourMount := false
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
-		customerr = driver.TryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, mountFlags, mountOptions)
+		mountFlags, mountOptions := resolveMountOptions(s.getLvmMountOptions())
+		customerr = storageDrivers.TryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
 
@@ -672,7 +672,7 @@ func (s *storageLvm) StoragePoolVolumeUmount() (bool, error) {
 	var customerr error
 	ourUmount := false
 	if shared.IsMountPoint(customPoolVolumeMntPoint) {
-		customerr = driver.TryUnmount(customPoolVolumeMntPoint, 0)
+		customerr = storageDrivers.TryUnmount(customPoolVolumeMntPoint, 0)
 		ourUmount = true
 	}
 
@@ -1079,7 +1079,7 @@ func lvmContainerDeleteInternal(projectName, poolName string, ctName string, isS
 	}
 
 	if shared.IsMountPoint(containerMntPoint) {
-		err := driver.TryUnmount(containerMntPoint, 0)
+		err := storageDrivers.TryUnmount(containerMntPoint, 0)
 		if err != nil {
 			return fmt.Errorf(`Failed to unmount container path `+
 				`"%s": %s`, containerMntPoint, err)
@@ -1271,7 +1271,7 @@ func (s *storageLvm) doContainerMount(project, name string, snap bool) (bool, er
 	var mounterr error
 	ourMount := false
 	if !shared.IsMountPoint(containerMntPoint) {
-		mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
+		mountFlags, mountOptions := resolveMountOptions(s.getLvmMountOptions())
 		if snap && lvFsType == "xfs" {
 			idx := strings.Index(mountOptions, "nouuid")
 			if idx < 0 {
@@ -1279,7 +1279,7 @@ func (s *storageLvm) doContainerMount(project, name string, snap bool) (bool, er
 			}
 		}
 
-		mounterr = driver.TryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
+		mounterr = storageDrivers.TryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
 
@@ -1327,7 +1327,7 @@ func (s *storageLvm) umount(project, name string, path string) (bool, error) {
 	var imgerr error
 	ourUmount := false
 	if shared.IsMountPoint(containerMntPoint) {
-		imgerr = driver.TryUnmount(containerMntPoint, 0)
+		imgerr = storageDrivers.TryUnmount(containerMntPoint, 0)
 		ourUmount = true
 	}
 
@@ -1602,7 +1602,7 @@ func (s *storageLvm) ContainerSnapshotStart(container instance.Instance) (bool, 
 	containerMntPoint := driver.GetSnapshotMountPoint(container.Project(), s.pool.Name, containerName)
 	if !shared.IsMountPoint(containerMntPoint) {
 		mntOptString := s.getLvmMountOptions()
-		mountFlags, mountOptions := drivers.ResolveMountOptions(mntOptString)
+		mountFlags, mountOptions := resolveMountOptions(mntOptString)
 
 		if lvFsType == "xfs" {
 			idx := strings.Index(mountOptions, "nouuid")
@@ -1611,7 +1611,7 @@ func (s *storageLvm) ContainerSnapshotStart(container instance.Instance) (bool, 
 			}
 		}
 
-		err = driver.TryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
+		err = storageDrivers.TryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
 		if err != nil {
 			logger.Errorf(`Failed to mount LVM snapshot "%s" with filesystem "%s" options "%s" onto "%s": %s`, s.volume.Name, lvFsType, mntOptString, containerMntPoint, err)
 			return false, err
@@ -1636,7 +1636,7 @@ func (s *storageLvm) ContainerSnapshotStop(container instance.Instance) (bool, e
 	poolName := s.getOnDiskPoolName()
 
 	if shared.IsMountPoint(snapshotMntPoint) {
-		err := driver.TryUnmount(snapshotMntPoint, 0)
+		err := storageDrivers.TryUnmount(snapshotMntPoint, 0)
 		if err != nil {
 			return false, err
 		}
@@ -2023,8 +2023,8 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
-	mountFlags, mountOptions := drivers.ResolveMountOptions(s.getLvmMountOptions())
-	err := driver.TryMount(lvmVolumePath, imageMntPoint, lvmFstype, mountFlags, mountOptions)
+	mountFlags, mountOptions := resolveMountOptions(s.getLvmMountOptions())
+	err := storageDrivers.TryMount(lvmVolumePath, imageMntPoint, lvmFstype, mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf(fmt.Sprintf("Error mounting image LV for unpacking: %s", err))
 		return false, fmt.Errorf("Error mounting image LV: %v", err)
@@ -2042,7 +2042,7 @@ func (s *storageLvm) ImageUmount(fingerprint string) (bool, error) {
 		return false, nil
 	}
 
-	err := driver.TryUnmount(imageMntPoint, 0)
+	err := storageDrivers.TryUnmount(imageMntPoint, 0)
 	if err != nil {
 		return false, err
 	}
@@ -2299,7 +2299,7 @@ func (s *storageLvm) StoragePoolVolumeSnapshotDelete() error {
 	snapshotLVName := containerNameToLVName(s.volume.Name)
 	storageVolumeSnapshotPath := driver.GetStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 	if shared.IsMountPoint(storageVolumeSnapshotPath) {
-		err := driver.TryUnmount(storageVolumeSnapshotPath, 0)
+		err := storageDrivers.TryUnmount(storageVolumeSnapshotPath, 0)
 		if err != nil {
 			return fmt.Errorf("Failed to unmount snapshot path \"%s\": %s", storageVolumeSnapshotPath, err)
 		}
