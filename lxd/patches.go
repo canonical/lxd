@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -1095,7 +1096,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
 		if shared.IsMountPoint(oldContainerMntPoint) {
-			err := driver.TryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
+			err := storageDrivers.TryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
 			if err != nil {
 				logger.Errorf("Failed to unmount LVM logical volume \"%s\": %s", oldContainerMntPoint, err)
 				return err
@@ -1270,7 +1271,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				if shared.PathExists(oldLvDevPath) {
 					// Unmount the logical volume.
 					if shared.IsMountPoint(oldSnapshotMntPoint) {
-						err := driver.TryUnmount(oldSnapshotMntPoint, unix.MNT_DETACH)
+						err := storageDrivers.TryUnmount(oldSnapshotMntPoint, unix.MNT_DETACH)
 						if err != nil {
 							logger.Errorf("Failed to unmount LVM logical volume \"%s\": %s", oldSnapshotMntPoint, err)
 							return err
@@ -1373,7 +1374,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		if !shared.IsMountPoint(newContainerMntPoint) {
-			err := driver.TryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
+			err := storageDrivers.TryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
 			if err != nil {
 				logger.Errorf("Failed to mount LVM logical \"%s\" onto \"%s\" : %s", containerLvDevPath, newContainerMntPoint, err)
 				return err
@@ -1421,7 +1422,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Unmount the logical volume.
 		oldImageMntPoint := shared.VarPath("images", img+".lv")
 		if shared.IsMountPoint(oldImageMntPoint) {
-			err := driver.TryUnmount(oldImageMntPoint, unix.MNT_DETACH)
+			err := storageDrivers.TryUnmount(oldImageMntPoint, unix.MNT_DETACH)
 			if err != nil {
 				return err
 			}
@@ -1621,7 +1622,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			_, err := shared.TryRunCommand("zfs", "unmount", "-f", ctDataset)
 			if err != nil {
 				logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount, trying lazy umount (MNT_DETACH)...")
-				err := driver.TryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
+				err := storageDrivers.TryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
 				if err != nil {
 					failedUpgradeEntities = append(failedUpgradeEntities, fmt.Sprintf("containers/%s: Failed to umount zfs filesystem.", ct))
 					continue
@@ -1769,7 +1770,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			_, err := shared.TryRunCommand("zfs", "unmount", "-f", imageDataset)
 			if err != nil {
 				logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount, trying lazy umount (MNT_DETACH)...")
-				err := driver.TryUnmount(oldImageMntPoint, unix.MNT_DETACH)
+				err := storageDrivers.TryUnmount(oldImageMntPoint, unix.MNT_DETACH)
 				if err != nil {
 					logger.Warnf("Failed to unmount ZFS filesystem: %s", err)
 				}
