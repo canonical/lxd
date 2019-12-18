@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/units"
 )
 
 func wipeDirectory(path string) error {
@@ -221,6 +222,36 @@ func createSparseFile(filePath string, sizeBytes int64) error {
 	err = f.Truncate(sizeBytes)
 	if err != nil {
 		return fmt.Errorf("Failed to create sparse file %s: %s", filePath, err)
+	}
+
+	return nil
+}
+
+// ensureVolumeBlockFile creates or resizes the raw block file for a volume.
+func ensureVolumeBlockFile(vol Volume, path string) error {
+	blockSize := vol.config["size"]
+	if blockSize == "" {
+		blockSize = defaultBlockSize
+	}
+
+	blockSizeBytes, err := units.ParseByteSizeString(blockSize)
+	if err != nil {
+		return err
+	}
+
+	if shared.PathExists(path) {
+		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
+		if err != nil {
+			return fmt.Errorf("Failed resizing disk image %s to size %s: %v", path, blockSize, err)
+		}
+	} else {
+		// If path doesn't exist, then there has been no filler function
+		// supplied to create it from another source. So instead create an empty
+		// volume (use for PXE booting a VM).
+		_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
+		if err != nil {
+			return fmt.Errorf("Failed creating disk image %s as size %s: %v", path, blockSize, err)
+		}
 	}
 
 	return nil
