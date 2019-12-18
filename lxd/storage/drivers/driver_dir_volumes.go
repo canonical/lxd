@@ -13,13 +13,14 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/units"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
 // filler function.
 func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
+
+	// Create the volume itself.
 	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
@@ -64,37 +65,12 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 	}
 
-	// If we are creating a block volume, resize it to the requested size or 10GB.
+	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		// Extract specified size from pool or volume config.
-		blockSize := d.config["volume.size"]
-		if vol.config["size"] != "" {
-			blockSize = vol.config["size"]
-		}
-
-		if blockSize == "" {
-			blockSize = "10GB"
-		}
-
-		blockSizeBytes, err := units.ParseByteSizeString(blockSize)
+		err := ensureVolumeBlockFile(vol, rootBlockPath)
 		if err != nil {
 			return err
-		}
-
-		if shared.PathExists(rootBlockPath) {
-			_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
-			if err != nil {
-				return fmt.Errorf("Failed resizing disk image %s to size %s: %v", rootBlockPath, blockSize, err)
-			}
-		} else {
-			// If rootBlockPath doesn't exist, then there has been no filler function
-			// supplied to create it from another source. So instead create an empty
-			// volume (use for PXE booting a VM).
-			_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
-			if err != nil {
-				return fmt.Errorf("Failed creating disk image %s as size %s: %v", rootBlockPath, blockSize, err)
-			}
 		}
 	}
 
@@ -104,88 +80,31 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
 func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
-	revert := true
-	revertPaths := []string{}
-
-	// Define a revert function that will be used both to revert if an error occurs inside this
-	// function but also return it for use from the calling functions if no error internally.
-	revertHook := func() {
-		for _, revertPath := range revertPaths {
-			os.RemoveAll(revertPath)
-		}
-	}
-
-	// Only execute the revert function if we have had an error internally and revert is true.
-	defer func() {
-		if revert {
-			revertHook()
-		}
-	}()
-
-	volPath := vol.MountPath()
-	err := vol.EnsureMountPath()
+	// Run the generic backup unpacker
+	postHook, revertHook, err := genericBackupUnpack(d.withoutGetVolID(), d.name, vol, snapshots, srcData, op)
 	if err != nil {
 		return nil, nil, err
-	}
-	revertPaths = append(revertPaths, volPath)
-
-	// Find the compression algorithm used for backup source data.
-	srcData.Seek(0, 0)
-	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Prepare tar extraction arguments.
-	args := append(tarArgs, []string{
-		"-",
-		"--strip-components=2",
-		"--xattrs-include=*",
-		"-C", volPath, "backup/container",
-	}...)
-
-	// Extract instance.
-	srcData.Seek(0, 0)
-	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(snapshots) > 0 {
-		// Create new snapshots directory.
-		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-		revertPaths = append(revertPaths, snapshotDir)
-
-		// Prepare tar arguments.
-		args := append(tarArgs, []string{
-			"-",
-			"--strip-components=2",
-			"--xattrs-include=*",
-			"-C", snapshotDir, "backup/snapshots",
-		}...)
-
-		// Extract snapshots.
-		srcData.Seek(0, 0)
-		err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
-		if err != nil {
-			return nil, nil, err
-		}
 	}
 
 	// Define a post hook function that can be run once the backup config has been restored.
 	// This will setup the quota using the restored config.
-	postHook := func(vol Volume) error {
+	postHookWrapper := func(vol Volume) error {
+		if postHook != nil {
+			err := postHook(vol)
+			if err != nil {
+				return err
+			}
+		}
+
 		_, err := d.setupInitialQuota(vol)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	revert = false
-	return postHook, revertHook, nil
+	return postHookWrapper, revertHook, nil
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
@@ -274,9 +193,9 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 			// Create the snapshot itself.
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapshotVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config)
 
-			err = d.CreateVolumeSnapshot(snapshotVol, op)
+			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
 				return err
 			}
@@ -444,6 +363,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota sets the quota on the volume.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	volPath := vol.MountPath()
+
 	volID, err := d.getVolID(vol.volType, vol.name)
 	if err != nil {
 		return err
