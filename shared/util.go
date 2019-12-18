@@ -861,6 +861,8 @@ func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...st
 	return nil
 }
 
+// TryRunCommand runs the specified command up to 20 times with a 500ms delay between each call
+// until it runs without an error. If after 20 times it is still failing then returns the error.
 func TryRunCommand(name string, arg ...string) (string, error) {
 	var err error
 	var output string
