@@ -11,8 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/ioprogress"
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -134,122 +132,7 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		return fmt.Errorf("Migration type not supported")
 	}
 
-	// Get the volume ID for the new volumes, which is used to set project quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
-	if err != nil {
-		return err
-	}
-
-	// Create the main volume path.
-	volPath := vol.MountPath()
-	err = vol.EnsureMountPath()
-	if err != nil {
-		return err
-	}
-
-	// Create slice of snapshots created if revert needed later.
-	revertSnaps := []string{}
-	defer func() {
-		if revertSnaps == nil {
-			return
-		}
-
-		// Remove any paths created if we are reverting.
-		for _, snapName := range revertSnaps {
-			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
-			d.DeleteVolumeSnapshot(snapVol, op)
-		}
-
-		os.RemoveAll(volPath)
-	}()
-
-	// Ensure the volume is mounted.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		path := shared.AddSlash(mountPath)
-
-		// Run the volume pre-filler function if supplied.
-		if preFiller != nil && preFiller.Fill != nil {
-			d.logger.Debug("Running pre-filler function", log.Ctx{"volume": vol.name, "path": path})
-			err = preFiller.Fill(path, "")
-			if err != nil {
-				return err
-			}
-			d.logger.Debug("Finished pre-filler function", log.Ctx{"volume": vol.name})
-		}
-
-		// Snapshots are sent first by the sender, so create these first.
-		for _, snapName := range volTargetArgs.Snapshots {
-			// Receive the snapshot
-			var wrapper *ioprogress.ProgressTracker
-			if volTargetArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
-			}
-
-			d.logger.Debug("Receiving volume", log.Ctx{"volume": vol.name, "snapshot": snapName, "path": path})
-			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
-			if err != nil {
-				return err
-			}
-
-			// Create the snapshot itself.
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config)
-
-			err = d.CreateVolumeSnapshot(snapVol, op)
-			if err != nil {
-				return err
-			}
-
-			// Setup the revert.
-			revertSnaps = append(revertSnaps, snapName)
-		}
-
-		// Initialise the volume's quota using the volume ID.
-		err = d.initQuota(volPath, volID)
-		if err != nil {
-			return err
-		}
-
-		// Set the quota if specified in volConfig or pool config.
-		err = d.setQuota(volPath, volID, vol.config["size"])
-		if err != nil {
-			return err
-		}
-
-		// Receive the main volume from sender.
-		var wrapper *ioprogress.ProgressTracker
-		if volTargetArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
-		}
-
-		d.logger.Debug("Receiving volume", log.Ctx{"volume": vol.name, "path": path})
-		err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
-		if err != nil {
-			return err
-		}
-
-		// Receive the final main volume sync if needed.
-		if volTargetArgs.Live {
-			if volTargetArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
-			}
-
-			d.logger.Debug("Receiving volume (final stage)", log.Ctx{"vol": vol.name, "path": path})
-			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}, op)
-	if err != nil {
-		return err
-	}
-
-	revertSnaps = nil
-	return nil
+	return genericCreateVolumeFromMigration(d, d.setupInitialQuota, vol, conn, volTargetArgs, preFiller, op)
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
