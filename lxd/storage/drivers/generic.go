@@ -5,9 +5,12 @@ import (
 	"io"
 	"os"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // genericCopyVolume copies a volume and its snapshots using a non-optimized method.
@@ -89,6 +92,107 @@ func genericCopyVolume(d Driver, applyQuota func(vol Volume) (func(), error), vo
 	}
 
 	revertSnaps = nil // Don't revert.
+	return nil
+}
+
+// genericCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
+func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	// Create the main volume path.
+	if !volTargetArgs.Refresh {
+		err := d.CreateVolume(vol, preFiller, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create slice of snapshots created if revert needed later.
+	revertSnaps := []string{}
+	defer func() {
+		if revertSnaps == nil {
+			return
+		}
+
+		// Remove any paths created if we are reverting.
+		for _, snapName := range revertSnaps {
+			fullSnapName := GetSnapshotVolumeName(vol.Name(), snapName)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config)
+			d.DeleteVolumeSnapshot(snapVol, op)
+		}
+
+		d.DeleteVolume(vol, op)
+	}()
+
+	// Ensure the volume is mounted.
+	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		path := shared.AddSlash(mountPath)
+
+		// Snapshots are sent first by the sender, so create these first.
+		for _, snapName := range volTargetArgs.Snapshots {
+			// Receive the snapshot
+			var wrapper *ioprogress.ProgressTracker
+			if volTargetArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
+			}
+
+			d.Logger().Debug("Receiving volume", log.Ctx{"volume": vol.name, "snapshot": snapName, "path": path})
+			err := rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			if err != nil {
+				return err
+			}
+
+			// Create the snapshot itself.
+			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config)
+
+			err = d.CreateVolumeSnapshot(snapVol, op)
+			if err != nil {
+				return err
+			}
+
+			// Setup the revert.
+			revertSnaps = append(revertSnaps, snapName)
+		}
+
+		// Apply quotas.
+		if applyQuota != nil {
+			_, err := applyQuota(vol)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Receive the main volume from sender.
+		var wrapper *ioprogress.ProgressTracker
+		if volTargetArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+		}
+
+		d.Logger().Debug("Receiving volume", log.Ctx{"volume": vol.name, "path": path})
+		err := rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+		if err != nil {
+			return err
+		}
+
+		// Receive the final main volume sync if needed.
+		if volTargetArgs.Live {
+			if volTargetArgs.TrackProgress {
+				wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
+			}
+
+			d.Logger().Debug("Receiving volume (final stage)", log.Ctx{"vol": vol.name, "path": path})
+			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}, op)
+	if err != nil {
+		return err
+	}
+
+	revertSnaps = nil
 	return nil
 }
 
