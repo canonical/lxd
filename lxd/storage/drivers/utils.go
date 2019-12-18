@@ -65,13 +65,13 @@ func mountReadOnly(srcPath string, dstPath string) (bool, error) {
 	}
 
 	// Create a mount entry.
-	err := tryMount(srcPath, dstPath, "none", unix.MS_BIND, "")
+	err := TryMount(srcPath, dstPath, "none", unix.MS_BIND, "")
 	if err != nil {
 		return false, err
 	}
 
 	// Make it read-only.
-	err = tryMount("", dstPath, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
+	err = TryMount("", dstPath, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 	if err != nil {
 		forceUnmount(dstPath)
 		return false, err
@@ -122,12 +122,33 @@ func sameMount(srcPath string, dstPath string) bool {
 	return true
 }
 
-func tryMount(src string, dst string, fs string, flags uintptr, options string) error {
+// TryMount tries mounting a filesystem multiple times. This is useful for unreliable backends.
+func TryMount(src string, dst string, fs string, flags uintptr, options string) error {
 	var err error
 
 	// Attempt 20 mounts over 10s
 	for i := 0; i < 20; i++ {
 		err = unix.Mount(src, dst, fs, flags, options)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TryUnmount tries unmounting a filesystem multiple times. This is useful for unreliable backends.
+func TryUnmount(path string, flags int) error {
+	var err error
+
+	for i := 0; i < 20; i++ {
+		err = unix.Unmount(path, flags)
 		if err == nil {
 			break
 		}
@@ -255,19 +276,19 @@ func ensureVolumeBlockFile(vol Volume, path string) error {
 	return nil
 }
 
-// MkfsOptions represents options for filesystem creation.
-type MkfsOptions struct {
+// mkfsOptions represents options for filesystem creation.
+type mkfsOptions struct {
 	Label string
 }
 
-// MakeFSType creates the provided filesystem.
-func MakeFSType(path string, fsType string, options *MkfsOptions) (string, error) {
+// makeFSType creates the provided filesystem.
+func makeFSType(path string, fsType string, options *mkfsOptions) (string, error) {
 	var err error
 	var msg string
 
 	fsOptions := options
 	if fsOptions == nil {
-		fsOptions = &MkfsOptions{}
+		fsOptions = &mkfsOptions{}
 	}
 
 	cmd := []string{fmt.Sprintf("mkfs.%s", fsType), path}
@@ -323,8 +344,8 @@ var mountOptions = map[string]mountOption{
 	"sync":          {true, unix.MS_SYNCHRONOUS},
 }
 
-// ResolveMountOptions resolves the provided mount options.
-func ResolveMountOptions(options string) (uintptr, string) {
+// resolveMountOptions resolves the provided mount options.
+func resolveMountOptions(options string) (uintptr, string) {
 	mountFlags := uintptr(0)
 	tmp := strings.SplitN(options, ",", -1)
 	for i := 0; i < len(tmp); i++ {
