@@ -2,12 +2,8 @@ package drivers
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/storage/quota"
-	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -20,98 +16,6 @@ func (d *dir) withoutGetVolID() Driver {
 	newDriver.load()
 
 	return newDriver
-}
-
-// copyVolume copies a volume and its specific snapshots.
-func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS || srcVol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
-	}
-
-	bwlimit := d.config["rsync.bwlimit"]
-
-	// Get the volume ID for the new volumes, which is used to set project quota.
-	volID, err := d.getVolID(vol.volType, vol.name)
-	if err != nil {
-		return err
-	}
-
-	// Create the main volume path.
-	volPath := vol.MountPath()
-	err = vol.EnsureMountPath()
-	if err != nil {
-		return err
-	}
-
-	// Create slice of snapshots created if revert needed later.
-	revertSnaps := []string{}
-	defer func() {
-		if revertSnaps == nil {
-			return
-		}
-
-		// Remove any paths created if we are reverting.
-		for _, snapName := range revertSnaps {
-			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
-			d.DeleteVolumeSnapshot(snapVol, op)
-		}
-
-		os.RemoveAll(volPath)
-	}()
-
-	// Ensure the volume is mounted.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		// If copying snapshots is indicated, check the source isn't itself a snapshot.
-		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
-			for _, srcSnapshot := range srcSnapshots {
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.name)
-
-				// Mount the source snapshot.
-				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
-					// Copy the snapshot.
-					_, err = rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-					return err
-				}, op)
-
-				fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-				snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
-
-				// Create the snapshot itself.
-				err = d.CreateVolumeSnapshot(snapVol, op)
-				if err != nil {
-					return err
-				}
-
-				// Setup the revert.
-				revertSnaps = append(revertSnaps, snapName)
-			}
-		}
-
-		// Initialise the volume's quota using the volume ID.
-		err = d.initQuota(volPath, volID)
-		if err != nil {
-			return err
-		}
-
-		// Set the quota if specified in volConfig or pool config.
-		err = d.setQuota(volPath, volID, vol.config["size"])
-		if err != nil {
-			return err
-		}
-
-		// Copy source to destination (mounting each volume if needed).
-		return srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
-			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-			return err
-		}, op)
-	}, op)
-	if err != nil {
-		return err
-	}
-
-	revertSnaps = nil // Don't revert.
-	return nil
 }
 
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
