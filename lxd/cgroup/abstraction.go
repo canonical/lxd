@@ -6,7 +6,8 @@ import (
 
 // CGroup represents the main cgroup abstraction.
 type CGroup struct {
-	rw ReadWriter
+	rw             ReadWriter
+	UnifiedCapable bool
 }
 
 // SetMaxProcesses applies a limit to the number of processes
