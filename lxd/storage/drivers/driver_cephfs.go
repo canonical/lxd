@@ -127,7 +127,7 @@ func (d *cephfs) Create() error {
 
 	// Mount the pool.
 	uri := fmt.Sprintf("%s:6789:/", strings.Join(monAddresses, ","))
-	err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 
 	// Mount the pool.
 	uri := fmt.Sprintf("%s:6789:/", strings.Join(monAddresses, ","))
-	err = tryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(uri, mountPoint, "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func (d *cephfs) Mount() (bool, error) {
 
 	// Mount the pool.
 	uri := fmt.Sprintf("%s:6789:/%s", strings.Join(monAddresses, ","), fsPath)
-	err = tryMount(uri, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
+	err = TryMount(uri, GetPoolMountPath(d.name), "ceph", 0, fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", d.config["cephfs.user.name"], userSecret, fsName))
 	if err != nil {
 		return false, err
 	}
