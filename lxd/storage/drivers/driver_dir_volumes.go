@@ -78,88 +78,31 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
 func (d *dir) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
-	revert := true
-	revertPaths := []string{}
-
-	// Define a revert function that will be used both to revert if an error occurs inside this
-	// function but also return it for use from the calling functions if no error internally.
-	revertHook := func() {
-		for _, revertPath := range revertPaths {
-			os.RemoveAll(revertPath)
-		}
-	}
-
-	// Only execute the revert function if we have had an error internally and revert is true.
-	defer func() {
-		if revert {
-			revertHook()
-		}
-	}()
-
-	volPath := vol.MountPath()
-	err := vol.EnsureMountPath()
+	// Run the generic backup unpacker
+	postHook, revertHook, err := genericBackupUnpack(d.withoutGetVolID(), d.name, vol, snapshots, srcData, op)
 	if err != nil {
 		return nil, nil, err
-	}
-	revertPaths = append(revertPaths, volPath)
-
-	// Find the compression algorithm used for backup source data.
-	srcData.Seek(0, 0)
-	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Prepare tar extraction arguments.
-	args := append(tarArgs, []string{
-		"-",
-		"--strip-components=2",
-		"--xattrs-include=*",
-		"-C", volPath, "backup/container",
-	}...)
-
-	// Extract instance.
-	srcData.Seek(0, 0)
-	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(snapshots) > 0 {
-		// Create new snapshots directory.
-		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
-		revertPaths = append(revertPaths, snapshotDir)
-
-		// Prepare tar arguments.
-		args := append(tarArgs, []string{
-			"-",
-			"--strip-components=2",
-			"--xattrs-include=*",
-			"-C", snapshotDir, "backup/snapshots",
-		}...)
-
-		// Extract snapshots.
-		srcData.Seek(0, 0)
-		err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
-		if err != nil {
-			return nil, nil, err
-		}
 	}
 
 	// Define a post hook function that can be run once the backup config has been restored.
 	// This will setup the quota using the restored config.
-	postHook := func(vol Volume) error {
+	postHookWrapper := func(vol Volume) error {
+		if postHook != nil {
+			err := postHook(vol)
+			if err != nil {
+				return err
+			}
+		}
+
 		_, err := d.setupInitialQuota(vol)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	revert = false
-	return postHook, revertHook, nil
+	return postHookWrapper, revertHook, nil
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
@@ -418,6 +361,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 // SetVolumeQuota sets the quota on the volume.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	volPath := vol.MountPath()
+
 	volID, err := d.getVolID(vol.volType, vol.name)
 	if err != nil {
 		return err

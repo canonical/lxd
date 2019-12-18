@@ -12,6 +12,16 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// withoutGetVolID returns a copy of this struct but with a volIDFunc which will cause quotas to be skipped.
+func (d *dir) withoutGetVolID() Driver {
+	newDriver := &dir{}
+	getVolID := func(volType VolumeType, volName string) (int64, error) { return volIDQuotaSkip, nil }
+	newDriver.init(d.state, d.name, d.config, d.logger, getVolID, d.getCommonVolumeRules)
+	newDriver.load()
+
+	return newDriver
+}
+
 // copyVolume copies a volume and its specific snapshots.
 func (d *dir) copyVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS || srcVol.contentType != ContentTypeFS {
@@ -145,6 +155,11 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 
 // deleteQuota removes the project quota for a volID from a path.
 func (d *dir) deleteQuota(path string, volID int64) error {
+	if volID == volIDQuotaSkip {
+		// Disabled on purpose, just ignore
+		return nil
+	}
+
 	if volID == 0 {
 		return fmt.Errorf("Missing volume ID")
 	}
@@ -170,6 +185,11 @@ func (d *dir) deleteQuota(path string, volID int64) error {
 
 // initQuota initialises the project quota on the path. The volID generates a quota project ID.
 func (d *dir) initQuota(path string, volID int64) error {
+	if volID == volIDQuotaSkip {
+		// Disabled on purpose, just ignore
+		return nil
+	}
+
 	if volID == 0 {
 		return fmt.Errorf("Missing volume ID")
 	}
@@ -190,11 +210,21 @@ func (d *dir) initQuota(path string, volID int64) error {
 
 // quotaProjectID generates a project quota ID from a volume ID.
 func (d *dir) quotaProjectID(volID int64) uint32 {
+	if volID == volIDQuotaSkip {
+		// Disabled on purpose, just ignore
+		return 0
+	}
+
 	return uint32(volID + 10000)
 }
 
 // setQuota sets the project quota on the path. The volID generates a quota project ID.
 func (d *dir) setQuota(path string, volID int64, size string) error {
+	if volID == volIDQuotaSkip {
+		// Disabled on purpose, just ignore
+		return nil
+	}
+
 	if volID == 0 {
 		return fmt.Errorf("Missing volume ID")
 	}
