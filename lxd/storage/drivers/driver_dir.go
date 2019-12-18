@@ -104,7 +104,7 @@ func (d *dir) Mount() (bool, error) {
 	}
 
 	// Setup the bind-mount.
-	err := tryMount(d.config["source"], path, "none", unix.MS_BIND, "")
+	err := TryMount(d.config["source"], path, "none", unix.MS_BIND, "")
 	if err != nil {
 		return false, err
 	}
