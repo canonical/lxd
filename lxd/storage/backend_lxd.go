@@ -117,7 +117,28 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 
 // newVolume returns a new Volume instance.
 func (b *lxdBackend) newVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
-	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, volConfig)
+	// Copy the config map.
+	newConfig := map[string]string{}
+	for k, v := range volConfig {
+		newConfig[k] = v
+	}
+
+	// And now expand it with the pool data.
+	for k, v := range b.db.Config {
+		if !strings.HasPrefix(k, "volume.") {
+			continue
+		}
+
+		fields := strings.SplitN(k, "volume.", 2)
+		name := fields[1]
+
+		_, ok := newConfig[name]
+		if !ok {
+			newConfig[name] = v
+		}
+	}
+
+	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, newConfig)
 }
 
 // GetResources returns utilisation information about the pool.
