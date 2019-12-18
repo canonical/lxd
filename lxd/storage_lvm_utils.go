@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -857,7 +856,7 @@ func lvmCreateLv(projectName, vgName string, thinPoolName string, lvName string,
 
 	fsPath := getLvmDevPath(projectName, vgName, volumeType, lvName)
 
-	output, err = storageDrivers.MakeFSType(fsPath, lvFsType, nil)
+	output, err = makeFSType(fsPath, lvFsType, nil)
 	if err != nil {
 		logger.Errorf("Filesystem creation failed: %v (%s)", err, output)
 		return fmt.Errorf("Error making filesystem on image LV: %v (%s)", err, output)
