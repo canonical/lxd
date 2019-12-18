@@ -5,9 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -25,83 +22,6 @@ import (
 
 // VolumeUsedByInstancesWithProfiles returns a slice containing the names of instances using a volume.
 var VolumeUsedByInstancesWithProfiles func(s *state.State, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error)
-
-// Export the mount options map since we might find it useful in other parts of
-// LXD.
-type mountOptions struct {
-	capture bool
-	flag    uintptr
-}
-
-// MountOptions represents a list of possible mount options.
-var MountOptions = map[string]mountOptions{
-	"async":         {false, unix.MS_SYNCHRONOUS},
-	"atime":         {false, unix.MS_NOATIME},
-	"bind":          {true, unix.MS_BIND},
-	"defaults":      {true, 0},
-	"dev":           {false, unix.MS_NODEV},
-	"diratime":      {false, unix.MS_NODIRATIME},
-	"dirsync":       {true, unix.MS_DIRSYNC},
-	"exec":          {false, unix.MS_NOEXEC},
-	"lazytime":      {true, unix.MS_LAZYTIME},
-	"mand":          {true, unix.MS_MANDLOCK},
-	"noatime":       {true, unix.MS_NOATIME},
-	"nodev":         {true, unix.MS_NODEV},
-	"nodiratime":    {true, unix.MS_NODIRATIME},
-	"noexec":        {true, unix.MS_NOEXEC},
-	"nomand":        {false, unix.MS_MANDLOCK},
-	"norelatime":    {false, unix.MS_RELATIME},
-	"nostrictatime": {false, unix.MS_STRICTATIME},
-	"nosuid":        {true, unix.MS_NOSUID},
-	"rbind":         {true, unix.MS_BIND | unix.MS_REC},
-	"relatime":      {true, unix.MS_RELATIME},
-	"remount":       {true, unix.MS_REMOUNT},
-	"ro":            {true, unix.MS_RDONLY},
-	"rw":            {false, unix.MS_RDONLY},
-	"strictatime":   {true, unix.MS_STRICTATIME},
-	"suid":          {false, unix.MS_NOSUID},
-	"sync":          {true, unix.MS_SYNCHRONOUS},
-}
-
-// TryMount tries mounting a filesystem multiple times. This is useful for unreliable backends.
-func TryMount(src string, dst string, fs string, flags uintptr, options string) error {
-	var err error
-
-	for i := 0; i < 20; i++ {
-		err = unix.Mount(src, dst, fs, flags, options)
-		if err == nil {
-			break
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// TryUnmount tries unmounting a filesystem multiple times. This is useful for unreliable backends.
-func TryUnmount(path string, flags int) error {
-	var err error
-
-	for i := 0; i < 20; i++ {
-		err = unix.Unmount(path, flags)
-		if err == nil {
-			break
-		}
-
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // ValidName validates the provided name, and returns an error if it's not a valid storage name.
 func ValidName(value string) error {
