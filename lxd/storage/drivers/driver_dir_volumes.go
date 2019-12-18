@@ -13,7 +13,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/units"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -67,31 +66,9 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		// Extract specified size from pool or volume config.
-		blockSize := vol.config["size"]
-
-		if blockSize == "" {
-			blockSize = defaultBlockSize
-		}
-
-		blockSizeBytes, err := units.ParseByteSizeString(blockSize)
+		err := ensureVolumeBlockFile(vol, rootBlockPath)
 		if err != nil {
 			return err
-		}
-
-		if shared.PathExists(rootBlockPath) {
-			_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
-			if err != nil {
-				return fmt.Errorf("Failed resizing disk image %s to size %s: %v", rootBlockPath, blockSize, err)
-			}
-		} else {
-			// If rootBlockPath doesn't exist, then there has been no filler function
-			// supplied to create it from another source. So instead create an empty
-			// volume (use for PXE booting a VM).
-			_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", rootBlockPath, fmt.Sprintf("%d", blockSizeBytes))
-			if err != nil {
-				return fmt.Errorf("Failed creating disk image %s as size %s: %v", rootBlockPath, blockSize, err)
-			}
 		}
 	}
 
