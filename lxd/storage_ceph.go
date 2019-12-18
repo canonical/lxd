@@ -373,7 +373,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	RBDFilesystem := s.getRBDFilesystem()
 	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume "%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name, s.pool.Name)
 
-	output, err := storageDrivers.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+	output, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on device path "%s" for RBD storage volume "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, RBDDevPath, s.volume.Name, s.pool.Name, err, output)
 		return err
@@ -439,7 +439,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 
 	volumeMntPoint := driver.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if shared.IsMountPoint(volumeMntPoint) {
-		err := driver.TryUnmount(volumeMntPoint, unix.MNT_DETACH)
+		err := storageDrivers.TryUnmount(volumeMntPoint, unix.MNT_DETACH)
 		if err != nil {
 			logger.Errorf(`Failed to unmount RBD storage volume "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
 		}
@@ -523,8 +523,8 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameCustom, s.volume.Name, true,
 			s.UserName)
-		mountFlags, mountOptions := storageDrivers.ResolveMountOptions(s.getRBDMountOptions())
-		customerr = driver.TryMount(
+		mountFlags, mountOptions := resolveMountOptions(s.getRBDMountOptions())
+		customerr = storageDrivers.TryMount(
 			RBDDevPath,
 			volumeMntPoint,
 			RBDFilesystem,
@@ -575,7 +575,7 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 	var customerr error
 	ourUmount := false
 	if shared.IsMountPoint(volumeMntPoint) {
-		customerr = driver.TryUnmount(volumeMntPoint, unix.MNT_DETACH)
+		customerr = storageDrivers.TryUnmount(volumeMntPoint, unix.MNT_DETACH)
 		ourUmount = true
 	}
 
@@ -1396,7 +1396,7 @@ func (s *storageCeph) ContainerUmount(c instance.Instance, path string) (bool, e
 	var mounterr error
 	ourUmount := false
 	if shared.IsMountPoint(containerMntPoint) {
-		mounterr = driver.TryUnmount(containerMntPoint, 0)
+		mounterr = storageDrivers.TryUnmount(containerMntPoint, 0)
 		ourUmount = true
 	}
 
@@ -1834,7 +1834,7 @@ func (s *storageCeph) ContainerSnapshotStart(c instance.Instance) (bool, error) 
 
 	containerMntPoint := driver.GetSnapshotMountPoint(c.Project(), s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
-	mountFlags, mountOptions := storageDrivers.ResolveMountOptions(s.getRBDMountOptions())
+	mountFlags, mountOptions := resolveMountOptions(s.getRBDMountOptions())
 	if RBDFilesystem == "xfs" {
 		idx := strings.Index(mountOptions, "nouuid")
 		if idx < 0 {
@@ -1842,7 +1842,7 @@ func (s *storageCeph) ContainerSnapshotStart(c instance.Instance) (bool, error) 
 		}
 	}
 
-	err = driver.TryMount(
+	err = storageDrivers.TryMount(
 		RBDDevPath,
 		containerMntPoint,
 		RBDFilesystem,
@@ -1875,7 +1875,7 @@ func (s *storageCeph) ContainerSnapshotStop(c instance.Instance) (bool, error) {
 	}
 
 	// Unmount
-	err := driver.TryUnmount(containerMntPoint, unix.MNT_DETACH)
+	err := storageDrivers.TryUnmount(containerMntPoint, unix.MNT_DETACH)
 	if err != nil {
 		logger.Errorf("Failed to unmount %s: %s", containerMntPoint, err)
 		return false, err
@@ -2106,7 +2106,7 @@ func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.Progre
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
-		output, err := storageDrivers.MakeFSType(RBDDevPath, RBDFilesystem, nil)
+		output, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
 		if err != nil {
 			logger.Errorf(`Failed to create filesystem "%s" for RBD storage volume for image "%s" on storage pool "%s": %v (%s)`, RBDFilesystem, fingerprint, s.pool.Name, err, output)
 			return err
@@ -2341,7 +2341,7 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 
 	RBDFilesystem := s.getRBDFilesystem()
 	RBDMountOptions := s.getRBDMountOptions()
-	mountFlags, mountOptions := storageDrivers.ResolveMountOptions(RBDMountOptions)
+	mountFlags, mountOptions := resolveMountOptions(RBDMountOptions)
 	RBDDevPath, ret := getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 		storagePoolVolumeTypeNameImage, fingerprint, true, s.UserName)
 	errMsg := fmt.Sprintf("Failed to mount RBD device %s onto %s",
@@ -2351,7 +2351,7 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 		return false, fmt.Errorf(errMsg)
 	}
 
-	err := driver.TryMount(RBDDevPath, imageMntPoint, RBDFilesystem, mountFlags, mountOptions)
+	err := storageDrivers.TryMount(RBDDevPath, imageMntPoint, RBDFilesystem, mountFlags, mountOptions)
 	if err != nil || ret < 0 {
 		return false, err
 	}
@@ -2368,7 +2368,7 @@ func (s *storageCeph) ImageUmount(fingerprint string) (bool, error) {
 		return false, nil
 	}
 
-	err := driver.TryUnmount(imageMntPoint, 0)
+	err := storageDrivers.TryUnmount(imageMntPoint, 0)
 	if err != nil {
 		return false, err
 	}
