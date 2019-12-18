@@ -19,6 +19,8 @@ import (
 // filler function.
 func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
+
+	// Create the volume itself.
 	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
@@ -191,9 +193,9 @@ func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 			// Create the snapshot itself.
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapshotVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config)
 
-			err = d.CreateVolumeSnapshot(snapshotVol, op)
+			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
 				return err
 			}
