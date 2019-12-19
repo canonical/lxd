@@ -240,8 +240,8 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 
 	// Initialize the container storage
 	// Check if we can load new storage layer for pool driver type.
-	pool, err := storagePools.GetPoolByName(c.state, storagePool)
-	if err != storageDrivers.ErrUnknownDriver {
+	pool, err := storagePools.GetPoolByInstance(c.state, c)
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
 		if err != nil {
 			return nil, err
 		}
@@ -3426,7 +3426,7 @@ func (c *containerLXC) Delete() error {
 
 	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && err != db.ErrNoSuchObject {
 		if err != nil {
 			return err
 		}
@@ -3474,7 +3474,7 @@ func (c *containerLXC) Delete() error {
 				}
 			}
 		}
-	} else if err == storageDrivers.ErrUnknownDriver {
+	} else if err != db.ErrNoSuchObject {
 		// Attempt to initialize storage interface for the container.
 		err := c.initStorage()
 		if err != nil {
@@ -5802,8 +5802,8 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 		var usage int64
 
 		// Check if we can load new storage layer for pool driver type.
-		pool, err := storagePools.GetPoolByName(c.state, dev.Config["pool"])
-		if err != storageDrivers.ErrUnknownDriver {
+		pool, err := storagePools.GetPoolByInstance(c.state, c)
+		if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
 			if err != nil {
 				logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 				continue
