@@ -232,6 +232,12 @@ int set_autoclear_loop_device(int fd_loop)
 	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 }
 
+// Directly release the loop device
+int free_loop_device(int fd_loop)
+{
+	return ioctl(fd_loop, LOOP_CLR_FD);
+}
+
 // Unset the LO_FLAGS_AUTOCLEAR flag on the given loop device file descriptor.
 int unset_autoclear_loop_device(int fd_loop)
 {
@@ -284,6 +290,34 @@ func PrepareLoopDev(source string, flags int) (*os.File, error) {
 	}
 
 	return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
+}
+
+// releaseLoopDev releases the loop dev assigned to the provided file.
+func releaseLoopDev(source string) error {
+	cLoopDev := C.malloc(C.size_t(C.LO_NAME_SIZE))
+	if cLoopDev == nil {
+		return fmt.Errorf("Failed to allocate memory in C")
+	}
+	defer C.free(cLoopDev)
+
+	cSource := C.CString(source)
+	loopFd, err := C.find_associated_loop_device(cSource, (*C.char)(cLoopDev))
+	if err != nil {
+		return err
+	}
+
+	// Prepare a Go file and defer close on the loop device.
+	fd := os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev)))
+	defer fd.Close()
+
+	if loopFd >= 0 {
+		_, err := C.free_loop_device(C.int(loopFd))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SetAutoclearOnLoopDev enables autodestruction of the provided loopback device.
