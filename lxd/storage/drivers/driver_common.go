@@ -283,3 +283,65 @@ func (d *common) vfsGetVolumeDiskPath(vol Volume) (string, error) {
 
 	return filepath.Join(vol.MountPath(), "root.img"), nil
 }
+
+// vfsBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
+func (d *common) vfsBackupVolume(vol Volume, targetPath string, snapshots bool, op *operations.Operation) error {
+	bwlimit := d.config["rsync.bwlimit"]
+
+	// Backups only implemented for containers currently.
+	if vol.volType != VolumeTypeContainer {
+		return ErrNotImplemented
+	}
+	// Handle snapshots.
+	if snapshots {
+		snapshotsPath := filepath.Join(targetPath, "snapshots")
+
+		// List the snapshots.
+		snapshots, err := vol.Snapshots(op)
+		if err != nil {
+			return err
+		}
+
+		// Create the snapshot path.
+		if len(snapshots) > 0 {
+			err = os.MkdirAll(snapshotsPath, 0711)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, snapshot := range snapshots {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name())
+			target := filepath.Join(snapshotsPath, snapName)
+
+			// Copy the snapshot.
+			err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
+				_, err := rsync.LocalCopy(mountPath, target, bwlimit, true)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Copy the parent volume itself.
+	target := filepath.Join(targetPath, "container")
+	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		_, err := rsync.LocalCopy(mountPath, target, bwlimit, true)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
