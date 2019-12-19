@@ -345,7 +345,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(state, s.instance)
-	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && err != db.ErrNoSuchObject {
 		if err != nil {
 			return err
 		}

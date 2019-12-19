@@ -216,7 +216,25 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 
 	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(s, info.Pool)
-	if err != storageDrivers.ErrUnknownDriver {
+
+	supportedInstanceType := false
+	if pool != nil {
+		// No concept of instance type in backups yet, so default to container type.
+		volType, err := storagePools.InstanceTypeToVolumeType(instancetype.Container)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// We don't have an instance yet so cannot use GetPoolByInstance, so interrogate the driver
+		// directly for instance type support.
+		for _, supportedType := range pool.Driver().Info().VolumeTypes {
+			if supportedType == volType {
+				supportedInstanceType = true
+			}
+		}
+	}
+
+	if err != storageDrivers.ErrUnknownDriver && supportedInstanceType {
 		if err != nil {
 			return nil, nil, err
 		}
