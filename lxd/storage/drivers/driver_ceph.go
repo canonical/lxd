@@ -1,0 +1,346 @@
+package drivers
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"strings"
+
+	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/units"
+)
+
+var cephAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
+var cephVersion string
+var cephLoaded bool
+
+type ceph struct {
+	common
+}
+
+func (d *ceph) load() error {
+	// Register the patches.
+	d.patches = map[string]func() error{
+		"storage_create_vm": nil,
+		"storage_zfs_mount": nil,
+	}
+
+	// Done if previously loaded.
+	if cephLoaded {
+		return nil
+	}
+
+	// Validate the required binaries.
+	for _, tool := range []string{"ceph", "rbd"} {
+		_, err := exec.LookPath(tool)
+		if err != nil {
+			return fmt.Errorf("Required tool '%s' is missing", tool)
+		}
+	}
+
+	// Detect and record the version.
+	if cephVersion == "" {
+		out, err := shared.RunCommand("rbd", "--version")
+		if err != nil {
+			return err
+		}
+
+		cephVersion = strings.TrimSpace(out)
+	}
+
+	cephLoaded = true
+	return nil
+}
+
+// Info returns info about the driver and its environment.
+func (d *ceph) Info() Info {
+	return Info{
+		Name:                  "ceph",
+		Version:               cephVersion,
+		OptimizedImages:       true,
+		PreservesInodes:       false,
+		Remote:                true,
+		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
+		BlockBacking:          true,
+		RunningQuotaResize:    false,
+		RunningSnapshotFreeze: true,
+		MountedRoot:           false,
+	}
+}
+
+func (d *ceph) Create() error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	d.config["volatile.initial_source"] = d.config["source"]
+
+	// Set default properties if missing.
+	if d.config["ceph.cluster_name"] == "" {
+		d.config["ceph.cluster_name"] = "ceph"
+	}
+
+	if d.config["ceph.user.name"] == "" {
+		d.config["ceph.user.name"] = "admin"
+	}
+
+	if d.config["ceph.osd.pg_num"] == "" {
+		d.config["ceph.osd.pg_num"] = "32"
+	} else {
+		// Validate
+		_, err := units.ParseByteSizeString(d.config["ceph.osd.pg_num"])
+		if err != nil {
+			return err
+		}
+	}
+
+	// sanity check
+	if d.config["source"] != "" &&
+		d.config["ceph.osd.pool_name"] != "" &&
+		d.config["source"] != d.config["ceph.osd.pool_name"] {
+		return fmt.Errorf(`The "source" and "ceph.osd.pool_name" property must not differ for CEPH OSD storage pools`)
+	}
+
+	// use an existing OSD pool
+	if d.config["source"] != "" {
+		d.config["ceph.osd.pool_name"] = d.config["source"]
+	}
+
+	if d.config["ceph.osd.pool_name"] == "" {
+		d.config["ceph.osd.pool_name"] = d.name
+		d.config["source"] = d.name
+	}
+
+	dummyVol := NewVolume(d, d.name, VolumeType("lxd"), ContentTypeFS, d.config["ceph.osd.pool_name"], nil, nil)
+
+	if !d.osdPoolExists() {
+		// Create new osd pool
+		_, err := shared.TryRunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--cluster", d.config["ceph.cluster_name"],
+			"osd",
+			"pool",
+			"create",
+			d.config["ceph.osd.pool_name"],
+			d.config["ceph.osd.pg_num"])
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { d.osdDeletePool() })
+
+		// Initialize the pool. This is not necessary but allows the pool
+		// to be monitored.
+		_, err = shared.TryRunCommand("rbd",
+			"--id", d.config["ceph.user.name"],
+			"--cluster", d.config["ceph.cluster_name"],
+			"pool",
+			"init",
+			d.config["ceph.osd.pool_name"])
+		if err != nil {
+			d.logger.Warn("Failed to initialize pool", log.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
+		}
+
+		// Create dummy storage volume. Other LXD instances will use this to detect whether this osd pool is already in use by another LXD instance.
+		err = d.rbdCreateVolume(dummyVol, "0")
+		if err != nil {
+			return err
+		}
+		d.config["volatile.pool.pristine"] = "true"
+	} else {
+		ok := d.HasVolume(dummyVol)
+		d.config["volatile.pool.pristine"] = "false"
+		if ok {
+			if d.config["ceph.osd.force_reuse"] == "" || !shared.IsTrue(d.config["ceph.osd.force_reuse"]) {
+				return fmt.Errorf("Pool '%s' in cluster '%s' seems to be in use by another LXD instance. Use 'ceph.osd.force_reuse=true' to force", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
+			}
+		}
+
+		// Use existing osd pool
+		msg, err := shared.RunCommand("ceph",
+			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+			"--cluster", d.config["ceph.cluster_name"],
+			"osd",
+			"pool",
+			"get",
+			d.config["ceph.osd.pool_name"],
+			"pg_num")
+		if err != nil {
+			return err
+		}
+
+		idx := strings.Index(msg, "pg_num:")
+		if idx == -1 {
+			return fmt.Errorf("Failed to parse number of placement groups for pool: %s", msg)
+		}
+
+		msg = msg[(idx + len("pg_num:")):]
+		msg = strings.TrimSpace(msg)
+
+		// It is ok to update the pool configuration since storage pool
+		// creation via API is implemented such that the storage pool is
+		// checked for a changed config after this function returns and
+		// if so the db for it is updated.
+		d.config["ceph.osd.pg_num"] = msg
+	}
+
+	revert.Success()
+
+	return nil
+}
+
+func (d *ceph) Delete(op *operations.Operation) error {
+	// test if pool exists
+	poolExists := d.osdPoolExists()
+	if !poolExists {
+		d.logger.Warn("Pool does not exist", log.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
+	}
+
+	// Check whether we own the pool and only remove in this case.
+	if d.config["volatile.pool.pristine"] != "" &&
+		shared.IsTrue(d.config["volatile.pool.pristine"]) {
+
+		// Delete the osd pool.
+		if poolExists {
+			err := d.osdDeletePool()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// If the user completely destroyed it, call it done.
+	if !shared.PathExists(GetPoolMountPath(d.name)) {
+		return nil
+	}
+
+	// On delete, wipe everything in the directory.
+	err := wipeDirectory(GetPoolMountPath(d.name))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *ceph) Mount() (bool, error) {
+	// Nothing to do here.
+	return true, nil
+}
+func (d *ceph) Unmount() (bool, error) {
+	// Nothing to do here.
+	return true, nil
+}
+
+func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
+	var stdout bytes.Buffer
+
+	err := shared.RunCommandWithFds(nil, &stdout,
+		"ceph",
+		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
+		"--cluster", d.config["ceph.cluster_name"],
+		"df",
+		"-f", "json")
+	if err != nil {
+		return nil, err
+	}
+
+	// Temporary structs for parsing
+	type cephDfPoolStats struct {
+		BytesUsed      int64 `json:"bytes_used"`
+		BytesAvailable int64 `json:"max_avail"`
+	}
+
+	type cephDfPool struct {
+		Name  string          `json:"name"`
+		Stats cephDfPoolStats `json:"stats"`
+	}
+
+	type cephDf struct {
+		Pools []cephDfPool `json:"pools"`
+	}
+
+	// Parse the JSON output
+	df := cephDf{}
+	err = json.NewDecoder(&stdout).Decode(&df)
+	if err != nil {
+		return nil, err
+	}
+
+	var pool *cephDfPool
+	for _, entry := range df.Pools {
+		if entry.Name == d.config["ceph.osd.pool_name"] {
+			pool = &entry
+			break
+		}
+	}
+
+	if pool == nil {
+		return nil, fmt.Errorf("OSD pool missing in df output")
+	}
+
+	spaceUsed := uint64(pool.Stats.BytesUsed)
+	spaceAvailable := uint64(pool.Stats.BytesAvailable)
+
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = spaceAvailable + spaceUsed
+	res.Space.Used = spaceUsed
+
+	return &res, nil
+}
+
+func (d *ceph) Validate(config map[string]string) error {
+	rules := map[string]func(value string) error{
+		"ceph.cluster_name":       shared.IsAny,
+		"ceph.osd.force_reuse":    shared.IsBool,
+		"ceph.osd.pg_num":         shared.IsAny,
+		"ceph.osd.pool_name":      shared.IsAny,
+		"ceph.osd.data_pool_name": shared.IsAny,
+		"ceph.rbd.clone_copy":     shared.IsBool,
+		"ceph.user.name":          shared.IsAny,
+		"volatile.pool.pristine":  shared.IsAny,
+		"volume.block.filesystem": func(value string) error {
+			if value == "" {
+				return nil
+			}
+			return shared.IsOneOf(value, cephAllowedFilesystems)
+		},
+		"volume.block.mount_options": shared.IsAny,
+	}
+
+	return d.validatePool(config, rules)
+}
+
+func (d *ceph) Update(changedConfig map[string]string) error {
+	return nil
+}
+
+func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
+	if contentType != ContentTypeFS {
+		return nil
+	}
+
+	if refresh {
+		return []migration.Type{
+			{
+				FSType:   migration.MigrationFSType_RSYNC,
+				Features: []string{"delete", "compress", "bidirectional"},
+			},
+		}
+	}
+
+	return []migration.Type{
+		{
+			FSType: migration.MigrationFSType_RBD,
+		},
+		{
+			FSType:   migration.MigrationFSType_RSYNC,
+			Features: []string{"delete", "compress", "bidirectional"},
+		},
+	}
+}

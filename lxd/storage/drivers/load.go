@@ -11,6 +11,7 @@ var drivers = map[string]func() driver{
 	"dir":    func() driver { return &dir{} },
 	"lvm":    func() driver { return &lvm{} },
 	"zfs":    func() driver { return &zfs{} },
+	"ceph":   func() driver { return &ceph{} },
 }
 
 // Validators contains functions used for validating a drivers's config.
