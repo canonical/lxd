@@ -45,7 +45,7 @@ func forceUnmount(path string) (bool, error) {
 		}
 
 		// Try a clean unmount first
-		err := unix.Unmount(path, 0)
+		err := TryUnmount(path, 0)
 		if err != nil {
 			// Fallback to lazy unmounting
 			err = unix.Unmount(path, unix.MNT_DETACH)
