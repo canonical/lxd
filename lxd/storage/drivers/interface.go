@@ -21,9 +21,13 @@ type driver interface {
 // Driver represents a low-level storage driver.
 type Driver interface {
 	// Internal.
-	Config() map[string]string
 	Info() Info
 	HasVolume(vol Volume) bool
+
+	// Export struct details.
+	Name() string
+	Config() map[string]string
+	Logger() logger.Logger
 
 	// Pool.
 	Create() error
