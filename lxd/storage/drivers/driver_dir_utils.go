@@ -3,6 +3,7 @@ package drivers
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
@@ -29,10 +30,8 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 		return nil, err
 	}
 
-	// Define a function to revert the quota being setup.
-	revertFunc := func() {
-		d.deleteQuota(volPath, volID)
-	}
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Initialise the volume's quota using the volume ID.
 	err = d.initQuota(volPath, volID)
@@ -40,12 +39,9 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 		return nil, err
 	}
 
-	revert := true
-	defer func() {
-		if revert {
-			revertFunc()
-		}
-	}()
+	// Define a function to revert the quota being setup.
+	revertFunc := func() { d.deleteQuota(volPath, volID) }
+	revert.Add(revertFunc)
 
 	// Set the quota.
 	err = d.setQuota(volPath, volID, vol.config["size"])
@@ -53,7 +49,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 		return nil, err
 	}
 
-	revert = false
+	revert.Success()
 	return revertFunc, nil
 }
 
