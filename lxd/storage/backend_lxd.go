@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/locking"
@@ -449,12 +450,8 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// We will apply the config as part of the post hook function returned if driver needs to.
 	vol := b.newVolume(drivers.VolumeTypeContainer, drivers.ContentTypeFS, volStorageName, nil)
 
-	revertFuncs := []func(){}
-	defer func() {
-		for _, revertFunc := range revertFuncs {
-			revertFunc()
-		}
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Unpack the backup into the new storage volume(s).
 	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup.Snapshots, srcData, srcBackup.OptimizedStorage, op)
@@ -463,7 +460,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	if revertHook != nil {
-		revertFuncs = append(revertFuncs, revertHook)
+		revert.Add(revertHook)
 	}
 
 	err = b.ensureInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name, vol.MountPath())
@@ -471,7 +468,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		return nil, nil, err
 	}
 
-	revertFuncs = append(revertFuncs, func() {
+	revert.Add(func() {
 		b.removeInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
 	})
 
@@ -481,7 +478,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			return nil, nil, err
 		}
 
-		revertFuncs = append(revertFuncs, func() {
+		revert.Add(func() {
 			b.removeInstanceSnapshotSymlinkIfUnused(instancetype.Container, srcBackup.Project, srcBackup.Name)
 		})
 	}
@@ -520,7 +517,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		}
 	}
 
-	revertFuncs = nil
+	revert.Success()
 	return postHook, revertHook, nil
 }
 
