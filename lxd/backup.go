@@ -121,7 +121,7 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 	}
 
 	pool, err := storagePools.GetPoolByInstance(s, c)
-	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && err != db.ErrNoSuchObject {
 		if err != nil {
 			return err
 		}
