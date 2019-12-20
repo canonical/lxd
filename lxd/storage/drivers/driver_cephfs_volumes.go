@@ -267,7 +267,7 @@ func (d *cephfs) HasVolume(vol Volume) bool {
 	return d.vfsHasVolume(vol)
 }
 
-// ValidateVolume validates the supplied volume config.
+// ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
 func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
 }
