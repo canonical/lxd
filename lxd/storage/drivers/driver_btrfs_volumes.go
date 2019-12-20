@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/units"
@@ -85,8 +86,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 		return genericBackupUnpack(d, vol, snapshots, srcData, op)
 	}
 
-	// Now deal with the binary btrfs backups.
-	revert := true
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Define a revert function that will be used both to revert if an error occurs inside this
 	// function but also return it for use from the calling functions if no error internally.
@@ -101,12 +102,8 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 		d.DeleteVolume(vol, op)
 	}
 
-	// Only execute the revert function if we have had an error internally and revert is true.
-	defer func() {
-		if revert {
-			revertHook()
-		}
-	}()
+	// Only execute the revert function if we have had an error internally.
+	revert.Add(revertHook)
 
 	// Create a temporary directory to unpack the backup into.
 	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), vol.name)
@@ -186,8 +183,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 		return nil, nil, err
 	}
 
-	revert = false
-
+	revert.Success()
 	return nil, revertHook, nil
 }
 
