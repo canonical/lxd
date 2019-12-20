@@ -39,7 +39,7 @@ func genericCopyVolume(d Driver, applyQuota func(vol Volume) (func(), error), vo
 		// Remove any paths created if we are reverting.
 		for _, snapName := range revertSnaps {
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
@@ -61,7 +61,7 @@ func genericCopyVolume(d Driver, applyQuota func(vol Volume) (func(), error), vo
 				}, op)
 
 				fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-				snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config)
+				snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 				// Create the snapshot itself.
 				err = d.CreateVolumeSnapshot(snapVol, op)
@@ -116,7 +116,7 @@ func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (fun
 		// Remove any paths created if we are reverting.
 		for _, snapName := range revertSnaps {
 			fullSnapName := GetSnapshotVolumeName(vol.Name(), snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
@@ -143,7 +143,7 @@ func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (fun
 
 			// Create the snapshot itself.
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 
 			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
@@ -207,7 +207,7 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 	revertHook := func() {
 		for _, snapName := range snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
@@ -257,7 +257,7 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 		}
 
 		fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-		snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config)
+		snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 		err = d.CreateVolumeSnapshot(snapVol, op)
 		if err != nil {
 			return nil, nil, err
