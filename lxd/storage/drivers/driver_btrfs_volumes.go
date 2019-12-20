@@ -94,7 +94,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	revertHook := func() {
 		for _, snapName := range snapshots {
 			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 

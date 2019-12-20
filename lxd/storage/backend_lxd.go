@@ -116,30 +116,21 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 	return nil
 }
 
-// newVolume returns a new Volume instance.
+// newVolume returns a new Volume instance containing copies of the supplied volume config and the pools config,
 func (b *lxdBackend) newVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
-	// Copy the config map.
+	// Copy the config map to avoid internal modifications affecting external state.
 	newConfig := map[string]string{}
 	for k, v := range volConfig {
 		newConfig[k] = v
 	}
 
-	// And now expand it with the pool data.
+	// Copy the pool config map to avoid internal modifications affecting external state.
+	newPoolConfig := map[string]string{}
 	for k, v := range b.db.Config {
-		if !strings.HasPrefix(k, "volume.") {
-			continue
-		}
-
-		fields := strings.SplitN(k, "volume.", 2)
-		name := fields[1]
-
-		_, ok := newConfig[name]
-		if !ok {
-			newConfig[name] = v
-		}
+		newPoolConfig[k] = v
 	}
 
-	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, newConfig)
+	return drivers.NewVolume(b.driver, b.name, volType, contentType, volName, newConfig, newPoolConfig)
 }
 
 // GetResources returns utilisation information about the pool.
@@ -1920,13 +1911,14 @@ func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]
 	defer logger.Debug("CreateCustomVolume finished")
 
 	// Validate config.
-	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config), false)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config)
+	err := b.driver.ValidateVolume(vol, false)
 	if err != nil {
 		return err
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+	err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
 	if err != nil {
 		return err
 	}
@@ -1939,8 +1931,7 @@ func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]
 	}()
 
 	// Create the empty custom volume on the storage device.
-	newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config)
-	err = b.driver.CreateVolume(newVol, nil, op)
+	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
 	}
@@ -2034,7 +2025,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+		err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
 		if err != nil {
 			return err
 		}
@@ -2046,7 +2037,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, config)
+				err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
 				if err != nil {
 					return err
 				}
@@ -2158,13 +2149,14 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	}()
 
 	// Check the supplied config and remove any fields not relevant for destination pool type.
-	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config), true)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config)
+	err := b.driver.ValidateVolume(vol, true)
 	if err != nil {
 		return err
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, "default", b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, args.Config)
+	err = VolumeDBCreate(b.state, "default", b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
 	if err != nil {
 		return err
 	}
@@ -2176,7 +2168,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, args.Config)
+			err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
 			if err != nil {
 				return err
 			}
@@ -2185,7 +2177,6 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 		}
 	}
 
-	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, args.Name, args.Config)
 	err = b.driver.CreateVolumeFromMigration(vol, conn, args, nil, op)
 	if err != nil {
 		conn.Close()
