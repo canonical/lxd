@@ -2114,6 +2114,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	errs := []error{}
 	aEndErr := <-aEndErrCh
 	if aEndErr != nil {
+		aEnd.Close()
 		errs = append(errs, aEndErr)
 	}
 
