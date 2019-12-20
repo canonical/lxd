@@ -8,6 +8,7 @@ import (
 var drivers = map[string]func() driver{
 	"dir":    func() driver { return &dir{} },
 	"cephfs": func() driver { return &cephfs{} },
+	"btrfs":  func() driver { return &btrfs{} },
 }
 
 // Load returns a Driver for an existing low-level storage pool.

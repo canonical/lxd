@@ -45,7 +45,7 @@ func forceUnmount(path string) (bool, error) {
 		}
 
 		// Try a clean unmount first
-		err := unix.Unmount(path, 0)
+		err := TryUnmount(path, 0)
 		if err != nil {
 			// Fallback to lazy unmounting
 			err = unix.Unmount(path, unix.MNT_DETACH)
@@ -161,6 +161,38 @@ func TryUnmount(path string, flags int) error {
 	}
 
 	return nil
+}
+
+func tryExists(path string) bool {
+	// Attempt 20 checks over 10s
+	for i := 0; i < 20; i++ {
+		if shared.PathExists(path) {
+			return true
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return false
+}
+
+func fsUUID(path string) (string, error) {
+	return shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
+}
+
+func hasFilesystem(path string, fsType int64) bool {
+	fs := unix.Statfs_t{}
+
+	err := unix.Statfs(path, &fs)
+	if err != nil {
+		return false
+	}
+
+	if int64(fs.Type) != fsType {
+		return false
+	}
+
+	return true
 }
 
 // GetPoolMountPath returns the mountpoint of the given pool.

@@ -10,6 +10,12 @@ test_incremental_copy() {
 
   # cross-pool copy
   if [ "${lxd_backend}" != 'dir' ]; then
+    # FIXME: Skip copies across old and new backends for now
+    if ! storage_compatible "dir" "${lxd_backend}"; then
+        true
+        return
+    fi
+
     # shellcheck disable=2039
     local source_pool
     source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
