@@ -119,7 +119,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.config["size"], op)
+		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 		if err != nil {
 			return err
 		}
@@ -200,7 +200,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.config["size"], op)
+		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 		if err != nil {
 			return err
 		}
