@@ -15,7 +15,8 @@ import (
 )
 
 // genericCopyVolume copies a volume and its snapshots using a non-optimized method.
-func genericCopyVolume(d Driver, applyQuota func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
+// initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
+func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS || srcVol.contentType != ContentTypeFS {
 		return fmt.Errorf("Content type not supported")
 	}
@@ -74,9 +75,9 @@ func genericCopyVolume(d Driver, applyQuota func(vol Volume) (func(), error), vo
 			}
 		}
 
-		// Apply some quotas if needed.
-		if applyQuota != nil {
-			_, err := applyQuota(vol)
+		// Run volume-specific init logic.
+		if initVolume != nil {
+			_, err := initVolume(vol)
 			if err != nil {
 				return err
 			}
@@ -97,7 +98,8 @@ func genericCopyVolume(d Driver, applyQuota func(vol Volume) (func(), error), vo
 }
 
 // genericCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
-func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+// initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
+func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Create the main volume path.
 	if !volTargetArgs.Refresh {
 		err := d.CreateVolume(vol, preFiller, op)
@@ -154,9 +156,9 @@ func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (fun
 			revertSnaps = append(revertSnaps, snapName)
 		}
 
-		// Apply quotas.
-		if applyQuota != nil {
-			_, err := applyQuota(vol)
+		// Run volume-specific init logic.
+		if initVolume != nil {
+			_, err := initVolume(vol)
 			if err != nil {
 				return err
 			}
