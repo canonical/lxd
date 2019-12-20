@@ -2042,14 +2042,17 @@ Return:
  * Description: list of operations
  * Authentication: trusted
  * Operation: sync
- * Return: list of URLs for operations that are currently going on/queued
+ * Return: dict representing a list of URLs for operations that are currently going on/queued according to their status
 
 Return:
-
-    [
-        "/1.0/operations/c0fc0d0d-a997-462b-842b-f8bd0df82507",
-        "/1.0/operations/092a8755-fd90-4ce4-bf91-9f87d03fd5bc"
-    ]
+    {
+        "success": [
+            "/1.0/operations/c0fc0d0d-a997-462b-842b-f8bd0df82507"
+        ],
+        "running": [
+            "/1.0/operations/092a8755-fd90-4ce4-bf91-9f87d03fd5bc"
+        ]
+    }
 
 ### `/1.0/operations/<uuid>`
 #### GET
