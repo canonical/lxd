@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -198,7 +199,8 @@ func genericCreateVolumeFromMigration(d Driver, applyQuota func(vol Volume) (fun
 
 // genericBackupUnpack unpacks a non-optimized backup tarball through a storage driver.
 func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
-	revert := true
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Define a revert function that will be used both to revert if an error occurs inside this
 	// function but also return it for use from the calling functions if no error internally.
@@ -213,12 +215,8 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 		d.DeleteVolume(vol, op)
 	}
 
-	// Only execute the revert function if we have had an error internally and revert is true.
-	defer func() {
-		if revert {
-			revertHook()
-		}
-	}()
+	// Only execute the revert function if we have had an error internally.
+	revert.Add(revertHook)
 
 	// Find the compression algorithm used for backup source data.
 	srcData.Seek(0, 0)
@@ -282,7 +280,6 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 		return nil, nil, err
 	}
 
-	revert = false
-
+	revert.Success()
 	return nil, revertHook, nil
 }
