@@ -1911,13 +1911,14 @@ func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]
 	defer logger.Debug("CreateCustomVolume finished")
 
 	// Validate config.
-	err := b.driver.ValidateVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config), false)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config)
+	err := b.driver.ValidateVolume(vol, false)
 	if err != nil {
 		return err
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+	err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
 	if err != nil {
 		return err
 	}
@@ -1930,8 +1931,7 @@ func (b *lxdBackend) CreateCustomVolume(volName, desc string, config map[string]
 	}()
 
 	// Create the empty custom volume on the storage device.
-	newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, config)
-	err = b.driver.CreateVolume(newVol, nil, op)
+	err = b.driver.CreateVolume(vol, nil, op)
 	if err != nil {
 		return err
 	}
@@ -2025,7 +2025,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, config)
+		err = VolumeDBCreate(b.state, "default", b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
 		if err != nil {
 			return err
 		}
@@ -2037,7 +2037,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, config)
+				err = VolumeDBCreate(b.state, "default", b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
 				if err != nil {
 					return err
 				}
