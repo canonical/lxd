@@ -4,6 +4,8 @@ import (
 	"io"
 )
 
+const bufferSize = 10
+
 // msg represents an internal structure sent between the pipes.
 type msg struct {
 	data []byte
@@ -59,11 +61,11 @@ func (p *pipe) Close() error {
 // indicate to the other end that the session has ended.
 func NewPipePair() (io.ReadWriteCloser, io.ReadWriteCloser) {
 	aEnd := &pipe{
-		ch: make(chan msg, 1),
+		ch: make(chan msg, bufferSize),
 	}
 
 	bEnd := &pipe{
-		ch: make(chan msg, 1),
+		ch: make(chan msg, bufferSize),
 	}
 
 	aEnd.otherEnd = bEnd
