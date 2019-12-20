@@ -50,6 +50,7 @@ var BaseDirectories = map[VolumeType][]string{
 type Volume struct {
 	name        string
 	pool        string
+	poolConfig  map[string]string
 	volType     VolumeType
 	contentType ContentType
 	config      map[string]string
@@ -57,10 +58,11 @@ type Volume struct {
 }
 
 // NewVolume instantiates a new Volume struct.
-func NewVolume(driver Driver, poolName string, volType VolumeType, contentType ContentType, volName string, volConfig map[string]string) Volume {
+func NewVolume(driver Driver, poolName string, volType VolumeType, contentType ContentType, volName string, volConfig, poolConfig map[string]string) Volume {
 	return Volume{
 		name:        volName,
 		pool:        poolName,
+		poolConfig:  poolConfig,
 		volType:     volType,
 		contentType: contentType,
 		config:      volConfig,
@@ -73,6 +75,21 @@ func (v Volume) Name() string {
 	return v.name
 }
 
+// Config returns the volumes (unexpanded) config.
+func (v Volume) Config() map[string]string {
+	return v.config
+}
+
+// ExpandedConfig returns either the value of the volume's config key or the pool's config "volume.{key}" value.
+func (v Volume) ExpandedConfig(key string) string {
+	volVal, ok := v.config[key]
+	if !ok {
+		return volVal
+	}
+
+	return v.poolConfig[fmt.Sprintf("volume.%s", key)]
+}
+
 // NewSnapshot instantiates a new Volume struct representing a snapshot of the parent volume.
 func (v Volume) NewSnapshot(snapshotName string) (Volume, error) {
 	if v.IsSnapshot() {
@@ -80,7 +97,7 @@ func (v Volume) NewSnapshot(snapshotName string) (Volume, error) {
 	}
 
 	fullSnapName := GetSnapshotVolumeName(v.name, snapshotName)
-	return NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, v.config), nil
+	return NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, v.config, v.poolConfig), nil
 }
 
 // IsSnapshot indicates if volume is a snapshot.
