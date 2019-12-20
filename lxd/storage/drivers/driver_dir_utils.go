@@ -44,7 +44,7 @@ func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
 	revert.Add(revertFunc)
 
 	// Set the quota.
-	err = d.setQuota(volPath, volID, vol.config["size"])
+	err = d.setQuota(volPath, volID, vol.ExpandedConfig("size"))
 	if err != nil {
 		return nil, err
 	}

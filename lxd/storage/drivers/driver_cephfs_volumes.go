@@ -80,7 +80,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		for _, snapName := range revertSnaps {
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
@@ -119,7 +119,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.config["size"], op)
+		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		// Remove any paths created if we are reverting.
 		for _, snapName := range revertSnaps {
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
@@ -187,7 +187,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			}
 
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 			// Create the snapshot itself.
 			err = d.CreateVolumeSnapshot(snapVol, op)
@@ -200,7 +200,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.config["size"], op)
+		err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 		if err != nil {
 			return err
 		}
@@ -267,7 +267,7 @@ func (d *cephfs) HasVolume(vol Volume) bool {
 	return d.vfsHasVolume(vol)
 }
 
-// ValidateVolume validates the supplied volume config.
+// ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
 func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	return d.validateVolume(vol, nil, removeUnknownKeys)
 }

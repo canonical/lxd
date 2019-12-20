@@ -394,7 +394,7 @@ func VolumeValidateConfig(s *state.State, name string, config map[string]string,
 	if err != drivers.ErrUnknownDriver {
 		// Note: This legacy validation function doesn't have the concept of validating
 		// different volumes types, so the types are hard coded as Custom and FS.
-		return driver.ValidateVolume(drivers.NewVolume(driver, parentPool.Name, drivers.VolumeTypeCustom, drivers.ContentTypeFS, name, config), false)
+		return driver.ValidateVolume(drivers.NewVolume(driver, parentPool.Name, drivers.VolumeTypeCustom, drivers.ContentTypeFS, name, config, parentPool.Config), false)
 	}
 
 	// Otherwise fallback to doing legacy validation.
