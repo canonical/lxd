@@ -2079,7 +2079,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	offerHeader := migration.TypesToHeader(offeredTypes...)
 	migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS, false))
 	if err != nil {
-		return fmt.Errorf("Failed to neogotiate copy migration type: %v", err)
+		return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 	}
 
 	// Run sender and receiver in separate go routines to prevent deadlocks.
