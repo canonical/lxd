@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
@@ -17,18 +18,15 @@ import (
 func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	volPath := vol.MountPath()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create the volume itself.
 	err := vol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
-
-	revertPath := true
-	defer func() {
-		if revertPath {
-			os.RemoveAll(volPath)
-		}
-	}()
+	revert.Add(func() { os.RemoveAll(volPath) })
 
 	// Create sparse loopback file if volume is block.
 	rootBlockPath := ""
@@ -45,11 +43,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		if revertFunc != nil {
-			defer func() {
-				if revertPath {
-					revertFunc()
-				}
-			}()
+			revert.Add(revertFunc)
 		}
 	}
 
@@ -71,7 +65,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 	}
 
-	revertPath = false
+	revert.Success()
 	return nil
 }
 
