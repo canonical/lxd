@@ -575,7 +575,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // Container Format B: Combined tarball containing metadata files and root squashfs.
 //	- Unpack combined tarball into mountPath.
 // VM Format A: Separate metadata tarball and root qcow2 file.
-// 	- Unpack metadata tarball into mountPath (if file exists, convert to raw, if not just copy).
+// 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
 func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
