@@ -80,7 +80,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		for _, snapName := range revertSnaps {
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
 
@@ -161,7 +161,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 		// Remove any paths created if we are reverting.
 		for _, snapName := range revertSnaps {
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 			d.DeleteVolumeSnapshot(snapVol, op)
 		}
@@ -187,7 +187,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 			}
 
 			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config)
+			snapVol := NewVolume(d, d.name, vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 			// Create the snapshot itself.
 			err = d.CreateVolumeSnapshot(snapVol, op)
