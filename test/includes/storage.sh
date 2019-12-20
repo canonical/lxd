@@ -128,3 +128,18 @@ umount_loops() {
         done < "${test_dir}/loops"
     fi
 }
+
+storage_compatible() {
+    if [ "${1}" = "cephfs" ] || [ "${1}" = "dir" ] || [ "${1}" = "btrfs" ]; then
+        if [ "${2}" = "cephfs" ] || [ "${2}" = "dir" ] || [ "${2}" = "btrfs" ]; then
+            true
+            return
+        else
+            false
+            return
+        fi
+    fi
+
+    true
+    return
+}

@@ -1,18 +1,3 @@
-storage_compatible() {
-    if [ "${1}" = "cephfs" ] || [ "${1}" = "dir" ]; then
-        if [ "${2}" = "cephfs" ] || [ "${2}" = "dir" ]; then
-            true
-            return
-        else
-            false
-            return
-        fi
-    fi
-
-    true
-    return
-}
-
 test_storage_local_volume_handling() {
   ensure_import_testimage
 
