@@ -280,7 +280,7 @@ func createSparseFile(filePath string, sizeBytes int64) error {
 
 // ensureVolumeBlockFile creates or resizes the raw block file for a volume.
 func ensureVolumeBlockFile(vol Volume, path string) error {
-	blockSize := vol.config["size"]
+	blockSize := vol.ExpandedConfig("size")
 	if blockSize == "" {
 		blockSize = defaultBlockSize
 	}
