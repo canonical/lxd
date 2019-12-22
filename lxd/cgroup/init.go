@@ -325,7 +325,7 @@ func init() {
 		// Parse V2 controllers.
 		path := fields[2]
 		hybridPath := filepath.Join(cgPath, "unified", path, "cgroup.controllers")
-		dedicatedPath := filepath.Join(cgPath, path, "cgroup.controllers")
+		dedicatedPath := ""
 
 		controllers, err := os.Open(hybridPath)
 		if err != nil {
@@ -334,6 +334,7 @@ func init() {
 				return
 			}
 
+			dedicatedPath = filepath.Join(cgPath, path, "cgroup.controllers")
 			controllers, err = os.Open(dedicatedPath)
 			if err != nil && !os.IsNotExist(err) {
 				logger.Errorf("Unable to load cgroup.controllers")
@@ -342,15 +343,26 @@ func init() {
 		}
 
 		if err == nil {
+			unifiedControllers := map[string]Backend{}
+
 			// Record the fact that V2 is present at all.
-			cgControllers["unified"] = V2
+			unifiedControllers["unified"] = V2
 
 			scanControllers := bufio.NewScanner(controllers)
 			for scanControllers.Scan() {
 				line := strings.TrimSpace(scanSelfCg.Text())
-				cgControllers[line] = V2
+				unifiedControllers[line] = V2
 			}
 			hasV2 = true
+
+			if dedicatedPath != "" {
+				cgControllers = unifiedControllers
+				break
+			} else {
+				for k, v := range unifiedControllers {
+					cgControllers[k] = v
+				}
+			}
 		}
 	}
 
