@@ -370,6 +370,11 @@ func init() {
 	val, ok := cgControllers["blkio"]
 	if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/blkio/blkio.weight") {
 		cgControllers["blkio.weight"] = V1
+	} else {
+		val, ok := cgControllers["blkio"]
+		if ok && val == V1 && shared.PathExists("/sys/fs/cgroup/blkio/blkio.bfq.weight") {
+			cgControllers["blkio.weight"] = V1
+		}
 	}
 
 	val, ok = cgControllers["memory"]
