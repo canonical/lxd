@@ -85,6 +85,7 @@ type Instance interface {
 	InitPID() int
 	State() string
 	ExpiryDate() time.Time
+	FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error)
 
 	// Paths
 	Path() string
@@ -100,7 +101,6 @@ type Instance interface {
 	StoragePool() (string, error)
 
 	// Progress reporting
-
 	SetOperation(op *operations.Operation)
 
 	// FIXME: Those should be internal functions
