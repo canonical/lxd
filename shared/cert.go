@@ -381,7 +381,7 @@ func CertFingerprintStr(c string) (string, error) {
 	return CertFingerprint(cert), nil
 }
 
-func GetRemoteCertificate(address string) (*x509.Certificate, error) {
+func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, error) {
 	// Setup a permissive TLS config
 	tlsConfig, err := GetTLSConfig("", "", "", nil)
 	if err != nil {
@@ -402,8 +402,17 @@ func GetRemoteCertificate(address string) (*x509.Certificate, error) {
 	}
 
 	// Connect
+	req, err := http.NewRequest("GET", address, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if useragent != "" {
+		req.Header.Set("User-Agent", useragent)
+	}
+
 	client := &http.Client{Transport: tr}
-	resp, err := client.Get(address)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

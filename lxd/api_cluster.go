@@ -352,6 +352,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		TLSClientCert: string(cert.PublicKey()),
 		TLSClientKey:  string(cert.PrivateKey()),
 		TLSServerCert: string(req.ClusterCertificate),
+		UserAgent:     version.UserAgent,
 	}
 	fingerprint := cert.Fingerprint()
 
