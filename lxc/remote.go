@@ -245,7 +245,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	var certificate *x509.Certificate
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(addr)
+		certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
 		if err != nil {
 			return err
 		}

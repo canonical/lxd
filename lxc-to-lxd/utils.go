@@ -98,7 +98,7 @@ func connectTarget(url string) (lxd.ContainerServer, error) {
 	var certificate *x509.Certificate
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(url)
+		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
 		if err != nil {
 			return nil, err
 		}
