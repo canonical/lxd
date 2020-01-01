@@ -132,7 +132,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				config.Cluster.ClusterAddress = clusterAddress
 
 				// Cluster certificate
-				cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress))
+				cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
 				if err != nil {
 					fmt.Printf("Error connecting to existing cluster node: %v\n", err)
 					continue
