@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
@@ -91,13 +92,13 @@ func connectTarget(url string) (lxd.ContainerServer, error) {
 	args := lxd.ConnectionArgs{}
 	args.TLSClientCert = string(clientCrt)
 	args.TLSClientKey = string(clientKey)
-	args.UserAgent = "LXC-TO-LXD"
+	args.UserAgent = fmt.Sprintf("LXC-TO-LXD %s", version.Version)
 	c, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(url)
+		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
 		if err != nil {
 			return nil, err
 		}
