@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
@@ -178,6 +179,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				TLSClientCert: string(cert.PublicKey()),
 				TLSClientKey:  string(cert.PrivateKey()),
 				TLSServerCert: string(config.Cluster.ClusterCertificate),
+				UserAgent:     version.UserAgent,
 			}
 
 			client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), args)
