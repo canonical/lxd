@@ -655,12 +655,10 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			if inst.Type() == instancetype.Container {
-				// Fill in the hwaddr from volatile
-				d, err = inst.(*containerLXC).fillNetworkDevice(k, d)
-				if err != nil {
-					continue
-				}
+			// Fill in the hwaddr from volatile
+			d, err = inst.FillNetworkDevice(k, d)
+			if err != nil {
+				continue
 			}
 
 			// Add the new host entries
