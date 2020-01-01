@@ -85,7 +85,7 @@ ipv6.nat.order                  | string    | ipv6 address          | before    
 ipv6.nat.address                | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets to route to the bridge
 ipv6.routing                    | boolean   | ipv6 address          | true                      | Whether to route traffic in and out of the bridge
-raw.dnsmasq                     | string    | -                     | -                         | Additional dnsmasq configuration to append to the configuration
+raw.dnsmasq                     | string    | -                     | -                         | Additional dnsmasq configuration to append to the configuration file
 tunnel.NAME.group               | string    | vxlan                 | 239.0.0.1                 | Multicast address for vxlan (used if local and remote aren't set)
 tunnel.NAME.id                  | integer   | vxlan                 | 0                         | Specific tunnel ID to use for the vxlan tunnel
 tunnel.NAME.interface           | string    | vxlan                 | -                         | Specific host interface to use for the tunnel
