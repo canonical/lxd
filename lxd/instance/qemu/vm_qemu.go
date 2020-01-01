@@ -787,7 +787,7 @@ func (vm *Qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 
 	// Create copy of config and load some fields from volatile if device is nic or infiniband.
 	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
-		configCopy, err = vm.fillNetworkDevice(deviceName, rawConfig)
+		configCopy, err = vm.FillNetworkDevice(deviceName, rawConfig)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2729,7 +2729,7 @@ func (vm *Qemu) RenderState() (*api.InstanceState, error) {
 				}
 
 				// Fill the MAC address.
-				m, err := vm.fillNetworkDevice(k, m)
+				m, err := vm.FillNetworkDevice(k, m)
 				if err != nil {
 					return nil, err
 				}
@@ -3095,9 +3095,9 @@ func (vm *Qemu) DaemonState() *state.State {
 	return vm.state
 }
 
-// fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
+// FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
-func (vm *Qemu) fillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+func (vm *Qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
 	var err error
 
 	newDevice := m.Clone()
@@ -3173,7 +3173,7 @@ func (vm *Qemu) maasInterfaces(devices map[string]map[string]string) ([]maas.Con
 			continue
 		}
 
-		m, err := vm.fillNetworkDevice(k, m)
+		m, err := vm.FillNetworkDevice(k, m)
 		if err != nil {
 			return nil, err
 		}

@@ -1288,7 +1288,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig deviceConfig.Devi
 
 	// Create copy of config and load some fields from volatile if device is nic or infiniband.
 	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
-		configCopy, err = c.fillNetworkDevice(deviceName, rawConfig)
+		configCopy, err = c.FillNetworkDevice(deviceName, rawConfig)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -6326,9 +6326,9 @@ func (c *containerLXC) removeUnixDevices() error {
 	return nil
 }
 
-// fillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
+// FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
-func (c *containerLXC) fillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+func (c *containerLXC) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
 	var err error
 	newDevice := m.Clone()
 
@@ -6822,7 +6822,7 @@ func (c *containerLXC) maasInterfaces(devices map[string]map[string]string) ([]m
 			continue
 		}
 
-		m, err := c.fillNetworkDevice(k, m)
+		m, err := c.FillNetworkDevice(k, m)
 		if err != nil {
 			return nil, err
 		}
