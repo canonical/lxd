@@ -20,115 +20,6 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 )
 
-/*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
-#include <errno.h>
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-extern char* advance_arg(bool required);
-
-static int wait_for_pid(pid_t pid)
-{
-	int status, ret;
-
-again:
-	ret = waitpid(pid, &status, 0);
-	if (ret == -1) {
-		if (errno == EINTR)
-			goto again;
-		return -1;
-	}
-	if (ret != pid)
-		goto again;
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-		return -1;
-	return 0;
-}
-
-void forkdns(void)
-{
-	ssize_t ret;
-	pid_t pid;
-	FILE *pid_file;
-	int log_fd;
-	char *pid_path, *log_path;
-
-	close(STDIN_FILENO);
-
-	log_path = advance_arg(false);
-	pid_path = advance_arg(false);
-
-	// If arguments are missing, fall through to Go part without double forking to output usage info.
-	if (log_path == NULL || pid_path == NULL)
-		return;
-
-	log_fd = open(log_path, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC, 0600);
-	if (log_fd < 0)
-		_exit(EXIT_FAILURE);
-
-	ret = dup3(log_fd, STDOUT_FILENO, O_CLOEXEC);
-	if (ret < 0)
-		_exit(EXIT_FAILURE);
-
-	ret = dup3(log_fd, STDERR_FILENO, O_CLOEXEC);
-	if (ret < 0)
-		_exit(EXIT_FAILURE);
-
-	pid_file = fopen(pid_path, "we+");
-	if (!pid_file) {
-		fprintf(stderr,
-			"%s - Failed to create pid file for forkdns daemon\n",
-			strerror(errno));
-		_exit(EXIT_FAILURE);
-	}
-
-	// daemonize
-	pid = fork();
-	if (pid < 0)
-		_exit(EXIT_FAILURE);
-
-	if (pid != 0) {
-		ret = wait_for_pid(pid);
-		if (ret < 0)
-			_exit(EXIT_FAILURE);
-
-		_exit(EXIT_SUCCESS);
-	}
-
-	pid = fork();
-	if (pid < 0)
-		_exit(EXIT_FAILURE);
-
-	if (pid != 0) {
-		ret = fprintf(pid_file, "%d", pid);
-		fclose(pid_file);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to write forkdns daemon pid %d to \"%s\"\n",
-				pid, pid_path);
-			ret = EXIT_FAILURE;
-		}
-
-		close(STDOUT_FILENO);
-		close(STDERR_FILENO);
-		_exit(EXIT_SUCCESS);
-	}
-
-	ret = setsid();
-	if (ret < 0)
-		fprintf(stderr, "%s - Failed to setsid in forkdns daemon\n",
-			strerror(errno));
-}
-*/
-import "C"
-
 type cmdForkDNS struct {
 	global *cmdGlobal
 }
@@ -418,7 +309,7 @@ func (h *dnsHandler) getLeaseHostByDNSName(dnsName string) (string, error) {
 func (c *cmdForkDNS) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkdns <log path> <pid path> <listen address> <domain> <network name>"
+	cmd.Use = "forkdns <listen address> <domain> <network name>"
 	cmd.Short = "Internal DNS proxy for clustering"
 	cmd.Long = `Description:
   Spawns a specialised DNS server designed for relaying A and PTR queries that cannot be answered by
@@ -439,7 +330,7 @@ func (c *cmdForkDNS) Command() *cobra.Command {
 
 func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	if len(args) < 5 {
+	if len(args) < 3 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -461,7 +352,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Unable to setup fsnotify: %s", err)
 	}
 
-	networkName := args[4]
+	networkName := args[2]
 	path := shared.VarPath("networks", networkName, forkdnsServersListPath)
 	err = watcher.Watch(path)
 	if err != nil {
@@ -474,12 +365,12 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	logger.Info("Started")
 
 	srv := &dns.Server{
-		Addr: args[2],
+		Addr: args[0],
 		Net:  "udp",
 	}
 
 	srv.Handler = &dnsHandler{
-		domain:    args[3],
+		domain:    args[1],
 		leaseFile: shared.VarPath("networks", networkName, "dnsmasq.leases"),
 	}
 

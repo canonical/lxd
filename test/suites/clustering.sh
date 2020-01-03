@@ -1388,7 +1388,8 @@ test_clustering_dns() {
   mkdir "${lxdDir}"/networks/lxdtest1/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
-  lxd forkdns "${lxdDir}"/forkdns1.log "${lxdDir}"/forkdns1.pid 127.0.1.1"${ipRand}":1053 lxd lxdtest1
+  lxd forkdns 127.0.1.1"${ipRand}":1053 lxd lxdtest1 > "${lxdDir}"/forkdns1.log 2>&1 &
+  echo $! > "${lxdDir}"/forkdns1.pid
 
   # Create first dummy interface for forkdns
   ip link add "${prefix}2" type dummy
@@ -1399,7 +1400,8 @@ test_clustering_dns() {
   mkdir "${lxdDir}"/networks/lxdtest2/forkdns.servers -p
 
   # Launch forkdns (we expect syslog error about missing servers.conf file)
-  lxd forkdns "${lxdDir}"/forkdns2.log "${lxdDir}"/forkdns2.pid 127.0.1.2"${ipRand}":1053 lxd lxdtest2
+  lxd forkdns 127.0.1.2"${ipRand}":1053 lxd lxdtest2 > "${lxdDir}"/forkdns2.log 2>&1 &
+  echo $! > "${lxdDir}"/forkdns2.pid
 
   # Let the processes come up
   sleep 1

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -19,8 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
@@ -32,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/subprocess"
 )
 
 var forkdnsServersLock sync.Mutex
@@ -575,50 +573,22 @@ func networkFanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string,
 func networkKillForkDNS(name string) error {
 	// Check if we have a running forkdns at all
 	pidPath := shared.VarPath("networks", name, "forkdns.pid")
+
+	// If the pid file doesn't exist, there is no process to kill.
 	if !shared.PathExists(pidPath) {
 		return nil
 	}
 
-	// Grab the PID
-	content, err := ioutil.ReadFile(pidPath)
+	p, err := subprocess.ImportProcess(pidPath)
 	if err != nil {
-		return err
-	}
-	pid := strings.TrimSpace(string(content))
-
-	// Check for empty string
-	if pid == "" {
-		os.Remove(pidPath)
-		return nil
+		return fmt.Errorf("Could not read pid file: %s", err)
 	}
 
-	// Check if it's forkdns
-	cmdArgs, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pid))
-	if err != nil {
-		os.Remove(pidPath)
-		return nil
+	err = p.Stop()
+	if err != nil && err != subprocess.ErrNotRunning {
+		return fmt.Errorf("Unable to kill dnsmasq: %s", err)
 	}
 
-	cmdFields := strings.Split(string(bytes.TrimRight(cmdArgs, string("\x00"))), string(byte(0)))
-	if len(cmdFields) < 5 || cmdFields[1] != "forkdns" {
-		os.Remove(pidPath)
-		return nil
-	}
-
-	// Parse the pid
-	pidInt, err := strconv.Atoi(pid)
-	if err != nil {
-		return err
-	}
-
-	// Actually kill the process
-	err = unix.Kill(pidInt, unix.SIGKILL)
-	if err != nil {
-		return err
-	}
-
-	// Cleanup
-	os.Remove(pidPath)
 	return nil
 }
 

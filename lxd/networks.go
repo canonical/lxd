@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -1368,9 +1369,9 @@ func (n *network) Setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Start building the dnsmasq command line
-	dnsmasqCmd := []string{"dnsmasq", "--strict-order", "--bind-interfaces",
-		fmt.Sprintf("--pid-file=%s", shared.VarPath("networks", n.name, "dnsmasq.pid")),
+	// Start building process using subprocess package
+	command := "dnsmasq"
+	dnsmasqCmd := []string{"--keep-in-foreground", "--strict-order", "--bind-interfaces",
 		"--except-interface=lo",
 		"--no-ping", // --no-ping is very important to prevent delays to lease file updates.
 		fmt.Sprintf("--interface=%s", n.name)}
@@ -1960,10 +1961,26 @@ func (n *network) Setup(oldConfig map[string]string) error {
 			return err
 		}
 
-		// Start dnsmasq (occasionally races, try a few times)
-		_, err = shared.TryRunCommand(dnsmasqCmd[0], dnsmasqCmd[1:]...)
+		// Create subprocess object dnsmasq (occasionally races, try a few times)
+		p, err := subprocess.NewProcess(command, dnsmasqCmd, "", "")
 		if err != nil {
-			return fmt.Errorf("Failed to run: %s: %v", strings.Join(dnsmasqCmd, " "), err)
+			return fmt.Errorf("Failed to create subprocess: %s", err)
+		}
+
+		err = p.Start()
+		if err != nil {
+			return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(dnsmasqCmd, " "), err)
+		}
+
+		err = p.Save(shared.VarPath("networks", n.name, "dnsmasq.pid"))
+		if err != nil {
+			// Kill Process if started, but could not save the file
+			err2 := p.Stop()
+			if err != nil {
+				return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
+			}
+
+			return fmt.Errorf("Failed to save subprocess details: %s", err)
 		}
 
 		// Spawn DNS forwarder if needed (backgrounded to avoid deadlocks during cluster boot)
@@ -1995,6 +2012,15 @@ func (n *network) Setup(oldConfig map[string]string) error {
 			err := os.Remove(leasesPath)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to remove old dnsmasq leases file '%s'", leasesPath)
+			}
+		}
+
+		// And same for our PID file.
+		pidPath := shared.VarPath("networks", n.name, "dnsmasq.pid")
+		if shared.PathExists(pidPath) {
+			err := os.Remove(pidPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to remove old dnsmasq pid file '%s'", pidPath)
 			}
 		}
 	}
@@ -2229,18 +2255,34 @@ func (n *network) spawnForkDNS(listenAddress string) error {
 		dnsDomain = "lxd"
 	}
 
-	// Spawn the daemon
-	_, err := shared.RunCommand(
-		n.state.OS.ExecPath,
-		"forkdns",
-		shared.LogPath(fmt.Sprintf("forkdns.%s.log", n.name)),
-		shared.VarPath("networks", n.name, "forkdns.pid"),
+	// Spawn the daemon using subprocess
+	command := n.state.OS.ExecPath
+	forkdnsargs := []string{"forkdns",
 		fmt.Sprintf("%s:1053", listenAddress),
 		dnsDomain,
-		n.name,
-	)
+		n.name}
+
+	logPath := shared.LogPath(fmt.Sprintf("forkdns.%s.log", n.name))
+
+	p, err := subprocess.NewProcess(command, forkdnsargs, logPath, logPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to create subprocess: %s", err)
+	}
+
+	err = p.Start()
+	if err != nil {
+		return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkdnsargs, " "), err)
+	}
+
+	err = p.Save(shared.VarPath("networks", n.name, "forkdns.pid"))
+	if err != nil {
+		// Kill Process if started, but could not save the file
+		err2 := p.Stop()
+		if err != nil {
+			return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
+		}
+
+		return fmt.Errorf("Failed to save subprocess details: %s", err)
 	}
 
 	return nil
