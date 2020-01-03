@@ -43,7 +43,6 @@ extern void forkfile();
 extern void forksyscall();
 extern void forkmount();
 extern void forknet();
-extern void forkdns();
 extern void forkproxy();
 extern void forkuevent();
 
@@ -292,8 +291,6 @@ __attribute__((constructor)) void init(void) {
 		forkmount();
 	else if (strcmp(cmdline_cur, "forknet") == 0)
 		forknet();
-	else if (strcmp(cmdline_cur, "forkdns") == 0)
-		forkdns();
 	else if (strcmp(cmdline_cur, "forkproxy") == 0)
 		forkproxy();
 	else if (strcmp(cmdline_cur, "forkuevent") == 0)
