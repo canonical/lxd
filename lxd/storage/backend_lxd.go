@@ -1231,7 +1231,13 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf("Instance volume 'block.filesystem' property cannot be changed")
 		}
 
-		curVol := b.newVolume(volType, contentType, volStorageName, curVol.Config)
+		// Get the root disk device config.
+		rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+		if err != nil {
+			return err
+		}
+
+		curVol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 		if !userOnly {
 			err = b.driver.UpdateVolume(curVol, changedConfig)
 			if err != nil {

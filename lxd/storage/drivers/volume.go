@@ -83,7 +83,7 @@ func (v Volume) Config() map[string]string {
 // ExpandedConfig returns either the value of the volume's config key or the pool's config "volume.{key}" value.
 func (v Volume) ExpandedConfig(key string) string {
 	volVal, ok := v.config[key]
-	if !ok {
+	if ok {
 		return volVal
 	}
 
