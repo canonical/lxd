@@ -298,7 +298,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
 func (d *btrfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericCopyVolume(d, nil, vol, srcVol, srcSnapshots, op)
+	return genericCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
