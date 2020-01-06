@@ -3,7 +3,6 @@ package drivers
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -16,50 +15,42 @@ import (
 
 // genericCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
-func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
+func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS || srcVol.contentType != ContentTypeFS {
 		return fmt.Errorf("Content type not supported")
 	}
 
 	bwlimit := d.Config()["rsync.bwlimit"]
 
-	// Create the main volume path.
-	volPath := vol.MountPath()
-	err := vol.EnsureMountPath()
-	if err != nil {
-		return err
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create the main volume if not refreshing.
+	if !refresh {
+		err := d.CreateVolume(vol, nil, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { d.DeleteVolume(vol, op) })
 	}
 
-	// Create slice of snapshots created if revert needed later.
-	revertSnaps := []string{}
-	defer func() {
-		if revertSnaps == nil {
-			return
-		}
-
-		// Remove any paths created if we are reverting.
-		for _, snapName := range revertSnaps {
-			fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
-			d.DeleteVolumeSnapshot(snapVol, op)
-		}
-
-		os.RemoveAll(volPath)
-	}()
-
 	// Ensure the volume is mounted.
-	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// If copying snapshots is indicated, check the source isn't itself a snapshot.
 		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
 			for _, srcSnapshot := range srcSnapshots {
 				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.name)
 
 				// Mount the source snapshot.
-				err = srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
+				err := srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
 					// Copy the snapshot.
-					_, err = rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
+					_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
 					return err
 				}, op)
+				if err != nil {
+					return err
+				}
 
 				fullSnapName := GetSnapshotVolumeName(vol.name, snapName)
 				snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
@@ -71,7 +62,9 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 				}
 
 				// Setup the revert.
-				revertSnaps = append(revertSnaps, snapName)
+				revert.Add(func() {
+					d.DeleteVolumeSnapshot(snapVol, op)
+				})
 			}
 		}
 
