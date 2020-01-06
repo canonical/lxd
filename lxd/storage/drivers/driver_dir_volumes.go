@@ -197,13 +197,7 @@ func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	}
 
 	if _, changed := changedConfig["size"]; changed {
-		volID, err := d.getVolID(vol.volType, vol.name)
-		if err != nil {
-			return err
-		}
-
-		// Set the quota if specified in volConfig or pool config.
-		err = d.setQuota(vol.MountPath(), volID, changedConfig["size"])
+		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
 		if err != nil {
 			return err
 		}
