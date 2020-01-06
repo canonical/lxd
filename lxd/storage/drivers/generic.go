@@ -93,37 +93,25 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 		return err
 	}
 
-	revertSnaps = nil // Don't revert.
+	revert.Success()
 	return nil
 }
 
 // genericCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	// Create the main volume path.
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create the main volume if not refreshing.
 	if !volTargetArgs.Refresh {
 		err := d.CreateVolume(vol, preFiller, op)
 		if err != nil {
 			return err
 		}
+
+		revert.Add(func() { d.DeleteVolume(vol, op) })
 	}
-
-	// Create slice of snapshots created if revert needed later.
-	revertSnaps := []string{}
-	defer func() {
-		if revertSnaps == nil {
-			return
-		}
-
-		// Remove any paths created if we are reverting.
-		for _, snapName := range revertSnaps {
-			fullSnapName := GetSnapshotVolumeName(vol.Name(), snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
-			d.DeleteVolumeSnapshot(snapVol, op)
-		}
-
-		d.DeleteVolume(vol, op)
-	}()
 
 	// Ensure the volume is mounted.
 	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
@@ -153,7 +141,9 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 			}
 
 			// Setup the revert.
-			revertSnaps = append(revertSnaps, snapName)
+			revert.Add(func() {
+				d.DeleteVolumeSnapshot(snapVol, op)
+			})
 		}
 
 		// Run volume-specific init logic.
@@ -195,7 +185,7 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 		return err
 	}
 
-	revertSnaps = nil
+	revert.Success()
 	return nil
 }
 
