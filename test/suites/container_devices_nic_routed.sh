@@ -10,7 +10,9 @@ test_container_devices_nic_routed() {
   ctName="nt$$"
   ipRand=$(shuf -i 0-9 -n 1)
 
+  # These special values are needed to be enabled in kernel.
   sysctl net.ipv6.conf.all.forwarding=1
+  sysctl net.ipv6.conf.all.proxy_ndp=1
 
   # Test routed support to offline container (hot plugging not supported).
   ip link add "${ctName}" type dummy
