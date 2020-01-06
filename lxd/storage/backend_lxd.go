@@ -65,7 +65,8 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 	logger.Debug("create started")
 	defer logger.Debug("created finished")
 
-	revertPath := true
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Create the storage path.
 	path := drivers.GetPoolMountPath(b.name)
@@ -74,19 +75,13 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 		return err
 	}
 
+	revert.Add(func() { os.RemoveAll(path) })
+
 	// If dealing with a remote storage pool, we're done now.
 	if b.driver.Info().Remote && localOnly {
+		revert.Success()
 		return nil
 	}
-
-	// Undo the storage path create if there is an error.
-	defer func() {
-		if !revertPath {
-			return
-		}
-
-		os.RemoveAll(path)
-	}()
 
 	// Create the storage pool on the storage device.
 	err = b.driver.Create()
@@ -112,7 +107,7 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 		return err
 	}
 
-	revertPath = false
+	revert.Success()
 	return nil
 }
 
