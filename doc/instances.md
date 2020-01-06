@@ -415,7 +415,9 @@ net.ipv4.conf.<parent>.forwarding=1
 If using IPv6 addresses:
 
 ```
+net.ipv6.conf.all.forwarding=1
 net.ipv6.conf.<parent>.forwarding=1
+net.ipv6.conf.all.proxy_ndp=1
 net.ipv6.conf.<parent>.proxy_ndp=1
 ```
 

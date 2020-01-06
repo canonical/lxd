@@ -94,8 +94,18 @@ func (d *nicRouted) validateEnvironment() error {
 
 	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
 	if d.config["parent"] != "" && d.config["ipv6.address"] != "" {
-		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.config["parent"])
+		// net.ipv6.conf.all.forwarding=1 is required to enable general packet forwarding for IPv6.
+		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", "all")
 		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
+		if err != nil {
+			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", "all")
+		}
+
+		ipv6FwdPath = fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.config["parent"])
+		sysctlVal, err = util.SysctlGet(ipv6FwdPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
 		}
@@ -103,7 +113,19 @@ func (d *nicRouted) validateEnvironment() error {
 			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", d.config["parent"])
 		}
 
-		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.config["parent"])
+		// net.ipv6.conf.all.proxy_ndp=1 is needed otherwise unicast neighbour solicitations are rejected.
+		// This causes periodic latency spikes every 15-20s as the neighbour has to resort to using
+		// multicast NDP resolution and expires the previous neighbour entry.
+		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", "all")
+		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
+		if err != nil {
+			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+		}
+		if sysctlVal != "1\n" {
+			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", "all")
+		}
+
+		ipv6ProxyNdpPath = fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.config["parent"])
 		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 		if err != nil {
 			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
