@@ -1784,9 +1784,10 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		return nil // Nothing to do for drivers that don't support optimized images volumes.
 	}
 
-	// We need to lock this operation to ensure that the image is not being
-	// created multiple times.
-	unlock := locking.Lock(b.name, string(drivers.VolumeTypeImage), fingerprint)
+	// We need to lock this operation to ensure that the image is not being created multiple times.
+	// Uses a lock name of "EnsureImage_<fingerprint>" to avoid deadlocking with CreateVolume below that also
+	// establishes a lock on the volume type & name if it needs to mount the volume before filling.
+	unlock := locking.Lock(b.name, string(drivers.VolumeTypeImage), fmt.Sprintf("EnsureImage_%v", fingerprint))
 	defer unlock()
 
 	// There's no need to pass the content type or config. Both are not needed
