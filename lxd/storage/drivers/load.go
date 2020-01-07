@@ -6,9 +6,10 @@ import (
 )
 
 var drivers = map[string]func() driver{
-	"dir":    func() driver { return &dir{} },
-	"cephfs": func() driver { return &cephfs{} },
 	"btrfs":  func() driver { return &btrfs{} },
+	"cephfs": func() driver { return &cephfs{} },
+	"dir":    func() driver { return &dir{} },
+	"lvm":    func() driver { return &lvm{} },
 	"zfs":    func() driver { return &zfs{} },
 }
 
