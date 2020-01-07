@@ -800,7 +800,7 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 }
 
 // Perform a request to the /internal/cluster/accept endpoint to check if a new
-// mode can be accepted into the cluster and obtain joining information such as
+// node can be accepted into the cluster and obtain joining information such as
 // the cluster private certificate.
 func clusterAcceptMember(
 	client lxd.InstanceServer,
