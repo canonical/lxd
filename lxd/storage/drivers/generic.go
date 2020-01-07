@@ -183,25 +183,12 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 }
 
 // genericBackupUnpack unpacks a non-optimized backup tarball through a storage driver.
+// Returns a post hook function that should be called once the database entries for the restored backup have been
+// created and a revert function that can be used to undo the actions this function performs should something
+// subsequently fail.
 func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
-
-	// Define a revert function that will be used both to revert if an error occurs inside this
-	// function but also return it for use from the calling functions if no error internally.
-	revertHook := func() {
-		for _, snapName := range snapshots {
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
-			d.DeleteVolumeSnapshot(snapVol, op)
-		}
-
-		// And lastly the main volume.
-		d.DeleteVolume(vol, op)
-	}
-
-	// Only execute the revert function if we have had an error internally.
-	revert.Add(revertHook)
 
 	// Find the compression algorithm used for backup source data.
 	srcData.Seek(0, 0)
@@ -210,11 +197,16 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 		return nil, nil, err
 	}
 
-	// Create the main volume.
+	if d.HasVolume(vol) {
+		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+	}
+
+	// Create new empty volume.
 	err = d.CreateVolume(vol, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
+	revert.Add(func() { d.DeleteVolume(vol, op) })
 
 	if len(snapshots) > 0 {
 		// Create new snapshots directory.
@@ -225,28 +217,56 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 	}
 
 	for _, snapName := range snapshots {
-		// Prepare tar arguments.
-		args := append(tarArgs, []string{
-			"-",
-			"--recursive-unlink",
-			"--xattrs-include=*",
-			"--strip-components=3",
-			"-C", vol.MountPath(), fmt.Sprintf("backup/snapshots/%s", snapName),
-		}...)
+		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			// Prepare tar arguments.
+			args := append(tarArgs, []string{
+				"-",
+				"--recursive-unlink",
+				"--xattrs-include=*",
+				"--strip-components=3",
+				"-C", mountPath, fmt.Sprintf("backup/snapshots/%s", snapName),
+			}...)
 
-		// Extract snapshots.
-		srcData.Seek(0, 0)
-		err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+			// Extract snapshot.
+			srcData.Seek(0, 0)
+			err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, op)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-		snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
+		snapVol, err := vol.NewSnapshot(snapName)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		err = d.CreateVolumeSnapshot(snapVol, op)
 		if err != nil {
 			return nil, nil, err
 		}
+		revert.Add(func() { d.DeleteVolumeSnapshot(snapVol, op) })
+	}
+
+	// Mount main volume and leave mounted (as is needed during backup.yaml generation during latter parts of
+	// the backup restoration process).
+	ourMount, err := d.MountVolume(vol, op)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create a post hook function that will be called at the end of the backup restore process to unmount
+	// the volume if needed.
+	postHook := func(vol Volume) error {
+		if ourMount {
+			d.UnmountVolume(vol, op)
+		}
+
+		return nil
 	}
 
 	// Prepare tar extraction arguments.
@@ -265,6 +285,7 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 		return nil, nil, err
 	}
 
+	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
-	return nil, revertHook, nil
+	return postHook, revertExternal.Fail, nil
 }
