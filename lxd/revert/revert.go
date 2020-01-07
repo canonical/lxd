@@ -31,3 +31,17 @@ func (r *Reverter) Fail() {
 func (r *Reverter) Success() {
 	r.revertFuncs = nil
 }
+
+// Clone returns a copy of the reverter with the current set of revert functions added.
+// This can be used if you want to return a reverting function to an external caller but do not want to actually
+// execute the previously deferred reverter.Fail() function.
+func (r *Reverter) Clone() *Reverter {
+	rNew := New()
+	rNew.revertFuncs = make([]func(), 0, len(r.revertFuncs))
+
+	for _, f := range r.revertFuncs {
+		rNew.revertFuncs = append(rNew.revertFuncs, f)
+	}
+
+	return rNew
+}
