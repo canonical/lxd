@@ -15,8 +15,9 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// wipeDirectory empties the contents of a directory, but leaves it in place.
 func wipeDirectory(path string) error {
-	// List all entries
+	// List all entries.
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -24,7 +25,7 @@ func wipeDirectory(path string) error {
 		}
 	}
 
-	// Individually wipe all entries
+	// Individually wipe all entries.
 	for _, entry := range entries {
 		entryPath := filepath.Join(path, entry.Name())
 		err := os.RemoveAll(entryPath)
