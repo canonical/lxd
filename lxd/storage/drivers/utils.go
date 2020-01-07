@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -400,4 +401,66 @@ func resolveMountOptions(options string) (uintptr, string) {
 	}
 
 	return mountFlags, strings.Join(tmp, ",")
+}
+
+// shrinkFileSystem shrinks a filesystem if it is supported. Ext4 volumes will be unmounted temporarily if needed.
+func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64) error {
+	strSize := fmt.Sprintf("%dK", byteSize/1024)
+
+	switch fsType {
+	case "": // if not specified, default to ext4.
+		fallthrough
+	case "xfs":
+		return fmt.Errorf(`Shrinking not supported for filesystem type "%s". A dump, mkfs, and restore are required`, fsType)
+	case "ext4":
+		return vol.UnmountTask(func(op *operations.Operation) error {
+			_, err := shared.TryRunCommand("e2fsck", "-f", "-y", devPath)
+			if err != nil {
+				return err
+			}
+
+			_, err = shared.TryRunCommand("resize2fs", devPath, strSize)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, nil)
+	case "btrfs":
+		_, err := shared.TryRunCommand("btrfs", "filesystem", "resize", strSize, vol.MountPath())
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
+	}
+
+	return nil
+}
+
+// growFileSystem grows a filesystem if it is supported. The volume will be mounted temporarily if needed.
+func growFileSystem(fsType string, devPath string, vol Volume) error {
+	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		var msg string
+		var err error
+		switch fsType {
+		case "": // if not specified, default to ext4
+			fallthrough
+		case "ext4":
+			msg, err = shared.TryRunCommand("resize2fs", devPath)
+		case "xfs":
+			msg, err = shared.TryRunCommand("xfs_growfs", devPath)
+		case "btrfs":
+			msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
+		default:
+			return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
+		}
+
+		if err != nil {
+			errorMsg := fmt.Sprintf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+			return fmt.Errorf(errorMsg)
+		}
+
+		return nil
+	}, nil)
 }
