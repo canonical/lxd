@@ -470,9 +470,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	// Update pool information in the backup.yaml file.
-	vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		return backup.UpdateInstanceConfigStoragePool(b.state.Cluster, srcBackup, mountPath)
 	}, op)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	var postHook func(instance.Instance) error
 	if volPostHook != nil {
