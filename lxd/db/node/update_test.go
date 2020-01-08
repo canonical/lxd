@@ -11,6 +11,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUpdateFromV38_RaftNodes(t *testing.T) {
+	schema := node.Schema()
+	db, err := schema.ExerciseUpdate(39, func(db *sql.DB) {
+		_, err := db.Exec("INSERT INTO raft_nodes VALUES (1, '1.2.3.4:666')")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	err = query.Transaction(db, func(tx *sql.Tx) error {
+		roles, err := query.SelectIntegers(tx, "SELECT role FROM raft_nodes")
+		require.NoError(t, err)
+		assert.Equal(t, roles, []int{0})
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestUpdateFromV36_RaftNodes(t *testing.T) {
 	schema := node.Schema()
 	db, err := schema.ExerciseUpdate(37, nil)
