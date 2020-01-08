@@ -1401,7 +1401,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	deleteFromAllPools := func() error {
+	do := func(op *operations.Operation) error {
 		// Use the fingerprint we received in a LIKE query and use the full
 		// fingerprint we receive from the database in all further queries.
 		imgID, imgInfo, err := d.cluster.ImageGet(project, fingerprint, false, false)
@@ -1409,22 +1409,50 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		// Check if the image being deleted is actually still
-		// referenced by other projects. In that case we don't want to
-		// physically delete it just yet, but just to remove the
-		// relevant database entry.
-		referenced, err := d.cluster.ImageIsReferencedByOtherProjects(project, imgInfo.Fingerprint)
-		if err != nil {
-			return err
-		}
-		if referenced {
-			err := d.cluster.ImageDelete(imgID)
+		if !isClusterNotification(r) {
+			// Check if the image being deleted is actually still
+			// referenced by other projects. In that case we don't want to
+			// physically delete it just yet, but just to remove the
+			// relevant database entry.
+			referenced, err := d.cluster.ImageIsReferencedByOtherProjects(project, imgInfo.Fingerprint)
 			if err != nil {
-				return errors.Wrap(err, "Error deleting image info from the database")
+				return err
 			}
-			return nil
+
+			if referenced {
+				err := d.cluster.ImageDelete(imgID)
+				if err != nil {
+					return errors.Wrap(err, "Error deleting image info from the database")
+				}
+
+				return nil
+			}
+
+			// Notify the other nodes about the removed image so they can remove it from disk too.
+			notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+			if err != nil {
+				return err
+			}
+
+			err = notifier(func(client lxd.InstanceServer) error {
+				op, err := client.UseProject(project).DeleteImage(imgInfo.Fingerprint)
+				if err != nil {
+					return errors.Wrap(err, "Failed to request to delete image from peer node")
+				}
+
+				err = op.Wait()
+				if err != nil {
+					return errors.Wrap(err, "Failed to delete image from peer node")
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
+			}
 		}
 
+		// Delete the pool volumes.
 		poolIDs, err := d.cluster.ImageGetPools(imgInfo.Fingerprint)
 		if err != nil {
 			return err
@@ -1442,69 +1470,24 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		// Remove main image file.
-		fname := shared.VarPath("images", imgInfo.Fingerprint)
-		if shared.PathExists(fname) {
-			err = os.Remove(fname)
-			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Error deleting image file %s", fname)
+		// Remove the database entry.
+		if !isClusterNotification(r) {
+			err = d.cluster.ImageDelete(imgID)
+			if err != nil {
+				return errors.Wrap(err, "Error deleting image info from the database")
 			}
 		}
 
+		// Remove main image file from disk.
 		imageDeleteFromDisk(imgInfo.Fingerprint)
 
-		err = d.cluster.ImageDelete(imgID)
-		if err != nil {
-			return errors.Wrap(err, "Error deleting image info from the database")
-		}
-
-		// Notify the other nodes about the removed image.
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
-		if err != nil {
-			// This isn't fatal.
-			logger.Warnf("Error notifying other nodes about image removal: %v", err)
-			return nil
-		}
-
-		err = notifier(func(client lxd.InstanceServer) error {
-			op, err := client.DeleteImage(imgInfo.Fingerprint)
-			if err != nil {
-				return errors.Wrap(err, "Failed to request to delete image from peer node")
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return errors.Wrap(err, "Failed to delete image from peer node")
-			}
-
-			return nil
-		})
-		if err != nil {
-			// This isn't fatal.
-			logger.Warnf("Failed to notify other nodes about removed image: %v", err)
-			return nil
-		}
-
 		return nil
-	}
-
-	deleteFromDisk := func() error {
-		imageDeleteFromDisk(fingerprint)
-		return nil
-	}
-
-	rmimg := func(op *operations.Operation) error {
-		if isClusterNotification(r) {
-			return deleteFromDisk()
-		}
-
-		return deleteFromAllPools()
 	}
 
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDelete, resources, nil, rmimg, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationImageDelete, resources, nil, do, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
