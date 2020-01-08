@@ -658,7 +658,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = dbStoragePoolDeleteAndUpdateCache(d.cluster, poolName)
+	err = dbStoragePoolDeleteAndUpdateCache(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
