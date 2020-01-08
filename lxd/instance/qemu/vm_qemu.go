@@ -1861,7 +1861,7 @@ func (vm *Qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to update database")
 	}
 
-	err = instance.WriteBackupFile(vm.state, vm)
+	err = vm.UpdateBackupFile()
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrap(err, "Failed to write backup file")
 	}
