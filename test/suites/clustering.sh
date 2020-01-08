@@ -537,11 +537,8 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
     LXD_DIR="${LXD_ONE_DIR}" lxc delete foo
 
-    # Delete the image too, and remove its volumes since they are not
-    # automatically deleted.
-    fp="$(LXD_DIR="${LXD_ONE_DIR}" lxc image list -c f --format json | jq .[0].fingerprint)"
+    # Delete the image too.
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete data "image/${fp}"
   fi
 
   # Delete the storage pool
