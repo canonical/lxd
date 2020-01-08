@@ -112,6 +112,7 @@ test_container_devices_disk_ceph() {
   lxc restart ceph-disk --force
   lxc exec ceph-disk -- stat /ceph/lost+found
   lxc delete -f ceph-disk
+  ceph osd pool rm "${RBD_POOL_NAME}" "${RBD_POOL_NAME}" --yes-i-really-really-mean-it
 }
 
 test_container_devices_disk_cephfs() {
