@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -469,9 +472,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	// Update pool information in the backup.yaml file.
-	vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		return backup.UpdateInstanceConfigStoragePool(b.state.Cluster, srcBackup, mountPath)
 	}, op)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	var postHook func(instance.Instance) error
 	if volPostHook != nil {
@@ -2643,4 +2649,100 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 	}
 
 	return nil
+}
+
+// UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
+func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("UpdateInstanceBackupFile started")
+	defer logger.Debug("UpdateInstanceBackupFile finished")
+
+	// We only write backup files out for actual instances.
+	if inst.IsSnapshot() {
+		return nil
+	}
+
+	// Immediately return if the instance directory doesn't exist yet.
+	if !shared.PathExists(inst.Path()) {
+		return os.ErrNotExist
+	}
+
+	// Generate the YAML.
+	ci, _, err := inst.Render()
+	if err != nil {
+		return errors.Wrap(err, "Failed to render instance metadata")
+	}
+
+	snapshots, err := inst.Snapshots()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get snapshots")
+	}
+
+	var sis []*api.InstanceSnapshot
+
+	for _, s := range snapshots {
+		si, _, err := s.Render()
+		if err != nil {
+			return err
+		}
+
+		sis = append(sis, si.(*api.InstanceSnapshot))
+	}
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	contentType := InstanceContentType(inst)
+
+	_, volume, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(inst.Project(), inst.Name(), volDBType, b.ID())
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&backup.InstanceConfig{
+		Container: ci.(*api.Instance),
+		Snapshots: sis,
+		Pool:      &b.db,
+		Volume:    volume,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+
+	// We don't need to use the volume's config for mounting so set to nil.
+	vol := b.newVolume(volType, contentType, volStorageName, nil)
+
+	// Update pool information in the backup.yaml file.
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Write the YAML
+		f, err := os.Create(filepath.Join(inst.Path(), "backup.yaml"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		err = f.Chmod(0400)
+		if err != nil {
+			return err
+		}
+
+		err = shared.WriteAll(f, data)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, op)
+
+	return err
 }

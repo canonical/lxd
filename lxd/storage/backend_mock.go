@@ -92,6 +92,10 @@ func (b *mockBackend) UpdateInstance(inst instance.Instance, newDesc string, new
 	return nil
 }
 
+func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }

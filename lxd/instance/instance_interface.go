@@ -29,6 +29,7 @@ type Instance interface {
 	Restore(source Instance, stateful bool) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.Backup, error)
+	UpdateBackupFile() error
 
 	// Config handling
 	Rename(newName string) error

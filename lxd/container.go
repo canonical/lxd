@@ -730,7 +730,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 	}
 
 	// Attempt to update backup.yaml for instance.
-	err = instance.WriteBackupFile(s, sourceInstance)
+	err = sourceInstance.UpdateBackupFile()
 	if err != nil {
 		return nil, err
 	}
@@ -1035,7 +1035,7 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 		return fmt.Errorf("Instance type not supported")
 	}
 
-	err = instance.WriteBackupFile(state, c)
+	err = c.UpdateBackupFile()
 	if err != nil {
 		return err
 	}

@@ -451,7 +451,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 	return inst, nil
 }
 
-// WriteBackupFile writes instance's config to a file.
+// WriteBackupFile writes instance's config to a file. Deprecated, use inst.UpdateBackupFile().
 func WriteBackupFile(state *state.State, inst Instance) error {
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
