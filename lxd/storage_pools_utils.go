@@ -202,7 +202,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Create the database entry for the storage pool.
-	id, err := dbStoragePoolCreateAndUpdateCache(s.Cluster, poolName, poolDescription, driver, config)
+	id, err := dbStoragePoolCreateAndUpdateCache(s, poolName, poolDescription, driver, config)
 	if err != nil {
 		return -1, fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
@@ -243,7 +243,7 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost) error
 			return
 		}
 
-		dbStoragePoolDeleteAndUpdateCache(state.Cluster, req.Name)
+		dbStoragePoolDeleteAndUpdateCache(state, req.Name)
 	}()
 
 	_, err = storagePoolCreateLocal(state, id, req, false)
@@ -342,28 +342,28 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 }
 
 // Helper around the low-level DB API, which also updates the driver names cache.
-func dbStoragePoolCreateAndUpdateCache(db *db.Cluster, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	id, err := db.StoragePoolCreate(poolName, poolDescription, poolDriver, poolConfig)
+func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+	id, err := s.Cluster.StoragePoolCreate(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
 		return id, err
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(db)
+	storagePoolDriversCacheUpdate(s)
 
 	return id, nil
 }
 
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
-func dbStoragePoolDeleteAndUpdateCache(db *db.Cluster, poolName string) error {
-	_, err := db.StoragePoolDelete(poolName)
+func dbStoragePoolDeleteAndUpdateCache(s *state.State, poolName string) error {
+	_, err := s.Cluster.StoragePoolDelete(poolName)
 	if err != nil {
 		return err
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(db)
+	storagePoolDriversCacheUpdate(s)
 
 	return err
 }

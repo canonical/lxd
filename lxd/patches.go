@@ -432,7 +432,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
-		tmp, err := dbStoragePoolCreateAndUpdateCache(d.cluster, defaultPoolName, "", defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
 		}
@@ -729,7 +729,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
-		tmp, err := dbStoragePoolCreateAndUpdateCache(d.cluster, defaultPoolName, "", defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
 		}
@@ -1028,7 +1028,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
-		tmp, err := dbStoragePoolCreateAndUpdateCache(d.cluster, defaultPoolName, "", defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
 		}
@@ -1556,7 +1556,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, err := dbStoragePoolCreateAndUpdateCache(d.cluster, poolName, "", defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), poolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			logger.Warnf("Storage pool already exists in the database, proceeding...")
 		}
