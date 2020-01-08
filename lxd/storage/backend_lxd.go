@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -1838,18 +1837,25 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	logger.Debug("DeleteImage started")
 	defer logger.Debug("DeleteImage finished")
 
-	regexSHA256, err := regexp.Compile("^[0-9a-f]{64}$")
+	// We need to lock this operation to ensure that the image is not being
+	// deleted multiple times.
+	unlock := locking.Lock(b.name, string(drivers.VolumeTypeImage), fingerprint)
+	defer unlock()
+
+	// Load image info from database.
+	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
 	if err != nil {
 		return err
 	}
 
-	if !regexSHA256.MatchString(fingerprint) {
-		return fmt.Errorf("Invalid fingerprint")
+	contentType := drivers.ContentTypeFS
+
+	// Image types are not the same as instance types, so don't use instance type constants.
+	if image.Type == "virtual-machine" {
+		contentType = drivers.ContentTypeBlock
 	}
 
-	// There's no need to pass the content type or config. Both are not needed
-	// when removing an image.
-	vol := b.newVolume(drivers.VolumeTypeImage, "", fingerprint, nil)
+	vol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
 
 	err = b.driver.DeleteVolume(vol, op)
 	if err != nil {
