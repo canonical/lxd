@@ -21,8 +21,9 @@ CREATE TABLE patches (
 CREATE TABLE raft_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     address TEXT NOT NULL,
+    role INTEGER NOT NULL DEFAULT 0,
     UNIQUE (address)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (38, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (39, strftime("%s"))
 `
