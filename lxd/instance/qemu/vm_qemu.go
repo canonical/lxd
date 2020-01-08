@@ -3296,3 +3296,13 @@ func (vm *Qemu) maasUpdate(oldDevices map[string]map[string]string) error {
 
 	return vm.state.MAAS.CreateContainer(project.Prefix(vm.project, vm.name), interfaces)
 }
+
+// UpdateBackupFile writes the instance's backup.yaml file to storage.
+func (vm *Qemu) UpdateBackupFile() error {
+	pool, err := vm.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	return pool.UpdateInstanceBackupFile(vm, nil)
+}
