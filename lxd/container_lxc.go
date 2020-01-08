@@ -2225,7 +2225,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 	}
 
 	// Update the backup.yaml file
-	err = instance.WriteBackupFile(c.state, c)
+	err = c.UpdateBackupFile()
 	if err != nil {
 		if ourStart {
 			c.unmount()
@@ -3331,7 +3331,7 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 
 	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
 	// the container listed); let's write a new one to be safe.
-	err = instance.WriteBackupFile(c.state, c)
+	err = c.UpdateBackupFile()
 	if err != nil {
 		return err
 	}
@@ -4511,7 +4511,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Only update the backup file if it already exists (indicating the instance is mounted).
 	if shared.PathExists(filepath.Join(c.Path(), "backup.yaml")) {
-		err := instance.WriteBackupFile(c.state, c)
+		err := c.UpdateBackupFile()
 		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrap(err, "Failed to write backup file")
 		}
@@ -7031,4 +7031,20 @@ func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, ke
 	}
 
 	return rw.cc.SetCgroupItem(key, value)
+}
+
+// UpdateBackupFile writes the instance's backup.yaml file to storage.
+func (c *containerLXC) UpdateBackupFile() error {
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := c.getStoragePool()
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return err
+		}
+
+		return pool.UpdateInstanceBackupFile(c, nil)
+	}
+
+	// Fallback to legacy backup function for old storage drivers.
+	return instance.WriteBackupFile(c.state, c)
 }

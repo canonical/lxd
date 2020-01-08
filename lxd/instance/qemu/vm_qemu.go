@@ -1861,7 +1861,7 @@ func (vm *Qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to update database")
 	}
 
-	err = instance.WriteBackupFile(vm.state, vm)
+	err = vm.UpdateBackupFile()
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrap(err, "Failed to write backup file")
 	}
@@ -3295,4 +3295,14 @@ func (vm *Qemu) maasUpdate(oldDevices map[string]map[string]string) error {
 	}
 
 	return vm.state.MAAS.CreateContainer(project.Prefix(vm.project, vm.name), interfaces)
+}
+
+// UpdateBackupFile writes the instance's backup.yaml file to storage.
+func (vm *Qemu) UpdateBackupFile() error {
+	pool, err := vm.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	return pool.UpdateInstanceBackupFile(vm, nil)
 }

@@ -724,8 +724,8 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return errors.Wrap(err, "Load instance")
 		}
 
-		// Run the storage post hook to perform any final actions now that the instance
-		// has been created in the database.
+		// Run the storage post hook to perform any final actions now that the instance has been created
+		// in the database (this normally includes unmounting volumes that were mounted).
 		if postHook != nil {
 			err = postHook(c)
 			if err != nil {
