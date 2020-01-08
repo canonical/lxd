@@ -627,7 +627,6 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 						v[len("snapshot-"):])
 				}
 			}
-
 		}
 	}
 

@@ -497,13 +497,6 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 		}
 
 		if cli.AskBool(fmt.Sprintf("Create a new %s pool? (yes/no) [default=yes]: ", strings.ToUpper(pool.Driver)), "yes") {
-			if pool.Driver == "zfs" && os.Geteuid() == 0 {
-				poolVolumeExists, err := zfsPoolVolumeExists(pool.Name)
-				if err == nil && poolVolumeExists {
-					return fmt.Errorf("'%s' ZFS pool already exists", pool.Name)
-				}
-			}
-
 			if pool.Driver == "ceph" {
 				// Ask for the name of the cluster
 				pool.Config["ceph.cluster_name"] = cli.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
@@ -578,13 +571,6 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 			} else {
 				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(pool.Driver))
 				pool.Config["source"] = cli.AskString(question, "", nil)
-			}
-
-			if pool.Driver == "zfs" && os.Geteuid() == 0 {
-				poolVolumeExists, err := zfsPoolVolumeExists(pool.Config["source"])
-				if err == nil && !poolVolumeExists {
-					return fmt.Errorf("'%s' ZFS pool or dataset does not exist", pool.Config["source"])
-				}
 			}
 		}
 

@@ -99,7 +99,6 @@ const (
 	storageTypeCeph storageType = iota
 	storageTypeLvm
 	storageTypeMock
-	storageTypeZfs
 )
 
 var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
@@ -112,8 +111,6 @@ func storageTypeToString(sType storageType) (string, error) {
 		return "lvm", nil
 	case storageTypeMock:
 		return "mock", nil
-	case storageTypeZfs:
-		return "zfs", nil
 	}
 
 	return "", fmt.Errorf("Invalid storage type")
@@ -127,8 +124,6 @@ func storageStringToType(sName string) (storageType, error) {
 		return storageTypeLvm, nil
 	case "mock":
 		return storageTypeMock, nil
-	case "zfs":
-		return storageTypeZfs, nil
 	}
 
 	return -1, fmt.Errorf("Invalid storage type name")
@@ -268,13 +263,6 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &mock, nil
-	case storageTypeZfs:
-		zfs := storageZfs{}
-		err = zfs.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &zfs, nil
 	}
 
 	return nil, fmt.Errorf("invalid storage type")
@@ -342,17 +330,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &mock, nil
-	case storageTypeZfs:
-		zfs := storageZfs{}
-		zfs.poolID = poolID
-		zfs.pool = pool
-		zfs.volume = volume
-		zfs.s = s
-		err = zfs.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &zfs, nil
 	}
 
 	return nil, fmt.Errorf("invalid storage type")
@@ -468,7 +445,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = lastIdmap.UnshiftRootfs(remapPath, zfsIdmapSetSkipper)
+				err = lastIdmap.UnshiftRootfs(remapPath, shiftZfsSkipper)
 			} else {
 				err = lastIdmap.UnshiftRootfs(remapPath, nil)
 			}
@@ -486,7 +463,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = nextIdmap.ShiftRootfs(remapPath, zfsIdmapSetSkipper)
+				err = nextIdmap.ShiftRootfs(remapPath, shiftZfsSkipper)
 			} else {
 				err = nextIdmap.ShiftRootfs(remapPath, nil)
 			}
