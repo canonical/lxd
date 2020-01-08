@@ -216,7 +216,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 			if err != nil {
 				return err
 			}
-			nodes = append(nodes, db.RaftNode{ID: id, Address: address})
+			nodes = append(nodes, db.RaftNode{ID: uint64(id), Address: address})
 			return nil
 		})
 		if err != nil {
@@ -466,7 +466,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Attempt to send a heartbeat to all other raft nodes to notify them of new node.
 		for _, raftNode := range raftNodes {
-			if raftNode.ID == node.ID {
+			if raftNode.ID == uint64(node.ID) {
 				continue
 			}
 			go HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
@@ -547,7 +547,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 			return errors.Wrap(err, "Failed to add new raft node")
 		}
 
-		updatedRaftNodes = append(currentRaftNodes, db.RaftNode{ID: id, Address: address})
+		updatedRaftNodes = append(currentRaftNodes, db.RaftNode{ID: uint64(id), Address: address})
 		return nil
 	})
 	if err != nil {
@@ -588,7 +588,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Figure out our raft node ID, and an existing target raft node that
 	// we'll contact to add ourselves as member.
-	id := int64(-1)
+	id := uint64(0)
 	target := ""
 	for _, node := range nodes {
 		if node.Address == address {
@@ -600,7 +600,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Sanity check that our address was actually included in the given
 	// list of raft nodes.
-	if id == -1 {
+	if id == 0 {
 		return fmt.Errorf("this node is not included in the given list of database nodes")
 	}
 

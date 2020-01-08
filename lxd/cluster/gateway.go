@@ -728,7 +728,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			// its raft_nodes table is not fully up-to-date yet.
 			address = server.Address
 		}
-		nodes[i].ID = int64(server.ID)
+		nodes[i].ID = server.ID
 		nodes[i].Address = string(address)
 	}
 	return nodes, nil

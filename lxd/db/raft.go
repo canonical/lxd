@@ -5,15 +5,26 @@ package db
 import (
 	"fmt"
 
+	"github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/pkg/errors"
 )
 
 // RaftNode holds information about a single node in the dqlite raft cluster.
-type RaftNode struct {
-	ID      int64  // Stable node identifier
-	Address string // Network address of the node
-}
+//
+// This is just a convenience alias for the equivalent data structure in the
+// dqlite client package.
+type RaftNode = client.NodeInfo
+
+// RaftRole captures the role of dqlite/raft node.
+type RaftRole = client.NodeRole
+
+// RaftNode roles.
+const (
+	RaftVoter   = client.Voter
+	RaftStandBy = client.StandBy
+	RaftSpare   = client.Spare
+)
 
 // RaftNodes returns information about all LXD nodes that are members of the
 // dqlite Raft cluster (possibly including the local node). If this LXD

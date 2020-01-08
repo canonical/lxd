@@ -21,7 +21,7 @@ import (
 type APIHeartbeatMember struct {
 	ID            int64     // ID field value in nodes table.
 	Address       string    // Host and Port of node.
-	RaftID        int64     // ID field value in raft_nodes table, zero if non-raft node.
+	RaftID        uint64    // ID field value in raft_nodes table, zero if non-raft node.
 	Raft          bool      // Deprecated, use non-zero RaftID instead to indicate raft node.
 	LastHeartbeat time.Time // Last time we received a successful response from node.
 	Online        bool      // Calculated from offline threshold and LastHeatbeat time.
