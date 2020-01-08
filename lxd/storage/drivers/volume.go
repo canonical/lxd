@@ -183,6 +183,54 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	return task(v.MountPath(), op)
 }
 
+// UnmountTask runs the supplied task after unmounting the volume if needed. If the volume was unmounted
+// for this then it is mounted when the task finishes.
+func (v Volume) UnmountTask(task func(op *operations.Operation) error, op *operations.Operation) error {
+	isSnap := v.IsSnapshot()
+
+	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
+	// these will mount the snapshot read only.
+	if isSnap {
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
+
+		ourUnmount, err := v.driver.UnmountVolumeSnapshot(v, op)
+		if err != nil {
+			unlock()
+			return err
+		}
+
+		unlock()
+
+		if ourUnmount {
+			defer func() {
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
+				v.driver.MountVolumeSnapshot(v, op)
+				unlock()
+			}()
+		}
+	} else {
+		unlock := locking.Lock(v.pool, string(v.volType), v.name)
+
+		ourUnmount, err := v.driver.UnmountVolume(v, op)
+		if err != nil {
+			unlock()
+			return err
+		}
+
+		unlock()
+
+		if ourUnmount {
+			defer func() {
+				unlock := locking.Lock(v.pool, string(v.volType), v.name)
+				v.driver.MountVolume(v, op)
+				unlock()
+			}()
+		}
+	}
+
+	return task(op)
+}
+
 // Snapshots returns a list of snapshots for the volume.
 func (v Volume) Snapshots(op *operations.Operation) ([]Volume, error) {
 	if v.IsSnapshot() {

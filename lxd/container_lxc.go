@@ -5811,7 +5811,9 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetInstanceUsage(c)
 			if err != nil {
-				logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
+				if err != storageDrivers.ErrNotSupported {
+					logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
+				}
 				continue
 			}
 		} else {
