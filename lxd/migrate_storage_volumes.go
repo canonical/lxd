@@ -79,12 +79,6 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 			},
 		}
 
-		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-			offerHeader.ZfsFeatures = &migration.ZfsFeatures{
-				Compress: &hasFeature,
-			}
-		}
-
 		// Storage needs to start unconditionally now, since we need to initialize a new
 		// storage interface.
 		ourMount, err := s.storage.StoragePoolVolumeMount()
@@ -404,12 +398,6 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 				Compress:      &hasFeature,
 				Bidirectional: &hasFeature,
 			},
-		}
-
-		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-			respHeader.ZfsFeatures = &migration.ZfsFeatures{
-				Compress: &hasFeature,
-			}
 		}
 
 		// If the storage type the source has doesn't match what we have, then we have to

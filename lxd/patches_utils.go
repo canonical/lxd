@@ -8,13 +8,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 // For 'dir' storage backend.
@@ -64,7 +65,6 @@ func btrfsSubVolumeCreate(subvol string) error {
 		"create",
 		subvol)
 	if err != nil {
-		logger.Errorf("Failed to create BTRFS subvolume \"%s\": %v", subvol, err)
 		return err
 	}
 
@@ -281,4 +281,185 @@ func btrfsSubVolumesGet(path string) ([]string, error) {
 	})
 
 	return result, nil
+}
+
+// For 'zfs' storage backend.
+func zfsPoolListSnapshots(pool string, path string) ([]string, error) {
+	path = strings.TrimRight(path, "/")
+	fullPath := pool
+	if path != "" {
+		fullPath = fmt.Sprintf("%s/%s", pool, path)
+	}
+
+	output, err := shared.RunCommand("zfs", "list", "-t", "snapshot", "-o", "name", "-H", "-d", "1", "-s", "creation", "-r", fullPath)
+	if err != nil {
+		return []string{}, errors.Wrap(err, "Failed to list ZFS snapshots")
+	}
+
+	children := []string{}
+	for _, entry := range strings.Split(output, "\n") {
+		if entry == "" {
+			continue
+		}
+
+		if entry == fullPath {
+			continue
+		}
+
+		children = append(children, strings.SplitN(entry, "@", 2)[1])
+	}
+
+	return children, nil
+}
+
+func zfsSnapshotDeleteInternal(projectName, poolName string, ctName string, onDiskPoolName string) error {
+	sourceContainerName, sourceContainerSnapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(ctName)
+	snapName := fmt.Sprintf("snapshot-%s", sourceContainerSnapOnlyName)
+
+	if zfsFilesystemEntityExists(onDiskPoolName,
+		fmt.Sprintf("containers/%s@%s",
+			project.Prefix(projectName, sourceContainerName), snapName)) {
+		removable, err := zfsPoolVolumeSnapshotRemovable(onDiskPoolName,
+			fmt.Sprintf("containers/%s",
+				project.Prefix(projectName, sourceContainerName)),
+			snapName)
+		if err != nil {
+			return err
+		}
+
+		if removable {
+			err = zfsPoolVolumeSnapshotDestroy(onDiskPoolName,
+				fmt.Sprintf("containers/%s",
+					project.Prefix(projectName, sourceContainerName)),
+				snapName)
+		} else {
+			err = zfsPoolVolumeSnapshotRename(onDiskPoolName,
+				fmt.Sprintf("containers/%s",
+					project.Prefix(projectName, sourceContainerName)),
+				snapName,
+				fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete the snapshot on its storage pool:
+	// ${POOL}/snapshots/<snapshot_name>
+	snapshotContainerMntPoint := driver.GetSnapshotMountPoint(projectName, poolName, ctName)
+	if shared.PathExists(snapshotContainerMntPoint) {
+		err := os.RemoveAll(snapshotContainerMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check if we can remove the snapshot symlink:
+	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
+	// by checking if the directory is empty.
+	snapshotContainerPath := driver.GetSnapshotMountPoint(projectName, poolName, sourceContainerName)
+	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
+	if empty == true {
+		// Remove the snapshot directory for the container:
+		// ${POOL}/snapshots/<source_container_name>
+		err := os.Remove(snapshotContainerPath)
+		if err != nil {
+			return err
+		}
+
+		snapshotSymlink := shared.VarPath("snapshots", project.Prefix(projectName, sourceContainerName))
+		if shared.PathExists(snapshotSymlink) {
+			err := os.Remove(snapshotSymlink)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Legacy
+	snapPath := shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", project.Prefix(projectName, sourceContainerName), sourceContainerSnapOnlyName))
+	if shared.PathExists(snapPath) {
+		err := os.Remove(snapPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Legacy
+	parent := shared.VarPath(fmt.Sprintf("snapshots/%s", project.Prefix(projectName, sourceContainerName)))
+	if ok, _ := shared.PathIsEmpty(parent); ok {
+		err := os.Remove(parent)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func zfsFilesystemEntityExists(pool string, path string) bool {
+	vdev := pool
+	if path != "" {
+		vdev = fmt.Sprintf("%s/%s", pool, path)
+	}
+
+	output, err := shared.RunCommand("zfs", "get", "-H", "-o", "name", "type", vdev)
+	if err != nil {
+		return false
+	}
+
+	detectedName := strings.TrimSpace(output)
+	return detectedName == vdev
+}
+
+func zfsPoolVolumeSnapshotRemovable(pool string, path string, name string) (bool, error) {
+	var snap string
+	if name == "" {
+		snap = path
+	} else {
+		snap = fmt.Sprintf("%s@%s", path, name)
+	}
+
+	clones, err := zfsFilesystemEntityPropertyGet(pool, snap, "clones")
+	if err != nil {
+		return false, err
+	}
+
+	if clones == "-" || clones == "" {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (string, error) {
+	entity := pool
+	if path != "" {
+		entity = fmt.Sprintf("%s/%s", pool, path)
+	}
+
+	output, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "value", key, entity)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get ZFS config")
+	}
+
+	return strings.TrimRight(output, "\n"), nil
+}
+
+func zfsPoolVolumeSnapshotDestroy(pool, path string, name string) error {
+	_, err := shared.RunCommand("zfs", "destroy", "-r", fmt.Sprintf("%s/%s@%s", pool, path, name))
+	if err != nil {
+		return errors.Wrap(err, "Failed to destroy ZFS snapshot")
+	}
+
+	return nil
+}
+
+func zfsPoolVolumeSnapshotRename(pool string, path string, oldName string, newName string) error {
+	_, err := shared.RunCommand("zfs", "rename", "-r", fmt.Sprintf("%s/%s@%s", pool, path, oldName), fmt.Sprintf("%s/%s@%s", pool, path, newName))
+	if err != nil {
+		return errors.Wrap(err, "Failed to rename ZFS snapshot")
+	}
+
+	return nil
 }

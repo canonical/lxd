@@ -1863,6 +1863,19 @@ func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 	return nil
 }
 
+func shiftZfsSkipper(dir string, absPath string, fi os.FileInfo) bool {
+	strippedPath := absPath
+	if dir != "" {
+		strippedPath = absPath[len(dir):]
+	}
+
+	if fi.IsDir() && strippedPath == "/.zfs/snapshot" {
+		return true
+	}
+
+	return false
+}
+
 func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
 	var err error
 	roSubvols := []string{}
@@ -1959,7 +1972,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 
 		if diskIdmap != nil {
 			if storageType == "zfs" {
-				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), shiftZfsSkipper)
 			} else if storageType == "btrfs" {
 				err = UnshiftBtrfsRootfs(c.RootfsPath(), diskIdmap)
 			} else {
@@ -1975,7 +1988,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 
 		if nextIdmap != nil && !c.state.OS.Shiftfs {
 			if storageType == "zfs" {
-				err = nextIdmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+				err = nextIdmap.ShiftRootfs(c.RootfsPath(), shiftZfsSkipper)
 			} else if storageType == "btrfs" {
 				err = ShiftBtrfsRootfs(c.RootfsPath(), nextIdmap)
 			} else {
@@ -4994,7 +5007,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			}
 
 			if storageType == "zfs" {
-				err = idmapset.ShiftRootfs(args.stateDir, zfsIdmapSetSkipper)
+				err = idmapset.ShiftRootfs(args.stateDir, shiftZfsSkipper)
 			} else if storageType == "btrfs" {
 				err = ShiftBtrfsRootfs(args.stateDir, idmapset)
 			} else {
