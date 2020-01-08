@@ -100,7 +100,7 @@ func TestBootstrap(t *testing.T) {
 		nodes, err := tx.RaftNodes()
 		require.NoError(t, err)
 		require.Len(t, nodes, 1)
-		assert.Equal(t, int64(1), nodes[0].ID)
+		assert.Equal(t, uint64(1), nodes[0].ID)
 		assert.Equal(t, address, nodes[0].Address)
 		return nil
 	})
@@ -227,8 +227,8 @@ func TestAccept(t *testing.T) {
 		state, gateway, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions))
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
-	assert.Equal(t, int64(1), nodes[0].ID)
-	assert.Equal(t, int64(2), nodes[1].ID)
+	assert.Equal(t, uint64(1), nodes[0].ID)
+	assert.Equal(t, uint64(2), nodes[1].ID)
 	assert.Equal(t, "1.2.3.4:666", nodes[0].Address)
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
 }
@@ -318,7 +318,7 @@ func TestJoin(t *testing.T) {
 	raftNodes, err = targetGateway.RaftNodes()
 	require.NoError(t, err)
 	assert.Len(t, raftNodes, 1)
-	assert.Equal(t, int64(1), raftNodes[0].ID)
+	assert.Equal(t, uint64(1), raftNodes[0].ID)
 	assert.Equal(t, targetAddress, raftNodes[0].Address)
 
 	// The List function returns all nodes in the cluster.

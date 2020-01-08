@@ -1080,7 +1080,7 @@ type internalClusterPostAcceptResponse struct {
 
 // Represent a LXD node that is part of the dqlite raft cluster.
 type internalRaftNode struct {
-	ID      int64  `json:"id" yaml:"id"`
+	ID      uint64 `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`
 }
 
