@@ -7032,3 +7032,19 @@ func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, ke
 
 	return rw.cc.SetCgroupItem(key, value)
 }
+
+// UpdateBackupFile writes the instance's backup.yaml file to storage.
+func (c *containerLXC) UpdateBackupFile() error {
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := c.getStoragePool()
+	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+		if err != nil {
+			return err
+		}
+
+		return pool.UpdateInstanceBackupFile(c, nil)
+	}
+
+	// Fallback to legacy backup function for old storage drivers.
+	return instance.WriteBackupFile(c.state, c)
+}
