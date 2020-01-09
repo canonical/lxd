@@ -406,6 +406,7 @@ func resolveMountOptions(options string) (uintptr, string) {
 
 // shrinkFileSystem shrinks a filesystem if it is supported. Ext4 volumes will be unmounted temporarily if needed.
 func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64) error {
+	// The smallest unit that resize2fs accepts in byte size (rather than blocks) is kilobytes.
 	strSize := fmt.Sprintf("%dK", byteSize/1024)
 
 	switch fsType {
