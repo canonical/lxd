@@ -62,21 +62,3 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 
 	return info, nil
 }
-
-// An address provider that looks up server addresses in the raft_nodes table.
-type raftAddressProvider struct {
-	db *db.Node
-}
-
-func (p *raftAddressProvider) ServerAddr(databaseID int) (string, error) {
-	var address string
-	err := p.db.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		address, err = tx.RaftNodeAddress(int64(databaseID))
-		return err
-	})
-	if err != nil {
-		return "", err
-	}
-	return address, nil
-}
