@@ -429,15 +429,17 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 			return nil
 		}, nil)
 	case "btrfs":
-		_, err := shared.TryRunCommand("btrfs", "filesystem", "resize", strSize, vol.MountPath())
-		if err != nil {
-			return err
-		}
+		return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			_, err := shared.TryRunCommand("btrfs", "filesystem", "resize", strSize, mountPath)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, nil)
 	default:
 		return fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
 	}
-
-	return nil
 }
 
 // growFileSystem grows a filesystem if it is supported. The volume will be mounted temporarily if needed.
