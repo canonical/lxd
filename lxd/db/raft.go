@@ -120,12 +120,9 @@ func (n *NodeTx) RaftNodesReplace(nodes []RaftNode) error {
 		return err
 	}
 
-	columns := []string{"id", "address"}
+	columns := []string{"id", "address", "role"}
 	for _, node := range nodes {
-		if node.Role != RaftVoter {
-			continue
-		}
-		values := []interface{}{node.ID, node.Address}
+		values := []interface{}{node.ID, node.Address, node.Role}
 		_, err := query.UpsertObject(n.tx, "raft_nodes", columns, values)
 		if err != nil {
 			return err
