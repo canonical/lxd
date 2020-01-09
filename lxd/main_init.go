@@ -7,6 +7,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/state"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
@@ -163,6 +166,14 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 		backingFs = "dir"
 	}
 
+	// Get info for new drivers.
+	s := state.NewState(nil, nil, nil, sys.DefaultOS(), nil, nil, nil, nil, nil)
+	info := storageDrivers.SupportedDrivers(s)
+	availableDrivers := []string{}
+	for _, entry := range info {
+		availableDrivers = append(availableDrivers, entry.Name)
+	}
+
 	// Check available backends
 	for _, driver := range supportedStoragePoolDrivers {
 		if poolType == "remote" && !shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
@@ -182,19 +193,23 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 			continue
 		}
 
-		// btrfs can work in user namespaces too. (If
-		// source=/some/path/on/btrfs is used.)
+		// btrfs can work in user namespaces too. (If source=/some/path/on/btrfs is used.)
 		if shared.RunningInUserNS() && (backingFs != "btrfs" || driver != "btrfs") {
 			continue
 		}
 
-		// Initialize a core storage interface for the given driver.
-		_, err := storageCoreInit(driver)
-		if err != nil {
+		// Check if available as a new style driver.
+		if shared.StringInSlice(driver, availableDrivers) {
+			drivers = append(drivers, driver)
 			continue
 		}
 
-		drivers = append(drivers, driver)
+		// Check if available as an old style driver.
+		_, err := storageCoreInit(driver)
+		if err == nil {
+			drivers = append(drivers, driver)
+			continue
+		}
 	}
 
 	return drivers
