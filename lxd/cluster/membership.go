@@ -270,7 +270,6 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
 	var operations []db.Operation
-	var offlineThreshold time.Duration
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		pools, err = tx.StoragePoolsNodeConfig()
@@ -282,11 +281,6 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return err
 		}
 		operations, err = tx.Operations()
-		if err != nil {
-			return err
-		}
-
-		offlineThreshold, err = tx.NodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
@@ -455,16 +449,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		hbState := &APIHeartbeat{}
-		hbState.Update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
-
-		// Attempt to send a heartbeat to all other raft nodes to notify them of new node.
-		for _, raftNode := range raftNodes {
-			if raftNode.ID == uint64(node.ID) {
-				continue
-			}
-			go HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
-		}
+		notifyNodesUpdate(raftNodes, info.ID, cert)
 
 		return nil
 	})
@@ -473,6 +458,25 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 
 	return nil
+}
+
+// Attempt to send a heartbeat to all other nodes to notify them of a new or
+// changed member.
+func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo) {
+	// Generate partial heartbeat request containing just a raft node list.
+	hbState := &APIHeartbeat{}
+	nodes := make([]db.NodeInfo, len(raftNodes))
+	for i, raftNode := range raftNodes {
+		nodes[i].ID = int64(raftNode.ID)
+		nodes[i].Address = raftNode.Address
+	}
+	hbState.Update(false, raftNodes, nodes, 0)
+	for _, node := range raftNodes {
+		if node.ID == id {
+			continue
+		}
+		go HeartbeatNode(context.Background(), node.Address, cert, hbState)
+	}
 }
 
 // Rebalance the raft cluster, trying to see if we have a spare online node
@@ -658,6 +662,9 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	if err != nil {
 		return errors.Wrap(err, "cluster database initialization failed")
 	}
+
+	// Generate partial heartbeat request containing just a raft node list.
+	notifyNodesUpdate(nodes, info.ID, gateway.cert)
 
 	return nil
 }
