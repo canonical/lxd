@@ -914,8 +914,8 @@ Input (run bash):
 ```
 
 `wait-for-websocket` indicates whether the operation should block and wait for
-a websocket connection to start (so that users can pass stdin and read
-stdout), or start immediately.
+a websocket connection to start for all the available file descriptors (except `control`, which is optional), or start immediately.
+This gives the possibility to pass stdin inputs and read stdout/stderr outputs as bytes.
 
 If starting immediately, /dev/null will be used for stdin, stdout and
 stderr. That's unless record-output is set to true, in which case,
