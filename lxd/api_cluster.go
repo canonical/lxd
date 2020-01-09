@@ -555,6 +555,11 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			}
 		}
 
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
+		if err != nil {
+			return err
+		}
+
 		// Re-use the client handler and import the images from the leader node which
 		// owns all available images to the joined node
 		go func() {
@@ -607,11 +612,6 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
-
-		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
-		if err != nil {
-			return err
-		}
 
 		err = clusterRebalance(client)
 		if err != nil {
