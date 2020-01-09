@@ -1127,7 +1127,7 @@ addr = "0x0"
 # Balloon driver
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
-port = "0x12"
+port = "0x11"
 chassis = "2"
 bus = "pcie.0"
 addr = "0x2.0x1"
@@ -1144,7 +1144,7 @@ filename = "/dev/urandom"
 
 [device "qemu_pcie3"]
 driver = "pcie-root-port"
-port = "0x13"
+port = "0x12"
 chassis = "3"
 bus = "pcie.0"
 addr = "0x2.0x2"
@@ -1176,6 +1176,7 @@ backend = "pty"
 	vm.addMonitorConfig(sb)
 	vm.addConfDriveConfig(sb)
 
+	nicIndex := 0
 	for _, runConf := range devConfs {
 		// Add root drive device.
 		if runConf.RootFS.Path != "" {
@@ -1198,7 +1199,8 @@ backend = "pty"
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			vm.addNetDevConfig(sb, runConf.NetworkInterface)
+			vm.addNetDevConfig(sb, nicIndex, runConf.NetworkInterface)
+			nicIndex++
 		}
 	}
 
@@ -1403,7 +1405,7 @@ drive = "lxd_%s"
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *Qemu) addNetDevConfig(sb *strings.Builder, nicConfig []deviceConfig.RunConfigItem) {
+func (vm *Qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []deviceConfig.RunConfigItem) {
 	var devName, devTap, devHwaddr string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "name" {
@@ -1424,21 +1426,21 @@ ifname = "%s"
 script = "no"
 downscript = "no"
 
-[device "qemu_pcie5"]
+[device "qemu_pcie%d"]
 driver = "pcie-root-port"
-port = "0x11"
-chassis = "5"
+port = "0x%d"
+chassis = "%d"
 bus = "pcie.0"
-addr = "0x2.0x4"
+addr = "0x2.0x%d"
 
-[device "dev-lxd_eth0"]
+[device "dev-lxd_%s"]
 driver = "virtio-net-pci"
-netdev = "lxd_eth0"
+netdev = "lxd_%s"
 mac = "%s"
-bus = "qemu_pcie5"
+bus = "qemu_pcie%d"
 addr = "0x0"
-bootindex = "2""
-`, devName, devName, devTap, devHwaddr))
+bootindex = "%d""
+`, devName, devName, devTap, 5+nicIndex, 14+nicIndex, 5+nicIndex, 4+nicIndex, devName, devName, devHwaddr, 5+nicIndex, 2+nicIndex))
 
 	return
 }
