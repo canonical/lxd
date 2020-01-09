@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	client "github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
@@ -14,28 +13,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Create a raft instance and all its dependencies, to be used as backend for
-// the dqlite driver running on this LXD node.
-//
-// If this node should not serve as dqlite node, nil is returned.
-//
-// The raft instance will use an in-memory transport if clustering is not
-// enabled on this node.
-//
-// The certInfo parameter should contain the cluster TLS keypair and optional
-// CA certificate.
-//
-// The latency parameter is a coarse grain measure of how fast/reliable network
-// links are. This is used to tweak the various timeouts parameters of the raft
-// algorithm. See the raft.Config structure for more details. A value of 1.0
-// means use the default values from hashicorp's raft package. Values closer to
-// 0 reduce the values of the various timeouts (useful when running unit tests
-// in-memory).
-func newRaft(database *db.Node, cert *shared.CertInfo, latency float64) (*raftInstance, error) {
-	if latency <= 0 {
-		return nil, fmt.Errorf("latency should be positive")
-	}
-
+// Load information about the dqlite node associated with this LXD member
+// should have, such as its ID, address and role.
+func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 	// Figure out if we actually need to act as dqlite node.
 	var info *db.RaftNode
 	err := database.Transaction(func(tx *db.NodeTx) error {
@@ -51,36 +31,16 @@ func newRaft(database *db.Node, cert *shared.CertInfo, latency float64) (*raftIn
 	if info == nil {
 		return nil, nil
 	}
-	logger.Debug("Start database node", log15.Ctx{"id": info.ID, "address": info.Address})
+	logger.Debug("Start database node", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
-	// Initialize a raft instance along with all needed dependencies.
-	instance, err := raftInstanceInit(database, info, cert, latency)
-	if err != nil {
-		return nil, err
-	}
-
-	return instance, nil
-}
-
-// A LXD-specific wrapper around raft.Raft, which also holds a reference to its
-// network transport and dqlite FSM.
-type raftInstance struct {
-	info client.NodeInfo
-}
-
-// Create a new raftFactory, instantiating all needed raft dependencies.
-func raftInstanceInit(
-	db *db.Node, node *db.RaftNode, cert *shared.CertInfo, latency float64) (*raftInstance, error) {
-
-	addr := node.Address
-	if addr == "" {
+	if info.Address == "" {
 		// This is a standalone node not exposed to the network.
-		addr = "1"
+		info.Address = "1"
 	}
 
 	// Rename legacy data directory if needed.
-	dir := filepath.Join(db.Dir(), "global")
-	legacyDir := filepath.Join(db.Dir(), "..", "raft")
+	dir := filepath.Join(database.Dir(), "global")
+	legacyDir := filepath.Join(database.Dir(), "..", "raft")
 	if shared.PathExists(legacyDir) {
 		if shared.PathExists(dir) {
 			return nil, fmt.Errorf("both legacy and new global database directories exist")
@@ -100,11 +60,7 @@ func raftInstanceInit(
 		}
 	}
 
-	instance := &raftInstance{}
-	instance.info.ID = uint64(node.ID)
-	instance.info.Address = addr
-
-	return instance, nil
+	return info, nil
 }
 
 // An address provider that looks up server addresses in the raft_nodes table.

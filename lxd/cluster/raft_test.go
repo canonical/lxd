@@ -6,21 +6,11 @@ import (
 	"testing"
 
 	"github.com/canonical/go-dqlite/client"
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/require"
 )
-
-// Create a new test RaftInstance.
-func newRaft(t *testing.T, db *db.Node, cert *shared.CertInfo) *cluster.RaftInstance {
-	logging.Testing(t)
-	instance, err := cluster.NewRaft(db, cert, 0.2)
-	require.NoError(t, err)
-	return instance
-}
 
 // Set the cluster.https_address config key to the given address, and insert the
 // address into the raft_nodes table.
