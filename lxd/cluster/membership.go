@@ -358,7 +358,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrap(err, "Failed to connect to cluster leader")
 		}
 		defer client.Close()
-		err = client.Add(ctx, gateway.raft.info)
+		err = client.Add(ctx, *gateway.info)
 		if err != nil {
 			return errors.Wrap(err, "Failed to join cluster")
 		}
@@ -654,7 +654,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 	defer client.Close()
 
-	err = client.Add(ctx, gateway.raft.info)
+	err = client.Add(ctx, *gateway.info)
 	if err != nil {
 		return errors.Wrap(err, "Failed to join cluster")
 	}
