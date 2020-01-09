@@ -317,9 +317,13 @@ func TestJoin(t *testing.T) {
 	// The new node is not included to ensure distributed consensus.
 	raftNodes, err = targetGateway.RaftNodes()
 	require.NoError(t, err)
-	assert.Len(t, raftNodes, 1)
+	assert.Len(t, raftNodes, 2)
 	assert.Equal(t, uint64(1), raftNodes[0].ID)
 	assert.Equal(t, targetAddress, raftNodes[0].Address)
+	assert.Equal(t, db.RaftVoter, raftNodes[0].Role)
+	assert.Equal(t, uint64(2), raftNodes[1].ID)
+	assert.Equal(t, address, raftNodes[1].Address)
+	assert.Equal(t, db.RaftSpare, raftNodes[1].Role)
 
 	// The List function returns all nodes in the cluster.
 	nodes, err := cluster.List(state)
