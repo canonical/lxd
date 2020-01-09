@@ -509,6 +509,9 @@ func (g *Gateway) LeaderAddress() (string, error) {
 			return err
 		}
 		for _, node := range nodes {
+			if node.Role != db.RaftVoter {
+				continue
+			}
 			addresses = append(addresses, node.Address)
 		}
 		return nil
