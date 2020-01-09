@@ -468,3 +468,51 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		return nil
 	}, nil)
 }
+
+// regenerateFilesystemUUID changes the filesystem UUID to a new randomly generated one if the fsType requires it.
+// Otherwise this function does nothing.
+func regenerateFilesystemUUID(fsType, devPath string) error {
+	switch fsType {
+	case "btrfs":
+		return regenerateFilesystemBTRFSUUID(devPath)
+	case "xfs":
+		return regenerateFilesystemXFSUUID(devPath)
+	}
+
+	return nil
+}
+
+// regenerateFilesystemBTRFSUUID changes the BTRFS filesystem UUID to a new randomly generated one.
+func regenerateFilesystemBTRFSUUID(devPath string) error {
+	_, err := shared.RunCommand("btrfstune", "-f", "-u", devPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// regenerateFilesystemXFSUUID changes the XFS filesystem UUID to a new randomly generated one.
+func regenerateFilesystemXFSUUID(devPath string) error {
+	// Attempt to generate a new UUID.
+	msg, err := shared.RunCommand("xfs_admin", "-U", "generate", devPath)
+	if err != nil {
+		return err
+	}
+
+	if msg != "" {
+		// Exit 0 with a msg usually means some log entry getting in the way.
+		_, err = shared.RunCommand("xfs_repair", "-o", "force_geometry", "-L", devPath)
+		if err != nil {
+			return err
+		}
+
+		// Attempt to generate a new UUID again.
+		_, err = shared.RunCommand("xfs_admin", "-U", "generate", devPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
