@@ -61,10 +61,9 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 
 			if node.IsOffline(offlineThreshold) {
 				// Even the heartbeat timestamp is not recent
-				// enough, let's try to actually connect to the
-				// node, just in case the heartbeat is lagging
-				// behind for some reason and the node is
-				// actualy up.
+				// enough, let's try to connect to the node,
+				// just in case the heartbeat is lagging behind
+				// for some reason and the node is actually up.
 				client, err := Connect(node.Address, cert, true)
 				if err == nil {
 					_, _, err = client.GetServer()
