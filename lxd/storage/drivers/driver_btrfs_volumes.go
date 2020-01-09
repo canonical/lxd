@@ -240,14 +240,14 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	// Handle simple rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
-		return fmt.Errorf("Migration type not supported")
+		return ErrNotSupported
 	}
 
 	// Handle btrfs send/receive migration.
@@ -349,11 +349,11 @@ func (d *btrfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 // UpdateVolume applies config changes to the volume.
 func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	if vol.volType != VolumeTypeCustom {
-		return fmt.Errorf("Volume type not supported")
+		return ErrNotSupported
 	}
 
 	return d.SetVolumeQuota(vol, vol.config["size"], nil)
@@ -476,14 +476,14 @@ func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Opera
 // MigrateVolume sends a volume for migration.
 func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	// Handle simple rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 		return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
-		return fmt.Errorf("Migration type not supported")
+		return ErrNotSupported
 	}
 
 	// Handle btrfs send/receive migration.
