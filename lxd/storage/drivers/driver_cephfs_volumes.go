@@ -18,11 +18,11 @@ import (
 // CreateVolume creates a new storage volume on disk.
 func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Operation) error {
 	if vol.volType != VolumeTypeCustom {
-		return fmt.Errorf("Volume type not supported")
+		return ErrNotSupported
 	}
 
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	// Create the main volume path.
@@ -141,7 +141,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 // CreateVolumeFromMigration creates a new volume (with or without snapshots) from a migration data stream.
 func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return fmt.Errorf("Migration type not supported")
+		return ErrNotSupported
 	}
 
 	// Create the main volume path.
@@ -427,7 +427,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 // MigrateVolume streams the volume (with or without snapshots)
 func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
 	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return fmt.Errorf("Migration type not supported")
+		return ErrNotSupported
 	}
 
 	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
