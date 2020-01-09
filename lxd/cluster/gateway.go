@@ -187,6 +187,7 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 					raftNodes = append(raftNodes, db.RaftNode{
 						ID:      node.RaftID,
 						Address: node.Address,
+						Role:    db.RaftRole(node.RaftRole),
 					})
 				}
 			}
