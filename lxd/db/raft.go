@@ -33,9 +33,9 @@ func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, RaftNode{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Address}
+		return []interface{}{&nodes[i].ID, &nodes[i].Address, &nodes[i].Role}
 	}
-	stmt, err := n.tx.Prepare("SELECT id, address FROM raft_nodes ORDER BY id")
+	stmt, err := n.tx.Prepare("SELECT id, address, role FROM raft_nodes ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
