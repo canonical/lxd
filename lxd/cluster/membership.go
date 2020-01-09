@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/canonical/go-dqlite/client"
@@ -211,19 +210,21 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch cluster members count")
 	}
+	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
 	if count != 2 && len(nodes) < membershipMaxRaftNodes {
 		err = state.Node.Transaction(func(tx *db.NodeTx) error {
 			_, err := tx.RaftNodeAdd(address)
 			if err != nil {
 				return err
 			}
-			nodes = append(nodes, db.RaftNode{ID: uint64(id), Address: address})
 			return nil
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to insert new node into raft_nodes")
 		}
+		node.Role = db.RaftVoter
 	}
+	nodes = append(nodes, node)
 
 	return nodes, nil
 }
@@ -332,39 +333,38 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 
 	// If we are listed among the database nodes, join the raft cluster.
-	id := ""
+	var info *db.RaftNode
 	var target *db.RaftNode
 	for _, node := range raftNodes {
 		if node.Address == address {
-			id = strconv.Itoa(int(node.ID))
+			info = &node
 		} else {
 			target = &node
 		}
 	}
-	if id != "" {
-		if target == nil {
-			panic("no other node found")
-		}
-		logger.Info(
-			"Joining dqlite raft cluster",
-			log15.Ctx{"id": id, "address": address, "target": target.Address})
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		client, err := client.FindLeader(
-			ctx, gateway.NodeStore(),
-			client.WithDialFunc(gateway.raftDial()),
-			client.WithLogFunc(DqliteLog),
-		)
-		if err != nil {
-			return errors.Wrap(err, "Failed to connect to cluster leader")
-		}
-		defer client.Close()
-		err = client.Add(ctx, *gateway.info)
-		if err != nil {
-			return errors.Wrap(err, "Failed to join cluster")
-		}
-	} else {
-		logger.Info("Joining cluster as non-database node")
+	if info == nil {
+		panic("joining node not found")
+	}
+	if target == nil {
+		panic("no other node found")
+	}
+	logger.Info(
+		"Joining dqlite raft cluster",
+		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role, "target": target.Address})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	client, err := client.FindLeader(
+		ctx, gateway.NodeStore(),
+		client.WithDialFunc(gateway.raftDial()),
+		client.WithLogFunc(DqliteLog),
+	)
+	if err != nil {
+		return errors.Wrap(err, "Failed to connect to cluster leader")
+	}
+	defer client.Close()
+	err = client.Add(ctx, *info)
+	if err != nil {
+		return errors.Wrap(err, "Failed to join cluster")
 	}
 
 	// Make sure we can actually connect to the cluster database through
@@ -454,7 +454,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Update our role list if needed.
-		if id != "" {
+		if info.Role == db.RaftVoter {
 			err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to add database role for the node")
@@ -589,13 +589,13 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return fmt.Errorf("node is not exposed on the network")
 	}
 
-	// Figure out our raft node ID, and an existing target raft node that
+	// Figure out our node identity, and an existing target raft node that
 	// we'll contact to add ourselves as member.
-	id := uint64(0)
+	var info *db.RaftNode
 	target := ""
 	for _, node := range nodes {
 		if node.Address == address {
-			id = node.ID
+			info = &node
 		} else {
 			target = node.Address
 		}
@@ -603,7 +603,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Sanity check that our address was actually included in the given
 	// list of raft nodes.
-	if id == 0 {
+	if info == nil {
 		return fmt.Errorf("this node is not included in the given list of database nodes")
 	}
 
@@ -646,7 +646,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	logger.Info(
 		"Joining dqlite raft cluster",
-		log15.Ctx{"id": id, "address": address, "target": target})
+		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role, "target": target})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -657,7 +657,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 	defer client.Close()
 
-	err = client.Add(ctx, *gateway.info)
+	err = client.Assign(ctx, info.ID, info.Role)
 	if err != nil {
 		return errors.Wrap(err, "Failed to join cluster")
 	}
