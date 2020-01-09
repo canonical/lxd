@@ -206,22 +206,15 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get raft nodes from the log")
 	}
-	count, err := Count(state)
-	if err != nil {
-		return nil, errors.Wrap(err, "Fetch cluster members count")
+	count := len(nodes) // Existing nodes
+	voters := 0
+	for _, node := range nodes {
+		if node.Role == db.RaftVoter {
+			voters++
+		}
 	}
 	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
-	if count != 2 && len(nodes) < membershipMaxRaftNodes {
-		err = state.Node.Transaction(func(tx *db.NodeTx) error {
-			_, err := tx.RaftNodeAdd(address)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to insert new node into raft_nodes")
-		}
+	if count > 1 && voters < membershipMaxRaftNodes {
 		node.Role = db.RaftVoter
 	}
 	nodes = append(nodes, node)
@@ -494,18 +487,20 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	if err != nil {
 		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
 	}
-	if len(currentRaftNodes) >= membershipMaxRaftNodes || len(currentRaftNodes) == 1 {
+	voters := make([]string, 0)
+	for _, node := range currentRaftNodes {
+		if node.Role != db.RaftVoter {
+			continue
+		}
+		voters = append(voters, node.Address)
+	}
+
+	if len(voters) >= membershipMaxRaftNodes || len(voters) == 1 {
 		// We're already at full capacity or would have a two-member cluster.
 		return "", nil, nil
 	}
 
-	currentRaftAddresses := make([]string, len(currentRaftNodes))
-	for i, node := range currentRaftNodes {
-		currentRaftAddresses[i] = node.Address
-	}
-
 	// Check if we have a spare node that we can turn into a database one.
-	id := uint64(0)
 	address := ""
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
@@ -518,7 +513,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		}
 		// Find a node that is not part of the raft cluster yet.
 		for _, node := range nodes {
-			if shared.StringInSlice(node.Address, currentRaftAddresses) {
+			if shared.StringInSlice(node.Address, voters) {
 				continue // This is already a database node
 			}
 			if node.IsOffline(config.OfflineThreshold()) {
@@ -526,7 +521,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 			}
 			logger.Debugf(
 				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
-			id = uint64(node.ID)
 			address = node.Address
 			break
 		}
@@ -542,22 +536,13 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", currentRaftNodes, nil
 	}
 
-	// Figure out the next ID in the raft_nodes table
-	var updatedRaftNodes []db.RaftNode
-	err = gateway.db.Transaction(func(tx *db.NodeTx) error {
-		_, err := tx.RaftNodeAdd(address)
-		if err != nil {
-			return errors.Wrap(err, "Failed to add new raft node")
+	for i, node := range currentRaftNodes {
+		if node.Address == address {
+			currentRaftNodes[i].Role = db.RaftVoter
 		}
-
-		updatedRaftNodes = append(currentRaftNodes, db.RaftNode{ID: uint64(id), Address: address})
-		return nil
-	})
-	if err != nil {
-		return "", nil, err
 	}
 
-	return address, updatedRaftNodes, nil
+	return address, currentRaftNodes, nil
 }
 
 // Promote makes a LXD node which is not a database node, become part of the
@@ -593,11 +578,11 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	// we'll contact to add ourselves as member.
 	var info *db.RaftNode
 	target := ""
-	for _, node := range nodes {
+	for i, node := range nodes {
 		if node.Address == address {
-			info = &node
+			info = &nodes[i]
 		} else {
-			target = node.Address
+			target = nodes[i].Address
 		}
 	}
 
@@ -645,7 +630,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 
 	logger.Info(
-		"Joining dqlite raft cluster",
+		"Changing dqlite raft role",
 		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role, "target": target})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
