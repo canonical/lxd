@@ -714,8 +714,11 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	nodes := make([]db.RaftNode, len(servers))
-	for i, server := range servers {
+	nodes := make([]db.RaftNode, 0)
+	for _, server := range servers {
+		if server.Role != db.RaftVoter {
+			continue
+		}
 		address, err := g.raftAddress(server.ID)
 		if err != nil {
 			if err != db.ErrNoSuchObject {
@@ -726,8 +729,8 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			// its raft_nodes table is not fully up-to-date yet.
 			address = server.Address
 		}
-		nodes[i].ID = server.ID
-		nodes[i].Address = string(address)
+		server.Address = address
+		nodes = append(nodes, server)
 	}
 	return nodes, nil
 }
