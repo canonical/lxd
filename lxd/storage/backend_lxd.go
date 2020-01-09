@@ -1807,6 +1807,15 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	return b.driver.UnmountVolumeSnapshot(vol, op)
 }
 
+// poolBlockFilesystem returns the filesystem used for new block device filesystems.
+func (b *lxdBackend) poolBlockFilesystem() string {
+	if b.db.Config["volume.block.filesystem"] != "" {
+		return b.db.Config["volume.block.filesystem"]
+	}
+
+	return drivers.DefaultFilesystem
+}
+
 // EnsureImage creates an optimized volume of the image if supported by the storage pool driver and
 // the volume doesn't already exist.
 func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
@@ -1824,30 +1833,47 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	unlock := locking.Lock(b.name, string(drivers.VolumeTypeImage), fmt.Sprintf("EnsureImage_%v", fingerprint))
 	defer unlock()
 
-	// There's no need to pass the content type or config. Both are not needed
-	// when checking the existence of volumes.
-	vol := b.newVolume(drivers.VolumeTypeImage, "", fingerprint, nil)
-
-	// Check if we already have a suitable volume.
-	if b.driver.HasVolume(vol) {
-		return nil
-	}
-
 	// Load image info from database.
 	_, image, err := b.state.Cluster.ImageGetFromAnyProject(fingerprint)
 	if err != nil {
 		return err
 	}
 
+	// Derive content type from image type. Image types are not the same as instance types, so don't use
+	// instance type constants for comparison.
 	contentType := drivers.ContentTypeFS
-
-	// Image types are not the same as instance types, so don't use instance type constants.
 	if image.Type == "virtual-machine" {
 		contentType = drivers.ContentTypeBlock
 	}
 
+	// Try and load any existing volume config on this storage pool so we can compare filesystems if needed.
+	_, imgDBVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	if err != nil {
+		if err != db.ErrNoSuchObject {
+			return err
+		}
+	}
+
+	// If an existing DB row was found, check if filesystem is the same as the current pool's filesystem.
+	// If not we need to delete the existing cached image volume and re-create using new filesystem.
+	if imgDBVol != nil && contentType == drivers.ContentTypeFS {
+		if imgDBVol.Config["block.filesystem"] != b.poolBlockFilesystem() {
+			logger.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
+			err = b.DeleteImage(fingerprint, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Create the new image volume. No config for an image volume so set to nil.
+	// Pool config values will be read by the underlying driver if needed.
 	imgVol := b.newVolume(drivers.VolumeTypeImage, contentType, fingerprint, nil)
+
+	// Check if we already have a suitable volume on storage device.
+	if b.driver.HasVolume(imgVol) {
+		return nil
+	}
 
 	volFiller := drivers.VolumeFiller{
 		Fingerprint: fingerprint,
