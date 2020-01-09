@@ -98,8 +98,9 @@ func TestNewNotify_NotifyAlive(t *testing.T) {
 
 // Helper for setting fixtures for Notify tests.
 type notifyFixtures struct {
-	t     *testing.T
-	state *state.State
+	t       *testing.T
+	state   *state.State
+	servers []*httptest.Server
 }
 
 // Spawn the given number of fake nodes, save in them in the database and
@@ -148,6 +149,8 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 		}
 	}
 
+	h.servers = servers
+
 	return cleanup
 }
 
@@ -174,6 +177,8 @@ func (h *notifyFixtures) Down(i int) {
 		return nil
 	})
 	require.NoError(h.t, err)
+	h.servers[i].Close()
+
 }
 
 // Returns a minimal stub for the LXD RESTful API server, just realistic
