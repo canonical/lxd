@@ -448,6 +448,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		for i, node := range info.RaftNodes {
 			nodes[i].ID = node.ID
 			nodes[i].Address = node.Address
+			nodes[i].Role = db.RaftRole(node.Role)
 		}
 
 		// The default timeout when non-clustered is one minute, let's
@@ -1058,6 +1059,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	for i, node := range nodes {
 		accepted.RaftNodes[i].ID = node.ID
 		accepted.RaftNodes[i].Address = node.Address
+		accepted.RaftNodes[i].Role = int(node.Role)
 	}
 	return response.SyncResponse(true, accepted)
 }
@@ -1082,6 +1084,7 @@ type internalClusterPostAcceptResponse struct {
 type internalRaftNode struct {
 	ID      uint64 `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`
+	Role    int    `json:"role" yaml:"role"`
 }
 
 // Used to update the cluster after a database node has been removed, and
@@ -1157,6 +1160,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
 			ID:      node.ID,
 			Address: node.Address,
+			Role:    int(node.Role),
 		})
 	}
 
@@ -1193,6 +1197,7 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 	for i, node := range req.RaftNodes {
 		nodes[i].ID = node.ID
 		nodes[i].Address = node.Address
+		nodes[i].Role = db.RaftRole(node.Role)
 	}
 	err = cluster.Promote(d.State(), d.gateway, nodes)
 	if err != nil {
