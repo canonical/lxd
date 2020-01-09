@@ -347,10 +347,8 @@ func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool) []migratio
 		return nil
 	}
 
-	// When performing a refresh, always use rsync. Using btrfs send/receive
-	// here doesn't make sense since it would need to send everything again
-	// which defeats the purpose of a refresh.
-	if refresh {
+	// Only use rsync for refreshes and if running in an unprivileged container.
+	if refresh || d.state.OS.RunningInUserNS {
 		return []migration.Type{
 			{
 				FSType:   migration.MigrationFSType_RSYNC,
