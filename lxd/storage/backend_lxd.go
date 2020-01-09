@@ -1705,6 +1705,35 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 	err = b.driver.RestoreVolume(vol, snapshotName, op)
 	if err != nil {
+		snapErr, ok := err.(drivers.ErrDeleteSnapshots)
+		if ok {
+			// We need to delete some snapshots and try again.
+			snaps, err := inst.Snapshots()
+			if err != nil {
+				return err
+			}
+
+			// Go through all the snapshots.
+			for _, snap := range snaps {
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(src.Name())
+				if !shared.StringInSlice(snapName, snapErr.Snapshots) {
+					continue
+				}
+
+				// Delete if listed.
+				err := b.DeleteInstanceSnapshot(snap, op)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Now try again.
+			err = b.driver.RestoreVolume(vol, snapshotName, op)
+			if err != nil {
+				return err
+			}
+		}
+
 		return err
 	}
 
@@ -2613,6 +2642,7 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 	logger.Debug("RestoreCustomVolume started")
 	defer logger.Debug("RestoreCustomVolume finished")
 
+	// Sanity checks.
 	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume cannot be snapshot")
 	}
@@ -2621,6 +2651,7 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 		return fmt.Errorf("Invalid snapshot name")
 	}
 
+	// Check that the volume isn't in use.
 	usingVolume, err := VolumeUsedByInstancesWithProfiles(b.state, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
 	if err != nil {
 		return err
@@ -2630,8 +2661,35 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 		return fmt.Errorf("Cannot restore custom volume used by running instances")
 	}
 
-	err = b.driver.RestoreVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, nil), snapshotName, op)
+	// Get the volume config.
+	_, dbVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volName, db.StoragePoolVolumeTypeCustom, b.ID())
 	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	err = b.driver.RestoreVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, dbVol.Config), snapshotName, op)
+	if err != nil {
+		snapErr, ok := err.(drivers.ErrDeleteSnapshots)
+		if ok {
+			// We need to delete some snapshots and try again.
+			for _, snapName := range snapErr.Snapshots {
+				err := b.DeleteCustomVolumeSnapshot(fmt.Sprintf("%s/%s", volName, snapName), op)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Now try again.
+			err = b.driver.RestoreVolume(b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volName, dbVol.Config), snapshotName, op)
+			if err != nil {
+				return err
+			}
+		}
+
 		return err
 	}
 

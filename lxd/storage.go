@@ -769,11 +769,11 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(s.Cluster)
+	storagePoolDriversCacheUpdate(s)
 	return nil
 }
 
-func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
+func storagePoolDriversCacheUpdate(s *state.State) {
 	// Get a list of all storage drivers currently in use
 	// on this LXD instance. Only do this when we do not already have done
 	// this once to avoid unnecessarily querying the db. All subsequent
@@ -784,12 +784,22 @@ func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 
-	drivers, err := cluster.StoragePoolsGetDrivers()
+	drivers, err := s.Cluster.StoragePoolsGetDrivers()
 	if err != nil && err != db.ErrNoSuchObject {
 		return
 	}
 
 	data := map[string]string{}
+
+	// Get the driver info.
+	info := storageDrivers.SupportedDrivers(s)
+	for _, entry := range info {
+		if shared.StringInSlice(entry.Name, drivers) {
+			data[entry.Name] = entry.Version
+		}
+	}
+
+	// Handle legacy backends.
 	for _, driver := range drivers {
 		// Initialize a core storage interface for the given driver.
 		sCore, err := storageCoreInit(driver)
@@ -797,16 +807,17 @@ func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
 			continue
 		}
 
-		// Grab the version
+		// Grab the version.
 		data[driver] = sCore.GetStorageTypeVersion()
 	}
 
+	// Prepare the cache entries.
 	backends := []string{}
 	for k, v := range data {
 		backends = append(backends, fmt.Sprintf("%s %s", k, v))
 	}
 
-	// Update the agent
+	// Update the user agent.
 	version.UserAgentStorageBackends(backends)
 
 	storagePoolDriversCacheLock.Lock()
