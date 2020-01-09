@@ -11,6 +11,9 @@ import (
 
 var defaultBlockSize = "10GB"
 
+// DefaultFilesystem filesytem to use for block devices by default.
+var DefaultFilesystem = "ext4"
+
 var volIDQuotaSkip = int64(-1)
 
 // VolumeType represents a storage volume type.

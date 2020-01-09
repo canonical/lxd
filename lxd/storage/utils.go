@@ -447,7 +447,7 @@ func VolumeFillDefault(name string, config map[string]string, parentPool *api.St
 		}
 		if config["block.filesystem"] == "" {
 			// Unchangeable volume property: Set unconditionally.
-			config["block.filesystem"] = "ext4"
+			config["block.filesystem"] = drivers.DefaultFilesystem
 		}
 
 		if config["block.mount_options"] == "" {
