@@ -166,6 +166,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 
 	// Insert the new node into the nodes table.
+	var id int64
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Check that the node can be accepted with these parameters.
 		err := membershipCheckClusterStateForAccept(tx, name, address, schema, api)
@@ -181,7 +182,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		}
 
 		// Add the new node
-		id, err := tx.NodeAddWithArch(name, address, arch)
+		id, err = tx.NodeAddWithArch(name, address, arch)
 		if err != nil {
 			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
@@ -212,7 +213,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 	if count != 2 && len(nodes) < membershipMaxRaftNodes {
 		err = state.Node.Transaction(func(tx *db.NodeTx) error {
-			id, err := tx.RaftNodeAdd(address)
+			_, err := tx.RaftNodeAdd(address)
 			if err != nil {
 				return err
 			}
@@ -504,6 +505,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	}
 
 	// Check if we have a spare node that we can turn into a database one.
+	id := uint64(0)
 	address := ""
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
@@ -524,6 +526,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 			}
 			logger.Debugf(
 				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
+			id = uint64(node.ID)
 			address = node.Address
 			break
 		}
@@ -542,7 +545,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	// Figure out the next ID in the raft_nodes table
 	var updatedRaftNodes []db.RaftNode
 	err = gateway.db.Transaction(func(tx *db.NodeTx) error {
-		id, err := tx.RaftNodeAdd(address)
+		_, err := tx.RaftNodeAdd(address)
 		if err != nil {
 			return errors.Wrap(err, "Failed to add new raft node")
 		}

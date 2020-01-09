@@ -228,7 +228,7 @@ func TestAccept(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, uint64(1), nodes[0].ID)
-	assert.Equal(t, uint64(2), nodes[1].ID)
+	assert.Equal(t, uint64(3), nodes[1].ID)
 	assert.Equal(t, "1.2.3.4:666", nodes[0].Address)
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
 }
