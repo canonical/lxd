@@ -347,8 +347,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		if address == "0" {
-			provider := raftAddressProvider{db: g.db}
-			addr, err := provider.ServerAddr(1)
+			addr, err := g.raftAddress(1)
 			if err != nil {
 				return nil, err
 			}
@@ -715,10 +714,9 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	provider := raftAddressProvider{db: g.db}
 	nodes := make([]db.RaftNode, len(servers))
 	for i, server := range servers {
-		address, err := provider.ServerAddr(int(server.ID))
+		address, err := g.raftAddress(server.ID)
 		if err != nil {
 			if err != db.ErrNoSuchObject {
 				return nil, errors.Wrap(err, "Failed to fetch raft server address")
@@ -750,6 +748,20 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
 	}
 	return addresses, nil
+}
+
+// Look up a server address in the raft_nodes table.
+func (g *Gateway) raftAddress(databaseID uint64) (string, error) {
+	var address string
+	err := g.db.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		address, err = tx.RaftNodeAddress(int64(databaseID))
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return address, nil
 }
 
 func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader bool) (net.Conn, error) {
