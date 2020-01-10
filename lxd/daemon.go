@@ -1063,6 +1063,10 @@ func (d *Daemon) numRunningContainers() (int, error) {
 // retried in case of failure.
 func (d *Daemon) Kill() {
 	if d.gateway != nil {
+		err := handoverMemberRole(d)
+		if err != nil {
+			logger.Warnf("Could not handover member's responsibilities: %v", err)
+		}
 		d.gateway.Kill()
 	}
 }
