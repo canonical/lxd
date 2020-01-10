@@ -474,7 +474,7 @@ func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Opera
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
 		return ErrNotSupported
 	}
