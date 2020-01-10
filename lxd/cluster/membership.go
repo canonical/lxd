@@ -765,6 +765,65 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	return address, nil
 }
 
+// Handover looks for a non-voter member that can be promoted to replace a
+// member that is shutting down. It returns the address of such member along
+// with an updated list of nodes, with the ne role set.
+//
+// It should be called only by the current leader.
+func Handover(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+	nodes, err := gateway.currentRaftNodes()
+	if err != nil {
+		return "", nil, errors.Wrap(err, "Failed to get current raft nodes")
+	}
+
+	for i, node := range nodes {
+		if node.Role == db.RaftVoter {
+			continue
+		}
+		online, err := isMemberOnline(state, gateway.cert, node.Address)
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "Failed to check if %s is online", node.Address)
+		}
+		if online {
+			nodes[i].Role = db.RaftVoter
+			return node.Address, nodes, nil
+		}
+	}
+
+	return "", nil, nil
+}
+
+// Check if the member with the given address is one.
+func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (bool, error) {
+	online := true
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+		node, err := tx.NodeByAddress(address)
+		if err != nil {
+			return err
+		}
+		if node.IsOffline(offlineThreshold) {
+			// Even the heartbeat timestamp is not recent enough,
+			// let's try to connect to the node, just in case the
+			// heartbeat is lagging behind for some reason and the
+			// node is actually up.
+			client, err := Connect(node.Address, cert, true)
+			if err == nil {
+				_, _, err = client.GetServer()
+			}
+			online = err == nil
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return online, nil
+}
+
 // Purge removes a node entirely from the cluster database.
 func Purge(cluster *db.Cluster, name string) error {
 	logger.Debugf("Remove node %s from the database", name)
