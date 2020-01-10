@@ -52,7 +52,7 @@ func DetermineRaftNode(tx *db.NodeTx) (*db.RaftNode, error) {
 
 	// Try to find a matching node.
 	for _, node := range nodes {
-		if node.Role == db.RaftVoter && node.Address == address {
+		if node.Address == address {
 			return &node, nil
 		}
 	}

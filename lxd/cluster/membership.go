@@ -534,10 +534,16 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", currentRaftNodes, nil
 	}
 
+	found := false
 	for i, node := range currentRaftNodes {
 		if node.Address == address {
 			currentRaftNodes[i].Role = db.RaftVoter
+			found = true
+			break
 		}
+	}
+	if !found {
+		return "", nil, fmt.Errorf("member %s is not part of the raft configuration", address)
 	}
 
 	return address, currentRaftNodes, nil
@@ -547,11 +553,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 // raft cluster.
 func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	logger.Info("Promote node to database node")
-
-	// Sanity check that this is not already a database node
-	if gateway.IsDatabaseNode() {
-		return fmt.Errorf("this node is already a database node")
-	}
 
 	// Figure out our own address.
 	address := ""
@@ -587,8 +588,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 
 	// Replace our local list of raft nodes with the given one (which
-	// includes ourselves). This will make the gateway start a raft node
-	// when restarted.
+	// includes ourselves).
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
 		err = tx.RaftNodesReplace(nodes)
 		if err != nil {
@@ -601,12 +601,29 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return err
 	}
 
+	var transactor func(func(tx *db.ClusterTx) error) error
+
+	// If we are already running a dqlite node, it means we have cleanly
+	// joined the cluster before, using the roles support API. In that case
+	// there's no need to restart the gateway and we can just change our
+	// dqlite role.
+	if gateway.IsDqliteNode() {
+		transactor = state.Cluster.Transaction
+		goto assign
+	}
+
+	// If we get here it means that we are an upgraded node from cluster
+	// without roles support, or we didn't cleanly join the cluster. Either
+	// way, we don't have a dqlite node running, so we need to restart the
+	// gateway.
+
 	// Lock regular access to the cluster database since we don't want any
 	// other database code to run while we're reconfiguring raft.
 	err = state.Cluster.EnterExclusive()
 	if err != nil {
 		return errors.Wrap(err, "failed to acquire cluster database lock")
 	}
+	transactor = state.Cluster.ExitExclusive
 
 	// Wipe all existing raft data, for good measure (perhaps they were
 	// somehow leftover).
@@ -623,6 +640,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
 	}
 
+assign:
 	logger.Info(
 		"Changing dqlite raft role",
 		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
@@ -638,11 +656,11 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	err = client.Assign(ctx, info.ID, info.Role)
 	if err != nil {
-		return errors.Wrap(err, "Failed to join cluster")
+		return errors.Wrap(err, "Failed to assign role")
 	}
 
 	// Unlock regular access to our cluster database and add the database role.
-	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
+	err = transactor(func(tx *db.ClusterTx) error {
 		err = tx.NodeAddRole(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to add database role for the node")
