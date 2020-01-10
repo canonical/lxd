@@ -231,7 +231,8 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 			return
 		}
 
-		// From here on we require that this node is part of the raft cluster.
+		// From here on we require that this node is part of the raft
+		// cluster.
 		if g.server == nil || g.memoryDial != nil {
 			http.NotFound(w, r)
 			return
@@ -241,6 +242,11 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
+			// We can safely know about current leader only if we are a voter.
+			if g.info.Role != db.RaftVoter {
+				http.NotFound(w, r)
+				return
+			}
 			client, err := g.getClient()
 			if err != nil {
 				http.Error(w, "500 failed to get dqlite client", http.StatusInternalServerError)
@@ -320,12 +326,23 @@ func (g *Gateway) WaitUpgradeNotification() {
 	<-g.upgradeCh
 }
 
-// IsDatabaseNode returns true if this gateway also run acts a raft database node.
-func (g *Gateway) IsDatabaseNode() bool {
+// IsDqliteNode returns true if this gateway is running a dqlite node.
+func (g *Gateway) IsDqliteNode() bool {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	return g.info != nil
+	if g.info != nil {
+		if g.server == nil {
+			panic("gateway has node identity but no dqlite server")
+		}
+		return true
+	}
+
+	if g.server != nil {
+		panic("gateway dqlite server but no node identity")
+	}
+
+	return true
 }
 
 // DialFunc returns a dial function that can be used to connect to one of the
@@ -387,7 +404,9 @@ func (g *Gateway) Shutdown() error {
 	logger.Debugf("Stop database gateway")
 
 	if g.server != nil {
-		g.Sync()
+		if g.info.Role == db.RaftVoter {
+			g.Sync()
+		}
 		g.server.Close()
 
 		// Unset the memory dial, since Shutdown() is also called for
@@ -408,7 +427,7 @@ func (g *Gateway) Sync() {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.server == nil {
+	if g.server == nil || g.info.Role != db.RaftVoter {
 		return
 	}
 
@@ -477,9 +496,9 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
 	defer cancel()
 
-	// If this is a raft node, return the address of the current leader, or
+	// If this is a voter node, return the address of the current leader, or
 	// wait a bit until one is elected.
-	if g.server != nil {
+	if g.server != nil && g.info.Role == db.RaftVoter {
 		for ctx.Err() == nil {
 			client, err := g.getClient()
 			if err != nil {
@@ -675,7 +694,7 @@ func (g *Gateway) waitLeadership() error {
 }
 
 func (g *Gateway) isLeader() (bool, error) {
-	if g.server == nil {
+	if g.server == nil || g.info.Role != db.RaftVoter {
 		return false, nil
 	}
 	client, err := g.getClient()
@@ -699,7 +718,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.info == nil {
+	if g.info == nil || g.info.Role != db.RaftVoter {
 		return nil, errNotLeader
 	}
 
