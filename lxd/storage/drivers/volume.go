@@ -9,12 +9,17 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-var defaultBlockSize = "10GB"
+// tmpVolSuffix Suffix to use for any temporary volumes created by LXD.
+const tmpVolSuffix = ".lxdtmp"
+
+// defaultBlockSize Default size of block volumes.
+const defaultBlockSize = "10GB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
-var DefaultFilesystem = "ext4"
+const DefaultFilesystem = "ext4"
 
-var volIDQuotaSkip = int64(-1)
+// volIDQuotaSkip is used to indicate to drivers that quotas should not be setup, used during backup import.
+const volIDQuotaSkip = int64(-1)
 
 // VolumeType represents a storage volume type.
 type VolumeType string
