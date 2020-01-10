@@ -68,6 +68,12 @@ var internalClusterPromoteCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalClusterPostPromote},
 }
 
+var internalClusterHandoverCmd = APIEndpoint{
+	Path: "cluster/handover",
+
+	Post: APIEndpointAction{Handler: internalClusterPostHandover},
+}
+
 // Return information about the cluster.
 func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
@@ -1221,6 +1227,78 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 // A request for the /internal/cluster/promote endpoint.
 type internalClusterPostPromoteRequest struct {
 	RaftNodes []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
+}
+
+// Used to to transfer the responsibilities of a member to another one
+func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
+	req := internalClusterPostHandoverRequest{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Sanity checks
+	if req.Address == "" {
+		return response.BadRequest(fmt.Errorf("No id provided"))
+	}
+
+	// Redirect all requests to the leader, which is the one with
+	// authoritative knowledge of the current raft configuration.
+	address, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	if address != leader {
+		logger.Debugf("Redirect handover request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/internal/cluster/handover",
+			Host:   leader,
+		}
+		return response.SyncResponseRedirect(url.String())
+	}
+
+	target, nodes, err := cluster.Handover(d.State(), d.gateway, req.Address)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If there's no other member we can promote, there's nothing we can
+	// do, just return.
+	if target == "" {
+		goto out
+	}
+
+	err = changeMemberRole(d, target, nodes)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Demote the member that is handing over.
+	for i, node := range nodes {
+		if node.Address == req.Address {
+			nodes[i].Role = db.RaftSpare
+		}
+	}
+	err = changeMemberRole(d, req.Address, nodes)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+out:
+	return response.SyncResponse(true, nil)
+}
+
+// A request for the /internal/cluster/handover endpoint.
+type internalClusterPostHandoverRequest struct {
+	// Address of the server whose role should be transferred.
+	Address string `json:"address" yaml:"address"`
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
