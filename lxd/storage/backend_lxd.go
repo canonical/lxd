@@ -625,7 +625,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		aEndErrCh := make(chan error, 1)
 		bEndErrCh := make(chan error, 1)
 		go func() {
-			err := srcPool.MigrateInstance(src, aEnd, migration.VolumeSourceArgs{
+			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				Name:          src.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationType,
@@ -766,7 +766,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		aEndErrCh := make(chan error, 1)
 		bEndErrCh := make(chan error, 1)
 		go func() {
-			err := srcPool.MigrateInstance(src, aEnd, migration.VolumeSourceArgs{
+			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				Name:          src.Name(),
 				Snapshots:     snapshotNames,
 				MigrationType: migrationType,
@@ -1308,7 +1308,7 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
-func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
 	logger.Debug("MigrateInstance started")
 	defer logger.Debug("MigrateInstance finished")
@@ -2187,7 +2187,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	aEndErrCh := make(chan error, 1)
 	bEndErrCh := make(chan error, 1)
 	go func() {
-		err := srcPool.MigrateCustomVolume(aEnd, migration.VolumeSourceArgs{
+		err := srcPool.MigrateCustomVolume(aEnd, &migration.VolumeSourceArgs{
 			Name:          srcVolName,
 			Snapshots:     snapshotNames,
 			MigrationType: migrationType,
@@ -2232,7 +2232,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 }
 
 // MigrateCustomVolume sends a volume for migration.
-func (b *lxdBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *lxdBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"volName": args.Name, "args": args})
 	logger.Debug("MigrateCustomVolume started")
 	defer logger.Debug("MigrateCustomVolume finished")

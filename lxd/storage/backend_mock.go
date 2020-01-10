@@ -96,7 +96,7 @@ func (b *mockBackend) UpdateInstanceBackupFile(inst instance.Instance, op *opera
 	return nil
 }
 
-func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }
 
@@ -188,7 +188,7 @@ func (b *mockBackend) DeleteCustomVolume(volName string, op *operations.Operatio
 	return nil
 }
 
-func (b *mockBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *mockBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }
 
