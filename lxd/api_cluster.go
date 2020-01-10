@@ -1263,7 +1263,7 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 		nodes[i].Address = node.Address
 		nodes[i].Role = db.RaftRole(node.Role)
 	}
-	err = cluster.Promote(d.State(), d.gateway, nodes)
+	err = cluster.Assign(d.State(), d.gateway, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -417,7 +417,7 @@ func FLAKY_TestPromote(t *testing.T) {
 	// Promote the node.
 	targetF.RaftNode(address) // Add the address of the node to be promoted in the leader's db
 	raftNodes := targetF.RaftNodes()
-	err = cluster.Promote(state, gateway, raftNodes)
+	err = cluster.Assign(state, gateway, raftNodes)
 	require.NoError(t, err)
 
 	// The leader now returns an updated list of raft nodes.

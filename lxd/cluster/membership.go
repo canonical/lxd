@@ -549,10 +549,9 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	return address, currentRaftNodes, nil
 }
 
-// Promote makes a LXD node which is not a database node, become part of the
-// raft cluster.
-func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
-	logger.Info("Promote node to database node")
+// Assign a new role to the local dqlite node.
+func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
+	logger.Info("Assign new role to dqlite node")
 
 	// Figure out our own address.
 	address := ""
