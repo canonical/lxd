@@ -480,32 +480,48 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	var postHook func(instance.Instance) error
-	if volPostHook != nil {
-		// Create a post hook function that will use the instance (that will be created) to
-		// setup a new volume containing the instance's root disk device's config so that
-		// the driver's post hook function can access that config to perform any post
-		// instance creation setup.
-		postHook = func(inst instance.Instance) error {
-			// Get the root disk device config.
-			rootDiskConf, err := b.instanceRootVolumeConfig(inst)
-			if err != nil {
-				return err
-			}
 
-			// Get the volume name on storage.
-			volStorageName := project.Prefix(inst.Project(), inst.Name())
+	// Create a post hook function that will use the instance (that will be created) to setup a new volume
+	// containing the instance's root disk device's config so that the driver's post hook function can access
+	// that config to perform any post instance creation setup.
+	postHook = func(inst instance.Instance) error {
+		// Get the root disk device config.
+		rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+		if err != nil {
+			return err
+		}
 
-			volType, err := InstanceTypeToVolumeType(inst.Type())
-			if err != nil {
-				return err
-			}
+		// Get the volume name on storage.
+		volStorageName := project.Prefix(inst.Project(), inst.Name())
 
-			contentType := InstanceContentType(inst)
+		volType, err := InstanceTypeToVolumeType(inst.Type())
+		if err != nil {
+			return err
+		}
 
+		contentType := InstanceContentType(inst)
+
+		// If the driver returned a post hook, run it now.
+		if volPostHook != nil {
 			// Initialise new volume containing root disk config supplied in instance.
 			vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
-			return volPostHook(vol)
+			err = volPostHook(vol)
+			if err != nil {
+				return err
+			}
 		}
+
+		// Apply quota config from root device if its set. Should be done after driver's post hook if set
+		// so that any volume initialisation has been completed first.
+		if rootDiskConf["size"] != "" {
+			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": rootDiskConf["size"]})
+			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], op)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	revert.Success()
