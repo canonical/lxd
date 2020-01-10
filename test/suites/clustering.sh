@@ -1406,6 +1406,9 @@ test_clustering_recover() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
+  # Wait a bit for the join notification to reach the first node.
+  sleep 5
+
   # Check the current database nodes
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443"
