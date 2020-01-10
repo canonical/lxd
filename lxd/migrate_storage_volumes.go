@@ -153,7 +153,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 			return err
 		}
 
-		volSourceArgs := migration.VolumeSourceArgs{
+		volSourceArgs := &migration.VolumeSourceArgs{
 			Name:          volName,
 			MigrationType: migrationType,
 			Snapshots:     snapshotNames,
