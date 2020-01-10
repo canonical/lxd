@@ -224,7 +224,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 
 // Join makes a non-clustered LXD node join an existing cluster.
 //
-// It's assumed that Accept() was previously called against the target node,
+// It's assumed that Accept() was previously called against the leader node,
 // which handed the raft server ID.
 //
 // The cert parameter must contain the keypair/CA material of the cluster being
@@ -321,23 +321,17 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 	// If we are listed among the database nodes, join the raft cluster.
 	var info *db.RaftNode
-	var target *db.RaftNode
 	for _, node := range raftNodes {
 		if node.Address == address {
 			info = &node
-		} else {
-			target = &node
 		}
 	}
 	if info == nil {
 		panic("joining node not found")
 	}
-	if target == nil {
-		panic("no other node found")
-	}
 	logger.Info(
 		"Joining dqlite raft cluster",
-		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role, "target": target.Address})
+		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	client, err := client.FindLeader(
@@ -578,15 +572,11 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return fmt.Errorf("node is not exposed on the network")
 	}
 
-	// Figure out our node identity, and an existing target raft node that
-	// we'll contact to add ourselves as member.
+	// Figure out our node identity.
 	var info *db.RaftNode
-	target := ""
 	for i, node := range nodes {
 		if node.Address == address {
 			info = &nodes[i]
-		} else {
-			target = nodes[i].Address
 		}
 	}
 
@@ -635,7 +625,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	logger.Info(
 		"Changing dqlite raft role",
-		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role, "target": target})
+		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -734,10 +724,9 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 
 	id := uint64(raftNodes[raftNodeRemoveIndex].ID)
 	// Get the address of another database node,
-	target := raftNodes[(raftNodeRemoveIndex+1)%len(raftNodes)].Address
 	logger.Info(
 		"Remove node from dqlite raft cluster",
-		log15.Ctx{"id": id, "address": address, "target": target})
+		log15.Ctx{"id": id, "address": address})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
