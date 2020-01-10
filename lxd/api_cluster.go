@@ -1195,6 +1195,53 @@ func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
 	return nil
 }
 
+// Try to handover the role of this member to another one.
+func handoverMemberRole(d *Daemon) error {
+	// If we aren't clustered, there's nothing to do.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
+	if !clustered {
+		return nil
+	}
+
+	// Figure out our own cluster address.
+	address, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return err
+	}
+
+	post := &internalClusterPostHandoverRequest{
+		Address: address,
+	}
+
+	// Find the cluster leader.
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return err
+	}
+	if leader == "" {
+		// Give up.
+		//
+		// TODO: retry a few times?
+		return nil
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(leader, cert, true)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = client.RawQuery("POST", "/internal/cluster/handover", post, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Used to promote the local non-database node to be a database one.
 func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 	req := internalClusterPostPromoteRequest{}
