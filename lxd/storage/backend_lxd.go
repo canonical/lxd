@@ -1358,6 +1358,12 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, o
 	// Get the volume name on storage.
 	volStorageName := project.Prefix(inst.Project(), inst.Name())
 
+	// Ensure the backup file reflects current config.
+	err = b.UpdateInstanceBackupFile(inst, op)
+	if err != nil {
+		return err
+	}
+
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 	err = b.driver.BackupVolume(vol, targetPath, optimized, snapshots, op)
 	if err != nil {
@@ -1563,6 +1569,9 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	logger.Debug("RenameInstanceSnapshot started")
 	defer logger.Debug("RenameInstanceSnapshot finished")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	if !inst.IsSnapshot() {
 		return fmt.Errorf("Instance must be a snapshot")
 	}
@@ -1590,28 +1599,39 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	contentType := InstanceContentType(inst)
 	volStorageName := project.Prefix(inst.Project(), inst.Name())
 
-	// Rename storage volume snapshot.
-	// There's no need to pass config as it's not needed when renaming a volume
-	// snapshot.
-	vol := b.newVolume(volType, contentType, volStorageName, nil)
-
-	err = b.driver.RenameVolumeSnapshot(vol, newName, op)
+	// Rename storage volume snapshot. No need to pass config as it's not needed when renaming a volume.
+	snapVol := b.newVolume(volType, contentType, volStorageName, nil)
+	err = b.driver.RenameVolumeSnapshot(snapVol, newName, op)
 	if err != nil {
 		return err
 	}
 
 	newVolName := drivers.GetSnapshotVolumeName(parentName, newName)
+
+	revert.Add(func() {
+		// Revert rename. No need to pass config as it's not needed when renaming a volume.
+		newSnapVol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), newVolName), nil)
+		b.driver.RenameVolumeSnapshot(newSnapVol, oldSnapshotName, op)
+	})
+
+	// Rename DB volume record.
 	err = b.state.Cluster.StoragePoolVolumeRename(inst.Project(), inst.Name(), newVolName, volDBType, b.ID())
 	if err != nil {
-		// Revert rename.
-		// There's no need to pass config as it's not needed when renaming a
-		// volume snapshot.
-		vol := b.newVolume(volType, contentType, newName, nil)
-
-		b.driver.RenameVolumeSnapshot(vol, oldSnapshotName, op)
 		return err
 	}
 
+	revert.Add(func() {
+		// Rename DB volume record back.
+		b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newVolName, inst.Name(), volDBType, b.ID())
+	})
+
+	// Ensure the backup file reflects current config.
+	err = b.UpdateInstanceBackupFile(inst, op)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
 	return nil
 }
 
