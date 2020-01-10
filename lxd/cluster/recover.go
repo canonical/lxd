@@ -20,9 +20,12 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to list database nodes")
 	}
-	addresses := make([]string, len(nodes))
-	for i, node := range nodes {
-		addresses[i] = node.Address
+	addresses := make([]string, 0)
+	for _, node := range nodes {
+		if node.Role != db.RaftVoter {
+			continue
+		}
+		addresses = append(addresses, node.Address)
 	}
 	return addresses, nil
 }
