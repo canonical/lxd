@@ -1039,24 +1039,20 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return err
 	}
 
-	type volRevert struct {
-		oldName string
-		newName string
-	}
-
-	// Create slice to record DB volumes renamed if revert needed later.
-	revertDBVolumes := []volRevert{}
-	defer func() {
-		// Remove any DB volume rows created if we are reverting.
-		for _, vol := range revertDBVolumes {
-			b.state.Cluster.StoragePoolVolumeRename(inst.Project(), vol.newName, vol.oldName, volDBType, b.ID())
-		}
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
 	snapshots, err := b.state.Cluster.ContainerGetSnapshots(inst.Project(), inst.Name())
 	if err != nil {
 		return err
+	}
+
+	if len(snapshots) > 0 {
+		revert.Add(func() {
+			b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project(), newName)
+			b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
+		})
 	}
 
 	// Rename each snapshot DB record to have the new parent volume prefix.
@@ -1068,9 +1064,8 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 			return err
 		}
 
-		revertDBVolumes = append(revertDBVolumes, volRevert{
-			newName: newSnapVolName,
-			oldName: srcSnapshot,
+		revert.Add(func() {
+			b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newSnapVolName, srcSnapshot, volDBType, b.ID())
 		})
 	}
 
@@ -1080,9 +1075,8 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return err
 	}
 
-	revertDBVolumes = append(revertDBVolumes, volRevert{
-		newName: newName,
-		oldName: inst.Name(),
+	revert.Add(func() {
+		b.state.Cluster.StoragePoolVolumeRename(inst.Project(), newName, inst.Name(), volDBType, b.ID())
 	})
 
 	// Rename the volume and its snapshots on the storage device.
@@ -1098,16 +1092,30 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		return err
 	}
 
+	revert.Add(func() {
+		// There's no need to pass config as it's not needed when renaming a volume.
+		newVol := b.newVolume(volType, contentType, newVolStorageName, nil)
+		b.driver.RenameVolume(newVol, volStorageName, op)
+	})
+
 	// Remove old instance symlink and create new one.
 	err = b.removeInstanceSymlink(inst.Type(), inst.Project(), inst.Name())
 	if err != nil {
 		return err
 	}
 
+	revert.Add(func() {
+		b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), drivers.GetVolumeMountPath(b.name, volType, volStorageName))
+	})
+
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), newName, drivers.GetVolumeMountPath(b.name, volType, newVolStorageName))
 	if err != nil {
 		return err
 	}
+
+	revert.Add(func() {
+		b.removeInstanceSymlink(inst.Type(), inst.Project(), newName)
+	})
 
 	// Remove old instance snapshot symlink and create a new one if needed.
 	err = b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project(), inst.Name())
@@ -1122,7 +1130,7 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 		}
 	}
 
-	revertDBVolumes = nil
+	revert.Success()
 	return nil
 }
 
