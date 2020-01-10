@@ -498,6 +498,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return err
 	}
 
+	volSourceArgs := migration.VolumeSourceArgs{}
 	if pool != nil {
 		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
 		migrationType, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
@@ -513,13 +514,11 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			sendSnapshotNames = respHeader.GetSnapshotNames()
 		}
 
-		volSourceArgs := migration.VolumeSourceArgs{
-			Name:          s.instance.Name(),
-			MigrationType: migrationType,
-			Snapshots:     sendSnapshotNames,
-			TrackProgress: true,
-			FinalSync:     false,
-		}
+		volSourceArgs.Name = s.instance.Name()
+		volSourceArgs.MigrationType = migrationType
+		volSourceArgs.Snapshots = sendSnapshotNames
+		volSourceArgs.TrackProgress = true
+		volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
 
 		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 		if err != nil {
@@ -752,12 +751,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// to minimize downtime.
 	if s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE) {
 		if pool != nil {
-			volSourceArgs := migration.VolumeSourceArgs{
-				Name:          s.instance.Name(),
-				MigrationType: migrationType,
-				TrackProgress: true,
-				FinalSync:     true,
-			}
+			volSourceArgs.FinalSync = true
 
 			err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 			if err != nil {
