@@ -659,6 +659,8 @@ assign:
 		return errors.Wrap(err, "Failed to assign role")
 	}
 
+	gateway.info = info
+
 	// Unlock regular access to our cluster database and add the database role.
 	err = transactor(func(tx *db.ClusterTx) error {
 		err = tx.NodeAddRole(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
