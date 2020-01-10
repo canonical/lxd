@@ -407,6 +407,18 @@ func (g *Gateway) Shutdown() error {
 		if g.info.Role == db.RaftVoter {
 			g.Sync()
 		}
+
+		// If we are the cluster leader, let's try to transfer leadership.
+		isLeader, err := g.isLeader()
+		if err == nil && isLeader {
+			client, err := g.getClient()
+			if err == nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				client.Transfer(ctx, 0)
+			}
+		}
+
 		g.server.Close()
 
 		// Unset the memory dial, since Shutdown() is also called for
@@ -493,7 +505,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return "", fmt.Errorf("Node is not clustered")
 	}
 
-	ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// If this is a voter node, return the address of the current leader, or
