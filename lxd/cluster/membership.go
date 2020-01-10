@@ -765,29 +765,48 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	return address, nil
 }
 
-// Handover looks for a non-voter member that can be promoted to replace a
-// member that is shutting down. It returns the address of such member along
-// with an updated list of nodes, with the ne role set.
+// Handover looks for a non-voter member that can be promoted to replace a the
+// member with the given address, which is shutting down. It returns the
+// address of such member along with an updated list of nodes, with the ne role
+// set.
 //
 // It should be called only by the current leader.
-func Handover(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+func Handover(state *state.State, gateway *Gateway, address string) (string, []db.RaftNode, error) {
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
 		return "", nil, errors.Wrap(err, "Failed to get current raft nodes")
 	}
 
+	// If the member which is shutting down is not a voter, there's nothing
+	// to do.
+	found := false
+	for _, node := range nodes {
+		if node.Address != address {
+			continue
+		}
+		if node.Role != db.RaftVoter {
+			return "", nil, nil
+		}
+		found = true
+		break
+	}
+	if !found {
+		return "", nil, errors.Wrapf(err, "No dqlite node has address %s", address)
+	}
+
 	for i, node := range nodes {
-		if node.Role == db.RaftVoter {
+		if node.Role == db.RaftVoter || node.Address == address {
 			continue
 		}
 		online, err := isMemberOnline(state, gateway.cert, node.Address)
 		if err != nil {
 			return "", nil, errors.Wrapf(err, "Failed to check if %s is online", node.Address)
 		}
-		if online {
-			nodes[i].Role = db.RaftVoter
-			return node.Address, nodes, nil
+		if !online {
+			continue
 		}
+		nodes[i].Role = db.RaftVoter
+		return node.Address, nodes, nil
 	}
 
 	return "", nil, nil

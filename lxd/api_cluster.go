@@ -1155,6 +1155,17 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	}
 
 	// Tell the node to promote itself.
+	err = changeMemberRole(d, address, nodes)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, nil)
+}
+
+// Post a change role request to the member with the given address. The nodes
+// slice contains details about all members, including the one being changed.
+func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
 	post := &internalClusterPostPromoteRequest{}
 	for _, node := range nodes {
 		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
@@ -1167,15 +1178,15 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.Connect(address, cert, true)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	return response.SyncResponse(true, nil)
+	return nil
 }
 
 // Used to promote the local non-database node to be a database one.
