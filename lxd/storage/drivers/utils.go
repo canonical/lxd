@@ -470,6 +470,18 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 	}, nil)
 }
 
+// renegerateFilesystemUUIDNeeded returns true if fsType requires UUID regeneration, false if not.
+func renegerateFilesystemUUIDNeeded(fsType string) bool {
+	switch fsType {
+	case "btrfs":
+		return true
+	case "xfs":
+		return true
+	}
+
+	return false
+}
+
 // regenerateFilesystemUUID changes the filesystem UUID to a new randomly generated one if the fsType requires it.
 // Otherwise this function does nothing.
 func regenerateFilesystemUUID(fsType, devPath string) error {
@@ -480,7 +492,7 @@ func regenerateFilesystemUUID(fsType, devPath string) error {
 		return regenerateFilesystemXFSUUID(devPath)
 	}
 
-	return nil
+	return fmt.Errorf("Filesystem not supported")
 }
 
 // regenerateFilesystemBTRFSUUID changes the BTRFS filesystem UUID to a new randomly generated one.
