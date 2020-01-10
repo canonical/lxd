@@ -662,9 +662,15 @@ assign:
 
 	// Unlock regular access to our cluster database and add the database role.
 	err = transactor(func(tx *db.ClusterTx) error {
-		err = tx.NodeAddRole(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
+		var f func(id int64, role db.ClusterRole) error
+		if info.Role == db.RaftVoter {
+			f = tx.NodeAddRole
+		} else {
+			f = tx.NodeRemoveRole
+		}
+		err = f(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to add database role for the node")
+			return errors.Wrapf(err, "Failed to change role for the node")
 		}
 		return err
 	})
