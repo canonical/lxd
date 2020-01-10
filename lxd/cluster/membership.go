@@ -208,14 +208,20 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 	count := len(nodes) // Existing nodes
 	voters := 0
+	standbys := 0
 	for _, node := range nodes {
-		if node.Role == db.RaftVoter {
+		switch node.Role {
+		case db.RaftVoter:
 			voters++
+		case db.RaftStandBy:
+			standbys++
 		}
 	}
 	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
-	if count > 1 && voters < membershipMaxRaftNodes {
+	if count > 1 && voters < membershipMaxRaftVoters {
 		node.Role = db.RaftVoter
+	} else if standbys < membershipMaxRaftStandBys {
+		node.Role = db.RaftStandBy
 	}
 	nodes = append(nodes, node)
 
@@ -474,7 +480,8 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo
 }
 
 // Rebalance the raft cluster, trying to see if we have a spare online node
-// that we can promote to database node if we are below membershipMaxRaftNodes.
+// that we can promote to voter node if we are below membershipMaxRaftVoters,
+// or to standby if we are below membershipMaxRaftStandBys.
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
@@ -486,47 +493,66 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
 	}
 	voters := make([]string, 0)
+	standbys := make([]string, 0)
+	candidates := make([]string, 0)
 	for _, node := range currentRaftNodes {
-		if node.Role != db.RaftVoter {
-			continue
+		switch node.Role {
+		case db.RaftVoter:
+			voters = append(voters, node.Address)
+		case db.RaftStandBy:
+			standbys = append(standbys, node.Address)
+		case db.RaftSpare:
+			candidates = append(candidates, node.Address)
 		}
-		voters = append(voters, node.Address)
 	}
 
-	if len(voters) >= membershipMaxRaftNodes || len(voters) == 1 {
+	var role db.RaftRole
+
+	if len(voters) < membershipMaxRaftVoters && len(voters) > 1 {
+		role = db.RaftVoter
+		// Include stand-by nodes among the ones that can be promoted,
+		// preferring them over spare ones.
+		candidates = append(standbys, candidates...)
+	} else if len(standbys) < membershipMaxRaftStandBys {
+		role = db.RaftStandBy
+	} else {
 		// We're already at full capacity or would have a two-member cluster.
 		return "", nil, nil
 	}
 
 	// Check if we have a spare node that we can turn into a database one.
-	address := ""
+	nodesByAddress := map[string]db.NodeInfo{}
+	var offlineThreshold time.Duration
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed load cluster configuration")
 		}
+		offlineThreshold = config.OfflineThreshold()
 		nodes, err := tx.Nodes()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster nodes")
 		}
-		// Find a node that is not part of the raft cluster yet.
 		for _, node := range nodes {
-			if shared.StringInSlice(node.Address, voters) {
-				continue // This is already a database node
-			}
-			if node.IsOffline(config.OfflineThreshold()) {
-				continue // This node is offline
-			}
-			logger.Debugf(
-				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
-			address = node.Address
-			break
+			nodesByAddress[node.Address] = node
 		}
-
 		return nil
 	})
 	if err != nil {
 		return "", nil, err
+	}
+
+	// Find a node that has not this role yet.
+	address := ""
+	for _, candidate := range candidates {
+		node := nodesByAddress[candidate]
+		if node.IsOffline(offlineThreshold) {
+			continue // This node is offline
+		}
+		logger.Debugf(
+			"Found spare node %s (%s) to be promoted to %s", node.Name, node.Address, role)
+		address = node.Address
+		break
 	}
 
 	if address == "" {
@@ -534,16 +560,11 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", currentRaftNodes, nil
 	}
 
-	found := false
 	for i, node := range currentRaftNodes {
 		if node.Address == address {
-			currentRaftNodes[i].Role = db.RaftVoter
-			found = true
+			currentRaftNodes[i].Role = role
 			break
 		}
-	}
-	if !found {
-		return "", nil, fmt.Errorf("member %s is not part of the raft configuration", address)
 	}
 
 	return address, currentRaftNodes, nil
@@ -1085,7 +1106,8 @@ func membershipCheckNoLeftoverClusterCert(dir string) error {
 // SchemaVersion holds the version of the cluster database schema.
 var SchemaVersion = cluster.SchemaVersion
 
-// We currently aim at having 3 nodes part of the raft dqlite cluster.
+// We currently aim at having 3 voter nodes and 2 stand-by.
 //
-// TODO: this number should probably be configurable.
-const membershipMaxRaftNodes = 3
+// TODO: these numbers should probably be configurable.
+const membershipMaxRaftVoters = 3
+const membershipMaxRaftStandBys = 2
