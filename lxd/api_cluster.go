@@ -62,10 +62,10 @@ var internalClusterRebalanceCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalClusterPostRebalance},
 }
 
-var internalClusterPromoteCmd = APIEndpoint{
-	Path: "cluster/promote",
+var internalClusterAssignCmd = APIEndpoint{
+	Path: "cluster/assign",
 
-	Post: APIEndpointAction{Handler: internalClusterPostPromote},
+	Post: APIEndpointAction{Handler: internalClusterPostAssign},
 }
 
 var internalClusterHandoverCmd = APIEndpoint{
@@ -1172,7 +1172,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 // Post a change role request to the member with the given address. The nodes
 // slice contains details about all members, including the one being changed.
 func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
-	post := &internalClusterPostPromoteRequest{}
+	post := &internalClusterPostAssignRequest{}
 	for _, node := range nodes {
 		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
 			ID:      node.ID,
@@ -1187,7 +1187,7 @@ func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
 		return err
 	}
 
-	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
+	_, _, err = client.RawQuery("POST", "/internal/cluster/assign", post, "")
 	if err != nil {
 		return err
 	}
@@ -1242,9 +1242,9 @@ func handoverMemberRole(d *Daemon) error {
 	return nil
 }
 
-// Used to promote the local non-database node to be a database one.
-func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
-	req := internalClusterPostPromoteRequest{}
+// Used to assign a new role to a the local dqlite node.
+func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
+	req := internalClusterPostAssignRequest{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -1271,8 +1271,8 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, nil)
 }
 
-// A request for the /internal/cluster/promote endpoint.
-type internalClusterPostPromoteRequest struct {
+// A request for the /internal/cluster/assign endpoint.
+type internalClusterPostAssignRequest struct {
 	RaftNodes []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
 }
 
