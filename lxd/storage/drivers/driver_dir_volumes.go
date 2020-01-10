@@ -118,11 +118,11 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return fmt.Errorf("Migration type not supported")
+		return ErrNotSupported
 	}
 
 	return genericCreateVolumeFromMigration(d, d.setupInitialQuota, vol, conn, volTargetArgs, preFiller, op)
@@ -193,7 +193,7 @@ func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 // UpdateVolume applies config changes to the volume.
 func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	if _, changed := changedConfig["size"]; changed {
@@ -268,11 +268,11 @@ func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 // MigrateVolume sends a volume for migration.
 func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+		return ErrNotSupported
 	}
 
 	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return fmt.Errorf("Migration type not supported")
+		return ErrNotSupported
 	}
 
 	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
