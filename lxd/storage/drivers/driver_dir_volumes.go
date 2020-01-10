@@ -266,7 +266,7 @@ func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 }
 
 // MigrateVolume sends a volume for migration.
-func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	if vol.contentType != ContentTypeFS {
 		return ErrNotSupported
 	}

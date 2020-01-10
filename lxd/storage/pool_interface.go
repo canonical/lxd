@@ -36,7 +36,7 @@ type Pool interface {
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error
 
-	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
+	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error
 	BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
 
@@ -81,5 +81,5 @@ type Pool interface {
 	// Custom volume migration.
 	MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type
 	CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	MigrateCustomVolume(conn io.ReadWriteCloser, args migration.VolumeSourceArgs, op *operations.Operation) error
+	MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 }

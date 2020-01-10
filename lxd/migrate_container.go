@@ -498,7 +498,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return err
 	}
 
-	volSourceArgs := migration.VolumeSourceArgs{}
+	volSourceArgs := &migration.VolumeSourceArgs{}
 	if pool != nil {
 		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
 		migrationType, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)

@@ -230,7 +230,7 @@ func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string,
 }
 
 // vfsMigrateVolume is a generic MigrateVolume implementation for VFS-only drivers.
-func (d *common) vfsMigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs migration.VolumeSourceArgs, op *operations.Operation) error {
+func (d *common) vfsMigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	bwlimit := d.config["rsync.bwlimit"]
 
 	for _, snapName := range volSrcArgs.Snapshots {
