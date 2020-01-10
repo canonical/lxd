@@ -23,7 +23,9 @@ type VolumeSourceArgs struct {
 	Snapshots     []string
 	MigrationType Type
 	TrackProgress bool
+	MultiSync     bool
 	FinalSync     bool
+	Data          interface{}
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
