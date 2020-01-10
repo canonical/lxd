@@ -74,7 +74,7 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 	path := drivers.GetPoolMountPath(b.name)
 	err := os.MkdirAll(path, 0711)
 	if err != nil && !os.IsExist(err) {
-		return err
+		return errors.Wrapf(err, "Failed to create directory '%s'", path)
 	}
 
 	revert.Add(func() { os.RemoveAll(path) })
@@ -209,7 +209,7 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 	path := shared.VarPath("storage-pools", b.name)
 	err := os.Remove(path)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to remove directory '%s'", path)
 	}
 
 	return nil
@@ -246,14 +246,14 @@ func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, proje
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to remove symlink '%s'", symlinkPath)
 		}
 	}
 
 	// Create new symlink.
 	err := os.Symlink(mountPath, symlinkPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create symlink from '%s' to '%s'", mountPath, symlinkPath)
 	}
 
 	return nil
@@ -266,7 +266,7 @@ func (b *lxdBackend) removeInstanceSymlink(instanceType instancetype.Type, proje
 	if shared.PathExists(symlinkPath) {
 		err := os.Remove(symlinkPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to remove symlink '%s'", symlinkPath)
 		}
 	}
 
@@ -292,14 +292,14 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 	if shared.PathExists(snapshotSymlink) {
 		err = os.Remove(snapshotSymlink)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to remove symlink '%s'", snapshotSymlink)
 		}
 	}
 
 	// Create new symlink.
 	err = os.Symlink(snapshotTargetPath, snapshotSymlink)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create symlink from '%s' to '%s'", snapshotTargetPath, snapshotSymlink)
 	}
 
 	return nil
@@ -326,7 +326,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to remove symlink '%s'", snapshotSymlink)
 			}
 		}
 	}
@@ -2725,9 +2725,10 @@ func (b *lxdBackend) RestoreCustomVolume(volName string, snapshotName string, op
 func (b *lxdBackend) createStorageStructure(path string) error {
 	for _, volType := range b.driver.Info().VolumeTypes {
 		for _, name := range drivers.BaseDirectories[volType] {
-			err := os.MkdirAll(filepath.Join(path, name), 0711)
+			path := filepath.Join(path, name)
+			err := os.MkdirAll(path, 0711)
 			if err != nil && !os.IsExist(err) {
-				return err
+				return errors.Wrapf(err, "Failed to create directory '%s'", path)
 			}
 		}
 	}
@@ -2809,9 +2810,10 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 	// Update pool information in the backup.yaml file.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// Write the YAML
-		f, err := os.Create(filepath.Join(inst.Path(), "backup.yaml"))
+		path := filepath.Join(inst.Path(), "backup.yaml")
+		f, err := os.Create(path)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to create file '%s'", path)
 		}
 		defer f.Close()
 
