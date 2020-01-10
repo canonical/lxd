@@ -723,7 +723,7 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 // RestoreVolume restores a volume from a snapshot.
 func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
 	// Create a backup so we can revert.
-	backupSubvolume := fmt.Sprintf("%s.tmp", vol.MountPath())
+	backupSubvolume := fmt.Sprintf("%s%s", vol.MountPath(), tmpVolSuffix)
 	err := os.Rename(vol.MountPath(), backupSubvolume)
 	if err != nil {
 		return err
