@@ -835,8 +835,7 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	return "", fmt.Errorf("Could not locate a zvol for %s", d.dataset(vol, false))
 }
 
-// MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
-// false indicating that there is no need to issue an unmount.
+// MountVolume simulates mounting a volume.
 func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	// For VMs, also mount the filesystem dataset.
 	if d.checkVMBlock(vol) {
@@ -874,8 +873,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-// UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
-// returns false indicating the volume was already unmounted.
+// UnmountVolume simulates unmounting a volume.
 func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	// For VMs, also mount the filesystem dataset.
 	if d.checkVMBlock(vol) {
@@ -1228,8 +1226,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	return nil
 }
 
-// MountVolumeSnapshot simulates mounting a volume snapshot. As dir driver doesn't have volumes to
-// mount it returns false indicating that there is no need to issue an unmount.
+// MountVolumeSnapshot simulates mounting a volume snapshot.
 func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, error) {
 	// Ignore block devices for now.
 	if vol.contentType == ContentTypeBlock {
@@ -1250,8 +1247,7 @@ func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, e
 	return true, nil
 }
 
-// UnmountVolume simulates unmounting a volume snapshot. As dir driver doesn't have volumes to
-// unmount it returns false indicating the volume was already unmounted.
+// UnmountVolume simulates unmounting a volume snapshot.
 func (d *zfs) UnmountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, error) {
 	// Ignore block devices for now.
 	if vol.contentType == ContentTypeBlock {

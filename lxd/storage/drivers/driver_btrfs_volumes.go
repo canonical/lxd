@@ -456,14 +456,12 @@ func (d *btrfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	return d.vfsGetVolumeDiskPath(vol)
 }
 
-// MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
-// false indicating that there is no need to issue an unmount.
+// MountVolume simulates mounting a volume.
 func (d *btrfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-// UnmountVolume simulates unmounting a volume. As dir driver doesn't have volumes to unmount it
-// returns false indicating the volume was already unmounted.
+// UnmountVolume simulates unmounting a volume.
 func (d *btrfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	return false, nil
 }
