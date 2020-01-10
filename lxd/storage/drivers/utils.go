@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/operations"
@@ -41,18 +42,18 @@ func forceUnmount(path string) (bool, error) {
 	unmounted := false
 
 	for {
-		// Check if already unmounted
+		// Check if already unmounted.
 		if !shared.IsMountPoint(path) {
 			return unmounted, nil
 		}
 
-		// Try a clean unmount first
+		// Try a clean unmount first.
 		err := TryUnmount(path, 0)
 		if err != nil {
-			// Fallback to lazy unmounting
+			// Fallback to lazy unmounting.
 			err = unix.Unmount(path, unix.MNT_DETACH)
 			if err != nil {
-				return false, err
+				return false, errors.Wrapf(err, "Failed to unmount '%s'", path)
 			}
 		}
 
@@ -139,7 +140,7 @@ func TryMount(src string, dst string, fs string, flags uintptr, options string) 
 	}
 
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to mount '%s' on '%s'", src, dst)
 	}
 
 	return nil
@@ -159,7 +160,7 @@ func TryUnmount(path string, flags int) error {
 	}
 
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to unmount '%s'", path)
 	}
 
 	return nil
@@ -469,6 +470,18 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 	}, nil)
 }
 
+// renegerateFilesystemUUIDNeeded returns true if fsType requires UUID regeneration, false if not.
+func renegerateFilesystemUUIDNeeded(fsType string) bool {
+	switch fsType {
+	case "btrfs":
+		return true
+	case "xfs":
+		return true
+	}
+
+	return false
+}
+
 // regenerateFilesystemUUID changes the filesystem UUID to a new randomly generated one if the fsType requires it.
 // Otherwise this function does nothing.
 func regenerateFilesystemUUID(fsType, devPath string) error {
@@ -479,7 +492,7 @@ func regenerateFilesystemUUID(fsType, devPath string) error {
 		return regenerateFilesystemXFSUUID(devPath)
 	}
 
-	return nil
+	return fmt.Errorf("Filesystem not supported")
 }
 
 // regenerateFilesystemBTRFSUUID changes the BTRFS filesystem UUID to a new randomly generated one.
