@@ -486,44 +486,11 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
 func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
-	// First get the current raft members, since this method should be
-	// called after a node has left.
-	currentRaftNodes, err := gateway.currentRaftNodes()
-	if err != nil {
-		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
-	}
-	voters := make([]string, 0)
-	standbys := make([]string, 0)
-	candidates := make([]string, 0)
-	for _, node := range currentRaftNodes {
-		switch node.Role {
-		case db.RaftVoter:
-			voters = append(voters, node.Address)
-		case db.RaftStandBy:
-			standbys = append(standbys, node.Address)
-		case db.RaftSpare:
-			candidates = append(candidates, node.Address)
-		}
-	}
-
-	var role db.RaftRole
-
-	if len(voters) < membershipMaxRaftVoters && len(voters) > 1 {
-		role = db.RaftVoter
-		// Include stand-by nodes among the ones that can be promoted,
-		// preferring them over spare ones.
-		candidates = append(standbys, candidates...)
-	} else if len(standbys) < membershipMaxRaftStandBys {
-		role = db.RaftStandBy
-	} else {
-		// We're already at full capacity or would have a two-member cluster.
-		return "", nil, nil
-	}
-
-	// Check if we have a spare node that we can turn into a database one.
+	// Fetch the nodes from the database, to get their last heartbeat
+	// timestamp and check whether they are offline.
 	nodesByAddress := map[string]db.NodeInfo{}
 	var offlineThreshold time.Duration
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed load cluster configuration")
@@ -542,13 +509,73 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nil, err
 	}
 
-	// Find a node that has not this role yet.
+	// First get the current raft members, since this method should be
+	// called after a node has left.
+	currentRaftNodes, err := gateway.currentRaftNodes()
+	if err != nil {
+		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
+	}
+
+	// Group by role. If a node is offline, we'll try to demote it right
+	// away.
+	voters := make([]string, 0)
+	standbys := make([]string, 0)
+	candidates := make([]string, 0)
+	for i, info := range currentRaftNodes {
+		node := nodesByAddress[info.Address]
+		if node.IsOffline(offlineThreshold) && info.Role != db.RaftSpare {
+			// Even the heartbeat timestamp is not recent
+			// enough, let's try to connect to the node,
+			// just in case the heartbeat is lagging behind
+			// for some reason and the node is actually up.
+			client, err := Connect(node.Address, gateway.cert, true)
+			if err == nil {
+				_, _, err = client.GetServer()
+			}
+			if err != nil {
+				client, err := gateway.getClient()
+				if err != nil {
+					return "", nil, errors.Wrap(err, "Failed to connect to local dqlite node")
+				}
+				defer client.Close()
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				err = client.Assign(ctx, info.ID, db.RaftSpare)
+				if err != nil {
+					return "", nil, errors.Wrap(err, "Failed to demote offline node")
+				}
+				currentRaftNodes[i].Role = db.RaftSpare
+				continue
+			}
+		}
+		switch info.Role {
+		case db.RaftVoter:
+			voters = append(voters, info.Address)
+		case db.RaftStandBy:
+			standbys = append(standbys, info.Address)
+		case db.RaftSpare:
+			candidates = append(candidates, info.Address)
+		}
+	}
+
+	var role db.RaftRole
+
+	if len(voters) < membershipMaxRaftVoters && len(voters) > 1 {
+		role = db.RaftVoter
+		// Include stand-by nodes among the ones that can be promoted,
+		// preferring them over spare ones.
+		candidates = append(standbys, candidates...)
+	} else if len(standbys) < membershipMaxRaftStandBys {
+		role = db.RaftStandBy
+	} else {
+		// We're already at full capacity or would have a two-member cluster.
+		return "", nil, nil
+	}
+
+	// Check if we have a spare node that we can promote to the missing role.
 	address := ""
 	for _, candidate := range candidates {
 		node := nodesByAddress[candidate]
-		if node.IsOffline(offlineThreshold) {
-			continue // This node is offline
-		}
 		logger.Debugf(
 			"Found spare node %s (%s) to be promoted to %s", node.Name, node.Address, role)
 		address = node.Address
