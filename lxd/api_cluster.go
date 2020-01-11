@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1156,38 +1155,7 @@ func rebalanceMemberRoles(d *Daemon) error {
 	}
 
 	if address == "" {
-		// If no node could be found to promote, notify all nodes about current set of DB nodes
-		var offlineThreshold time.Duration
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-
-			offlineThreshold, err = tx.NodeOfflineThreshold()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		hbState := &cluster.APIHeartbeat{}
-		hbState.Update(false, nodes, []db.NodeInfo{}, offlineThreshold)
-
-		cert, err := util.LoadCert(d.os.VarDir)
-		if err != nil {
-			return response.InternalError(errors.Wrap(err, "failed to parse cluster certificate"))
-		}
-
-		for _, raftNode := range nodes {
-			if raftNode.Address == localAddress {
-				continue
-			}
-
-			go cluster.HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
-		}
-
+		// Nothing to do.
 		return response.SyncResponse(true, nil)
 	}
 
