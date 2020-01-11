@@ -714,6 +714,8 @@ assign:
 // database. That's done by Purge().
 //
 // Upon success, return the address of the leaving node.
+//
+// This function must be called by the cluster leader.
 func Leave(state *state.State, gateway *Gateway, name string, force bool) (string, error) {
 	logger.Debugf("Make node %s leave the cluster", name)
 
@@ -741,51 +743,37 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 		return "", err
 	}
 
-	// If the node is a database node, leave the raft cluster too.
-	var raftNodes []db.RaftNode // Current raft nodes
-	raftNodeRemoveIndex := -1   // Index of the raft node to remove, if any.
-	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		raftNodes, err = tx.RaftNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to get current database nodes")
-		}
-		for i, node := range raftNodes {
-			if node.Address == address {
-				raftNodeRemoveIndex = i
-				break
-			}
-		}
-		return nil
-	})
+	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
 		return "", err
 	}
+	var info *db.RaftNode // Raft node to remove, if any.
+	for i, node := range nodes {
+		if node.Address == address {
+			info = &nodes[i]
+			break
+		}
+	}
 
-	if raftNodeRemoveIndex == -1 {
+	if info == nil {
 		// The node was not part of the raft cluster, nothing left to
 		// do.
 		return address, nil
 	}
 
-	id := uint64(raftNodes[raftNodeRemoveIndex].ID)
 	// Get the address of another database node,
 	logger.Info(
 		"Remove node from dqlite raft cluster",
-		log15.Ctx{"id": id, "address": address})
+		log15.Ctx{"id": info.ID, "address": info.Address})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, err := client.FindLeader(
-		ctx, gateway.NodeStore(),
-		client.WithDialFunc(gateway.raftDial()),
-		client.WithLogFunc(DqliteLog),
-	)
+	client, err := gateway.getClient()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to connect to cluster leader")
 	}
 	defer client.Close()
-	err = client.Remove(ctx, id)
+	err = client.Remove(ctx, info.ID)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to leave the cluster")
 	}
