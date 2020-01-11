@@ -416,6 +416,7 @@ func (g *Gateway) Shutdown() error {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				client.Transfer(ctx, 0)
+				client.Close()
 			}
 		}
 
@@ -516,6 +517,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to get dqlite client")
 			}
+			defer client.Close()
 			leader, err := client.Leader(context.Background())
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to get leader address")
@@ -713,6 +715,7 @@ func (g *Gateway) isLeader() (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get dqlite client")
 	}
+	defer client.Close()
 	leader, err := client.Leader(context.Background())
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get leader address")
