@@ -90,6 +90,10 @@ type Daemon struct {
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
+
+	// Serialize changes to cluster membership (joins, leaves, role
+	// changes).
+	clusterMembershipMutex sync.Mutex
 }
 
 type externalAuth struct {

@@ -906,6 +906,9 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -981,12 +984,9 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
 	}
-	// Try to notify the leader.
-	err = tryClusterRebalance(d)
-	if err != nil {
-		// This is not a fatal error, so let's just log it.
-		logger.Errorf("Failed to rebalance cluster: %v", err)
-	}
+
+	// Asynchronously notify the leader.
+	go tryClusterRebalance(d)
 
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
@@ -1030,6 +1030,9 @@ func tryClusterRebalance(d *Daemon) error {
 }
 
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
 	req := internalClusterPostAcceptRequest{}
 
 	// Parse the request
@@ -1116,6 +1119,9 @@ type internalRaftNode struct {
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -1136,6 +1142,17 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		return response.SyncResponseRedirect(url.String())
 	}
 
+	err = rebalanceMemberRoles(d)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, nil)
+}
+
+// Check if there's a dqlite node whose role should be changed, and post a
+// change role request if so.
+func rebalanceMemberRoles(d *Daemon) error {
 	logger.Debugf("Rebalance cluster")
 
 	// Check if we have a spare node to promote.
@@ -1298,6 +1315,9 @@ type internalClusterPostAssignRequest struct {
 
 // Used to to transfer the responsibilities of a member to another one
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
 	req := internalClusterPostHandoverRequest{}
 
 	// Parse the request
