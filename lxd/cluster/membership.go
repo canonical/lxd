@@ -544,6 +544,12 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 				if err != nil {
 					return "", nil, errors.Wrap(err, "Failed to demote offline node")
 				}
+				err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+					return tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
+				})
+				if err != nil {
+					return "", nil, errors.Wrap(err, "Failed to update node role")
+				}
 				currentRaftNodes[i].Role = db.RaftSpare
 				continue
 			}

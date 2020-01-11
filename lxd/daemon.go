@@ -1432,12 +1432,15 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 		}
 	}
 
+	someMembersAreOffline := false
+
 	// Only refresh forkdns peers if the full state list has been generated.
 	if heartbeatData.FullStateList && len(heartbeatData.Members) > 0 {
 		for i, node := range heartbeatData.Members {
 			// Exclude nodes that the leader considers offline.
 			// This is to avoid forkdns delaying results by querying an offline node.
 			if !node.Online {
+				someMembersAreOffline = true
 				logger.Warnf("Excluding offline node from refresh: %+v", node)
 				delete(heartbeatData.Members, i)
 			}
@@ -1456,4 +1459,13 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	// Only update the node list if the task succeeded.
 	// If it fails then it will get to run again next heartbeat.
 	d.lastNodeList = heartbeatData
+
+	// If there are offline members that have voter or stand-by database
+	// roles, let's see if we can replace them with spare ones.
+	if someMembersAreOffline {
+		err := rebalanceMemberRoles(d)
+		if err != nil {
+			logger.Warnf("Could not rebalance cluster member roles: %v", err)
+		}
+	}
 }
