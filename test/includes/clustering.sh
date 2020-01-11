@@ -274,5 +274,5 @@ respawn_lxd_cluster_member() {
   ns="${1}"
   LXD_DIR="${2}"
 
-  LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+  LXD_NETNS="${ns}" respawn_lxd "${LXD_DIR}" true
 }

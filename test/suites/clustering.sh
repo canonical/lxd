@@ -1509,7 +1509,28 @@ test_clustering_handover() {
 
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
 
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  # Respawn the first node, which is now a stand-by, and the second node, which
+  # is still a voter.
+  respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+
+  # Shutdown two voters concurrently.
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown &
+  pid1="$!"
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown &
+  pid2="$!"
+
+  wait "$pid1"
+  wait "$pid2"
+
+  # Wait some time to allow for a leadership change.
+  sleep 10
+
+  # The first node has been promoted back to voter, and since the fourth node is
+  # still up, the cluster is online.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
