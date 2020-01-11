@@ -978,8 +978,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
 	}
 
-	// Asynchronously notify the leader.
-	go tryClusterRebalance(d)
+	err = rebalanceMemberRoles(d)
+	if err != nil {
+		return response.SmartError(errors.Wrap(err, "Failed to rebalance dqlite nodes"))
+	}
 
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
@@ -1151,21 +1153,21 @@ func rebalanceMemberRoles(d *Daemon) error {
 	// Check if we have a spare node to promote.
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	if address == "" {
 		// Nothing to do.
-		return response.SyncResponse(true, nil)
+		return nil
 	}
 
 	// Tell the node to promote itself.
 	err = changeMemberRole(d, address, nodes)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	return response.SyncResponse(true, nil)
+	return nil
 }
 
 // Post a change role request to the member with the given address. The nodes
