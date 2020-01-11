@@ -1002,28 +1002,6 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// This function is used to notify the leader that a node was removed, it will
-// decide whether to promote a new node as database node.
-func tryClusterRebalance(d *Daemon) error {
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		// This is not a fatal error, so let's just log it.
-		return errors.Wrap(err, "Failed to get current leader member")
-	}
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(leader, cert, true)
-	if err != nil {
-		return errors.Wrap(err, "Failed to connect to leader member")
-	}
-
-	_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
-	if err != nil {
-		return errors.Wrap(err, "Request to rebalance cluster failed")
-	}
-
-	return nil
-}
-
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
