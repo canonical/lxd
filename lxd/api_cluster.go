@@ -906,6 +906,26 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
+	// Redirect all requests to the leader, which is the one with
+	// knowning what nodes are part of the raft cluster.
+	localAddress, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	if localAddress != leader {
+		logger.Debugf("Redirect member delete request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/internal/cluster/accept",
+			Host:   leader,
+		}
+		return response.SyncResponseRedirect(url.String())
+	}
+
 	force, err := strconv.Atoi(r.FormValue("force"))
 	if err != nil {
 		force = 0
