@@ -77,10 +77,22 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 		}
 
 		// Copy source to destination (mounting each volume if needed).
-		return srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
+		err := srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
 			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
 			return err
 		}, op)
+		if err != nil {
+			return err
+		}
+
+		// Run EnsureMountPath after mounting and copying to ensure the mounted directory has the
+		// correct permissions set.
+		err = vol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}, op)
 	if err != nil {
 		return err
@@ -170,6 +182,13 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 			if err != nil {
 				return err
 			}
+		}
+
+		// Run EnsureMountPath after mounting and syncing to ensure the mounted directory has the
+		// correct permissions set.
+		err = vol.EnsureMountPath()
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -281,6 +300,13 @@ func genericBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.Re
 	// Extract instance.
 	srcData.Seek(0, 0)
 	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Run EnsureMountPath after mounting and unpacking to ensure the mounted directory has the
+	// correct permissions set.
+	err = vol.EnsureMountPath()
 	if err != nil {
 		return nil, nil, err
 	}
