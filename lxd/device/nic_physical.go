@@ -14,7 +14,7 @@ type nicPhysical struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicPhysical) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 

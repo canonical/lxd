@@ -16,7 +16,7 @@ type infinibandSRIOV struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *infinibandSRIOV) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
@@ -127,7 +127,7 @@ func (d *infinibandSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 
 	// Configure runConf with infiniband setup instructions.
-	err = infinibandAddDevices(d.state, d.instance.DevicesPath(), d.name, vfDev, &runConf)
+	err = infinibandAddDevices(d.state, d.inst.DevicesPath(), d.name, vfDev, &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (d *infinibandSRIOV) Stop() (*deviceConfig.RunConfig, error) {
 		NetworkInterface: []deviceConfig.RunConfigItem{{Key: "link", Value: v["host_name"]}},
 	}
 
-	err := unixDeviceRemove(d.instance.DevicesPath(), IBDevPrefix, d.name, "", &runConf)
+	err := unixDeviceRemove(d.inst.DevicesPath(), IBDevPrefix, d.name, "", &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (d *infinibandSRIOV) postStop() error {
 	})
 
 	// Remove infiniband host files for this device.
-	err := unixDeviceDeleteFiles(d.state, d.instance.DevicesPath(), IBDevPrefix, d.name, "")
+	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
 	if err != nil {
 		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
 	}
