@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -525,6 +526,28 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// copyDevice copies one device path to another.
+func copyDevice(inputPath, outputPath string) error {
+	from, err := os.Open(inputPath)
+	if err != nil {
+		return errors.Wrapf(err, "Error opening file for reading: %s", inputPath)
+	}
+	defer from.Close()
+
+	to, err := os.OpenFile(outputPath, os.O_WRONLY, 0)
+	if err != nil {
+		return errors.Wrapf(err, "Error opening file writing: %s", outputPath)
+	}
+	defer to.Close()
+
+	_, err = io.Copy(to, from)
+	if err != nil {
+		return errors.Wrapf(err, "Error copying file '%s' to '%s'", inputPath, outputPath)
 	}
 
 	return nil
