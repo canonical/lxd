@@ -14,7 +14,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
@@ -213,10 +212,6 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 			snapshotName)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	if inst.Type() != instancetype.Container {
-		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
 	switch r.Method {
