@@ -16,8 +16,8 @@ import (
 // genericCopyVolume copies a volume and its snapshots using a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, srcVol Volume, srcSnapshots []Volume, refresh bool, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS || srcVol.contentType != ContentTypeFS {
-		return fmt.Errorf("Content type not supported")
+	if vol.contentType != srcVol.contentType {
+		return fmt.Errorf("Content type of source and target must be the same")
 	}
 
 	bwlimit := d.Config()["rsync.bwlimit"]
@@ -46,7 +46,28 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 				err := srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
 					// Copy the snapshot.
 					_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-					return err
+					if err != nil {
+						return err
+					}
+
+					if srcSnapshot.IsVMBlock() {
+						srcDevPath, err := d.GetVolumeDiskPath(srcSnapshot)
+						if err != nil {
+							return err
+						}
+
+						targetDevPath, err := d.GetVolumeDiskPath(vol)
+						if err != nil {
+							return err
+						}
+
+						err = copyDevice(srcDevPath, targetDevPath)
+						if err != nil {
+							return err
+						}
+					}
+
+					return nil
 				}, op)
 				if err != nil {
 					return err
@@ -79,7 +100,28 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 		// Copy source to destination (mounting each volume if needed).
 		err := srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
 			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-			return err
+			if err != nil {
+				return err
+			}
+
+			if srcVol.IsVMBlock() {
+				srcDevPath, err := d.GetVolumeDiskPath(srcVol)
+				if err != nil {
+					return err
+				}
+
+				targetDevPath, err := d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
+
+				err = copyDevice(srcDevPath, targetDevPath)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
 		}, op)
 		if err != nil {
 			return err

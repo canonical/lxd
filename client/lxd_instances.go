@@ -352,6 +352,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 	req := api.InstancesPost{
 		Name:        instance.Name,
 		InstancePut: instance.Writable(),
+		Type:        api.InstanceType(instance.Type),
 	}
 	req.Source.BaseImage = instance.Config["volatile.base_image"]
 

@@ -925,18 +925,18 @@ func storageVolumeUmount(state *state.State, poolName string, volumeName string,
 // storageRootFSApplyQuota applies a quota to an instance if it can, if it cannot then it will
 // return false indicating that the quota needs to be stored in volatile to be applied on next boot.
 func storageRootFSApplyQuota(state *state.State, inst instance.Instance, size string) error {
-	c, ok := inst.(*containerLXC)
-	if !ok {
-		return fmt.Errorf("Received non-LXC container instance")
-	}
-
-	pool, err := storagePools.GetPoolByInstance(state, c)
+	pool, err := storagePools.GetPoolByInstance(state, inst)
 	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		err = pool.SetInstanceQuota(c, size, nil)
+		err = pool.SetInstanceQuota(inst, size, nil)
 		if err != nil {
 			return err
 		}
 	} else {
+		c, ok := inst.(*containerLXC)
+		if !ok {
+			return fmt.Errorf("Received non-LXC container instance")
+		}
+
 		err := c.initStorage()
 		if err != nil {
 			return errors.Wrap(err, "Initialize storage")
