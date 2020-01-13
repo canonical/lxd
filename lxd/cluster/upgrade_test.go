@@ -3,13 +3,18 @@ package cluster_test
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,4 +113,65 @@ func TestMaybeUpdate_NothingToDo(t *testing.T) {
 
 	_, err = os.Stat(stamp)
 	require.True(t, os.IsNotExist(err))
+}
+
+func TestUpgradeMembersWithoutRole(t *testing.T) {
+	state, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	cert := shared.TestingKeyPair()
+	mux := http.NewServeMux()
+	server := newServer(cert, mux)
+	defer server.Close()
+
+	address := server.Listener.Addr().String()
+	setRaftRole(t, state.Node, address)
+
+	gateway := newGateway(t, state.Node, cert)
+	defer gateway.Shutdown()
+
+	for path, handler := range gateway.HandlerFuncs(nil) {
+		mux.HandleFunc(path, handler)
+	}
+
+	var err error
+	require.NoError(t, state.Cluster.Close())
+	store := gateway.NodeStore()
+	dial := gateway.DialFunc()
+	state.Cluster, err = db.OpenCluster(
+		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
+		driver.WithDialFunc(dial))
+	require.NoError(t, err)
+	gateway.Cluster = state.Cluster
+
+	// Add a couple of members to the database.
+	var members []db.NodeInfo
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		_, err := tx.NodeAdd("foo", "1.2.3.4")
+		require.NoError(t, err)
+		_, err = tx.NodeAdd("bar", "5.6.7.8")
+		require.NoError(t, err)
+		members, err = tx.Nodes()
+		require.NoError(t, err)
+		return nil
+	})
+	require.NoError(t, err)
+
+	nodes, err := gateway.RaftNodes()
+	require.NoError(t, err)
+
+	err = cluster.UpgradeMembersWithoutRole(gateway, members, nodes)
+	require.NoError(t, err)
+
+	// The members have been added to the raft configuration.
+	nodes, err = gateway.RaftNodes()
+	require.NoError(t, err)
+
+	assert.Len(t, nodes, 3)
+	assert.Equal(t, uint64(1), nodes[0].ID)
+	assert.Equal(t, address, nodes[0].Address)
+	assert.Equal(t, uint64(2), nodes[1].ID)
+	assert.Equal(t, "1.2.3.4", nodes[1].Address)
+	assert.Equal(t, uint64(3), nodes[2].ID)
+	assert.Equal(t, "5.6.7.8", nodes[2].Address)
 }
