@@ -11,18 +11,19 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
 // StorageVolumeMount checks if storage volume is mounted and if not tries to mount it.
-var StorageVolumeMount func(s *state.State, poolName string, volumeName string, volumeTypeName string, instance Instance) error
+var StorageVolumeMount func(s *state.State, poolName string, volumeName string, volumeTypeName string, inst instance.Instance) error
 
 // StorageVolumeUmount unmounts a storage volume.
 var StorageVolumeUmount func(s *state.State, poolName string, volumeName string, volumeType int) error
 
 // StorageRootFSApplyQuota applies a new quota.
-var StorageRootFSApplyQuota func(s *state.State, instance Instance, size string) error
+var StorageRootFSApplyQuota func(s *state.State, inst instance.Instance, size string) error
 
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {

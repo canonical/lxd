@@ -5,14 +5,15 @@ import (
 	"sync"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 )
 
 // InstanceLoadNodeAll returns all local instance configs.
-var InstanceLoadNodeAll func(s *state.State) ([]Instance, error)
+var InstanceLoadNodeAll func(s *state.State) ([]instance.Instance, error)
 
 // InstanceLoadByProjectAndName returns instance config by project and name.
-var InstanceLoadByProjectAndName func(s *state.State, project, name string) (Instance, error)
+var InstanceLoadByProjectAndName func(s *state.State, project, name string) (instance.Instance, error)
 
 // reservedDevicesMutex used to coordinate access for checking reserved devices.
 var reservedDevicesMutex sync.Mutex

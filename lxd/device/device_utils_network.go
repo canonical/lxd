@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -135,7 +136,7 @@ func NetworkRemoveInterface(nic string) error {
 }
 
 // NetworkRemoveInterfaceIfNeeded removes a network interface by name but only if no other instance is using it.
-func NetworkRemoveInterfaceIfNeeded(state *state.State, nic string, current Instance, parent string, vlanID string) error {
+func NetworkRemoveInterfaceIfNeeded(state *state.State, nic string, current instance.Instance, parent string, vlanID string) error {
 	// Check if it's used by another instance.
 	instances, err := InstanceLoadNodeAll(state)
 	if err != nil {
