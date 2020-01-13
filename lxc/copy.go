@@ -37,9 +37,9 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]")
 	cmd.Aliases = []string{"cp"}
-	cmd.Short = i18n.G("Copy containers within or in between LXD instances")
+	cmd.Short = i18n.G("Copy containers within or in between LXD servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Copy containers within or in between LXD instances`))
+		`Copy containers within or in between LXD servers`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new container")+"``")

@@ -33,9 +33,9 @@ func (c *cmdMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]]")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Move containers within or in between LXD instances")
+	cmd.Short = i18n.G("Move containers within or in between LXD servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Move containers within or in between LXD instances`))
+		`Move containers within or in between LXD servers`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc move [<remote>:]<source container> [<remote>:][<destination container>] [--container-only]
     Move a container between two hosts, renaming it if destination name differs.
@@ -233,7 +233,7 @@ func moveClusterContainer(conf *config.Config, sourceResource, destResource, tar
 
 	// Check that it's a cluster
 	if !source.IsClustered() {
-		return fmt.Errorf(i18n.G("The source LXD instance is not clustered"))
+		return fmt.Errorf(i18n.G("The source LXD server is not clustered"))
 	}
 
 	// The migrate API will do the right thing when passed a target.
