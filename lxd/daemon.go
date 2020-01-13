@@ -1432,18 +1432,30 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 		}
 	}
 
-	someMembersAreOffline := false
+	isDegraded := false
+	voters := 0
+	standbys := 0
 
 	// Only refresh forkdns peers if the full state list has been generated.
 	if heartbeatData.FullStateList && len(heartbeatData.Members) > 0 {
 		for i, node := range heartbeatData.Members {
+			role := db.RaftRole(node.RaftRole)
 			// Exclude nodes that the leader considers offline.
 			// This is to avoid forkdns delaying results by querying an offline node.
 			if !node.Online {
-				someMembersAreOffline = true
+				if role != db.RaftStandBy {
+					isDegraded = true
+				}
 				logger.Warnf("Excluding offline node from refresh: %+v", node)
 				delete(heartbeatData.Members, i)
 			}
+			switch role {
+			case db.RaftVoter:
+				voters++
+			case db.RaftStandBy:
+				standbys++
+			}
+
 		}
 
 		nodeListChanged := d.hasNodeListChanged(heartbeatData)
@@ -1461,11 +1473,19 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	d.lastNodeList = heartbeatData
 
 	// If there are offline members that have voter or stand-by database
-	// roles, let's see if we can replace them with spare ones.
-	if someMembersAreOffline {
-		err := rebalanceMemberRoles(d)
-		if err != nil {
-			logger.Warnf("Could not rebalance cluster member roles: %v", err)
+	// roles, let's see if we can replace them with spare ones. Also, if we
+	// don't have enough voters or standbys, let's see if we can upgrade
+	// some member.
+	if len(heartbeatData.Members) > 2 {
+		if isDegraded || voters < cluster.MaxVoters || standbys < cluster.MaxStandBys {
+			go func() {
+				d.clusterMembershipMutex.Lock()
+				defer d.clusterMembershipMutex.Unlock()
+				err := rebalanceMemberRoles(d)
+				if err != nil {
+					logger.Warnf("Could not rebalance cluster member roles: %v", err)
+				}
+			}()
 		}
 	}
 }
