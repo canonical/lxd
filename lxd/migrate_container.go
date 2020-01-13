@@ -499,6 +499,12 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	}
 
 	volSourceArgs := &migration.VolumeSourceArgs{}
+
+	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the
+	// source instance is running and that we should do a two stage transfer to minimize downtime.
+	// Indicate this info to the storage driver so that it can alter its behaviour if needed.
+	volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
+
 	if pool != nil {
 		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
 		migrationType, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
@@ -518,8 +524,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		volSourceArgs.MigrationType = migrationType
 		volSourceArgs.Snapshots = sendSnapshotNames
 		volSourceArgs.TrackProgress = true
-		volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
-
 		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 		if err != nil {
 			return abort(err)
@@ -746,11 +750,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 	}
 
-	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates
-	// that the source container is running and that we should do a two stage transfer
-	// to minimize downtime.
-	if s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE) {
+	// Perform final sync if in multi sync mode.
+	if volSourceArgs.MultiSync {
 		if pool != nil {
+			// Indicate to the storage driver we are doing final sync.
 			volSourceArgs.FinalSync = true
 
 			err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
