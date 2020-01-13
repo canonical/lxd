@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"strings"
 
@@ -589,9 +590,19 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 	}
 
 	if showLog {
-		log, err := d.GetInstanceLogfile(name, "lxc.log")
-		if err != nil {
-			return err
+		var log io.Reader
+		if ct.Type == "container" {
+			log, err = d.GetInstanceLogfile(name, "lxc.log")
+			if err != nil {
+				return err
+			}
+		} else if ct.Type == "virtual-machine" {
+			log, err = d.GetInstanceLogfile(name, "qemu.log")
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf(i18n.G("Unsupported instance type: %s"), ct.Type)
 		}
 
 		stuff, err := ioutil.ReadAll(log)
