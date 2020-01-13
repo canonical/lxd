@@ -212,6 +212,7 @@ var commands = map[string]command{
 	"init":    &initCmd{},
 	"launch":  &launchCmd{},
 	"list":    &listCmd{},
+	"manpage": &manpageCmd{},
 	"monitor": &monitorCmd{},
 	"move":    &moveCmd{},
 	"pause": &actionCmd{
