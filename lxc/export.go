@@ -28,13 +28,13 @@ type cmdExport struct {
 
 func (c *cmdExport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("export [<remote>:]<container> [target] [--container-only] [--optimized-storage]")
-	cmd.Short = i18n.G("Export container backups")
+	cmd.Use = i18n.G("export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]")
+	cmd.Short = i18n.G("Export instance backups")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Export containers as backup tarballs.`))
+		`Export instances as backup tarballs.`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc export u1 backup0.tar.gz
-    Download a backup tarball of the u1 container.`))
+    Download a backup tarball of the u1 instance.`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false,
@@ -81,7 +81,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	op, err := d.CreateInstanceBackup(name, req)
 	if err != nil {
-		return errors.Wrap(err, "Create container backup")
+		return errors.Wrap(err, "Create instance backup")
 	}
 
 	// Wait until backup is done
@@ -130,7 +130,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		os.Remove(targetName)
 		progress.Done("")
-		return errors.Wrap(err, "Fetch container backup file")
+		return errors.Wrap(err, "Fetch instance backup file")
 	}
 
 	progress.Done(i18n.G("Backup exported successfully!"))

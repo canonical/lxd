@@ -27,9 +27,9 @@ type cmdConfig struct {
 func (c *cmdConfig) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("config")
-	cmd.Short = i18n.G("Manage container and server configuration options")
+	cmd.Short = i18n.G("Manage instance and server configuration options")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage container and server configuration options`))
+		`Manage instance and server configuration options`))
 
 	// Device
 	configDeviceCmd := cmdConfigDevice{global: c.global, config: c}
@@ -85,13 +85,13 @@ type cmdConfigEdit struct {
 
 func (c *cmdConfigEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:][<container>[/<snapshot>]]")
-	cmd.Short = i18n.G("Edit container or server configurations as YAML")
+	cmd.Use = i18n.G("edit [<remote>:][<instance>[/<snapshot>]]")
+	cmd.Short = i18n.G("Edit instance or server configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit container or server configurations as YAML`))
+		`Edit instance or server configurations as YAML`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config edit <container> < container.yaml
-    Update the container configuration from config.yaml.`))
+		`lxc config edit <instance> < instance.yaml
+    Update the instance configuration from config.yaml.`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -105,7 +105,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample configuration looks like:
-### name: container1
+### name: instance1
 ### profiles:
 ### - default
 ### config:
@@ -147,7 +147,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Sanity checks
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
 
 		// If stdin isn't a terminal, read text from it
@@ -202,14 +202,14 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 		// Extract the current value
 		if isSnapshot {
-			var container *api.InstanceSnapshot
+			var inst *api.InstanceSnapshot
 
-			container, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
+			inst, etag, err = resource.server.GetInstanceSnapshot(fields[0], fields[1])
 			if err != nil {
 				return err
 			}
 
-			brief := container.Writable()
+			brief := inst.Writable()
 			data, err = yaml.Marshal(&brief)
 			if err != nil {
 				return err
@@ -217,14 +217,14 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 			currentExpiryDate = brief.ExpiresAt
 		} else {
-			var container *api.Instance
+			var inst *api.Instance
 
-			container, etag, err = resource.server.GetInstance(resource.name)
+			inst, etag, err = resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
 
-			brief := container.Writable()
+			brief := inst.Writable()
 			data, err = yaml.Marshal(&brief)
 			if err != nil {
 				return err
@@ -368,10 +368,10 @@ type cmdConfigGet struct {
 
 func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("get [<remote>:][<container>] <key>")
-	cmd.Short = i18n.G("Get values for container or server configuration keys")
+	cmd.Use = i18n.G("get [<remote>:][<instance>] <key>")
+	cmd.Short = i18n.G("Get values for instance or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Get values for container or server configuration keys`))
+		`Get values for instance or server configuration keys`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
@@ -403,7 +403,7 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Sanity checks
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
 
 		resp, _, err := resource.server.GetInstance(resource.name)
@@ -449,16 +449,16 @@ type cmdConfigSet struct {
 
 func (c *cmdConfigSet) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set [<remote>:][<container>] <key>=<value>...")
-	cmd.Short = i18n.G("Set container or server configuration keys")
+	cmd.Use = i18n.G("set [<remote>:][<instance>] <key>=<value>...")
+	cmd.Short = i18n.G("Set instance or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set container or server configuration keys
+		`Set instance or server configuration keys
 
 For backward compatibility, a single configuration key may still be set with:
-    lxc config set [<remote>:][<container>] <key> <value>`))
+    lxc config set [<remote>:][<instance>] <key> <value>`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc config set [<remote>:]<container> limits.cpu=2
-    Will set a CPU limit of "2" for the container.
+		`lxc config set [<remote>:]<instance> limits.cpu=2
+    Will set a CPU limit of "2" for the instance.
 
 lxc config set core.https_address=[::]:8443
     Will have LXD listen on IPv4 and IPv6 port 8443.
@@ -496,7 +496,7 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 	if resource.name != "" {
 		// Sanity checks
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
 
 		keys, err := getConfig(args[1:]...)
@@ -504,25 +504,25 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		container, etag, err := resource.server.GetInstance(resource.name)
+		inst, etag, err := resource.server.GetInstance(resource.name)
 		if err != nil {
 			return err
 		}
 
 		for k, v := range keys {
 			if cmd.Name() == "unset" {
-				_, ok := container.Config[k]
+				_, ok := inst.Config[k]
 				if !ok {
 					return fmt.Errorf(i18n.G("Can't unset key '%s', it's not currently set"), k)
 				}
 
-				delete(container.Config, k)
+				delete(inst.Config, k)
 			} else {
-				container.Config[k] = v
+				inst.Config[k] = v
 			}
 		}
 
-		op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
+		op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
 		if err != nil {
 			return err
 		}
@@ -575,10 +575,10 @@ type cmdConfigShow struct {
 
 func (c *cmdConfigShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:][<container>[/<snapshot>]]")
-	cmd.Short = i18n.G("Show container or server configurations")
+	cmd.Use = i18n.G("show [<remote>:][<instance>[/<snapshot>]]")
+	cmd.Short = i18n.G("Show instance or server configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show container or server configurations`))
+		`Show instance or server configurations`))
 
 	cmd.Flags().BoolVar(&c.flagExpanded, "expanded", false, i18n.G("Show the expanded configuration"))
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -634,7 +634,7 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 	} else {
 		// Sanity checks
 		if c.config.flagTarget != "" {
-			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+			return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 		}
 
 		// Instance or snapshot config
@@ -660,17 +660,17 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			}
 		} else {
 			// Instance
-			container, _, err := resource.server.GetInstance(resource.name)
+			inst, _, err := resource.server.GetInstance(resource.name)
 			if err != nil {
 				return err
 			}
 
-			writable := container.Writable()
+			writable := inst.Writable()
 			brief = &writable
 
 			if c.flagExpanded {
-				brief.(*api.InstancePut).Config = container.ExpandedConfig
-				brief.(*api.InstancePut).Devices = container.ExpandedDevices
+				brief.(*api.InstancePut).Config = inst.ExpandedConfig
+				brief.(*api.InstancePut).Devices = inst.ExpandedDevices
 			}
 		}
 
@@ -694,10 +694,10 @@ type cmdConfigUnset struct {
 
 func (c *cmdConfigUnset) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("unset [<remote>:][<container>] <key>")
-	cmd.Short = i18n.G("Unset container or server configuration keys")
+	cmd.Use = i18n.G("unset [<remote>:][<instance>] <key>")
+	cmd.Short = i18n.G("Unset instance or server configuration keys")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Unset container or server configuration keys`))
+		`Unset instance or server configuration keys`))
 
 	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run

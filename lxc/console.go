@@ -27,16 +27,16 @@ type cmdConsole struct {
 
 func (c *cmdConsole) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("console [<remote>:]<container>")
-	cmd.Short = i18n.G("Attach to container consoles")
+	cmd.Use = i18n.G("console [<remote>:]<instance>")
+	cmd.Short = i18n.G("Attach to instance consoles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Attach to container consoles
+		`Attach to instance consoles
 
-This command allows you to interact with the boot console of a container
+This command allows you to interact with the boot console of a instance
 as well as retrieve past log entries from it.`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the container's console log"))
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the instance's console log"))
 
 	return cmd
 }
@@ -184,7 +184,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf(i18n.G("To detach from the console, press: <ctrl>+a q") + "\n\r")
 
-	// Attach to the container console
+	// Attach to the instance console
 	op, err := d.ConsoleInstance(name, req, &consoleArgs)
 	if err != nil {
 		return err

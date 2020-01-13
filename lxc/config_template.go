@@ -25,9 +25,9 @@ type cmdConfigTemplate struct {
 func (c *cmdConfigTemplate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("template")
-	cmd.Short = i18n.G("Manage container file templates")
+	cmd.Short = i18n.G("Manage instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage container file templates`))
+		`Manage instance file templates`))
 
 	// Create
 	configTemplateCreateCmd := cmdConfigTemplateCreate{global: c.global, config: c.config, configTemplate: c}
@@ -61,10 +61,10 @@ type cmdConfigTemplateCreate struct {
 
 func (c *cmdConfigTemplateCreate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("create [<remote>:]<container> <template>")
-	cmd.Short = i18n.G("Create new container file templates")
+	cmd.Use = i18n.G("create [<remote>:]<instance> <template>")
+	cmd.Short = i18n.G("Create new instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create new container file templates`))
+		`Create new instance file templates`))
 
 	cmd.RunE = c.Run
 
@@ -87,10 +87,10 @@ func (c *cmdConfigTemplateCreate) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
-	// Create container file template
+	// Create instance file template
 	return resource.server.CreateInstanceTemplateFile(resource.name, args[1], nil)
 }
 
@@ -103,11 +103,11 @@ type cmdConfigTemplateDelete struct {
 
 func (c *cmdConfigTemplateDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<container> <template>")
+	cmd.Use = i18n.G("delete [<remote>:]<instance> <template>")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete container file templates")
+	cmd.Short = i18n.G("Delete instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete container file templates`))
+		`Delete instance file templates`))
 
 	cmd.RunE = c.Run
 
@@ -130,10 +130,10 @@ func (c *cmdConfigTemplateDelete) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
-	// Delete container file template
+	// Delete instance file template
 	return resource.server.DeleteInstanceTemplateFile(resource.name, args[1])
 }
 
@@ -146,10 +146,10 @@ type cmdConfigTemplateEdit struct {
 
 func (c *cmdConfigTemplateEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<container> <template>")
-	cmd.Short = i18n.G("Edit container file templates")
+	cmd.Use = i18n.G("edit [<remote>:]<instance> <template>")
+	cmd.Short = i18n.G("Edit instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit container file templates`))
+		`Edit instance file templates`))
 
 	cmd.RunE = c.Run
 
@@ -172,10 +172,10 @@ func (c *cmdConfigTemplateEdit) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
-	// Edit container file template
+	// Edit instance file template
 	if !termios.IsTerminal(getStdinFd()) {
 		return resource.server.UpdateInstanceTemplateFile(resource.name, args[1], os.Stdin)
 	}
@@ -232,10 +232,10 @@ type cmdConfigTemplateList struct {
 
 func (c *cmdConfigTemplateList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("list [<remote>:]<container>")
-	cmd.Short = i18n.G("List container file templates")
+	cmd.Use = i18n.G("list [<remote>:]<instance>")
+	cmd.Short = i18n.G("List instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List container file templates`))
+		`List instance file templates`))
 	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	cmd.RunE = c.Run
@@ -259,7 +259,7 @@ func (c *cmdConfigTemplateList) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
 	// List the templates
@@ -291,10 +291,10 @@ type cmdConfigTemplateShow struct {
 
 func (c *cmdConfigTemplateShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<container> <template>")
-	cmd.Short = i18n.G("Show content of container file templates")
+	cmd.Use = i18n.G("show [<remote>:]<instance> <template>")
+	cmd.Short = i18n.G("Show content of instance file templates")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show content of container file templates`))
+		`Show content of instance file templates`))
 
 	cmd.RunE = c.Run
 
@@ -317,7 +317,7 @@ func (c *cmdConfigTemplateShow) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
 	// Show the template

@@ -38,8 +38,8 @@ func (c *cmdImage) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Manage images
 
-In LXD containers are created from images. Those images were themselves
-either generated from an existing container or downloaded from an image
+In LXD instances are created from images. Those images were themselves
+either generated from an existing instance or downloaded from an image
 server.
 
 When using remote images, LXD will automatically cache images for you

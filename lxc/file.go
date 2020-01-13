@@ -36,7 +36,7 @@ type cmdFile struct {
 	flagRecursive bool
 }
 
-func fileGetWrapper(server lxd.InstanceServer, container string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
+func fileGetWrapper(server lxd.InstanceServer, inst string, path string) (buf io.ReadCloser, resp *lxd.InstanceFileResponse, err error) {
 	// Signal handling
 	chSignal := make(chan os.Signal)
 	signal.Notify(chSignal, os.Interrupt)
@@ -44,7 +44,7 @@ func fileGetWrapper(server lxd.InstanceServer, container string, path string) (b
 	// Operation handling
 	chDone := make(chan bool)
 	go func() {
-		buf, resp, err = server.GetInstanceFile(container, path)
+		buf, resp, err = server.GetInstanceFile(inst, path)
 		close(chDone)
 	}()
 
@@ -68,9 +68,9 @@ func fileGetWrapper(server lxd.InstanceServer, container string, path string) (b
 func (c *cmdFile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("file")
-	cmd.Short = i18n.G("Manage files in containers")
+	cmd.Short = i18n.G("Manage files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage files in containers`))
+		`Manage files in instances`))
 
 	// Delete
 	fileDeleteCmd := cmdFileDelete{global: c.global, file: c}
@@ -99,11 +99,11 @@ type cmdFileDelete struct {
 
 func (c *cmdFileDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]")
+	cmd.Use = i18n.G("delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete files in containers")
+	cmd.Short = i18n.G("Delete files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete files in containers`))
+		`Delete files in instances`))
 
 	cmd.RunE = c.Run
 
@@ -149,10 +149,10 @@ type cmdFileEdit struct {
 
 func (c *cmdFileEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<container>/<path>")
-	cmd.Short = i18n.G("Edit files in containers")
+	cmd.Use = i18n.G("edit [<remote>:]<instance>/<path>")
+	cmd.Short = i18n.G("Edit files in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit files in containers`))
+		`Edit files in instances`))
 
 	cmd.RunE = c.Run
 
@@ -212,13 +212,13 @@ type cmdFilePull struct {
 
 func (c *cmdFilePull) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] <target path>")
-	cmd.Short = i18n.G("Pull files from containers")
+	cmd.Use = i18n.G("pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>")
+	cmd.Short = i18n.G("Pull files from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Pull files from containers`))
+		`Pull files from instances`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc file pull foo/etc/hosts .
-   To pull /etc/hosts from the container and write it to the current directory.`))
+   To pull /etc/hosts from the instance and write it to the current directory.`))
 
 	cmd.Flags().BoolVarP(&c.file.flagMkdir, "create-dirs", "p", false, i18n.G("Create any directories necessary"))
 	cmd.Flags().BoolVarP(&c.file.flagRecursive, "recursive", "r", false, i18n.G("Recursively transfer files"))
@@ -402,13 +402,13 @@ type cmdFilePush struct {
 
 func (c *cmdFilePush) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]")
-	cmd.Short = i18n.G("Push files into containers")
+	cmd.Use = i18n.G("push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]")
+	cmd.Short = i18n.G("Push files into instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Push files into containers`))
+		`Push files into instances`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc file push /etc/hosts foo/etc/hosts
-   To push /etc/hosts into the container "foo".`))
+   To push /etc/hosts into the instance "foo".`))
 
 	cmd.Flags().BoolVarP(&c.file.flagRecursive, "recursive", "r", false, i18n.G("Recursively transfer files"))
 	cmd.Flags().BoolVarP(&c.file.flagMkdir, "create-dirs", "p", false, i18n.G("Create any directories necessary"))
@@ -648,8 +648,8 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, container string, p string, targetDir string) error {
-	buf, resp, err := d.GetInstanceFile(container, p)
+func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, inst string, p string, targetDir string) error {
+	buf, resp, err := d.GetInstanceFile(inst, p)
 	if err != nil {
 		return err
 	}
@@ -666,7 +666,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, container string, p st
 		for _, ent := range resp.Entries {
 			nextP := path.Join(p, ent)
 
-			err := c.recursivePullFile(d, container, nextP, target)
+			err := c.recursivePullFile(d, inst, nextP, target)
 			if err != nil {
 				return err
 			}
@@ -723,7 +723,7 @@ func (c *cmdFile) recursivePullFile(d lxd.InstanceServer, container string, p st
 	return nil
 }
 
-func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, container string, source string, target string) error {
+func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, inst string, source string, target string) error {
 	source = filepath.Clean(source)
 	sourceDir, _ := filepath.Split(source)
 	sourceLen := len(sourceDir)
@@ -805,7 +805,7 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, container string, sour
 		}
 
 		logger.Infof("Pushing %s to %s (%s)", p, targetPath, args.Type)
-		err = d.CreateInstanceFile(container, targetPath, args)
+		err = d.CreateInstanceFile(inst, targetPath, args)
 		if err != nil {
 			if args.Type != "directory" {
 				progress.Done("")
@@ -821,8 +821,8 @@ func (c *cmdFile) recursivePushFile(d lxd.InstanceServer, container string, sour
 	return filepath.Walk(source, sendFile)
 }
 
-func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, container string, p string, mode *os.FileMode, uid int64, gid int64) error {
-	/* special case, every container has a /, we don't need to do anything */
+func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, inst string, p string, mode *os.FileMode, uid int64, gid int64) error {
+	/* special case, every instance has a /, we don't need to do anything */
 	if p == "/" {
 		return nil
 	}
@@ -835,7 +835,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, container string, p strin
 
 	for ; i >= 1; i-- {
 		cur := filepath.Join(parts[:i]...)
-		_, resp, err := d.GetInstanceFile(container, cur)
+		_, resp, err := d.GetInstanceFile(inst, cur)
 		if err != nil {
 			continue
 		}
@@ -868,7 +868,7 @@ func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, container string, p strin
 		}
 
 		logger.Infof("Creating %s (%s)", cur, args.Type)
-		err := d.CreateInstanceFile(container, cur, args)
+		err := d.CreateInstanceFile(inst, cur, args)
 		if err != nil {
 			return err
 		}

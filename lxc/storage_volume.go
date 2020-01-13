@@ -134,10 +134,10 @@ type cmdStorageVolumeAttach struct {
 
 func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("attach [<remote>:]<pool> <volume> <container> [<device name>] <path>")
-	cmd.Short = i18n.G("Attach new storage volumes to containers")
+	cmd.Use = i18n.G("attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>")
+	cmd.Short = i18n.G("Attach new storage volumes to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Attach new storage volumes to containers`))
+		`Attach new storage volumes to instances`))
 
 	cmd.RunE = c.Run
 
@@ -178,7 +178,7 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 	if volType != "custom" {
-		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers"))
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
 	// Check if the requested storage volume actually exists
@@ -187,7 +187,7 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Prepare the container's device entry
+	// Prepare the instance's device entry
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
@@ -195,8 +195,8 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 		"source": vol.Name,
 	}
 
-	// Add the device to the container
-	err = containerDeviceAdd(resource.server, args[2], devName, device)
+	// Add the device to the instance
+	err = instanceDeviceAdd(resource.server, args[2], devName, device)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 	if volType != "custom" {
-		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers"))
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to instances"))
 	}
 
 	// Check if the requested storage volume actually exists
@@ -266,7 +266,7 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 		return err
 	}
 
-	// Prepare the container's device entry
+	// Prepare the instance's device entry
 	device := map[string]string{
 		"type":   "disk",
 		"pool":   resource.name,
@@ -274,7 +274,7 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 		"source": vol.Name,
 	}
 
-	// Add the device to the container
+	// Add the device to the instance
 	err = profileDeviceAdd(resource.server, args[2], devName, device)
 	if err != nil {
 		return err
@@ -610,10 +610,10 @@ type cmdStorageVolumeDetach struct {
 
 func (c *cmdStorageVolumeDetach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach [<remote>:]<pool> <volume> <container> [<device name>]")
-	cmd.Short = i18n.G("Detach storage volumes from containers")
+	cmd.Use = i18n.G("detach [<remote>:]<pool> <volume> <instance> [<device name>]")
+	cmd.Short = i18n.G("Detach storage volumes from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Detach storage volumes from containers`))
+		`Detach storage volumes from instances`))
 
 	cmd.RunE = c.Run
 
@@ -645,15 +645,15 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 		devName = args[3]
 	}
 
-	// Get the container entry
-	container, etag, err := resource.server.GetInstance(args[2])
+	// Get the instance entry
+	inst, etag, err := resource.server.GetInstance(args[2])
 	if err != nil {
 		return err
 	}
 
 	// Find the device
 	if devName == "" {
-		for n, d := range container.Devices {
+		for n, d := range inst.Devices {
 			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
 				if devName != "" {
 					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
@@ -668,14 +668,14 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("No device found for this storage volume"))
 	}
 
-	_, ok := container.Devices[devName]
+	_, ok := inst.Devices[devName]
 	if !ok {
 		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
 	}
 
 	// Remove the device
-	delete(container.Devices, devName)
-	op, err := resource.server.UpdateInstance(args[2], container.Writable(), etag)
+	delete(inst.Devices, devName)
+	op, err := resource.server.UpdateInstance(args[2], inst.Writable(), etag)
 	if err != nil {
 		return err
 	}
