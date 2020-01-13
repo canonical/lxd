@@ -696,7 +696,12 @@ func cephRBDVolumeRestore(clusterName string, poolName string, volumeName string
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
-	sz, err := units.ParseByteSizeString(s.volume.Config["size"])
+	size, ok := s.volume.Config["size"]
+	if !ok {
+		size = s.pool.Config["volume.size"]
+	}
+
+	sz, err := units.ParseByteSizeString(size)
 	if err != nil {
 		return "", err
 	}
@@ -1536,7 +1541,7 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 	}
 
 	// Grow the block device
-	msg, err := shared.TryRunCommand(
+	_, err := shared.TryRunCommand(
 		"rbd",
 		"resize",
 		"--id", s.UserName,
@@ -1545,10 +1550,8 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 		"--size", fmt.Sprintf("%dM", (size/1024/1024)),
 		fmt.Sprintf("%s_%s", volumeTypeName, volumeName))
 	if err != nil {
-		logger.Errorf(`Could not extend RBD storage volume "%s": %s`,
-			path, msg)
-		return fmt.Errorf(`Could not extend RBD storage volume "%s":
-			%s`, path, msg)
+		logger.Errorf(`Could not extend RBD storage volume "%s": %v`, path, err)
+		return fmt.Errorf(`Could not extend RBD storage volume "%s": %v`, path, err)
 	}
 
 	// Mount the filesystem
