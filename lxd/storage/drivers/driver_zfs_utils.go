@@ -81,10 +81,6 @@ func (d *zfs) checkDataset(dataset string) bool {
 	return strings.TrimSpace(out) == dataset
 }
 
-func (d *zfs) checkVMBlock(vol Volume) bool {
-	return (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock
-}
-
 func (d *zfs) getClones(dataset string) ([]string, error) {
 	out, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "value", "-r", "clones", dataset)
 	if err != nil {
