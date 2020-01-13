@@ -23,7 +23,7 @@ func (d *nicRouted) CanHotPlug() (bool, []string) {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicRouted) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
@@ -310,7 +310,7 @@ func (d *nicRouted) postStop() error {
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
 		parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-		err := NetworkRemoveInterfaceIfNeeded(d.state, parentName, d.instance, d.config["parent"], d.config["vlan"])
+		err := NetworkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			return err
 		}

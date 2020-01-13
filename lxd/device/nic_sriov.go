@@ -24,7 +24,7 @@ type nicSRIOV struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicSRIOV) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
