@@ -24,12 +24,12 @@ type cmdImport struct {
 func (c *cmdImport) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("import [<remote>:] <backup file>")
-	cmd.Short = i18n.G("Import container backups")
+	cmd.Short = i18n.G("Import instance backups")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Import backups of containers including their snapshots.`))
+		`Import backups of instances including their snapshots.`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc import backup0.tar.gz
-    Create a new container using backup0.tar.gz as the source.`))
+    Create a new instance using backup0.tar.gz as the source.`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
@@ -69,7 +69,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress := utils.ProgressRenderer{
-		Format: i18n.G("Importing container: %s"),
+		Format: i18n.G("Importing instance: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
 

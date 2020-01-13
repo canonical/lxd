@@ -30,15 +30,15 @@ func (c *cmdPublish) showByDefault() bool {
 
 func (c *cmdPublish) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] [key=value...]")
-	cmd.Short = i18n.G("Publish containers as images")
+	cmd.Use = i18n.G("publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]")
+	cmd.Short = i18n.G("Publish instances as images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Publish containers as images`))
+		`Publish instances as images`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public"))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the container if currently running"))
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the instance if currently running"))
 	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for image or none")+"``")
 
 	return cmd
@@ -77,7 +77,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if cName == "" {
-		return fmt.Errorf(i18n.G("Container name is mandatory"))
+		return fmt.Errorf(i18n.G("Instance name is mandatory"))
 	}
 	if iName != "" {
 		return fmt.Errorf(i18n.G("There is no \"image name\".  Did you want an alias?"))
@@ -107,7 +107,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 		if wasRunning {
 			if !c.flagForce {
-				return fmt.Errorf(i18n.G("The container is currently running. Use --force to have it stopped and restarted"))
+				return fmt.Errorf(i18n.G("The instance is currently running. Use --force to have it stopped and restarted"))
 			}
 
 			if ct.Ephemeral {
@@ -142,7 +142,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 			err = op.Wait()
 			if err != nil {
-				return fmt.Errorf(i18n.G("Stopping container failed!"))
+				return fmt.Errorf(i18n.G("Stopping instance failed!"))
 			}
 
 			defer func() {
@@ -219,7 +219,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 	// Watch the background operation
 	progress := utils.ProgressRenderer{
-		Format: i18n.G("Publishing container: %s"),
+		Format: i18n.G("Publishing instance: %s"),
 		Quiet:  c.global.flagQuiet,
 	}
 
@@ -273,7 +273,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fingerprint)
+	fmt.Printf(i18n.G("Instance published with fingerprint: %s")+"\n", fingerprint)
 
 	return nil
 }

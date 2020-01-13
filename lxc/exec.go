@@ -36,17 +36,17 @@ type cmdExec struct {
 
 func (c *cmdExec) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("exec [<remote>:]<container> [flags] [--] <command line>")
-	cmd.Short = i18n.G("Execute commands in containers")
+	cmd.Use = i18n.G("exec [<remote>:]<instance> [flags] [--] <command line>")
+	cmd.Short = i18n.G("Execute commands in instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Execute commands in containers
+		`Execute commands in instances
 
 The command is executed directly using exec, so there is no shell and
 shell patterns (variables, file redirects, ...) won't be understood.
 If you need a shell environment you need to execute the shell
 executable, passing the shell commands as arguments, for example:
 
-  lxc exec <container> -- sh -c "cd /tmp && pwd"
+  lxc exec <instance> -- sh -c "cd /tmp && pwd"
 
 Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`))
 
@@ -210,7 +210,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		DataDone: make(chan bool),
 	}
 
-	// Run the command in the container
+	// Run the command in the instance
 	op, err := d.ExecInstance(name, req, &execArgs)
 	if err != nil {
 		return err

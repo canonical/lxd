@@ -26,10 +26,10 @@ func (c *cmdStart) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("start")
-	cmd.Use = i18n.G("start [<remote>:]<container> [[<remote>:]<container>...]")
-	cmd.Short = i18n.G("Start containers")
+	cmd.Use = i18n.G("start [<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = i18n.G("Start instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Start containers`))
+		`Start instances`))
 
 	return cmd
 }
@@ -45,10 +45,10 @@ func (c *cmdPause) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("pause")
-	cmd.Use = i18n.G("pause [<remote>:]<container> [[<remote>:]<container>...]")
-	cmd.Short = i18n.G("Pause containers")
+	cmd.Use = i18n.G("pause [<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = i18n.G("Pause instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Pause containers`))
+		`Pause instances`))
 	cmd.Hidden = true
 
 	return cmd
@@ -65,10 +65,10 @@ func (c *cmdRestart) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("restart")
-	cmd.Use = i18n.G("restart [<remote>:]<container> [[<remote>:]<container>...]")
-	cmd.Short = i18n.G("Restart containers")
+	cmd.Use = i18n.G("restart [<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = i18n.G("Restart insances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Restart containers
+		`Restart instances
 
 The opposite of "lxc pause" is "lxc start".`))
 
@@ -86,10 +86,10 @@ func (c *cmdStop) Command() *cobra.Command {
 	c.action = &cmdAction
 
 	cmd := c.action.Command("stop")
-	cmd.Use = i18n.G("stop [<remote>:]<container> [[<remote>:]<container>...]")
-	cmd.Short = i18n.G("Stop containers")
+	cmd.Use = i18n.G("stop [<remote>:]<instance> [[<remote>:]<instance>...]")
+	cmd.Short = i18n.G("Stop instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Stop containers`))
+		`Stop instances`))
 
 	return cmd
 }
@@ -108,17 +108,17 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.RunE = c.Run
 
-	cmd.Flags().BoolVar(&c.flagAll, "all", false, i18n.G("Run command against all containers"))
+	cmd.Flags().BoolVar(&c.flagAll, "all", false, i18n.G("Run against all instances"))
 
 	if action == "stop" {
-		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Store the container state"))
+		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Store the instance state"))
 	} else if action == "start" {
-		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the container state"))
+		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the instance state"))
 	}
 
 	if shared.StringInSlice(action, []string{"restart", "stop"}) {
-		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the container to shutdown"))
-		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the container before killing it")+"``")
+		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the instance to shutdown"))
+		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the instance before killing it")+"``")
 	}
 
 	return cmd
@@ -148,7 +148,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 	}
 
 	if name == "" {
-		return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
+		return fmt.Errorf(i18n.G("Must supply instance name for: ")+"\"%s\"", nameArg)
 	}
 
 	if action == "start" {
@@ -157,7 +157,7 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 			return err
 		}
 
-		// "start" for a frozen container means "unfreeze"
+		// "start" for a frozen instance means "unfreeze"
 		if current.StatusCode == api.Frozen {
 			action = "unfreeze"
 		}
@@ -236,15 +236,15 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		if c.flagAll {
-			return fmt.Errorf(i18n.G("Both --all and container name given"))
+			return fmt.Errorf(i18n.G("Both --all and instance name given"))
 		}
 		names = args
 	}
 
-	// Run the action for every listed container
+	// Run the action for every listed instance
 	results := runBatch(names, func(name string) error { return c.doAction(cmd.Name(), conf, name) })
 
-	// Single container is easy
+	// Single instance is easy
 	if len(results) == 1 {
 		return results[0].err
 	}
@@ -266,7 +266,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 
 	if !success {
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf(i18n.G("Some containers failed to %s"), cmd.Name())
+		return fmt.Errorf(i18n.G("Some instances failed to %s"), cmd.Name())
 	}
 
 	return nil

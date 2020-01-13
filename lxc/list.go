@@ -40,33 +40,33 @@ func (c *cmdList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("list [<remote>:] [<filter>...]")
 	cmd.Aliases = []string{"ls"}
-	cmd.Short = i18n.G("List containers")
+	cmd.Short = i18n.G("List instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`List containers
+		`List instances
 
 Default column layout: ns46tS
 Fast column layout: nsacPt
 
 == Filters ==
-A single keyword like "web" which will list any container with a name starting by "web".
-A regular expression on the container name. (e.g. .*web.*01$).
+A single keyword like "web" which will list any instance with a name starting by "web".
+A regular expression on the instance name. (e.g. .*web.*01$).
 A key/value pair referring to a configuration item. For those, the
 namespace can be abbreviated to the smallest unambiguous identifier.
 
 Examples:
-  - "user.blah=abc" will list all containers with the "blah" user property set to "abc".
+  - "user.blah=abc" will list all instances with the "blah" user property set to "abc".
   - "u.blah=abc" will do the same
-  - "security.privileged=true" will list all privileged containers
+  - "security.privileged=true" will list all privileged instances
   - "s.privileged=true" will do the same
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
 When multiple filters are passed, they are added one on top of the other,
-selecting containers which satisfy them all.
+selecting instances which satisfy them all.
 
 == Columns ==
 The -c option takes a comma separated list of arguments that control
-which container attributes to output when displaying in table or csv
+which instance attributes to output when displaying in table or csv
 format.
 
 Column arguments are either pre-defined shorthand chars (see below),
@@ -84,12 +84,12 @@ Pre-defined column shorthand chars:
   l - Last used date
   n - Name
   N - Number of Processes
-  p - PID of the container's init process
+  p - PID of the instance's init process
   P - Profiles
   s - State
   S - Number of snapshots
   t - Type (persistent or ephemeral)
-  L - Location of the container (e.g. its cluster member)
+  L - Location of the instance (e.g. its cluster member)
   f - Base Image Fingerprint (short)
   F - Base Image Fingerprint (long)
 
@@ -103,8 +103,8 @@ Custom columns are defined with "[config:|devices:]key[:name][:maxWidth]":
 
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP
-  Show containers using the "NAME", "BASE IMAGE", "STATE", "IPV4", "IPV6" and "MAC" columns.
-  "BASE IMAGE", "MAC" and "IMAGE OS" are custom columns generated from container configuration keys.
+  Show instances using the "NAME", "BASE IMAGE", "STATE", "IPV4", "IPV6" and "MAC" columns.
+  "BASE IMAGE", "MAC" and "IMAGE OS" are custom columns generated from instance configuration keys.
   "ETHP" is a custom column generated from a device key.
 
 lxc list -c ns,user.comment:comment
@@ -205,7 +205,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Instance) bool {
 	return true
 }
 
-func (c *cmdList) listContainers(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
+func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfos []api.Instance, filters []string, columns []column) error {
 	threads := 10
 	if len(cinfos) < threads {
 		threads = len(cinfos)
@@ -310,10 +310,10 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.InstanceServer, cinf
 		data[i].Snapshots = cSnapshots[cinfos[i].Name]
 	}
 
-	return c.showContainers(data, filters, columns)
+	return c.showInstances(data, filters, columns)
 }
 
-func (c *cmdList) showContainers(cts []api.InstanceFull, filters []string, columns []column) error {
+func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, columns []column) error {
 	// Generate the table data
 	data := [][]string{}
 	for _, ct := range cts {
@@ -393,10 +393,10 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return c.showContainers(cts, filters, columns)
+		return c.showInstances(cts, filters, columns)
 	}
 
-	// Get the list of containers
+	// Get the list of instances
 	var cts []api.Instance
 	ctslist, err := d.GetInstances(api.InstanceTypeAny)
 	if err != nil {
@@ -413,7 +413,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fetch any remaining data and render the table
-	return c.listContainers(conf, d, cts, filters, columns)
+	return c.listInstances(conf, d, cts, filters, columns)
 }
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
