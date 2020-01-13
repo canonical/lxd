@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // CreateVolume creates an empty volume and can optionally fill it by executing the supplied
@@ -49,7 +50,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 	// Run the volume filler function if supplied.
 	if filler != nil && filler.Fill != nil {
-		d.logger.Debug("Running filler function")
+		d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
 		err = filler.Fill(volPath, rootBlockPath)
 		if err != nil {
 			return err
