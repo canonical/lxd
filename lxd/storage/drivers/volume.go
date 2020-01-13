@@ -15,6 +15,9 @@ const tmpVolSuffix = ".lxdtmp"
 // defaultBlockSize Default size of block volumes.
 const defaultBlockSize = "10GB"
 
+// vmBlockFilesystemSize is the size of a VM block volume's associated filesystem volume.
+const vmBlockFilesystemSize = "50MB"
+
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
 
@@ -275,4 +278,24 @@ func (v Volume) Type() VolumeType {
 // ContentType returns the content type.
 func (v Volume) ContentType() ContentType {
 	return v.contentType
+}
+
+// IsVMBlock returns true if volume is a block volume for virtual machines or associated images.
+func (v Volume) IsVMBlock() bool {
+	return (v.volType == VolumeTypeVM || v.volType == VolumeTypeImage) && v.contentType == ContentTypeBlock
+}
+
+// NewVMBlockFilesystemVolume returns a copy of the volume with the content type set to ContentTypeFS and the
+// config "size" property set to vmBlockFilesystemSize.
+func (v Volume) NewVMBlockFilesystemVolume() Volume {
+	// Copy volume config so modifications don't affect original volume.
+	newConf := make(map[string]string, len(v.config))
+	for k, v := range v.config {
+		newConf[k] = v
+	}
+
+	// VM Block filesystems are a fixed size.
+	newConf["size"] = vmBlockFilesystemSize
+
+	return NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)
 }
