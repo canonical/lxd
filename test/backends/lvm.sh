@@ -26,7 +26,7 @@ lvm_configure() {
 
   echo "==> Configuring lvm backend in ${LXD_DIR}"
 
-  lxc config set storage.lvm_volume_size "10Mib"
+  lxc config set storage.lvm_volume_size "50Mib"
   lxc config set storage.lvm_vg_name "lxdtest-$(basename "${LXD_DIR}")"
 }
 
