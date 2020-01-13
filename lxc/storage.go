@@ -451,7 +451,7 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	poolusedby[usedbystring] = map[string][]string{}
 
 	/* Build up the usedby map
-	/1.0/{containers,images,profiles}/storagepoolname
+	/1.0/{instances,images,profiles}/storagepoolname
 	remove the /1.0/ and build the map based on the resources name as key
 	and resources details as value */
 	for _, v := range pool.UsedBy {

@@ -117,23 +117,23 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 	return results
 }
 
-// Add a device to a container
-func containerDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
-	// Get the container entry
-	container, etag, err := client.GetInstance(name)
+// Add a device to an instance
+func instanceDeviceAdd(client lxd.InstanceServer, name string, devName string, dev map[string]string) error {
+	// Get the instance entry
+	inst, etag, err := client.GetInstance(name)
 	if err != nil {
 		return err
 	}
 
 	// Check if the device already exists
-	_, ok := container.Devices[devName]
+	_, ok := inst.Devices[devName]
 	if ok {
 		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
 	}
 
-	container.Devices[devName] = dev
+	inst.Devices[devName] = dev
 
-	op, err := client.UpdateInstance(name, container.Writable(), etag)
+	op, err := client.UpdateInstance(name, inst.Writable(), etag)
 	if err != nil {
 		return err
 	}

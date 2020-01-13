@@ -19,14 +19,14 @@ type cmdLaunch struct {
 func (c *cmdLaunch) Command() *cobra.Command {
 	cmd := c.init.Command()
 	cmd.Use = i18n.G("launch [<remote>:]<image> [<remote>:][<name>]")
-	cmd.Short = i18n.G("Create and start containers from images")
+	cmd.Short = i18n.G("Create and start instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create and start containers from images`))
+		`Create and start instances from images`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc launch ubuntu:16.04 u1
 
 lxc launch ubuntu:16.04 u1 < config.yaml
-    Create and start the container with configuration from config.yaml`))
+    Create and start the instance with configuration from config.yaml`))
 	cmd.Hidden = false
 
 	cmd.RunE = c.Run
@@ -63,7 +63,7 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Start the container
+	// Start the instance
 	if !c.global.flagQuiet {
 		fmt.Printf(i18n.G("Starting %s")+"\n", name)
 	}

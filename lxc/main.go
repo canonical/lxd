@@ -240,7 +240,7 @@ For help with any of those, simply call them with --help.`))
 		// Handle non-Linux systems
 		if err == config.ErrNotLinux {
 			fmt.Fprintf(os.Stderr, i18n.G(`This client hasn't been configured to use a remote LXD server yet.
-As your platform can't run native Linux containers, you must connect to a remote LXD server.
+As your platform can't run native Linux instances, you must connect to a remote LXD server.
 
 If you already added a remote server, make it the default with "lxc remote switch NAME".
 To easily setup a local LXD server in a virtual machine, consider using: https://multipass.run`)+"\n")
@@ -342,7 +342,7 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 
 		if !shared.StringInSlice(cmd.Name(), []string{"init", "launch"}) {
-			fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:18.04")+"\n")
+			fmt.Fprintf(os.Stderr, i18n.G("To start your first instance, try: lxc launch ubuntu:18.04")+"\n")
 			flush = true
 		}
 

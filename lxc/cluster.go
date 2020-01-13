@@ -259,11 +259,11 @@ func (c *cmdClusterRemove) promptConfirmation(name string) error {
 resort.
 
 The removed server will not be functional after this action and will require a
-full reset of LXD, losing any remaining container, image or storage volume
+full reset of LXD, losing any remaining instance, image or storage volume
 that the server may have held.
 
 When possible, a graceful removal should be preferred, this will require you to
-move any affected container, image or storage volume to another server prior to
+move any affected instance, image or storage volume to another server prior to
 the server being cleanly removed from the cluster.
 
 The --force flag should only be used if the server has died, been reinstalled

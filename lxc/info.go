@@ -27,19 +27,19 @@ type cmdInfo struct {
 
 func (c *cmdInfo) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("info [<remote>:][<container>]")
-	cmd.Short = i18n.G("Show container or server information")
+	cmd.Use = i18n.G("info [<remote>:][<instance>]")
+	cmd.Short = i18n.G("Show instance or server information")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show container or server information`))
+		`Show instance or server information`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc info [<remote>:]<container> [--show-log]
-    For container information.
+		`lxc info [<remote>:]<instance> [--show-log]
+    For instance information.
 
 lxc info [<remote>:] [--resources]
     For LXD server information.`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the instance's last 100 log lines?"))
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the server"))
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
@@ -78,7 +78,7 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 		return c.remoteInfo(d)
 	}
 
-	return c.containerInfo(d, conf.Remotes[remote], cName, c.flagShowLog)
+	return c.instanceInfo(d, conf.Remotes[remote], cName, c.flagShowLog)
 }
 
 func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial bool) {
@@ -417,7 +417,7 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 	return nil
 }
 
-func (c *cmdInfo) containerInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
+func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name string, showLog bool) error {
 	// Sanity checks
 	if c.flagTarget != "" {
 		return fmt.Errorf(i18n.G("--target cannot be used with instances"))

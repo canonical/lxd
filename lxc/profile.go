@@ -96,10 +96,10 @@ type cmdProfileAdd struct {
 
 func (c *cmdProfileAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("add [<remote>:]<container> <profile>")
-	cmd.Short = i18n.G("Add profiles to containers")
+	cmd.Use = i18n.G("add [<remote>:]<instance> <profile>")
+	cmd.Short = i18n.G("Add profiles to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add profiles to containers`))
+		`Add profiles to instances`))
 
 	cmd.RunE = c.Run
 
@@ -122,18 +122,18 @@ func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container.name name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
 	// Add the profile
-	container, etag, err := resource.server.GetInstance(resource.name)
+	inst, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
 
-	container.Profiles = append(container.Profiles, args[1])
+	inst.Profiles = append(inst.Profiles, args[1])
 
-	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -158,11 +158,11 @@ type cmdProfileAssign struct {
 
 func (c *cmdProfileAssign) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("assign [<remote>:]<container> <profiles>")
+	cmd.Use = i18n.G("assign [<remote>:]<instance> <profiles>")
 	cmd.Aliases = []string{"apply"}
-	cmd.Short = i18n.G("Assign sets of profiles to containers")
+	cmd.Short = i18n.G("Assign sets of profiles to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Assign sets of profiles to containers`))
+		`Assign sets of profiles to instances`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc profile assign foo default,bar
     Set the profiles for "foo" to "default" and "bar".
@@ -195,21 +195,21 @@ func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 
 	// Assign the profiles
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
-	container, etag, err := resource.server.GetInstance(resource.name)
+	inst, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
 
 	if args[1] != "" {
-		container.Profiles = strings.Split(args[1], ",")
+		inst.Profiles = strings.Split(args[1], ",")
 	} else {
-		container.Profiles = nil
+		inst.Profiles = nil
 	}
 
-	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -631,10 +631,10 @@ type cmdProfileRemove struct {
 
 func (c *cmdProfileRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("remove [<remote>:]<container> <profile>")
-	cmd.Short = i18n.G("Remove profiles from containers")
+	cmd.Use = i18n.G("remove [<remote>:]<instance> <profile>")
+	cmd.Short = i18n.G("Remove profiles from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove profiles from containers`))
+		`Remove profiles from instances`))
 
 	cmd.RunE = c.Run
 
@@ -657,21 +657,21 @@ func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
 	// Remove the profile
-	container, etag, err := resource.server.GetInstance(resource.name)
+	inst, etag, err := resource.server.GetInstance(resource.name)
 	if err != nil {
 		return err
 	}
 
-	if !shared.StringInSlice(args[1], container.Profiles) {
+	if !shared.StringInSlice(args[1], inst.Profiles) {
 		return fmt.Errorf(i18n.G("Profile %s isn't currently applied to %s"), args[1], resource.name)
 	}
 
 	profiles := []string{}
-	for _, profile := range container.Profiles {
+	for _, profile := range inst.Profiles {
 		if profile == args[1] {
 			continue
 		}
@@ -679,9 +679,9 @@ func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 		profiles = append(profiles, profile)
 	}
 
-	container.Profiles = profiles
+	inst.Profiles = profiles
 
-	op, err := resource.server.UpdateInstance(resource.name, container.Writable(), etag)
+	op, err := resource.server.UpdateInstance(resource.name, inst.Writable(), etag)
 	if err != nil {
 		return err
 	}

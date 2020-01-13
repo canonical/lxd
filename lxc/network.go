@@ -28,9 +28,9 @@ type cmdNetwork struct {
 func (c *cmdNetwork) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("network")
-	cmd.Short = i18n.G("Manage and attach containers to networks")
+	cmd.Short = i18n.G("Manage and attach instances to networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage and attach containers to networks`))
+		`Manage and attach instances to networks`))
 
 	// Attach
 	networkAttachCmd := cmdNetworkAttach{global: c.global, network: c}
@@ -103,10 +103,10 @@ type cmdNetworkAttach struct {
 
 func (c *cmdNetworkAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("attach [<remote>:]<network> <container> [<device name>] [<interface name>]")
-	cmd.Short = i18n.G("Attach network interfaces to containers")
+	cmd.Use = i18n.G("attach [<remote>:]<network> <instance> [<device name>] [<interface name>]")
+	cmd.Short = i18n.G("Attach network interfaces to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Attach new network interfaces to containers`))
+		`Attach new network interfaces to instances`))
 
 	cmd.RunE = c.Run
 
@@ -144,7 +144,7 @@ func (c *cmdNetworkAttach) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Prepare the container's device entry
+	// Prepare the instance's device entry
 	device := map[string]string{
 		"type":    "nic",
 		"nictype": "macvlan",
@@ -159,8 +159,8 @@ func (c *cmdNetworkAttach) Run(cmd *cobra.Command, args []string) error {
 		device["name"] = args[3]
 	}
 
-	// Add the device to the container
-	err = containerDeviceAdd(resource.server, args[1], devName, device)
+	// Add the device to the instance
+	err = instanceDeviceAdd(resource.server, args[1], devName, device)
 	if err != nil {
 		return err
 	}
@@ -371,10 +371,10 @@ type cmdNetworkDetach struct {
 
 func (c *cmdNetworkDetach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach [<remote>:]<network> <container> [<device name>]")
-	cmd.Short = i18n.G("Detach network interfaces from containers")
+	cmd.Use = i18n.G("detach [<remote>:]<network> <instance> [<device name>]")
+	cmd.Short = i18n.G("Detach network interfaces from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Detach network interfaces from containers`))
+		`Detach network interfaces from instances`))
 
 	cmd.RunE = c.Run
 
@@ -406,15 +406,15 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 		devName = args[2]
 	}
 
-	// Get the container entry
-	container, etag, err := resource.server.GetInstance(args[1])
+	// Get the instance entry
+	inst, etag, err := resource.server.GetInstance(args[1])
 	if err != nil {
 		return err
 	}
 
 	// Find the device
 	if devName == "" {
-		for n, d := range container.Devices {
+		for n, d := range inst.Devices {
 			if d["type"] == "nic" && d["parent"] == resource.name {
 				if devName != "" {
 					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
@@ -429,7 +429,7 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("No device found for this network"))
 	}
 
-	device, ok := container.Devices[devName]
+	device, ok := inst.Devices[devName]
 	if !ok {
 		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
 	}
@@ -439,8 +439,8 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Remove the device
-	delete(container.Devices, devName)
-	op, err := resource.server.UpdateInstance(args[1], container.Writable(), etag)
+	delete(inst.Devices, devName)
+	op, err := resource.server.UpdateInstance(args[1], inst.Writable(), etag)
 	if err != nil {
 		return err
 	}
@@ -456,7 +456,7 @@ type cmdNetworkDetachProfile struct {
 
 func (c *cmdNetworkDetachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("detach-profile [<remote>:]<network> <container> [<device name>]")
+	cmd.Use = i18n.G("detach-profile [<remote>:]<network> <instance> [<device name>]")
 	cmd.Short = i18n.G("Detach network interfaces from profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Detach network interfaces from profiles`))

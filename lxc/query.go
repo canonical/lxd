@@ -31,8 +31,8 @@ func (c *cmdQuery) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Send a raw query to LXD`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc query -X DELETE --wait /1.0/containers/c1
-    Delete local container "c1".`))
+		`lxc query -X DELETE --wait /1.0/instances/c1
+    Delete local instance "c1".`))
 	cmd.Hidden = true
 
 	cmd.RunE = c.Run

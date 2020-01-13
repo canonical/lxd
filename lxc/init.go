@@ -36,25 +36,25 @@ type cmdInit struct {
 func (c *cmdInit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("init [[<remote>:]<image>] [<remote>:][<name>] [< config")
-	cmd.Short = i18n.G("Create containers from images")
-	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create containers from images`))
+	cmd.Short = i18n.G("Create instances from images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create instances from images`))
 	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:16.04 u1
 
 lxc init ubuntu:16.04 u1 < config.yaml
-    Create the container with configuration from config.yaml`))
+    Create the instance with configuration from config.yaml`))
 	cmd.Hidden = true
 
 	cmd.RunE = c.Run
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new container")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new container")+"``")
-	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral container"))
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new instance")+"``")
+	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral instance"))
 	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", i18n.G("Network name")+"``")
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", i18n.G("Instance type")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
-	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
-	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty container"))
-	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create virtual machine"))
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
+	cmd.Flags().BoolVar(&c.flagEmpty, "empty", false, i18n.G("Create an empty instance"))
+	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Create a virtual machine"))
 
 	return cmd
 }
@@ -128,7 +128,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 				return nil, "", err
 			}
 		} else if len(args) == 1 {
-			// Switch image / container names
+			// Switch image / instance names
 			name = image
 			remote = iremote
 			image = ""
@@ -299,7 +299,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 		}
 		progress.Done("")
 
-		// Extract the container name
+		// Extract the instance name
 		info, err := op.GetTarget()
 		if err != nil {
 			return nil, "", err
@@ -385,7 +385,7 @@ func (c *cmdInit) checkNetwork(d lxd.InstanceServer, name string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The container you are starting doesn't have any network attached to it.")+"\n")
+	fmt.Fprintf(os.Stderr, "\n"+i18n.G("The instance you are starting doesn't have any network attached to it.")+"\n")
 	fmt.Fprintf(os.Stderr, "  "+i18n.G("To create a new network, use: lxc network create")+"\n")
-	fmt.Fprintf(os.Stderr, "  "+i18n.G("To attach a network to a container, use: lxc network attach")+"\n\n")
+	fmt.Fprintf(os.Stderr, "  "+i18n.G("To attach a network to an instance, use: lxc network attach")+"\n\n")
 }

@@ -19,20 +19,20 @@ type cmdSnapshot struct {
 
 func (c *cmdSnapshot) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("snapshot [<remote>:]<container> [<snapshot name>]")
-	cmd.Short = i18n.G("Create container snapshots")
+	cmd.Use = i18n.G("snapshot [<remote>:]<instance> [<snapshot name>]")
+	cmd.Short = i18n.G("Create instance snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Create container snapshots
+		`Create instance snapshots
 
-When --stateful is used, LXD attempts to checkpoint the container's
+When --stateful is used, LXD attempts to checkpoint the instance's
 running state, including process memory state, TCP connections, ...`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc snapshot u1 snap0
     Create a snapshot of "u1" called "snap0".`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the container's running state"))
-	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the container"))
+	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the instance's running state"))
+	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the instance"))
 
 	return cmd
 }
