@@ -97,8 +97,8 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	}
 
 	// For VM images, create a filesystem volume too.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.CreateVolume(fsVol, nil, op)
 		if err != nil {
 			return err
@@ -635,8 +635,8 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	// For VMs, also delete the filesystem dataset.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.DeleteVolume(fsVol, op)
 		if err != nil {
 			return err
@@ -838,8 +838,8 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 // MountVolume simulates mounting a volume.
 func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	// For VMs, also mount the filesystem dataset.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		_, err := d.MountVolume(fsVol, op)
 		if err != nil {
 			return false, err
@@ -876,8 +876,8 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 // UnmountVolume simulates unmounting a volume.
 func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	// For VMs, also mount the filesystem dataset.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		_, err := d.UnmountVolume(fsVol, op)
 		if err != nil {
 			return false, err
@@ -943,8 +943,8 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	}
 
 	// For VM images, create a filesystem volume too.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.RenameVolume(fsVol, newVolName, op)
 		if err != nil {
 			return err
@@ -1162,8 +1162,8 @@ func (d *zfs) CreateVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	revert.Add(func() { d.DeleteVolumeSnapshot(vol, op) })
 
 	// For VM images, create a filesystem volume too.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.CreateVolumeSnapshot(fsVol, op)
 		if err != nil {
 			return err
@@ -1215,8 +1215,8 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	}
 
 	// For VM images, create a filesystem volume too.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.DeleteVolumeSnapshot(fsVol, op)
 		if err != nil {
 			return err
@@ -1330,8 +1330,8 @@ func (d *zfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	}
 
 	// For VM images, restore the associated filesystem dataset too.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.RestoreVolume(fsVol, snapshotName, op)
 		if err != nil {
 			return err
@@ -1371,8 +1371,8 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	})
 
 	// For VM images, create a filesystem volume too.
-	if d.checkVMBlock(vol) {
-		fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
 		err := d.RenameVolumeSnapshot(fsVol, newSnapshotName, op)
 		if err != nil {
 			return err
