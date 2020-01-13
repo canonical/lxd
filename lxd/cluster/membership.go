@@ -218,9 +218,9 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		}
 	}
 	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
-	if count > 1 && voters < membershipMaxRaftVoters {
+	if count > 1 && voters < MaxVoters {
 		node.Role = db.RaftVoter
-	} else if standbys < membershipMaxRaftStandBys {
+	} else if standbys < MaxStandBys {
 		node.Role = db.RaftStandBy
 	}
 	nodes = append(nodes, node)
@@ -481,7 +481,7 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo
 
 // Rebalance the raft cluster, trying to see if we have a spare online node
 // that we can promote to voter node if we are below membershipMaxRaftVoters,
-// or to standby if we are below membershipMaxRaftStandBys.
+// or to standby if we are below membershipMaxStandBys.
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
@@ -566,12 +566,12 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	var role db.RaftRole
 
-	if len(voters) < membershipMaxRaftVoters && len(voters) > 1 {
+	if len(voters) < MaxVoters && len(voters) > 1 {
 		role = db.RaftVoter
 		// Include stand-by nodes among the ones that can be promoted,
 		// preferring them over spare ones.
 		candidates = append(standbys, candidates...)
-	} else if len(standbys) < membershipMaxRaftStandBys {
+	} else if len(standbys) < MaxStandBys {
 		role = db.RaftStandBy
 	} else {
 		// We're already at full capacity or would have a two-member cluster.
@@ -1130,5 +1130,5 @@ var SchemaVersion = cluster.SchemaVersion
 // We currently aim at having 3 voter nodes and 2 stand-by.
 //
 // TODO: these numbers should probably be configurable.
-const membershipMaxRaftVoters = 3
-const membershipMaxRaftStandBys = 2
+const MaxVoters = 3
+const MaxStandBys = 2
