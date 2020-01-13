@@ -49,7 +49,7 @@ func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *disk) validateConfig() error {
-	if d.instance.Type() != instancetype.Container && d.instance.Type() != instancetype.VM {
+	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
@@ -128,7 +128,7 @@ func (d *disk) validateConfig() error {
 	// same path, so that if merged profiles share the same the path and then one is removed
 	// this can still be cleanly removed.
 	pathCount := 0
-	for _, devConfig := range d.instance.LocalDevices() {
+	for _, devConfig := range d.inst.LocalDevices() {
 		if devConfig["type"] == "disk" && devConfig["path"] == d.config["path"] {
 			pathCount++
 			if pathCount > 1 {
@@ -164,7 +164,7 @@ func (d *disk) validateConfig() error {
 		// and not a profile device (check for non-empty instance name), and we have least
 		// one expanded device (this is so we only do this expensive check after devices
 		// have been expanded).
-		if d.instance.Name() != "" && len(d.instance.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
+		if d.inst.Name() != "" && len(d.inst.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
 			isAvailable, err := d.state.Cluster.StorageVolumeIsAvailable(d.config["pool"], d.config["source"])
 			if err != nil {
 				return fmt.Errorf("Check if volume is available: %v", err)
@@ -182,7 +182,7 @@ func (d *disk) validateConfig() error {
 func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) string {
 	relativeDestPath := strings.TrimPrefix(devConfig["path"], "/")
 	devPath := deviceNameEncode(deviceJoinPath("disk", devName, relativeDestPath))
-	return filepath.Join(d.instance.DevicesPath(), devPath)
+	return filepath.Join(d.inst.DevicesPath(), devPath)
 }
 
 // validateEnvironment checks the runtime environment for correctness.
@@ -191,7 +191,7 @@ func (d *disk) validateEnvironment() error {
 		return fmt.Errorf("shiftfs is required by disk entry but isn't supported on system")
 	}
 
-	if d.instance.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
+	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
 	}
 
@@ -211,7 +211,7 @@ func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	if d.instance.Type() == instancetype.VM {
+	if d.inst.Type() == instancetype.VM {
 		return d.startVM()
 	}
 
@@ -232,7 +232,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			return err
 		}
 
-		err = d.instance.DeviceEventHandler(&runConf)
+		err = d.inst.DeviceEventHandler(&runConf)
 		if err != nil {
 			return err
 		}
@@ -244,7 +244,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	if shared.IsRootDiskDevice(d.config) {
 		// Set the rootfs path.
 		rootfs := deviceConfig.RootFSEntryItem{
-			Path: d.instance.RootfsPath(),
+			Path: d.inst.RootfsPath(),
 		}
 
 		// Read-only rootfs (unlikely to work very well).
@@ -300,7 +300,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(d.instance.Project(), d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(d.inst.Project(), d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return nil, err
 			}
@@ -397,7 +397,7 @@ func (d *disk) postStart() error {
 
 // Update applies configuration changes to a started device.
 func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
-	if d.instance.Type() == instancetype.VM {
+	if d.inst.Type() == instancetype.VM {
 		if shared.IsRootDiskDevice(d.config) {
 			return nil
 		}
@@ -407,7 +407,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 
 	if shared.IsRootDiskDevice(d.config) {
 		// Make sure we have a valid root disk device (and only one).
-		expandedDevices := d.instance.ExpandedDevices()
+		expandedDevices := d.inst.ExpandedDevices()
 		newRootDiskDeviceKey, _, err := shared.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
 			return errors.Wrap(err, "Detect root disk device")
@@ -456,7 +456,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			return err
 		}
 
-		err = d.instance.DeviceEventHandler(&runConf)
+		err = d.inst.DeviceEventHandler(&runConf)
 		if err != nil {
 			return err
 		}
@@ -466,13 +466,13 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 func (d *disk) applyQuota(newSize string) error {
-	return StorageRootFSApplyQuota(d.state, d.instance, newSize)
+	return StorageRootFSApplyQuota(d.state, d.inst, newSize)
 }
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
 func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	// Disk priority limits.
-	diskPriority := d.instance.ExpandedConfig()["limits.disk.priority"]
+	diskPriority := d.inst.ExpandedConfig()["limits.disk.priority"]
 	if diskPriority != "" {
 		if d.state.OS.CGInfo.Supports(cgroup.BlkioWeight, nil) {
 			priorityInt, err := strconv.Atoi(diskPriority)
@@ -498,7 +498,7 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 
 	// Disk throttle limits.
 	hasDiskLimits := false
-	for _, dev := range d.instance.ExpandedDevices() {
+	for _, dev := range d.inst.ExpandedDevices() {
 		if dev["type"] != "disk" {
 			continue
 		}
@@ -679,7 +679,7 @@ func (d *disk) createDevice() (string, error) {
 			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found", volumeTypeName)
 		}
 
-		err := StorageVolumeMount(d.state, d.config["pool"], volumeName, volumeTypeName, d.instance)
+		err := StorageVolumeMount(d.state, d.config["pool"], volumeName, volumeTypeName, d.inst)
 		if err != nil {
 			msg := fmt.Sprintf("Could not mount storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.", volumeName, volumeTypeName, d.config["pool"], err)
 			if !isRequired {
@@ -700,8 +700,8 @@ func (d *disk) createDevice() (string, error) {
 	}
 
 	// Create the devices directory if missing.
-	if !shared.PathExists(d.instance.DevicesPath()) {
-		err := os.Mkdir(d.instance.DevicesPath(), 0711)
+	if !shared.PathExists(d.inst.DevicesPath()) {
+		err := os.Mkdir(d.inst.DevicesPath(), 0711)
 		if err != nil {
 			return "", err
 		}
@@ -741,7 +741,7 @@ func (d *disk) createDevice() (string, error) {
 
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
-	if d.instance.Type() == instancetype.VM {
+	if d.inst.Type() == instancetype.VM {
 		// Only root disks and cloud-init:config drives supported on VMs.
 		if shared.IsRootDiskDevice(d.config) || d.config["source"] == diskSourceCloudInit {
 			return &deviceConfig.RunConfig{}, nil
@@ -841,7 +841,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 
 	// Process all the limits
 	blockLimits := map[string][]diskBlockLimit{}
-	for devName, dev := range d.instance.ExpandedDevices() {
+	for devName, dev := range d.inst.ExpandedDevices() {
 		if dev["type"] != "disk" {
 			continue
 		}
@@ -861,7 +861,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		// Set the source path
 		source := d.getDevicePath(devName, dev)
 		if dev["source"] == "" {
-			source = d.instance.RootfsPath()
+			source = d.inst.RootfsPath()
 		}
 
 		if !shared.PathExists(source) {
@@ -1149,7 +1149,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 // generateVMConfigDrive generates an ISO containing the cloud init config for a VM.
 // Returns the path to the ISO.
 func (d *disk) generateVMConfigDrive() (string, error) {
-	scratchDir := filepath.Join(d.instance.DevicesPath(), deviceNameEncode(d.name))
+	scratchDir := filepath.Join(d.inst.DevicesPath(), deviceNameEncode(d.name))
 
 	// Create config drive dir.
 	err := os.MkdirAll(scratchDir, 0100)
@@ -1157,7 +1157,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 		return "", err
 	}
 
-	instanceConfig := d.instance.ExpandedConfig()
+	instanceConfig := d.inst.ExpandedConfig()
 
 	// Use an empty user-data file if no custom vendor-data supplied.
 	vendorData := instanceConfig["user.vendor-data"]
@@ -1185,7 +1185,7 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	metaData := fmt.Sprintf(`instance-id: %s
 local-hostname: %s
 %s
-`, d.instance.Name(), d.instance.Name(), instanceConfig["user.meta-data"])
+`, d.inst.Name(), d.inst.Name(), instanceConfig["user.meta-data"])
 
 	err = ioutil.WriteFile(filepath.Join(scratchDir, "meta-data"), []byte(metaData), 0400)
 	if err != nil {
@@ -1196,7 +1196,7 @@ local-hostname: %s
 	// as this is what cloud-init uses to detect, mount the drive and run the cloud-init
 	// templates on first boot. The vendor-data template then modifies the system so that the
 	// config drive is mounted and the agent is started on subsequent boots.
-	isoPath := filepath.Join(d.instance.Path(), "config.iso")
+	isoPath := filepath.Join(d.inst.Path(), "config.iso")
 	_, err = shared.RunCommand("mkisofs", "-R", "-V", "cidata", "-o", isoPath, scratchDir)
 	if err != nil {
 		return "", err

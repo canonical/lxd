@@ -43,7 +43,7 @@ func (d *usb) isRequired() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *usb) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
@@ -68,7 +68,7 @@ func (d *usb) validateConfig() error {
 func (d *usb) Register() error {
 	// Extract variables needed to run the event hook so that the reference to this device
 	// struct is not needed to be kept in memory.
-	devicesPath := d.instance.DevicesPath()
+	devicesPath := d.inst.DevicesPath()
 	devConfig := d.config
 	deviceName := d.name
 	state := d.state
@@ -109,7 +109,7 @@ func (d *usb) Register() error {
 		return &runConf, nil
 	}
 
-	usbRegisterHandler(d.instance, d.name, f)
+	usbRegisterHandler(d.inst, d.name, f)
 
 	return nil
 }
@@ -129,7 +129,7 @@ func (d *usb) Start() (*deviceConfig.RunConfig, error) {
 			continue
 		}
 
-		err := unixDeviceSetupCharNum(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, usb.Major, usb.Minor, usb.Path, false, &runConf)
+		err := unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, usb.Major, usb.Minor, usb.Path, false, &runConf)
 		if err != nil {
 			return nil, err
 		}
@@ -145,13 +145,13 @@ func (d *usb) Start() (*deviceConfig.RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *usb) Stop() (*deviceConfig.RunConfig, error) {
 	// Unregister any USB event handlers for this device.
-	usbUnregisterHandler(d.instance, d.name)
+	usbUnregisterHandler(d.inst, d.name)
 
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
 
-	err := unixDeviceRemove(d.instance.DevicesPath(), "unix", d.name, "", &runConf)
+	err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (d *usb) Stop() (*deviceConfig.RunConfig, error) {
 // postStop is run after the device is removed from the instance.
 func (d *usb) postStop() error {
 	// Remove host files for this device.
-	err := unixDeviceDeleteFiles(d.state, d.instance.DevicesPath(), "unix", d.name, "")
+	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
 		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
 	}

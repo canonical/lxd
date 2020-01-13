@@ -32,7 +32,7 @@ type gpu struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *gpu) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
@@ -104,7 +104,7 @@ func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
-				err = unixDeviceSetupCharNum(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
 				if err != nil {
 					return nil, err
 				}
@@ -117,7 +117,7 @@ func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
-				err = unixDeviceSetupCharNum(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
 				if err != nil {
 					return nil, err
 				}
@@ -130,7 +130,7 @@ func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
-				err = unixDeviceSetupCharNum(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
 				if err != nil {
 					return nil, err
 				}
@@ -145,7 +145,7 @@ func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 					return nil, err
 				}
 
-				err = unixDeviceSetupCharNum(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, path, false, &runConf)
 				if err != nil {
 					return nil, err
 				}
@@ -156,7 +156,7 @@ func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 	if sawNvidia {
 		// No need to mount additional nvidia non-card devices as the nvidia.runtime
 		// setting will do this for us.
-		instanceConfig := d.instance.ExpandedConfig()
+		instanceConfig := d.inst.ExpandedConfig()
 		if !shared.IsTrue(instanceConfig["nvidia.runtime"]) {
 			nvidiaDevices, err := d.getNvidiaNonCardDevices()
 			if err != nil {
@@ -165,11 +165,11 @@ func (d *gpu) Start() (*deviceConfig.RunConfig, error) {
 
 			for _, dev := range nvidiaDevices {
 				prefix := deviceJoinPath("unix", d.name)
-				if UnixDeviceExists(d.instance.DevicesPath(), prefix, dev.path) {
+				if UnixDeviceExists(d.inst.DevicesPath(), prefix, dev.path) {
 					continue
 				}
 
-				err = unixDeviceSetupCharNum(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, dev.major, dev.minor, dev.path, false, &runConf)
+				err = unixDeviceSetupCharNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, dev.major, dev.minor, dev.path, false, &runConf)
 				if err != nil {
 					return nil, err
 				}
@@ -190,7 +190,7 @@ func (d *gpu) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	err := unixDeviceRemove(d.instance.DevicesPath(), "unix", d.name, "", &runConf)
+	err := unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (d *gpu) Stop() (*deviceConfig.RunConfig, error) {
 // postStop is run after the device is removed from the instance.
 func (d *gpu) postStop() error {
 	// Remove host files for this device.
-	err := unixDeviceDeleteFiles(d.state, d.instance.DevicesPath(), "unix", d.name, "")
+	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
 		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
 	}
