@@ -83,8 +83,9 @@ func (d *disk) validateConfig() error {
 		"ceph.user_name":    shared.IsAny,
 	}
 
-	// VMs can have a special cloud-init config drive attached with no path.
-	if d.instance.Type() != instancetype.VM || d.config["source"] != diskSourceCloudInit {
+	// VMs can have a special cloud-init config drive attached with no path. Don't check instance type here
+	// to allow mixed instance type profiles to use this setting. We will check at device start for VM type.
+	if d.config["source"] != diskSourceCloudInit {
 		rules["path"] = shared.IsNotEmpty
 	}
 
@@ -188,6 +189,10 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 func (d *disk) validateEnvironment() error {
 	if shared.IsTrue(d.config["shift"]) && !d.state.OS.Shiftfs {
 		return fmt.Errorf("shiftfs is required by disk entry but isn't supported on system")
+	}
+
+	if d.instance.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
+		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
 	}
 
 	return nil
