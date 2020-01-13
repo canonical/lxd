@@ -31,30 +31,30 @@ type cmdMove struct {
 
 func (c *cmdMove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]]")
+	cmd.Use = i18n.G("move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]")
 	cmd.Aliases = []string{"mv"}
-	cmd.Short = i18n.G("Move containers within or in between LXD instances")
+	cmd.Short = i18n.G("Move instances within or in between LXD servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Move containers within or in between LXD instances`))
+		`Move instances within or in between LXD servers`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc move [<remote>:]<source container> [<remote>:][<destination container>] [--container-only]
-    Move a container between two hosts, renaming it if destination name differs.
+		`lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--instance-only]
+    Move an instance between two hosts, renaming it if destination name differs.
 
-lxc move <old name> <new name> [--container-only]
-    Rename a local container.
+lxc move <old name> <new name> [--instance-only]
+    Rename a local instance.
 
-lxc move <container>/<old snapshot name> <container>/<new snapshot name>
+lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
     Rename a snapshot.`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the target container")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the target instance")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target container")+"``")
-	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Unset all profiles on the target container"))
-	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots (deprecated, use instance-only)"))
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target instance")+"``")
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Unset all profiles on the target instance"))
+	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the instance without its snapshots (deprecated, use instance-only)"))
 	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, i18n.G("Move the instance without its snapshots"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", moveDefaultMode, i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
-	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
+	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful instance stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
@@ -100,8 +100,8 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// As an optimization, if the source an destination are the same, do
-	// this via a simple rename. This only works for containers that aren't
-	// running, containers that are running should be live migrated (of
+	// this via a simple rename. This only works for instances that aren't
+	// running, instances that are running should be live migrated (of
 	// course, this changing of hostname isn't supported right now, so this
 	// simply won't work).
 	if sourceRemote == destRemote && c.flagTarget == "" && c.flagStorage == "" && c.flagTargetProject == "" {
@@ -150,7 +150,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		destResource = args[1]
 	}
 
-	// If the target option was specified, we're moving a container from a
+	// If the target option was specified, we're moving an instance from a
 	// cluster member to another, let's use the dedicated API.
 	if c.flagTarget != "" {
 		if c.flagStateless {
@@ -158,7 +158,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if c.flagContainerOnly {
-			return fmt.Errorf(i18n.G("The --container-only flag can't be used with --target"))
+			return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
 		}
 
 		if c.flagInstanceOnly {
@@ -169,7 +169,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 		}
 
-		return moveClusterContainer(conf, sourceResource, destResource, c.flagTarget)
+		return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget)
 	}
 
 	cpy := cmdCopy{}
@@ -185,8 +185,8 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
 
 	// A move is just a copy followed by a delete; however, we want to
-	// keep the volatile entries around since we are moving the container.
-	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, instanceOnly, mode, c.flagStorage, true)
+	// keep the volatile entries around since we are moving the instance.
+	err = cpy.copyInstance(conf, sourceResource, destResource, true, -1, stateful, instanceOnly, mode, c.flagStorage, true)
 	if err != nil {
 		return err
 	}
@@ -195,14 +195,14 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	del.flagForce = true
 	err = del.Run(cmd, args[:1])
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete original container after copying it")
+		return errors.Wrap(err, "Failed to delete original instance after copying it")
 	}
 
 	return nil
 }
 
-// Move a container using special POST /containers/<name>?target=<member> API.
-func moveClusterContainer(conf *config.Config, sourceResource, destResource, target string) error {
+// Move an instance using special POST /instances/<name>?target=<member> API.
+func moveClusterInstance(conf *config.Config, sourceResource, destResource, target string) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -215,9 +215,9 @@ func moveClusterContainer(conf *config.Config, sourceResource, destResource, tar
 		return err
 	}
 
-	// Make sure we have a container or snapshot name.
+	// Make sure we have an instance or snapshot name.
 	if sourceName == "" {
-		return fmt.Errorf(i18n.G("You must specify a source container name"))
+		return fmt.Errorf(i18n.G("You must specify a source instance name"))
 	}
 
 	// The destination name is optional.
@@ -233,7 +233,7 @@ func moveClusterContainer(conf *config.Config, sourceResource, destResource, tar
 
 	// Check that it's a cluster
 	if !source.IsClustered() {
-		return fmt.Errorf(i18n.G("The source LXD instance is not clustered"))
+		return fmt.Errorf(i18n.G("The source LXD server is not clustered"))
 	}
 
 	// The migrate API will do the right thing when passed a target.
@@ -252,5 +252,5 @@ func moveClusterContainer(conf *config.Config, sourceResource, destResource, tar
 	return nil
 }
 
-// Default migration mode when moving a container.
+// Default migration mode when moving an instance.
 const moveDefaultMode = "pull"

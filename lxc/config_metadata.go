@@ -24,9 +24,9 @@ type cmdConfigMetadata struct {
 func (c *cmdConfigMetadata) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("metadata")
-	cmd.Short = i18n.G("Manage container metadata files")
+	cmd.Short = i18n.G("Manage instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage container metadata files`))
+		`Manage instance metadata files`))
 
 	// Edit
 	configMetadataEditCmd := cmdConfigMetadataEdit{global: c.global, config: c.config, configMetadata: c}
@@ -48,10 +48,10 @@ type cmdConfigMetadataEdit struct {
 
 func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:]<container>")
-	cmd.Short = i18n.G("Edit container metadata files")
+	cmd.Use = i18n.G("edit [<remote>:]<instance>")
+	cmd.Short = i18n.G("Edit instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edit container metadata files`))
+		`Edit instance metadata files`))
 
 	cmd.RunE = c.Run
 
@@ -60,7 +60,7 @@ func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
 
 func (c *cmdConfigMetadataEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of the container metadata.
+		`### This is a yaml representation of the instance metadata.
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample configuration looks like:
@@ -98,7 +98,7 @@ func (c *cmdConfigMetadataEdit) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
 	// Edit the metadata
@@ -170,10 +170,10 @@ type cmdConfigMetadataShow struct {
 
 func (c *cmdConfigMetadataShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:]<container>")
-	cmd.Short = i18n.G("Show container metadata files")
+	cmd.Use = i18n.G("show [<remote>:]<instance>")
+	cmd.Short = i18n.G("Show instance metadata files")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Show container metadata files`))
+		`Show instance metadata files`))
 
 	cmd.RunE = c.Run
 
@@ -196,10 +196,10 @@ func (c *cmdConfigMetadataShow) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing container name"))
+		return fmt.Errorf(i18n.G("Missing instance name"))
 	}
 
-	// Show the container metadata
+	// Show the instance metadata
 	metadata, _, err := resource.server.GetInstanceMetadata(resource.name)
 	if err != nil {
 		return err

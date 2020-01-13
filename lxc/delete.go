@@ -24,14 +24,14 @@ type cmdDelete struct {
 
 func (c *cmdDelete) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/<snapshot>]...]")
+	cmd.Use = i18n.G("delete [<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]")
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Delete containers and snapshots")
+	cmd.Short = i18n.G("Delete instances and snapshots")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Delete containers and snapshots`))
+		`Delete instances and snapshots`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the removal of running containers"))
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the removal of running instances"))
 	cmd.Flags().BoolVarP(&c.flagInteractive, "interactive", "i", false, i18n.G("Require user confirmation"))
 
 	return cmd
@@ -101,7 +101,7 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 
 		if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
 			if !c.flagForce {
-				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force"))
+				return fmt.Errorf(i18n.G("The instance is currently running, stop it first or pass --force"))
 			}
 
 			req := api.InstanceStatePut{
@@ -117,7 +117,7 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 
 			err = op.Wait()
 			if err != nil {
-				return fmt.Errorf(i18n.G("Stopping the container failed: %s"), err)
+				return fmt.Errorf(i18n.G("Stopping the instance failed: %s"), err)
 			}
 
 			if ct.Ephemeral == true {

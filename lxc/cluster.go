@@ -259,11 +259,11 @@ func (c *cmdClusterRemove) promptConfirmation(name string) error {
 resort.
 
 The removed server will not be functional after this action and will require a
-full reset of LXD, losing any remaining container, image or storage volume
+full reset of LXD, losing any remaining instance, image or storage volume
 that the server may have held.
 
 When possible, a graceful removal should be preferred, this will require you to
-move any affected container, image or storage volume to another server prior to
+move any affected instance, image or storage volume to another server prior to
 the server being cleanly removed from the cluster.
 
 The --force flag should only be used if the server has died, been reinstalled
@@ -327,11 +327,11 @@ type cmdClusterEnable struct {
 func (c *cmdClusterEnable) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("enable [<remote>:] <name>")
-	cmd.Short = i18n.G("Enable clustering on a single non-clustered LXD instance")
+	cmd.Short = i18n.G("Enable clustering on a single non-clustered LXD server")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Enable clustering on a single non-clustered LXD instance
+		`Enable clustering on a single non-clustered LXD server
 
-  This command turns a non-clustered LXD instance into the first member of a new
+  This command turns a non-clustered LXD server into the first member of a new
   LXD cluster, which will have the given name.
 
   It's required that the LXD is already available on the network. You can check
@@ -365,14 +365,14 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	// Check if the LXD instance is available on the network.
+	// Check if the LXD server is available on the network.
 	server, _, err := resource.server.GetServer()
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve current server config")
 	}
 
 	if server.Config["core.https_address"] == "" {
-		return fmt.Errorf("This LXD instance is not available on the network")
+		return fmt.Errorf("This LXD server is not available on the network")
 	}
 
 	// Check if already enabled
@@ -382,7 +382,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if currentCluster.Enabled {
-		return fmt.Errorf("This LXD instance is already clustered")
+		return fmt.Errorf("This LXD server is already clustered")
 	}
 
 	// Enable clustering.
