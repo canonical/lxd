@@ -397,11 +397,7 @@ func (d *disk) postStart() error {
 
 // Update applies configuration changes to a started device.
 func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
-	if d.inst.Type() == instancetype.VM {
-		if shared.IsRootDiskDevice(d.config) {
-			return nil
-		}
-
+	if d.inst.Type() == instancetype.VM && !shared.IsRootDiskDevice(d.config) {
 		return fmt.Errorf("Non-root disks not supported for VMs")
 	}
 
