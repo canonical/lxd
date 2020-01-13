@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 )
 
@@ -73,7 +74,7 @@ type device interface {
 	Device
 
 	// init stores the Instance, daemon State and Config into device and performs any setup.
-	init(Instance, *state.State, string, deviceConfig.Device, VolatileGetter, VolatileSetter)
+	init(instance.Instance, *state.State, string, deviceConfig.Device, VolatileGetter, VolatileSetter)
 
 	// validateConfig checks Config stored by init() is valid for the instance type.
 	validateConfig() error
@@ -81,7 +82,7 @@ type device interface {
 
 // deviceCommon represents the common struct for all devices.
 type deviceCommon struct {
-	instance    Instance
+	inst        instance.Instance
 	name        string
 	config      deviceConfig.Device
 	state       *state.State
@@ -93,8 +94,8 @@ type deviceCommon struct {
 // It also needs to be provided with volatile get and set functions for the device to allow
 // persistent data to be accessed. This is implemented as part of deviceCommon so that the majority
 // of devices don't need to implement it and can just embed deviceCommon.
-func (d *deviceCommon) init(instance Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
-	d.instance = instance
+func (d *deviceCommon) init(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) {
+	d.inst = inst
 	d.name = name
 	d.config = conf
 	d.state = state
@@ -132,7 +133,7 @@ func (d *deviceCommon) Remove() error {
 // If the device type is valid, but the other config validation fails then an instantiated device
 // is still returned with the validation error. If an unknown device is requested or the device is
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
-func New(instance Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+func New(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
 	if conf["type"] == "" {
 		return nil, fmt.Errorf("Missing device type for device '%s'", name)
 	}
@@ -151,7 +152,7 @@ func New(instance Instance, state *state.State, name string, conf deviceConfig.D
 	}
 
 	// Init the device and run validation of supplied config.
-	dev.init(instance, state, name, conf, volatileGet, volatileSet)
+	dev.init(inst, state, name, conf, volatileGet, volatileSet)
 	err := dev.validateConfig()
 
 	// We still return the instantiated device here, as in some scenarios the caller

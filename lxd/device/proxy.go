@@ -41,7 +41,7 @@ type proxyProcInfo struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *proxy) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
@@ -148,9 +148,9 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			devFileName := fmt.Sprintf("proxy.%s", d.name)
-			pidPath := filepath.Join(d.instance.DevicesPath(), devFileName)
+			pidPath := filepath.Join(d.inst.DevicesPath(), devFileName)
 			logFileName := fmt.Sprintf("proxy.%s.log", d.name)
-			logPath := filepath.Join(d.instance.LogPath(), logFileName)
+			logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
 			_, err = shared.RunCommand(
 				d.state.OS.ExecPath,
@@ -227,11 +227,11 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 // Stop is run when the device is removed from the instance.
 func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
-	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.instance.Name(), d.name))
-	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.instance.Name(), d.name))
+	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
+	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
 
 	devFileName := fmt.Sprintf("proxy.%s", d.name)
-	devPath := filepath.Join(d.instance.DevicesPath(), devFileName)
+	devPath := filepath.Join(d.inst.DevicesPath(), devFileName)
 
 	if !shared.PathExists(devPath) {
 		// There's no proxy process if NAT is enabled
@@ -265,7 +265,7 @@ func (d *proxy) setupNAT() error {
 	var IPv4Addr net.IP
 	var IPv6Addr net.IP
 
-	for _, devConfig := range d.instance.ExpandedDevices() {
+	for _, devConfig := range d.inst.ExpandedDevices() {
 		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig["nictype"] != "bridged") {
 			continue
 		}
@@ -288,7 +288,7 @@ func (d *proxy) setupNAT() error {
 		return fmt.Errorf("NIC IP doesn't match proxy target IP")
 	}
 
-	firewallComment := fmt.Sprintf("%s (%s)", d.instance.Name(), d.name)
+	firewallComment := fmt.Sprintf("%s (%s)", d.inst.Name(), d.name)
 
 	revert := true
 	defer func() {
@@ -347,7 +347,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 }
 
 func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
-	cname := project.Prefix(d.instance.Project(), d.instance.Name())
+	cname := project.Prefix(d.inst.Project(), d.inst.Name())
 	cc, err := lxc.NewContainer(cname, d.state.OS.LxcPath)
 	if err != nil {
 		return nil, err

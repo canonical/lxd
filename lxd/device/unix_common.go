@@ -39,7 +39,7 @@ func (d *unixCommon) isRequired() bool {
 
 // validateConfig checks the supplied config for correctness.
 func (d *unixCommon) validateConfig() error {
-	if d.instance.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container {
 		return ErrUnsupportedDevType
 	}
 
@@ -75,7 +75,7 @@ func (d *unixCommon) Register() error {
 
 	// Extract variables needed to run the event hook so that the reference to this device
 	// struct is not needed to be kept in memory.
-	devicesPath := d.instance.DevicesPath()
+	devicesPath := d.inst.DevicesPath()
 	devConfig := d.config
 	deviceName := d.name
 	state := d.state
@@ -142,7 +142,7 @@ func (d *unixCommon) Register() error {
 
 	// Register the handler function against the device's source path.
 	subPath := unixDeviceSourcePath(devConfig)
-	err := unixRegisterHandler(d.state, d.instance, d.name, subPath, f)
+	err := unixRegisterHandler(d.state, d.inst, d.name, subPath, f)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (d *unixCommon) Start() (*deviceConfig.RunConfig, error) {
 			return nil, fmt.Errorf("Path specified is not a %s device", d.config["type"])
 		}
 
-		err = unixDeviceSetup(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, true, &runConf)
+		err = unixDeviceSetup(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, true, &runConf)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +172,7 @@ func (d *unixCommon) Start() (*deviceConfig.RunConfig, error) {
 		// If the device file doesn't exist on the system, but major & minor numbers have
 		// been provided in the config then we can go ahead and create the device anyway.
 		if d.config["major"] != "" && d.config["minor"] != "" {
-			err := unixDeviceSetup(d.state, d.instance.DevicesPath(), "unix", d.name, d.config, true, &runConf)
+			err := unixDeviceSetup(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, true, &runConf)
 			if err != nil {
 				return nil, err
 			}
@@ -188,7 +188,7 @@ func (d *unixCommon) Start() (*deviceConfig.RunConfig, error) {
 // Stop is run when the device is removed from the instance.
 func (d *unixCommon) Stop() (*deviceConfig.RunConfig, error) {
 	// Unregister any Unix event handlers for this device.
-	err := unixUnregisterHandler(d.state, d.instance, d.name)
+	err := unixUnregisterHandler(d.state, d.inst, d.name)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (d *unixCommon) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
-	err = unixDeviceRemove(d.instance.DevicesPath(), "unix", d.name, "", &runConf)
+	err = unixDeviceRemove(d.inst.DevicesPath(), "unix", d.name, "", &runConf)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func (d *unixCommon) Stop() (*deviceConfig.RunConfig, error) {
 // postStop is run after the device is removed from the instance.
 func (d *unixCommon) postStop() error {
 	// Remove host files for this device.
-	err := unixDeviceDeleteFiles(d.state, d.instance.DevicesPath(), "unix", d.name, "")
+	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 	if err != nil {
 		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
 	}

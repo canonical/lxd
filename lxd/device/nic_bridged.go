@@ -49,7 +49,7 @@ type nicBridged struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicBridged) validateConfig() error {
-	if d.instance.Type() != instancetype.Container && d.instance.Type() != instancetype.VM {
+	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
@@ -126,9 +126,9 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	var peerName string // Only used with containers, empty for VMs.
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
-	if d.instance.Type() == instancetype.Container {
+	if d.inst.Type() == instancetype.Container {
 		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
-	} else if d.instance.Type() == instancetype.VM {
+	} else if d.inst.Type() == instancetype.VM {
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
 		err = networkCreateTap(saveData["host_name"])
 	}
@@ -178,7 +178,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "link", Value: peerName},
 	}
 
-	if d.instance.Type() == instancetype.VM {
+	if d.inst.Type() == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
 		)
@@ -195,7 +195,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 	// isn't allocated old IP. This is important with IPv6 because DHCPv6 supports multiple IP
 	// address allocation and would result in instance having leases for both old and new IPs.
 	if d.config["hwaddr"] != "" && d.config["ipv6.address"] != oldConfig["ipv6.address"] {
-		err := d.networkClearLease(d.instance.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseIPv6Only)
+		err := d.networkClearLease(d.inst.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseIPv6Only)
 		if err != nil {
 			return err
 		}
@@ -291,7 +291,7 @@ func (d *nicBridged) postStop() error {
 
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicBridged) Remove() error {
-	err := d.networkClearLease(d.instance.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
+	err := d.networkClearLease(d.inst.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func (d *nicBridged) Remove() error {
 		defer dnsmasq.ConfigMutex.Unlock()
 
 		// Remove dnsmasq config if it exists (doesn't return error if file is missing).
-		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.instance.Project(), d.instance.Name())
+		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name())
 		if err != nil {
 			return err
 		}
@@ -341,7 +341,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// If IP filtering is enabled, and no static IP in config, check if there is already a
 	// dynamically assigned static IP in dnsmasq config and write that back out in new config.
 	if (shared.IsTrue(d.config["security.ipv4_filtering"]) && ipv4Address == "") || (shared.IsTrue(d.config["security.ipv6_filtering"]) && ipv6Address == "") {
-		curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d.config["parent"], d.instance.Name())
+		curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d.config["parent"], d.inst.Name())
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -355,7 +355,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 		}
 	}
 
-	err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.instance.Project(), d.instance.Name(), netConfig, d.config["hwaddr"], ipv4Address, ipv6Address)
+	err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), netConfig, d.config["hwaddr"], ipv4Address, ipv6Address)
 	if err != nil {
 		return err
 	}
@@ -398,15 +398,15 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	}
 
 	// Remove any IPv6 filters used for this instance.
-	err := d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.instance.Name()))
+	err := d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.inst.Name()))
 	if err != nil {
 		return fmt.Errorf("Failed to clear ip6tables ipv6_filter rules for %s: %v", m["name"], err)
 	}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
 	var IPv4, IPv6 dhcpAllocation
-	if shared.PathExists(shared.VarPath("networks", m["parent"], "dnsmasq.hosts") + "/" + d.instance.Name()) {
-		IPv4, IPv6, err = d.getDHCPStaticIPs(m["parent"], d.instance.Name())
+	if shared.PathExists(shared.VarPath("networks", m["parent"], "dnsmasq.hosts") + "/" + d.inst.Name()) {
+		IPv4, IPv6, err = d.getDHCPStaticIPs(m["parent"], d.inst.Name())
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
 		}
@@ -436,14 +436,14 @@ func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcp
 				if IP.To4() == nil {
 					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
 				}
-				IPv4 = dhcpAllocation{Name: d.instance.Name(), Static: true, IP: IP.To4()}
+				IPv4 = dhcpAllocation{Name: d.inst.Name(), Static: true, IP: IP.To4()}
 
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
 					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
 				}
-				IPv6 = dhcpAllocation{Name: d.instance.Name(), Static: true, IP: IP}
+				IPv6 = dhcpAllocation{Name: d.inst.Name(), Static: true, IP: IP}
 			}
 		}
 	}
@@ -576,7 +576,7 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}()
 
-	return d.state.Firewall.InstanceNicBridgedSetFilters(d.config, IPv4, IPv6, d.instance.Name())
+	return d.state.Firewall.InstanceNicBridgedSetFilters(d.config, IPv4, IPv6, d.inst.Name())
 }
 
 // networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
@@ -619,7 +619,7 @@ func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net
 	defer dnsmasq.ConfigMutex.Unlock()
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	curIPv4, curIPv6, err := d.getDHCPStaticIPs(d.config["parent"], d.instance.Name())
+	curIPv4, curIPv6, err := d.getDHCPStaticIPs(d.config["parent"], d.inst.Name())
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, err
 	}
@@ -664,7 +664,7 @@ func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net
 
 		// Allocate a new IPv4 address if IPv4 filtering enabled.
 		if IPv4 == nil && canIPv4Allocate && shared.IsTrue(d.config["security.ipv4_filtering"]) {
-			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, netConfig, d.instance.Name(), d.config["hwaddr"])
+			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, netConfig, d.inst.Name(), d.config["hwaddr"])
 			if err != nil {
 				return nil, nil, err
 			}
@@ -672,7 +672,7 @@ func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net
 
 		// Allocate a new IPv6 address if IPv6 filtering enabled.
 		if IPv6 == nil && canIPv6Allocate && shared.IsTrue(d.config["security.ipv6_filtering"]) {
-			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, netConfig, d.instance.Name(), d.config["hwaddr"])
+			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, netConfig, d.inst.Name(), d.config["hwaddr"])
 			if err != nil {
 				return nil, nil, err
 			}
@@ -692,7 +692,7 @@ func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net
 			IPv6Str = IPv6.String()
 		}
 
-		err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.instance.Project(), d.instance.Name(), netConfig, d.config["hwaddr"], IPv4Str, IPv6Str)
+		err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), netConfig, d.config["hwaddr"], IPv4Str, IPv6Str)
 		if err != nil {
 			return nil, nil, err
 		}

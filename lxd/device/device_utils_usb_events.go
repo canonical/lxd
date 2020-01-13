@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -34,22 +35,22 @@ var usbHandlers = map[string]func(USBEvent) (*deviceConfig.RunConfig, error){}
 var usbMutex sync.Mutex
 
 // usbRegisterHandler registers a handler function to be called whenever a USB device event occurs.
-func usbRegisterHandler(instance Instance, deviceName string, handler func(USBEvent) (*deviceConfig.RunConfig, error)) {
+func usbRegisterHandler(inst instance.Instance, deviceName string, handler func(USBEvent) (*deviceConfig.RunConfig, error)) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", instance.Project(), instance.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
 	usbHandlers[key] = handler
 }
 
 // usbUnregisterHandler removes a registered USB handler function for a device.
-func usbUnregisterHandler(instance Instance, deviceName string) {
+func usbUnregisterHandler(inst instance.Instance, deviceName string) {
 	usbMutex.Lock()
 	defer usbMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", instance.Project(), instance.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
 	delete(usbHandlers, key)
 }
 

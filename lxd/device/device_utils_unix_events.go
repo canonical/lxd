@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -32,7 +33,7 @@ var unixHandlers = map[string]UnixSubscription{}
 var unixMutex sync.Mutex
 
 // unixRegisterHandler registers a handler function to be called whenever a Unix device event occurs.
-func unixRegisterHandler(s *state.State, instance Instance, deviceName, path string, handler func(UnixEvent) (*deviceConfig.RunConfig, error)) error {
+func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, path string, handler func(UnixEvent) (*deviceConfig.RunConfig, error)) error {
 	if path == "" || handler == nil {
 		return fmt.Errorf("Invalid subscription")
 	}
@@ -41,7 +42,7 @@ func unixRegisterHandler(s *state.State, instance Instance, deviceName, path str
 	defer unixMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", instance.Project(), instance.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
 	unixHandlers[key] = UnixSubscription{
 		Path:    path,
 		Handler: handler,
@@ -59,12 +60,12 @@ func unixRegisterHandler(s *state.State, instance Instance, deviceName, path str
 }
 
 // unixUnregisterHandler removes a registered Unix handler function for a device.
-func unixUnregisterHandler(s *state.State, instance Instance, deviceName string) error {
+func unixUnregisterHandler(s *state.State, inst instance.Instance, deviceName string) error {
 	unixMutex.Lock()
 	defer unixMutex.Unlock()
 
 	// Null delimited string of project name, instance name and device name.
-	key := fmt.Sprintf("%s\000%s\000%s", instance.Project(), instance.Name(), deviceName)
+	key := fmt.Sprintf("%s\000%s\000%s", inst.Project(), inst.Name(), deviceName)
 
 	sub, exists := unixHandlers[key]
 	if !exists {
