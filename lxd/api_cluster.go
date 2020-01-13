@@ -980,7 +980,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	err = rebalanceMemberRoles(d)
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "Failed to rebalance dqlite nodes"))
+		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
 
 	if force != 1 {
