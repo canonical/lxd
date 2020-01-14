@@ -3,19 +3,19 @@
 ## Introduction
 So first of all, why a database?
 
-Rather than keeping the configuration and state within each container's
+Rather than keeping the configuration and state within each instance's
 directory as is traditionally done by LXC, LXD has an internal database
 which stores all of that information. This allows very quick queries
-against all containers configuration.
+against all instances configuration.
 
 
-An example is the rather obvious question "what containers are using br0?".
+An example is the rather obvious question "what instances are using br0?".
 To answer that question without a database, LXD would have to iterate
-through every single container, load and parse its configuration and
+through every single instance, load and parse its configuration and
 then look at what network devices are defined in there.
 
-While that may be quick with a few containers, imagine how many
-filesystem access would be required for 2000 containers. Instead with a
+While that may be quick with a few instance, imagine how many
+filesystem access would be required for 2000 instances. Instead with a
 database, it's only a matter of accessing the already cached database
 with a pretty simple query.
 

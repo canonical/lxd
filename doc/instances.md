@@ -729,7 +729,7 @@ For example, those 3 are equivalent:
 On the command line, this is passed like this:
 
 ```bash
-lxc launch ubuntu:16.04 my-instance -t t2.micro
+lxc launch ubuntu:18.04 my-instance -t t2.micro
 ```
 
 The list of supported clouds and instance types can be found here:
