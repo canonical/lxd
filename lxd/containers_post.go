@@ -762,7 +762,8 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 
 	// Parse the request
 	req := api.InstancesPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -773,9 +774,13 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		// the selected node is the local one, this is effectively a
 		// no-op, since NodeWithLeastContainers() will return an empty
 		// string.
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		architectures, err := instance.SuitableArchitectures(d.State(), project, req)
+		if err != nil {
+			return response.BadRequest(err)
+		}
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.NodeWithLeastContainers()
+			targetNode, err = tx.NodeWithLeastContainers(architectures)
 			return err
 		})
 		if err != nil {

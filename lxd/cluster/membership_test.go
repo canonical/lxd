@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
@@ -204,7 +205,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 
 			c.setup(&membershipFixtures{t: t, state: state})
 
-			_, err := cluster.Accept(state, gateway, c.name, c.address, c.schema, c.api)
+			_, err := cluster.Accept(state, gateway, c.name, c.address, c.schema, c.api, osarch.ARCH_64BIT_INTEL_X86)
 			assert.EqualError(t, err, c.error)
 		})
 	}
@@ -224,7 +225,7 @@ func TestAccept(t *testing.T) {
 	f.ClusterNode("1.2.3.4:666")
 
 	nodes, err := cluster.Accept(
-		state, gateway, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions))
+		state, gateway, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, int64(1), nodes[0].ID)
@@ -306,7 +307,7 @@ func TestJoin(t *testing.T) {
 
 	// Accept the joining node.
 	raftNodes, err := cluster.Accept(
-		targetState, targetGateway, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions))
+		targetState, targetGateway, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	require.NoError(t, err)
 
 	// Actually join the cluster.
