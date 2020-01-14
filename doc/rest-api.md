@@ -54,7 +54,7 @@ The body is a dict with the following structure:
     "type": "async",
     "status": "OK",
     "status_code": 100,
-    "operation": "/1.0/containers/<id>",                    // URL to the background operation
+    "operation": "/1.0/instances/<id>",                     // URL to the background operation
     "metadata": {}                                          // Operation metadata (see below)
 }
 ```
@@ -71,7 +71,7 @@ The operation metadata structure looks like:
     "status_code": 103,                                     // Integer version of the operation's status (use this rather than status)
     "resources": {                                          // Dictionary of resource types (container, snapshots, images) and affected resources
       "containers": [
-        "/1.0/containers/test"
+        "/1.0/instances/test"
       ]
     },
     "metadata": {                                           // Metadata specific to the operation in question (in this case, exec)
@@ -192,21 +192,21 @@ won't work and PUT needs to be used instead.
    * [`/1.0`](#10)
  * [`/1.0/certificates`](#10certificates)
    * [`/1.0/certificates/<fingerprint>`](#10certificatesfingerprint)
- * [`/1.0/containers`](#10containers)
-   * [`/1.0/containers/<name>`](#10containersname)
-     * [`/1.0/containers/<name>/console`](#10containersnameconsole)
-     * [`/1.0/containers/<name>/exec`](#10containersnameexec)
-     * [`/1.0/containers/<name>/files`](#10containersnamefiles)
-     * [`/1.0/containers/<name>/snapshots`](#10containersnamesnapshots)
-     * [`/1.0/containers/<name>/snapshots/<name>`](#10containersnamesnapshotsname)
-     * [`/1.0/containers/<name>/state`](#10containersnamestate)
-     * [`/1.0/containers/<name>/logs`](#10containersnamelogs)
-     * [`/1.0/containers/<name>/logs/<logfile>`](#10containersnamelogslogfile)
-     * [`/1.0/containers/<name>/metadata`](#10containersnamemetadata)
-     * [`/1.0/containers/<name>/metadata/templates`](#10containersnamemetadatatemplates)
-     * [`/1.0/containers/<name>/backups`](#10containersnamebackups)
-     * [`/1.0/containers/<name>/backups/<name>`](#10containersnamebackupsname)
-     * [`/1.0/containers/<name>/backups/<name>/export`](#10containersnamebackupsnameexport)
+ * [`/1.0/instances`](#10instances)
+   * [`/1.0/instances/<name>`](#10instancesname)
+     * [`/1.0/instances/<name>/console`](#10instancesnameconsole)
+     * [`/1.0/instances/<name>/exec`](#10instancesnameexec)
+     * [`/1.0/instances/<name>/files`](#10instancesnamefiles)
+     * [`/1.0/instances/<name>/snapshots`](#10instancesnamesnapshots)
+     * [`/1.0/instances/<name>/snapshots/<name>`](#10instancesnamesnapshotsname)
+     * [`/1.0/instances/<name>/state`](#10instancesnamestate)
+     * [`/1.0/instances/<name>/logs`](#10instancesnamelogs)
+     * [`/1.0/instances/<name>/logs/<logfile>`](#10instancesnamelogslogfile)
+     * [`/1.0/instances/<name>/metadata`](#10instancesnamemetadata)
+     * [`/1.0/instances/<name>/metadata/templates`](#10instancesnamemetadatatemplates)
+     * [`/1.0/instances/<name>/backups`](#10instancesnamebackups)
+     * [`/1.0/instances/<name>/backups/<name>`](#10instancesnamebackupsname)
+     * [`/1.0/instances/<name>/backups/<name>/export`](#10instancesnamebackupsnameexport)
  * [`/1.0/events`](#10events)
  * [`/1.0/images`](#10images)
    * [`/1.0/images/<fingerprint>`](#10imagesfingerprint)
@@ -442,38 +442,38 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
-### `/1.0/containers`
+### `/1.0/instances`
 #### GET
- * Description: List of containers
+ * Description: List of instances
  * Authentication: trusted
  * Operation: sync
- * Return: list of URLs for containers this server publishes
+ * Return: list of URLs for instances this server hosts
 
 Return value:
 
 ```json
 [
-    "/1.0/containers/blah",
-    "/1.0/containers/blah1"
+    "/1.0/instances/blah",
+    "/1.0/instances/blah1"
 ]
 ```
 
 #### POST (optional `?target=<member>`)
- * Description: Create a new container
+ * Description: Create a new instance
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
 
-Input (container based on a local image with the "ubuntu/devel" alias):
+Input (instance based on a local image with the "ubuntu/devel" alias):
 
 ```js
 {
-    "name": "my-new-container",                                         // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // optional list of devices the container should have
+    "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -485,16 +485,16 @@ Input (container based on a local image with the "ubuntu/devel" alias):
 }
 ```
 
-Input (container based on a local image identified by its fingerprint):
+Input (instance based on a local image identified by its fingerprint):
 
 ```js
 {
-    "name": "my-new-container",                                         // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // optional list of devices the container should have
+    "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -505,16 +505,16 @@ Input (container based on a local image identified by its fingerprint):
 }
 ```
 
-Input (container based on most recent match based on image properties):
+Input (instance based on most recent match based on image properties):
 
 ```js
 {
-    "name": "my-new-container",                                         // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // optional list of devices the container should have
+    "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -529,16 +529,16 @@ Input (container based on most recent match based on image properties):
 }
 ```
 
-Input (container without a pre-populated rootfs, useful when attaching to an existing one):
+Input (instance without a pre-populated rootfs, useful when attaching to an existing one):
 
 ```js
 {
-    "name": "my-new-container",                                         // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // optional list of devices the container should have
+    "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -552,12 +552,12 @@ Input (using a public remote image):
 
 ```js
 {
-    "name": "my-new-container",                                         // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // optional list of devices the container should have
+    "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -576,12 +576,12 @@ Input (using a private remote image after having obtained a secret for that imag
 
 ```js
 {
-    "name": "my-new-container",                                         // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                          // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                            // List of profiles
-    "ephemeral": true,                                                  // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                  // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                      // Config override.
-    "devices": {                                                        // optional list of devices the container should have
+    "devices": {                                                        // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -596,16 +596,16 @@ Input (using a private remote image after having obtained a secret for that imag
 }
 ```
 
-Input (using a remote container, sent over the migration websocket):
+Input (using a remote instance, sent over the migration websocket):
 
 ```js
 {
-    "name": "my-new-container",                                                     // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                                      // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                                        // List of profiles
-    "ephemeral": true,                                                              // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                                  // Config override.
-    "devices": {                                                                    // optional list of devices the container should have
+    "devices": {                                                                    // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -615,8 +615,8 @@ Input (using a remote container, sent over the migration websocket):
                "mode": "pull",                                                      // "pull" and "push" is supported for now
                "operation": "https://10.0.2.3:8443/1.0/operations/<UUID>",          // Full URL to the remote operation (pull mode only)
                "certificate": "PEM certificate",                                    // Optional PEM certificate. If not mentioned, system CA is used.
-               "base-image": "<fingerprint>",                                       // Optional, the base image the container was created from
-               "container_only": true,                                              // Whether to migrate only the container without snapshots. Can be "true" or "false".
+               "base-image": "<fingerprint>",                                       // Optional, the base image the instance was created from
+               "instance_only": true,                                               // Whether to migrate only the instance without snapshots. Can be "true" or "false".
                "secrets": {"control": "my-secret-string",                           // Secrets to use when talking to the migration source
                            "criu":    "my-other-secret",
                            "fs":      "my third secret"}
@@ -624,36 +624,36 @@ Input (using a remote container, sent over the migration websocket):
 }
 ```
 
-Input (using a local container):
+Input (using a local instance):
 
 ```js
 {
-    "name": "my-new-container",                                                     // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                                      // 64 chars max, ASCII, no slash, no colon and no comma
     "profiles": ["default"],                                                        // List of profiles
-    "ephemeral": true,                                                              // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                                  // Config override.
-    "devices": {                                                                    // optional list of devices the container should have
+    "devices": {                                                                    // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
         },
     },
     "source": {"type": "copy",                                                      // Can be: "image", "migration", "copy" or "none"
-               "container_only": true,                                              // Whether to copy only the container without snapshots. Can be "true" or "false".
-               "source": "my-old-container"}                                        // Name of the source container
+               "instance_only": true,                                               // Whether to copy only the instance without snapshots. Can be "true" or "false".
+               "source": "my-old-instance"}                                         // Name of the source instance
 }
 ```
 
-Input (using a remote container, in push mode sent over the migration websocket via client proxying):
+Input (using a remote instance, in push mode sent over the migration websocket via client proxying):
 
 ```js
 {
-    "name": "my-new-container",                                                     // 64 chars max, ASCII, no slash, no colon and no comma
+    "name": "my-new-instance",                                                      // 64 chars max, ASCII, no slash, no colon and no comma
     "architecture": "x86_64",
     "profiles": ["default"],                                                        // List of profiles
-    "ephemeral": true,                                                              // Whether to destroy the container on shutdown
+    "ephemeral": true,                                                              // Whether to destroy the instance on shutdown
     "config": {"limits.cpu": "2"},                                                  // Config override.
-    "devices": {                                                                    // optional list of devices the container should have
+    "devices": {                                                                    // Optional list of devices the instance should have
         "kvm": {
             "path": "/dev/kvm",
             "type": "unix-char"
@@ -661,9 +661,9 @@ Input (using a remote container, in push mode sent over the migration websocket 
     },
     "source": {"type": "migration",                                                 // Can be: "image", "migration", "copy" or "none"
                "mode": "push",                                                      // "pull" and "push" are supported
-               "base-image": "<fingerprint>",                                       // Optional, the base image the container was created from
+               "base-image": "<fingerprint>",                                       // Optional, the base image the instance was created from
                "live": true,                                                        // Whether migration is performed live
-               "container_only": true}                                              // Whether to migrate only the container without snapshots. Can be "true" or "false".
+               "instance_only": true}                                               // Whether to migrate only the instance without snapshots. Can be "true" or "false".
 }
 ```
 
@@ -671,12 +671,12 @@ Input (using a backup):
 
 Raw compressed tarball as provided by a backup download.
 
-### `/1.0/containers/<name>`
+### `/1.0/instances/<name>`
 #### GET
- * Description: Container information
+ * Description: Instance information
  * Authentication: trusted
  * Operation: sync
- * Return: dict of the container configuration and current state.
+ * Return: dict of the instance configuration and current state.
 
 Output:
 
@@ -696,12 +696,12 @@ Output:
         }
     },
     "ephemeral": false,
-    "expanded_config": {    // the result of expanding profiles and adding the container's local config
+    "expanded_config": {    // the result of expanding profiles and adding the instance's local config
         "limits.cpu": "3",
         "volatile.base_image": "97d97a3d1d053840ca19c86cdd0596cf1be060c5157d31407f2a4f9f350c78cc",
         "volatile.eth0.hwaddr": "00:16:3e:1c:94:38"
     },
-    "expanded_devices": {   // the result of expanding profiles and adding the container's local devices
+    "expanded_devices": {   // the result of expanding profiles and adding the instance's local devices
         "eth0": {
             "name": "eth0",
             "nictype": "bridged",
@@ -714,23 +714,23 @@ Output:
         }
     },
     "last_used_at": "2016-02-16T01:05:05Z",
-    "name": "my-container",
+    "name": "my-instance",
     "profiles": [
         "default"
     ],
-    "stateful": false,      // If true, indicates that the container has some stored state that can be restored on startup
+    "stateful": false,      // If true, indicates that the instance has some stored state that can be restored on startup
     "status": "Running",
     "status_code": 103
 }
 ```
 
 #### PUT (ETag supported)
- * Description: replaces container configuration or restore snapshot
+ * Description: replaces instance configuration or restore snapshot
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
 
-Input (update container configuration):
+Input (update instance configuration):
 
 ```json
 {
@@ -766,7 +766,7 @@ Input (restore snapshot):
 ```
 
 #### PATCH (ETag supported)
- * Description: update container configuration
+ * Description: update instance configuration
  * Introduced: with API extension `patch`
  * Authentication: trusted
  * Operation: sync
@@ -789,7 +789,7 @@ Input:
 ```
 
 #### POST (optional `?target=<member>`)
- * Description: used to rename/migrate the container
+ * Description: used to rename/migrate the instance
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
@@ -832,7 +832,7 @@ Output in metadata section (for migration):
 These are the secrets that should be passed to the create call.
 
 #### DELETE
- * Description: remove the container
+ * Description: remove the instance
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
@@ -846,15 +846,15 @@ Input (none at present):
 
 HTTP code for this should be 202 (Accepted).
 
-### `/1.0/containers/<name>/console`
+### `/1.0/instances/<name>/console`
 #### GET
- * Description: returns the contents of the container's console  log
+ * Description: returns the contents of the instance's console  log
  * Authentication: trusted
  * Operation: N/A
  * Return: the contents of the console log
 
 #### POST
- * Description: attach to a container's console devices
+ * Description: attach to an instance's console devices
  * Authentication: trusted
  * Operation: async
  * Return: standard error
@@ -884,12 +884,12 @@ Control (window size change):
 ```
 
 #### DELETE
- * Description: empty the container's console log
+ * Description: empty the instance's console log
  * Authentication: trusted
  * Operation: Sync
  * Return: empty response or standard error
 
-### `/1.0/containers/<name>/exec`
+### `/1.0/instances/<name>/exec`
 #### POST
  * Description: run a remote command
  * Authentication: trusted
@@ -985,8 +985,8 @@ Return (with interactive=false and record-output=true):
 ```json
 {
     "output": {
-        "1": "/1.0/containers/example/logs/exec_b0f737b4-2c8a-4edf-a7c1-4cc7e4e9e155.stdout",
-        "2": "/1.0/containers/example/logs/exec_b0f737b4-2c8a-4edf-a7c1-4cc7e4e9e155.stderr"
+        "1": "/1.0/instances/example/logs/exec_b0f737b4-2c8a-4edf-a7c1-4cc7e4e9e155.stdout",
+        "2": "/1.0/instances/example/logs/exec_b0f737b4-2c8a-4edf-a7c1-4cc7e4e9e155.stderr"
     },
     "return": 0
 }
@@ -1001,9 +1001,9 @@ operation's metadata:
 }
 ```
 
-### `/1.0/containers/<name>/files`
-#### GET (`?path=/path/inside/the/container`)
- * Description: download a file or directory listing from the container
+### `/1.0/instances/<name>/files`
+#### GET (`?path=/path/inside/the/instance`)
+ * Description: download a file or directory listing from the instance
  * Authentication: trusted
  * Operation: sync
  * Return: if the type of the file is a directory, the return is a sync
@@ -1020,8 +1020,8 @@ The following headers will be set (on top of standard size and mimetype headers)
 This is designed to be easily usable from the command line or even a web
 browser.
 
-#### POST (`?path=/path/inside/the/container`)
- * Description: upload a file to the container
+#### POST (`?path=/path/inside/the/instance`)
+ * Description: upload a file to the instance
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -1040,8 +1040,8 @@ The following headers may be set by the client:
 This is designed to be easily usable from the command line or even a web
 browser.
 
-#### DELETE (`?path=/path/inside/the/container`)
- * Description: delete a file in the container
+#### DELETE (`?path=/path/inside/the/instance`)
+ * Description: delete a file in the instance
  * Introduced: with API extension `file_delete`
  * Authentication: trusted
  * Operation: sync
@@ -1054,18 +1054,18 @@ Input (none at present):
 }
 ```
 
-### `/1.0/containers/<name>/snapshots`
+### `/1.0/instances/<name>/snapshots`
 #### GET
  * Description: List of snapshots
  * Authentication: trusted
  * Operation: sync
- * Return: list of URLs for snapshots for this container
+ * Return: list of URLs for snapshots for this instance
 
 Return value:
 
 ```json
 [
-    "/1.0/containers/blah/snapshots/snap0"
+    "/1.0/instances/blah/snapshots/snap0"
 ]
 ```
 
@@ -1084,7 +1084,7 @@ Input:
 }
 ```
 
-### `/1.0/containers/<name>/snapshots/<name>`
+### `/1.0/instances/<name>/snapshots/<name>`
 #### GET
  * Description: Snapshot information
  * Authentication: trusted
@@ -1206,7 +1206,7 @@ Input:
 
 HTTP code for this should be 202 (Accepted).
 
-### `/1.0/containers/<name>/state`
+### `/1.0/instances/<name>/state`
 #### GET
  * Description: current state
  * Authentication: trusted
@@ -1360,7 +1360,7 @@ Output:
 ```
 
 #### PUT
- * Description: change the container state
+ * Description: change the instance state
  * Authentication: trusted
  * Operation: async
  * Return: background operation or standard error
@@ -1371,15 +1371,15 @@ Input:
 {
     "action": "stop",       // State change action (stop, start, restart, freeze or unfreeze)
     "timeout": 30,          // A timeout after which the state change is considered as failed
-    "force": true,          // Force the state change (currently only valid for stop and restart where it means killing the container)
+    "force": true,          // Force the state change (currently only valid for stop and restart where it means killing the instance)
     "stateful": true        // Whether to store or restore runtime state before stopping or startiong (only valid for stop and start, defaults to false)
 }
 ```
 
-### `/1.0/containers/<name>/logs`
+### `/1.0/instances/<name>/logs`
 #### GET
- * Description: Returns a list of the log files available for this container.
-   Note that this works on containers that have been deleted (or were never
+ * Description: Returns a list of the log files available for this instance.
+   Note that this works on instances that have been deleted (or were never
    created) to enable people to get logs for failed creations.
  * Authentication: trusted
  * Operation: Sync
@@ -1389,13 +1389,13 @@ Return:
 
 ```json
 [
-    "/1.0/containers/blah/logs/forkstart.log",
-    "/1.0/containers/blah/logs/lxc.conf",
-    "/1.0/containers/blah/logs/lxc.log"
+    "/1.0/instances/blah/logs/forkstart.log",
+    "/1.0/instances/blah/logs/lxc.conf",
+    "/1.0/instances/blah/logs/lxc.log"
 ]
 ```
 
-### `/1.0/containers/<name>/logs/<logfile>`
+### `/1.0/instances/<name>/logs/<logfile>`
 #### GET
  * Description: returns the contents of a particular log file.
  * Authentication: trusted
@@ -1408,13 +1408,13 @@ Return:
  * Operation: Sync
  * Return: empty response or standard error
 
-### `/1.0/containers/<name>/metadata`
+### `/1.0/instances/<name>/metadata`
 #### GET
- * Description: Container metadata
+ * Description: Instance metadata
  * Introduced: with API extension `container_edit_metadata`
  * Authentication: trusted
  * Operation: Sync
- * Return: dict representing container metadata
+ * Return: dict representing instance metadata
 
 Return:
 
@@ -1443,7 +1443,7 @@ Return:
 ```
 
 #### PUT (ETag supported)
- * Description: Replaces container metadata
+ * Description: Replaces instance metadata
  * Introduced: with API extension `container_edit_metadata`
  * Authentication: trusted
  * Operation: sync
@@ -1475,13 +1475,13 @@ Input:
 }
 ```
 
-### `/1.0/containers/<name>/metadata/templates`
+### `/1.0/instances/<name>/metadata/templates`
 #### GET
- * Description: List container templates
+ * Description: List instance templates
  * Introduced: with API extension `container_edit_metadata`
  * Authentication: trusted
  * Operation: Sync
- * Return: a list with container template names
+ * Return: a list with instance template names
 
 Return:
 
@@ -1493,7 +1493,7 @@ Return:
 ```
 
 #### GET (`?path=<template>`)
- * Description: Content of a container template
+ * Description: Content of an instance template
  * Introduced: with API extension `container_edit_metadata`
  * Authentication: trusted
  * Operation: Sync
@@ -1522,26 +1522,26 @@ Input:
  * Standard http file upload.
 
 #### DELETE (`?path=<template>`)
- * Description: Delete a container template
+ * Description: Delete an instance template
  * Introduced: with API extension `container_edit_metadata`
  * Authentication: trusted
  * Operation: Sync
  * Return: standard return value or standard error
 
-### `/1.0/containers/<name>/backups`
+### `/1.0/instances/<name>/backups`
 #### GET
- * Description: List of backups for the container
+ * Description: List of backups for the instance
  * Introduced: with API extension `container_backup`
  * Authentication: trusted
  * Operation: sync
- * Return: a list of backups for the container
+ * Return: a list of backups for the instance
 
 Return value:
 
 ```json
 [
-    "/1.0/containers/c1/backups/c1/backup0",
-    "/1.0/containers/c1/backups/c1/backup1",
+    "/1.0/instances/c1/backups/c1/backup0",
+    "/1.0/instances/c1/backups/c1/backup1",
 ]
 ```
 
@@ -1558,12 +1558,12 @@ Input:
 {
     "name": "backupName",      // unique identifier for the backup
     "expiry": 3600,            // when to delete the backup automatically
-    "container_only": true,    // if True, snapshots aren't included
-    "optimized_storage": true  // if True, btrfs send or zfs send is used for container and snapshots
+    "instance_only": true,     // if True, snapshots aren't included
+    "optimized_storage": true  // if True, btrfs send or zfs send is used for instance and snapshots
 }
 ```
 
-### `/1.0/containers/<name>/backups/<name>`
+### `/1.0/instances/<name>/backups/<name>`
 #### GET
  * Description: Backup information
  * Introduced: with API extension `container_backup`
@@ -1578,7 +1578,7 @@ Output:
     "name": "backupName",
     "creation_date": "2018-04-23T12:16:09+02:00",
     "expiry_date": "2018-04-23T12:16:09+02:00",
-    "container_only": false,
+    "instance_only": false,
     "optimized_storage": false
 }
 ```
@@ -1605,7 +1605,7 @@ Input:
 }
 ```
 
-### `/1.0/containers/<name>/backups/<name>/export`
+### `/1.0/instances/<name>/backups/<name>/export`
 #### GET
  * Description: fetch the backup tarball
  * Introduced: with API extension `container_backup`
@@ -1640,7 +1640,7 @@ The notification types are:
 
  * operation (notification about creation, updates and termination of all background operations)
  * logging (every log entry from the server)
- * lifecycle (container lifecycle events)
+ * lifecycle (instance lifecycle events)
 
 This never returns. Each notification is sent as a separate JSON dict:
 
@@ -1660,7 +1660,7 @@ This never returns. Each notification is sent as a separate JSON dict:
         "context": {
             "ip": "@",
             "method": "GET",
-            "url": "/1.0/containers/xen/snapshots",
+            "url": "/1.0/instances/xen/snapshots",
         },
         "level": "info",
         "message": "handling"
@@ -1696,7 +1696,7 @@ Input (one of):
 
  * Standard http file upload
  * Source image dictionary (transfers a remote image)
- * Source container dictionary (makes an image out of a local container)
+ * Source instance dictionary (makes an image out of a local instance)
  * Remote image URL dictionary (downloads a remote image)
 
 In the http file upload case, The following headers may be set by the client:
@@ -1733,7 +1733,7 @@ In the source image case, the following dict must be used:
 }
 ```
 
-In the source container case, the following dict must be used:
+In the source instance case, the following dict must be used:
 
 ```js
 {
@@ -1748,7 +1748,7 @@ In the source container case, the following dict must be used:
          "description": "A description"}
     ],
     "source": {
-        "type": "container",        // One of "container" or "snapshot"
+        "type": "instance",        // One of "instance" or "snapshot"
         "name": "abc"
     }
 }
@@ -1884,7 +1884,7 @@ HTTP code for this should be 202 (Accepted).
  * Return: Raw file or standard error
 
 The secret string is required when an untrusted LXD is spawning a new
-container from a private image stored on a different LXD.
+instance from a private image stored on a different LXD.
 
 Rather than require a trust relationship between the two LXDs, the
 client will `POST` to `/1.0/images/<fingerprint>/export` to get a secret
@@ -2091,7 +2091,7 @@ Return:
     "managed": false,
     "type": "bridge",
     "used_by": [
-        "/1.0/containers/blah"
+        "/1.0/instances/blah"
     ]
 }
 ```
@@ -2295,7 +2295,7 @@ Input (similar but times out after 30s): ?timeout=30
  * Description: This connection is upgraded into a websocket connection
    speaking the protocol defined by the operation type. For example, in the
    case of an exec operation, the websocket is the bidirectional pipe for
-   stdin/stdout/stderr to flow to and from the process inside the container.
+   stdin/stdout/stderr to flow to and from the process inside the instance.
    In the case of migration, it will be the primary interface over which the
    migration information is communicated. The secret here is the one that was
    provided when the operation was created. Guests are allowed to connect
@@ -2366,7 +2366,7 @@ Output:
         }
     },
     "used_by": [
-        "/1.0/containers/blah"
+        "/1.0/instances/blah"
     ]
 }
 ```
@@ -2514,7 +2514,7 @@ Output:
     },
     "description": "Some description string",
     "used_by": [
-        "/1.0/containers/blah"
+        "/1.0/instances/blah"
     ]
 }
 ```
@@ -2660,26 +2660,26 @@ Return:
         "name": "default",
         "driver": "zfs",
         "used_by": [
-            "/1.0/containers/alp1",
-            "/1.0/containers/alp10",
-            "/1.0/containers/alp11",
-            "/1.0/containers/alp12",
-            "/1.0/containers/alp13",
-            "/1.0/containers/alp14",
-            "/1.0/containers/alp15",
-            "/1.0/containers/alp16",
-            "/1.0/containers/alp17",
-            "/1.0/containers/alp18",
-            "/1.0/containers/alp19",
-            "/1.0/containers/alp2",
-            "/1.0/containers/alp20",
-            "/1.0/containers/alp3",
-            "/1.0/containers/alp4",
-            "/1.0/containers/alp5",
-            "/1.0/containers/alp6",
-            "/1.0/containers/alp7",
-            "/1.0/containers/alp8",
-            "/1.0/containers/alp9",
+            "/1.0/instances/alp1",
+            "/1.0/instances/alp10",
+            "/1.0/instances/alp11",
+            "/1.0/instances/alp12",
+            "/1.0/instances/alp13",
+            "/1.0/instances/alp14",
+            "/1.0/instances/alp15",
+            "/1.0/instances/alp16",
+            "/1.0/instances/alp17",
+            "/1.0/instances/alp18",
+            "/1.0/instances/alp19",
+            "/1.0/instances/alp2",
+            "/1.0/instances/alp20",
+            "/1.0/instances/alp3",
+            "/1.0/instances/alp4",
+            "/1.0/instances/alp5",
+            "/1.0/instances/alp6",
+            "/1.0/instances/alp7",
+            "/1.0/instances/alp8",
+            "/1.0/instances/alp9",
             "/1.0/images/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
         ],
         "config": {

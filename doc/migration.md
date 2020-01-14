@@ -1,11 +1,10 @@
 # Live Migration in LXD
 
 ## Overview
-
 Migration has two pieces, a "source", that is, the host that already has the
-container, and a "sink", the host that's getting the container. Currently,
+instance, and a "sink", the host that's getting the instance. Currently,
 in the `pull` mode, the source sets up an operation, and the sink connects
-to the source and pulls the container.
+to the source and pulls the instance.
 
 There are three websockets (channels) used in migration:
 
@@ -13,9 +12,9 @@ There are three websockets (channels) used in migration:
   2. the criu images stream
   3. the filesystem stream
 
-When a migration is initiated, information about the container, its
+When a migration is initiated, information about the instance, its
 configuration, etc. are sent over the control channel (a full
-description of this process is below), the criu images and container
+description of this process is below), the criu images and instance
 filesystem are synced over their respective channels, and the result of
 the restore operation is sent from the sink to the source over the
 control channel.
@@ -28,11 +27,10 @@ filesystem socket can speak btrfs-send/receive. Additionally, although we do a
 will happen over the criu socket at some later time.
 
 ## Control Socket
-
 Once all three websockets are connected between the two endpoints, the
 source sends a MigrationHeader (protobuf description found in
-`/lxd/migration/migrate.proto`). This header contains the container
-configuration which will be added to the new container.
+`/lxd/migration/migrate.proto`). This header contains the instance
+configuration which will be added to the new instance.
 
 There are also two fields indicating the filesystem and criu protocol to speak.
 For example, if a server is hosted on a btrfs filesystem, it can indicate that it
