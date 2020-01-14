@@ -523,7 +523,7 @@ Input (instance based on most recent match based on image properties):
     "source": {"type": "image",                                         // Can be: "image", "migration", "copy" or "none"
                "properties": {                                          // Properties
                     "os": "ubuntu",
-                    "release": "14.04",
+                    "release": "18.04",
                     "architecture": "x86_64"
                 }},
 }
@@ -1791,7 +1791,7 @@ Output:
 {
     "aliases": [
         {
-            "name": "trusty",
+            "name": "bionic",
             "description": "",
         }
     ],
@@ -1799,18 +1799,18 @@ Output:
     "auto_update": true,
     "cached": false,
     "fingerprint": "54c8caac1f61901ed86c68f24af5f5d3672bdc62c71d04f06df3a59e95684473",
-    "filename": "ubuntu-trusty-14.04-amd64-server-20160201.tar.xz",
+    "filename": "ubuntu-bionic-18.04-amd64-server-20180201.tar.xz",
     "properties": {
         "architecture": "x86_64",
-        "description": "Ubuntu 14.04 LTS server (20160201)",
+        "description": "Ubuntu 18.04 LTS server (20180601)",
         "os": "ubuntu",
-        "release": "trusty"
+        "release": "bionic"
     },
     "update_source": {
         "server": "https://10.1.2.4:8443",
         "protocol": "lxd",
         "certificate": "PEM certificate",
-        "alias": "ubuntu/trusty/amd64"
+        "alias": "ubuntu/bionic/amd64"
     },
     "public": false,
     "size": 123792592,
@@ -1834,9 +1834,9 @@ Input:
     "auto_update": true,
     "properties": {
         "architecture": "x86_64",
-        "description": "Ubuntu 14.04 LTS server (20160201)",
+        "description": "Ubuntu 18.04 LTS server (20180601)",
         "os": "ubuntu",
-        "release": "trusty"
+        "release": "bionic"
     },
     "public": true,
 }
@@ -1855,7 +1855,7 @@ Input:
 {
     "properties": {
         "os": "ubuntu",
-        "release": "trusty"
+        "release": "bionic"
     },
     "public": true,
 }
@@ -1941,7 +1941,7 @@ Return:
 ```json
 [
     "/1.0/images/aliases/sl6",
-    "/1.0/images/aliases/trusty",
+    "/1.0/images/aliases/bionic",
     "/1.0/images/aliases/xenial"
 ]
 ```

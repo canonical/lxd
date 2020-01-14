@@ -363,7 +363,7 @@ The `hello-ubuntu.json` file referenced above could contain something like:
         "mode":"pull",
         "protocol":"simplestreams",
         "server":"https://cloud-images.ubuntu.com/releases",
-        "alias":"14.04"
+        "alias":"18.04"
     }
 }
 ```

@@ -111,9 +111,9 @@ LXD, at the moment, this contains:
 architecture: x86_64
 creation_date: 1424284563
 properties:
-  description: Ubuntu 14.04 LTS Intel 64bit
+  description: Ubuntu 18.04 LTS Intel 64bit
   os: Ubuntu
-  release: trusty 14.04
+  release: bionic 18.04
 templates:
   /etc/hosts:
     when:
