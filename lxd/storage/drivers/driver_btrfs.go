@@ -77,7 +77,7 @@ func (d *btrfs) Create() error {
 	// Store the provided source as we are likely to be mangling it.
 	d.config["volatile.initial_source"] = d.config["source"]
 
-	loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
+	loopPath := loopFilePath(d.name)
 	if d.config["source"] == "" || d.config["source"] == loopPath {
 		// Create a loop based pool.
 		d.config["source"] = loopPath
@@ -216,7 +216,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 	}
 
 	// Delete any loop file we may have used.
-	loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
+	loopPath := loopFilePath(d.name)
 	err = os.Remove(loopPath)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "Failed to remove '%s'", loopPath)
@@ -259,7 +259,7 @@ func (d *btrfs) Mount() (bool, error) {
 	}
 
 	// Setup mount options.
-	loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
+	loopPath := loopFilePath(d.name)
 	mntSrc := ""
 	mntDst := GetPoolMountPath(d.name)
 	mntFilesystem := "btrfs"
@@ -327,7 +327,7 @@ func (d *btrfs) Unmount() (bool, error) {
 	}
 
 	// If loop backed, force release the loop device.
-	loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
+	loopPath := loopFilePath(d.name)
 	if d.config["source"] == loopPath {
 		releaseLoopDev(loopPath)
 	}
