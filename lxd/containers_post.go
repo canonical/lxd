@@ -775,7 +775,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		// string.
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.NodeWithLeastContainers()
+			targetNode, err = tx.NodeWithLeastContainers(nil)
 			return err
 		})
 		if err != nil {
