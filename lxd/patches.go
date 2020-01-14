@@ -1528,6 +1528,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
+		poolConfig["zfs.pool_name"] = defaultPoolName
 		if shared.PathExists(oldLoopFilePath) {
 			// This is a loop file pool.
 			poolConfig["source"] = shared.VarPath("disks", poolName+".img")
@@ -1541,7 +1542,6 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			// to refer to the on-disk name of the pool in the
 			// "source" propert and not the db name of the pool.
 			poolConfig["source"] = defaultPoolName
-			poolConfig["zfs.pool_name"] = defaultPoolName
 		}
 
 		// Querying the size of a storage pool only makes sense when it
