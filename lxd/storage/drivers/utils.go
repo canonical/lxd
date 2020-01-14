@@ -265,18 +265,18 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 func createSparseFile(filePath string, sizeBytes int64) error {
 	f, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("Failed to open %s: %s", filePath, err)
+		return errors.Wrapf(err, "Failed to open %s", filePath)
 	}
 	defer f.Close()
 
 	err = f.Chmod(0600)
 	if err != nil {
-		return fmt.Errorf("Failed to chmod %s: %s", filePath, err)
+		return errors.Wrapf(err, "Failed to chmod %s", filePath)
 	}
 
 	err = f.Truncate(sizeBytes)
 	if err != nil {
-		return fmt.Errorf("Failed to create sparse file %s: %s", filePath, err)
+		return errors.Wrapf(err, "Failed to create sparse file %s", filePath)
 	}
 
 	return nil
@@ -297,7 +297,7 @@ func ensureVolumeBlockFile(vol Volume, path string) error {
 	if shared.PathExists(path) {
 		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
 		if err != nil {
-			return fmt.Errorf("Failed resizing disk image %s to size %s: %v", path, blockSize, err)
+			return errors.Wrapf(err, "Failed resizing disk image %s to size %s", path, blockSize)
 		}
 	} else {
 		// If path doesn't exist, then there has been no filler function
@@ -305,7 +305,7 @@ func ensureVolumeBlockFile(vol Volume, path string) error {
 		// volume (use for PXE booting a VM).
 		_, err = shared.RunCommand("qemu-img", "create", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
 		if err != nil {
-			return fmt.Errorf("Failed creating disk image %s as size %s: %v", path, blockSize, err)
+			return errors.Wrapf(err, "Failed creating disk image %s as size %s", path, blockSize)
 		}
 	}
 
@@ -463,8 +463,7 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		}
 
 		if err != nil {
-			errorMsg := fmt.Sprintf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
-			return fmt.Errorf(errorMsg)
+			return fmt.Errorf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
 		}
 
 		return nil

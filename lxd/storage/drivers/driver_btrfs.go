@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -89,19 +90,19 @@ func (d *btrfs) Create() error {
 
 		err = createSparseFile(d.config["source"], size)
 		if err != nil {
-			return fmt.Errorf("Failed to create the sparse file: %v", err)
+			return errors.Wrap(err, "Failed to create the sparse file")
 		}
 
 		// Format the file.
 		_, err = makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
-			return fmt.Errorf("Failed to format sparse file: %v", err)
+			return errors.Wrap(err, "Failed to format sparse file")
 		}
 	} else if shared.IsBlockdevPath(d.config["source"]) {
 		// Format the block device.
 		_, err := makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
-			return fmt.Errorf("Failed to format block device: %v", err)
+			return errors.Wrap(err, "Failed to format block device")
 		}
 
 		// Record the UUID as the source.
@@ -121,7 +122,7 @@ func (d *btrfs) Create() error {
 			// Existing btrfs subvolume.
 			subvols, err := d.getSubvolumes(hostPath)
 			if err != nil {
-				return fmt.Errorf("Could not determine if existing btrfs subvolume is empty: %v", err)
+				return errors.Wrap(err, "Could not determine if existing btrfs subvolume is empty")
 			}
 
 			// Check that the provided subvolume is empty.

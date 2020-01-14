@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -515,7 +517,7 @@ func (d *cephfs) RestoreVolume(vol Volume, snapshotName string, op *operations.O
 	bwlimit := d.config["rsync.bwlimit"]
 	output, err := rsync.LocalCopy(cephSnapPath, vol.MountPath(), bwlimit, false)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync volume: %s: %s", string(output), err)
+		return errors.Wrapf(err, "Failed to rsync volume: %s", string(output))
 	}
 
 	return nil
