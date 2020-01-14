@@ -794,10 +794,26 @@ func (c *Cluster) ImageAliasUpdate(id int, imageID int, desc string) error {
 
 // ImageCopyDefaultProfiles copies default profiles from id to new_id.
 func (c *Cluster) ImageCopyDefaultProfiles(id int, newID int) error {
-	stmt := `INSERT INTO images_profiles (image_id, profile_id) 
-	SELECT ?, profile_id FROM images_profiles WHERE image_id=?`
-	err := exec(c.db, stmt, newID, id)
-	return err
+	err := c.Transaction(func(tx *ClusterTx) error {
+		// Delete all current associations.
+		_, err := tx.tx.Exec("DELETE FROM images_profiles WHERE image_id=?", newID)
+		if err != nil {
+			return err
+		}
+
+		// Copy the entries over.
+		_, err = tx.tx.Exec("INSERT INTO images_profiles (image_id, profile_id) SELECT ?, profile_id FROM images_profiles WHERE image_id=?", newID, id)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ImageLastAccessUpdate updates the last_use_date field of the image with the
@@ -808,7 +824,7 @@ func (c *Cluster) ImageLastAccessUpdate(fingerprint string, date time.Time) erro
 	return err
 }
 
-//ImageLastAccessInit inits the last_use_date field of the image with the given fingerprint.
+// ImageLastAccessInit inits the last_use_date field of the image with the given fingerprint.
 func (c *Cluster) ImageLastAccessInit(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
 	err := exec(c.db, stmt, fingerprint)
