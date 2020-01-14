@@ -58,6 +58,49 @@ var updates = map[int]schema.Update{
 	20: updateFromV19,
 	21: updateFromV20,
 	22: updateFromV21,
+	23: updateFromV22,
+}
+
+// The zfs.pool_name config key is required for ZFS to function.
+func updateFromV22(tx *sql.Tx) error {
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing zfs pools.
+	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='zfs'`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current zfs pools")
+	}
+
+	for _, poolID := range poolIDs {
+		for _, nodeID := range nodeIDs {
+			// Fetch the config for this zfs pool.
+			config, err := query.SelectConfig(tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
+			if err != nil {
+				return errors.Wrap(err, "Failed to fetch of zfs pool config")
+			}
+
+			// Check if already set.
+			_, ok := config["zfs.pool_name"]
+			if ok {
+				continue
+			}
+
+			// Add zfs.pool_name config entry
+			_, err = tx.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+SELECT ?, ?, 'zfs.pool_name', name FROM storage_pools WHERE id=?
+`, poolID, nodeID, poolID)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create zfs.pool_name node config")
+			}
+		}
+	}
+
+	return nil
 }
 
 // Fix "images_profiles" table (missing UNIQUE)
