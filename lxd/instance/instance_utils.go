@@ -765,6 +765,16 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 				}
 			} else if req.Source.Protocol == "simplestreams" {
 				// Remote simplestreams image server.
+				remote, err = lxd.ConnectSimpleStreams(req.Source.Server, &lxd.ConnectionArgs{
+					TLSServerCert: req.Source.Certificate,
+					UserAgent:     version.UserAgent,
+					Proxy:         s.Proxy,
+					CachePath:     s.OS.CacheDir,
+					CacheExpiry:   time.Hour,
+				})
+				if err != nil {
+					return nil, err
+				}
 			} else {
 				return nil, fmt.Errorf("Unsupported remote image server protocol: %s", req.Source.Protocol)
 			}
