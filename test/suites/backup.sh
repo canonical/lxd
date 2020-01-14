@@ -137,7 +137,7 @@ test_container_import() {
         ;;
       lvm)
         lvremove -f "lxdtest-$(basename "${LXD_DIR}")/containers_ctImport-snap0"
-        rm -f "${LXD_DIR}/snapshots/ctImport"
+        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
         ;;
       zfs)
         zfs destroy "lxdtest-$(basename "${LXD_DIR}")/containers/ctImport@snapshot-snap0"

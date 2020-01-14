@@ -1390,9 +1390,9 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	if inst.Type() == instancetype.Container {
 		contentType := InstanceContentType(inst)
 
-		// There's no need to pass config as it's not needed when retrieving
-		// the volume usage.
-		vol := b.newVolume(drivers.VolumeTypeContainer, contentType, inst.Name(), nil)
+		// There's no need to pass config as it's not needed when retrieving the volume usage.
+		volStorageName := project.Prefix(inst.Project(), inst.Name())
+		vol := b.newVolume(drivers.VolumeTypeContainer, contentType, volStorageName, nil)
 
 		return b.driver.GetVolumeUsage(vol)
 	}
