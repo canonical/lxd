@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -144,7 +145,7 @@ func (f *heartbeatFixture) Grow() *cluster.Gateway {
 	name := address
 
 	nodes, err := cluster.Accept(
-		targetState, target, name, address, cluster.SchemaVersion, len(version.APIExtensions))
+		targetState, target, name, address, cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	require.NoError(f.t, err)
 
 	err = cluster.Join(state, gateway, target.Cert(), name, nodes)

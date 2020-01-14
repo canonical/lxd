@@ -405,9 +405,8 @@ func LoadByID(s *state.State, id int) (Instance, error) {
 	return LoadByProjectAndName(s, project, name)
 }
 
-// LoadByProjectAndName loads an instance by project and name.
-func LoadByProjectAndName(s *state.State, project, name string) (Instance, error) {
-	// Get the DB record
+// Convenience to load a db.Instance object, accounting for snapshots.
+func fetchInstanceDatabaseObject(s *state.State, project, name string) (*db.Instance, error) {
 	var container *db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -438,6 +437,17 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return container, nil
+}
+
+// LoadByProjectAndName loads an instance by project and name.
+func LoadByProjectAndName(s *state.State, project, name string) (Instance, error) {
+	// Get the DB record
+	container, err := fetchInstanceDatabaseObject(s, project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -696,17 +706,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 			srcProject = project
 		}
 
-		var inst *db.Instance
-		err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-
-			inst, err = tx.InstanceGet(srcProject, req.Source.Source)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to fetch instance %s in project %s", req.Source.Source, srcProject)
-			}
-
-			return nil
-		})
+		inst, err := fetchInstanceDatabaseObject(s, srcProject, req.Source.Source)
 		if err != nil {
 			return nil, err
 		}

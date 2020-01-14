@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
@@ -37,6 +38,7 @@ type NodeInfo struct {
 	APIExtensions int       // Number of API extensions of the LXD code running on the node
 	Heartbeat     time.Time // Timestamp of the last heartbeat
 	Roles         []string  // List of cluster roles
+	Architecture  int       // Node architecture
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -270,6 +272,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			&nodes[i].Schema,
 			&nodes[i].APIExtensions,
 			&nodes[i].Heartbeat,
+			&nodes[i].Architecture,
 		}
 	}
 	if pending {
@@ -279,7 +282,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	}
 
 	// Get the node entries
-	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes WHERE pending=?"
+	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat, arch FROM nodes WHERE pending=?"
 	if where != "" {
 		sql += fmt.Sprintf("AND %s ", where)
 	}
@@ -578,12 +581,14 @@ func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
 
 // NodeWithLeastContainers returns the name of the non-offline node with with
 // the least number of containers (either already created or being created with
-// an operation).
-func (c *ClusterTx) NodeWithLeastContainers() (string, error) {
+// an operation). If archs is not empty, then return only nodes with an
+// architecture in that list.
+func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
 	threshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
 	}
+
 	nodes, err := c.Nodes()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get current nodes")
@@ -593,6 +598,10 @@ func (c *ClusterTx) NodeWithLeastContainers() (string, error) {
 	containers := -1
 	for _, node := range nodes {
 		if node.IsOffline(threshold) {
+			continue
+		}
+
+		if len(archs) > 0 && !shared.IntInSlice(node.Architecture, archs) {
 			continue
 		}
 

@@ -180,6 +180,7 @@ var APIExtensions = []string{
 	"container_disk_ceph",
 	"virtual-machines",
 	"image_profiles",
+	"clustering_architecture",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

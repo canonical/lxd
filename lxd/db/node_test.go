@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -313,7 +314,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 `)
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers()
+	name, err := tx.NodeWithLeastContainers(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -337,7 +338,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	err = tx.NodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers()
+	name, err := tx.NodeWithLeastContainers(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -357,7 +358,31 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, db.OperationContainerCreate)
 	require.NoError(t, err)
 
-	name, err := tx.NodeWithLeastContainers()
+	name, err := tx.NodeWithLeastContainers(nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
+}
+
+// If specific architectures were selected, return only nodes with those
+// architectures.
+func TestNodeWithLeastContainers_Architecture(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	localArch, err := osarch.ArchitectureGetLocalID()
+	require.NoError(t, err)
+
+	_, err = tx.NodeAddWithArch("buzz", "1.2.3.4:666", localArch+1)
+	require.NoError(t, err)
+
+	// Add a container to the default node (ID 1)
+	_, err = tx.Tx().Exec(`
+INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES (1, 1, 'foo', 1, 1, 1)
+`)
+	require.NoError(t, err)
+
+	// The local node is returned despite it has more containers.
+	name, err := tx.NodeWithLeastContainers([]int{localArch})
+	require.NoError(t, err)
+	assert.Equal(t, "none", name)
 }
