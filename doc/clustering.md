@@ -226,10 +226,10 @@ You can launch an instance on any node in the cluster from any node in
 the cluster. For example, from node1:
 
 ```bash
-lxc launch --target node2 ubuntu:16.04 xenial
+lxc launch --target node2 ubuntu:18.04 bionic
 ```
 
-will launch an Ubuntu 16.04 container on node2.
+will launch an Ubuntu 18.04 container on node2.
 
 When you launch an instance without defining a target, the instance will be 
 launched on the server which has the lowest number of instances.
@@ -247,10 +247,10 @@ After an instance is launched, you can operate it from any node. For
 example, from node1:
 
 ```bash
-lxc exec xenial ls /
-lxc stop xenial
-lxc delete xenial
-lxc pull file xenial/etc/hosts .
+lxc exec bionic ls /
+lxc stop bionic
+lxc delete bionic
+lxc pull file bionic/etc/hosts .
 ```
 
 ## Images
@@ -274,7 +274,7 @@ lxc config set cluster.images_minimal_replica 1
 
 As mentioned above, all nodes must have identical storage pools. The
 only difference between pools on different nodes might be their
-`source`, `size` or `zfs.pool_name` configuration keys.
+`source`, `size` or `zfs.pool\_name` configuration keys.
 
 To create a new storage pool, you first have to define it across all
 nodes, for example:
