@@ -1,6 +1,6 @@
 # Project configuration
 LXD supports projects as a way to split your LXD server.
-Each project holds its own set of containers and may also have its own images and profiles.
+Each project holds its own set of instances and may also have its own images and profiles.
 
 What a project contains is defined through the `features` configuration keys.
 When a feature is disabled, the project inherits from the `default` project.

@@ -1,6 +1,6 @@
 # Clustering
 
-LXD can be run in clustering mode, where any number of LXD instances
+LXD can be run in clustering mode, where any number of LXD servers
 share the same distributed database and can be managed uniformly using
 the lxc client or the REST API.
 
@@ -10,7 +10,7 @@ Note that this feature was introduced as part of the API extension
 ## Forming a cluster
 
 First you need to choose a bootstrap LXD node. It can be an existing
-LXD instance or a brand new one. Then you need to initialize the
+LXD server or a brand new one. Then you need to initialize the
 bootstrap node and join further nodes to the cluster. This can be done
 interactively or with a preseed file.
 
@@ -39,7 +39,7 @@ network bridge. At this point your first cluster node should be up and
 available on your network.
 
 You can now join further nodes to the cluster. Note however that these
-nodes should be brand new LXD instances, or alternatively you should
+nodes should be brand new LXD servers, or alternatively you should
 clear their contents before joining, since any existing data on them
 will be lost.
 
@@ -166,7 +166,7 @@ if there are still nodes in the cluster that have not been upgraded
 and that are running an older version. When a node is in the
 Blocked state it will not serve any LXD API requests (in particular,
 lxc commands on that node will not work, although any running
-container will continue to run).
+instance will continue to run).
 
 You can see if some nodes are blocked by running `lxc cluster list` on
 a node which is not blocked.
@@ -207,8 +207,8 @@ online.
 
 Note that no information has been deleted from the database, in particular all
 information about the cluster members that you have lost is still there,
-including the metadata about their containers. This can help you with further
-recovery steps in case you need to re-create the lost containers.
+including the metadata about their instances. This can help you with further
+recovery steps in case you need to re-create the lost instances.
 
 In order to permanently delete the cluster members that you have lost, you can
 run the command:
@@ -220,23 +220,22 @@ lxc cluster remove <name> --force
 Note that this time you have to use the regular ```lxc``` command line tool, not
 ```lxd```.
 
-## Containers
+## Instances
 
-You can launch a container on any node in the cluster from any node in
+You can launch an instance on any node in the cluster from any node in
 the cluster. For example, from node1:
 
 ```bash
-lxc launch --target node2 ubuntu:16.04 xenial
+lxc launch --target node2 ubuntu:18.04 bionic
 ```
 
-will launch an Ubuntu 16.04 container on node2.
+will launch an Ubuntu 18.04 container on node2.
 
-When you launch a container without defining a target, the container will be 
-launched on the server which has the lowest number of containers.
-If all the servers have the same amount of containers, it will choose one 
-at random.
+When you launch an instance without defining a target, the instance will be 
+launched on the server which has the lowest number of instances.
+If all the servers have the same amount of instances, it will choose one at random.
 
-You can list all containers in the cluster with:
+You can list all instances in the cluster with:
 
 ```bash
 lxc list
@@ -244,14 +243,14 @@ lxc list
 
 The NODE column will indicate on which node they are running.
 
-After a container is launched, you can operate it from any node. For
+After an instance is launched, you can operate it from any node. For
 example, from node1:
 
 ```bash
-lxc exec xenial ls /
-lxc stop xenial
-lxc delete xenial
-lxc pull file xenial/etc/hosts .
+lxc exec bionic ls /
+lxc stop bionic
+lxc delete bionic
+lxc pull file bionic/etc/hosts .
 ```
 
 ## Images
@@ -275,7 +274,7 @@ lxc config set cluster.images_minimal_replica 1
 
 As mentioned above, all nodes must have identical storage pools. The
 only difference between pools on different nodes might be their
-`source`, `size` or `zfs.pool_name` configuration keys.
+`source`, `size` or `zfs.pool\_name` configuration keys.
 
 To create a new storage pool, you first have to define it across all
 nodes, for example:

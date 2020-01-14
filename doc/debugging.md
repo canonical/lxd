@@ -1,6 +1,5 @@
 # Debugging
-
-For information on debugging container issues, see [Frequently Asked Questions](faq.md)
+For information on debugging instance issues, see [Frequently Asked Questions](faq.md)
 
 ## Debugging `lxc` and `lxd`
 

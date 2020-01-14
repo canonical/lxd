@@ -20,7 +20,7 @@ ceph.user.name                  | string    | ceph driver                       
 cephfs.cluster\_name            | string    | cephfs driver                     | ceph                       | storage\_driver\_cephfs            | Name of the ceph cluster in which to create new storage pools.
 cephfs.path                     | string    | cephfs driver                     | /                          | storage\_driver\_cephfs            | The base path for the CEPHFS mount
 cephfs.user.name                | string    | cephfs driver                     | admin                      | storage\_driver\_cephfs            | The ceph user to use when creating storage pools and volumes.
-lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | storage                            | Thin pool where images and containers are created.
+lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | storage                            | Thin pool where volumes are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool        | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | storage                            | Name of the volume group to create.
 rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | storage\_rsync\_bwlimit            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
@@ -46,7 +46,7 @@ Key                     | Type      | Condition                 | Default       
 size                    | string    | appropriate driver        | same as volume.size                   | storage           | Size of the storage volume
 block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | storage           | Filesystem of the storage volume
 block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | storage           | Mount options for block devices
-security.shifted        | bool      | custom volume             | false                                 | storage\_shifted  | Enable id shifting overlay (allows attach by multiple isolated containers)
+security.shifted        | bool      | custom volume             | false                                 | storage\_shifted  | Enable id shifting overlay (allows attach by multiple isolated instances)
 security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped | Disable id mapping for the volume
 zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage           | Remove snapshots as needed
 zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage           | Use refquota instead of quota for space
@@ -59,16 +59,16 @@ lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
 
 # Storage Backends and supported functions
 ## Feature comparison
-LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images and containers.  
+LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images, instances and custom volumes.  
 Where possible, LXD tries to use the advanced features of each system to optimize operations.
 
 Feature                                     | Directory | Btrfs | LVM   | ZFS  | CEPH
 :---                                        | :---      | :---  | :---  | :--- | :---
 Optimized image storage                     | no        | yes   | yes   | yes  | yes
-Optimized container creation                | no        | yes   | yes   | yes  | yes
+Optimized instance creation                 | no        | yes   | yes   | yes  | yes
 Optimized snapshot creation                 | no        | yes   | yes   | yes  | yes
 Optimized image transfer                    | no        | yes   | no    | yes  | yes
-Optimized container transfer                | no        | yes   | no    | yes  | yes
+Optimized instance transfer                 | no        | yes   | no    | yes  | yes
 Copy on write                               | no        | yes   | yes   | yes  | yes
 Block based                                 | no        | no    | yes   | no   | yes
 Instant cloning                             | no        | yes   | yes   | yes  | yes
@@ -85,7 +85,7 @@ While LXD will let you create loop based storage, this isn't recommended for pro
 
 Similarly, the directory backend is to be considered as a last resort option.  
 It does support all main LXD features, but is terribly slow and inefficient as it can't perform  
-instant copies or snapshots and so needs to copy the entirety of the container's filesystem every time.
+instant copies or snapshots and so needs to copy the entirety of the instance's storage every time.
 
 ## Security Considerations
 
@@ -102,15 +102,15 @@ mount options.
 
 ## Optimized image storage
 All backends but the directory backend have some kind of optimized image storage format.  
-This is used by LXD to make container creation near instantaneous by simply cloning a pre-made  
+This is used by LXD to make instance creation near instantaneous by simply cloning a pre-made  
 image volume rather than unpack the image tarball from scratch.
 
 As it would be wasteful to prepare such a volume on a storage pool that may never be used with that image,  
-the volume is generated on demand, causing the first container to take longer to create than subsequent ones.
+the volume is generated on demand, causing the first instance to take longer to create than subsequent ones.
 
-## Optimized container transfer
+## Optimized instance transfer
 ZFS, btrfs and CEPH RBD have an internal send/receive mechanisms which allow for optimized volume transfer.  
-LXD uses those features to transfer containers and snapshots between servers.
+LXD uses those features to transfer instances and snapshots between servers.
 
 When such capabilities aren't available, either because the storage driver doesn't support it  
 or because the storage backend of the source and target servers differ,  
@@ -122,7 +122,7 @@ value.
 
 ## Default storage pool
 There is no concept of a default storage pool in LXD.  
-Instead, the pool to use for the container's root is treated as just another "disk" device in LXD.
+Instead, the pool to use for the instance's root is treated as just another "disk" device in LXD.
 
 The device entry looks like:
 
@@ -133,7 +133,7 @@ The device entry looks like:
     pool: default
 ```
 
-And it can be directly set on a container ("-s" option to "lxc launch" and "lxc init")  
+And it can be directly set on an instance ("-s" option to "lxc launch" and "lxc init")  
 or it can be set through LXD profiles.
 
 That latter option is what the default LXD setup (through "lxd init") will do for you.  
@@ -144,8 +144,8 @@ lxc profile device add default root disk path=/ pool=default
 ```
 
 ## I/O limits
-I/O limits in IOp/s or MB/s can be set on storage devices when attached to a
-container (see [Containers](containers.md)).
+I/O limits in IOp/s or MB/s can be set on storage devices when attached to an
+instance (see [Instances](instances.md)).
 
 Those are applied through the Linux `blkio` cgroup controller which makes it possible  
 to restrict I/O at the disk level (but nothing finer grained than that).
@@ -154,7 +154,7 @@ Because those apply to a whole physical disk rather than a partition or path, th
 
  - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
  - If a filesystem is backed by multiple block devices, each device will get the same limit.
- - If the container is passed two disk devices that are each backed by the same disk,  
+ - If the instance is passed two disk devices that are each backed by the same disk,  
    the limits of the two devices will be averaged.
 
 It's also worth noting that all I/O limits only apply to actual block device access,  
@@ -166,7 +166,7 @@ This also means that access to cached data will not be affected by the limit.
 
  - While this backend is fully functional, it's also much slower than
    all the others due to it having to unpack images or do instant copies of
-   containers, snapshots and images.
+   instances, snapshots and images.
  - Quotas are supported with the directory backend when running on
    either ext4 or XFS with project quotas enabled at the filesystem level.
 
@@ -186,7 +186,7 @@ lxc storage create pool2 dir source=/data/lxd
 
 ### CEPH
 
-- Uses RBD images for images, then snapshots and clones to create containers
+- Uses RBD images for images, then snapshots and clones to create instances
   and snapshots.
 - Due to the way copy-on-write works in RBD, parent filesystems can't be
   removed until all children are gone. As a result, LXD will automatically
@@ -197,7 +197,7 @@ lxc storage create pool2 dir source=/data/lxd
   a LXD OSD storage pool since LXD might delete them.
 - Note that sharing the same osd storage pool between multiple LXD instances is
   not supported. LXD only allows sharing of an OSD storage pool between
-  multiple LXD instances only for backup purposes of existing containers via
+  multiple LXD instances only for backup purposes of existing instances via
   `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
   property to be set to true. If not set, LXD will refuse to reuse an osd
   storage pool it detected as being in use by another LXD instance.
@@ -240,7 +240,7 @@ lxc storage create pool1 ceph source=my-already-existing-osd
 
 ### Btrfs
 
- - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
+ - Uses a subvolume per instance, image and snapshot, creating btrfs snapshots when creating a new object.
  - btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on btrfs. (But see notes about btrfs quota via qgroups.)
  - btrfs supports storage quotas via qgroups. While btrfs qgroups are
    hierarchical, new subvolumes will not automatically be added to the qgroups
@@ -280,19 +280,19 @@ sudo btrfs filesystem resize max /var/lib/lxd/storage-pools/<POOL>/
 
 ### LVM
 
- - Uses LVs for images, then LV snapshots for containers and container snapshots.
+ - Uses LVs for images, then LV snapshots for instances and instance snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
  - By default, all LVM storage pools use an LVM thinpool in which logical
-   volumes for all LXD storage entities (images, containers, etc.) are created.
+   volumes for all LXD storage entities (images, instances, etc.) are created.
    This behavior can be changed by setting "lvm.use\_thinpool" to "false". In
-   this case, LXD will use normal logical volumes for all non-container
-   snapshot storage entities (images, containers etc.). This means most storage
+   this case, LXD will use normal logical volumes for all non-instance
+   snapshot storage entities (images, instances, etc.). This means most storage
    operations will need to fallback to rsyncing since non-thinpool logical
    volumes do not support snapshots of snapshots. Note that this entails
    serious performance impacts for the LVM driver causing it to be close to the
    fallback DIR driver both in speed and storage usage. This option should only
    be chosen if the use-case renders it necessary.
- - For environments with high container turn over (e.g continuous integration)
+ - For environments with high instance turn over (e.g continuous integration)
    it may be important to tweak the archival `retain_min` and `retain_days`
    settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with
    LXD.
@@ -332,7 +332,7 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 ### ZFS
 
  - When LXD creates a ZFS pool, compression is enabled by default.
- - Uses ZFS filesystems for images, then snapshots and clones to create containers and snapshots.
+ - Uses ZFS filesystems for images, then snapshots and clones to create instances and snapshots.
  - Due to the way copy-on-write works in ZFS, parent filesystems can't
    be removed until all children are gone. As a result, LXD will
    automatically rename any removed but still referenced object to a random
@@ -341,17 +341,17 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
  - ZFS as it is today doesn't support delegating part of a pool to a
    container user. Upstream is actively working on this.
  - ZFS doesn't support restoring from snapshots other than the latest
-   one. You can however create new containers from older snapshots which
+   one. You can however create new instances from older snapshots which
    makes it possible to confirm the snapshots is indeed what you want to
    restore before you remove the newer snapshots.
 
-   Also note that container copies use ZFS snapshots, so you also cannot
-   restore a container to a snapshot taken before the last copy without
-   having to also delete container copies.
+   Also note that instance copies use ZFS snapshots, so you also cannot
+   restore an instance to a snapshot taken before the last copy without
+   having to also delete instance copies.
 
-   Copying the wanted snapshot into a new container and then deleting
-   the old container does however work, at the cost of losing any other
-   snapshot the container may have had.
+   Copying the wanted snapshot into a new instance and then deleting
+   the old instance does however work, at the cost of losing any other
+   snapshot the instance may have had.
 
  - Note that LXD will assume it has full control over the ZFS pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in

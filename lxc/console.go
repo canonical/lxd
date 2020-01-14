@@ -32,7 +32,7 @@ func (c *cmdConsole) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach to instance consoles
 
-This command allows you to interact with the boot console of a instance
+This command allows you to interact with the boot console of an instance
 as well as retrieve past log entries from it.`))
 
 	cmd.RunE = c.Run

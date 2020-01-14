@@ -1,12 +1,12 @@
-# Communication between container and host
+# Communication between instance and host
 ## Introduction
-Communication between the hosted workload (container) and its host while
+Communication between the hosted workload (instance) and its host while
 not strictly needed is a pretty useful feature.
 
 In LXD, this feature is implemented through a `/dev/lxd/sock` node which is
-created and setup for all LXD containers.
+created and setup for all LXD instances.
 
-This file is a Unix socket which processes inside the container can
+This file is a Unix socket which processes inside the instance can
 connect to. It's multi-threaded so multiple clients can be connected at the
 same time.
 
@@ -14,18 +14,18 @@ same time.
 LXD on the host binds `/var/lib/lxd/devlxd/sock` and starts listening for new
 connections on it.
 
-This socket is then bind-mounted into every single container started by
+This socket is then exposed into every single instance started by
 LXD at `/dev/lxd/sock`.
 
-The bind-mount is required so we can exceed 4096 containers, otherwise,
-LXD would have to bind a different socket for every container, quickly
+The single socket is required so we can exceed 4096 instances, otherwise,
+LXD would have to bind a different socket for every instance, quickly
 reaching the FD limit.
 
 ## Authentication
 Queries on `/dev/lxd/sock` will only return information related to the
-requesting container. To figure out where a request comes from, LXD will
+requesting instance. To figure out where a request comes from, LXD will
 extract the initial socket ucred and compare that to the list of
-containers it manages.
+instances it manages.
 
 ## Protocol
 The protocol on `/dev/lxd/sock` is plain-text HTTP with JSON messaging, so very
@@ -74,12 +74,12 @@ Return value:
  * Description: List of configuration keys
  * Return: list of configuration keys URL
 
-Note that the configuration key names match those in the container
+Note that the configuration key names match those in the instance
 config, however not all configuration namespaces will be exported to
 `/dev/lxd/sock`.
-Currently only the `user.*` keys are accessible to the container.
+Currently only the `user.*` keys are accessible to the instance.
 
-At this time, there also aren't any container-writable namespace.
+At this time, there also aren't any instance-writable namespace.
 
 Return value:
 
