@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -60,7 +62,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(vol.config[k])
 		if err != nil {
-			return fmt.Errorf("Invalid value for volume option %s: %v", k, err)
+			return errors.Wrapf(err, "Invalid value for volume option %s", k)
 		}
 	}
 
@@ -157,7 +159,7 @@ func (d *common) vfsRenameVolume(vol Volume, newVolName string, op *operations.O
 
 	err := os.Rename(srcVolumePath, dstVolumePath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcVolumePath, dstVolumePath)
 	}
 
 	revertRename := true
@@ -176,7 +178,7 @@ func (d *common) vfsRenameVolume(vol Volume, newVolName string, op *operations.O
 	if shared.PathExists(srcSnapshotDir) {
 		err = os.Rename(srcSnapshotDir, dstSnapshotDir)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcSnapshotDir, dstSnapshotDir)
 		}
 	}
 
@@ -196,7 +198,7 @@ func (d *common) vfsVolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 			return snapshots, nil
 		}
 
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to list directory '%s'", snapshotDir)
 	}
 
 	for _, ent := range ents {
@@ -223,7 +225,7 @@ func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string,
 
 	err := os.Rename(oldPath, newPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
 	}
 
 	return nil
@@ -306,7 +308,7 @@ func (d *common) vfsBackupVolume(vol Volume, targetPath string, snapshots bool, 
 		if len(snapshots) > 0 {
 			err = os.MkdirAll(snapshotsPath, 0711)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
 			}
 		}
 
