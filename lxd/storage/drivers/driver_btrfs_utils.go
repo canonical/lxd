@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"golang.org/x/sys/unix"
 )
 
 // Errors
@@ -367,7 +369,7 @@ func (d *btrfs) receiveSubvolume(path string, targetPath string, conn io.ReadWri
 	// And move it to the target path.
 	err = os.Rename(receivedSnapshot, targetPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", receivedSnapshot, targetPath)
 	}
 
 	return nil

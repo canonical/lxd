@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
@@ -167,8 +169,8 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	// Remove the volume from the storage device.
 	err = os.RemoveAll(volPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", volPath)
 	}
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
@@ -329,8 +331,8 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 	// Remove the snapshot from the storage device.
 	err := os.RemoveAll(snapPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", snapPath)
 	}
 
 	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
@@ -374,7 +376,7 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	bwlimit := d.config["rsync.bwlimit"]
 	_, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync volume: %s", err)
+		return errors.Wrap(err, "Failed to rsync volume")
 	}
 
 	return nil

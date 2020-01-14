@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -213,13 +214,13 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	// Create a temporary directory to unpack the backup into.
 	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), vol.name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
 	}
 	defer os.RemoveAll(unpackDir)
 
 	err = os.Chmod(unpackDir, 0100)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to chmod '%s'", unpackDir)
 	}
 
 	// Find the compression algorithm used for backup source data.
@@ -255,7 +256,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 		// Open the backup.
 		feeder, err := os.Open(filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
 		}
 		defer feeder.Close()
 
@@ -270,7 +271,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	// Open the backup.
 	feeder, err := os.Open(filepath.Join(unpackDir, "container.bin"))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "container.bin"))
 	}
 	defer feeder.Close()
 
@@ -624,13 +625,13 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 		// Delete the mountpoint if present.
 		err := os.Remove(vol.MountPath())
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			return errors.Wrapf(err, "Failed to remove '%s'", vol.MountPath())
 		}
 
 		// Delete the snapshot storage.
 		err = os.RemoveAll(GetVolumeSnapshotDir(d.name, vol.volType, vol.name))
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			return errors.Wrapf(err, "Failed to remove '%s'", GetVolumeSnapshotDir(d.name, vol.volType, vol.name))
 		}
 	}
 
@@ -805,7 +806,7 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	// List all the device nodes.
 	entries, err := ioutil.ReadDir("/dev")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Failed to read /dev")
 	}
 
 	for _, entry := range entries {
@@ -1061,7 +1062,7 @@ func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapsh
 		// Create the file.
 		fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to open '%s'", file)
 		}
 		defer fd.Close()
 
@@ -1089,7 +1090,7 @@ func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapsh
 		if len(volSnapshots) > 0 {
 			err = os.MkdirAll(snapshotsPath, 0711)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
 			}
 		}
 
@@ -1205,7 +1206,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	// Delete the mountpoint.
 	err = os.Remove(vol.MountPath())
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return errors.Wrapf(err, "Failed to remove '%s'", vol.MountPath())
 	}
 
 	// Remove the parent snapshot directory if this is the last snapshot being removed.
