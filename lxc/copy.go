@@ -72,7 +72,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		return err
 	}
 
-	// Make sure we have a instance or snapshot name
+	// Make sure we have an instance or snapshot name
 	if sourceName == "" {
 		return fmt.Errorf(i18n.G("You must specify a source instance name"))
 	}
