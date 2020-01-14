@@ -158,11 +158,27 @@ func IsAddressCovered(address1, address2 string) bool {
 		return false
 	}
 
+	// If address2 contains a host name, let's try to resolve it, in order
+	// to compare the actual IPs.
+	if host2 != "" {
+		ip2 := net.ParseIP(host2)
+		if ip2 == nil {
+			ips, err := net.LookupHost(host2)
+			if err == nil && len(ips) > 0 {
+				host2 = ips[0]
+			}
+		}
+	}
+
+	if host2 == host1 {
+		return true
+	}
+
 	// If address2 is using an IPv4 wildcard for the host, then address2 is
 	// only covered if it's an IPv4 address.
 	if host2 == "0.0.0.0" {
-		ip := net.ParseIP(host1)
-		if ip != nil && ip.To4() != nil {
+		ip1 := net.ParseIP(host1)
+		if ip1 != nil && ip1.To4() != nil {
 			return true
 		}
 		return false
