@@ -187,6 +187,19 @@ specifying the property that you want to change. To unset a key, setting
 it to empty will usually do the trick, but there are cases where PATCH
 won't work and PUT needs to be used instead.
 
+## instances, containers and virtual-machines
+This documentation will always show paths such as `/1.0/instances/...`.
+Those are fairly new, introduced with LXD 3.19 when virtual-machine support.
+
+Older releases that only supported containers will instead use the exact same API at `/1.0/containers/...`.
+
+For backward compatibility reasons, LXD does still expose and support
+that `/1.0/containers` API, though for the sake of brevity, we decided
+not to double-document everything below.
+
+An additional endpoint at `/1.0/virtual-machines` is also present and
+much like `/1.0/containers` will only show you instances of that type.
+
 ## API structure
  * [`/`](#)
    * [`/1.0`](#10)
