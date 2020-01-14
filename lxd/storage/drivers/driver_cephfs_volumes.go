@@ -249,8 +249,8 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	// Remove the volume from the storage device.
 	err = os.RemoveAll(volPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to delete '%s'", volPath)
 	}
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
@@ -258,8 +258,8 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 	snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 
 	err = os.RemoveAll(snapshotDir)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to delete '%s'", snapshotDir)
 	}
 
 	return nil
@@ -360,7 +360,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 		// Remove the new snapshot directory if we are reverting.
 		if len(revertPaths) > 0 {
 			snapshotDir := GetVolumeSnapshotDir(d.name, vol.volType, newName)
-			err = os.RemoveAll(snapshotDir)
+			os.RemoveAll(snapshotDir)
 		}
 	}()
 
@@ -372,7 +372,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 
 		err = os.Rename(srcSnapshotDir, targetSnapshotDir)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcSnapshotDir, targetSnapshotDir)
 		}
 
 		revertPaths = append(revertPaths, volRevert{
@@ -401,7 +401,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 		// Update the symlink.
 		err = os.Symlink(newCephSnapPath, newPath)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to symlink '%s' to '%s'", newCephSnapPath, newPath)
 		}
 
 		revertPaths = append(revertPaths, volRevert{
@@ -415,7 +415,7 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 	newPath := GetVolumeMountPath(d.name, vol.volType, newName)
 	err = os.Rename(oldPath, newPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
 	}
 
 	revertPaths = append(revertPaths, volRevert{
@@ -451,7 +451,7 @@ func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 
 	err := os.Mkdir(cephSnapPath, 0711)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create directory '%s'", cephSnapPath)
 	}
 
 	// Create the parent directory.
@@ -464,7 +464,7 @@ func (d *cephfs) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 	targetPath := snapVol.MountPath()
 	err = os.Symlink(cephSnapPath, targetPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to symlink '%s' to '%s'", cephSnapPath, targetPath)
 	}
 
 	return nil
@@ -479,15 +479,15 @@ func (d *cephfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 	cephSnapPath := filepath.Join(sourcePath, ".snap", snapName)
 
 	err := os.Remove(cephSnapPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", cephSnapPath)
 	}
 
 	// Remove the symlink.
 	snapPath := snapVol.MountPath()
 	err = os.Remove(snapPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", snapPath)
 	}
 
 	return nil
@@ -532,20 +532,20 @@ func (d *cephfs) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op
 
 	err := os.Rename(oldCephSnapPath, newCephSnapPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldCephSnapPath, newCephSnapPath)
 	}
 
 	// Re-generate the snapshot symlink.
 	oldPath := snapVol.MountPath()
 	err = os.Remove(oldPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", oldPath)
 	}
 
 	newPath := GetVolumeMountPath(d.name, snapVol.volType, GetSnapshotVolumeName(parentName, newSnapshotName))
 	err = os.Symlink(newCephSnapPath, newPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to symlink '%s' to '%s'", newCephSnapPath, newPath)
 	}
 
 	return nil

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/util"
@@ -265,11 +267,9 @@ func (d *zfs) Delete(op *operations.Operation) error {
 
 	// Delete any loop file we may have used
 	loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
-	if shared.PathExists(loopPath) {
-		err = os.Remove(loopPath)
-		if err != nil {
-			return err
-		}
+	err = os.Remove(loopPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", loopPath)
 	}
 
 	return nil

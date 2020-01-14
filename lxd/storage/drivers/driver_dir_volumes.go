@@ -169,8 +169,8 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 	// Remove the volume from the storage device.
 	err = os.RemoveAll(volPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", volPath)
 	}
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
@@ -331,8 +331,8 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 
 	// Remove the snapshot from the storage device.
 	err := os.RemoveAll(snapPath)
-	if err != nil {
-		return err
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", snapPath)
 	}
 
 	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)

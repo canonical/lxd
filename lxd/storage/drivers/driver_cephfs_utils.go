@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/shared"
 )
 
@@ -24,7 +26,7 @@ func (d *cephfs) getConfig(clusterName string, userName string) ([]string, strin
 	// Parse the CEPH configuration.
 	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", clusterName))
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrapf(err, "Failed to open '%s", fmt.Sprintf("/etc/ceph/%s.conf", clusterName))
 	}
 
 	cephMon := []string{}
@@ -59,7 +61,7 @@ func (d *cephfs) getConfig(clusterName string, userName string) ([]string, strin
 	// Parse the CEPH keyring.
 	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", clusterName, userName))
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrapf(err, "Failed to open '%s", fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", clusterName, userName))
 	}
 
 	var cephSecret string

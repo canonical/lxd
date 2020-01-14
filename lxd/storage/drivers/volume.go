@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/storage/locking"
 	"github.com/lxc/lxd/shared"
@@ -128,7 +130,7 @@ func (v Volume) EnsureMountPath() error {
 	// Create volume's mount path, with any created directories set to 0711.
 	err := os.Mkdir(volPath, 0711)
 	if err != nil && !os.IsExist(err) {
-		return err
+		return errors.Wrapf(err, "Failed to create directory '%s'", volPath)
 	}
 
 	// Set very restrictive mode 0100 for non-custom and non-image volumes.
@@ -140,7 +142,7 @@ func (v Volume) EnsureMountPath() error {
 	// Set mode of actual volume's mount path.
 	err = os.Chmod(volPath, mode)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to chmod '%s'", volPath)
 	}
 
 	return nil

@@ -145,8 +145,8 @@ func (d *btrfs) Create() error {
 
 				// Delete the current directory to replace by subvolume.
 				err := os.Remove(cleanSource)
-				if err != nil {
-					return err
+				if err != nil && !os.IsNotExist(err) {
+					return errors.Wrapf(err, "Failed to remove '%s'", cleanSource)
 				}
 			}
 
@@ -211,17 +211,15 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 		// And re-create as an empty directory to make the backend happy.
 		err = os.Mkdir(GetPoolMountPath(d.name), 0700)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to create directory '%s'", GetPoolMountPath(d.name))
 		}
 	}
 
 	// Delete any loop file we may have used.
 	loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
-	if shared.PathExists(loopPath) {
-		err = os.Remove(loopPath)
-		if err != nil {
-			return err
-		}
+	err = os.Remove(loopPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "Failed to remove '%s'", loopPath)
 	}
 
 	return nil
