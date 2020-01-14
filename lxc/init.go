@@ -38,9 +38,9 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Use = i18n.G("init [[<remote>:]<image>] [<remote>:][<name>] [< config")
 	cmd.Short = i18n.G("Create instances from images")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Create instances from images`))
-	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:16.04 u1
+	cmd.Example = cli.FormatSection("", i18n.G(`lxc init ubuntu:18.04 u1
 
-lxc init ubuntu:16.04 u1 < config.yaml
+lxc init ubuntu:18.04 u1 < config.yaml
     Create the instance with configuration from config.yaml`))
 	cmd.Hidden = true
 
