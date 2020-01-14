@@ -81,7 +81,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		loopPath := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", d.name))
+		loopPath := loopFilePath(d.name)
 		if d.config["source"] == loopPath {
 			// Create the volume dataset with sync disabled (to avoid kernel lockups when using a disk based pool).
 			err = d.createVolume(d.dataset(vol, false), sizeBytes, "sync=disabled")

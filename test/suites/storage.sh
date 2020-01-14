@@ -773,7 +773,8 @@ test_storage() {
     rootMinKB1="17000"
     rootMaxKB1="20000"
 
-    QUOTA2="21MB"
+    # Increase quota enough to require a new 4MB LVM extent.
+    QUOTA2="25MB"
     rootMinKB2="21000"
     rootMaxKB2="23000"
   fi
