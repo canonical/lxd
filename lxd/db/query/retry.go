@@ -1,12 +1,14 @@
 package query
 
 import (
+	"database/sql"
 	"strings"
 	"time"
 
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
+
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Retry wraps a function that interacts with the database, and retries it in
@@ -19,8 +21,13 @@ func Retry(f func() error) error {
 	for i := 0; i < 5; i++ {
 		err = f()
 		if err != nil {
-			logger.Debugf("Database error: %#v", err)
+			// No point in re-trying or logging a no-row error.
+			if err == sql.ErrNoRows {
+				break
+			}
 
+			// Process actual errors.
+			logger.Debugf("Database error: %#v", err)
 			if IsRetriableError(err) {
 				logger.Debugf("Retry failed db interaction (%v)", err)
 				time.Sleep(250 * time.Millisecond)
@@ -29,6 +36,7 @@ func Retry(f func() error) error {
 		}
 		break
 	}
+
 	return err
 }
 
@@ -36,10 +44,10 @@ func Retry(f func() error) error {
 // interaction can be safely retried.
 func IsRetriableError(err error) bool {
 	err = errors.Cause(err)
-
 	if err == nil {
 		return false
 	}
+
 	if err == sqlite3.ErrLocked || err == sqlite3.ErrBusy {
 		return true
 	}
@@ -47,6 +55,7 @@ func IsRetriableError(err error) bool {
 	if strings.Contains(err.Error(), "database is locked") {
 		return true
 	}
+
 	if strings.Contains(err.Error(), "bad connection") {
 		return true
 	}
