@@ -413,3 +413,12 @@ sudo zpool set autoexpand=on lxd
 sudo zpool online -e lxd /var/lib/lxd/disks/<POOL>.img
 sudo zpool set autoexpand=off lxd
 ```
+
+When you installed LXD over snap then you must change the path to the pool:
+
+```bash
+sudo truncate -s +5G /var/snap/lxd/common/lxd/disks/<POOL>.img
+sudo zpool set autoexpand=on lxd
+sudo zpool online -e lxd /var/snap/lxd/common/lxd/disks/<POOL>.img
+sudo zpool set autoexpand=off lxd
+```
