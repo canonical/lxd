@@ -25,14 +25,16 @@ func wipeDirectory(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
+
+		return errors.Wrapf(err, "Failed to list directory '%s'", path)
 	}
 
 	// Individually wipe all entries.
 	for _, entry := range entries {
 		entryPath := filepath.Join(path, entry.Name())
 		err := os.RemoveAll(entryPath)
-		if err != nil {
-			return err
+		if err != nil && !os.IsNotExist(err) {
+			return errors.Wrapf(err, "Failed to remove '%s'", entryPath)
 		}
 	}
 
@@ -232,7 +234,12 @@ func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volNa
 
 	// If it's missing, create it.
 	if !shared.PathExists(snapshotsPath) {
-		return os.Mkdir(snapshotsPath, 0700)
+		err := os.Mkdir(snapshotsPath, 0700)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
+		}
+
+		return nil
 	}
 
 	return nil
@@ -252,8 +259,8 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 
 		if isEmpty {
 			err := os.Remove(snapshotsPath)
-			if err != nil {
-				return err
+			if err != nil && !os.IsNotExist(err) {
+				return errors.Wrapf(err, "Failed to remove '%s'", snapshotsPath)
 			}
 		}
 	}

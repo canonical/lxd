@@ -159,7 +159,7 @@ func (d *common) vfsRenameVolume(vol Volume, newVolName string, op *operations.O
 
 	err := os.Rename(srcVolumePath, dstVolumePath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcVolumePath, dstVolumePath)
 	}
 
 	revertRename := true
@@ -178,7 +178,7 @@ func (d *common) vfsRenameVolume(vol Volume, newVolName string, op *operations.O
 	if shared.PathExists(srcSnapshotDir) {
 		err = os.Rename(srcSnapshotDir, dstSnapshotDir)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcSnapshotDir, dstSnapshotDir)
 		}
 	}
 
@@ -198,7 +198,7 @@ func (d *common) vfsVolumeSnapshots(vol Volume, op *operations.Operation) ([]str
 			return snapshots, nil
 		}
 
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to list directory '%s'", snapshotDir)
 	}
 
 	for _, ent := range ents {
@@ -225,7 +225,7 @@ func (d *common) vfsRenameVolumeSnapshot(snapVol Volume, newSnapshotName string,
 
 	err := os.Rename(oldPath, newPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
 	}
 
 	return nil
@@ -308,7 +308,7 @@ func (d *common) vfsBackupVolume(vol Volume, targetPath string, snapshots bool, 
 		if len(snapshots) > 0 {
 			err = os.MkdirAll(snapshotsPath, 0711)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
 			}
 		}
 

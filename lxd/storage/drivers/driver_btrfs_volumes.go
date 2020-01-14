@@ -110,13 +110,13 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	// Create a temporary directory to unpack the backup into.
 	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), vol.name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
 	}
 	defer os.RemoveAll(unpackDir)
 
 	err = os.Chmod(unpackDir, 0100)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to chmod '%s'", unpackDir)
 	}
 
 	// Find the compression algorithm used for backup source data.
@@ -154,7 +154,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 		// Open the backup.
 		feeder, err := os.Open(filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
 		}
 		defer feeder.Close()
 
@@ -168,7 +168,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	// Open the backup.
 	feeder, err := os.Open(filepath.Join(unpackDir, "container.bin"))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "container.bin"))
 	}
 	defer feeder.Close()
 
@@ -280,13 +280,13 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 	// Create a temporary directory which will act as the parent directory of the received ro snapshot.
 	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, vol.name)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
 	}
 	defer os.RemoveAll(tmpVolumesMountPoint)
 
 	err = os.Chmod(tmpVolumesMountPoint, 0100)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to chmod '%s'", tmpVolumesMountPoint)
 	}
 
 	wrapper := migration.ProgressWriter(op, "fs_progress", vol.name)
@@ -521,13 +521,13 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	// Create a temporary directory which will act as the parent directory of the read-only snapshot.
 	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, vol.name)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
 	}
 	defer os.RemoveAll(tmpVolumesMountPoint)
 
 	err = os.Chmod(tmpVolumesMountPoint, 0100)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to chmod '%s'", tmpVolumesMountPoint)
 	}
 
 	// Make read-only snapshot of the subvolume as writable subvolumes cannot be sent.
@@ -579,7 +579,7 @@ func (d *btrfs) BackupVolume(vol Volume, targetPath string, optimized bool, snap
 		// Create the file.
 		fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to open '%s'", file)
 		}
 		defer fd.Close()
 
@@ -607,7 +607,7 @@ func (d *btrfs) BackupVolume(vol Volume, targetPath string, optimized bool, snap
 		if len(volSnapshots) > 0 {
 			err = os.MkdirAll(snapshotsPath, 0711)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
 			}
 		}
 
@@ -640,13 +640,13 @@ func (d *btrfs) BackupVolume(vol Volume, targetPath string, optimized bool, snap
 
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, vol.name)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", containersPath)
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
 	err = os.Chmod(tmpContainerMntPoint, 0100)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to chmod '%s'", tmpContainerMntPoint)
 	}
 
 	// Create the read-only snapshot.
@@ -726,7 +726,7 @@ func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Op
 	backupSubvolume := fmt.Sprintf("%s%s", vol.MountPath(), tmpVolSuffix)
 	err := os.Rename(vol.MountPath(), backupSubvolume)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", vol.MountPath(), backupSubvolume)
 	}
 
 	// Setup revert logic.
