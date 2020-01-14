@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/rsync"
@@ -60,7 +62,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(vol.config[k])
 		if err != nil {
-			return fmt.Errorf("Invalid value for volume option %s: %v", k, err)
+			return errors.Wrapf(err, "Invalid value for volume option %s", k)
 		}
 	}
 

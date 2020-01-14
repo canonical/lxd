@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
@@ -402,7 +404,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 			var output string
 			output, err = shared.RunCommand("btrfs", "subvolume", "show", volPath)
 			if err != nil {
-				return fmt.Errorf("Failed to get subvol information: %v", err)
+				return errors.Wrap(err, "Failed to get subvol information")
 			}
 
 			id := ""
