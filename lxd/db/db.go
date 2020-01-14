@@ -420,16 +420,6 @@ func (c *Cluster) Begin() (*sql.Tx, error) {
 	return begin(c.db)
 }
 
-func isNoMatchError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if err.Error() == "sql: no rows in result set" {
-		return true
-	}
-	return false
-}
-
 func begin(db *sql.DB) (*sql.Tx, error) {
 	for i := 0; i < 1000; i++ {
 		tx, err := db.Begin()
