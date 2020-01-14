@@ -5268,6 +5268,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
 			"path":       tplPath,
 			"container":  containerMeta,
+			"instance":   containerMeta,
 			"config":     c.expandedConfig,
 			"devices":    c.expandedDevices,
 			"properties": tpl.Properties,
