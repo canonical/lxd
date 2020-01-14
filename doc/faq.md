@@ -129,7 +129,7 @@ safe to do.
 ### Beware of 'port security'
 
 Many switches do *not* allow MAC address changes, and will either drop traffic
-with an incorrect MAC, or, disable the port totally. If you can ping a LXD container
+with an incorrect MAC, or, disable the port totally. If you can ping a LXD instance
 from the host, but are not able to ping it from a _different_ host, this could be
 the cause.  The way to diagnose this is to run a tcpdump on the uplink (in this case,
 eth1), and you will see either 'ARP Who has xx.xx.xx.xx tell yy.yy.yy.yy', with you

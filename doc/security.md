@@ -8,8 +8,8 @@ the network on a TLS socket.
 
 **WARNING**: Local access to LXD through the UNIX socket always grants
 full access to LXD. This includes the ability to attach any filesystem
-paths or devices to any container as well as tweaking all security
-features on containers. You should only give such access to someone who
+paths or devices to any instance as well as tweaking all security
+features on instances. You should only give such access to someone who
 you'd trust with root access to your system.
 
 The remote API uses either TLS client certificates or Candid based
@@ -48,9 +48,9 @@ The meaning of the roles when applied to a project is as follow:
 
  - auditor: Read-only access to the project
  - user: Ability to do normal lifecycle actions (start, stop, ...),
-   execute commands in the containers, attach to console, manage snapshots, ...
+   execute commands in the instances, attach to console, manage snapshots, ...
  - operator: All of the above + the ability to create, re-configure and
-   delete containers and images
+   delete instances and images
  - admin: All of the above + the ability to reconfigure the project itself
 
 **WARNING**: Of those roles, only `auditor` and `user` are currently
