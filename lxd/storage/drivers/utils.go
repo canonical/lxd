@@ -558,3 +558,8 @@ func copyDevice(inputPath, outputPath string) error {
 
 	return nil
 }
+
+// loopFilePath returns the loop file path for a storage pool.
+func loopFilePath(poolName string) string {
+	return filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", poolName))
+}
