@@ -657,9 +657,14 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		return 0, 0, err
 	}
 
-	metaPerc, err := strconv.ParseFloat(parts[2], 64)
-	if err != nil {
-		return 0, 0, err
+	metaPerc := float64(0)
+
+	// For thin volumes there is no meta data percentage. This is only for the thin pool volume itself.
+	if parts[2] != "" {
+		metaPerc, err = strconv.ParseFloat(parts[2], 64)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 
 	usedSize := uint64(float64(total) * ((dataPerc + metaPerc) / 100))
