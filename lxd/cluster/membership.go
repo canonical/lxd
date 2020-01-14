@@ -156,7 +156,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 //
 // Return an updated list raft database nodes (possibly including the newly
 // accepted node).
-func Accept(state *state.State, gateway *Gateway, name, address string, schema, api int) ([]db.RaftNode, error) {
+func Accept(state *state.State, gateway *Gateway, name, address string, schema, api, arch int) ([]db.RaftNode, error) {
 	// Check parameters
 	if name == "" {
 		return nil, fmt.Errorf("node name must not be empty")
@@ -169,13 +169,6 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Check that the node can be accepted with these parameters.
 		err := membershipCheckClusterStateForAccept(tx, name, address, schema, api)
-		if err != nil {
-			return err
-		}
-
-		// TODO: when fixing #6380 this should be replaced with the
-		// actual architecture of the foreign node.
-		arch, err := osarch.ArchitectureGetLocalID()
 		if err != nil {
 			return err
 		}
