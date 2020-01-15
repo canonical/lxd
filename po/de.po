@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-14 15:12-0500\n"
-"PO-Revision-Date: 2019-09-21 20:27+0000\n"
-"Last-Translator: Joshua Dietz <jospam@dietz-ulm.de>\n"
+"POT-Creation-Date: 2020-01-15 09:06-0500\n"
+"PO-Revision-Date: 2019-12-12 14:53+0000\n"
+"Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/de/>\n"
 "Language: de\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 3.9-dev\n"
+"X-Generator: Weblate 3.10-dev\n"
 
 #: lxc/storage.go:225
 #, fuzzy
@@ -132,7 +132,7 @@ msgstr ""
 "###\n"
 "### Pro Eigenschaft wird eine Zeile verwendet:\n"
 "### Zum Beispiel:\n"
-"###  description: Mein eigenes Abbild"
+"###  description: Mein eigenes Abbild\n"
 
 #: lxc/config_metadata.go:62
 #, fuzzy

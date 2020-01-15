@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-14 15:12-0500\n"
-"PO-Revision-Date: 2019-09-20 11:43+0000\n"
+"POT-Creation-Date: 2020-01-15 09:06-0500\n"
+"PO-Revision-Date: 2019-11-05 18:27+0000\n"
 "Last-Translator: Hiroaki Nakamura <hnakamur@gmail.com>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 3.9-dev\n"
+"X-Generator: Weblate 3.10-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -166,7 +166,7 @@ msgstr ""
 #: lxc/info.go:293
 #, c-format
 msgid "%d (id: %d, online: %v)"
-msgstr ""
+msgstr "%d (id: %d, オンライン: %v)"
 
 #: lxc/image.go:1037
 #, c-format
@@ -196,7 +196,7 @@ msgstr ""
 #: lxc/info.go:282
 #, c-format
 msgid "- Level %d (type: %s): %s"
-msgstr ""
+msgstr "- レベル %d (タイプ: %s): %s"
 
 #: lxc/info.go:261
 #, c-format
@@ -224,9 +224,8 @@ msgstr "--refresh はコンテナの場合のみ使えます"
 
 #: lxc/config.go:150 lxc/config.go:406 lxc/config.go:499 lxc/config.go:637
 #: lxc/info.go:424
-#, fuzzy
 msgid "--target cannot be used with instances"
-msgstr "--target はコンテナでは使えません"
+msgstr "--target はインスタンスでは使えません"
 
 #: lxc/alias.go:126 lxc/image.go:1002 lxc/image_alias.go:231
 msgid "ALIAS"
@@ -626,7 +625,7 @@ msgstr "コンソールログ:"
 #: lxc/info.go:115
 #, c-format
 msgid "Control: %s (%s)"
-msgstr ""
+msgstr "コントロール: %s (%s)"
 
 #: lxc/copy.go:52 lxc/move.go:57
 #, fuzzy
@@ -671,14 +670,15 @@ msgid "Copy storage volumes"
 msgstr "ストレージボリュームをコピーします"
 
 #: lxc/copy.go:50
-#, fuzzy
 msgid "Copy the instance without its snapshots"
-msgstr "コンテナをコピーします (スナップショットはコピーしません)"
+msgstr "インスタンスをコピーします。スナップショットはコピーしません"
 
 #: lxc/copy.go:51
 #, fuzzy
 msgid "Copy the instance without its snapshots (deprecated, use instance-only)"
-msgstr "コンテナをコピーします (スナップショットはコピーしません)"
+msgstr ""
+"コンテナをコピーします。スナップショットはコピーしません (廃止予定、instance-"
+"only を使ってください)"
 
 #: lxc/storage_volume.go:306
 msgid "Copy the volume without its snapshots"
@@ -689,9 +689,8 @@ msgid "Copy to a project different from the source"
 msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
 
 #: lxc/image.go:138
-#, fuzzy
 msgid "Copy virtual machine images"
-msgstr "イメージのコピー中: %s"
+msgstr "仮想マシンイメージをコピーします"
 
 #: lxc/image.go:223
 #, c-format
@@ -719,7 +718,7 @@ msgstr "サーバ証明書格納用のディレクトリを作成できません
 #: lxc/init.go:57
 #, fuzzy
 msgid "Create a virtual machine"
-msgstr "イメージのコピー中: %s"
+msgstr "仮想マシンイメージをコピーします"
 
 #: lxc/image_alias.go:57 lxc/image_alias.go:58
 msgid "Create aliases for existing images"
@@ -830,9 +829,8 @@ msgid "DRM:"
 msgstr ""
 
 #: lxc/export.go:46
-#, fuzzy
 msgid "Define a compression algorithm: for backup or none"
-msgstr "圧縮アルゴリズムを指定します: 圧縮アルゴリズム名 or none"
+msgstr "圧縮アルゴリズムを指定します: backup or none"
 
 #: lxc/publish.go:42
 msgid "Define a compression algorithm: for image or none"
@@ -992,9 +990,8 @@ msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
 #: lxc/exec.go:61
-#, fuzzy
 msgid "Directory to run the command in (default /root)"
-msgstr "コマンドを実行する際のユーザ ID (UID) (デフォルト 0)"
+msgstr "コマンドを実行するディレクトリ (デフォルト /root)"
 
 #: lxc/exec.go:57
 msgid "Disable pseudo-terminal allocation"
@@ -1329,7 +1326,7 @@ msgstr ""
 "--force オプションは、サーバが死んだ場合、サーバの再インストール後、他に復旧"
 "の見込みがまったくない場合にのみ使用してください。\n"
 "\n"
-"本当に強制的に %s を削除してもよろしいですか? (yes/no):"
+"本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:102 lxc/cluster.go:70 lxc/config_template.go:239
 #: lxc/config_trust.go:118 lxc/image.go:994 lxc/image_alias.go:155
@@ -1715,7 +1712,6 @@ msgid "List images"
 msgstr "イメージを一覧表示します"
 
 #: lxc/image.go:968
-#, fuzzy
 msgid ""
 "List images\n"
 "\n"
@@ -1743,9 +1739,9 @@ msgid ""
 msgstr ""
 "イメージをリスト表示します\n"
 "\n"
-"プロパティでフィルタを行う場合、イメージのハッシュ値やイメージのエイリアスの"
-"一部を指定する場合、\n"
-"は、フィルタは <key>=<value> の形になります。\n"
+"プロパティでフィルタを行う場合はフィルタは <key>=<value> の形になります。\n"
+"あるいはイメージのハッシュ値やイメージのエイリアスの一部を指定することもでき"
+"ます。\n"
 "\n"
 "-c オプションは、表もしくは csv 形式で表示する際の、出力するイメージの\n"
 "属性を指定する引数のリスト (カンマ区切りでも OK) を指定します。\n"
@@ -1763,7 +1759,8 @@ msgstr ""
 "    d - 説明\n"
 "    a - アーキテクチャ\n"
 "    s - サイズ\n"
-"    u - アップロード日"
+"    u - アップロード日\n"
+"    t - タイプ"
 
 #: lxc/config_device.go:260 lxc/config_device.go:261
 #, fuzzy
@@ -1895,15 +1892,16 @@ msgstr ""
 "  P - プロファイル\n"
 "  s - 状態\n"
 "  S - スナップショットの数\n"
-"  t - タイプ (persistent or ephemeral)\n"
-"  L - コンテナのロケーション (例 its cluster member)\n"
+"  t - タイプ (persistent か ephemeral)\n"
+"  L - コンテナのロケーション (クラスタメンバー名)\n"
 "  f - ベースとなるイメージのフィンガープリント (短い形式)\n"
 "  F - ベースとなるイメージのフィンガープリント (長い形式)\n"
 "\n"
-"key[:name][:maxWidth]のように指定するカスタムカラム:\n"
-"     KEY: 表示する (拡張された) 設定キー\n"
-"    NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空\n"
-"          の場合のデフォルトはキー。\n"
+"\"[config:|devices:]key[:name][:maxWidth]\" のように指定するカスタムカラム:\n"
+"     KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合"
+"は config が指定されたものとします\n"
+"    NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデ"
+"フォルトはキー。\n"
 "\n"
 "MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
 "          デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
@@ -2235,14 +2233,15 @@ msgid "Move storage volumes between pools"
 msgstr "プール間でストレージボリュームを移動します"
 
 #: lxc/move.go:55
-#, fuzzy
 msgid "Move the instance without its snapshots"
-msgstr "コンテナを移動します (スナップショットは移動しません)"
+msgstr "インスタンスを移動します。スナップショットは移動しません"
 
 #: lxc/move.go:54
 #, fuzzy
 msgid "Move the instance without its snapshots (deprecated, use instance-only)"
-msgstr "コンテナを移動します (スナップショットは移動しません)"
+msgstr ""
+"コンテナを移動します。スナップショットは移動しません (廃止予定、instance-"
+"only を使ってください)"
 
 #: lxc/storage_volume.go:365
 #, c-format
@@ -2631,7 +2630,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 
 #: lxc/image.go:451 lxc/image.go:836 lxc/image.go:1348
 msgid "Query virtual machine images"
-msgstr ""
+msgstr "仮想マシンイメージを対象にします"
 
 #: lxc/info.go:255 lxc/info.go:264
 #, c-format
@@ -2773,7 +2772,7 @@ msgstr "ストレージボリューム名 \"%s\" を \"%s\" に変更しまし�
 #: lxc/info.go:119
 #, c-format
 msgid "Render: %s (%s)"
-msgstr ""
+msgstr "レンダー: %s (%s)"
 
 #: lxc/delete.go:35
 msgid "Require user confirmation"
@@ -2908,8 +2907,7 @@ msgstr ""
 "コンテナのデバイス設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc config device set [<remote>:]<container|profile> <device> <key> "
-"<value>"
+"    lxc config device set [<remote>:]<container> <device> <key> <value>"
 
 #: lxc/config_device.go:513
 #, fuzzy
@@ -2923,8 +2921,7 @@ msgstr ""
 "コンテナのデバイス設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc config device set [<remote>:]<container|profile> <device> <key> "
-"<value>"
+"    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 
 #: lxc/config.go:453
 #, fuzzy
@@ -3306,9 +3303,8 @@ msgid "TYPE"
 msgstr ""
 
 #: lxc/move.go:161 lxc/move.go:165
-#, fuzzy
 msgid "The --instance-only flag can't be used with --target"
-msgstr "--container-only と --target は同時に指定できません"
+msgstr "--instance-only と --target は同時に指定できません"
 
 #: lxc/move.go:169
 msgid "The --mode flag can't be used with --target"
@@ -3490,9 +3486,9 @@ msgid "Type: %s"
 msgstr "タイプ: %s"
 
 #: lxc/info.go:459
-#, fuzzy, c-format
+#, c-format
 msgid "Type: %s (ephemeral)"
-msgstr "タイプ: ephemeral"
+msgstr "タイプ: %s (ephemeral)"
 
 #: lxc/image.go:1010
 msgid "UPLOAD DATE"
@@ -3629,16 +3625,16 @@ msgid "Wait for the operation to complete"
 msgstr "処理が完全に終わるまで待ちます"
 
 #: lxc/export.go:41
-#, fuzzy
 msgid ""
 "Whether or not to only backup the container (without snapshots), "
 "(deprecated, use instance-only)"
-msgstr "スナップショットを含めずにコンテナのみをバックアップするかどうか"
+msgstr ""
+"スナップショットを含めずにコンテナのみをバックアップするかどうか (廃止予定、"
+"instance-only を使ってください)"
 
 #: lxc/export.go:43
-#, fuzzy
 msgid "Whether or not to only backup the instance (without snapshots)"
-msgstr "スナップショットを含めずにコンテナのみをバックアップするかどうか"
+msgstr "スナップショットを含めずにインスタンスのみをバックアップするかどうか"
 
 #: lxc/restore.go:36
 #, fuzzy
@@ -4248,11 +4244,13 @@ msgid ""
 "lxc list -c ns,user.comment:comment\n"
 "  List images with their running state and user comment."
 msgstr ""
-"lxc list -c nFs46,volatile.eth0.hwaddr:MAC\n"
+"lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
+"parent:ETHP\n"
 "  \"NAME\"、\"BASE IMAGE\"、\"STATE\"、\"IPV4\"、\"IPV6\"、\"MAC\" カラムを"
 "使ってコンテナを一覧表示します。\n"
-"  \"BASE IMAGE\" と \"MAC\" はコンテナの設定から生成したカスタムカラムで"
-"す。\n"
+"  \"BASE IMAGE\" と \"MAC\" と \"IMAGE OS\" はコンテナの設定から生成したカス"
+"タムカラムです。\n"
+"  \"ETHP\" はデバイスの設定から生成したカスタムカラムです。\n"
 "\n"
 "lxc list -c ns,user.comment:comment\n"
 "  実行状態とユーザコメントとともにコンテナを一覧表示します。"
@@ -4338,7 +4336,7 @@ msgid ""
 "c1 path=opt\n"
 "    Will mount the host's /share/c1 onto /opt in the instance."
 msgstr ""
-"lxc config device add [<remote>:]container1 <device-name> disk source=/share/"
+"lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
 "    ホストの /share/c1 をコンテナ内の /opt にマウントします。"
 
@@ -4817,9 +4815,6 @@ msgstr ""
 
 #~ msgid "The --container-only flag can't be used with --target"
 #~ msgstr "--container-only と --target は同時に指定できません"
-
-#~ msgid "Container name is: %s"
-#~ msgstr "コンテナ名: %s"
 
 #~ msgid "Type: persistent"
 #~ msgstr "タイプ: persistent"

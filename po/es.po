@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-14 15:12-0500\n"
+"POT-Creation-Date: 2020-01-15 09:06-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -794,9 +794,8 @@ msgid ""
 msgstr ""
 
 #: lxc/init.go:39 lxc/init.go:40
-#, fuzzy
 msgid "Create instances from images"
-msgstr "Creando el contenedor"
+msgstr ""
 
 #: lxc/storage_volume.go:461 lxc/storage_volume.go:462
 msgid "Create new custom storage volumes"
@@ -1433,9 +1432,8 @@ msgid "Ignore any configured auto-expiry for the instance"
 msgstr ""
 
 #: lxc/action.go:116
-#, fuzzy
 msgid "Ignore the instance state"
-msgstr "Creando el contenedor"
+msgstr ""
 
 #: lxc/image.go:1326
 msgid "Image already up to date."
@@ -1860,9 +1858,8 @@ msgid "Manage command aliases"
 msgstr ""
 
 #: lxc/file.go:71 lxc/file.go:72
-#, fuzzy
 msgid "Manage files in instances"
-msgstr "Creando el contenedor"
+msgstr ""
 
 #: lxc/image_alias.go:24 lxc/image_alias.go:25
 msgid "Manage image aliases"
@@ -2288,9 +2285,8 @@ msgid "Password for %s: "
 msgstr "Contraseña admin para %s:"
 
 #: lxc/action.go:49 lxc/action.go:50
-#, fuzzy
 msgid "Pause instances"
-msgstr "Creando el contenedor"
+msgstr ""
 
 #: lxc/copy.go:57
 msgid "Perform an incremental copy"
@@ -2966,9 +2962,8 @@ msgid "Source:"
 msgstr ""
 
 #: lxc/action.go:30 lxc/action.go:31
-#, fuzzy
 msgid "Start instances"
-msgstr "Creando el contenedor"
+msgstr ""
 
 #: lxc/launch.go:68
 #, c-format
@@ -3000,7 +2995,7 @@ msgstr ""
 #: lxc/delete.go:120
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
-msgstr "Creando el contenedor"
+msgstr "Copiando la imagen: %s"
 
 #: lxc/storage.go:145
 #, c-format
@@ -3040,9 +3035,8 @@ msgid "Storage volume moved successfully!"
 msgstr ""
 
 #: lxc/action.go:114
-#, fuzzy
 msgid "Store the instance state"
-msgstr "Creando el contenedor"
+msgstr ""
 
 #: lxc/info.go:179
 #, c-format
@@ -4388,9 +4382,6 @@ msgstr ""
 #: lxc/image.go:1062
 msgid "yes"
 msgstr ""
-
-#~ msgid "Container name is: %s"
-#~ msgstr "Nombre del contenedor es: %s"
 
 #~ msgid "Commands:"
 #~ msgstr "Comandos:"
