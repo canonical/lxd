@@ -727,11 +727,11 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 		case "lvm":
 			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-			ctLvmName := containerNameToLVName(fmt.Sprintf("%s/%s", project.Prefix(projectName, ctName), csName))
-			ctLvName := getLVName(poolName,
+			ctLvmName := lvmNameToLVName(fmt.Sprintf("%s/%s", project.Prefix(projectName, ctName), csName))
+			ctLvName := lvmLVName(poolName,
 				storagePoolVolumeAPIEndpointContainers,
 				ctLvmName)
-			exists, err := storageLVExists(ctLvName)
+			exists, err := lvmLVExists(ctLvName)
 			if err != nil {
 				return response.InternalError(err)
 			}

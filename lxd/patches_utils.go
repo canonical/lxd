@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -15,7 +18,9 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	driver "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // For 'dir' storage backend.
@@ -459,6 +464,141 @@ func zfsPoolVolumeSnapshotRename(pool string, path string, oldName string, newNa
 	_, err := shared.RunCommand("zfs", "rename", "-r", fmt.Sprintf("%s/%s@%s", pool, path, oldName), fmt.Sprintf("%s/%s@%s", pool, path, newName))
 	if err != nil {
 		return errors.Wrap(err, "Failed to rename ZFS snapshot")
+	}
+
+	return nil
+}
+
+// For 'lvm' storage backend.
+func lvmLVRename(vgName string, oldName string, newName string) error {
+	_, err := shared.TryRunCommand("lvrename", vgName, oldName, newName)
+	if err != nil {
+		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %v", oldName, newName, err)
+	}
+
+	return nil
+}
+
+func lvmLVExists(lvName string) (bool, error) {
+	_, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_attr", lvName)
+	if err != nil {
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 5 {
+					// logical volume not found
+					return false, nil
+				}
+			}
+		}
+
+		return false, fmt.Errorf("error checking for logical volume \"%s\"", lvName)
+	}
+
+	return true, nil
+}
+
+func lvmVGActivate(lvmVolumePath string) error {
+	_, err := shared.TryRunCommand("vgchange", "-ay", lvmVolumePath)
+	if err != nil {
+		return fmt.Errorf("could not activate volume group \"%s\": %v", lvmVolumePath, err)
+	}
+
+	return nil
+}
+
+func lvmNameToLVName(containerName string) string {
+	lvName := strings.Replace(containerName, "-", "--", -1)
+	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
+}
+
+func lvmDevPath(projectName, lvmPool string, volumeType string, lvmVolume string) string {
+	lvmVolume = project.Prefix(projectName, lvmVolume)
+	if volumeType == "" {
+		return fmt.Sprintf("/dev/%s/%s", lvmPool, lvmVolume)
+	}
+
+	return fmt.Sprintf("/dev/%s/%s_%s", lvmPool, volumeType, lvmVolume)
+}
+
+func lvmGetLVSize(lvPath string) (string, error) {
+	msg, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "size", "--nosuffix", "--units", "b", lvPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve size of logical volume: %s: %s", string(msg), err)
+	}
+
+	sizeString := string(msg)
+	sizeString = strings.TrimSpace(sizeString)
+	size, err := strconv.ParseInt(sizeString, 10, 64)
+	if err != nil {
+		return "", err
+	}
+
+	detectedSize := units.GetByteSizeString(size, 0)
+
+	return detectedSize, nil
+}
+
+func lvmLVName(lvmPool string, volumeType string, lvmVolume string) string {
+	if volumeType == "" {
+		return fmt.Sprintf("%s/%s", lvmPool, lvmVolume)
+	}
+
+	return fmt.Sprintf("%s/%s_%s", lvmPool, volumeType, lvmVolume)
+}
+
+func lvmContainerDeleteInternal(projectName, poolName string, ctName string, isSnapshot bool, vgName string, ctPath string) error {
+	containerMntPoint := ""
+	containerLvmName := lvmNameToLVName(ctName)
+	if isSnapshot {
+		containerMntPoint = driver.GetSnapshotMountPoint(projectName, poolName, ctName)
+	} else {
+		containerMntPoint = driver.GetContainerMountPoint(projectName, poolName, ctName)
+	}
+
+	if shared.IsMountPoint(containerMntPoint) {
+		err := storageDrivers.TryUnmount(containerMntPoint, 0)
+		if err != nil {
+			return fmt.Errorf(`Failed to unmount container path `+
+				`"%s": %s`, containerMntPoint, err)
+		}
+	}
+
+	containerLvmDevPath := lvmDevPath(projectName, vgName,
+		storagePoolVolumeAPIEndpointContainers, containerLvmName)
+
+	lvExists, _ := lvmLVExists(containerLvmDevPath)
+	if lvExists {
+		err := lvmRemoveLV(projectName, vgName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+		if err != nil {
+			return err
+		}
+	}
+
+	var err error
+	if isSnapshot {
+		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(ctName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Prefix(projectName, sourceName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", project.Prefix(projectName, sourceName))
+		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	} else {
+		err = deleteContainerMountpoint(containerMntPoint, ctPath, "lvm")
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func lvmRemoveLV(project, vgName string, volumeType string, lvName string) error {
+	lvmVolumePath := lvmDevPath(project, vgName, volumeType, lvName)
+
+	_, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
+	if err != nil {
+		return fmt.Errorf("Could not remove LV named %s: %v", lvName, err)
 	}
 
 	return nil
