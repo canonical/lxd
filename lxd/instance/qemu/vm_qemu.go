@@ -2782,6 +2782,10 @@ func (vm *Qemu) RenderState() (*api.InstanceState, error) {
 		status.Pid = int64(pid)
 		status.Status = statusCode.String()
 		status.StatusCode = statusCode
+		status.Disk, err = vm.diskState()
+		if err != nil && err != storageDrivers.ErrNotSupported {
+			logger.Warn("Error getting disk usage", log.Ctx{"project": vm.Project(), "instance": vm.Name(), "err": err})
+		}
 
 		return status, nil
 	}
@@ -2793,6 +2797,29 @@ func (vm *Qemu) RenderState() (*api.InstanceState, error) {
 		Status:     statusCode.String(),
 		StatusCode: statusCode,
 	}, nil
+}
+
+// diskState gets disk usage info.
+func (vm *Qemu) diskState() (map[string]api.InstanceStateDisk, error) {
+	pool, err := vm.getStoragePool()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the root disk device config.
+	rootDiskName, _, err := shared.GetRootDiskDevice(vm.ExpandedDevices().CloneNative())
+	if err != nil {
+		return nil, err
+	}
+
+	usage, err := pool.GetInstanceUsage(vm)
+	if err != nil {
+		return nil, err
+	}
+
+	disk := map[string]api.InstanceStateDisk{}
+	disk[rootDiskName] = api.InstanceStateDisk{Usage: usage}
+	return disk, nil
 }
 
 // agentGetState connects to the agent inside of the VM and does

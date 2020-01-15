@@ -1387,17 +1387,18 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	logger.Debug("GetInstanceUsage started")
 	defer logger.Debug("GetInstanceUsage finished")
 
-	if inst.Type() == instancetype.Container {
-		contentType := InstanceContentType(inst)
-
-		// There's no need to pass config as it's not needed when retrieving the volume usage.
-		volStorageName := project.Prefix(inst.Project(), inst.Name())
-		vol := b.newVolume(drivers.VolumeTypeContainer, contentType, volStorageName, nil)
-
-		return b.driver.GetVolumeUsage(vol)
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return -1, err
 	}
 
-	return -1, ErrNotImplemented
+	contentType := InstanceContentType(inst)
+
+	// There's no need to pass config as it's not needed when retrieving the volume usage.
+	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	vol := b.newVolume(volType, contentType, volStorageName, nil)
+
+	return b.driver.GetVolumeUsage(vol)
 }
 
 // SetInstanceQuota sets the quota on the instance's root volume.
