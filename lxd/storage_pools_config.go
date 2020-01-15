@@ -214,7 +214,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
-		// We use thin pools per default.
+		// We use thin pools by default.
 		useThinpool := true
 		if config["lvm.use_thinpool"] != "" {
 			useThinpool = shared.IsTrue(config["lvm.use_thinpool"])
