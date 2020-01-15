@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -77,6 +78,7 @@ var patches = []patch{
 	{name: "storage_api_rename_container_snapshots_dir_again_again", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "clustering_add_roles", run: patchClusteringAddRoles},
 	{name: "clustering_add_roles_again", run: patchClusteringAddRoles},
+	{name: "storage_create_vm", run: patchStorageCreateVM},
 }
 
 type patch struct {
@@ -130,6 +132,27 @@ func patchesApplyAll(d *Daemon) error {
 }
 
 // Patches begin here
+func patchStorageCreateVM(name string, d *Daemon) error {
+	// Load all the pools.
+	pools, _ := d.cluster.StoragePools()
+
+	for _, poolName := range pools {
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		if err != storageDrivers.ErrUnknownDriver {
+			if err != nil {
+				return err
+			}
+
+			err = pool.ApplyPatch("storage_create_vm")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 	// Ignore the error since it will also fail if there are no pools.
 	pools, _ := d.cluster.StoragePools()

@@ -36,6 +36,12 @@ type zfs struct {
 
 // load is used to run one-time action per-driver rather than per-pool.
 func (d *zfs) load() error {
+	// Register the patches.
+	d.patches = map[string]func() error{
+		"storage_create_vm": d.patchStorageCreateVM,
+	}
+
+	// Done if previously loaded.
 	if zfsLoaded {
 		return nil
 	}
