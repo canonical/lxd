@@ -223,7 +223,16 @@ func (d *lvm) HasVolume(vol Volume) bool {
 
 // ValidateVolume validates the supplied volume config.
 func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
-	return d.validateVolume(vol, nil, removeUnknownKeys)
+	rules := map[string]func(value string) error{
+		"block.filesystem": func(value string) error {
+			if value == "" {
+				return nil
+			}
+			return shared.IsOneOf(value, lvmAllowedFilesystems)
+		},
+	}
+
+	return d.validateVolume(vol, rules, removeUnknownKeys)
 }
 
 // UpdateVolume applies config changes to the volume.
