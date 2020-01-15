@@ -25,6 +25,12 @@ type cephfs struct {
 
 // load is used to run one-time action per-driver rather than per-pool.
 func (d *cephfs) load() error {
+	// Register the patches.
+	d.patches = map[string]func() error{
+		"storage_create_vm": nil,
+	}
+
+	// Done if previously loaded.
 	if cephfsLoaded {
 		return nil
 	}
