@@ -390,7 +390,7 @@ func VolumeValidateConfig(s *state.State, name string, config map[string]string,
 	logger := logging.AddContext(logger.Log, log.Ctx{"driver": parentPool.Driver, "pool": parentPool.Name})
 
 	// Validate volume config using the new driver interface if supported.
-	driver, err := drivers.Load(s, parentPool.Driver, parentPool.Name, parentPool.Config, logger, nil, commonValidators())
+	driver, err := drivers.Load(s, parentPool.Driver, parentPool.Name, parentPool.Config, logger, nil, commonRules())
 	if err != drivers.ErrUnknownDriver {
 		// Note: This legacy validation function doesn't have the concept of validating
 		// different volumes types, so the types are hard coded as Custom and FS.
