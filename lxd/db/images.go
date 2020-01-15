@@ -182,7 +182,7 @@ func (c *Cluster) ImageSourceGet(imageID int) (int, api.ImageSource, error) {
 // ImageSourceGetCachedFingerprint tries to find a source entry of a locally
 // cached image that matches the given remote details (server, protocol and
 // alias). Return the fingerprint linked to the matching entry, if any.
-func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string, typeName string) (string, error) {
+func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string, typeName string, architecture int) (string, error) {
 	imageType := instancetype.Any
 	if typeName != "" {
 		var err error
@@ -207,13 +207,13 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 			FROM images_source
 			INNER JOIN images
 			ON images_source.image_id=images.id
-			WHERE server=? AND protocol=? AND alias=? AND auto_update=1
+			WHERE server=? AND protocol=? AND alias=? AND auto_update=1 AND images.architecture=?
 `
 
-	arg1 := []interface{}{server, protocolInt, alias}
+	arg1 := []interface{}{server, protocolInt, alias, architecture}
 	if imageType != instancetype.Any {
 		q += "AND images.type=?\n"
-		arg1 = []interface{}{server, protocolInt, alias, imageType}
+		arg1 = []interface{}{server, protocolInt, alias, architecture, imageType}
 	}
 
 	q += "ORDER BY creation_date DESC"
