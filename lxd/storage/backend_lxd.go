@@ -85,6 +85,12 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 		return nil
 	}
 
+	// Validate config.
+	err = b.driver.Validate(b.db.Config)
+	if err != nil {
+		return err
+	}
+
 	// Create the storage pool on the storage device.
 	err = b.driver.Create()
 	if err != nil {
