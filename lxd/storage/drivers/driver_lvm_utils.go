@@ -241,32 +241,45 @@ func (d *lvm) createDefaultThinPool(lvmVersion, vgName, thinPoolName string) err
 		return errors.Wrapf(err, "Error checking LVM version")
 	}
 
-	// Create the thin pool
 	lvmThinPool := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-	if isRecent {
-		_, err = shared.TryRunCommand(
-			"lvcreate",
-			"-Wy", "--yes",
-			"--poolmetadatasize", "1G",
-			"-l", "100%FREE",
-			"--thinpool", lvmThinPool)
-	} else {
-		_, err = shared.TryRunCommand(
-			"lvcreate",
-			"-Wy", "--yes",
-			"--poolmetadatasize", "1G",
-			"-L", "1G",
-			"--thinpool", lvmThinPool)
+
+	args := []string{
+		"--yes",
+		"--wipesignatures", "y",
+		"--poolmetadatasize", "1G",
+		"--thinpool", lvmThinPool,
 	}
 
+	if isRecent {
+		args = append(args, "--extents", "100%FREE")
+	} else {
+		args = append(args, "--size", "1G")
+	}
+
+	// Because the thin pool is created as an LVM volume, if the volume stripes option is set we need to apply
+	// it to the thin pool volume, as it cannot be applied to the thin volumes themselves.
+	if d.config["volume.lvm.stripes"] != "" {
+		args = append(args, "--stripes", d.config["volume.lvm.stripes"])
+
+		if d.config["volume.lvm.stripes.size"] != "" {
+			stripSizeBytes, err := d.roundedSizeBytesString(d.config["volume.lvm.stripes.size"])
+			if err != nil {
+				return errors.Wrapf(err, "Invalid volume stripe size %q", d.config["volume.lvm.stripes.size"])
+			}
+
+			args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+		}
+	}
+
+	// Create the thin pool volume.
+	_, err = shared.TryRunCommand("lvcreate", args...)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating LVM thin pool named %q", thinPoolName)
 	}
 
 	if !isRecent {
-		// Grow it to the maximum VG size (two step process required by old LVM)
+		// Grow it to the maximum VG size (two step process required by old LVM).
 		_, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
-
 		if err != nil {
 			return errors.Wrapf(err, "Error growing LVM thin pool named %q", thinPoolName)
 		}
