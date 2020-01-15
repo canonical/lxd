@@ -1412,6 +1412,9 @@ test_clustering_recover() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
+  # Wait a bit for the join notification to reach the first node.
+  sleep 5
+
   # Check the current database nodes
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.101:8443"
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443"
@@ -1456,4 +1459,170 @@ test_clustering_recover() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+}
+
+# When a voter cluster member is shutdown, its role gets transferred to a spare
+# node.
+test_clustering_handover() {
+  # shellcheck disable=2039,2034
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Spawn a fourth node, this will be a non-voter node.
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+
+  # Shutdown the first node.
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+
+  # The fourth node has been promoted, while the first one demoted.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "NO"
+
+  # Even if we shutdown one more node, the cluster is still available.
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
+
+  # Respawn the first node, which is now a stand-by, and the second node, which
+  # is still a voter.
+  respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
+  respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+
+  # Shutdown two voters concurrently.
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown &
+  pid1="$!"
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown &
+  pid2="$!"
+
+  wait "$pid1"
+  wait "$pid2"
+
+  # Wait some time to allow for a leadership change.
+  sleep 10
+
+  # The first node has been promoted back to voter, and since the fourth node is
+  # still up, the cluster is online.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+}
+
+# If a voter node crashes and is detected as offline, its role is migrated to a
+# stand-by.
+test_clustering_rebalance() {
+  # shellcheck disable=2039,2034
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Spawn a fourth node, this will be a non-voter node.
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+
+  # Kill the second node.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
+  kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
+
+  # Wait for the second node to be considered offline. We need at most 2 full
+  # hearbeats.
+  sleep 25
+
+  # The second node is offline and has been demoted.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Offline"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "status: Online"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "database: true"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
 }

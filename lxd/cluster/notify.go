@@ -60,12 +60,22 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			}
 
 			if node.IsOffline(offlineThreshold) {
-				switch policy {
-				case NotifyAll:
-					return fmt.Errorf("peer node %s is down", node.Address)
-				case NotifyAlive:
-					continue // Just skip this node
-				case NotifyTryAll:
+				// Even the heartbeat timestamp is not recent
+				// enough, let's try to connect to the node,
+				// just in case the heartbeat is lagging behind
+				// for some reason and the node is actually up.
+				client, err := Connect(node.Address, cert, true)
+				if err == nil {
+					_, _, err = client.GetServer()
+				}
+				if err != nil {
+					switch policy {
+					case NotifyAll:
+						return fmt.Errorf("peer node %s is down", node.Address)
+					case NotifyAlive:
+						continue // Just skip this node
+					case NotifyTryAll:
+					}
 				}
 			}
 			peers = append(peers, node.Address)

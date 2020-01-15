@@ -21,7 +21,8 @@ import (
 type APIHeartbeatMember struct {
 	ID            int64     // ID field value in nodes table.
 	Address       string    // Host and Port of node.
-	RaftID        int64     // ID field value in raft_nodes table, zero if non-raft node.
+	RaftID        uint64    // ID field value in raft_nodes table, zero if non-raft node.
+	RaftRole      int       // Node role in the raft cluster, from the raft_nodes table
 	Raft          bool      // Deprecated, use non-zero RaftID instead to indicate raft node.
 	LastHeartbeat time.Time // Last time we received a successful response from node.
 	Online        bool      // Calculated from offline threshold and LastHeatbeat time.
@@ -79,6 +80,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 		if raftNode, exists := raftNodeMap[member.Address]; exists {
 			member.Raft = true // Deprecated
 			member.RaftID = raftNode.ID
+			member.RaftRole = int(raftNode.Role)
 			delete(raftNodeMap, member.Address) // Used to check any remaining later.
 		}
 
@@ -240,6 +242,15 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	if err != nil {
 		logger.Warnf("Failed to get current cluster nodes: %v", err)
 		return
+	}
+
+	if len(allNodes) != len(raftNodes) {
+		logger.Infof("Upgrading %d nodes not part of raft configuration", len(allNodes)-len(raftNodes))
+		err = upgradeMembersWithoutRole(g, allNodes, raftNodes)
+		if err != nil {
+			logger.Warnf("Failed upgrade raft roles: %v", err)
+			return
+		}
 	}
 
 	// Cumulative set of node states (will be written back to database once done).

@@ -45,10 +45,11 @@ var apiInternal = []APIEndpoint{
 	internalSQLCmd,
 	internalClusterAcceptCmd,
 	internalClusterRebalanceCmd,
-	internalClusterPromoteCmd,
+	internalClusterAssignCmd,
 	internalClusterContainerMovedCmd,
 	internalGarbageCollectorCmd,
 	internalRAFTSnapshotCmd,
+	internalClusterHandoverCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
