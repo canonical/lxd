@@ -49,7 +49,12 @@ type VolumeTargetArgs struct {
 func TypesToHeader(types ...Type) MigrationHeader {
 	missingFeature := false
 	hasFeature := true
-	preferredType := types[0]
+	var preferredType Type
+
+	if len(types) > 0 {
+		preferredType = types[0]
+	}
+
 	header := MigrationHeader{Fs: &preferredType.FSType}
 
 	// Add ZFS features if preferred type is ZFS.

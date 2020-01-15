@@ -606,10 +606,6 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 }
 
 func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstance instance.Instance, op *operations.Operation) (instance.Instance, error) {
-	if sourceInstance.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance is not container type")
-	}
-
 	if sourceInstance.Type() != args.Type {
 		return nil, fmt.Errorf("Source instance and snapshot instance types do not match")
 	}
