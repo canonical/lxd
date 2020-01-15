@@ -95,6 +95,7 @@ var updates = map[int]schema.Update{
 	36: updateFromV35,
 	37: updateFromV36,
 	38: updateFromV37,
+	39: updateFromV38,
 }
 
 // UpdateFromPreClustering is the last schema version where clustering support
@@ -102,6 +103,16 @@ var updates = map[int]schema.Update{
 const UpdateFromPreClustering = 36
 
 // Schema updates begin here
+
+// Add role column to raft_nodes table. All existing entries will have role "0"
+// which means voter.
+func updateFromV38(tx *sql.Tx) error {
+	stmt := `
+ALTER TABLE raft_nodes ADD COLUMN role INTEGER NOT NULL DEFAULT 0;
+`
+	_, err := tx.Exec(stmt)
+	return err
+}
 
 // Copy core.https_address to cluster.https_address in case this node is
 // clustered.

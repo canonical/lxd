@@ -101,7 +101,7 @@ func TestBootstrap(t *testing.T) {
 		nodes, err := tx.RaftNodes()
 		require.NoError(t, err)
 		require.Len(t, nodes, 1)
-		assert.Equal(t, int64(1), nodes[0].ID)
+		assert.Equal(t, uint64(1), nodes[0].ID)
 		assert.Equal(t, address, nodes[0].Address)
 		return nil
 	})
@@ -228,8 +228,8 @@ func TestAccept(t *testing.T) {
 		state, gateway, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions), osarch.ARCH_64BIT_INTEL_X86)
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
-	assert.Equal(t, int64(1), nodes[0].ID)
-	assert.Equal(t, int64(2), nodes[1].ID)
+	assert.Equal(t, uint64(1), nodes[0].ID)
+	assert.Equal(t, uint64(3), nodes[1].ID)
 	assert.Equal(t, "1.2.3.4:666", nodes[0].Address)
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
 }
@@ -318,9 +318,13 @@ func TestJoin(t *testing.T) {
 	// The new node is not included to ensure distributed consensus.
 	raftNodes, err = targetGateway.RaftNodes()
 	require.NoError(t, err)
-	assert.Len(t, raftNodes, 1)
-	assert.Equal(t, int64(1), raftNodes[0].ID)
+	assert.Len(t, raftNodes, 2)
+	assert.Equal(t, uint64(1), raftNodes[0].ID)
 	assert.Equal(t, targetAddress, raftNodes[0].Address)
+	assert.Equal(t, db.RaftVoter, raftNodes[0].Role)
+	assert.Equal(t, uint64(2), raftNodes[1].ID)
+	assert.Equal(t, address, raftNodes[1].Address)
+	assert.Equal(t, db.RaftStandBy, raftNodes[1].Role)
 
 	// The List function returns all nodes in the cluster.
 	nodes, err := cluster.List(state)
@@ -337,10 +341,10 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, 2, count)
 
 	// Leave the cluster.
-	leaving, err := cluster.Leave(state, gateway, "rusp", false /* force */)
+	leaving, err := cluster.Leave(state, targetGateway, "rusp", false /* force */)
 	require.NoError(t, err)
 	assert.Equal(t, address, leaving)
-	err = cluster.Purge(state.Cluster, "rusp")
+	err = cluster.Purge(targetState.Cluster, "rusp")
 	require.NoError(t, err)
 
 	// The node has gone from the cluster db.
@@ -414,7 +418,7 @@ func FLAKY_TestPromote(t *testing.T) {
 	// Promote the node.
 	targetF.RaftNode(address) // Add the address of the node to be promoted in the leader's db
 	raftNodes := targetF.RaftNodes()
-	err = cluster.Promote(state, gateway, raftNodes)
+	err = cluster.Assign(state, gateway, raftNodes)
 	require.NoError(t, err)
 
 	// The leader now returns an updated list of raft nodes.

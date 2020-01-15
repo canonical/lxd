@@ -24,8 +24,8 @@ func TestRaftNodes(t *testing.T) {
 	nodes, err := tx.RaftNodes()
 	require.NoError(t, err)
 
-	assert.Equal(t, id1, nodes[0].ID)
-	assert.Equal(t, id2, nodes[1].ID)
+	assert.Equal(t, uint64(id1), nodes[0].ID)
+	assert.Equal(t, uint64(id2), nodes[1].ID)
 	assert.Equal(t, "1.2.3.4:666", nodes[0].Address)
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
 }

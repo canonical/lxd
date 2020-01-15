@@ -5,15 +5,26 @@ package db
 import (
 	"fmt"
 
+	"github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/pkg/errors"
 )
 
 // RaftNode holds information about a single node in the dqlite raft cluster.
-type RaftNode struct {
-	ID      int64  // Stable node identifier
-	Address string // Network address of the node
-}
+//
+// This is just a convenience alias for the equivalent data structure in the
+// dqlite client package.
+type RaftNode = client.NodeInfo
+
+// RaftRole captures the role of dqlite/raft node.
+type RaftRole = client.NodeRole
+
+// RaftNode roles.
+const (
+	RaftVoter   = client.Voter
+	RaftStandBy = client.StandBy
+	RaftSpare   = client.Spare
+)
 
 // RaftNodes returns information about all LXD nodes that are members of the
 // dqlite Raft cluster (possibly including the local node). If this LXD
@@ -22,9 +33,9 @@ func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, RaftNode{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Address}
+		return []interface{}{&nodes[i].ID, &nodes[i].Address, &nodes[i].Role}
 	}
-	stmt, err := n.tx.Prepare("SELECT id, address FROM raft_nodes ORDER BY id")
+	stmt, err := n.tx.Prepare("SELECT id, address, role FROM raft_nodes ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -109,9 +120,9 @@ func (n *NodeTx) RaftNodesReplace(nodes []RaftNode) error {
 		return err
 	}
 
-	columns := []string{"id", "address"}
+	columns := []string{"id", "address", "role"}
 	for _, node := range nodes {
-		values := []interface{}{node.ID, node.Address}
+		values := []interface{}{node.ID, node.Address, node.Role}
 		_, err := query.UpsertObject(n.tx, "raft_nodes", columns, values)
 		if err != nil {
 			return err

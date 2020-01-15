@@ -75,7 +75,7 @@ type Gateway struct {
 
 	// The raft instance to use for creating the dqlite driver. It's nil if
 	// this LXD node is not supposed to be part of the raft cluster.
-	raft *raftInstance
+	info *db.RaftNode
 
 	// The gRPC server exposing the dqlite driver created by this
 	// gateway. It's nil if this LXD node is not supposed to be part of the
@@ -187,6 +187,7 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 					raftNodes = append(raftNodes, db.RaftNode{
 						ID:      node.RaftID,
 						Address: node.Address,
+						Role:    db.RaftRole(node.RaftRole),
 					})
 				}
 			}
@@ -230,7 +231,8 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 			return
 		}
 
-		// From here on we require that this node is part of the raft cluster.
+		// From here on we require that this node is part of the raft
+		// cluster.
 		if g.server == nil || g.memoryDial != nil {
 			http.NotFound(w, r)
 			return
@@ -240,6 +242,11 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 		// probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
 		if r.Method == "HEAD" {
+			// We can safely know about current leader only if we are a voter.
+			if g.info.Role != db.RaftVoter {
+				http.NotFound(w, r)
+				return
+			}
 			client, err := g.getClient()
 			if err != nil {
 				http.Error(w, "500 failed to get dqlite client", http.StatusInternalServerError)
@@ -251,7 +258,7 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat)) map[string]h
 				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
 				return
 			}
-			if leader == nil || leader.ID != g.raft.info.ID {
+			if leader == nil || leader.ID != g.info.ID {
 				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
@@ -319,12 +326,23 @@ func (g *Gateway) WaitUpgradeNotification() {
 	<-g.upgradeCh
 }
 
-// IsDatabaseNode returns true if this gateway also run acts a raft database node.
-func (g *Gateway) IsDatabaseNode() bool {
+// IsDqliteNode returns true if this gateway is running a dqlite node.
+func (g *Gateway) IsDqliteNode() bool {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	return g.raft != nil
+	if g.info != nil {
+		if g.server == nil {
+			panic("gateway has node identity but no dqlite server")
+		}
+		return true
+	}
+
+	if g.server != nil {
+		panic("gateway dqlite server but no node identity")
+	}
+
+	return true
 }
 
 // DialFunc returns a dial function that can be used to connect to one of the
@@ -347,8 +365,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
 		if address == "0" {
-			provider := raftAddressProvider{db: g.db}
-			addr, err := provider.ServerAddr(1)
+			addr, err := g.raftAddress(1)
 			if err != nil {
 				return nil, err
 			}
@@ -387,7 +404,22 @@ func (g *Gateway) Shutdown() error {
 	logger.Debugf("Stop database gateway")
 
 	if g.server != nil {
-		g.Sync()
+		if g.info.Role == db.RaftVoter {
+			g.Sync()
+		}
+
+		// If we are the cluster leader, let's try to transfer leadership.
+		isLeader, err := g.isLeader()
+		if err == nil && isLeader {
+			client, err := g.getClient()
+			if err == nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				client.Transfer(ctx, 0)
+				client.Close()
+			}
+		}
+
 		g.server.Close()
 
 		// Unset the memory dial, since Shutdown() is also called for
@@ -408,7 +440,7 @@ func (g *Gateway) Sync() {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.server == nil {
+	if g.server == nil || g.info.Role != db.RaftVoter {
 		return
 	}
 
@@ -474,17 +506,18 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return "", fmt.Errorf("Node is not clustered")
 	}
 
-	ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// If this is a raft node, return the address of the current leader, or
+	// If this is a voter node, return the address of the current leader, or
 	// wait a bit until one is elected.
-	if g.server != nil {
+	if g.server != nil && g.info.Role == db.RaftVoter {
 		for ctx.Err() == nil {
 			client, err := g.getClient()
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to get dqlite client")
 			}
+			defer client.Close()
 			leader, err := client.Leader(context.Background())
 			if err != nil {
 				return "", errors.Wrap(err, "Failed to get leader address")
@@ -510,6 +543,9 @@ func (g *Gateway) LeaderAddress() (string, error) {
 			return err
 		}
 		for _, node := range nodes {
+			if node.Role != db.RaftVoter {
+				continue
+			}
 			addresses = append(addresses, node.Address)
 		}
 		return nil
@@ -564,7 +600,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 // node is a database node), and a gRPC dialer.
 func (g *Gateway) init() error {
 	logger.Debugf("Initializing database gateway")
-	raft, err := newRaft(g.db, g.cert, g.options.latency)
+	info, err := loadInfo(g.db, g.cert)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create raft factory")
 	}
@@ -586,7 +622,7 @@ func (g *Gateway) init() error {
 	// If the resulting raft instance is not nil, it means that this node
 	// should serve as database node, so create a dqlite driver possibly
 	// exposing it over the network.
-	if raft != nil {
+	if info != nil {
 		// Use the autobind feature of abstract unix sockets to get a
 		// random unused address.
 		listener, err := net.Listen("unix", "")
@@ -600,13 +636,13 @@ func (g *Gateway) init() error {
 			dqlite.WithBindAddress(g.bindAddress),
 		}
 
-		if raft.info.Address == "1" {
-			if raft.info.ID != 1 {
+		if info.Address == "1" {
+			if info.ID != 1 {
 				panic("unexpected server ID")
 			}
 			g.memoryDial = dqliteMemoryDial(g.bindAddress)
 			g.store.inMemory = client.NewInmemNodeStore()
-			g.store.Set(context.Background(), []client.NodeInfo{raft.info})
+			g.store.Set(context.Background(), []client.NodeInfo{*info})
 		} else {
 			go runDqliteProxy(g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
@@ -614,8 +650,8 @@ func (g *Gateway) init() error {
 		}
 
 		server, err := dqlite.New(
-			raft.info.ID,
-			raft.info.Address,
+			info.ID,
+			info.Address,
 			dir,
 			options...,
 		)
@@ -630,18 +666,20 @@ func (g *Gateway) init() error {
 
 		g.lock.Lock()
 		g.server = server
-		g.raft = raft
+		g.info = info
 		g.lock.Unlock()
 	} else {
 		g.lock.Lock()
 		g.server = nil
-		g.raft = nil
+		g.info = nil
 		g.store.inMemory = nil
 		g.lock.Unlock()
 	}
 
 	g.lock.Lock()
-	g.store.onDisk = client.NewNodeStore(g.db.DB(), "main", "raft_nodes", "address")
+	g.store.onDisk = client.NewNodeStore(
+		g.db.DB(), "main", "raft_nodes", "address",
+		client.WithNodeStoreWhereClause(fmt.Sprintf("role=%d", db.RaftVoter)))
 	g.lock.Unlock()
 
 	return nil
@@ -670,18 +708,19 @@ func (g *Gateway) waitLeadership() error {
 }
 
 func (g *Gateway) isLeader() (bool, error) {
-	if g.server == nil {
+	if g.server == nil || g.info.Role != db.RaftVoter {
 		return false, nil
 	}
 	client, err := g.getClient()
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get dqlite client")
 	}
+	defer client.Close()
 	leader, err := client.Leader(context.Background())
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get leader address")
 	}
-	return leader != nil && leader.ID == g.raft.info.ID, nil
+	return leader != nil && leader.ID == g.info.ID, nil
 }
 
 // Internal error signalling that a node not the leader.
@@ -694,7 +733,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	if g.raft == nil {
+	if g.info == nil || g.info.Role != db.RaftVoter {
 		return nil, errNotLeader
 	}
 
@@ -715,10 +754,8 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	provider := raftAddressProvider{db: g.db}
-	nodes := make([]db.RaftNode, len(servers))
 	for i, server := range servers {
-		address, err := provider.ServerAddr(int(server.ID))
+		address, err := g.raftAddress(server.ID)
 		if err != nil {
 			if err != db.ErrNoSuchObject {
 				return nil, errors.Wrap(err, "Failed to fetch raft server address")
@@ -728,10 +765,9 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			// its raft_nodes table is not fully up-to-date yet.
 			address = server.Address
 		}
-		nodes[i].ID = int64(server.ID)
-		nodes[i].Address = string(address)
+		servers[i].Address = address
 	}
-	return nodes, nil
+	return servers, nil
 }
 
 // Return the addresses of the raft nodes as stored in the node-level
@@ -750,6 +786,20 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
 	}
 	return addresses, nil
+}
+
+// Look up a server address in the raft_nodes table.
+func (g *Gateway) raftAddress(databaseID uint64) (string, error) {
+	var address string
+	err := g.db.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		address, err = tx.RaftNodeAddress(int64(databaseID))
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return address, nil
 }
 
 func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader bool) (net.Conn, error) {

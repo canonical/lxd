@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -63,10 +62,16 @@ var internalClusterRebalanceCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalClusterPostRebalance},
 }
 
-var internalClusterPromoteCmd = APIEndpoint{
-	Path: "cluster/promote",
+var internalClusterAssignCmd = APIEndpoint{
+	Path: "cluster/assign",
 
-	Post: APIEndpointAction{Handler: internalClusterPostPromote},
+	Post: APIEndpointAction{Handler: internalClusterPostAssign},
+}
+
+var internalClusterHandoverCmd = APIEndpoint{
+	Path: "cluster/handover",
+
+	Post: APIEndpointAction{Handler: internalClusterPostHandover},
 }
 
 // Return information about the cluster.
@@ -449,6 +454,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		for i, node := range info.RaftNodes {
 			nodes[i].ID = node.ID
 			nodes[i].Address = node.Address
+			nodes[i].Role = db.RaftRole(node.Role)
 		}
 
 		// The default timeout when non-clustered is one minute, let's
@@ -555,6 +561,11 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 			}
 		}
 
+		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
+		if err != nil {
+			return err
+		}
+
 		// Re-use the client handler and import the images from the leader node which
 		// owns all available images to the joined node
 		go func() {
@@ -608,14 +619,11 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) response.Response {
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
 
-		client, err = cluster.Connect(req.ClusterAddress, d.endpoints.NetworkCert(), true)
+		// Notify the leader of successful join, possibly triggering
+		// role changes.
+		_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
 		if err != nil {
-			return err
-		}
-
-		err = clusterRebalance(client)
-		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed cluster rebalance request")
 		}
 
 		return nil
@@ -801,7 +809,7 @@ func clusterInitMember(d, client lxd.InstanceServer, memberConfig []api.ClusterM
 }
 
 // Perform a request to the /internal/cluster/accept endpoint to check if a new
-// mode can be accepted into the cluster and obtain joining information such as
+// node can be accepted into the cluster and obtain joining information such as
 // the cluster private certificate.
 func clusterAcceptMember(
 	client lxd.InstanceServer,
@@ -834,14 +842,6 @@ func clusterAcceptMember(
 	}
 
 	return info, nil
-}
-
-func clusterRebalance(client lxd.InstanceServer) error {
-	_, _, err := client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
-	if err != nil {
-		return errors.Wrap(err, "Failed cluster rebalance request")
-	}
-	return nil
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
@@ -906,6 +906,29 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
+	// Redirect all requests to the leader, which is the one with
+	// knowning what nodes are part of the raft cluster.
+	localAddress, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	if localAddress != leader {
+		logger.Debugf("Redirect member delete request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/internal/cluster/accept",
+			Host:   leader,
+		}
+		return response.SyncResponseRedirect(url.String())
+	}
+
 	force, err := strconv.Atoi(r.FormValue("force"))
 	if err != nil {
 		force = 0
@@ -961,11 +984,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
 	}
-	// Try to notify the leader.
-	err = tryClusterRebalance(d)
+
+	err = rebalanceMemberRoles(d)
 	if err != nil {
-		// This is not a fatal error, so let's just log it.
-		logger.Errorf("Failed to rebalance cluster: %v", err)
+		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
 
 	if force != 1 {
@@ -987,29 +1009,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// This function is used to notify the leader that a node was removed, it will
-// decide whether to promote a new node as database node.
-func tryClusterRebalance(d *Daemon) error {
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		// This is not a fatal error, so let's just log it.
-		return errors.Wrap(err, "Failed to get current leader member")
-	}
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(leader, cert, true)
-	if err != nil {
-		return errors.Wrap(err, "Failed to connect to leader member")
-	}
-
-	_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
-	if err != nil {
-		return errors.Wrap(err, "Request to rebalance cluster failed")
-	}
-
-	return nil
-}
-
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
 	req := internalClusterPostAcceptRequest{}
 
 	// Parse the request
@@ -1065,6 +1068,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	for i, node := range nodes {
 		accepted.RaftNodes[i].ID = node.ID
 		accepted.RaftNodes[i].Address = node.Address
+		accepted.RaftNodes[i].Role = int(node.Role)
 	}
 	return response.SyncResponse(true, accepted)
 }
@@ -1088,13 +1092,17 @@ type internalClusterPostAcceptResponse struct {
 
 // Represent a LXD node that is part of the dqlite raft cluster.
 type internalRaftNode struct {
-	ID      int64  `json:"id" yaml:"id"`
+	ID      uint64 `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`
+	Role    int    `json:"role" yaml:"role"`
 }
 
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -1115,66 +1123,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		return response.SyncResponseRedirect(url.String())
 	}
 
-	logger.Debugf("Rebalance cluster")
-
-	// Check if we have a spare node to promote.
-	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if address == "" {
-		// If no node could be found to promote, notify all nodes about current set of DB nodes
-		var offlineThreshold time.Duration
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-
-			offlineThreshold, err = tx.NodeOfflineThreshold()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		hbState := &cluster.APIHeartbeat{}
-		hbState.Update(false, nodes, []db.NodeInfo{}, offlineThreshold)
-
-		cert, err := util.LoadCert(d.os.VarDir)
-		if err != nil {
-			return response.InternalError(errors.Wrap(err, "failed to parse cluster certificate"))
-		}
-
-		for _, raftNode := range nodes {
-			if raftNode.Address == localAddress {
-				continue
-			}
-
-			go cluster.HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
-		}
-
-		return response.SyncResponse(true, nil)
-	}
-
-	// Tell the node to promote itself.
-	post := &internalClusterPostPromoteRequest{}
-	for _, node := range nodes {
-		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
-			ID:      node.ID,
-			Address: node.Address,
-		})
-	}
-
-	cert := d.endpoints.NetworkCert()
-	client, err := cluster.Connect(address, cert, true)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
+	err = rebalanceMemberRoles(d)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1182,9 +1131,107 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 	return response.SyncResponse(true, nil)
 }
 
-// Used to promote the local non-database node to be a database one.
-func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
-	req := internalClusterPostPromoteRequest{}
+// Check if there's a dqlite node whose role should be changed, and post a
+// change role request if so.
+func rebalanceMemberRoles(d *Daemon) error {
+	logger.Debugf("Rebalance cluster")
+
+	// Check if we have a spare node to promote.
+	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
+	if err != nil {
+		return err
+	}
+
+	if address == "" {
+		// Nothing to do.
+		return nil
+	}
+
+	// Tell the node to promote itself.
+	err = changeMemberRole(d, address, nodes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Post a change role request to the member with the given address. The nodes
+// slice contains details about all members, including the one being changed.
+func changeMemberRole(d *Daemon, address string, nodes []db.RaftNode) error {
+	post := &internalClusterPostAssignRequest{}
+	for _, node := range nodes {
+		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
+			ID:      node.ID,
+			Address: node.Address,
+			Role:    int(node.Role),
+		})
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(address, cert, true)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = client.RawQuery("POST", "/internal/cluster/assign", post, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Try to handover the role of this member to another one.
+func handoverMemberRole(d *Daemon) error {
+	// If we aren't clustered, there's nothing to do.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
+	if !clustered {
+		return nil
+	}
+
+	// Figure out our own cluster address.
+	address, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return err
+	}
+
+	post := &internalClusterPostHandoverRequest{
+		Address: address,
+	}
+
+	// Find the cluster leader.
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return err
+	}
+	if leader == "" {
+		// Give up.
+		//
+		// TODO: retry a few times?
+		return nil
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(leader, cert, true)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = client.RawQuery("POST", "/internal/cluster/handover", post, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Used to assign a new role to a the local dqlite node.
+func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
+	req := internalClusterPostAssignRequest{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -1201,8 +1248,9 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 	for i, node := range req.RaftNodes {
 		nodes[i].ID = node.ID
 		nodes[i].Address = node.Address
+		nodes[i].Role = db.RaftRole(node.Role)
 	}
-	err = cluster.Promote(d.State(), d.gateway, nodes)
+	err = cluster.Assign(d.State(), d.gateway, nodes)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1210,9 +1258,84 @@ func internalClusterPostPromote(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, nil)
 }
 
-// A request for the /internal/cluster/promote endpoint.
-type internalClusterPostPromoteRequest struct {
+// A request for the /internal/cluster/assign endpoint.
+type internalClusterPostAssignRequest struct {
 	RaftNodes []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
+}
+
+// Used to to transfer the responsibilities of a member to another one
+func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
+
+	req := internalClusterPostHandoverRequest{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Sanity checks
+	if req.Address == "" {
+		return response.BadRequest(fmt.Errorf("No id provided"))
+	}
+
+	// Redirect all requests to the leader, which is the one with
+	// authoritative knowledge of the current raft configuration.
+	address, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	if address != leader {
+		logger.Debugf("Redirect handover request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/internal/cluster/handover",
+			Host:   leader,
+		}
+		return response.SyncResponseRedirect(url.String())
+	}
+
+	target, nodes, err := cluster.Handover(d.State(), d.gateway, req.Address)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// If there's no other member we can promote, there's nothing we can
+	// do, just return.
+	if target == "" {
+		goto out
+	}
+
+	err = changeMemberRole(d, target, nodes)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Demote the member that is handing over.
+	for i, node := range nodes {
+		if node.Address == req.Address {
+			nodes[i].Role = db.RaftSpare
+		}
+	}
+	err = changeMemberRole(d, req.Address, nodes)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+out:
+	return response.SyncResponse(true, nil)
+}
+
+// A request for the /internal/cluster/handover endpoint.
+type internalClusterPostHandoverRequest struct {
+	// Address of the server whose role should be transferred.
+	Address string `json:"address" yaml:"address"`
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {

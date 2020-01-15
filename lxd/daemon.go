@@ -90,6 +90,10 @@ type Daemon struct {
 
 	// Stores last heartbeat node information to detect node changes.
 	lastNodeList *cluster.APIHeartbeat
+
+	// Serialize changes to cluster membership (joins, leaves, role
+	// changes).
+	clusterMembershipMutex sync.Mutex
 }
 
 type externalAuth struct {
@@ -1063,6 +1067,10 @@ func (d *Daemon) numRunningContainers() (int, error) {
 // retried in case of failure.
 func (d *Daemon) Kill() {
 	if d.gateway != nil {
+		err := handoverMemberRole(d)
+		if err != nil {
+			logger.Warnf("Could not handover member's responsibilities: %v", err)
+		}
 		d.gateway.Kill()
 	}
 }
@@ -1424,15 +1432,30 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 		}
 	}
 
+	isDegraded := false
+	voters := 0
+	standbys := 0
+
 	// Only refresh forkdns peers if the full state list has been generated.
 	if heartbeatData.FullStateList && len(heartbeatData.Members) > 0 {
 		for i, node := range heartbeatData.Members {
+			role := db.RaftRole(node.RaftRole)
 			// Exclude nodes that the leader considers offline.
 			// This is to avoid forkdns delaying results by querying an offline node.
 			if !node.Online {
+				if role != db.RaftStandBy {
+					isDegraded = true
+				}
 				logger.Warnf("Excluding offline node from refresh: %+v", node)
 				delete(heartbeatData.Members, i)
 			}
+			switch role {
+			case db.RaftVoter:
+				voters++
+			case db.RaftStandBy:
+				standbys++
+			}
+
 		}
 
 		nodeListChanged := d.hasNodeListChanged(heartbeatData)
@@ -1448,4 +1471,21 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	// Only update the node list if the task succeeded.
 	// If it fails then it will get to run again next heartbeat.
 	d.lastNodeList = heartbeatData
+
+	// If there are offline members that have voter or stand-by database
+	// roles, let's see if we can replace them with spare ones. Also, if we
+	// don't have enough voters or standbys, let's see if we can upgrade
+	// some member.
+	if len(heartbeatData.Members) > 2 {
+		if isDegraded || voters < cluster.MaxVoters || standbys < cluster.MaxStandBys {
+			go func() {
+				d.clusterMembershipMutex.Lock()
+				defer d.clusterMembershipMutex.Unlock()
+				err := rebalanceMemberRoles(d)
+				if err != nil {
+					logger.Warnf("Could not rebalance cluster member roles: %v", err)
+				}
+			}()
+		}
+	}
 }

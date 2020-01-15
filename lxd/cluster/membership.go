@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/canonical/go-dqlite/client"
@@ -166,6 +165,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	}
 
 	// Insert the new node into the nodes table.
+	var id int64
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Check that the node can be accepted with these parameters.
 		err := membershipCheckClusterStateForAccept(tx, name, address, schema, api)
@@ -174,7 +174,7 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		}
 
 		// Add the new node
-		id, err := tx.NodeAddWithArch(name, address, arch)
+		id, err = tx.NodeAddWithArch(name, address, arch)
 		if err != nil {
 			return errors.Wrap(err, "Failed to insert new node into the database")
 		}
@@ -199,30 +199,31 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get raft nodes from the log")
 	}
-	count, err := Count(state)
-	if err != nil {
-		return nil, errors.Wrap(err, "Fetch cluster members count")
-	}
-	if count != 2 && len(nodes) < membershipMaxRaftNodes {
-		err = state.Node.Transaction(func(tx *db.NodeTx) error {
-			id, err := tx.RaftNodeAdd(address)
-			if err != nil {
-				return err
-			}
-			nodes = append(nodes, db.RaftNode{ID: id, Address: address})
-			return nil
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to insert new node into raft_nodes")
+	count := len(nodes) // Existing nodes
+	voters := 0
+	standbys := 0
+	for _, node := range nodes {
+		switch node.Role {
+		case db.RaftVoter:
+			voters++
+		case db.RaftStandBy:
+			standbys++
 		}
 	}
+	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
+	if count > 1 && voters < MaxVoters {
+		node.Role = db.RaftVoter
+	} else if standbys < MaxStandBys {
+		node.Role = db.RaftStandBy
+	}
+	nodes = append(nodes, node)
 
 	return nodes, nil
 }
 
 // Join makes a non-clustered LXD node join an existing cluster.
 //
-// It's assumed that Accept() was previously called against the target node,
+// It's assumed that Accept() was previously called against the leader node,
 // which handed the raft server ID.
 //
 // The cert parameter must contain the keypair/CA material of the cluster being
@@ -268,7 +269,6 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
 	var operations []db.Operation
-	var offlineThreshold time.Duration
 
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		pools, err = tx.StoragePoolsNodeConfig()
@@ -280,11 +280,6 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return err
 		}
 		operations, err = tx.Operations()
-		if err != nil {
-			return err
-		}
-
-		offlineThreshold, err = tx.NodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
@@ -324,39 +319,32 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 
 	// If we are listed among the database nodes, join the raft cluster.
-	id := ""
-	var target *db.RaftNode
+	var info *db.RaftNode
 	for _, node := range raftNodes {
 		if node.Address == address {
-			id = strconv.Itoa(int(node.ID))
-		} else {
-			target = &node
+			info = &node
 		}
 	}
-	if id != "" {
-		if target == nil {
-			panic("no other node found")
-		}
-		logger.Info(
-			"Joining dqlite raft cluster",
-			log15.Ctx{"id": id, "address": address, "target": target.Address})
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		client, err := client.FindLeader(
-			ctx, gateway.NodeStore(),
-			client.WithDialFunc(gateway.raftDial()),
-			client.WithLogFunc(DqliteLog),
-		)
-		if err != nil {
-			return errors.Wrap(err, "Failed to connect to cluster leader")
-		}
-		defer client.Close()
-		err = client.Add(ctx, gateway.raft.info)
-		if err != nil {
-			return errors.Wrap(err, "Failed to join cluster")
-		}
-	} else {
-		logger.Info("Joining cluster as non-database node")
+	if info == nil {
+		panic("joining node not found")
+	}
+	logger.Info(
+		"Joining dqlite raft cluster",
+		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	client, err := client.FindLeader(
+		ctx, gateway.NodeStore(),
+		client.WithDialFunc(gateway.raftDial()),
+		client.WithLogFunc(DqliteLog),
+	)
+	if err != nil {
+		return errors.Wrap(err, "Failed to connect to cluster leader")
+	}
+	defer client.Close()
+	err = client.Add(ctx, *info)
+	if err != nil {
+		return errors.Wrap(err, "Failed to join cluster")
 	}
 
 	// Make sure we can actually connect to the cluster database through
@@ -446,7 +434,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Update our role list if needed.
-		if id != "" {
+		if info.Role == db.RaftVoter {
 			err = tx.NodeAddRole(node.ID, db.ClusterRoleDatabase)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to add database role for the node")
@@ -454,16 +442,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		hbState := &APIHeartbeat{}
-		hbState.Update(false, raftNodes, []db.NodeInfo{}, offlineThreshold)
-
-		// Attempt to send a heartbeat to all other raft nodes to notify them of new node.
-		for _, raftNode := range raftNodes {
-			if raftNode.ID == node.ID {
-				continue
-			}
-			go HeartbeatNode(context.Background(), raftNode.Address, cert, hbState)
-		}
+		notifyNodesUpdate(raftNodes, info.ID, cert)
 
 		return nil
 	})
@@ -474,57 +453,132 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	return nil
 }
 
+// Attempt to send a heartbeat to all other nodes to notify them of a new or
+// changed member.
+func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo) {
+	// Generate partial heartbeat request containing just a raft node list.
+	hbState := &APIHeartbeat{}
+	nodes := make([]db.NodeInfo, len(raftNodes))
+	for i, raftNode := range raftNodes {
+		nodes[i].ID = int64(raftNode.ID)
+		nodes[i].Address = raftNode.Address
+	}
+	hbState.Update(false, raftNodes, nodes, 0)
+	for _, node := range raftNodes {
+		if node.ID == id {
+			continue
+		}
+		go HeartbeatNode(context.Background(), node.Address, cert, hbState)
+	}
+}
+
 // Rebalance the raft cluster, trying to see if we have a spare online node
-// that we can promote to database node if we are below membershipMaxRaftNodes.
+// that we can promote to voter node if we are below membershipMaxRaftVoters,
+// or to standby if we are below membershipMaxStandBys.
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
 func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+	// Fetch the nodes from the database, to get their last heartbeat
+	// timestamp and check whether they are offline.
+	nodesByAddress := map[string]db.NodeInfo{}
+	var offlineThreshold time.Duration
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed load cluster configuration")
+		}
+		offlineThreshold = config.OfflineThreshold()
+		nodes, err := tx.Nodes()
+		if err != nil {
+			return errors.Wrap(err, "failed to get cluster nodes")
+		}
+		for _, node := range nodes {
+			nodesByAddress[node.Address] = node
+		}
+		return nil
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
 	// First get the current raft members, since this method should be
 	// called after a node has left.
 	currentRaftNodes, err := gateway.currentRaftNodes()
 	if err != nil {
 		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
 	}
-	if len(currentRaftNodes) >= membershipMaxRaftNodes || len(currentRaftNodes) == 1 {
+
+	// Group by role. If a node is offline, we'll try to demote it right
+	// away.
+	voters := make([]string, 0)
+	standbys := make([]string, 0)
+	candidates := make([]string, 0)
+	for i, info := range currentRaftNodes {
+		node := nodesByAddress[info.Address]
+		if node.IsOffline(offlineThreshold) && info.Role != db.RaftSpare {
+			// Even the heartbeat timestamp is not recent
+			// enough, let's try to connect to the node,
+			// just in case the heartbeat is lagging behind
+			// for some reason and the node is actually up.
+			client, err := Connect(node.Address, gateway.cert, true)
+			if err == nil {
+				_, _, err = client.GetServer()
+			}
+			if err != nil {
+				client, err := gateway.getClient()
+				if err != nil {
+					return "", nil, errors.Wrap(err, "Failed to connect to local dqlite node")
+				}
+				defer client.Close()
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				err = client.Assign(ctx, info.ID, db.RaftSpare)
+				if err != nil {
+					return "", nil, errors.Wrap(err, "Failed to demote offline node")
+				}
+				err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+					return tx.NodeRemoveRole(node.ID, db.ClusterRoleDatabase)
+				})
+				if err != nil {
+					return "", nil, errors.Wrap(err, "Failed to update node role")
+				}
+				currentRaftNodes[i].Role = db.RaftSpare
+				continue
+			}
+		}
+		switch info.Role {
+		case db.RaftVoter:
+			voters = append(voters, info.Address)
+		case db.RaftStandBy:
+			standbys = append(standbys, info.Address)
+		case db.RaftSpare:
+			candidates = append(candidates, info.Address)
+		}
+	}
+
+	var role db.RaftRole
+
+	if len(voters) < MaxVoters && len(voters) > 1 {
+		role = db.RaftVoter
+		// Include stand-by nodes among the ones that can be promoted,
+		// preferring them over spare ones.
+		candidates = append(standbys, candidates...)
+	} else if len(standbys) < MaxStandBys {
+		role = db.RaftStandBy
+	} else {
 		// We're already at full capacity or would have a two-member cluster.
 		return "", nil, nil
 	}
 
-	currentRaftAddresses := make([]string, len(currentRaftNodes))
-	for i, node := range currentRaftNodes {
-		currentRaftAddresses[i] = node.Address
-	}
-
-	// Check if we have a spare node that we can turn into a database one.
+	// Check if we have a spare node that we can promote to the missing role.
 	address := ""
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		config, err := ConfigLoad(tx)
-		if err != nil {
-			return errors.Wrap(err, "failed load cluster configuration")
-		}
-		nodes, err := tx.Nodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to get cluster nodes")
-		}
-		// Find a node that is not part of the raft cluster yet.
-		for _, node := range nodes {
-			if shared.StringInSlice(node.Address, currentRaftAddresses) {
-				continue // This is already a database node
-			}
-			if node.IsOffline(config.OfflineThreshold()) {
-				continue // This node is offline
-			}
-			logger.Debugf(
-				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
-			address = node.Address
-			break
-		}
-
-		return nil
-	})
-	if err != nil {
-		return "", nil, err
+	for _, candidate := range candidates {
+		node := nodesByAddress[candidate]
+		logger.Debugf(
+			"Found spare node %s (%s) to be promoted to %s", node.Name, node.Address, role)
+		address = node.Address
+		break
 	}
 
 	if address == "" {
@@ -532,33 +586,19 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", currentRaftNodes, nil
 	}
 
-	// Figure out the next ID in the raft_nodes table
-	var updatedRaftNodes []db.RaftNode
-	err = gateway.db.Transaction(func(tx *db.NodeTx) error {
-		id, err := tx.RaftNodeAdd(address)
-		if err != nil {
-			return errors.Wrap(err, "Failed to add new raft node")
+	for i, node := range currentRaftNodes {
+		if node.Address == address {
+			currentRaftNodes[i].Role = role
+			break
 		}
-
-		updatedRaftNodes = append(currentRaftNodes, db.RaftNode{ID: id, Address: address})
-		return nil
-	})
-	if err != nil {
-		return "", nil, err
 	}
 
-	return address, updatedRaftNodes, nil
+	return address, currentRaftNodes, nil
 }
 
-// Promote makes a LXD node which is not a database node, become part of the
-// raft cluster.
-func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
-	logger.Info("Promote node to database node")
-
-	// Sanity check that this is not already a database node
-	if gateway.IsDatabaseNode() {
-		return fmt.Errorf("this node is already a database node")
-	}
+// Assign a new role to the local dqlite node.
+func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
+	logger.Info("Assign new role to dqlite node")
 
 	// Figure out our own address.
 	address := ""
@@ -579,27 +619,22 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return fmt.Errorf("node is not exposed on the network")
 	}
 
-	// Figure out our raft node ID, and an existing target raft node that
-	// we'll contact to add ourselves as member.
-	id := int64(-1)
-	target := ""
-	for _, node := range nodes {
+	// Figure out our node identity.
+	var info *db.RaftNode
+	for i, node := range nodes {
 		if node.Address == address {
-			id = node.ID
-		} else {
-			target = node.Address
+			info = &nodes[i]
 		}
 	}
 
 	// Sanity check that our address was actually included in the given
 	// list of raft nodes.
-	if id == -1 {
+	if info == nil {
 		return fmt.Errorf("this node is not included in the given list of database nodes")
 	}
 
 	// Replace our local list of raft nodes with the given one (which
-	// includes ourselves). This will make the gateway start a raft node
-	// when restarted.
+	// includes ourselves).
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
 		err = tx.RaftNodesReplace(nodes)
 		if err != nil {
@@ -612,12 +647,29 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return err
 	}
 
+	var transactor func(func(tx *db.ClusterTx) error) error
+
+	// If we are already running a dqlite node, it means we have cleanly
+	// joined the cluster before, using the roles support API. In that case
+	// there's no need to restart the gateway and we can just change our
+	// dqlite role.
+	if gateway.IsDqliteNode() {
+		transactor = state.Cluster.Transaction
+		goto assign
+	}
+
+	// If we get here it means that we are an upgraded node from cluster
+	// without roles support, or we didn't cleanly join the cluster. Either
+	// way, we don't have a dqlite node running, so we need to restart the
+	// gateway.
+
 	// Lock regular access to the cluster database since we don't want any
 	// other database code to run while we're reconfiguring raft.
 	err = state.Cluster.EnterExclusive()
 	if err != nil {
 		return errors.Wrap(err, "failed to acquire cluster database lock")
 	}
+	transactor = state.Cluster.ExitExclusive
 
 	// Wipe all existing raft data, for good measure (perhaps they were
 	// somehow leftover).
@@ -634,9 +686,10 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
 	}
 
+assign:
 	logger.Info(
-		"Joining dqlite raft cluster",
-		log15.Ctx{"id": id, "address": address, "target": target})
+		"Changing dqlite raft role",
+		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -647,22 +700,33 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 	defer client.Close()
 
-	err = client.Add(ctx, gateway.raft.info)
+	err = client.Assign(ctx, info.ID, info.Role)
 	if err != nil {
-		return errors.Wrap(err, "Failed to join cluster")
+		return errors.Wrap(err, "Failed to assign role")
 	}
 
+	gateway.info = info
+
 	// Unlock regular access to our cluster database and add the database role.
-	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		err = tx.NodeAddRole(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
+	err = transactor(func(tx *db.ClusterTx) error {
+		var f func(id int64, role db.ClusterRole) error
+		if info.Role == db.RaftVoter {
+			f = tx.NodeAddRole
+		} else {
+			f = tx.NodeRemoveRole
+		}
+		err = f(state.Cluster.GetNodeID(), db.ClusterRoleDatabase)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to add database role for the node")
+			return errors.Wrapf(err, "Failed to change role for the node")
 		}
 		return err
 	})
 	if err != nil {
 		return errors.Wrap(err, "cluster database initialization failed")
 	}
+
+	// Generate partial heartbeat request containing just a raft node list.
+	notifyNodesUpdate(nodes, info.ID, gateway.cert)
 
 	return nil
 }
@@ -676,6 +740,8 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 // database. That's done by Purge().
 //
 // Upon success, return the address of the leaving node.
+//
+// This function must be called by the cluster leader.
 func Leave(state *state.State, gateway *Gateway, name string, force bool) (string, error) {
 	logger.Debugf("Make node %s leave the cluster", name)
 
@@ -703,57 +769,120 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 		return "", err
 	}
 
-	// If the node is a database node, leave the raft cluster too.
-	var raftNodes []db.RaftNode // Current raft nodes
-	raftNodeRemoveIndex := -1   // Index of the raft node to remove, if any.
-	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		raftNodes, err = tx.RaftNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to get current database nodes")
-		}
-		for i, node := range raftNodes {
-			if node.Address == address {
-				raftNodeRemoveIndex = i
-				break
-			}
-		}
-		return nil
-	})
+	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
 		return "", err
 	}
+	var info *db.RaftNode // Raft node to remove, if any.
+	for i, node := range nodes {
+		if node.Address == address {
+			info = &nodes[i]
+			break
+		}
+	}
 
-	if raftNodeRemoveIndex == -1 {
+	if info == nil {
 		// The node was not part of the raft cluster, nothing left to
 		// do.
 		return address, nil
 	}
 
-	id := uint64(raftNodes[raftNodeRemoveIndex].ID)
 	// Get the address of another database node,
-	target := raftNodes[(raftNodeRemoveIndex+1)%len(raftNodes)].Address
 	logger.Info(
 		"Remove node from dqlite raft cluster",
-		log15.Ctx{"id": id, "address": address, "target": target})
+		log15.Ctx{"id": info.ID, "address": info.Address})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client, err := client.FindLeader(
-		ctx, gateway.NodeStore(),
-		client.WithDialFunc(gateway.raftDial()),
-		client.WithLogFunc(DqliteLog),
-	)
+	client, err := gateway.getClient()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to connect to cluster leader")
 	}
 	defer client.Close()
-	err = client.Remove(ctx, id)
+	err = client.Remove(ctx, info.ID)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to leave the cluster")
 	}
 
 	return address, nil
+}
+
+// Handover looks for a non-voter member that can be promoted to replace a the
+// member with the given address, which is shutting down. It returns the
+// address of such member along with an updated list of nodes, with the ne role
+// set.
+//
+// It should be called only by the current leader.
+func Handover(state *state.State, gateway *Gateway, address string) (string, []db.RaftNode, error) {
+	nodes, err := gateway.currentRaftNodes()
+	if err != nil {
+		return "", nil, errors.Wrap(err, "Failed to get current raft nodes")
+	}
+
+	// If the member which is shutting down is not a voter, there's nothing
+	// to do.
+	found := false
+	for _, node := range nodes {
+		if node.Address != address {
+			continue
+		}
+		if node.Role != db.RaftVoter {
+			return "", nil, nil
+		}
+		found = true
+		break
+	}
+	if !found {
+		return "", nil, errors.Wrapf(err, "No dqlite node has address %s", address)
+	}
+
+	for i, node := range nodes {
+		if node.Role == db.RaftVoter || node.Address == address {
+			continue
+		}
+		online, err := isMemberOnline(state, gateway.cert, node.Address)
+		if err != nil {
+			return "", nil, errors.Wrapf(err, "Failed to check if %s is online", node.Address)
+		}
+		if !online {
+			continue
+		}
+		nodes[i].Role = db.RaftVoter
+		return node.Address, nodes, nil
+	}
+
+	return "", nil, nil
+}
+
+// Check if the member with the given address is one.
+func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (bool, error) {
+	online := true
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+		node, err := tx.NodeByAddress(address)
+		if err != nil {
+			return err
+		}
+		if node.IsOffline(offlineThreshold) {
+			// Even the heartbeat timestamp is not recent enough,
+			// let's try to connect to the node, just in case the
+			// heartbeat is lagging behind for some reason and the
+			// node is actually up.
+			client, err := Connect(node.Address, cert, true)
+			if err == nil {
+				_, _, err = client.GetServer()
+			}
+			online = err == nil
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return online, nil
 }
 
 // Purge removes a node entirely from the cluster database.
@@ -996,7 +1125,8 @@ func membershipCheckNoLeftoverClusterCert(dir string) error {
 // SchemaVersion holds the version of the cluster database schema.
 var SchemaVersion = cluster.SchemaVersion
 
-// We currently aim at having 3 nodes part of the raft dqlite cluster.
+// We currently aim at having 3 voter nodes and 2 stand-by.
 //
-// TODO: this number should probably be configurable.
-const membershipMaxRaftNodes = 3
+// TODO: these numbers should probably be configurable.
+const MaxVoters = 3
+const MaxStandBys = 2
