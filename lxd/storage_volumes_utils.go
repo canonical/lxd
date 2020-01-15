@@ -249,6 +249,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 	for _, inst := range insts {
 		devices := inst.LocalDevices()
+		found := false
 		for k := range devices {
 			if devices[k]["type"] != "disk" {
 				continue
@@ -275,6 +276,8 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			}
 
 			// found entry
+			found = true
+
 			if oldPoolName != newPoolName {
 				devices[k]["pool"] = newPoolName
 			}
@@ -286,6 +289,10 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 				}
 				devices[k]["source"] = newSource
 			}
+		}
+
+		if !found {
+			continue
 		}
 
 		args := db.InstanceArgs{
@@ -318,6 +325,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			return err
 		}
 
+		found := false
 		for k := range profile.Devices {
 			if profile.Devices[k]["type"] != "disk" {
 				continue
@@ -344,6 +352,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			}
 
 			// found entry
+			found = true
 
 			if oldPoolName != newPoolName {
 				profile.Devices[k]["pool"] = newPoolName
@@ -356,6 +365,10 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 				}
 				profile.Devices[k]["source"] = newSource
 			}
+		}
+
+		if !found {
+			continue
 		}
 
 		pUpdate := api.ProfilePut{}
