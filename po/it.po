@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-14 15:12-0500\n"
+"POT-Creation-Date: 2020-01-15 09:06-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1475,9 +1475,8 @@ msgid "Input data"
 msgstr ""
 
 #: lxc/publish.go:80
-#, fuzzy
 msgid "Instance name is mandatory"
-msgstr "Il nome del container è: %s"
+msgstr ""
 
 #: lxc/copy.go:427 lxc/init.go:337
 #, fuzzy, c-format
@@ -2978,7 +2977,7 @@ msgstr ""
 #: lxc/delete.go:120
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
-msgstr "Creazione del container in corso"
+msgstr "errore di processamento degli alias %s\n"
 
 #: lxc/storage.go:145
 #, c-format
@@ -4373,9 +4372,6 @@ msgstr "si"
 
 #~ msgid "ARCH"
 #~ msgstr "ARCH"
-
-#~ msgid "Container name is: %s"
-#~ msgstr "Il nome del container è: %s"
 
 #~ msgid "Commands:"
 #~ msgstr "Comandi:"

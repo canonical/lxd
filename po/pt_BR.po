@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-14 15:12-0500\n"
+"POT-Creation-Date: 2020-01-15 09:06-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -824,9 +824,8 @@ msgid "Create aliases for existing images"
 msgstr ""
 
 #: lxc/init.go:56
-#, fuzzy
 msgid "Create an empty instance"
-msgstr "Criando %s"
+msgstr ""
 
 #: lxc/launch.go:22 lxc/launch.go:23
 msgid "Create and start instances from images"
@@ -837,9 +836,8 @@ msgid "Create any directories necessary"
 msgstr ""
 
 #: lxc/snapshot.go:23
-#, fuzzy
 msgid "Create instance snapshots"
-msgstr "Criando %s"
+msgstr ""
 
 #: lxc/snapshot.go:24
 #, fuzzy
@@ -855,9 +853,8 @@ msgstr ""
 "do container, incluindo estado de memória dos processos, conexões TCP, ..."
 
 #: lxc/init.go:39 lxc/init.go:40
-#, fuzzy
 msgid "Create instances from images"
-msgstr "Criando %s"
+msgstr ""
 
 #: lxc/storage_volume.go:461 lxc/storage_volume.go:462
 msgid "Create new custom storage volumes"
@@ -1561,7 +1558,7 @@ msgstr ""
 #: lxc/import.go:72
 #, fuzzy, c-format
 msgid "Importing instance: %s"
-msgstr "Criando %s"
+msgstr "Editar arquivos no container"
 
 #: lxc/info.go:201
 msgid "Infiniband:"
@@ -1778,9 +1775,8 @@ msgid "List instance file templates"
 msgstr "Editar templates de arquivo do container"
 
 #: lxc/list.go:43
-#, fuzzy
 msgid "List instances"
-msgstr "Criando %s"
+msgstr ""
 
 #: lxc/list.go:44
 msgid ""
@@ -2358,9 +2354,8 @@ msgid "Password for %s: "
 msgstr ""
 
 #: lxc/action.go:49 lxc/action.go:50
-#, fuzzy
 msgid "Pause instances"
-msgstr "Criando %s"
+msgstr ""
 
 #: lxc/copy.go:57
 msgid "Perform an incremental copy"
@@ -3045,9 +3040,8 @@ msgid "Source:"
 msgstr ""
 
 #: lxc/action.go:30 lxc/action.go:31
-#, fuzzy
 msgid "Start instances"
-msgstr "Criando %s"
+msgstr ""
 
 #: lxc/launch.go:68
 #, c-format
@@ -3079,7 +3073,7 @@ msgstr ""
 #: lxc/delete.go:120
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
-msgstr "Criando %s"
+msgstr "Copiar a imagem: %s"
 
 #: lxc/storage.go:145
 #, c-format

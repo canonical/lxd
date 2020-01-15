@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-14 15:12-0500\n"
+"POT-Creation-Date: 2020-01-15 09:06-0500\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1907,9 +1907,8 @@ msgid "Manage command aliases"
 msgstr ""
 
 #: lxc/file.go:71 lxc/file.go:72
-#, fuzzy
 msgid "Manage files in instances"
-msgstr "Невозможно добавить имя контейнера в список"
+msgstr ""
 
 #: lxc/image_alias.go:24 lxc/image_alias.go:25
 msgid "Manage image aliases"
@@ -2345,9 +2344,8 @@ msgid "Password for %s: "
 msgstr "Пароль администратора для %s: "
 
 #: lxc/action.go:49 lxc/action.go:50
-#, fuzzy
 msgid "Pause instances"
-msgstr "Невозможно добавить имя контейнера в список"
+msgstr ""
 
 #: lxc/copy.go:57
 msgid "Perform an incremental copy"
@@ -3028,9 +3026,8 @@ msgid "Source:"
 msgstr ""
 
 #: lxc/action.go:30 lxc/action.go:31
-#, fuzzy
 msgid "Start instances"
-msgstr "Невозможно добавить имя контейнера в список"
+msgstr ""
 
 #: lxc/launch.go:68
 #, c-format
@@ -4662,9 +4659,6 @@ msgstr "да"
 
 #~ msgid "ARCH"
 #~ msgstr "ARCH"
-
-#~ msgid "Container name is: %s"
-#~ msgstr "Имя контейнера: %s"
 
 #~ msgid "Connection refused; is LXD running?"
 #~ msgstr "В соединении отказано; LXD запущен?"
