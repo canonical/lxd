@@ -16,6 +16,16 @@ type dir struct {
 	common
 }
 
+// load is used to run one-time action per-driver rather than per-pool.
+func (d *dir) load() error {
+	// Register the patches.
+	d.patches = map[string]func() error{
+		"storage_create_vm": nil,
+	}
+
+	return nil
+}
+
 // Info returns info about the driver and its environment.
 func (d *dir) Info() Info {
 	return Info{

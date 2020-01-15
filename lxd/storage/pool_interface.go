@@ -25,6 +25,8 @@ type Pool interface {
 	Mount() (bool, error)
 	Unmount() (bool, error)
 
+	ApplyPatch(name string) error
+
 	// Instances.
 	CreateInstance(inst instance.Instance, op *operations.Operation) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error)

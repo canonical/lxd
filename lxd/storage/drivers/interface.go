@@ -40,6 +40,7 @@ type Driver interface {
 	GetResources() (*api.ResourcesStoragePool, error)
 	Validate(config map[string]string) error
 	Update(changedConfig map[string]string) error
+	ApplyPatch(name string) error
 
 	// Volumes.
 	ValidateVolume(vol Volume, removeUnknownKeys bool) error
