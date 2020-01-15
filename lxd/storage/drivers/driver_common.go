@@ -60,7 +60,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for pool option %s", k)
+			return errors.Wrapf(err, "Invalid value for pool %q option %q", d.name, k)
 		}
 	}
 
@@ -76,7 +76,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 			continue
 		}
 
-		return fmt.Errorf("Invalid pool option: %s", k)
+		return fmt.Errorf("Invalid option for pool %q option %q", d.name, k)
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(vol.config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for volume option %s", k)
+			return errors.Wrapf(err, "Invalid value for volume %q option %q", vol.name, k)
 		}
 	}
 
@@ -121,13 +121,13 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		if removeUnknownKeys {
 			delete(vol.config, k)
 		} else {
-			return fmt.Errorf("Invalid volume option: %s", k)
+			return fmt.Errorf("Invalid option for volume %q option %q", vol.name, k)
 		}
 	}
 
 	// If volume type is not custom, don't allow "size" property.
 	if vol.volType != VolumeTypeCustom && vol.config["size"] != "" {
-		return fmt.Errorf("Volume 'size' property is only valid for custom volume types")
+		return fmt.Errorf("Volume %q property is only valid for custom volume types", "size")
 	}
 
 	return nil
