@@ -60,6 +60,10 @@ func (b *mockBackend) Unmount() (bool, error) {
 	return true, nil
 }
 
+func (b *mockBackend) ApplyPatch(name string) error {
+	return nil
+}
+
 func (b *mockBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }

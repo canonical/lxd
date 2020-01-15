@@ -233,6 +233,35 @@ func (b *lxdBackend) Unmount() (bool, error) {
 	return b.driver.Unmount()
 }
 
+// ApplyPatch runs the requested patch at both backend and driver level.
+func (b *lxdBackend) ApplyPatch(name string) error {
+	// Run early backend patches.
+	patch, ok := lxdEarlyPatches[name]
+	if ok {
+		err := patch(b)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Run the driver patch itself.
+	err := b.driver.ApplyPatch(name)
+	if err != nil {
+		return err
+	}
+
+	// Run late backend patches.
+	patch, ok = lxdLatePatches[name]
+	if ok {
+		err := patch(b)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ensureInstanceSymlink creates a symlink in the instance directory to the instance's mount path
 // if doesn't exist already.
 func (b *lxdBackend) ensureInstanceSymlink(instanceType instancetype.Type, projectName, instanceName, mountPath string) error {
