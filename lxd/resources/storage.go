@@ -16,6 +16,7 @@ import (
 )
 
 var devDiskByPath = "/dev/disk/by-path"
+var devDiskByID = "/dev/disk/by-id"
 var runUdevData = "/run/udev/data"
 var sysClassBlock = "/sys/class/block"
 
@@ -281,6 +282,28 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 					if linkTarget == filepath.Join("/dev", entryName) {
 						disk.DevicePath = linkName
+					}
+				}
+			}
+
+			// Try to find the udev device id
+			if sysfsExists(devDiskByID) {
+				links, err := ioutil.ReadDir(devDiskByID)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to list the links in \"%s\"", devDiskByID)
+				}
+
+				for _, link := range links {
+					linkName := link.Name()
+					linkPath := filepath.Join(devDiskByID, linkName)
+
+					linkTarget, err := filepath.EvalSymlinks(linkPath)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to track down \"%s\"", linkPath)
+					}
+
+					if linkTarget == filepath.Join("/dev", entryName) {
+						disk.DeviceID = linkName
 					}
 				}
 			}

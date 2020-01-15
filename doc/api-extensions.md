@@ -890,6 +890,9 @@ Add virtual machine support.
 ## image\_profiles
 Allows a list of profiles to be applied to an image when launching a new container. 
 
-## clustering_architecture
+## clustering\_architecture
 This adds a new `architecture` attribute to cluster members which indicates a cluster
 member's architecture.
+
+## resources\_disk\_id
+Add a new device_id field in the disk entries on the resources API.

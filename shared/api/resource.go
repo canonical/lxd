@@ -233,6 +233,9 @@ type ResourcesStorageDisk struct {
 	RPM             uint64 `json:"rpm" yaml:"rpm"`
 	Serial          string `json:"serial,omitempty" yaml:"serial,omitempty"`
 
+	// API extension: resources_disk_id
+	DeviceID string `json:"device_id" yaml:"device_id"`
+
 	Partitions []ResourcesStorageDiskPartition `json:"partitions" yaml:"partitions"`
 }
 
