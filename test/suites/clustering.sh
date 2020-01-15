@@ -495,6 +495,12 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc init --target node2 -s pool1 testimage buz
     ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume attach pool1 custom/v1 buz testDevice /opt || false
 
+    # Create an unrelated volume and rename it on a node which differs from the
+    # one running the container (issue #6435).
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume create pool1 v2
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename pool1 v2 v2-renamed
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete pool1 v2-renamed
+
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume detach pool1 v1 baz
 
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 v1
