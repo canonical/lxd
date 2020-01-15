@@ -315,7 +315,7 @@ func (d *btrfs) Mount() (bool, error) {
 		}
 
 		// Custom mount options don't work inside containers
-		if !d.state.OS.RunningInUserNS {
+		if d.state.OS.RunningInUserNS {
 			return true, nil
 		}
 
