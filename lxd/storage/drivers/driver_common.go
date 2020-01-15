@@ -27,6 +27,7 @@ type common struct {
 	getCommonVolumeRules func(vol Volume) map[string]func(string) error
 	state                *state.State
 	logger               logger.Logger
+	patches              map[string]func() error
 }
 
 func (d *common) init(state *state.State, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonVolRulesFunc func(vol Volume) map[string]func(string) error) {
@@ -122,6 +123,26 @@ func (d *common) Config() map[string]string {
 	}
 
 	return confCopy
+}
+
+// ApplyPatch looks for a suitable patch and runs it.
+func (d *common) ApplyPatch(name string) error {
+	if d.patches == nil {
+		return fmt.Errorf("The patch mechanism isn't implemented on pool '%s'", d.name)
+	}
+
+	// Locate the patch.
+	patch, ok := d.patches[name]
+	if !ok {
+		return fmt.Errorf("Patch '%s' isn't implemented on pool '%s'", name, d.name)
+	}
+
+	// Handle cases where a patch isn't needed.
+	if patch == nil {
+		return nil
+	}
+
+	return patch()
 }
 
 // vfsGetResources is a generic GetResources implementation for VFS-only drivers.
