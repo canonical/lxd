@@ -97,7 +97,6 @@ type storageType int
 
 const (
 	storageTypeCeph storageType = iota
-	storageTypeLvm
 	storageTypeMock
 )
 
@@ -107,8 +106,6 @@ func storageTypeToString(sType storageType) (string, error) {
 	switch sType {
 	case storageTypeCeph:
 		return "ceph", nil
-	case storageTypeLvm:
-		return "lvm", nil
 	case storageTypeMock:
 		return "mock", nil
 	}
@@ -120,8 +117,6 @@ func storageStringToType(sName string) (storageType, error) {
 	switch sName {
 	case "ceph":
 		return storageTypeCeph, nil
-	case "lvm":
-		return storageTypeLvm, nil
 	case "mock":
 		return storageTypeMock, nil
 	}
@@ -249,13 +244,6 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &ceph, nil
-	case storageTypeLvm:
-		lvm := storageLvm{}
-		err = lvm.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		err = mock.StorageCoreInit()
@@ -308,17 +296,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &ceph, nil
-	case storageTypeLvm:
-		lvm := storageLvm{}
-		lvm.poolID = poolID
-		lvm.pool = pool
-		lvm.volume = volume
-		lvm.s = s
-		err = lvm.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		mock.poolID = poolID
