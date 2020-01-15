@@ -226,7 +226,14 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *cephfs) Validate(config map[string]string) error {
-	return nil
+	rules := map[string]func(value string) error{
+		"cephfs.cluster_name":    shared.IsAny,
+		"cephfs.path":            shared.IsAny,
+		"cephfs.user.name":       shared.IsAny,
+		"volatile.pool.pristine": shared.IsAny,
+	}
+
+	return d.validatePool(config, rules)
 }
 
 // Update applies any driver changes required from a configuration change.

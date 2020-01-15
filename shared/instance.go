@@ -115,6 +115,20 @@ func IsNotEmpty(value string) error {
 	return nil
 }
 
+// IsSize checks if string is valid size according to units.ParseByteSizeString.
+func IsSize(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := units.ParseByteSizeString(value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // IsDeviceID validates string is four lowercase hex characters suitable as Vendor or Device ID.
 func IsDeviceID(value string) error {
 	if value == "" {

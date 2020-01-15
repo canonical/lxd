@@ -233,7 +233,11 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *btrfs) Validate(config map[string]string) error {
-	return nil
+	rules := map[string]func(value string) error{
+		"btrfs.mount_options": shared.IsAny,
+	}
+
+	return d.validatePool(config, rules)
 }
 
 // Update applies any driver changes required from a configuration change.

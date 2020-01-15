@@ -390,7 +390,7 @@ func VolumeValidateConfig(s *state.State, name string, config map[string]string,
 	logger := logging.AddContext(logger.Log, log.Ctx{"driver": parentPool.Driver, "pool": parentPool.Name})
 
 	// Validate volume config using the new driver interface if supported.
-	driver, err := drivers.Load(s, parentPool.Driver, parentPool.Name, parentPool.Config, logger, nil, validateVolumeCommonRules)
+	driver, err := drivers.Load(s, parentPool.Driver, parentPool.Name, parentPool.Config, logger, nil, commonRules())
 	if err != drivers.ErrUnknownDriver {
 		// Note: This legacy validation function doesn't have the concept of validating
 		// different volumes types, so the types are hard coded as Custom and FS.
@@ -509,6 +509,17 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 	return newConfig, nil
 }
 
+// validatePoolCommonRules returns a map of pool config rules common to all drivers.
+func validatePoolCommonRules() map[string]func(string) error {
+	return map[string]func(string) error{
+		"source":                  shared.IsAny,
+		"volatile.initial_source": shared.IsAny,
+		"volume.size":             shared.IsSize,
+		"size":                    shared.IsSize,
+		"rsync.bwlimit":           shared.IsAny,
+	}
+}
+
 // validateVolumeCommonRules returns a map of volume config rules common to all drivers.
 func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error {
 	rules := map[string]func(string) error{
@@ -517,18 +528,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
-		"size": func(value string) error {
-			if value == "" {
-				return nil
-			}
-
-			_, err := units.ParseByteSizeString(value)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		},
+		"size": shared.IsSize,
 	}
 
 	// block.mount_options is only relevant for drivers that are block backed and when there

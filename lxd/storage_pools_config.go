@@ -81,14 +81,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"lvm.vg_name":       shared.IsAny,
 
 	// valid drivers: btrfs, lvm, zfs
-	"size": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		_, err := units.ParseByteSizeString(value)
-		return err
-	},
+	"size": shared.IsSize,
 
 	// valid drivers: btrfs, dir, lvm, zfs
 	"source": shared.IsAny,
@@ -108,14 +101,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.block.mount_options": shared.IsAny,
 
 	// valid drivers: ceph, lvm
-	"volume.size": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		_, err := units.ParseByteSizeString(value)
-		return err
-	},
+	"volume.size": shared.IsSize,
 
 	// valid drivers: zfs
 	"volume.zfs.remove_snapshots": shared.IsBool,
@@ -133,13 +119,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 	}(driver)
 	if err != nil {
 		return err
-	}
-
-	if driver == "lvm" {
-		v, ok := config["lvm.use_thinpool"]
-		if ok && !shared.IsTrue(v) && config["lvm.thinpool_name"] != "" {
-			return fmt.Errorf("the key \"lvm.use_thinpool\" cannot be set to a false value when \"lvm.thinpool_name\" is set for LVM storage pools")
-		}
 	}
 
 	v, ok := config["rsync.bwlimit"]
@@ -235,7 +214,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
-		// We use thin pools per default.
+		// We use thin pools by default.
 		useThinpool := true
 		if config["lvm.use_thinpool"] != "" {
 			useThinpool = shared.IsTrue(config["lvm.use_thinpool"])

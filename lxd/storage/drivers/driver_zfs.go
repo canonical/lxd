@@ -283,7 +283,14 @@ func (d *zfs) Delete(op *operations.Operation) error {
 
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *zfs) Validate(config map[string]string) error {
-	return nil
+	rules := map[string]func(value string) error{
+		"zfs.pool_name":               shared.IsAny,
+		"zfs.clone_copy":              shared.IsBool,
+		"volume.zfs.remove_snapshots": shared.IsBool,
+		"volume.zfs.use_refquota":     shared.IsBool,
+	}
+
+	return d.validatePool(config, rules)
 }
 
 // Update applies any driver changes required from a configuration change.
