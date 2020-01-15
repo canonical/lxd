@@ -23,6 +23,8 @@ cephfs.user.name                | string    | cephfs driver                     
 lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | storage                            | Thin pool where volumes are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool        | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | storage                            | Name of the volume group to create.
+lvm.volume.stripes              | string    | lvm driver                        | -                          | storage\_lvm\_stripes              | Number of stripes to use for new volumes (or thin pool volume).
+lvm.volume.stripes.size         | string    | lvm driver                        | -                          | storage\_lvm\_stripes              | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
 rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | storage\_rsync\_bwlimit            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
 volatile.initial\_source        | string    | -                                 | -                          | storage\_volatile\_initial\_source | Records the actual source passed during creating (e.g. /dev/sdb).
 volatile.pool.pristine          | string    | -                                 | true                       | storage\_driver\_ceph              | Whether the pool has been empty on creation time.
