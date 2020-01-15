@@ -135,13 +135,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		return err
 	}
 
-	if driver == "lvm" {
-		v, ok := config["lvm.use_thinpool"]
-		if ok && !shared.IsTrue(v) && config["lvm.thinpool_name"] != "" {
-			return fmt.Errorf("the key \"lvm.use_thinpool\" cannot be set to a false value when \"lvm.thinpool_name\" is set for LVM storage pools")
-		}
-	}
-
 	v, ok := config["rsync.bwlimit"]
 	if ok && v != "" {
 		_, err := units.ParseByteSizeString(v)
