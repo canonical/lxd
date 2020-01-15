@@ -23,6 +23,8 @@ const lvmVgPoolMarker = "lxd_pool" // Indicator tag used to mark volume groups a
 var lvmLoaded bool
 var lvmVersion string
 
+var lvmAllowedFilesystems = []string{"btrfs", "ext4", "xfs"}
+
 type lvm struct {
 	common
 }
@@ -411,11 +413,37 @@ func (d *lvm) Delete(op *operations.Operation) error {
 }
 
 func (d *lvm) Validate(config map[string]string) error {
+	rules := map[string]func(value string) error{
+		"lvm.vg_name":                shared.IsAny,
+		"lvm.thinpool_name":          shared.IsAny,
+		"lvm.use_thinpool":           shared.IsBool,
+		"volume.block.mount_options": shared.IsAny,
+		"volume.block.filesystem": func(value string) error {
+			if value == "" {
+				return nil
+			}
+			return shared.IsOneOf(value, lvmAllowedFilesystems)
+		},
+	}
+
+	err := d.validatePool(config, rules)
+	if err != nil {
+		return err
+	}
+
+	if v, found := config["lvm.use_thinpool"]; found && !shared.IsTrue(v) && config["lvm.thinpool_name"] != "" {
+		return fmt.Errorf("The key lvm.use_thinpool cannot be set to false when lvm.thinpool_name is set")
+	}
+
 	return nil
 }
 
 // Update updates the storage pool settings.
 func (d *lvm) Update(changedConfig map[string]string) error {
+	if _, changed := changedConfig["lvm.use_thinpool"]; changed {
+		return fmt.Errorf("lvm.use_thinpool cannot be changed")
+	}
+
 	if changedConfig["lvm.vg_name"] != "" {
 		_, err := shared.TryRunCommand("vgrename", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"])
 		if err != nil {
