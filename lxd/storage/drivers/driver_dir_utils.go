@@ -13,7 +13,7 @@ import (
 func (d *dir) withoutGetVolID() Driver {
 	newDriver := &dir{}
 	getVolID := func(volType VolumeType, volName string) (int64, error) { return volIDQuotaSkip, nil }
-	newDriver.init(d.state, d.name, d.config, d.logger, getVolID, d.getCommonVolumeRules)
+	newDriver.init(d.state, d.name, d.config, d.logger, getVolID, d.commonRules)
 	newDriver.load()
 
 	return newDriver

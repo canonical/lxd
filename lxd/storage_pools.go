@@ -521,7 +521,9 @@ func storagePoolClusterConfigForEtag(dbConfig map[string]string) map[string]stri
 func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string) map[string]string {
 	config := util.CopyConfig(reqConfig)
 	for _, key := range db.StoragePoolNodeConfigKeys {
-		config[key] = dbConfig[key]
+		if _, found := dbConfig[key]; found {
+			config[key] = dbConfig[key]
+		}
 	}
 	return config
 }

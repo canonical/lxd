@@ -13,8 +13,14 @@ var drivers = map[string]func() driver{
 	"zfs":    func() driver { return &zfs{} },
 }
 
+// Validators contains functions used for validating a drivers's config.
+type Validators struct {
+	PoolRules   func() map[string]func(string) error
+	VolumeRules func(vol Volume) map[string]func(string) error
+}
+
 // Load returns a Driver for an existing low-level storage pool.
-func Load(state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonVolRulesFunc func(vol Volume) map[string]func(string) error) (Driver, error) {
+func Load(state *state.State, driverName string, name string, config map[string]string, logger logger.Logger, volIDFunc func(volType VolumeType, volName string) (int64, error), commonRules *Validators) (Driver, error) {
 	// Locate the driver loader.
 	driverFunc, ok := drivers[driverName]
 	if !ok {
@@ -22,7 +28,7 @@ func Load(state *state.State, driverName string, name string, config map[string]
 	}
 
 	d := driverFunc()
-	d.init(state, name, config, logger, volIDFunc, commonVolRulesFunc)
+	d.init(state, name, config, logger, volIDFunc, commonRules)
 
 	err := d.load()
 	if err != nil {
