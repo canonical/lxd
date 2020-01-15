@@ -181,6 +181,7 @@ var APIExtensions = []string{
 	"virtual-machines",
 	"image_profiles",
 	"clustering_architecture",
+	"resources_disk_id",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
