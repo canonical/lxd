@@ -60,6 +60,14 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 	}
 }
 
+// commonRules returns a set of common validators.
+func commonRules() *drivers.Validators {
+	return &drivers.Validators{
+		PoolRules:   validatePoolCommonRules,
+		VolumeRules: validateVolumeCommonRules,
+	}
+}
+
 // CreatePool creates a new storage pool on disk and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, localOnly bool, op *operations.Operation) (Pool, error) {
@@ -85,7 +93,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
 
 	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), validateVolumeCommonRules)
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +146,7 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
 
 	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), validateVolumeCommonRules)
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())
 	if err != nil {
 		return nil, err
 	}
