@@ -4112,7 +4112,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 		return errors.Wrap(err, "Initialize LXC")
 	}
 
-	cg, err := c.cgroup(c.c)
+	cg, err := c.cgroup(nil)
 	if err != nil {
 		return err
 	}
@@ -4317,11 +4317,13 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						return err
 					}
 				}
+
 				err = cg.SetMemoryMaxUsage("-1")
 				if err != nil {
 					revertMemory()
 					return err
 				}
+
 				err = cg.SetMemorySoftLimit("-1")
 				if err != nil {
 					revertMemory()
@@ -4343,6 +4345,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 							revertMemory()
 							return err
 						}
+
 						err = cg.SetMemorySwapMax(memory)
 						if err != nil {
 							revertMemory()
@@ -4362,6 +4365,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 						revertMemory()
 						return err
 					}
+
 					err = cg.SetMemorySoftLimit(fmt.Sprintf("%.0f", float64(valueInt)*0.9))
 					if err != nil {
 						revertMemory()
@@ -5756,7 +5760,7 @@ func (c *containerLXC) cpuState() api.InstanceStateCPU {
 	cpu := api.InstanceStateCPU{}
 
 	// CPU usage in seconds
-	cg, err := c.cgroup(c.c)
+	cg, err := c.cgroup(nil)
 	if err != nil {
 		return cpu
 	}
@@ -5832,7 +5836,7 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 
 func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
-	cg, err := c.cgroup(c.c)
+	cg, err := c.cgroup(nil)
 	if err != nil {
 		return memory
 	}
@@ -5945,7 +5949,7 @@ func (c *containerLXC) processesState() int64 {
 		return 0
 	}
 
-	cg, err := c.cgroup(c.c)
+	cg, err := c.cgroup(nil)
 	if err != nil {
 		return 0
 	}
@@ -6525,7 +6529,7 @@ func (c *containerLXC) removeDiskDevices() error {
 
 // Network I/O limits
 func (c *containerLXC) setNetworkPriority() error {
-	cg, err := c.cgroup(c.c)
+	cg, err := c.cgroup(nil)
 	if err != nil {
 		return err
 	}

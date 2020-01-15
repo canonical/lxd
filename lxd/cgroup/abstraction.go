@@ -50,14 +50,8 @@ func (cg *CGroup) SetMemorySoftLimit(softLim string) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		if softLim == "-1" {
-			return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", "max")
-		}
 		return cg.rw.Set(version, "memory", "memory.soft_limit_in_bytes", softLim)
 	case V2:
-		if softLim == "-1" {
-			return cg.rw.Set(version, "memory", "memory.low", "max")
-		}
 		return cg.rw.Set(version, "memory", "memory.low", softLim)
 	}
 
@@ -129,15 +123,8 @@ func (cg *CGroup) SetMemorySwapMax(max string) error {
 	case Unavailable:
 		return ErrControllerMissing
 	case V1:
-		if max == "-1" {
-			return cg.rw.Set(version, "memory", "memory.memsw.limit_in_bytes", "max")
-		}
-
 		return cg.rw.Set(version, "memory", "memory.memsw.limit_in_bytes", max)
 	case V2:
-		if max == "-1" {
-			return cg.rw.Set(version, "memory", "memory.swap.max", "max")
-		}
 		return cg.rw.Set(version, "memory", "memory.swap.max", max)
 
 	}
