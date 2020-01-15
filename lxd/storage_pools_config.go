@@ -76,9 +76,11 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"cephfs.user.name":    shared.IsAny,
 
 	// valid drivers: lvm
-	"lvm.thinpool_name": shared.IsAny,
-	"lvm.use_thinpool":  shared.IsBool,
-	"lvm.vg_name":       shared.IsAny,
+	"lvm.thinpool_name":       shared.IsAny,
+	"lvm.use_thinpool":        shared.IsBool,
+	"lvm.vg_name":             shared.IsAny,
+	"volume.lvm.stripes":      shared.IsUint32,
+	"volume.lvm.stripes.size": shared.IsSize,
 
 	// valid drivers: btrfs, lvm, zfs
 	"size": shared.IsSize,
