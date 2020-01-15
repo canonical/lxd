@@ -81,14 +81,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"lvm.vg_name":       shared.IsAny,
 
 	// valid drivers: btrfs, lvm, zfs
-	"size": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		_, err := units.ParseByteSizeString(value)
-		return err
-	},
+	"size": shared.IsSize,
 
 	// valid drivers: btrfs, dir, lvm, zfs
 	"source": shared.IsAny,
@@ -108,14 +101,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.block.mount_options": shared.IsAny,
 
 	// valid drivers: ceph, lvm
-	"volume.size": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		_, err := units.ParseByteSizeString(value)
-		return err
-	},
+	"volume.size": shared.IsSize,
 
 	// valid drivers: zfs
 	"volume.zfs.remove_snapshots": shared.IsBool,
