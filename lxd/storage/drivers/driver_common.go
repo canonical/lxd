@@ -43,6 +43,45 @@ func (d *common) load() error {
 	return nil
 }
 
+// validatePool validates a pool config against common rules and optional driver specific rules.
+func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error) error {
+	checkedFields := map[string]struct{}{}
+
+	// Get rules common for all drivers.
+	rules := d.commonRules.PoolRules()
+
+	// Merge driver specific rules into common rules.
+	for field, validator := range driverRules {
+		rules[field] = validator
+	}
+
+	// Run the validator against each field.
+	for k, validator := range rules {
+		checkedFields[k] = struct{}{} //Mark field as checked.
+		err := validator(config[k])
+		if err != nil {
+			return errors.Wrapf(err, "Invalid value for pool option %s", k)
+		}
+	}
+
+	// Look for any unchecked fields, as these are unknown fields and validation should fail.
+	for k := range config {
+		_, checked := checkedFields[k]
+		if checked {
+			continue
+		}
+
+		// User keys are not validated.
+		if strings.HasPrefix(k, "user.") {
+			continue
+		}
+
+		return fmt.Errorf("Invalid pool option: %s", k)
+	}
+
+	return nil
+}
+
 // validateVolume validates a volume config against common rules and optional driver specific rules.
 // This functions has a removeUnknownKeys option that if set to true will remove any unknown fields
 // (excluding those starting with "user.") which can be used when translating a volume config to a
