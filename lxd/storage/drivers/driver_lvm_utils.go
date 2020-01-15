@@ -337,12 +337,43 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 
 	lvFullName := d.lvmFullVolumeName(vol.volType, vol.contentType, vol.name)
 
+	args := []string{
+		"--name", lvFullName,
+		"--yes",
+		"--wipesignatures", "y",
+	}
+
 	if makeThinLv {
 		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-		_, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "--thin", "-n", lvFullName, "--virtualsize", fmt.Sprintf("%db", lvSizeBytes), targetVg)
+		args = append(args,
+			"--thin",
+			"--virtualsize", fmt.Sprintf("%db", lvSizeBytes),
+			targetVg,
+		)
 	} else {
-		_, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "-n", lvFullName, "--size", fmt.Sprintf("%db", lvSizeBytes), vgName)
+		args = append(args,
+			"--size", fmt.Sprintf("%db", lvSizeBytes),
+			vgName,
+		)
+
+		// As we are creating a normal logical volume we can apply stripes settings if specified.
+		stripes := vol.ExpandedConfig("lvm.stripes")
+		if stripes != "" {
+			args = append(args, "--stripes", stripes)
+
+			stripeSize := vol.ExpandedConfig("lvm.stripes.size")
+			if stripeSize != "" {
+				stripSizeBytes, err := d.roundedSizeBytesString(stripeSize)
+				if err != nil {
+					return errors.Wrapf(err, "Invalid volume stripe size %q", stripeSize)
+				}
+
+				args = append(args, "--stripesize", fmt.Sprintf("%db", stripSizeBytes))
+			}
+		}
 	}
+
+	_, err = shared.TryRunCommand("lvcreate", args...)
 	if err != nil {
 		return errors.Wrapf(err, "Error creating LVM logical volume %q", lvFullName)
 	}
