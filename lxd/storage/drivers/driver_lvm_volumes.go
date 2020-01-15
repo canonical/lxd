@@ -230,9 +230,24 @@ func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 			}
 			return shared.IsOneOf(value, lvmAllowedFilesystems)
 		},
+		"lvm.stripes":      shared.IsUint32,
+		"lvm.stripes.size": shared.IsSize,
 	}
 
-	return d.validateVolume(vol, rules, removeUnknownKeys)
+	err := d.validateVolume(vol, rules, removeUnknownKeys)
+	if err != nil {
+		return err
+	}
+
+	if d.usesThinpool() && vol.config["lvm.stripes"] != "" {
+		return fmt.Errorf("lvm.stripes cannot be used with thin pool volumes")
+	}
+
+	if d.usesThinpool() && vol.config["lvm.stripes.size"] != "" {
+		return fmt.Errorf("lvm.stripes.size cannot be used with thin pool volumes")
+	}
+
+	return nil
 }
 
 // UpdateVolume applies config changes to the volume.
@@ -246,6 +261,14 @@ func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if _, changed := changedConfig["lvm.stripes"]; changed {
+		return fmt.Errorf("lvm.stripes cannot be changed")
+	}
+
+	if _, changed := changedConfig["lvm.stripes.size"]; changed {
+		return fmt.Errorf("lvm.stripes.size cannot be changed")
 	}
 
 	return nil

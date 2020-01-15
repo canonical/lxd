@@ -424,6 +424,8 @@ func (d *lvm) Validate(config map[string]string) error {
 			}
 			return shared.IsOneOf(value, lvmAllowedFilesystems)
 		},
+		"volume.lvm.stripes":      shared.IsUint32,
+		"volume.lvm.stripes.size": shared.IsSize,
 	}
 
 	err := d.validatePool(config, rules)
@@ -442,6 +444,14 @@ func (d *lvm) Validate(config map[string]string) error {
 func (d *lvm) Update(changedConfig map[string]string) error {
 	if _, changed := changedConfig["lvm.use_thinpool"]; changed {
 		return fmt.Errorf("lvm.use_thinpool cannot be changed")
+	}
+
+	if _, changed := changedConfig["volume.lvm.stripes"]; changed && d.usesThinpool() {
+		return fmt.Errorf("volume.lvm.stripes cannot be changed when using thin pool")
+	}
+
+	if _, changed := changedConfig["volume.lvm.stripes.size"]; changed && d.usesThinpool() {
+		return fmt.Errorf("volume.lvm.stripes.size cannot be changed when using thin pool")
 	}
 
 	if changedConfig["lvm.vg_name"] != "" {
