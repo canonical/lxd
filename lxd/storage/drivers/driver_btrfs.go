@@ -244,6 +244,11 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 		return nil
 	}
 
+	// Custom mount options don't work inside containers
+	if d.state.OS.RunningInUserNS {
+		return nil
+	}
+
 	// Trigger a re-mount.
 	d.config["btrfs.mount_options"] = val
 	mntFlags, mntOptions := resolveMountOptions(d.getMountOptions())
@@ -303,6 +308,11 @@ func (d *btrfs) Mount() (bool, error) {
 		err := TryMount(mntSrc, mntDst, mntFilesystem, unix.MS_BIND, "")
 		if err != nil {
 			return false, err
+		}
+
+		// Custom mount options don't work inside containers
+		if !d.state.OS.RunningInUserNS {
+			return true, nil
 		}
 
 		// Now apply the custom options.
