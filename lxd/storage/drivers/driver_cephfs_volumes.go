@@ -267,7 +267,7 @@ func (d *cephfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *cephfs) HasVolume(vol Volume) bool {
-	return d.vfsHasVolume(vol)
+	return genericVFSHasVolume(vol)
 }
 
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
@@ -433,7 +433,7 @@ func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *
 		return ErrNotSupported
 	}
 
-	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume creates an exported version of a volume.
@@ -505,7 +505,7 @@ func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation)
 
 // VolumeSnapshots returns a list of snapshot names for the volume.
 func (d *cephfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	return d.vfsVolumeSnapshots(vol, op)
+	return genericVFSVolumeSnapshots(d, vol, op)
 }
 
 // RestoreVolume resets a volume to its snapshotted state.

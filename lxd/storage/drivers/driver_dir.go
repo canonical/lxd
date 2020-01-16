@@ -137,5 +137,5 @@ func (d *dir) Unmount() (bool, error) {
 
 // GetResources returns the pool resource usage information.
 func (d *dir) GetResources() (*api.ResourcesStoragePool, error) {
-	return d.vfsGetResources()
+	return genericVFSGetResources(d)
 }

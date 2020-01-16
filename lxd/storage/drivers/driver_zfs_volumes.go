@@ -918,13 +918,13 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	defer revert.Fail()
 
 	// First rename the VFS paths.
-	err := d.vfsRenameVolume(vol, newVolName, op)
+	err := genericVFSRenameVolume(d, vol, newVolName, op)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		d.vfsRenameVolume(newVol, vol.name, op)
+		genericVFSRenameVolume(d, newVol, vol.name, op)
 	})
 
 	// Rename the ZFS datasets.
@@ -971,7 +971,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 
 	// Handle simple rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
-		return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
+		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
 	}
@@ -1047,7 +1047,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
-		return d.vfsBackupVolume(vol, targetPath, snapshots, op)
+		return genericVFSBackupVolume(d, vol, targetPath, snapshots, op)
 	}
 
 	// Handle the optimized tarballs.
@@ -1352,13 +1352,13 @@ func (d *zfs) RenameVolumeSnapshot(vol Volume, newSnapshotName string, op *opera
 	defer revert.Fail()
 
 	// First rename the VFS paths.
-	err := d.vfsRenameVolumeSnapshot(vol, newSnapshotName, op)
+	err := genericVFSRenameVolumeSnapshot(d, vol, newSnapshotName, op)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		d.vfsRenameVolumeSnapshot(newVol, vol.name, op)
+		genericVFSRenameVolumeSnapshot(d, newVol, vol.name, op)
 	})
 
 	// Rename the ZFS datasets.
