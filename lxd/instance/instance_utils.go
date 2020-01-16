@@ -32,6 +32,9 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// ProfileValidationName is an indicator that the instance is just being used for profile validation.
+const ProfileValidationName = ""
+
 // ValidDevices is linked from main.instanceValidDevices to validate device config. Currently
 // main.instanceValidDevices uses containerLXC internally and so cannot be moved from main package.
 var ValidDevices func(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, instanceName string, devices deviceConfig.Devices, expanded bool) error
