@@ -753,12 +753,7 @@ func (d *disk) createDevice() (string, error) {
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
-		// Only root disks and cloud-init:config drives supported on VMs.
-		if shared.IsRootDiskDevice(d.config) || d.config["source"] == diskSourceCloudInit {
-			return &deviceConfig.RunConfig{}, nil
-		}
-
-		return nil, fmt.Errorf("Non-root disks not supported for VMs")
+		return &deviceConfig.RunConfig{}, nil
 	}
 
 	runConf := deviceConfig.RunConfig{
