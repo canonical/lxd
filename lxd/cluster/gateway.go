@@ -723,8 +723,8 @@ func (g *Gateway) isLeader() (bool, error) {
 	return leader != nil && leader.ID == g.info.ID, nil
 }
 
-// Internal error signalling that a node not the leader.
-var errNotLeader = fmt.Errorf("Not leader")
+// ErrNotLeader signals that a node not the leader.
+var ErrNotLeader = fmt.Errorf("Not leader")
 
 // Return information about the LXD nodes that a currently part of the raft
 // cluster, as configured in the raft log. It returns an error if this node is
@@ -734,7 +734,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	defer g.lock.RUnlock()
 
 	if g.info == nil || g.info.Role != db.RaftVoter {
-		return nil, errNotLeader
+		return nil, ErrNotLeader
 	}
 
 	isLeader, err := g.isLeader()
@@ -742,7 +742,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		return nil, err
 	}
 	if !isLeader {
-		return nil, errNotLeader
+		return nil, ErrNotLeader
 	}
 	client, err := g.getClient()
 	if err != nil {
