@@ -1482,7 +1482,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				d.clusterMembershipMutex.Lock()
 				defer d.clusterMembershipMutex.Unlock()
 				err := rebalanceMemberRoles(d)
-				if err != nil {
+				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 					logger.Warnf("Could not rebalance cluster member roles: %v", err)
 				}
 			}()

@@ -194,7 +194,7 @@ func (g *Gateway) heartbeat(ctx context.Context, initialHeartbeat bool) {
 	}
 
 	raftNodes, err := g.currentRaftNodes()
-	if err == errNotLeader {
+	if err == ErrNotLeader {
 		return
 	}
 

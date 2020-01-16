@@ -479,11 +479,18 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, cert *shared.CertInfo
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
 func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+	// First get the current raft members, since this method should be
+	// called after a node has left.
+	currentRaftNodes, err := gateway.currentRaftNodes()
+	if err != nil {
+		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
+	}
+
 	// Fetch the nodes from the database, to get their last heartbeat
 	// timestamp and check whether they are offline.
 	nodesByAddress := map[string]db.NodeInfo{}
 	var offlineThreshold time.Duration
-	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed load cluster configuration")
@@ -500,13 +507,6 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	})
 	if err != nil {
 		return "", nil, err
-	}
-
-	// First get the current raft members, since this method should be
-	// called after a node has left.
-	currentRaftNodes, err := gateway.currentRaftNodes()
-	if err != nil {
-		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
 	}
 
 	// Group by role. If a node is offline, we'll try to demote it right
