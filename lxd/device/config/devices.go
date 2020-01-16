@@ -27,7 +27,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(device[k])
 		if err != nil {
-			return fmt.Errorf("Invalid value for device option %s: %v", k, err)
+			return fmt.Errorf("Invalid value for device option %q: %v", k, err)
 		}
 	}
 
@@ -47,7 +47,7 @@ func (device Device) Validate(rules map[string]func(value string) error) error {
 			continue
 		}
 
-		return fmt.Errorf("Invalid device option: %s", k)
+		return fmt.Errorf("Invalid device option %q", k)
 	}
 
 	return nil
