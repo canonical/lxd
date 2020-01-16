@@ -776,7 +776,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	}
 
 	// Validate container devices with the supplied container name and devices.
-	err = instanceValidDevices(s, s.Cluster, args.Type, args.Name, args.Devices, false)
+	err = instance.ValidDevices(s, s.Cluster, args.Type, args.Name, args.Devices, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
