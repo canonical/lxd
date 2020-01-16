@@ -14,9 +14,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// The Instance interface
+// The Instance interface.
 type Instance interface {
-	// Instance actions
+	// Instance actions.
 	Freeze() error
 	Shutdown(timeout time.Duration) error
 	Start(stateful bool) error
@@ -25,27 +25,25 @@ type Instance interface {
 
 	IsPrivileged() bool
 
-	// Snapshots & migration & backups
+	// Snapshots & migration & backups.
 	Restore(source Instance, stateful bool) error
 	Snapshots() ([]Instance, error)
 	Backups() ([]backup.Backup, error)
 	UpdateBackupFile() error
 
-	// Config handling
+	// Config handling.
 	Rename(newName string) error
-
-	// TODO rename db.InstanceArgs to db.InstanceArgs.
 	Update(newConfig db.InstanceArgs, userRequested bool) error
 
 	Delete() error
 	Export(w io.Writer, properties map[string]string) error
 
-	// Live configuration
+	// Live configuration.
 	CGroupGet(key string) (string, error)
 	CGroupSet(key string, value string) error
 	VolatileSet(changes map[string]string) error
 
-	// File handling
+	// File handling.
 	FileExists(path string) error
 	FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error)
 	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
@@ -65,10 +63,10 @@ type Instance interface {
 	IsSnapshot() bool
 	IsStateful() bool
 
-	// Hooks
+	// Hooks.
 	DeviceEventHandler(*deviceConfig.RunConfig) error
 
-	// Properties
+	// Properties.
 	ID() int
 	Location() string
 	Project() string
@@ -88,7 +86,7 @@ type Instance interface {
 	ExpiryDate() time.Time
 	FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error)
 
-	// Paths
+	// Paths.
 	Path() string
 	RootfsPath() string
 	TemplatesPath() string
@@ -98,13 +96,13 @@ type Instance interface {
 	LogPath() string
 	DevicesPath() string
 
-	// Storage
+	// Storage.
 	StoragePool() (string, error)
 
-	// Progress reporting
+	// Progress reporting.
 	SetOperation(op *operations.Operation)
 
-	// FIXME: Those should be internal functions
+	// FIXME: Those should be internal functions.
 	// Needed for migration for now.
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)

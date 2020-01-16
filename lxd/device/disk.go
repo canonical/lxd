@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -83,9 +84,12 @@ func (d *disk) validateConfig() error {
 		"ceph.user_name":    shared.IsAny,
 	}
 
-	// VMs can have a special cloud-init config drive attached with no path. Don't check instance type here
-	// to allow mixed instance type profiles to use this setting. We will check at device start for VM type.
-	if d.config["source"] != diskSourceCloudInit {
+	// VMs don't use the "path" property, but containers need it, so if we are validating a profile that can
+	// be used for all instance types, we must allow any value.
+	if d.inst.Name() == instance.ProfileValidationName {
+		rules["path"] = shared.IsAny
+	} else if d.inst.Type() == instancetype.Container || d.config["path"] == "/" {
+		// If we are validating a container or the root device is being validated, then require the value.
 		rules["path"] = shared.IsNotEmpty
 	}
 
@@ -129,10 +133,10 @@ func (d *disk) validateConfig() error {
 	// this can still be cleanly removed.
 	pathCount := 0
 	for _, devConfig := range d.inst.LocalDevices() {
-		if devConfig["type"] == "disk" && devConfig["path"] == d.config["path"] {
+		if devConfig["type"] == "disk" && d.config["path"] != "" && devConfig["path"] == d.config["path"] {
 			pathCount++
 			if pathCount > 1 {
-				return fmt.Errorf("More than one disk device uses the same path: %s", d.config["path"])
+				return fmt.Errorf("More than one disk device uses the same path %q", d.config["path"])
 
 			}
 		}
@@ -161,10 +165,10 @@ func (d *disk) validateConfig() error {
 		}
 
 		// Only check storate volume is available if we are validating an instance device
-		// and not a profile device (check for non-empty instance name), and we have least
+		// and not a profile device (check for ProfileValidationName name), and we have least
 		// one expanded device (this is so we only do this expensive check after devices
 		// have been expanded).
-		if d.inst.Name() != "" && len(d.inst.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
+		if d.inst.Name() != instance.ProfileValidationName && len(d.inst.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
 			isAvailable, err := d.state.Cluster.StorageVolumeIsAvailable(d.config["pool"], d.config["source"])
 			if err != nil {
 				return fmt.Errorf("Check if volume is available: %v", err)
@@ -359,12 +363,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 
 	if shared.IsRootDiskDevice(d.config) {
+		// The root disk device is special as it is given the first device ID and boot order in VM config.
 		runConf.RootFS.Path = d.config["path"]
 		return &runConf, nil
-	}
-
-	// This is a virtual disk source that can be attached to a VM to provide cloud-init config.
-	if d.config["source"] == diskSourceCloudInit {
+	} else if d.config["source"] == diskSourceCloudInit {
+		// This is a special virtual disk source that can be attached to a VM to provide cloud-init config.
 		isoPath, err := d.generateVMConfigDrive()
 		if err != nil {
 			return nil, err
@@ -373,6 +376,18 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
 				DevPath:    isoPath,
+				TargetPath: d.name,
+			},
+		}
+		return &runConf, nil
+	} else if d.config["source"] != "" {
+		// This is a normal disk device or image.
+		if !shared.PathExists(d.config["source"]) {
+			return nil, fmt.Errorf("Cannot find disk source")
+		}
+		runConf.Mounts = []deviceConfig.MountEntryItem{
+			{
+				DevPath:    d.config["source"],
 				TargetPath: d.name,
 			},
 		}
@@ -738,12 +753,7 @@ func (d *disk) createDevice() (string, error) {
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
-		// Only root disks and cloud-init:config drives supported on VMs.
-		if shared.IsRootDiskDevice(d.config) || d.config["source"] == diskSourceCloudInit {
-			return &deviceConfig.RunConfig{}, nil
-		}
-
-		return nil, fmt.Errorf("Non-root disks not supported for VMs")
+		return &deviceConfig.RunConfig{}, nil
 	}
 
 	runConf := deviceConfig.RunConfig{

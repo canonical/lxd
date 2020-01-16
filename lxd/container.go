@@ -123,7 +123,7 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 	for name, config := range devices {
 		_, err := device.New(inst, state, name, config, nil, nil)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Device validation failed %q", name)
 		}
 
 	}
@@ -132,7 +132,7 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 	if expanded {
 		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
 		if err != nil {
-			return errors.Wrap(err, "Detect root disk device")
+			return errors.Wrap(err, "Failed detecting root disk device")
 		}
 	}
 
@@ -776,7 +776,7 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	}
 
 	// Validate container devices with the supplied container name and devices.
-	err = instanceValidDevices(s, s.Cluster, args.Type, args.Name, args.Devices, false)
+	err = instance.ValidDevices(s, s.Cluster, args.Type, args.Name, args.Devices, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
