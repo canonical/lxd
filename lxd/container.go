@@ -123,7 +123,7 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 	for name, config := range devices {
 		_, err := device.New(inst, state, name, config, nil, nil)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Device validation failed %q", name)
 		}
 
 	}
@@ -132,7 +132,7 @@ func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType 
 	if expanded {
 		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
 		if err != nil {
-			return errors.Wrap(err, "Detect root disk device")
+			return errors.Wrap(err, "Failed detecting root disk device")
 		}
 	}
 
