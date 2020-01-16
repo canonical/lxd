@@ -1177,6 +1177,7 @@ backend = "pty"
 	vm.addConfDriveConfig(sb)
 
 	nicIndex := 0
+	driveIndex := 0
 	for _, runConf := range devConfs {
 		// Add root drive device.
 		if runConf.RootFS.Path != "" {
@@ -1188,11 +1189,9 @@ backend = "pty"
 
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
-			driveIndex := 0
 			for _, drive := range runConf.Mounts {
-				// Increment so index starts at 1, as root drive uses index 0.
+				// Increment first so index starts at 1, as root drive uses index 0.
 				driveIndex++
-
 				vm.addDriveConfig(sb, driveIndex, drive)
 			}
 		}
