@@ -185,7 +185,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *dir) HasVolume(vol Volume) bool {
-	return d.vfsHasVolume(vol)
+	return genericVFSHasVolume(vol)
 }
 
 // ValidateVolume validates the supplied volume config. Optionally removes invalid keys from the volume's config.
@@ -248,7 +248,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
-	return d.vfsGetVolumeDiskPath(vol)
+	return genericVFSGetVolumeDiskPath(vol)
 }
 
 // MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
@@ -265,7 +265,7 @@ func (d *dir) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) 
 
 // RenameVolume renames a volume and its snapshots.
 func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
-	return d.vfsRenameVolume(vol, newVolName, op)
+	return genericVFSRenameVolume(d, vol, newVolName, op)
 }
 
 // MigrateVolume sends a volume for migration.
@@ -278,13 +278,13 @@ func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		return ErrNotSupported
 	}
 
-	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
 func (d *dir) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
-	return d.vfsBackupVolume(vol, targetPath, snapshots, op)
+	return genericVFSBackupVolume(d, vol, targetPath, snapshots, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
@@ -360,7 +360,7 @@ func (d *dir) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *dir) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	return d.vfsVolumeSnapshots(vol, op)
+	return genericVFSVolumeSnapshots(d, vol, op)
 }
 
 // RestoreVolume restores a volume from a snapshot.
@@ -384,5 +384,5 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *dir) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
-	return d.vfsRenameVolumeSnapshot(snapVol, newSnapshotName, op)
+	return genericVFSRenameVolumeSnapshot(d, snapVol, newSnapshotName, op)
 }
