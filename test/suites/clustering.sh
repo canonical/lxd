@@ -1572,6 +1572,9 @@ test_clustering_handover() {
   # Even if we shutdown one more node, the cluster is still available.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
 
+  # Wait some time to possibly allow for a leadership change.
+  sleep 10
+
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
 
   # Respawn the first node, which is now a stand-by, and the second node, which
