@@ -209,10 +209,10 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		}
 	}
 
-	c := containerLXCInstantiate(d.State(), args)
+	c := containerLXCInstantiate(d.State(), args, nil)
 
-	c.expandConfig(profiles)
-	c.expandDevices(profiles)
+	c.(*containerLXC).expandConfig(profiles)
+	c.(*containerLXC).expandDevices(profiles)
 
 	return c.Update(db.InstanceArgs{
 		Architecture: c.Architecture(),
@@ -246,7 +246,7 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 					return err
 				}
 
-				containers = append(containers, db.ContainerToArgs(container))
+				containers = append(containers, db.InstanceToArgs(container))
 			}
 		}
 

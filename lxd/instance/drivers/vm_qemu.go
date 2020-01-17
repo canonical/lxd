@@ -1,4 +1,4 @@
-package qemu
+package drivers
 
 import (
 	"bytes"
@@ -29,8 +29,8 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/instance/qemu/qmp"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -53,10 +53,10 @@ var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 var vmConsole = map[int]bool{}
 var vmConsoleLock sync.Mutex
 
-// Load creates a Qemu instance from the supplied InstanceArgs.
-func Load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+// qemuLoad creates a Qemu instance from the supplied InstanceArgs.
+func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the instance struct.
-	vm := Instantiate(s, args, nil)
+	vm := qemuInstantiate(s, args, nil)
 
 	// Expand config and devices.
 	err := vm.expandConfig(profiles)
@@ -72,11 +72,11 @@ func Load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instanc
 	return vm, nil
 }
 
-// Instantiate creates a Qemu struct without expanding config. The expandedDevices argument is
+// qemuInstantiate creates a Qemu struct without expanding config. The expandedDevices argument is
 // used during device config validation when the devices have already been expanded and we do not
 // have access to the profiles used to do it. This can be safely passed as nil if not required.
-func Instantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *Qemu {
-	vm := &Qemu{
+func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *qemu {
+	vm := &qemu{
 		state:        s,
 		id:           args.ID,
 		project:      args.Project,
@@ -117,10 +117,10 @@ func Instantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceCon
 	return vm
 }
 
-// Create creates a new storage volume record and returns an initialised Instance.
-func Create(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+// qemuCreate creates a new storage volume record and returns an initialised Instance.
+func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance struct.
-	vm := &Qemu{
+	vm := &qemu{
 		state:        s,
 		id:           args.ID,
 		project:      args.Project,
@@ -246,8 +246,8 @@ func Create(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	return vm, nil
 }
 
-// Qemu is the QEMU virtual machine driver.
-type Qemu struct {
+// qemu is the QEMU virtual machine driver.
+type qemu struct {
 	// Properties.
 	architecture int
 	dbType       instancetype.Type
@@ -287,7 +287,7 @@ type Qemu struct {
 
 // getAgentClient returns the current agent client handle. To avoid TLS setup each time this
 // function is called, the handle is cached internally in the Qemu struct.
-func (vm *Qemu) getAgentClient() (*http.Client, error) {
+func (vm *qemu) getAgentClient() (*http.Client, error) {
 	if vm.agentClient != nil {
 		return vm.agentClient, nil
 	}
@@ -308,7 +308,7 @@ func (vm *Qemu) getAgentClient() (*http.Client, error) {
 
 // getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
 // function is called, the handle is cached internally in the Qemu struct.
-func (vm *Qemu) getStoragePool() (storagePools.Pool, error) {
+func (vm *qemu) getStoragePool() (storagePools.Pool, error) {
 	if vm.storagePool != nil {
 		return vm.storagePool, nil
 	}
@@ -322,7 +322,7 @@ func (vm *Qemu) getStoragePool() (storagePools.Pool, error) {
 	return vm.storagePool, nil
 }
 
-func (vm *Qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
+func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
 	id := vm.id
 	state := vm.state
 
@@ -344,7 +344,7 @@ func (vm *Qemu) getMonitorEventHandler() func(event string, data map[string]inte
 				target = "reboot"
 			}
 
-			err = inst.(*Qemu).OnStop(target)
+			err = inst.(*qemu).OnStop(target)
 			if err != nil {
 				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Prefix(inst.Project(), inst.Name()), err)
 				return
@@ -354,7 +354,7 @@ func (vm *Qemu) getMonitorEventHandler() func(event string, data map[string]inte
 }
 
 // mount the instance's config volume if needed.
-func (vm *Qemu) mount() (bool, error) {
+func (vm *qemu) mount() (bool, error) {
 	var pool storagePools.Pool
 	pool, err := vm.getStoragePool()
 	if err != nil {
@@ -370,7 +370,7 @@ func (vm *Qemu) mount() (bool, error) {
 }
 
 // unmount the instance's config volume if needed.
-func (vm *Qemu) unmount() (bool, error) {
+func (vm *qemu) unmount() (bool, error) {
 	var pool storagePools.Pool
 	pool, err := vm.getStoragePool()
 	if err != nil {
@@ -386,7 +386,7 @@ func (vm *Qemu) unmount() (bool, error) {
 }
 
 // generateAgentCert creates the necessary server key and certificate if needed.
-func (vm *Qemu) generateAgentCert() (string, string, string, string, error) {
+func (vm *qemu) generateAgentCert() (string, string, string, string, error) {
 	// Mount the instance's config volume if needed.
 	ourMount, err := vm.mount()
 	if err != nil {
@@ -439,7 +439,7 @@ func (vm *Qemu) generateAgentCert() (string, string, string, string, error) {
 }
 
 // Freeze freezes the instance.
-func (vm *Qemu) Freeze() error {
+func (vm *qemu) Freeze() error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
@@ -456,7 +456,7 @@ func (vm *Qemu) Freeze() error {
 }
 
 // OnStop is run when the instance stops.
-func (vm *Qemu) OnStop(target string) error {
+func (vm *qemu) OnStop(target string) error {
 	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
@@ -476,7 +476,7 @@ func (vm *Qemu) OnStop(target string) error {
 }
 
 // Shutdown shuts the instance down.
-func (vm *Qemu) Shutdown(timeout time.Duration) error {
+func (vm *qemu) Shutdown(timeout time.Duration) error {
 	if !vm.IsRunning() {
 		return fmt.Errorf("The instance is already stopped")
 	}
@@ -522,7 +522,7 @@ func (vm *Qemu) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-func (vm *Qemu) ovmfPath() string {
+func (vm *qemu) ovmfPath() string {
 	if os.Getenv("LXD_OVMF_PATH") != "" {
 		return os.Getenv("LXD_OVMF_PATH")
 	}
@@ -531,7 +531,7 @@ func (vm *Qemu) ovmfPath() string {
 }
 
 // Start starts the instance.
-func (vm *Qemu) Start(stateful bool) error {
+func (vm *qemu) Start(stateful bool) error {
 	// Ensure the correct vhost_vsock kernel module is loaded before establishing the vsock.
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
@@ -712,7 +712,7 @@ func (vm *Qemu) Start(stateful bool) error {
 	return nil
 }
 
-func (vm *Qemu) setupNvram() error {
+func (vm *qemu) setupNvram() error {
 	srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.fd")
 	if vm.expandedConfig["security.secureboot"] == "" || shared.IsTrue(vm.expandedConfig["security.secureboot"]) {
 		srcOvmfFile = filepath.Join(vm.ovmfPath(), "OVMF_VARS.ms.fd")
@@ -731,7 +731,7 @@ func (vm *Qemu) setupNvram() error {
 	return nil
 }
 
-func (vm *Qemu) qemuArchConfig() (string, string, string, error) {
+func (vm *qemu) qemuArchConfig() (string, string, string, error) {
 	if vm.architecture == osarch.ARCH_64BIT_INTEL_X86 {
 		conf := `
 [global]
@@ -754,7 +754,7 @@ value = "1"
 
 // deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
 // removes its device prefix from the keys.
-func (vm *Qemu) deviceVolatileGetFunc(devName string) func() map[string]string {
+func (vm *qemu) deviceVolatileGetFunc(devName string) func() map[string]string {
 	return func() map[string]string {
 		volatile := make(map[string]string)
 		prefix := fmt.Sprintf("volatile.%s.", devName)
@@ -769,7 +769,7 @@ func (vm *Qemu) deviceVolatileGetFunc(devName string) func() map[string]string {
 
 // deviceVolatileSetFunc returns a function that can be called to save a named device's volatile
 // config using keys that do not have the device's name prefixed.
-func (vm *Qemu) deviceVolatileSetFunc(devName string) func(save map[string]string) error {
+func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]string) error {
 	return func(save map[string]string) error {
 		volatileSave := make(map[string]string)
 		for k, v := range save {
@@ -781,7 +781,7 @@ func (vm *Qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (vm *Qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
+func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
 	var err error
 
@@ -805,7 +805,7 @@ func (vm *Qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (de
 // deviceStart loads a new device and calls its Start() function. After processing the runtime
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the instance is running or not.
-func (vm *Qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+func (vm *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -824,7 +824,7 @@ func (vm *Qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, is
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (vm *Qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
+func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -869,7 +869,7 @@ func (vm *Qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) err
 }
 
 // runHooks executes the callback functions returned from a function.
-func (vm *Qemu) runHooks(hooks []func() error) error {
+func (vm *qemu) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
 	if len(hooks) > 0 {
 		for _, hook := range hooks {
@@ -883,18 +883,18 @@ func (vm *Qemu) runHooks(hooks []func() error) error {
 	return nil
 }
 
-func (vm *Qemu) getMonitorPath() string {
+func (vm *qemu) getMonitorPath() string {
 	return filepath.Join(vm.LogPath(), "qemu.monitor")
 }
 
-func (vm *Qemu) getNvramPath() string {
+func (vm *qemu) getNvramPath() string {
 	return filepath.Join(vm.Path(), "qemu.nvram")
 }
 
 // generateConfigShare generates the config share directory that will be exported to the VM via
 // a 9P share. Due to the unknown size of templates inside the images this directory is created
 // inside the VM's config volume so that it can be restricted by quota.
-func (vm *Qemu) generateConfigShare() error {
+func (vm *qemu) generateConfigShare() error {
 	// Mount the instance's config volume if needed.
 	ourMount, err := vm.mount()
 	if err != nil {
@@ -1081,7 +1081,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *Qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig) (string, error) {
+func (vm *qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
@@ -1209,7 +1209,7 @@ backend = "pty"
 }
 
 // addMemoryConfig adds the qemu config required for setting the size of the VM's memory.
-func (vm *Qemu) addMemoryConfig(sb *strings.Builder) error {
+func (vm *qemu) addMemoryConfig(sb *strings.Builder) error {
 	// Configure memory limit.
 	memSize := vm.expandedConfig["limits.memory"]
 	if memSize == "" {
@@ -1231,7 +1231,7 @@ size = "%dB"
 }
 
 // addVsockConfig adds the qemu config required for setting up the host->VM vsock socket.
-func (vm *Qemu) addVsockConfig(sb *strings.Builder) {
+func (vm *qemu) addVsockConfig(sb *strings.Builder) {
 	vsockID := vm.vsockID()
 
 	sb.WriteString(fmt.Sprintf(`
@@ -1254,7 +1254,7 @@ addr = "0x0"
 }
 
 // addCPUConfig adds the qemu config required for setting the number of virtualised CPUs.
-func (vm *Qemu) addCPUConfig(sb *strings.Builder) error {
+func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 	// Configure CPU limit. TODO add control of sockets, cores and threads.
 	cpus := vm.expandedConfig["limits.cpu"]
 	if cpus == "" {
@@ -1279,7 +1279,7 @@ cpus = "%d"
 }
 
 // addMonitorConfig adds the qemu config required for setting up the host side VM monitor device.
-func (vm *Qemu) addMonitorConfig(sb *strings.Builder) {
+func (vm *qemu) addMonitorConfig(sb *strings.Builder) {
 	monitorPath := vm.getMonitorPath()
 
 	sb.WriteString(fmt.Sprintf(`
@@ -1299,7 +1299,7 @@ mode = "control"
 }
 
 // addFirmwareConfig adds the qemu config required for adding a secure boot compatible EFI firmware.
-func (vm *Qemu) addFirmwareConfig(sb *strings.Builder) {
+func (vm *qemu) addFirmwareConfig(sb *strings.Builder) {
 	nvramPath := vm.getNvramPath()
 
 	sb.WriteString(fmt.Sprintf(`
@@ -1323,7 +1323,7 @@ unit = "1"
 }
 
 // addConfDriveConfig adds the qemu config required for adding the config drive.
-func (vm *Qemu) addConfDriveConfig(sb *strings.Builder) {
+func (vm *qemu) addConfDriveConfig(sb *strings.Builder) {
 	// Devices use "qemu_" prefix indicating that this is a internally named device.
 	sb.WriteString(fmt.Sprintf(`
 # Config drive
@@ -1343,7 +1343,7 @@ mount_tag = "config"
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (vm *Qemu) addRootDriveConfig(sb *strings.Builder) error {
+func (vm *qemu) addRootDriveConfig(sb *strings.Builder) error {
 	pool, err := vm.getStoragePool()
 	if err != nil {
 		return err
@@ -1378,7 +1378,7 @@ bootindex = "1"
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (vm *Qemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf deviceConfig.MountEntryItem) {
+func (vm *qemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf deviceConfig.MountEntryItem) {
 	driveName := fmt.Sprintf(driveConf.TargetPath)
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
@@ -1404,7 +1404,7 @@ drive = "lxd_%s"
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *Qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []deviceConfig.RunConfigItem) {
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []deviceConfig.RunConfigItem) {
 	var devName, devTap, devHwaddr string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "name" {
@@ -1445,12 +1445,12 @@ bootindex = "%d""
 }
 
 // pidFilePath returns the path where the qemu process should write its PID.
-func (vm *Qemu) pidFilePath() string {
+func (vm *qemu) pidFilePath() string {
 	return filepath.Join(vm.LogPath(), "qemu.pid")
 }
 
 // pid gets the PID of the running qemu process.
-func (vm *Qemu) pid() (int, error) {
+func (vm *qemu) pid() (int, error) {
 	pidStr, err := ioutil.ReadFile(vm.pidFilePath())
 	if os.IsNotExist(err) {
 		return 0, nil
@@ -1469,7 +1469,7 @@ func (vm *Qemu) pid() (int, error) {
 }
 
 // Stop stops the VM.
-func (vm *Qemu) Stop(stateful bool) error {
+func (vm *qemu) Stop(stateful bool) error {
 	if stateful {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
 	}
@@ -1512,7 +1512,7 @@ func (vm *Qemu) Stop(stateful bool) error {
 }
 
 // Unfreeze restores the instance to running.
-func (vm *Qemu) Unfreeze() error {
+func (vm *qemu) Unfreeze() error {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
@@ -1529,32 +1529,32 @@ func (vm *Qemu) Unfreeze() error {
 }
 
 // IsPrivileged does not apply to virtual machines. Always returns false.
-func (vm *Qemu) IsPrivileged() bool {
+func (vm *qemu) IsPrivileged() bool {
 	return false
 }
 
 // Restore restores an instance snapshot.
-func (vm *Qemu) Restore(source instance.Instance, stateful bool) error {
+func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 	return fmt.Errorf("Restore Not implemented")
 }
 
 // Snapshots returns a list of snapshots.
-func (vm *Qemu) Snapshots() ([]instance.Instance, error) {
+func (vm *qemu) Snapshots() ([]instance.Instance, error) {
 	return []instance.Instance{}, nil
 }
 
 // Backups returns a list of backups.
-func (vm *Qemu) Backups() ([]backup.Backup, error) {
+func (vm *qemu) Backups() ([]backup.Backup, error) {
 	return []backup.Backup{}, nil
 }
 
 // Rename the instance.
-func (vm *Qemu) Rename(newName string) error {
+func (vm *qemu) Rename(newName string) error {
 	return fmt.Errorf("Rename Not implemented")
 }
 
 // Update the instance config.
-func (vm *Qemu) Update(args db.InstanceArgs, userRequested bool) error {
+func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if vm.IsRunning() {
 		return fmt.Errorf("Update whilst running not supported")
 	}
@@ -1883,7 +1883,7 @@ func (vm *Qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (vm *Qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
+func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
 	isRunning := vm.IsRunning()
 
 	// Remove devices in reverse order to how they were added.
@@ -1939,7 +1939,7 @@ func (vm *Qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (vm *Qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
+func (vm *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1955,7 +1955,7 @@ func (vm *Qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, o
 
 // deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
 // that it is removed then added immediately afterwards.
-func (vm *Qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
+func (vm *qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
@@ -1991,7 +1991,7 @@ func (vm *Qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceC
 	return vm.VolatileSet(volatileClear)
 }
 
-func (vm *Qemu) removeUnixDevices() error {
+func (vm *qemu) removeUnixDevices() error {
 	// Check that we indeed have devices to remove.
 	if !shared.PathExists(vm.DevicesPath()) {
 		return nil
@@ -2021,7 +2021,7 @@ func (vm *Qemu) removeUnixDevices() error {
 	return nil
 }
 
-func (vm *Qemu) removeDiskDevices() error {
+func (vm *qemu) removeDiskDevices() error {
 	// Check that we indeed have devices to remove.vm
 	if !shared.PathExists(vm.DevicesPath()) {
 		return nil
@@ -2054,7 +2054,7 @@ func (vm *Qemu) removeDiskDevices() error {
 	return nil
 }
 
-func (vm *Qemu) cleanup() {
+func (vm *qemu) cleanup() {
 	// Unmount any leftovers
 	vm.removeUnixDevices()
 	vm.removeDiskDevices()
@@ -2067,7 +2067,7 @@ func (vm *Qemu) cleanup() {
 }
 
 // cleanupDevices performs any needed device cleanup steps when instance is stopped.
-func (vm *Qemu) cleanupDevices() {
+func (vm *qemu) cleanupDevices() {
 	for _, dev := range vm.expandedDevices.Sorted() {
 		// Use the device interface if device supports it.
 		err := vm.deviceStop(dev.Name, dev.Config)
@@ -2079,7 +2079,7 @@ func (vm *Qemu) cleanupDevices() {
 	}
 }
 
-func (vm *Qemu) init() error {
+func (vm *qemu) init() error {
 	// Compute the expanded config and device list.
 	err := vm.expandConfig(nil)
 	if err != nil {
@@ -2095,7 +2095,7 @@ func (vm *Qemu) init() error {
 }
 
 // Delete the instance.
-func (vm *Qemu) Delete() error {
+func (vm *qemu) Delete() error {
 	ctxMap := log.Ctx{
 		"project":   vm.project,
 		"name":      vm.name,
@@ -2229,7 +2229,7 @@ func (vm *Qemu) Delete() error {
 	return nil
 }
 
-func (vm *Qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
+func (vm *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -2238,7 +2238,7 @@ func (vm *Qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device) erro
 	return d.Add()
 }
 
-func (vm *Qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
+func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := vm.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -2257,22 +2257,22 @@ func (vm *Qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 }
 
 // Export publishes the instance.
-func (vm *Qemu) Export(w io.Writer, properties map[string]string) error {
+func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 	return fmt.Errorf("Export Not implemented")
 }
 
 // CGroupGet is not implemented for VMs.
-func (vm *Qemu) CGroupGet(key string) (string, error) {
+func (vm *qemu) CGroupGet(key string) (string, error) {
 	return "", fmt.Errorf("CGroupGet Not implemented")
 }
 
 // CGroupSet is not implemented for VMs.
-func (vm *Qemu) CGroupSet(key string, value string) error {
+func (vm *qemu) CGroupSet(key string, value string) error {
 	return fmt.Errorf("CGroupSet Not implemented")
 }
 
 // VolatileSet sets one or more volatile config keys.
-func (vm *Qemu) VolatileSet(changes map[string]string) error {
+func (vm *qemu) VolatileSet(changes map[string]string) error {
 	// Sanity check.
 	for key := range changes {
 		if !strings.HasPrefix(key, "volatile.") {
@@ -2311,12 +2311,12 @@ func (vm *Qemu) VolatileSet(changes map[string]string) error {
 }
 
 // FileExists is not implemented for VMs.
-func (vm *Qemu) FileExists(path string) error {
+func (vm *qemu) FileExists(path string) error {
 	return fmt.Errorf("FileExists Not implemented")
 }
 
 // FilePull retrieves a file from the instance.
-func (vm *Qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
+func (vm *qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
 	client, err := vm.getAgentClient()
 	if err != nil {
 		return 0, 0, 0, "", nil, err
@@ -2360,7 +2360,7 @@ func (vm *Qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileM
 }
 
 // FilePush pushes a file into the instance.
-func (vm *Qemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
+func (vm *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
 	client, err := vm.getAgentClient()
 	if err != nil {
 		return err
@@ -2407,7 +2407,7 @@ func (vm *Qemu) FilePush(fileType string, srcPath string, dstPath string, uid in
 }
 
 // FileRemove removes a file from the instance.
-func (vm *Qemu) FileRemove(path string) error {
+func (vm *qemu) FileRemove(path string) error {
 	// Connect to the agent.
 	client, err := vm.getAgentClient()
 	if err != nil {
@@ -2430,7 +2430,7 @@ func (vm *Qemu) FileRemove(path string) error {
 }
 
 // Console gets access to the instance's console.
-func (vm *Qemu) Console() (*os.File, chan error, error) {
+func (vm *qemu) Console() (*os.File, chan error, error) {
 	chDisconnect := make(chan error, 1)
 
 	// Avoid duplicate connects.
@@ -2470,7 +2470,7 @@ func (vm *Qemu) Console() (*os.File, chan error, error) {
 	return console, chDisconnect, nil
 }
 
-func (vm *Qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
+func (vm *qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
 	logger.Debugf("Forwarding signal to lxd-agent: %s", sig)
 
 	w, err := control.NextWriter(websocket.TextMessage)
@@ -2493,7 +2493,7 @@ func (vm *Qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
 }
 
 // Exec a command inside the instance.
-func (vm *Qemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
+func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
 	var instCmd *Cmd
 
 	// Because this function will exit before the remote command has finished, we create a
@@ -2596,7 +2596,7 @@ func (vm *Qemu) Exec(command []string, env map[string]string, stdin *os.File, st
 }
 
 // Render returns info about the instance.
-func (vm *Qemu) Render() (interface{}, interface{}, error) {
+func (vm *qemu) Render() (interface{}, interface{}, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(vm.architecture)
 
@@ -2649,7 +2649,7 @@ func (vm *Qemu) Render() (interface{}, interface{}, error) {
 }
 
 // RenderFull returns all info about the instance.
-func (vm *Qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
+func (vm *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 	if vm.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull doesn't work with snapshots")
 	}
@@ -2708,7 +2708,7 @@ func (vm *Qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
 }
 
 // RenderState returns just state info about the instance.
-func (vm *Qemu) RenderState() (*api.InstanceState, error) {
+func (vm *qemu) RenderState() (*api.InstanceState, error) {
 	statusCode := vm.statusCode()
 	pid, _ := vm.pid()
 
@@ -2799,7 +2799,7 @@ func (vm *Qemu) RenderState() (*api.InstanceState, error) {
 }
 
 // diskState gets disk usage info.
-func (vm *Qemu) diskState() (map[string]api.InstanceStateDisk, error) {
+func (vm *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 	pool, err := vm.getStoragePool()
 	if err != nil {
 		return nil, err
@@ -2823,7 +2823,7 @@ func (vm *Qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 
 // agentGetState connects to the agent inside of the VM and does
 // an API call to get the current state.
-func (vm *Qemu) agentGetState() (*api.InstanceState, error) {
+func (vm *qemu) agentGetState() (*api.InstanceState, error) {
 	// Check if the agent is running.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
@@ -2854,87 +2854,87 @@ func (vm *Qemu) agentGetState() (*api.InstanceState, error) {
 }
 
 // IsRunning returns whether or not the instance is running.
-func (vm *Qemu) IsRunning() bool {
+func (vm *qemu) IsRunning() bool {
 	state := vm.State()
 	return state != "BROKEN" && state != "STOPPED"
 }
 
 // IsFrozen returns whether the instance frozen or not.
-func (vm *Qemu) IsFrozen() bool {
+func (vm *qemu) IsFrozen() bool {
 	return vm.State() == "FROZEN"
 }
 
 // IsEphemeral returns whether the instanc is ephemeral or not.
-func (vm *Qemu) IsEphemeral() bool {
+func (vm *qemu) IsEphemeral() bool {
 	return vm.ephemeral
 }
 
 // IsSnapshot returns whether instance is snapshot or not.
-func (vm *Qemu) IsSnapshot() bool {
+func (vm *qemu) IsSnapshot() bool {
 	return vm.snapshot
 }
 
 // IsStateful retuens whether instance is stateful or not.
-func (vm *Qemu) IsStateful() bool {
+func (vm *qemu) IsStateful() bool {
 	return vm.stateful
 }
 
 // DeviceEventHandler handles events occurring on the instance's devices.
-func (vm *Qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
+func (vm *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return fmt.Errorf("DeviceEventHandler Not implemented")
 }
 
 // ID returns the instance's ID.
-func (vm *Qemu) ID() int {
+func (vm *qemu) ID() int {
 	return vm.id
 }
 
 // vsockID returns the vsock context ID, 3 being the first ID that can be used.
-func (vm *Qemu) vsockID() int {
+func (vm *qemu) vsockID() int {
 	return vm.id + 3
 }
 
 // Location returns instance's location.
-func (vm *Qemu) Location() string {
+func (vm *qemu) Location() string {
 	return vm.node
 }
 
 // Project returns instance's project.
-func (vm *Qemu) Project() string {
+func (vm *qemu) Project() string {
 	return vm.project
 }
 
 // Name returns the instance's name.
-func (vm *Qemu) Name() string {
+func (vm *qemu) Name() string {
 	return vm.name
 }
 
 // Type returns the instance's type.
-func (vm *Qemu) Type() instancetype.Type {
+func (vm *qemu) Type() instancetype.Type {
 	return vm.dbType
 }
 
 // Description returns the instance's description.
-func (vm *Qemu) Description() string {
+func (vm *qemu) Description() string {
 	return vm.description
 }
 
 // Architecture returns the instance's architecture.
-func (vm *Qemu) Architecture() int {
+func (vm *qemu) Architecture() int {
 	return vm.architecture
 }
 
 // CreationDate returns the instance's creation date.
-func (vm *Qemu) CreationDate() time.Time {
+func (vm *qemu) CreationDate() time.Time {
 	return vm.creationDate
 }
 
 // LastUsedDate returns the instance's last used date.
-func (vm *Qemu) LastUsedDate() time.Time {
+func (vm *qemu) LastUsedDate() time.Time {
 	return vm.lastUsedDate
 }
 
-func (vm *Qemu) expandConfig(profiles []api.Profile) error {
+func (vm *qemu) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(vm.profiles) > 0 {
 		var err error
 		profiles, err = vm.state.Cluster.ProfilesGet(vm.project, vm.profiles)
@@ -2948,7 +2948,7 @@ func (vm *Qemu) expandConfig(profiles []api.Profile) error {
 	return nil
 }
 
-func (vm *Qemu) expandDevices(profiles []api.Profile) error {
+func (vm *qemu) expandDevices(profiles []api.Profile) error {
 	if profiles == nil && len(vm.profiles) > 0 {
 		var err error
 		profiles, err = vm.state.Cluster.ProfilesGet(vm.project, vm.profiles)
@@ -2963,37 +2963,37 @@ func (vm *Qemu) expandDevices(profiles []api.Profile) error {
 }
 
 // ExpandedConfig returns instance's expanded config.
-func (vm *Qemu) ExpandedConfig() map[string]string {
+func (vm *qemu) ExpandedConfig() map[string]string {
 	return vm.expandedConfig
 }
 
 // ExpandedDevices returns instance's expanded device config.
-func (vm *Qemu) ExpandedDevices() deviceConfig.Devices {
+func (vm *qemu) ExpandedDevices() deviceConfig.Devices {
 	return vm.expandedDevices
 }
 
 // LocalConfig returns the instance's local config.
-func (vm *Qemu) LocalConfig() map[string]string {
+func (vm *qemu) LocalConfig() map[string]string {
 	return vm.localConfig
 }
 
 // LocalDevices returns the instance's local device config.
-func (vm *Qemu) LocalDevices() deviceConfig.Devices {
+func (vm *qemu) LocalDevices() deviceConfig.Devices {
 	return vm.localDevices
 }
 
 // Profiles returns the instance's profiles.
-func (vm *Qemu) Profiles() []string {
+func (vm *qemu) Profiles() []string {
 	return vm.profiles
 }
 
 // InitPID returns the instance's current process ID.
-func (vm *Qemu) InitPID() int {
+func (vm *qemu) InitPID() int {
 	pid, _ := vm.pid()
 	return pid
 }
 
-func (vm *Qemu) statusCode() api.StatusCode {
+func (vm *qemu) statusCode() api.StatusCode {
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
@@ -3020,12 +3020,12 @@ func (vm *Qemu) statusCode() api.StatusCode {
 }
 
 // State returns the instance's state code.
-func (vm *Qemu) State() string {
+func (vm *qemu) State() string {
 	return strings.ToUpper(vm.statusCode().String())
 }
 
 // ExpiryDate returns when this snapshot expires.
-func (vm *Qemu) ExpiryDate() time.Time {
+func (vm *qemu) ExpiryDate() time.Time {
 	if vm.IsSnapshot() {
 		return vm.expiryDate
 	}
@@ -3035,55 +3035,55 @@ func (vm *Qemu) ExpiryDate() time.Time {
 }
 
 // Path returns the instance's path.
-func (vm *Qemu) Path() string {
+func (vm *qemu) Path() string {
 	return storagePools.InstancePath(vm.Type(), vm.Project(), vm.Name(), vm.IsSnapshot())
 }
 
 // DevicesPath returns the instance's devices path.
-func (vm *Qemu) DevicesPath() string {
+func (vm *qemu) DevicesPath() string {
 	name := project.Prefix(vm.Project(), vm.Name())
 	return shared.VarPath("devices", name)
 }
 
 // ShmountsPath returns the instance's shared mounts path.
-func (vm *Qemu) ShmountsPath() string {
+func (vm *qemu) ShmountsPath() string {
 	name := project.Prefix(vm.Project(), vm.Name())
 	return shared.VarPath("shmounts", name)
 }
 
 // LogPath returns the instance's log path.
-func (vm *Qemu) LogPath() string {
+func (vm *qemu) LogPath() string {
 	name := project.Prefix(vm.Project(), vm.Name())
 	return shared.LogPath(name)
 }
 
 // LogFilePath returns the instance's log path.
-func (vm *Qemu) LogFilePath() string {
+func (vm *qemu) LogFilePath() string {
 	return filepath.Join(vm.LogPath(), "qemu.log")
 }
 
 // ConsoleBufferLogPath returns the instance's console buffer log path.
-func (vm *Qemu) ConsoleBufferLogPath() string {
+func (vm *qemu) ConsoleBufferLogPath() string {
 	return filepath.Join(vm.LogPath(), "console.log")
 }
 
 // RootfsPath returns the instance's rootfs path.
-func (vm *Qemu) RootfsPath() string {
+func (vm *qemu) RootfsPath() string {
 	return filepath.Join(vm.Path(), "rootfs")
 }
 
 // TemplatesPath returns the instance's templates path.
-func (vm *Qemu) TemplatesPath() string {
+func (vm *qemu) TemplatesPath() string {
 	return filepath.Join(vm.Path(), "templates")
 }
 
 // StatePath returns the instance's state path.
-func (vm *Qemu) StatePath() string {
+func (vm *qemu) StatePath() string {
 	return filepath.Join(vm.Path(), "state")
 }
 
 // StoragePool returns the name of the instance's storage pool.
-func (vm *Qemu) StoragePool() (string, error) {
+func (vm *qemu) StoragePool() (string, error) {
 	poolName, err := vm.state.Cluster.InstancePool(vm.Project(), vm.Name())
 	if err != nil {
 		return "", err
@@ -3093,27 +3093,27 @@ func (vm *Qemu) StoragePool() (string, error) {
 }
 
 // SetOperation sets the current operation.
-func (vm *Qemu) SetOperation(op *operations.Operation) {
+func (vm *qemu) SetOperation(op *operations.Operation) {
 	vm.op = op
 }
 
 // StorageStart deprecated.
-func (vm *Qemu) StorageStart() (bool, error) {
+func (vm *qemu) StorageStart() (bool, error) {
 	return false, storagePools.ErrNotImplemented
 }
 
 // StorageStop deprecated.
-func (vm *Qemu) StorageStop() (bool, error) {
+func (vm *qemu) StorageStop() (bool, error) {
 	return false, storagePools.ErrNotImplemented
 }
 
 // DeferTemplateApply not used currently.
-func (vm *Qemu) DeferTemplateApply(trigger string) error {
+func (vm *qemu) DeferTemplateApply(trigger string) error {
 	return nil
 }
 
 // DaemonState returns the state of the daemon. Deprecated.
-func (vm *Qemu) DaemonState() *state.State {
+func (vm *qemu) DaemonState() *state.State {
 	// FIXME: This function should go away, since the abstract instance
 	//        interface should not be coupled with internal state details.
 	//        However this is not currently possible, because many
@@ -3125,7 +3125,7 @@ func (vm *Qemu) DaemonState() *state.State {
 
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
-func (vm *Qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
 	var err error
 
 	newDevice := m.Clone()
@@ -3190,7 +3190,7 @@ func (vm *Qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 }
 
 // Internal MAAS handling.
-func (vm *Qemu) maasInterfaces(devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
+func (vm *qemu) maasInterfaces(devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
 	interfaces := []maas.ContainerInterface{}
 	for k, m := range devices {
 		if m["type"] != "nic" {
@@ -3240,7 +3240,7 @@ func (vm *Qemu) maasInterfaces(devices map[string]map[string]string) ([]maas.Con
 	return interfaces, nil
 }
 
-func (vm *Qemu) maasDelete() error {
+func (vm *qemu) maasDelete() error {
 	maasURL, err := cluster.ConfigGetString(vm.state.Cluster, "maas.api.url")
 	if err != nil {
 		return err
@@ -3275,7 +3275,7 @@ func (vm *Qemu) maasDelete() error {
 	return vm.state.MAAS.DeleteContainer(project.Prefix(vm.project, vm.name))
 }
 
-func (vm *Qemu) maasUpdate(oldDevices map[string]map[string]string) error {
+func (vm *qemu) maasUpdate(oldDevices map[string]map[string]string) error {
 	// Check if MAAS is configured
 	maasURL, err := cluster.ConfigGetString(vm.state.Cluster, "maas.api.url")
 	if err != nil {
@@ -3326,7 +3326,7 @@ func (vm *Qemu) maasUpdate(oldDevices map[string]map[string]string) error {
 }
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
-func (vm *Qemu) UpdateBackupFile() error {
+func (vm *qemu) UpdateBackupFile() error {
 	pool, err := vm.getStoragePool()
 	if err != nil {
 		return err

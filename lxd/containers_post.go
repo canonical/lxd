@@ -296,7 +296,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 				}
 			} else {
 				// Retrieve the future storage pool.
-				tmpInst, err := instanceLoad(d.State(), args, nil)
+				tmpInst, err := instance.Load(d.State(), args, nil)
 				if err != nil {
 					return response.InternalError(err)
 				}

@@ -23,7 +23,6 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/instance/qemu"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -51,14 +50,6 @@ func init() {
 	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (instance.Instance, error) {
 		return instance.LoadByProjectAndName(s, project, name)
 	}
-
-	// Expose instanceValidDevices to the instance package. This is because it relies on
-	// containerLXC which cannot be moved out of main package at this time.
-	instance.ValidDevices = instanceValidDevices
-
-	// Expose instanceLoad to the instance package. This is because it relies on containerLXC
-	// which cannot be moved out of main package this time.
-	instance.Load = instanceLoad
 }
 
 // Helper functions
@@ -72,68 +63,6 @@ func containerValidName(name string) error {
 
 	if !shared.ValidHostname(name) {
 		return fmt.Errorf("Container name isn't a valid hostname")
-	}
-
-	return nil
-}
-
-// instanceValidDevices validate instance device configs.
-func instanceValidDevices(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, instanceName string, devices deviceConfig.Devices, expanded bool) error {
-	// Empty device list
-	if devices == nil {
-		return nil
-	}
-
-	// Create a temporary Instance for use in device validation.
-	// Populate it's name, localDevices and expandedDevices properties based on the mode of
-	// validation occurring. In non-expanded validation expensive checks should be avoided.
-	var inst instance.Instance
-
-	if instanceType == instancetype.Container {
-		c := &containerLXC{
-			dbType:       instancetype.Container,
-			name:         instanceName,
-			localDevices: devices.Clone(), // Prevent devices from modifying their config.
-		}
-
-		if expanded {
-			c.expandedDevices = c.localDevices // Avoid another clone.
-		}
-
-		inst = c
-	} else if instanceType == instancetype.VM {
-		instArgs := db.InstanceArgs{
-			Name:    instanceName,
-			Type:    instancetype.VM,
-			Devices: devices.Clone(), // Prevent devices from modifying their config.
-		}
-
-		if expanded {
-			// The devices being validated are already expanded, so just use the same
-			// devices clone as we used for the main devices config.
-			inst = qemu.Instantiate(state, instArgs, instArgs.Devices)
-		} else {
-			inst = qemu.Instantiate(state, instArgs, nil)
-		}
-	} else {
-		return fmt.Errorf("Invalid instance type")
-	}
-
-	// Check each device individually using the device package.
-	for name, config := range devices {
-		_, err := device.New(inst, state, name, config, nil, nil)
-		if err != nil {
-			return errors.Wrapf(err, "Device validation failed %q", name)
-		}
-
-	}
-
-	// Check we have a root disk if in expanded validation mode.
-	if expanded {
-		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
-		if err != nil {
-			return errors.Wrap(err, "Failed detecting root disk device")
-		}
 	}
 
 	return nil
@@ -931,18 +860,8 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	// Wipe any existing log for this instance name.
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args = db.ContainerToArgs(&dbInst)
-
-	var inst instance.Instance
-
-	if args.Type == instancetype.Container {
-		inst, err = containerLXCCreate(s, args)
-	} else if args.Type == instancetype.VM {
-		inst, err = qemu.Create(s, args)
-	} else {
-		return nil, fmt.Errorf("Instance type invalid")
-	}
-
+	args = db.InstanceToArgs(&dbInst)
+	inst, err := instance.Create(s, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create instance")
 	}
@@ -1155,8 +1074,8 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]insta
 			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		args := db.ContainerToArgs(&dbInstance)
-		inst, err := instanceLoad(s, args, cProfiles)
+		args := db.InstanceToArgs(&dbInstance)
+		inst, err := instance.Load(s, args, cProfiles)
 		if err != nil {
 			return nil, err
 		}
@@ -1165,26 +1084,6 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]insta
 	}
 
 	return instances, nil
-}
-
-// instanceLoad creates the underlying instance type struct and returns it as an Instance.
-func instanceLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
-	var inst instance.Instance
-	var err error
-
-	if args.Type == instancetype.Container {
-		inst, err = containerLXCLoad(s, args, profiles)
-	} else if args.Type == instancetype.VM {
-		inst, err = qemu.Load(s, args, profiles)
-	} else {
-		return nil, fmt.Errorf("Invalid instance type for instance %s", args.Name)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return inst, nil
 }
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {

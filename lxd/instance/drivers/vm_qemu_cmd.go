@@ -1,4 +1,4 @@
-package qemu
+package drivers
 
 import (
 	"golang.org/x/sys/unix"
