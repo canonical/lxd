@@ -860,6 +860,8 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 	// Wipe any existing log for this instance name.
 	os.RemoveAll(shared.LogPath(args.Name))
 
+	args = db.InstanceToArgs(&dbInst)
+	inst, err := instance.Create(s, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create instance")
 	}
@@ -1072,8 +1074,8 @@ func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]insta
 			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
 		}
 
-		args := db.ContainerToArgs(&dbInstance)
-		inst, err := instanceLoad(s, args, cProfiles)
+		args := db.InstanceToArgs(&dbInstance)
+		inst, err := instance.Load(s, args, cProfiles)
 		if err != nil {
 			return nil, err
 		}
