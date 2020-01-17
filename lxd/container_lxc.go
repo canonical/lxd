@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
@@ -55,6 +56,15 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
 )
+
+func init() {
+	// Temporarily link containerLXC load functions to instanceDrivers package so it can be used by the
+	// internal loader functions. These can be removed once containerLXC type is moved into the
+	// instance/drivers package.
+	instanceDrivers.LXCLoad = containerLXCLoad
+	instanceDrivers.LXCInstantiate = containerLXCInstantiate
+	instanceDrivers.LXCCreate = containerLXCCreate
+}
 
 // Helper functions
 func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
@@ -354,18 +364,18 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 
 func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct
-	c := containerLXCInstantiate(s, args)
+	c := containerLXCInstantiate(s, args, nil)
 
 	// Setup finalizer
 	runtime.SetFinalizer(c, containerLXCUnload)
 
 	// Expand config and devices
-	err := c.expandConfig(profiles)
+	err := c.(*containerLXC).expandConfig(profiles)
 	if err != nil {
 		return nil, err
 	}
 
-	err = c.expandDevices(profiles)
+	err = c.(*containerLXC).expandDevices(profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +393,7 @@ func containerLXCUnload(c *containerLXC) {
 }
 
 // Create a container struct without initializing it.
-func containerLXCInstantiate(s *state.State, args db.InstanceArgs) *containerLXC {
+func containerLXCInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
 	c := &containerLXC{
 		state:        s,
 		id:           args.ID,
@@ -415,6 +425,11 @@ func containerLXCInstantiate(s *state.State, args db.InstanceArgs) *containerLXC
 
 	if c.lastUsedDate.IsZero() {
 		c.lastUsedDate = time.Time{}
+	}
+
+	// This is passed during expanded config validation.
+	if expandedDevices != nil {
+		c.expandedDevices = expandedDevices
 	}
 
 	return c

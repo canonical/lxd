@@ -35,13 +35,14 @@ import (
 // ProfileValidationName is an indicator that the instance is just being used for profile validation.
 const ProfileValidationName = ""
 
-// ValidDevices is linked from main.instanceValidDevices to validate device config. Currently
-// main.instanceValidDevices uses containerLXC internally and so cannot be moved from main package.
+// ValidDevices is linked from instance/load.validDevices to validate device config.
 var ValidDevices func(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, instanceName string, devices deviceConfig.Devices, expanded bool) error
 
-// Load is linked from main.instanceLoad to allow different instance types to be load,
-// including containerLXC which currently cannot be moved from main package.
+// Load is linked from instance/load.load to allow different instance types to be loaded.
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
+
+// Create is linked from instance/load.create to allow difference instance types to be created.
+var Create func(s *state.State, args db.InstanceArgs) (Instance, error)
 
 // NetworkGetLeaseAddresses is linked from main.networkGetLeaseAddresses to limit scope of moving
 // network related functions into their own package at this time.
@@ -455,7 +456,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 		return nil, err
 	}
 
-	args := db.ContainerToArgs(container)
+	args := db.InstanceToArgs(container)
 	inst, err := Load(s, args, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to load container")

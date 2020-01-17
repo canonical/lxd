@@ -332,7 +332,7 @@ func containersShutdown(s *state.State) error {
 
 		for project, names := range cnames {
 			for _, name := range names {
-				inst, err := instanceLoad(s, db.InstanceArgs{
+				inst, err := instance.Load(s, db.InstanceArgs{
 					Project: project,
 					Name:    name,
 					Config:  make(map[string]string),
