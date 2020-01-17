@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -44,6 +45,7 @@ func NotifyUpgradeCompleted(state *state.State, cert *shared.CertInfo) error {
 			return errors.Wrap(err, "failed to get HTTP client")
 		}
 
+		httpClient.Timeout = 5 * time.Second
 		response, err := httpClient.Do(request)
 		if err != nil {
 			return errors.Wrap(err, "failed to notify node about completed upgrade")
@@ -104,7 +106,12 @@ func triggerUpdate() error {
 		return nil
 	}
 
-	logger.Infof("Triggering cluster update using: %s", updateExecutable)
+	// Wait a random amout of seconds (up to 30) in order to avoid
+	// restarting all cluster members at the same time, and make the
+	// upgrade more graceful.
+	wait := time.Duration(rand.Intn(30)) * time.Second
+	logger.Infof("Triggering cluster update in %s using: %s", wait, updateExecutable)
+	time.Sleep(wait)
 
 	_, err := shared.RunCommand(updateExecutable)
 	if err != nil {
