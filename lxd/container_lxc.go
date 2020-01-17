@@ -393,7 +393,7 @@ func containerLXCUnload(c *containerLXC) {
 }
 
 // Create a container struct without initializing it.
-func containerLXCInstantiate(s *state.State, args db.InstanceArgs) *containerLXC {
+func containerLXCInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
 	c := &containerLXC{
 		state:        s,
 		id:           args.ID,
@@ -425,6 +425,11 @@ func containerLXCInstantiate(s *state.State, args db.InstanceArgs) *containerLXC
 
 	if c.lastUsedDate.IsZero() {
 		c.lastUsedDate = time.Time{}
+	}
+
+	// This is passed during expanded config validation.
+	if expandedDevices != nil {
+		c.expandedDevices = expandedDevices
 	}
 
 	return c
