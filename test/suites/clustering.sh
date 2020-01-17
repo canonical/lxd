@@ -678,6 +678,8 @@ test_clustering_network() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+# Perform an upgrade of a 2-member cluster, then a join a third member and
+# perform one more upgrade
 test_clustering_upgrade() {
   # shellcheck disable=2039
   local LXD_DIR LXD_NETNS
@@ -771,6 +773,63 @@ test_clustering_upgrade() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+}
+
+# Perform an upgrade of an 8-member cluster.
+test_clustering_upgrade_large() {
+  # shellcheck disable=2039
+  local LXD_DIR LXD_NETNS N
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  LXD_CLUSTER_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  N=8
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR="${LXD_CLUSTER_DIR}/1"
+  mkdir -p "${LXD_ONE_DIR}"
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  for i in $(seq 2 "${N}"); do
+    setup_clustering_netns "${i}"
+    LXD_ITH_DIR="${LXD_CLUSTER_DIR}/${i}"
+    mkdir -p "${LXD_ITH_DIR}"
+    chmod +x "${LXD_ITH_DIR}"
+    nsi="${prefix}${i}"
+    spawn_lxd_and_join_cluster "${nsi}" "${bridge}" "${cert}" "${i}" 1 "${LXD_ITH_DIR}"
+  done
+
+  # Respawn all nodes in sequence, as if their version had been upgrade.
+  export LXD_ARTIFICIALLY_BUMP_API_EXTENSIONS=1
+  for i in $(seq "${N}" -1 1); do
+    shutdown_lxd "${LXD_CLUSTER_DIR}/${i}"
+    LXD_NETNS="${prefix}${i}" respawn_lxd "${LXD_CLUSTER_DIR}/${i}" false
+  done
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd waitready --timeout=10
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE" || false
+
+  for i in $(seq "${N}" -1 1); do
+    LXD_DIR="${LXD_CLUSTER_DIR}/${i}" lxd shutdown
+  done
+  sleep 0.5
+  for i in $(seq "${N}"); do
+    rm -f "${LXD_CLUSTER_DIR}/${i}/unix.socket"
+  done
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  for i in $(seq "${N}"); do
+    kill_lxd "${LXD_CLUSTER_DIR}/${i}"
+  done
 }
 
 test_clustering_publish() {
@@ -1512,6 +1571,9 @@ test_clustering_handover() {
 
   # Even if we shutdown one more node, the cluster is still available.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+
+  # Wait some time to possibly allow for a leadership change.
+  sleep 10
 
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
 
