@@ -357,7 +357,7 @@ func (d *btrfs) Unmount() (bool, error) {
 
 // GetResources returns the pool resource usage information.
 func (d *btrfs) GetResources() (*api.ResourcesStoragePool, error) {
-	return d.vfsGetResources()
+	return genericVFSGetResources(d)
 }
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.

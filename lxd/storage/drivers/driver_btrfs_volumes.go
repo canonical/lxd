@@ -340,7 +340,7 @@ func (d *btrfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 // HasVolume indicates whether a specific volume exists on the storage pool.
 func (d *btrfs) HasVolume(vol Volume) bool {
-	return d.vfsHasVolume(vol)
+	return genericVFSHasVolume(vol)
 }
 
 // ValidateVolume validates the supplied volume config.
@@ -455,7 +455,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 
 // GetVolumeDiskPath returns the location and file format of a disk volume.
 func (d *btrfs) GetVolumeDiskPath(vol Volume) (string, error) {
-	return d.vfsGetVolumeDiskPath(vol)
+	return genericVFSGetVolumeDiskPath(vol)
 }
 
 // MountVolume simulates mounting a volume.
@@ -470,7 +470,7 @@ func (d *btrfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error
 
 // RenameVolume renames a volume and its snapshots.
 func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Operation) error {
-	return d.vfsRenameVolume(vol, newVolName, op)
+	return genericVFSRenameVolume(d, vol, newVolName, op)
 }
 
 // MigrateVolume sends a volume for migration.
@@ -481,7 +481,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 
 	// Handle simple rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
-		return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
+		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
 		return ErrNotSupported
 	}
@@ -564,7 +564,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 func (d *btrfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
-		return d.vfsBackupVolume(vol, targetPath, snapshots, op)
+		return genericVFSBackupVolume(d, vol, targetPath, snapshots, op)
 	}
 
 	// Handle the optimized tarballs.
@@ -717,7 +717,7 @@ func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	return d.vfsVolumeSnapshots(vol, op)
+	return genericVFSVolumeSnapshots(d, vol, op)
 }
 
 // RestoreVolume restores a volume from a snapshot.
@@ -752,5 +752,5 @@ func (d *btrfs) RestoreVolume(vol Volume, snapshotName string, op *operations.Op
 
 // RenameVolumeSnapshot renames a volume snapshot.
 func (d *btrfs) RenameVolumeSnapshot(snapVol Volume, newSnapshotName string, op *operations.Operation) error {
-	return d.vfsRenameVolumeSnapshot(snapVol, newSnapshotName, op)
+	return genericVFSRenameVolumeSnapshot(d, snapVol, newSnapshotName, op)
 }

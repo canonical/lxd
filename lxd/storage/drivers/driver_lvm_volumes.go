@@ -518,13 +518,13 @@ func (d *lvm) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 		return ErrNotSupported
 	}
 
-	return d.vfsMigrateVolume(vol, conn, volSrcArgs, op)
+	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
 func (d *lvm) BackupVolume(vol Volume, targetPath string, _, snapshots bool, op *operations.Operation) error {
-	return d.vfsBackupVolume(vol, targetPath, snapshots, op)
+	return genericVFSBackupVolume(d, vol, targetPath, snapshots, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
@@ -731,7 +731,7 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 	// We use the vfsVolumeSnapshots rather than inspecting the logical volumes themselves because the origin
 	// property of an LVM snapshot can be removed/changed when restoring snapshots, such that they are no
 	// marked as origin of the parent volume.
-	return d.vfsVolumeSnapshots(vol, op)
+	return genericVFSVolumeSnapshots(d, vol, op)
 }
 
 // RestoreVolume restores a volume from a snapshot.
