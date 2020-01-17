@@ -102,26 +102,25 @@ type InstanceFilter struct {
 	Type    instancetype.Type
 }
 
-// ContainerToArgs is a convenience to convert the new Container db struct into
-// the legacy InstanceArgs.
-func ContainerToArgs(container *Instance) InstanceArgs {
+// InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
+func InstanceToArgs(inst *Instance) InstanceArgs {
 	args := InstanceArgs{
-		ID:           container.ID,
-		Project:      container.Project,
-		Name:         container.Name,
-		Node:         container.Node,
-		Type:         container.Type,
-		Snapshot:     container.Snapshot,
-		Architecture: container.Architecture,
-		Ephemeral:    container.Ephemeral,
-		CreationDate: container.CreationDate,
-		Stateful:     container.Stateful,
-		LastUsedDate: container.LastUseDate,
-		Description:  container.Description,
-		Config:       container.Config,
-		Devices:      deviceConfig.NewDevices(container.Devices),
-		Profiles:     container.Profiles,
-		ExpiryDate:   container.ExpiryDate,
+		ID:           inst.ID,
+		Project:      inst.Project,
+		Name:         inst.Name,
+		Node:         inst.Node,
+		Type:         inst.Type,
+		Snapshot:     inst.Snapshot,
+		Architecture: inst.Architecture,
+		Ephemeral:    inst.Ephemeral,
+		CreationDate: inst.CreationDate,
+		Stateful:     inst.Stateful,
+		LastUsedDate: inst.LastUseDate,
+		Description:  inst.Description,
+		Config:       inst.Config,
+		Devices:      deviceConfig.NewDevices(inst.Devices),
+		Profiles:     inst.Profiles,
+		ExpiryDate:   inst.ExpiryDate,
 	}
 
 	if args.Devices == nil {
