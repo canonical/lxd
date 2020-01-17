@@ -678,6 +678,8 @@ test_clustering_network() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+# Perform an upgrade of a 2-member cluster, then a join a third member and
+# perform one more upgrade
 test_clustering_upgrade() {
   # shellcheck disable=2039
   local LXD_DIR LXD_NETNS
