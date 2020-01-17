@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
@@ -55,6 +56,15 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
 )
+
+func init() {
+	// Temporarily link containerLXC load functions to instanceDrivers package so it can be used by the
+	// internal loader functions. These can be removed once containerLXC type is moved into the
+	// instance/drivers package.
+	instanceDrivers.LXCLoad = containerLXCLoad
+	instanceDrivers.LXCInstantiate = containerLXCInstantiate
+	instanceDrivers.LXCCreate = containerLXCCreate
+}
 
 // Helper functions
 func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
