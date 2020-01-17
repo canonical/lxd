@@ -364,18 +364,18 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 
 func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct
-	c := containerLXCInstantiate(s, args)
+	c := containerLXCInstantiate(s, args, nil)
 
 	// Setup finalizer
 	runtime.SetFinalizer(c, containerLXCUnload)
 
 	// Expand config and devices
-	err := c.expandConfig(profiles)
+	err := c.(*containerLXC).expandConfig(profiles)
 	if err != nil {
 		return nil, err
 	}
 
-	err = c.expandDevices(profiles)
+	err = c.(*containerLXC).expandDevices(profiles)
 	if err != nil {
 		return nil, err
 	}
