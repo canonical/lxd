@@ -246,7 +246,7 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 					return err
 				}
 
-				containers = append(containers, db.ContainerToArgs(container))
+				containers = append(containers, db.InstanceToArgs(container))
 			}
 		}
 
