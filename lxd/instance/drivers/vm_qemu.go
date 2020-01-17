@@ -53,10 +53,10 @@ var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 var vmConsole = map[int]bool{}
 var vmConsoleLock sync.Mutex
 
-// Load creates a Qemu instance from the supplied InstanceArgs.
-func Load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+// qemuLoad creates a Qemu instance from the supplied InstanceArgs.
+func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the instance struct.
-	vm := Instantiate(s, args, nil)
+	vm := qemuInstantiate(s, args, nil)
 
 	// Expand config and devices.
 	err := vm.expandConfig(profiles)
@@ -72,10 +72,10 @@ func Load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instanc
 	return vm, nil
 }
 
-// Instantiate creates a Qemu struct without expanding config. The expandedDevices argument is
+// qemuInstantiate creates a Qemu struct without expanding config. The expandedDevices argument is
 // used during device config validation when the devices have already been expanded and we do not
 // have access to the profiles used to do it. This can be safely passed as nil if not required.
-func Instantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *Qemu {
+func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *Qemu {
 	vm := &Qemu{
 		state:        s,
 		id:           args.ID,
@@ -117,8 +117,8 @@ func Instantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceCon
 	return vm
 }
 
-// Create creates a new storage volume record and returns an initialised Instance.
-func Create(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+// qemuCreate creates a new storage volume record and returns an initialised Instance.
+func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance struct.
 	vm := &Qemu{
 		state:        s,
