@@ -41,6 +41,9 @@ var ValidDevices func(state *state.State, cluster *db.Cluster, instanceType inst
 // Load is linked from instance/load.load to allow different instance types to be loaded.
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
 
+// Create is linked from instance/load.create to allow difference instance types to be created.
+var Create func(s *state.State, args db.InstanceArgs) (Instance, error)
+
 // NetworkGetLeaseAddresses is linked from main.networkGetLeaseAddresses to limit scope of moving
 // network related functions into their own package at this time.
 var NetworkGetLeaseAddresses func(s *state.State, network string, hwaddr string) ([]api.InstanceStateNetworkAddress, error)
