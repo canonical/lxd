@@ -52,7 +52,7 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 		options:   o,
 		ctx:       ctx,
 		cancel:    cancel,
-		upgradeCh: make(chan struct{}, 16),
+		upgradeCh: make(chan struct{}, 0),
 		acceptCh:  make(chan net.Conn),
 		store:     &dqliteNodeStore{},
 	}
@@ -323,7 +323,10 @@ func (g *Gateway) Snapshot() error {
 // nodes in the cluster should now have been upgraded and have matching schema
 // and API versions.
 func (g *Gateway) WaitUpgradeNotification() {
-	<-g.upgradeCh
+	select {
+	case <-g.upgradeCh:
+	case <-time.After(time.Minute):
+	}
 }
 
 // IsDqliteNode returns true if this gateway is running a dqlite node.
