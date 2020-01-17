@@ -456,7 +456,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 		return nil, err
 	}
 
-	args := db.ContainerToArgs(container)
+	args := db.InstanceToArgs(container)
 	inst, err := Load(s, args, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to load container")
