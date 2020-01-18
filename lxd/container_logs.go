@@ -91,6 +91,7 @@ func validLogFileName(fname string) bool {
 	 */
 	return fname == "lxc.log" ||
 		fname == "lxc.conf" ||
+		fname == "qemu.log" ||
 		strings.HasPrefix(fname, "migration_") ||
 		strings.HasPrefix(fname, "snapshot_") ||
 		strings.HasPrefix(fname, "exec_")

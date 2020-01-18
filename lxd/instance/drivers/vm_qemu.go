@@ -679,6 +679,7 @@ func (vm *qemu) Start(stateful bool) error {
 		"-no-user-config",
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
+		"-D", vm.LogFilePath(),
 		"-chroot", vm.Path(),
 	}
 
