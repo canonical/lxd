@@ -5681,11 +5681,11 @@ func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	return string(msg), nil
 }
 
-func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
+func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	// Prepare the environment
 	envSlice := []string{}
 
-	for k, v := range env {
+	for k, v := range req.Environment {
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
@@ -5704,9 +5704,9 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		cname,
 		c.state.OS.LxcPath,
 		filepath.Join(c.LogPath(), "lxc.conf"),
-		cwd,
-		fmt.Sprintf("%d", uid),
-		fmt.Sprintf("%d", gid),
+		req.Cwd,
+		fmt.Sprintf("%d", req.User),
+		fmt.Sprintf("%d", req.Group),
 	}
 
 	args = append(args, "--")
@@ -5715,7 +5715,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 
 	args = append(args, "--")
 	args = append(args, "cmd")
-	args = append(args, command...)
+	args = append(args, req.Command...)
 
 	cmd := exec.Cmd{}
 	cmd.Path = c.state.OS.ExecPath

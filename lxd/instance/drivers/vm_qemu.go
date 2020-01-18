@@ -2493,7 +2493,7 @@ func (vm *qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
 }
 
 // Exec a command inside the instance.
-func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
+func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	var instCmd *Cmd
 
 	// Because this function will exit before the remote command has finished, we create a
@@ -2528,17 +2528,8 @@ func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, st
 	}
 	cleanupFuncs = append(cleanupFuncs, agent.Disconnect)
 
-	post := api.InstanceExecPost{
-		Command:     command,
-		WaitForWS:   true,
-		Interactive: stdin == stdout,
-		Environment: env,
-		User:        uid,
-		Group:       gid,
-		Cwd:         cwd,
-	}
-
-	if post.Interactive {
+	req.WaitForWS = true
+	if req.Interactive {
 		// Set console to raw.
 		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
 		if err != nil {
@@ -2578,7 +2569,7 @@ func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, st
 		Control:  controlHander,
 	}
 
-	op, err := agent.ExecInstance("", post, &args)
+	op, err := agent.ExecInstance("", req, &args)
 	if err != nil {
 		return nil, err
 	}

@@ -51,7 +51,7 @@ type Instance interface {
 
 	// Console - Allocate and run a console tty.
 	Console() (*os.File, chan error, error)
-	Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (Cmd, error)
+	Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)
