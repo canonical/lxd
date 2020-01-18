@@ -30,6 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -456,16 +457,27 @@ func (vm *qemu) Freeze() error {
 
 // OnStop is run when the instance stops.
 func (vm *qemu) OnStop(target string) error {
+	// Pick up the existing stop operation lock created in Stop() function.
+	op := operationlock.Get(vm.id)
+	if op != nil && op.Action() != "stop" {
+		return fmt.Errorf("Instance is already running a %s operation", op.Action())
+	}
+
+	// Cleanup.
 	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
 	vm.unmount()
 
-	// Record power state
+	// Record power state.
 	err := vm.state.Cluster.ContainerSetState(vm.id, "STOPPED")
 	if err != nil {
+		op.Done(err)
 		return err
 	}
+
+	// Done after this.
+	defer op.Done(nil)
 
 	if target == "reboot" {
 		return vm.Start(false)
@@ -1469,18 +1481,27 @@ func (vm *qemu) pid() (int, error) {
 
 // Stop stops the VM.
 func (vm *qemu) Stop(stateful bool) error {
+	// Check that we're not already stopped.
+	if !vm.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
+
+	// Check that no stateful stop was requested.
 	if stateful {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
 	}
 
-	if !vm.IsRunning() {
-		return fmt.Errorf("Instance is not running")
+	// Setup a new operation.
+	op, err := operationlock.Create(vm.id, "stop", false, true)
+	if err != nil {
+		return err
 	}
 
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
+		op.Done(nil)
 		return nil
 	}
 
@@ -1488,9 +1509,11 @@ func (vm *qemu) Stop(stateful bool) error {
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
@@ -1498,15 +1521,24 @@ func (vm *qemu) Stop(stateful bool) error {
 	err = monitor.Quit()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
 	// Wait for QEMU to exit (can take a while if pending I/O).
 	<-chDisconnect
 
+	// Wait for OnStop.
+	err = op.Wait()
+	if err != nil && vm.IsRunning() {
+		return err
+	}
+
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
