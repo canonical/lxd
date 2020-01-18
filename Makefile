@@ -105,6 +105,8 @@ deps:
 	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/libco/ -I$(GOPATH)/deps/raft/include/ -I$(GOPATH)/deps/dqlite/include/\""
 	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/libco/ -L$(GOPATH)/deps/raft/.libs -L$(GOPATH)/deps/dqlite/.libs/\""
 	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/sqlite/.libs/:$(GOPATH)/deps/libco/:$(GOPATH)/deps/raft/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export CGO_LDFLAGS_ALLOW=\"-Wl,-wrap,pthread_create\""
+
 
 .PHONY: update
 update:
