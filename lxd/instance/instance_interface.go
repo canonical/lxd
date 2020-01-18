@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -51,7 +53,7 @@ type Instance interface {
 
 	// Console - Allocate and run a console tty.
 	Console() (*os.File, chan error, error)
-	Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
+	Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, *websocket.Conn, error)
 
 	// Status
 	Render() (interface{}, interface{}, error)
