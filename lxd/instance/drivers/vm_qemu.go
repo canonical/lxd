@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -31,6 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -457,16 +457,27 @@ func (vm *qemu) Freeze() error {
 
 // OnStop is run when the instance stops.
 func (vm *qemu) OnStop(target string) error {
+	// Pick up the existing stop operation lock created in Stop() function.
+	op := operationlock.Get(vm.id)
+	if op != nil && op.Action() != "stop" {
+		return fmt.Errorf("Instance is already running a %s operation", op.Action())
+	}
+
+	// Cleanup.
 	vm.cleanupDevices()
 	os.Remove(vm.pidFilePath())
 	os.Remove(vm.getMonitorPath())
 	vm.unmount()
 
-	// Record power state
+	// Record power state.
 	err := vm.state.Cluster.ContainerSetState(vm.id, "STOPPED")
 	if err != nil {
+		op.Done(err)
 		return err
 	}
+
+	// Done after this.
+	defer op.Done(nil)
 
 	if target == "reboot" {
 		return vm.Start(false)
@@ -481,9 +492,16 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 		return fmt.Errorf("The instance is already stopped")
 	}
 
+	// Setup a new operation
+	op, err := operationlock.Create(vm.id, "stop", true, true)
+	if err != nil {
+		return err
+	}
+
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -491,9 +509,11 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
@@ -501,9 +521,11 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	err = monitor.Powerdown()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
@@ -511,14 +533,19 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	if timeout > 0 {
 		select {
 		case <-chDisconnect:
+			op.Done(nil)
+			vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 			return nil
 		case <-time.After(timeout):
+			op.Done(fmt.Errorf("Instance was not shutdown after timeout"))
 			return fmt.Errorf("Instance was not shutdown after timeout")
 		}
 	} else {
 		<-chDisconnect // Block until VM is not running if no timeout provided.
 	}
 
+	op.Done(nil)
+	vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
@@ -542,29 +569,41 @@ func (vm *qemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
+	// Setup a new operation
+	op, err := operationlock.Create(vm.id, "start", false, false)
+	if err != nil {
+		return errors.Wrap(err, "Create instance start operation")
+	}
+	defer op.Done(nil)
+
 	// Mount the instance's config volume.
 	_, err = vm.mount()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = vm.generateConfigShare()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = os.MkdirAll(vm.LogPath(), 0700)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = os.MkdirAll(vm.DevicesPath(), 0711)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = os.MkdirAll(vm.ShmountsPath(), 0711)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -580,6 +619,7 @@ func (vm *qemu) Start(stateful bool) error {
 	if !shared.PathExists(vm.getNvramPath()) {
 		err = vm.setupNvram()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -591,6 +631,7 @@ func (vm *qemu) Start(stateful bool) error {
 		// Start the device.
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
+			op.Done(err)
 			return errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
 		}
 
@@ -604,17 +645,20 @@ func (vm *qemu) Start(stateful bool) error {
 	// Get qemu configuration
 	qemuBinary, qemuType, qemuConfig, err := vm.qemuArchConfig()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	confFile, err := vm.generateQemuConfigFile(qemuType, qemuConfig, devConfs)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Check qemu is installed.
 	_, err = exec.LookPath(qemuBinary)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -659,6 +703,7 @@ func (vm *qemu) Start(stateful bool) error {
 				return nil
 			})
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -674,18 +719,21 @@ func (vm *qemu) Start(stateful bool) error {
 
 	_, err = shared.RunCommand(qemuBinary, args...)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Start QMP monitoring.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Start the VM.
 	err = monitor.Start()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -706,8 +754,11 @@ func (vm *qemu) Start(stateful bool) error {
 		return nil
 	})
 	if err != nil {
+		op.Done(err)
 		return err
 	}
+
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 
 	return nil
 }
@@ -1470,18 +1521,27 @@ func (vm *qemu) pid() (int, error) {
 
 // Stop stops the VM.
 func (vm *qemu) Stop(stateful bool) error {
+	// Check that we're not already stopped.
+	if !vm.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
+
+	// Check that no stateful stop was requested.
 	if stateful {
 		return fmt.Errorf("Stateful stop isn't supported for VMs at this time")
 	}
 
-	if !vm.IsRunning() {
-		return fmt.Errorf("Instance is not running")
+	// Setup a new operation.
+	op, err := operationlock.Create(vm.id, "stop", false, true)
+	if err != nil {
+		return err
 	}
 
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off.
+		op.Done(nil)
 		return nil
 	}
 
@@ -1489,9 +1549,11 @@ func (vm *qemu) Stop(stateful bool) error {
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
@@ -1499,15 +1561,24 @@ func (vm *qemu) Stop(stateful bool) error {
 	err = monitor.Quit()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
 	// Wait for QEMU to exit (can take a while if pending I/O).
 	<-chDisconnect
 
+	// Wait for OnStop.
+	err = op.Wait()
+	if err != nil && vm.IsRunning() {
+		return err
+	}
+
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-stopped", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
@@ -2470,30 +2541,8 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	return console, chDisconnect, nil
 }
 
-func (vm *qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
-	logger.Debugf("Forwarding signal to lxd-agent: %s", sig)
-
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
-	msg := api.InstanceExecControl{}
-	msg.Command = "signal"
-	msg.Signal = int(sig)
-
-	buf, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(buf)
-
-	w.Close()
-	return err
-}
-
 // Exec a command inside the instance.
-func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, cwd string, uid uint32, gid uint32) (instance.Cmd, error) {
+func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, *websocket.Conn, error) {
 	var instCmd *Cmd
 
 	// Because this function will exit before the remote command has finished, we create a
@@ -2518,31 +2567,22 @@ func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, st
 
 	client, err := vm.getAgentClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
-		return nil, fmt.Errorf("Failed to connect to lxd-agent")
+		return nil, nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	cleanupFuncs = append(cleanupFuncs, agent.Disconnect)
 
-	post := api.InstanceExecPost{
-		Command:     command,
-		WaitForWS:   true,
-		Interactive: stdin == stdout,
-		Environment: env,
-		User:        uid,
-		Group:       gid,
-		Cwd:         cwd,
-	}
-
-	if post.Interactive {
+	req.WaitForWS = true
+	if req.Interactive {
 		// Set console to raw.
 		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		cleanupFuncs = append(cleanupFuncs, func() {
 			termios.Restore(int(stdin.Fd()), oldttystate)
@@ -2550,24 +2590,13 @@ func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, st
 	}
 
 	dataDone := make(chan bool)
-	signalSendCh := make(chan unix.Signal)
-	signalResCh := make(chan error)
 
-	// This is the signal control handler, it receives signals from lxc CLI and forwards them
-	// to the VM agent.
-	controlHander := func(control *websocket.Conn) {
-		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-		defer control.WriteMessage(websocket.CloseMessage, closeMsg)
-
-		for {
-			select {
-			case signal := <-signalSendCh:
-				err := vm.forwardSignal(control, signal)
-				signalResCh <- err
-			case <-dataDone:
-				return
-			}
-		}
+	// Retrieve the raw control websocket and pass it to the generic exec handler.
+	var wsControl *websocket.Conn
+	chControl := make(chan struct{})
+	controlHander := func(conn *websocket.Conn) {
+		wsControl = conn
+		close(chControl)
 	}
 
 	args := lxdClient.InstanceExecArgs{
@@ -2578,21 +2607,21 @@ func (vm *qemu) Exec(command []string, env map[string]string, stdin *os.File, st
 		Control:  controlHander,
 	}
 
-	op, err := agent.ExecInstance("", post, &args)
+	op, err := agent.ExecInstance("", req, &args)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	// Wait for the control websocket to be connected.
+	<-chControl
 
 	instCmd = &Cmd{
-		cmd:              op,
-		attachedChildPid: -1, // Process is not running on LXD host.
-		dataDone:         args.DataDone,
-		cleanupFunc:      cleanupFunc,
-		signalSendCh:     signalSendCh,
-		signalResCh:      signalResCh,
+		cmd:         op,
+		dataDone:    args.DataDone,
+		cleanupFunc: cleanupFunc,
 	}
 
-	return instCmd, nil
+	return instCmd, wsControl, nil
 }
 
 // Render returns info about the instance.
