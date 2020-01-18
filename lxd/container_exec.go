@@ -30,23 +30,16 @@ import (
 )
 
 type execWs struct {
-	command  []string
-	instance instance.Instance
-	env      map[string]string
+	req api.InstanceExecPost
 
+	instance         instance.Instance
 	rootUid          int64
 	rootGid          int64
 	conns            map[int]*websocket.Conn
 	connsLock        sync.Mutex
 	allConnected     chan bool
 	controlConnected chan bool
-	interactive      bool
 	fds              map[int]string
-	width            int
-	height           int
-	uid              uint32
-	gid              uint32
-	cwd              string
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -61,9 +54,9 @@ func (s *execWs) Metadata() interface{} {
 
 	return shared.Jmap{
 		"fds":         fds,
-		"command":     s.command,
-		"environment": s.env,
-		"interactive": s.interactive,
+		"command":     s.req.Command,
+		"environment": s.req.Environment,
+		"interactive": s.req.Interactive,
 	}
 }
 
@@ -119,7 +112,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	var stdout *os.File
 	var stderr *os.File
 
-	if s.interactive {
+	if s.req.Interactive {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
 		ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
@@ -131,8 +124,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stdout = ttys[0]
 		stderr = ttys[0]
 
-		if s.width > 0 && s.height > 0 {
-			shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
+		if s.req.Width > 0 && s.req.Height > 0 {
+			shared.SetSize(int(ptys[0].Fd()), s.req.Width, s.req.Height)
 		}
 	} else {
 		ttys = make([]*os.File, 3)
@@ -154,7 +147,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	attachedChildIsDead := make(chan bool, 1)
 	var wgEOF sync.WaitGroup
 
-	if s.interactive {
+	if s.req.Interactive {
 		wgEOF.Add(1)
 		go func() {
 			logger.Debugf("Interactive child process handler waiting")
@@ -293,7 +286,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		if conn == nil {
-			if s.interactive {
+			if s.req.Interactive {
 				controlExit <- true
 			}
 		} else {
@@ -317,12 +310,12 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return cmdErr
 	}
 
-	cmd, err := s.instance.Exec(s.command, s.env, stdin, stdout, stderr, s.cwd, s.uid, s.gid)
+	cmd, err := s.instance.Exec(s.req, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
 
-	if s.interactive {
+	if s.req.Interactive {
 		// Start the interactive process handler.
 		attachedChildIsBorn <- cmd
 	}
@@ -385,8 +378,8 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Container is frozen"))
 	}
 
+	// Process environment.
 	env := map[string]string{}
-
 	for k, v := range inst.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
 			env[strings.TrimPrefix(k, "environment.")] = v
@@ -429,6 +422,9 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		env["LANG"] = "C.UTF-8"
 	}
 
+	// Apply to request.
+	post.Environment = env
+
 	if post.WaitForWS {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
@@ -454,7 +450,6 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 		}
 		ws.allConnected = make(chan bool, 1)
 		ws.controlConnected = make(chan bool, 1)
-		ws.interactive = post.Interactive
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
@@ -462,16 +457,8 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		ws.command = post.Command
 		ws.instance = inst
-		ws.env = env
-
-		ws.width = post.Width
-		ws.height = post.Height
-
-		ws.cwd = post.Cwd
-		ws.uid = post.User
-		ws.gid = post.Group
+		ws.req = post
 
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.instance.Name()}
@@ -502,7 +489,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmd, err := inst.Exec(post.Command, env, nil, stdout, stderr, post.Cwd, post.User, post.Group)
+			cmd, err := inst.Exec(post, nil, stdout, stderr)
 			if err != nil {
 				return err
 			}
@@ -519,7 +506,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmd, err := inst.Exec(post.Command, env, nil, nil, nil, post.Cwd, post.User, post.Group)
+			cmd, err := inst.Exec(post, nil, nil, nil)
 			if err != nil {
 				return err
 			}
