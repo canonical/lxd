@@ -2625,6 +2625,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	// Load cgroup abstraction
 	cg, err := c.cgroup(nil)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
