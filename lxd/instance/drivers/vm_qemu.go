@@ -492,9 +492,16 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 		return fmt.Errorf("The instance is already stopped")
 	}
 
+	// Setup a new operation
+	op, err := operationlock.Create(vm.id, "stop", true, true)
+	if err != nil {
+		return err
+	}
+
 	// Connect to the monitor.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -502,9 +509,11 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
@@ -512,9 +521,11 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	err = monitor.Powerdown()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			op.Done(nil)
 			return nil
 		}
 
+		op.Done(err)
 		return err
 	}
 
@@ -522,14 +533,19 @@ func (vm *qemu) Shutdown(timeout time.Duration) error {
 	if timeout > 0 {
 		select {
 		case <-chDisconnect:
+			op.Done(nil)
+			vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 			return nil
 		case <-time.After(timeout):
+			op.Done(fmt.Errorf("Instance was not shutdown after timeout"))
 			return fmt.Errorf("Instance was not shutdown after timeout")
 		}
 	} else {
 		<-chDisconnect // Block until VM is not running if no timeout provided.
 	}
 
+	op.Done(nil)
+	vm.state.Events.SendLifecycle(vm.project, "instance-shutdown", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
@@ -553,29 +569,41 @@ func (vm *qemu) Start(stateful bool) error {
 		return fmt.Errorf("The instance is already running")
 	}
 
+	// Setup a new operation
+	op, err := operationlock.Create(vm.id, "start", false, false)
+	if err != nil {
+		return errors.Wrap(err, "Create instance start operation")
+	}
+	defer op.Done(nil)
+
 	// Mount the instance's config volume.
 	_, err = vm.mount()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = vm.generateConfigShare()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = os.MkdirAll(vm.LogPath(), 0700)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = os.MkdirAll(vm.DevicesPath(), 0711)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	err = os.MkdirAll(vm.ShmountsPath(), 0711)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -591,6 +619,7 @@ func (vm *qemu) Start(stateful bool) error {
 	if !shared.PathExists(vm.getNvramPath()) {
 		err = vm.setupNvram()
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -602,6 +631,7 @@ func (vm *qemu) Start(stateful bool) error {
 		// Start the device.
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
+			op.Done(err)
 			return errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
 		}
 
@@ -615,17 +645,20 @@ func (vm *qemu) Start(stateful bool) error {
 	// Get qemu configuration
 	qemuBinary, qemuType, qemuConfig, err := vm.qemuArchConfig()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	confFile, err := vm.generateQemuConfigFile(qemuType, qemuConfig, devConfs)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Check qemu is installed.
 	_, err = exec.LookPath(qemuBinary)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -670,6 +703,7 @@ func (vm *qemu) Start(stateful bool) error {
 				return nil
 			})
 		if err != nil {
+			op.Done(err)
 			return err
 		}
 	}
@@ -685,18 +719,21 @@ func (vm *qemu) Start(stateful bool) error {
 
 	_, err = shared.RunCommand(qemuBinary, args...)
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Start QMP monitoring.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Start the VM.
 	err = monitor.Start()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
@@ -717,8 +754,11 @@ func (vm *qemu) Start(stateful bool) error {
 		return nil
 	})
 	if err != nil {
+		op.Done(err)
 		return err
 	}
+
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 
 	return nil
 }
