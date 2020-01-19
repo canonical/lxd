@@ -1494,7 +1494,7 @@ netdev = "lxd_%s"
 mac = "%s"
 bus = "qemu_pcie%d"
 addr = "0x0"
-bootindex = "%d""
+bootindex = "%d"
 `, devName, devName, devTap, 5+nicIndex, 14+nicIndex, 5+nicIndex, 4+nicIndex, devName, devName, devHwaddr, 5+nicIndex, 2+nicIndex))
 
 	return
