@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-15 09:06-0500\n"
+"POT-Creation-Date: 2020-01-19 00:42+0200\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -393,6 +393,10 @@ msgstr "Arquitectura: %s"
 #, fuzzy, c-format
 msgid "Architecture: %v"
 msgstr "Arquitectura: %s"
+
+#: lxc/init.go:277
+msgid "Asked for a VM but image is of type container"
+msgstr ""
 
 #: lxc/profile.go:163 lxc/profile.go:164
 msgid "Assign sets of profiles to instances"
@@ -1008,7 +1012,7 @@ msgstr "El dispostivo ya existe: %s"
 msgid "Device: %s"
 msgstr "Cacheado: %s"
 
-#: lxc/init.go:330
+#: lxc/init.go:336
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -1503,7 +1507,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Nombre del contenedor es obligatorio"
 
-#: lxc/copy.go:427 lxc/init.go:337
+#: lxc/copy.go:427 lxc/init.go:343
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Nombre del contenedor es: %s"
@@ -2643,7 +2647,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:285
+#: lxc/init.go:291
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -3104,16 +3108,16 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:388
+#: lxc/init.go:394
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/init.go:372
+#: lxc/init.go:378
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:368
+#: lxc/init.go:374
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -3163,11 +3167,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:390
+#: lxc/init.go:396
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:389
+#: lxc/init.go:395
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
