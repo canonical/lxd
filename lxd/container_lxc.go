@@ -3168,7 +3168,7 @@ func (c *containerLXC) Snapshots() ([]instance.Instance, error) {
 	}
 
 	// Build the snapshot list
-	containers, err := instanceLoadAllInternal(snaps, c.state)
+	containers, err := instance.LoadAllInternal(c.state, snaps)
 	if err != nil {
 		return nil, err
 	}
