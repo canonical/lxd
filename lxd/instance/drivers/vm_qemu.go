@@ -1727,7 +1727,38 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 
 // Snapshots returns a list of snapshots.
 func (vm *qemu) Snapshots() ([]instance.Instance, error) {
-	return []instance.Instance{}, nil
+	var snaps []db.Instance
+
+	if vm.IsSnapshot() {
+		return []instance.Instance{}, nil
+	}
+
+	// Get all the snapshots
+	err := vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		snaps, err = tx.ContainerGetSnapshotsFull(vm.Project(), vm.name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the snapshot list
+	snapshots, err := instance.LoadAllInternal(vm.state, snaps)
+	if err != nil {
+		return nil, err
+	}
+
+	instances := make([]instance.Instance, len(snapshots))
+	for k, v := range snapshots {
+		instances[k] = instance.Instance(v)
+	}
+
+	return instances, nil
 }
 
 // Backups returns a list of backups.
