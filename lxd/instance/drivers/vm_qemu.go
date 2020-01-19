@@ -1611,7 +1611,118 @@ func (vm *qemu) IsPrivileged() bool {
 
 // Restore restores an instance snapshot.
 func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
-	return fmt.Errorf("Restore Not implemented")
+	if stateful {
+		return fmt.Errorf("Stateful snapshots of VMs aren't supported yet")
+	}
+
+	var ctxMap log.Ctx
+
+	// Load the storage driver
+	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that storage is mounted for backup.yaml updates.
+	ourStart, err := pool.MountInstance(vm, nil)
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer pool.UnmountInstance(vm, nil)
+	}
+
+	// Stop the instance.
+	wasRunning := false
+	if vm.IsRunning() {
+		wasRunning = true
+
+		ephemeral := vm.IsEphemeral()
+		if ephemeral {
+			// Unset ephemeral flag.
+			args := db.InstanceArgs{
+				Architecture: vm.Architecture(),
+				Config:       vm.LocalConfig(),
+				Description:  vm.Description(),
+				Devices:      vm.LocalDevices(),
+				Ephemeral:    false,
+				Profiles:     vm.Profiles(),
+				Project:      vm.Project(),
+				Type:         vm.Type(),
+				Snapshot:     vm.IsSnapshot(),
+			}
+
+			err := vm.Update(args, false)
+			if err != nil {
+				return err
+			}
+
+			// On function return, set the flag back on.
+			defer func() {
+				args.Ephemeral = ephemeral
+				vm.Update(args, true)
+			}()
+		}
+
+		// This will unmount the instance storage.
+		err := vm.Stop(false)
+		if err != nil {
+			return err
+		}
+	}
+
+	ctxMap = log.Ctx{
+		"project":   vm.project,
+		"name":      vm.name,
+		"created":   vm.creationDate,
+		"ephemeral": vm.ephemeral,
+		"used":      vm.lastUsedDate,
+		"source":    source.Name()}
+
+	logger.Info("Restoring instance", ctxMap)
+
+	// Restore the rootfs.
+	err = pool.RestoreInstanceSnapshot(vm, source, nil)
+	if err != nil {
+		return err
+	}
+
+	// Restore the configuration.
+	args := db.InstanceArgs{
+		Architecture: source.Architecture(),
+		Config:       source.LocalConfig(),
+		Description:  source.Description(),
+		Devices:      source.LocalDevices(),
+		Ephemeral:    source.IsEphemeral(),
+		Profiles:     source.Profiles(),
+		Project:      source.Project(),
+		Type:         source.Type(),
+		Snapshot:     source.IsSnapshot(),
+	}
+
+	err = vm.Update(args, false)
+	if err != nil {
+		logger.Error("Failed restoring instance configuration", ctxMap)
+		return err
+	}
+
+	// The old backup file may be out of date (e.g. it doesn't have all the current snapshots of
+	// the instance listed); let's write a new one to be safe.
+	err = vm.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-snapshot-restored", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), map[string]interface{}{"snapshot_name": vm.name})
+
+	// Restart the insance.
+	if wasRunning {
+		logger.Info("Restored instance", ctxMap)
+		return vm.Start(false)
+	}
+
+	logger.Info("Restored instance", ctxMap)
+	return nil
 }
 
 // Snapshots returns a list of snapshots.
