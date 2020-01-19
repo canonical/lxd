@@ -30,7 +30,6 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -963,7 +962,7 @@ func instanceLoadByProject(s *state.State, project string) ([]instance.Instance,
 		return nil, err
 	}
 
-	return instanceLoadAllInternal(cts, s)
+	return instance.LoadAllInternal(s, cts)
 }
 
 // Load all instances across all projects.
@@ -1013,7 +1012,7 @@ func instanceLoadNodeAll(s *state.State, instanceType instancetype.Type) ([]inst
 		return nil, err
 	}
 
-	return instanceLoadAllInternal(insts, s)
+	return instance.LoadAllInternal(s, insts)
 }
 
 // Load all instances of this nodes under the given project.
@@ -1033,57 +1032,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 		return nil, err
 	}
 
-	return instanceLoadAllInternal(cts, s)
-}
-
-func instanceLoadAllInternal(dbInstances []db.Instance, s *state.State) ([]instance.Instance, error) {
-	// Figure out what profiles are in use
-	profiles := map[string]map[string]api.Profile{}
-	for _, instArgs := range dbInstances {
-		projectProfiles, ok := profiles[instArgs.Project]
-		if !ok {
-			projectProfiles = map[string]api.Profile{}
-			profiles[instArgs.Project] = projectProfiles
-		}
-		for _, profile := range instArgs.Profiles {
-			_, ok := projectProfiles[profile]
-			if !ok {
-				projectProfiles[profile] = api.Profile{}
-			}
-		}
-	}
-
-	// Get the profile data
-	for project, projectProfiles := range profiles {
-		for name := range projectProfiles {
-			_, profile, err := s.Cluster.ProfileGet(project, name)
-			if err != nil {
-				return nil, err
-			}
-
-			projectProfiles[name] = *profile
-		}
-	}
-
-	// Load the instances structs
-	instances := []instance.Instance{}
-	for _, dbInstance := range dbInstances {
-		// Figure out the instances's profiles
-		cProfiles := []api.Profile{}
-		for _, name := range dbInstance.Profiles {
-			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
-		}
-
-		args := db.InstanceToArgs(&dbInstance)
-		inst, err := instance.Load(s, args, cProfiles)
-		if err != nil {
-			return nil, err
-		}
-
-		instances = append(instances, inst)
-	}
-
-	return instances, nil
+	return instance.LoadAllInternal(s, cts)
 }
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
