@@ -272,6 +272,12 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			if err != nil {
 				return nil, "", err
 			}
+
+			if imgInfo.Type != "virtual-machine" && c.flagVM {
+				return nil, "", fmt.Errorf(i18n.G("Asked for a VM but image is of type container"))
+			}
+
+			req.Type = api.InstanceType(imgInfo.Type)
 		}
 
 		// Create the instance

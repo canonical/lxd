@@ -158,7 +158,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 
 		if driver != "lvm" && driver != "ceph" {
-			if prfx(key, "volume.block.") || key == "volume.size" {
+			if prfx(key, "volume.block.") {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
@@ -228,12 +228,10 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		}
 	}
 
-	if driver == "btrfs" || driver == "ceph" || driver == "cephfs" || driver == "lvm" || driver == "zfs" {
-		if config["volume.size"] != "" {
-			_, err := units.ParseByteSizeString(config["volume.size"])
-			if err != nil {
-				return err
-			}
+	if config["volume.size"] != "" {
+		_, err := units.ParseByteSizeString(config["volume.size"])
+		if err != nil {
+			return err
 		}
 	}
 

@@ -476,11 +476,15 @@ func (vm *qemu) OnStop(target string) error {
 		return err
 	}
 
-	// Done after this.
-	defer op.Done(nil)
-
 	if target == "reboot" {
-		return vm.Start(false)
+		err := vm.Start(false)
+		if err != nil {
+			return err
+		}
+	}
+
+	if op != nil {
+		op.Done(nil)
 	}
 
 	return nil
@@ -675,6 +679,7 @@ func (vm *qemu) Start(stateful bool) error {
 		"-no-user-config",
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
+		"-D", vm.LogFilePath(),
 		"-chroot", vm.Path(),
 	}
 
