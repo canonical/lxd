@@ -465,6 +465,57 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 	return inst, nil
 }
 
+// LoadAllInternal loads a list of db insances into a list of instances.
+func LoadAllInternal(s *state.State, dbInstances []db.Instance) ([]Instance, error) {
+	// Figure out what profiles are in use
+	profiles := map[string]map[string]api.Profile{}
+	for _, instArgs := range dbInstances {
+		projectProfiles, ok := profiles[instArgs.Project]
+		if !ok {
+			projectProfiles = map[string]api.Profile{}
+			profiles[instArgs.Project] = projectProfiles
+		}
+		for _, profile := range instArgs.Profiles {
+			_, ok := projectProfiles[profile]
+			if !ok {
+				projectProfiles[profile] = api.Profile{}
+			}
+		}
+	}
+
+	// Get the profile data
+	for project, projectProfiles := range profiles {
+		for name := range projectProfiles {
+			_, profile, err := s.Cluster.ProfileGet(project, name)
+			if err != nil {
+				return nil, err
+			}
+
+			projectProfiles[name] = *profile
+		}
+	}
+
+	// Load the instances structs
+	instances := []Instance{}
+	for _, dbInstance := range dbInstances {
+		// Figure out the instances's profiles
+		cProfiles := []api.Profile{}
+		for _, name := range dbInstance.Profiles {
+			cProfiles = append(cProfiles, profiles[dbInstance.Project][name])
+		}
+
+		args := db.InstanceToArgs(&dbInstance)
+		inst, err := Load(s, args, cProfiles)
+		if err != nil {
+			return nil, err
+		}
+
+		instances = append(instances, inst)
+	}
+
+	return instances, nil
+}
+
 // WriteBackupFile writes instance's config to a file. Deprecated, use inst.UpdateBackupFile().
 func WriteBackupFile(state *state.State, inst Instance) error {
 	// We only write backup files out for actual instances.
