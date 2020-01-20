@@ -26,6 +26,7 @@ func (d *nicPhysical) validateConfig() error {
 		"vlan",
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
+		"boot.priority",
 	}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {

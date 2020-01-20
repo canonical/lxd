@@ -114,7 +114,8 @@ _have lxc && {
       security.ipv4_filtering security.ipv6_filtering vlan limits.read \
       limits.write path source optional readonly size recursive pool \
       propagation shift major minor uid gid mode required vendorid productid \
-      pci id listen connect bind nat proxy_protocol security.uid security.gid"
+      pci id listen connect bind nat proxy_protocol security.uid security.gid \
+      boot.priority"
 
     networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode fan.overlay_subnet fan.type \

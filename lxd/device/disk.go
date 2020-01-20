@@ -82,6 +82,7 @@ func (d *disk) validateConfig() error {
 		"raw.mount.options": shared.IsAny,
 		"ceph.cluster_name": shared.IsAny,
 		"ceph.user_name":    shared.IsAny,
+		"boot.priority":     shared.IsUint32,
 	}
 
 	// VMs don't use the "path" property, but containers need it, so if we are validating a profile that can

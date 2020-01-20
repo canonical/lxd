@@ -272,6 +272,7 @@ hwaddr                  | string    | randomly assigned | no        | The MAC ad
 vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
+boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: bridged
 Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
@@ -297,6 +298,7 @@ security.ipv4\_filtering | boolean   | false             | no        | Prevent t
 security.ipv6\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
 maas.subnet.ipv4         | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6         | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
+boot.priority            | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: macvlan
 Sets up a new network device based on an existing one but using a different MAC address.
@@ -312,6 +314,7 @@ hwaddr                  | string    | randomly assigned | no        | The MAC ad
 vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
+boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: ipvlan
 Sets up a new network device based on an existing one using the same MAC address but a different IP.
@@ -365,6 +368,7 @@ limits.egress           | string    | -                 | no        | I/O limit 
 limits.max              | string    | -                 | no        | Same as modifying both limits.ingress and limits.egress
 ipv4.routes             | string    | -                 | no        | Comma delimited list of IPv4 static routes to add on host to nic
 ipv6.routes             | string    | -                 | no        | Comma delimited list of IPv6 static routes to add on host to nic
+boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: sriov
 Passes a virtual function of an SR-IOV enabled physical network device into the instance.
@@ -381,6 +385,7 @@ security.mac\_filtering | boolean   | false             | no        | Prevent th
 vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 maas.subnet.ipv4        | string    | -                 | no        | MAAS IPv4 subnet to register the instance in
 maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 subnet to register the instance in
+boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: routed
 This NIC type is similar in operation to IPVLAN, in that it allows an instance to join an external network without needing to configure a bridge and shares the host's MAC address.
@@ -572,6 +577,7 @@ shift               | boolean   | false     | no        | Setup a shifting overl
 raw.mount.options   | string    | -         | no        | Filesystem specific mount options
 ceph.user\_name     | string    | admin     | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
 ceph.cluster\_name  | string    | admin     | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
+boot.priority       | integer   | -         | no        | Boot priority for VMs (higher boots first)
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
