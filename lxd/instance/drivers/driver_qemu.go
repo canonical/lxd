@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -1141,15 +1142,16 @@ func (vm *qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConf
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Machine
 [machine]
 graphics = "off"
-type = "%s"
+type = "{{.qemuType}}"
 accel = "kvm"
 usb = "off"
 graphics = "off"
-%s
+{{.qemuConf}}
+
 [boot-opts]
 strict = "on"
 
@@ -1164,7 +1166,7 @@ chardev = "vserial"
 
 [chardev "vserial"]
 backend = "ringbuf"
-size = "%dB"
+size = "{{.ringbufSizeBytes}}B"
 
 # PCIe root
 [device "qemu_pcie1"]
@@ -1214,10 +1216,20 @@ addr = "0x0"
 # Console
 [chardev "console"]
 backend = "pty"
-`, qemuType, qemuConf, qmp.RingbufSize))
+`))
+
+	m := map[string]interface{}{
+		"qemuType":         qemuType,
+		"qemuConf":         qemuConf,
+		"ringbufSizeBytes": qmp.RingbufSize,
+	}
+	err := t.Execute(sb, m)
+	if err != nil {
+		return "", err
+	}
 
 	// Now add the dynamic parts of the config.
-	err := vm.addMemoryConfig(sb)
+	err = vm.addMemoryConfig(sb)
 	if err != nil {
 		return "", err
 	}
@@ -1227,10 +1239,25 @@ backend = "pty"
 		return "", err
 	}
 
-	vm.addFirmwareConfig(sb)
-	vm.addVsockConfig(sb)
-	vm.addMonitorConfig(sb)
-	vm.addConfDriveConfig(sb)
+	err = vm.addFirmwareConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addVsockConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addMonitorConfig(sb)
+	if err != nil {
+		return "", err
+	}
+
+	err = vm.addConfDriveConfig(sb)
+	if err != nil {
+		return "", err
+	}
 
 	nicIndex := 0
 	driveIndex := 0
@@ -1248,13 +1275,19 @@ backend = "pty"
 			for _, drive := range runConf.Mounts {
 				// Increment first so index starts at 1, as root drive uses index 0.
 				driveIndex++
-				vm.addDriveConfig(sb, driveIndex, drive)
+				err = vm.addDriveConfig(sb, driveIndex, drive)
+				if err != nil {
+					return "", err
+				}
 			}
 		}
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			vm.addNetDevConfig(sb, nicIndex, runConf.NetworkInterface)
+			err = vm.addNetDevConfig(sb, nicIndex, runConf.NetworkInterface)
+			if err != nil {
+				return "", err
+			}
 			nicIndex++
 		}
 	}
@@ -1277,20 +1310,23 @@ func (vm *qemu) addMemoryConfig(sb *strings.Builder) error {
 		return fmt.Errorf("limits.memory invalid: %v", err)
 	}
 
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Memory
 [memory]
-size = "%dB"
-`, memSizeBytes))
+size = "{{.memSizeBytes}}B"
+`))
 
-	return nil
+	m := map[string]interface{}{
+		"memSizeBytes": memSizeBytes,
+	}
+	return t.Execute(sb, m)
 }
 
 // addVsockConfig adds the qemu config required for setting up the host->VM vsock socket.
-func (vm *qemu) addVsockConfig(sb *strings.Builder) {
+func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 	vsockID := vm.vsockID()
 
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Vsock
 [device "qemu_pcie4"]
 driver = "pcie-root-port"
@@ -1301,12 +1337,15 @@ addr = "0x2.0x3"
 
 [device]
 driver = "vhost-vsock-pci"
-guest-cid = "%d"
+guest-cid = "{{.vsockID}}"
 bus = "qemu_pcie4"
 addr = "0x0"
-`, vsockID))
+`))
 
-	return
+	m := map[string]interface{}{
+		"vsockID": vsockID,
+	}
+	return t.Execute(sb, m)
 }
 
 // addCPUConfig adds the qemu config required for setting the number of virtualised CPUs.
@@ -1322,46 +1361,52 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 		return fmt.Errorf("limits.cpu invalid: %v", err)
 	}
 
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # CPU
 [smp-opts]
-cpus = "%d"
+cpus = "{{.cpuCount}}"
 #sockets = "1"
 #cores = "1"
 #threads = "1"
-`, cpuCount))
+`))
 
-	return nil
+	m := map[string]interface{}{
+		"cpuCount": cpuCount,
+	}
+	return t.Execute(sb, m)
 }
 
 // addMonitorConfig adds the qemu config required for setting up the host side VM monitor device.
-func (vm *qemu) addMonitorConfig(sb *strings.Builder) {
+func (vm *qemu) addMonitorConfig(sb *strings.Builder) error {
 	monitorPath := vm.getMonitorPath()
 
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Qemu control
 [chardev "monitor"]
 backend = "socket"
-path = "%s"
+path = "{{.path}}"
 server = "on"
 wait = "off"
 
 [mon]
 chardev = "monitor"
 mode = "control"
-`, monitorPath))
+`))
 
-	return
+	m := map[string]interface{}{
+		"path": monitorPath,
+	}
+	return t.Execute(sb, m)
 }
 
 // addFirmwareConfig adds the qemu config required for adding a secure boot compatible EFI firmware.
-func (vm *qemu) addFirmwareConfig(sb *strings.Builder) {
+func (vm *qemu) addFirmwareConfig(sb *strings.Builder) error {
 	nvramPath := vm.getNvramPath()
 
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Firmware (read only)
 [drive]
-file = "%s"
+file = "{{.roPath}}"
 if = "pflash"
 format = "raw"
 unit = "0"
@@ -1369,33 +1414,40 @@ readonly = "on"
 
 # Firmware settings (writable)
 [drive]
-file = "%s"
+file = "{{.nvramPath}}"
 if = "pflash"
 format = "raw"
 unit = "1"
-`, filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"), nvramPath))
+`))
 
-	return
+	m := map[string]interface{}{
+		"roPath":    filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
+		"nvramPath": nvramPath,
+	}
+	return t.Execute(sb, m)
 }
 
 // addConfDriveConfig adds the qemu config required for adding the config drive.
-func (vm *qemu) addConfDriveConfig(sb *strings.Builder) {
+func (vm *qemu) addConfDriveConfig(sb *strings.Builder) error {
 	// Devices use "qemu_" prefix indicating that this is a internally named device.
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Config drive
 [fsdev "qemu_config"]
 fsdriver = "local"
 security_model = "none"
 readonly = "on"
-path = "%s"
+path = "{{.path}}"
 
 [device "dev-qemu_config"]
 driver = "virtio-9p-pci"
 fsdev = "qemu_config"
 mount_tag = "config"
-`, filepath.Join(vm.Path(), "config")))
+`))
 
-	return
+	m := map[string]interface{}{
+		"path": filepath.Join(vm.Path(), "config"),
+	}
+	return t.Execute(sb, m)
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
@@ -1411,10 +1463,10 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder) error {
 	}
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
-	sb.WriteString(fmt.Sprintf(`
+	t := template.Must(template.New("").Parse(`
 # Root drive ("root" device)
 [drive "lxd_root"]
-file = "%s"
+file = "{{.file}}"
 format = "raw"
 if = "none"
 cache = "none"
@@ -1428,39 +1480,46 @@ scsi-id = "0"
 lun = "1"
 drive = "lxd_root"
 bootindex = "1"
-`, rootDrivePath))
-
-	return nil
+`))
+	m := map[string]interface{}{
+		"file": rootDrivePath,
+	}
+	return t.Execute(sb, m)
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (vm *qemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf deviceConfig.MountEntryItem) {
+func (vm *qemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf deviceConfig.MountEntryItem) error {
 	driveName := fmt.Sprintf(driveConf.TargetPath)
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
-	sb.WriteString(fmt.Sprintf(`
-# %s drive
-[drive "lxd_%s"]
-file = "%s"
+	t := template.Must(template.New("").Parse(`
+# {{.driveName}} drive
+[drive "lxd_{{.driveName}}"]
+file = "{{.devPath}}"
 format = "raw"
 if = "none"
 cache = "none"
 aio = "native"
 
-[device "dev-lxd_%s"]
+[device "dev-lxd_{{.driveName}}"]
 driver = "scsi-hd"
 bus = "qemu_scsi.0"
 channel = "0"
-scsi-id = "%d"
+scsi-id = "{{.driveIndex}}"
 lun = "1"
-drive = "lxd_%s"
-`, driveName, driveName, driveConf.DevPath, driveName, driveIndex, driveName))
+drive = "lxd_{{.driveName}}"
+`))
 
-	return
+	m := map[string]interface{}{
+		"driveName":  driveName,
+		"devPath":    driveConf.DevPath,
+		"driveIndex": driveIndex,
+	}
+	return t.Execute(sb, m)
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []deviceConfig.RunConfigItem) {
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []deviceConfig.RunConfigItem) error {
 	var devName, devTap, devHwaddr string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "name" {
@@ -1473,31 +1532,40 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []d
 	}
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
-	sb.WriteString(fmt.Sprintf(`
-# Network card ("%s" device)
-[netdev "lxd_%s"]
+	t := template.Must(template.New("").Parse(`
+# Network card ("{{.devName}}" device)
+[netdev "lxd_{{.devName}}"]
 type = "tap"
-ifname = "%s"
+ifname = "{{.ifName}}"
 script = "no"
 downscript = "no"
 
-[device "qemu_pcie%d"]
+[device "qemu_pcie{{.chassisIndex}}"]
 driver = "pcie-root-port"
-port = "0x%d"
-chassis = "%d"
+port = "0x{{.portIndex}}"
+chassis = "{{.chassisIndex}}"
 bus = "pcie.0"
-addr = "0x2.0x%d"
+addr = "0x2.0x{{.pcieAddr}}"
 
-[device "dev-lxd_%s"]
+[device "dev-lxd_{{.devName}}"]
 driver = "virtio-net-pci"
-netdev = "lxd_%s"
-mac = "%s"
-bus = "qemu_pcie%d"
+netdev = "lxd_{{.devName}}"
+mac = "{{.devHwaddr}}"
+bus = "qemu_pcie{{.chassisIndex}}"
 addr = "0x0"
-bootindex = "%d"
-`, devName, devName, devTap, 5+nicIndex, 14+nicIndex, 5+nicIndex, 4+nicIndex, devName, devName, devHwaddr, 5+nicIndex, 2+nicIndex))
+bootindex = "{{.bootIndex}}"
+`))
 
-	return
+	m := map[string]interface{}{
+		"devName":      devName,
+		"ifName":       devTap,
+		"chassisIndex": 5 + nicIndex,
+		"portIndex":    14 + nicIndex,
+		"pcieAddr":     4 + nicIndex,
+		"devHwaddr":    devHwaddr,
+		"bootIndex":    2 + nicIndex,
+	}
+	return t.Execute(sb, m)
 }
 
 // pidFilePath returns the path where the qemu process should write its PID.
