@@ -895,7 +895,7 @@ This adds a new `architecture` attribute to cluster members which indicates a cl
 member's architecture.
 
 ## resources\_disk\_id
-Add a new device_id field in the disk entries on the resources API.
+Add a new device\_id field in the disk entries on the resources API.
 
 ## storage\_lvm\_stripes
 This adds the ability to use LVM stripes on normal volumes and thin pool volumes.
