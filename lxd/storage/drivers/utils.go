@@ -301,6 +301,16 @@ func ensureVolumeBlockFile(vol Volume, path string) error {
 		return err
 	}
 
+	// Qemu requires image files to be in traditional storage block boundaries.
+	// We use 8k here to ensure our images are compatible with all of our backend drivers.
+	const minBlockBoundary = 8192
+	if blockSizeBytes < minBlockBoundary {
+		blockSizeBytes = minBlockBoundary
+	}
+
+	// Round the size to closest minBlockBoundary bytes to avoid qemu boundary issues.
+	blockSizeBytes = int64(blockSizeBytes/minBlockBoundary) * minBlockBoundary
+
 	if shared.PathExists(path) {
 		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
 		if err != nil {
