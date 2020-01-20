@@ -19,7 +19,7 @@ func (d *nicMACVLAN) validateConfig() error {
 	}
 
 	requiredFields := []string{"parent"}
-	optionalFields := []string{"name", "mtu", "hwaddr", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6"}
+	optionalFields := []string{"name", "mtu", "hwaddr", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "boot.priority"}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
@@ -106,6 +106,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
+		{Key: "devName", Value: d.name},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
