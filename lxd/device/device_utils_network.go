@@ -13,8 +13,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -367,18 +370,45 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 }
 
 // networkCreateTap creates and configures a TAP device.
-func networkCreateTap(hostName string) error {
+func networkCreateTap(hostName string, m deviceConfig.Device) error {
 	_, err := shared.RunCommand("ip", "tuntap", "add", "name", hostName, "mode", "tap")
 	if err != nil {
-		return fmt.Errorf("Failed to create the tap interfaces %s: %v", hostName, err)
+		return errors.Wrapf(err, "Failed to create the tap interfaces %s", hostName)
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	_, err = shared.RunCommand("ip", "link", "set", "dev", hostName, "up")
 	if err != nil {
-		NetworkRemoveInterface(hostName)
-		return fmt.Errorf("Failed to bring up the tap interface %s: %v", hostName, err)
+		return errors.Wrapf(err, "Failed to bring up the tap interface %s", hostName)
+	}
+	revert.Add(func() { NetworkRemoveInterface(hostName) })
+
+	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
+	if m["mtu"] != "" {
+		MTU, err := strconv.ParseUint(m["mtu"], 10, 32)
+		if err != nil {
+			return errors.Wrap(err, "Invalid MTU specified")
+		}
+
+		err = NetworkSetDevMTU(hostName, MTU)
+		if err != nil {
+			return errors.Wrap(err, "Failed to set the MTU")
+		}
+	} else if m["parent"] != "" {
+		parentMTU, err := NetworkGetDevMTU(m["parent"])
+		if err != nil {
+			return errors.Wrap(err, "Failed to get the parent MTU")
+		}
+
+		err = NetworkSetDevMTU(hostName, parentMTU)
+		if err != nil {
+			return errors.Wrap(err, "Failed to set the MTU")
+		}
 	}
 
+	revert.Success()
 	return nil
 }
 
