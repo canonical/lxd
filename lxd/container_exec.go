@@ -391,51 +391,49 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Process environment.
-	env := map[string]string{}
+	if post.Environment == nil {
+		post.Environment = map[string]string{}
+	}
+
+	// Override any environment variable settings from the instance if not manually specified in post.
 	for k, v := range inst.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
-			env[strings.TrimPrefix(k, "environment.")] = v
+			envKey := strings.TrimPrefix(k, "environment.")
+			if _, found := post.Environment[envKey]; !found {
+				post.Environment[envKey] = v
+			}
 		}
 	}
 
-	if post.Environment != nil {
-		for k, v := range post.Environment {
-			env[k] = v
-		}
-	}
-
-	// Set default value for PATH
-	_, ok := env["PATH"]
+	// Set default value for PATH.
+	_, ok := post.Environment["PATH"]
 	if !ok {
-		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		post.Environment["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 		if inst.FileExists("/snap") == nil {
-			env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+			post.Environment["PATH"] = fmt.Sprintf("%s:/snap/bin", post.Environment["PATH"])
 		}
 	}
 
-	// If running as root, set some env variables
+	// If running as root, set some env variables.
 	if post.User == 0 {
-		// Set default value for HOME
-		_, ok = env["HOME"]
+		// Set default value for HOME.
+		_, ok = post.Environment["HOME"]
 		if !ok {
-			env["HOME"] = "/root"
+			post.Environment["HOME"] = "/root"
 		}
 
-		// Set default value for USER
-		_, ok = env["USER"]
+		// Set default value for USER.
+		_, ok = post.Environment["USER"]
 		if !ok {
-			env["USER"] = "root"
+			post.Environment["USER"] = "root"
 		}
 	}
 
-	// Set default value for LANG
-	_, ok = env["LANG"]
+	// Set default value for LANG.
+	_, ok = post.Environment["LANG"]
 	if !ok {
-		env["LANG"] = "C.UTF-8"
+		post.Environment["LANG"] = "C.UTF-8"
 	}
-
-	// Apply to request.
-	post.Environment = env
 
 	if post.WaitForWS {
 		ws := &execWs{}
