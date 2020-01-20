@@ -23,8 +23,8 @@ cephfs.user.name                | string    | cephfs driver                     
 lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | storage                            | Thin pool where volumes are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool        | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | storage                            | Name of the volume group to create.
-lvm.volume.stripes              | string    | lvm driver                        | -                          | storage\_lvm\_stripes              | Number of stripes to use for new volumes (or thin pool volume).
-lvm.volume.stripes.size         | string    | lvm driver                        | -                          | storage\_lvm\_stripes              | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
+volume.lvm.stripes              | string    | lvm driver                        | -                          | storage\_lvm\_stripes              | Number of stripes to use for new volumes (or thin pool volume).
+volume.lvm.stripes.size         | string    | lvm driver                        | -                          | storage\_lvm\_stripes              | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
 rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | storage\_rsync\_bwlimit            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
 volatile.initial\_source        | string    | -                                 | -                          | storage\_volatile\_initial\_source | Records the actual source passed during creating (e.g. /dev/sdb).
 volatile.pool.pristine          | string    | -                                 | true                       | storage\_driver\_ceph              | Whether the pool has been empty on creation time.
@@ -43,15 +43,17 @@ lxc storage set [<remote>:]<pool> <key> <value>
 ```
 
 ## Storage volume configuration
-Key                     | Type      | Condition                 | Default                               | API Extension     | Description
-:--                     | :---      | :--------                 | :------                               | :------------     | :----------
-size                    | string    | appropriate driver        | same as volume.size                   | storage           | Size of the storage volume
-block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | storage           | Filesystem of the storage volume
-block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | storage           | Mount options for block devices
-security.shifted        | bool      | custom volume             | false                                 | storage\_shifted  | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped | Disable id mapping for the volume
-zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage           | Remove snapshots as needed
-zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage           | Use refquota instead of quota for space
+Key                     | Type      | Condition                 | Default                               | API Extension         | Description
+:--                     | :---      | :--------                 | :------                               | :------------         | :----------
+size                    | string    | appropriate driver        | same as volume.size                   | storage               | Size of the storage volume
+block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | storage               | Filesystem of the storage volume
+block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | storage               | Mount options for block devices
+security.shifted        | bool      | custom volume             | false                                 | storage\_shifted      | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped     | Disable id mapping for the volume
+lvm.stripes             | string    | lvm driver                | -                                     | storage\_lvm\_stripes | Number of stripes to use for new volumes (or thin pool volume).
+lvm.stripes.size        | string    | lvm driver                | -                                     | storage\_lvm\_stripes | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
+zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage               | Remove snapshots as needed
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage               | Use refquota instead of quota for space
 
 Storage volume configuration keys can be set using the lxc tool with:
 
