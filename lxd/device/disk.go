@@ -344,6 +344,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		if sourceDevPath != "" {
 			// Instruct LXD to perform the mount.
 			runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
+				DevName:    d.name,
 				DevPath:    sourceDevPath,
 				TargetPath: relativeDestPath,
 				FSType:     "none",
@@ -364,8 +365,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 
 	if shared.IsRootDiskDevice(d.config) {
-		// The root disk device is special as it is given the first device ID and boot order in VM config.
-		runConf.RootFS.Path = d.config["path"]
+		runConf.Mounts = []deviceConfig.MountEntryItem{
+			{
+				TargetPath: d.config["path"], // Indicator used that this is the root device.
+				DevName:    d.name,
+			},
+		}
+
 		return &runConf, nil
 	} else if d.config["source"] == diskSourceCloudInit {
 		// This is a special virtual disk source that can be attached to a VM to provide cloud-init config.
@@ -376,8 +382,8 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
-				DevPath:    isoPath,
-				TargetPath: d.name,
+				DevPath: isoPath,
+				DevName: d.name,
 			},
 		}
 		return &runConf, nil
@@ -386,10 +392,11 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		if !shared.PathExists(d.config["source"]) {
 			return nil, fmt.Errorf("Cannot find disk source")
 		}
+
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
-				DevPath:    d.config["source"],
-				TargetPath: d.name,
+				DevPath: d.config["source"],
+				DevName: d.name,
 			},
 		}
 		return &runConf, nil
