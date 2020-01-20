@@ -899,3 +899,6 @@ Add a new device\_id field in the disk entries on the resources API.
 
 ## storage\_lvm\_stripes
 This adds the ability to use LVM stripes on normal volumes and thin pool volumes.
+
+## vm\_boot\_priority
+Adds a `boot.priority` property on nic and disk devices to control the boot order.
