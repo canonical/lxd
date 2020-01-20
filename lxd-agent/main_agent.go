@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -97,25 +100,56 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Prepare the HTTP server.
 	httpServer := restServer(tlsConfig, cert, c.global.flagLogDebug, d)
 
-	// Serial notification.
+	// Create a cancellation context.
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	// Start status notifier in background.
+	go c.startStatusNotifier(ctx)
+
+	// Cancel context when SIGTEM is received.
+	chSignal := make(chan os.Signal, 1)
+	signal.Notify(chSignal, unix.SIGTERM)
+	go func() {
+		<-chSignal
+		cancelFunc()
+		os.Exit(0)
+	}()
+
+	// Start the server.
+	return httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
+}
+
+// startStatusNotifier sends status of agent to vserial ring buffer every 10s or when context is done.
+func (c *cmdAgent) startStatusNotifier(ctx context.Context) {
+	ticker := time.NewTicker(time.Duration(time.Second) * 10)
+	defer ticker.Stop()
+
+	// Write initial started status.
+	c.writeStatus("STARTED")
+
+	for {
+		select {
+		case <-ticker.C:
+			// Re-populate status periodically in case LXD restarts.
+			c.writeStatus("STARTED")
+		case <-ctx.Done():
+			// Indicate we are stopping to LXD.
+			c.writeStatus("STOPPED")
+			return
+		}
+	}
+}
+
+// writeStatus writes a status code to the vserial ring buffer used to detect agent status on host.
+func (c *cmdAgent) writeStatus(status string) error {
 	if shared.PathExists("/dev/virtio-ports/org.linuxcontainers.lxd") {
 		vSerial, err := os.OpenFile("/dev/virtio-ports/org.linuxcontainers.lxd", os.O_RDWR, 0600)
 		if err != nil {
 			return err
 		}
-		defer vSerial.Close()
-
-		vSerial.Write([]byte("STARTED\n"))
-
-		chSignal := make(chan os.Signal, 1)
-		signal.Notify(chSignal, unix.SIGTERM)
-		go func() {
-			<-chSignal
-			vSerial.Write([]byte("STOPPED\n"))
-			os.Exit(0)
-		}()
+		vSerial.Write([]byte(fmt.Sprintf("%s\n", status)))
+		vSerial.Close()
 	}
 
-	// Start the server.
-	return httpServer.ServeTLS(networkTLSListener(l, tlsConfig), "agent.crt", "agent.key")
+	return nil
 }
