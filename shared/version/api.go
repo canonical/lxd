@@ -183,6 +183,7 @@ var APIExtensions = []string{
 	"clustering_architecture",
 	"resources_disk_id",
 	"storage_lvm_stripes",
+	"vm_boot_priority",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
