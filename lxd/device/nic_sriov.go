@@ -37,6 +37,7 @@ func (d *nicSRIOV) validateConfig() error {
 		"security.mac_filtering",
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
+		"boot.priority",
 	}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
@@ -112,6 +113,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
+		{Key: "devName", Value: d.name},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},

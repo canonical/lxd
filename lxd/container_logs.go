@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
@@ -103,11 +104,11 @@ func containerLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -126,7 +127,7 @@ func containerLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{
-		Path:     shared.LogPath(name, file),
+		Path:     shared.LogPath(project.Prefix(projectName, name), file),
 		Filename: file,
 	}
 

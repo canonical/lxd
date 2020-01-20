@@ -2172,6 +2172,10 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 			}
 
 			for _, nicItem := range runConf.NetworkInterface {
+				if nicItem.Key == "devName" {
+					// Skip internal device name key, not used by liblxc.
+					continue
+				}
 				err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
 				if err != nil {
 					return "", postStartHooks, errors.Wrapf(err, "Failed to setup device network interface '%s'", dev.Name)

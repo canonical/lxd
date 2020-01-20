@@ -71,6 +71,7 @@ func (d *nicBridged) validateConfig() error {
 		"security.ipv6_filtering",
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
+		"boot.priority",
 	}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
@@ -175,6 +176,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
+		{Key: "devName", Value: d.name},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},

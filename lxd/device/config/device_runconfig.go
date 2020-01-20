@@ -17,6 +17,7 @@ type RunConfigItem struct {
 
 // MountEntryItem represents a single mount entry item.
 type MountEntryItem struct {
+	DevName    string   // The internal name for the device.
 	DevPath    string   // Describes the block special device or remote filesystem to be mounted.
 	TargetPath string   // Describes the mount point (target) for the filesystem.
 	FSType     string   // Describes the type of the filesystem.
