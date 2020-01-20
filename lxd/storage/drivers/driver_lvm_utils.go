@@ -316,12 +316,14 @@ func (d *lvm) roundedSizeBytesString(size string) (int64, error) {
 		return 0, err
 	}
 
-	if sizeBytes < 512 {
-		sizeBytes = 512
+	// LVM tools require sizes in multiples of 512 bytes.
+	const minSizeBytes = 512
+	if sizeBytes < minSizeBytes {
+		sizeBytes = minSizeBytes
 	}
 
-	// Round the size to closest 512 bytes as LVM tools require sizes in multiples of 512 bytes.
-	sizeBytes = int64(sizeBytes/512) * 512
+	// Round the size to closest minSizeBytes bytes.
+	sizeBytes = int64(sizeBytes/minSizeBytes) * minSizeBytes
 
 	return sizeBytes, nil
 }
