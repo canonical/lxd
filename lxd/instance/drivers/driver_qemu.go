@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1136,6 +1137,45 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	return nil
 }
 
+// deviceBootPriorities returns a map keyed on device name containing the boot index to use.
+// Qemu tries to boot devices in order of boot index (lowest first).
+func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
+	type devicePrios struct {
+		Name     string
+		BootPrio uint32
+	}
+
+	devices := []devicePrios{}
+
+	for devName, devConf := range vm.expandedDevices {
+		if devConf["type"] != "disk" && devConf["type"] != "nic" {
+			continue
+		}
+
+		bootPrio := uint32(0) // Default to lowest priority.
+		if devConf["boot.priority"] != "" {
+			prio, err := strconv.ParseInt(devConf["boot.priority"], 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Invalid boot.priority for device %q", devName)
+			}
+			bootPrio = uint32(prio)
+		} else if devConf["path"] == "/" {
+			bootPrio = 1 // Set boot priority of root disk higher than any device without a boot prio.
+		}
+
+		devices = append(devices, devicePrios{Name: devName, BootPrio: bootPrio})
+	}
+
+	sort.SliceStable(devices, func(i, j int) bool { return devices[i].BootPrio > devices[j].BootPrio })
+
+	sortedDevs := make(map[string]int, len(devices))
+	for bootIndex, dev := range devices {
+		sortedDevs[dev.Name] = bootIndex
+	}
+
+	return sortedDevs, nil
+}
+
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
 func (vm *qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig) (string, error) {
@@ -1260,22 +1300,20 @@ backend = "pty"
 	}
 
 	nicIndex := 0
-	driveIndex := 0
-	for _, runConf := range devConfs {
-		// Add root drive device.
-		if runConf.RootFS.Path != "" {
-			err = vm.addRootDriveConfig(sb)
-			if err != nil {
-				return "", err
-			}
-		}
+	bootIndexes, err := vm.deviceBootPriorities()
+	if err != nil {
+		return "", errors.Wrap(err, "Error calculating boot indexes")
+	}
 
+	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
-				// Increment first so index starts at 1, as root drive uses index 0.
-				driveIndex++
-				err = vm.addDriveConfig(sb, driveIndex, drive)
+				if drive.TargetPath == "/" {
+					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
+				} else {
+					err = vm.addDriveConfig(sb, bootIndexes, drive)
+				}
 				if err != nil {
 					return "", err
 				}
@@ -1284,7 +1322,7 @@ backend = "pty"
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = vm.addNetDevConfig(sb, nicIndex, runConf.NetworkInterface)
+			err = vm.addNetDevConfig(sb, nicIndex, bootIndexes, runConf.NetworkInterface)
 			if err != nil {
 				return "", err
 			}
@@ -1451,7 +1489,11 @@ mount_tag = "config"
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (vm *qemu) addRootDriveConfig(sb *strings.Builder) error {
+func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
+	if rootDriveConf.TargetPath != "/" {
+		return fmt.Errorf("Non-root drive config supplied")
+	}
+
 	pool, err := vm.getStoragePool()
 	if err != nil {
 		return err
@@ -1462,67 +1504,52 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder) error {
 		return err
 	}
 
-	// Devices use "lxd_" prefix indicating that this is a user named device.
-	t := template.Must(template.New("").Parse(`
-# Root drive ("root" device)
-[drive "lxd_root"]
-file = "{{.file}}"
-format = "raw"
-if = "none"
-cache = "none"
-aio = "native"
-
-[device "dev-lxd_root"]
-driver = "scsi-hd"
-bus = "qemu_scsi.0"
-channel = "0"
-scsi-id = "0"
-lun = "1"
-drive = "lxd_root"
-bootindex = "1"
-`))
-	m := map[string]interface{}{
-		"file": rootDrivePath,
+	// Generate a new device config with the root device path expanded.
+	driveConf := deviceConfig.MountEntryItem{
+		DevName: rootDriveConf.DevName,
+		DevPath: rootDrivePath,
 	}
-	return t.Execute(sb, m)
+
+	return vm.addDriveConfig(sb, bootIndexes, driveConf)
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (vm *qemu) addDriveConfig(sb *strings.Builder, driveIndex int, driveConf deviceConfig.MountEntryItem) error {
-	driveName := fmt.Sprintf(driveConf.TargetPath)
+func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
+	devName := fmt.Sprintf(driveConf.DevName)
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
 	t := template.Must(template.New("").Parse(`
-# {{.driveName}} drive
-[drive "lxd_{{.driveName}}"]
+# {{.devName}} drive
+[drive "lxd_{{.devName}}"]
 file = "{{.devPath}}"
 format = "raw"
 if = "none"
 cache = "none"
 aio = "native"
 
-[device "dev-lxd_{{.driveName}}"]
+[device "dev-lxd_{{.devName}}"]
 driver = "scsi-hd"
 bus = "qemu_scsi.0"
 channel = "0"
-scsi-id = "{{.driveIndex}}"
+scsi-id = "{{.bootIndex}}"
 lun = "1"
-drive = "lxd_{{.driveName}}"
+drive = "lxd_{{.devName}}"
+bootindex = "{{.bootIndex}}"
 `))
 
 	m := map[string]interface{}{
-		"driveName":  driveName,
-		"devPath":    driveConf.DevPath,
-		"driveIndex": driveIndex,
+		"devName":   devName,
+		"devPath":   driveConf.DevPath,
+		"bootIndex": bootIndexes[devName],
 	}
 	return t.Execute(sb, m)
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, nicConfig []deviceConfig.RunConfigItem) error {
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) error {
 	var devName, devTap, devHwaddr string
 	for _, nicItem := range nicConfig {
-		if nicItem.Key == "name" {
+		if nicItem.Key == "devName" {
 			devName = nicItem.Value
 		} else if nicItem.Key == "link" {
 			devTap = nicItem.Value
@@ -1563,7 +1590,7 @@ bootindex = "{{.bootIndex}}"
 		"portIndex":    14 + nicIndex,
 		"pcieAddr":     4 + nicIndex,
 		"devHwaddr":    devHwaddr,
-		"bootIndex":    2 + nicIndex,
+		"bootIndex":    bootIndexes[devName],
 	}
 	return t.Execute(sb, m)
 }
