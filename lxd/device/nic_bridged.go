@@ -71,6 +71,7 @@ func (d *nicBridged) validateConfig() error {
 		"security.ipv6_filtering",
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
+		"boot.priority",
 	}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {

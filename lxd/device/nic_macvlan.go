@@ -19,7 +19,7 @@ func (d *nicMACVLAN) validateConfig() error {
 	}
 
 	requiredFields := []string{"parent"}
-	optionalFields := []string{"name", "mtu", "hwaddr", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6"}
+	optionalFields := []string{"name", "mtu", "hwaddr", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "boot.priority"}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
