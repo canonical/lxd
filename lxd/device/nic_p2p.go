@@ -14,7 +14,7 @@ type nicP2P struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicP2P) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
@@ -28,6 +28,7 @@ func (d *nicP2P) validateConfig() error {
 		"limits.max",
 		"ipv4.routes",
 		"ipv6.routes",
+		"boot.priority",
 	}
 	err := d.config.Validate(nicValidationRules([]string{}, optionalFields))
 	if err != nil {
@@ -61,12 +62,23 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData := make(map[string]string)
 	saveData["host_name"] = d.config["host_name"]
-	if saveData["host_name"] == "" {
-		saveData["host_name"] = NetworkRandomDevName("veth")
-	}
+
+	var peerName string
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
-	peerName, err := networkCreateVethPair(saveData["host_name"], d.config)
+	if d.inst.Type() == instancetype.Container {
+		if saveData["host_name"] == "" {
+			saveData["host_name"] = NetworkRandomDevName("veth")
+		}
+		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+	} else if d.inst.Type() == instancetype.VM {
+		if saveData["host_name"] == "" {
+			saveData["host_name"] = NetworkRandomDevName("tap")
+		}
+		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
+		err = networkCreateTap(saveData["host_name"], d.config)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +102,12 @@ func (d *nicP2P) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
 		{Key: "link", Value: peerName},
+	}
+
+	if d.inst.Type() == instancetype.VM {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+		)
 	}
 
 	return &runConf, nil
