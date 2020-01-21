@@ -72,23 +72,31 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(ch, unix.SIGINT)
 	signal.Notify(ch, unix.SIGQUIT)
 	signal.Notify(ch, unix.SIGTERM)
+	signal.Notify(ch, unix.SIGHUP)
 
 	s := d.State()
-	select {
-	case sig := <-ch:
-		if sig == unix.SIGPWR {
-			logger.Infof("Received '%s signal', shutting down containers", sig)
+	for {
+		select {
+		case sig := <-ch:
+			if sig == unix.SIGPWR {
+				logger.Infof("Received '%s signal', shutting down containers", sig)
+				containersShutdown(s)
+				networkShutdown(s)
+				break
+			} else if sig == unix.SIGHUP {
+				logger.Infof("Received '%s signal', ignoring", sig)
+			} else {
+				logger.Infof("Received '%s signal', exiting", sig)
+				break
+			}
+
+		case <-d.shutdownChan:
+			logger.Infof("Asked to shutdown by API, shutting down containers")
+			d.Kill()
 			containersShutdown(s)
 			networkShutdown(s)
-		} else {
-			logger.Infof("Received '%s signal', exiting", sig)
+			break
 		}
-
-	case <-d.shutdownChan:
-		logger.Infof("Asked to shutdown by API, shutting down containers")
-		d.Kill()
-		containersShutdown(s)
-		networkShutdown(s)
 	}
 
 	return d.Stop()
