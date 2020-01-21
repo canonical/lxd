@@ -1,9 +1,11 @@
 package cluster
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/pkg/errors"
@@ -164,4 +166,21 @@ func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
 	}
 
 	return nil
+}
+
+// Probe network connectivity to the member with the given address.
+func hasConnectivity(cert *shared.CertInfo, address string) bool {
+	config, err := tlsClientConfig(cert)
+	if err != nil {
+		return false
+	}
+
+	var conn net.Conn
+	dialer := &net.Dialer{Timeout: time.Second}
+	conn, err = tls.DialWithDialer(dialer, "tcp", address, config)
+	if err == nil {
+		conn.Close()
+		return true
+	}
+	return false
 }
