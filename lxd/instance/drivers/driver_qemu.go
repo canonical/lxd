@@ -2785,19 +2785,13 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	return console, chDisconnect, nil
 }
 
-func (vm *qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
-	logger.Debugf("Forwarding signal to lxd-agent: %s", sig)
-
+func (vm *qemu) forwardControlCommand(control *websocket.Conn, cmd api.InstanceExecControl) error {
 	w, err := control.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return err
 	}
 
-	msg := api.InstanceExecControl{}
-	msg.Command = "signal"
-	msg.Signal = int(sig)
-
-	buf, err := json.Marshal(msg)
+	buf, err := json.Marshal(cmd)
 	if err != nil {
 		return err
 	}
@@ -2836,8 +2830,8 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 	}
 
 	dataDone := make(chan bool)
-	signalSendCh := make(chan unix.Signal)
-	signalResCh := make(chan error)
+	controlSendCh := make(chan api.InstanceExecControl)
+	controlResCh := make(chan error)
 
 	// This is the signal control handler, it receives signals from lxc CLI and forwards them to the VM agent.
 	controlHandler := func(control *websocket.Conn) {
@@ -2846,9 +2840,9 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 
 		for {
 			select {
-			case signal := <-signalSendCh:
-				err := vm.forwardSignal(control, signal)
-				signalResCh <- err
+			case cmd := <-controlSendCh:
+				err := vm.forwardControlCommand(control, cmd)
+				controlResCh <- err
 			case <-dataDone:
 				return
 			}
@@ -2873,8 +2867,8 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 		attachedChildPid: -1, // Process is not running on LXD host.
 		dataDone:         args.DataDone,
 		cleanupFunc:      revert.Clone().Fail, // Pass revert function clone as clean up function.
-		signalSendCh:     signalSendCh,
-		signalResCh:      signalResCh,
+		controlSendCh:    controlSendCh,
+		controlResCh:     controlResCh,
 	}
 
 	revert.Success()
