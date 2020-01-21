@@ -2864,7 +2864,7 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 
 	instCmd := &qemuCmd{
 		cmd:              op,
-		attachedChildPid: -1, // Process is not running on LXD host.
+		attachedChildPid: 0, // Process is not running on LXD host.
 		dataDone:         args.DataDone,
 		cleanupFunc:      revert.Clone().Fail, // Pass revert function clone as clean up function.
 		controlSendCh:    controlSendCh,
