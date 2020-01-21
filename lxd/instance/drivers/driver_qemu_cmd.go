@@ -1,8 +1,6 @@
 package drivers
 
 import (
-	"fmt"
-
 	"golang.org/x/sys/unix"
 
 	lxdClient "github.com/lxc/lxd/client"
@@ -10,19 +8,23 @@ import (
 
 // Cmd represents a running command for an Qemu VM.
 type Cmd struct {
-	cmd         lxdClient.Operation
-	dataDone    chan bool
-	cleanupFunc func()
+	attachedChildPid int
+	cmd              lxdClient.Operation
+	dataDone         chan bool
+	signalSendCh     chan unix.Signal
+	signalResCh      chan error
+	cleanupFunc      func()
 }
 
 // PID returns the attached child's process ID.
 func (c *Cmd) PID() int {
-	return -1
+	return c.attachedChildPid
 }
 
 // Signal sends a signal to the command.
 func (c *Cmd) Signal(sig unix.Signal) error {
-	return fmt.Errorf("Not supported")
+	c.signalSendCh <- sig
+	return <-c.signalResCh
 }
 
 // Wait for the command to end and returns its exit code and any error.

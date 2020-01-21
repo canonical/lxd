@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -2783,8 +2784,30 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	return console, chDisconnect, nil
 }
 
+func (vm *qemu) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
+	logger.Debugf("Forwarding signal to lxd-agent: %s", sig)
+
+	w, err := control.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return err
+	}
+
+	msg := api.InstanceExecControl{}
+	msg.Command = "signal"
+	msg.Signal = int(sig)
+
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(buf)
+
+	w.Close()
+	return err
+}
+
 // Exec a command inside the instance.
-func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, *websocket.Conn, error) {
+func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	var instCmd *Cmd
 
 	// Because this function will exit before the remote command has finished, we create a
@@ -2809,13 +2832,13 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 
 	client, err := vm.getAgentClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		logger.Errorf("Failed to connect to lxd-agent on %s: %v", vm.Name(), err)
-		return nil, nil, fmt.Errorf("Failed to connect to lxd-agent")
+		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	cleanupFuncs = append(cleanupFuncs, agent.Disconnect)
 
@@ -2824,7 +2847,7 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 		// Set console to raw.
 		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		cleanupFuncs = append(cleanupFuncs, func() {
 			termios.Restore(int(stdin.Fd()), oldttystate)
@@ -2832,13 +2855,24 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 	}
 
 	dataDone := make(chan bool)
+	signalSendCh := make(chan unix.Signal)
+	signalResCh := make(chan error)
 
-	// Retrieve the raw control websocket and pass it to the generic exec handler.
-	var wsControl *websocket.Conn
-	chControl := make(chan struct{})
-	controlHander := func(conn *websocket.Conn) {
-		wsControl = conn
-		close(chControl)
+	// This is the signal control handler, it receives signals from lxc CLI and forwards them
+	// to the VM agent.
+	controlHander := func(control *websocket.Conn) {
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		defer control.WriteMessage(websocket.CloseMessage, closeMsg)
+
+		for {
+			select {
+			case signal := <-signalSendCh:
+				err := vm.forwardSignal(control, signal)
+				signalResCh <- err
+			case <-dataDone:
+				return
+			}
+		}
 	}
 
 	args := lxdClient.InstanceExecArgs{
@@ -2851,19 +2885,19 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 
 	op, err := agent.ExecInstance("", req, &args)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	// Wait for the control websocket to be connected.
-	<-chControl
 
 	instCmd = &Cmd{
-		cmd:         op,
-		dataDone:    args.DataDone,
-		cleanupFunc: cleanupFunc,
+		cmd:              op,
+		attachedChildPid: -1, // Process is not running on LXD host.
+		dataDone:         args.DataDone,
+		cleanupFunc:      cleanupFunc,
+		signalSendCh:     signalSendCh,
+		signalResCh:      signalResCh,
 	}
 
-	return instCmd, wsControl, nil
+	return instCmd, nil
 }
 
 // Render returns info about the instance.
