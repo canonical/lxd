@@ -7,7 +7,7 @@ import (
 )
 
 // Cmd represents a running command for an Qemu VM.
-type Cmd struct {
+type qemuCmd struct {
 	attachedChildPid int
 	cmd              lxdClient.Operation
 	dataDone         chan bool
@@ -17,18 +17,18 @@ type Cmd struct {
 }
 
 // PID returns the attached child's process ID.
-func (c *Cmd) PID() int {
+func (c *qemuCmd) PID() int {
 	return c.attachedChildPid
 }
 
 // Signal sends a signal to the command.
-func (c *Cmd) Signal(sig unix.Signal) error {
+func (c *qemuCmd) Signal(sig unix.Signal) error {
 	c.signalSendCh <- sig
 	return <-c.signalResCh
 }
 
 // Wait for the command to end and returns its exit code and any error.
-func (c *Cmd) Wait() (int, error) {
+func (c *qemuCmd) Wait() (int, error) {
 	if c.cleanupFunc != nil {
 		defer c.cleanupFunc()
 	}
