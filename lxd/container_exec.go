@@ -40,7 +40,6 @@ type execWs struct {
 	allConnected     chan bool
 	controlConnected chan bool
 	fds              map[int]string
-	remoteControl    *websocket.Conn
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -163,17 +162,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
-			// Handle cases where the instance provides us a control websocket.
-			if s.remoteControl != nil {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				<-shared.WebsocketProxy(conn, s.remoteControl)
-				return
-			}
-
-			logger.Debugf("Interactive child process handler started for child PID %d", attachedChild.PID())
+			logger.Debugf(`Interactive child process handler started for child PID "%d"`, attachedChild.PID())
 			for {
 				s.connsLock.Lock()
 				conn := s.conns[-1]
@@ -185,7 +174,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if err != nil {
-					logger.Debugf("Got error getting next reader %s", err)
+					logger.Debugf("Got error getting next reader: %v", err)
 					er, ok := err.(*websocket.CloseError)
 					if !ok {
 						break
@@ -198,51 +187,50 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// If an abnormal closure occurred, kill the attached child.
 					err := attachedChild.Signal(unix.SIGKILL)
 					if err != nil {
-						logger.Debugf("Failed to send SIGKILL to PID %d: %v", attachedChild.PID(), err)
+						logger.Debugf(`Failed to send SIGKILL to PID "%d": %v`, attachedChild.PID(), err)
 					} else {
-						logger.Debugf("Sent SIGKILL to PID %d", attachedChild.PID())
+						logger.Debugf(`Sent SIGKILL to PID "%d"`, attachedChild.PID())
 					}
 					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					logger.Debugf("Failed to read message %s", err)
+					logger.Debugf("Failed to read message: %v", err)
 					break
 				}
 
 				command := api.InstanceExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debugf("Failed to unmarshal control socket command: %s", err)
+					logger.Debugf("Failed to unmarshal control socket command: %v", err)
 					continue
 				}
 
 				if command.Command == "window-resize" {
 					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						logger.Debugf("Unable to extract window width: %s", err)
+						logger.Debugf("Unable to extract window width: %v", err)
 						continue
 					}
 
 					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
-						logger.Debugf("Unable to extract window height: %s", err)
+						logger.Debugf("Unable to extract window height: %v", err)
 						continue
 					}
 
-					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
+					err = attachedChild.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
+						logger.Debugf(`Failed to set window size to "%dx%d": %v`, winchWidth, winchHeight, err)
 						continue
 					}
 				} else if command.Command == "signal" {
 					err := attachedChild.Signal(unix.Signal(command.Signal))
 					if err != nil {
-						logger.Debugf("Failed forwarding signal '%d' to PID %d: %v", command.Signal, attachedChild.PID(), err)
+						logger.Debugf(`Failed forwarding signal "%d" to PID "%d": %v`, command.Signal, attachedChild.PID(), err)
 						continue
 					}
-					logger.Debugf("Forwarded signal '%d' to PID %d", command.Signal, attachedChild.PID())
 				}
 			}
 		}()
@@ -321,7 +309,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return cmdErr
 	}
 
-	cmd, wsControl, err := s.instance.Exec(s.req, stdin, stdout, stderr)
+	cmd, err := s.instance.Exec(s.req, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -329,7 +317,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.req.Interactive {
 		// Start the interactive process handler.
 		attachedChildIsBorn <- cmd
-		s.remoteControl = wsControl
 	}
 
 	exitCode, err := cmd.Wait()
@@ -391,51 +378,49 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Process environment.
-	env := map[string]string{}
+	if post.Environment == nil {
+		post.Environment = map[string]string{}
+	}
+
+	// Override any environment variable settings from the instance if not manually specified in post.
 	for k, v := range inst.ExpandedConfig() {
 		if strings.HasPrefix(k, "environment.") {
-			env[strings.TrimPrefix(k, "environment.")] = v
+			envKey := strings.TrimPrefix(k, "environment.")
+			if _, found := post.Environment[envKey]; !found {
+				post.Environment[envKey] = v
+			}
 		}
 	}
 
-	if post.Environment != nil {
-		for k, v := range post.Environment {
-			env[k] = v
-		}
-	}
-
-	// Set default value for PATH
-	_, ok := env["PATH"]
+	// Set default value for PATH.
+	_, ok := post.Environment["PATH"]
 	if !ok {
-		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		post.Environment["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 		if inst.FileExists("/snap") == nil {
-			env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+			post.Environment["PATH"] = fmt.Sprintf("%s:/snap/bin", post.Environment["PATH"])
 		}
 	}
 
-	// If running as root, set some env variables
+	// If running as root, set some env variables.
 	if post.User == 0 {
-		// Set default value for HOME
-		_, ok = env["HOME"]
+		// Set default value for HOME.
+		_, ok = post.Environment["HOME"]
 		if !ok {
-			env["HOME"] = "/root"
+			post.Environment["HOME"] = "/root"
 		}
 
-		// Set default value for USER
-		_, ok = env["USER"]
+		// Set default value for USER.
+		_, ok = post.Environment["USER"]
 		if !ok {
-			env["USER"] = "root"
+			post.Environment["USER"] = "root"
 		}
 	}
 
-	// Set default value for LANG
-	_, ok = env["LANG"]
+	// Set default value for LANG.
+	_, ok = post.Environment["LANG"]
 	if !ok {
-		env["LANG"] = "C.UTF-8"
+		post.Environment["LANG"] = "C.UTF-8"
 	}
-
-	// Apply to request.
-	post.Environment = env
 
 	if post.WaitForWS {
 		ws := &execWs{}
@@ -501,7 +486,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmd, _, err := inst.Exec(post, nil, stdout, stderr)
+			cmd, err := inst.Exec(post, nil, stdout, stderr)
 			if err != nil {
 				return err
 			}
@@ -518,7 +503,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmd, _, err := inst.Exec(post, nil, nil, nil)
+			cmd, err := inst.Exec(post, nil, nil, nil)
 			if err != nil {
 				return err
 			}
