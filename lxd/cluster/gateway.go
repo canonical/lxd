@@ -367,7 +367,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 // Dial function for establishing raft connections.
 func (g *Gateway) raftDial() client.DialFunc {
 	return func(ctx context.Context, address string) (net.Conn, error) {
-		if address == "0" {
+		if address == "1" {
 			addr, err := g.raftAddress(1)
 			if err != nil {
 				return nil, err
