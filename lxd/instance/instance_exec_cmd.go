@@ -9,4 +9,5 @@ type Cmd interface {
 	Wait() (int, error)
 	PID() int
 	Signal(s unix.Signal) error
+	WindowResize(fd, winchWidth, winchHeight int) error
 }
