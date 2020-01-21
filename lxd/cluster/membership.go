@@ -867,21 +867,20 @@ func isMemberOnline(state *state.State, cert *shared.CertInfo, address string) (
 			return err
 		}
 		if node.IsOffline(offlineThreshold) {
-			// Even the heartbeat timestamp is not recent enough,
-			// let's try to connect to the node, just in case the
-			// heartbeat is lagging behind for some reason and the
-			// node is actually up.
-			client, err := Connect(node.Address, cert, true)
-			if err == nil {
-				_, _, err = client.GetServer()
-			}
-			online = err == nil
+			online = false
 		}
 		return nil
 	})
 	if err != nil {
 		return false, err
 	}
+	// Even if the heartbeat timestamp is not recent enough, let's try to
+	// connect to the node, just in case the heartbeat is lagging behind
+	// for some reason and the node is actually up.
+	if !online && hasConnectivity(cert, address) {
+		online = true
+	}
+
 	return online, nil
 }
 

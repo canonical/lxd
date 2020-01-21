@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
@@ -43,47 +44,46 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 		return nullNotifier, nil
 	}
 
-	peers := []string{}
+	var nodes []db.NodeInfo
+	var offlineThreshold time.Duration
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
+		offlineThreshold, err = tx.NodeOfflineThreshold()
 		if err != nil {
 			return err
 		}
 
-		nodes, err := tx.Nodes()
+		nodes, err = tx.Nodes()
 		if err != nil {
 			return err
-		}
-		for _, node := range nodes {
-			if node.Address == address || node.Address == "0.0.0.0" {
-				continue // Exclude ourselves
-			}
-
-			if node.IsOffline(offlineThreshold) {
-				// Even the heartbeat timestamp is not recent
-				// enough, let's try to connect to the node,
-				// just in case the heartbeat is lagging behind
-				// for some reason and the node is actually up.
-				client, err := Connect(node.Address, cert, true)
-				if err == nil {
-					_, _, err = client.GetServer()
-				}
-				if err != nil {
-					switch policy {
-					case NotifyAll:
-						return fmt.Errorf("peer node %s is down", node.Address)
-					case NotifyAlive:
-						continue // Just skip this node
-					case NotifyTryAll:
-					}
-				}
-			}
-			peers = append(peers, node.Address)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	peers := []string{}
+	for _, node := range nodes {
+		if node.Address == address || node.Address == "0.0.0.0" {
+			continue // Exclude ourselves
+		}
+
+		if node.IsOffline(offlineThreshold) {
+			// Even if the heartbeat timestamp is not recent
+			// enough, let's try to connect to the node, just in
+			// case the heartbeat is lagging behind for some reason
+			// and the node is actually up.
+			if !hasConnectivity(cert, node.Address) {
+				switch policy {
+				case NotifyAll:
+					return nil, fmt.Errorf("peer node %s is down", node.Address)
+				case NotifyAlive:
+					continue // Just skip this node
+				case NotifyTryAll:
+				}
+			}
+		}
+		peers = append(peers, node.Address)
 	}
 
 	notifier := func(hook func(lxd.InstanceServer) error) error {
