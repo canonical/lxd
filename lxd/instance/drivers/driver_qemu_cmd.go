@@ -1,9 +1,13 @@
 package drivers
 
 import (
+	"strconv"
+
 	"golang.org/x/sys/unix"
 
 	lxdClient "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Cmd represents a running command for an Qemu VM.
@@ -11,8 +15,8 @@ type qemuCmd struct {
 	attachedChildPid int
 	cmd              lxdClient.Operation
 	dataDone         chan bool
-	signalSendCh     chan unix.Signal
-	signalResCh      chan error
+	controlSendCh    chan api.InstanceExecControl
+	controlResCh     chan error
 	cleanupFunc      func()
 }
 
@@ -23,8 +27,19 @@ func (c *qemuCmd) PID() int {
 
 // Signal sends a signal to the command.
 func (c *qemuCmd) Signal(sig unix.Signal) error {
-	c.signalSendCh <- sig
-	return <-c.signalResCh
+	command := api.InstanceExecControl{
+		Command: "signal",
+		Signal:  int(sig),
+	}
+
+	c.controlSendCh <- command
+	err := <-c.controlResCh
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Forwarded signal "%d" to lxd-agent`, sig)
+	return nil
 }
 
 // Wait for the command to end and returns its exit code and any error.
@@ -43,4 +58,23 @@ func (c *qemuCmd) Wait() (int, error) {
 	exitCode := int(opAPI.Metadata["return"].(float64))
 
 	return exitCode, nil
+}
+
+// WindowResize resizes the running command's window.
+func (c *qemuCmd) WindowResize(fd, winchWidth, winchHeight int) error {
+	command := api.InstanceExecControl{
+		Command: "window-resize",
+		Args: map[string]string{
+			"width":  strconv.Itoa(winchWidth),
+			"height": strconv.Itoa(winchHeight),
+		},
+	}
+
+	c.controlSendCh <- command
+	err := <-c.controlResCh
+	if err != nil {
+		return err
+	}
+	logger.Debugf(`Forwarded window resize "%dx%d" to lxd-agent`, winchWidth, winchHeight)
+	return nil
 }
