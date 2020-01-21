@@ -220,7 +220,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						continue
 					}
 
-					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
+					err = attachedChild.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
 						logger.Debugf(`Failed to set window size to "%dx%d": %v`, winchWidth, winchHeight, err)
 						continue
