@@ -162,7 +162,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
-			logger.Debugf("Interactive child process handler started for child PID %d", attachedChild.PID())
+			logger.Debugf(`Interactive child process handler started for child PID "%d"`, attachedChild.PID())
 			for {
 				s.connsLock.Lock()
 				conn := s.conns[-1]
@@ -174,7 +174,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if err != nil {
-					logger.Debugf("Got error getting next reader %s", err)
+					logger.Debugf("Got error getting next reader: %v", err)
 					er, ok := err.(*websocket.CloseError)
 					if !ok {
 						break
@@ -187,51 +187,50 @@ func (s *execWs) Do(op *operations.Operation) error {
 					// If an abnormal closure occurred, kill the attached child.
 					err := attachedChild.Signal(unix.SIGKILL)
 					if err != nil {
-						logger.Debugf("Failed to send SIGKILL to PID %d: %v", attachedChild.PID(), err)
+						logger.Debugf(`Failed to send SIGKILL to PID "%d": %v`, attachedChild.PID(), err)
 					} else {
-						logger.Debugf("Sent SIGKILL to PID %d", attachedChild.PID())
+						logger.Debugf(`Sent SIGKILL to PID "%d"`, attachedChild.PID())
 					}
 					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					logger.Debugf("Failed to read message %s", err)
+					logger.Debugf("Failed to read message: %v", err)
 					break
 				}
 
 				command := api.InstanceExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debugf("Failed to unmarshal control socket command: %s", err)
+					logger.Debugf("Failed to unmarshal control socket command: %v", err)
 					continue
 				}
 
 				if command.Command == "window-resize" {
 					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						logger.Debugf("Unable to extract window width: %s", err)
+						logger.Debugf("Unable to extract window width: %v", err)
 						continue
 					}
 
 					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
-						logger.Debugf("Unable to extract window height: %s", err)
+						logger.Debugf("Unable to extract window height: %v", err)
 						continue
 					}
 
 					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
+						logger.Debugf(`Failed to set window size to "%dx%d": %v`, winchWidth, winchHeight, err)
 						continue
 					}
 				} else if command.Command == "signal" {
 					err := attachedChild.Signal(unix.Signal(command.Signal))
 					if err != nil {
-						logger.Debugf("Failed forwarding signal '%d' to PID %d: %v", command.Signal, attachedChild.PID(), err)
+						logger.Debugf(`Failed forwarding signal "%d" to PID "%d": %v`, command.Signal, attachedChild.PID(), err)
 						continue
 					}
-					logger.Debugf("Forwarded signal '%d' to PID %d", command.Signal, attachedChild.PID())
 				}
 			}
 		}()
