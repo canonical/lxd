@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
-	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	lxc "gopkg.in/lxc/go-lxc.v2"
@@ -5687,7 +5686,7 @@ func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	return string(msg), nil
 }
 
-func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, *websocket.Conn, error) {
+func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	// Prepare the environment
 	envSlice := []string{}
 
@@ -5699,7 +5698,7 @@ func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os
 	logPath := filepath.Join(c.LogPath(), "forkexec.log")
 	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Prepare the subcommand
@@ -5752,21 +5751,21 @@ func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os
 	rStatus, wStatus, err := shared.Pipe()
 	defer rStatus.Close()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	cmd.ExtraFiles = []*os.File{stdin, stdout, stderr, wStatus}
 	err = cmd.Start()
 	if err != nil {
 		wStatus.Close()
-		return nil, nil, err
+		return nil, err
 	}
 	wStatus.Close()
 
 	attachedPid := -1
 	if err := json.NewDecoder(rStatus).Decode(&attachedPid); err != nil {
 		logger.Errorf("Failed to retrieve PID of executing child process: %s", err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	instCmd := &ContainerLXCCmd{
@@ -5774,7 +5773,7 @@ func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os
 		attachedChildPid: attachedPid,
 	}
 
-	return instCmd, nil, nil
+	return instCmd, nil
 }
 
 func (c *containerLXC) cpuState() api.InstanceStateCPU {

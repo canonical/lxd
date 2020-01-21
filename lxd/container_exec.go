@@ -40,7 +40,6 @@ type execWs struct {
 	allConnected     chan bool
 	controlConnected chan bool
 	fds              map[int]string
-	remoteControl    *websocket.Conn
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -160,16 +159,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 				break
 
 			case <-controlExit:
-				return
-			}
-
-			// Handle cases where the instance provides us a control websocket.
-			if s.remoteControl != nil {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				<-shared.WebsocketProxy(conn, s.remoteControl)
 				return
 			}
 
@@ -321,7 +310,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return cmdErr
 	}
 
-	cmd, wsControl, err := s.instance.Exec(s.req, stdin, stdout, stderr)
+	cmd, err := s.instance.Exec(s.req, stdin, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -329,7 +318,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.req.Interactive {
 		// Start the interactive process handler.
 		attachedChildIsBorn <- cmd
-		s.remoteControl = wsControl
 	}
 
 	exitCode, err := cmd.Wait()
@@ -499,7 +487,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmd, _, err := inst.Exec(post, nil, stdout, stderr)
+			cmd, err := inst.Exec(post, nil, stdout, stderr)
 			if err != nil {
 				return err
 			}
@@ -516,7 +504,7 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 				"2": fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmd, _, err := inst.Exec(post, nil, nil, nil)
+			cmd, err := inst.Exec(post, nil, nil, nil)
 			if err != nil {
 				return err
 			}
