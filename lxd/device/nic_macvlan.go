@@ -5,6 +5,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -30,7 +31,7 @@ func (d *nicMACVLAN) validateConfig() error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicMACVLAN) validateEnvironment() error {
-	if d.config["name"] == "" {
+	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
 		return fmt.Errorf("Requires name property to start")
 	}
 
