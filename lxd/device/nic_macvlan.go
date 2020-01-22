@@ -5,6 +5,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -14,12 +15,20 @@ type nicMACVLAN struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicMACVLAN) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
 	requiredFields := []string{"parent"}
-	optionalFields := []string{"name", "mtu", "hwaddr", "vlan", "maas.subnet.ipv4", "maas.subnet.ipv6", "boot.priority"}
+	optionalFields := []string{
+		"name",
+		"mtu",
+		"hwaddr",
+		"vlan",
+		"maas.subnet.ipv4",
+		"maas.subnet.ipv6",
+		"boot.priority",
+	}
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
@@ -30,7 +39,7 @@ func (d *nicMACVLAN) validateConfig() error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *nicMACVLAN) validateEnvironment() error {
-	if d.config["name"] == "" {
+	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
 		return fmt.Errorf("Requires name property to start")
 	}
 
@@ -52,6 +61,9 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	networkCreateSharedDeviceLock.Lock()
 	defer networkCreateSharedDeviceLock.Unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
@@ -69,20 +81,32 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	// Record whether we created the parent device or not so it can be removed on stop.
 	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
-	// Create MACVLAN interface.
-	_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", parentName, "type", "macvlan", "mode", "bridge")
-	if err != nil {
-		return nil, err
+	if shared.IsTrue(saveData["last_state.created"]) {
+		revert.Add(func() {
+			NetworkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
+		})
 	}
+
+	if d.inst.Type() == instancetype.Container {
+		// Create MACVLAN interface.
+		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", parentName, "type", "macvlan", "mode", "bridge")
+		if err != nil {
+			return nil, err
+		}
+	} else if d.inst.Type() == instancetype.VM {
+		// Create MACVTAP interface.
+		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", parentName, "type", "macvtap", "mode", "bridge")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	revert.Add(func() { NetworkRemoveInterface(saveData["host_name"]) })
 
 	// Set the MAC address.
 	if d.config["hwaddr"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
 		if err != nil {
-			if statusDev == "created" {
-				NetworkRemoveInterface(saveData["host_name"])
-			}
-
 			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
 		}
 	}
@@ -91,11 +115,15 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["mtu"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
 		if err != nil {
-			if statusDev == "created" {
-				NetworkRemoveInterface(saveData["host_name"])
-			}
-
 			return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+		}
+	}
+
+	if d.inst.Type() == instancetype.VM {
+		// Bring the interface up on host side.
+		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to bring up interface %s: %v", saveData["host_name"], err)
 		}
 	}
 
@@ -113,6 +141,13 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "link", Value: saveData["host_name"]},
 	}
 
+	if d.inst.Type() == instancetype.VM {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+		)
+	}
+
+	revert.Success()
 	return &runConf, nil
 }
 
