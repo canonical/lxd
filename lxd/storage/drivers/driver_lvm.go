@@ -90,6 +90,7 @@ func (d *lvm) Info() Info {
 		BlockBacking:          true,
 		RunningQuotaResize:    false,
 		RunningSnapshotFreeze: false,
+		DirectIO:              true,
 	}
 }
 
