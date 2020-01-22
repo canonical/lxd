@@ -73,6 +73,9 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(ch, unix.SIGQUIT)
 	signal.Notify(ch, unix.SIGTERM)
 
+	chIgnore := make(chan os.Signal)
+	signal.Notify(chIgnore, unix.SIGHUP)
+
 	s := d.State()
 	select {
 	case sig := <-ch:
