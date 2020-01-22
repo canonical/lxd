@@ -657,7 +657,10 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	confFile, err := vm.generateQemuConfigFile(qemuType, qemuConfig, devConfs)
+	// Define a set of files to open and pass their file descriptors to qemu command.
+	fdFiles := make([]string, 0)
+
+	confFile, err := vm.generateQemuConfigFile(qemuType, qemuConfig, devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -726,8 +729,25 @@ func (vm *qemu) Start(stateful bool) error {
 		args = append(args, fields...)
 	}
 
-	_, err = shared.RunCommand(qemuBinary, args...)
+	cmd := exec.Command(qemuBinary, args...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Open any extra files and pass their file handles to qemu command.
+	for _, file := range fdFiles {
+		f, err := os.OpenFile(file, os.O_RDWR, 0)
+		if err != nil {
+			return errors.Wrapf(err, "Error opening exta file %q", file)
+		}
+		defer f.Close() // Close file after qemu has started.
+		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+	}
+
+	err = cmd.Run()
 	if err != nil {
+		err = errors.Wrapf(err, "Failed to run: %s %s: %s", qemuBinary, strings.Join(args, " "), strings.TrimSpace(string(stderr.Bytes())))
 		op.Done(err)
 		return err
 	}
@@ -1180,7 +1200,7 @@ func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig) (string, error) {
+func (vm *qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	// Base config. This is common for all VMs and has no variables in it.
@@ -1324,7 +1344,7 @@ backend = "pty"
 
 		// Add network device.
 		if len(runConf.NetworkInterface) > 0 {
-			err = vm.addNetDevConfig(sb, nicIndex, bootIndexes, runConf.NetworkInterface)
+			err = vm.addNetDevConfig(sb, nicIndex, bootIndexes, runConf.NetworkInterface, fdFiles)
 			if err != nil {
 				return "", err
 			}
@@ -1548,16 +1568,35 @@ bootindex = "{{.bootIndex}}"
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.
-func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem) error {
-	var devName, devTap, devHwaddr string
+func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
+	var devName, nicName, devHwaddr string
+	var tapFD int
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
 			devName = nicItem.Value
 		} else if nicItem.Key == "link" {
-			devTap = nicItem.Value
+			nicName = nicItem.Value
 		} else if nicItem.Key == "hwaddr" {
 			devHwaddr = nicItem.Value
 		}
+	}
+
+	// Detect MACVTAP interface types and figure out which tap device is being used.
+	// This is so we can open a file handle to the tap device and pass it to the qemu process.
+	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
+		content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
+		if err != nil {
+			return errors.Wrapf(err, "Error getting tap device ifindex")
+		}
+
+		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
+		if err != nil {
+			return errors.Wrapf(err, "Error parsing tap device ifindex")
+		}
+
+		// Append the tap device file path to the list of files to be opened and passed to qemu.
+		*fdFiles = append(*fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
+		tapFD = 2 + len(*fdFiles) // Use 2+fdFiles count, as first file descriptor available is 3.
 	}
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
@@ -1565,9 +1604,13 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 # Network card ("{{.devName}}" device)
 [netdev "lxd_{{.devName}}"]
 type = "tap"
+{{ if ne .tapFD 0 }}
+fd = "{{.tapFD}}"
+{{ else }}
 ifname = "{{.ifName}}"
 script = "no"
 downscript = "no"
+{{ end }}
 
 [device "qemu_pcie{{.chassisIndex}}"]
 driver = "pcie-root-port"
@@ -1587,12 +1630,13 @@ bootindex = "{{.bootIndex}}"
 
 	m := map[string]interface{}{
 		"devName":      devName,
-		"ifName":       devTap,
+		"ifName":       nicName,
 		"chassisIndex": 5 + nicIndex,
 		"portIndex":    14 + nicIndex,
 		"pcieAddr":     4 + nicIndex,
 		"devHwaddr":    devHwaddr,
 		"bootIndex":    bootIndexes[devName],
+		"tapFD":        tapFD,
 	}
 	return t.Execute(sb, m)
 }
