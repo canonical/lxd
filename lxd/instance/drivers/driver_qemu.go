@@ -587,11 +587,18 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 	defer op.Done(nil)
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Mount the instance's config volume.
-	_, err = vm.mount()
+	ourMount, err := vm.mount()
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	if ourMount {
+		revert.Add(func() { vm.unmount() })
 	}
 
 	err = vm.generateConfigShare()
@@ -772,6 +779,7 @@ func (vm *qemu) Start(stateful bool) error {
 
 	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 
+	revert.Success()
 	return nil
 }
 
