@@ -564,6 +564,9 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return "", fmt.Errorf("No raft node known")
 	}
 
+	transport, cleanup := tlsTransport(config)
+	defer cleanup()
+
 	for _, address := range addresses {
 		url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
 		request, err := http.NewRequest("GET", url, nil)
@@ -572,7 +575,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		}
 		setDqliteVersionHeader(request)
 		request = request.WithContext(ctx)
-		client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
+		client := &http.Client{Transport: transport}
 		response, err := client.Do(request)
 		if err != nil {
 			logger.Debugf("Failed to fetch leader address from %s", address)
@@ -820,7 +823,9 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway, checkLeader
 		}
 		setDqliteVersionHeader(request)
 		request = request.WithContext(ctx)
-		client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
+		transport, cleanup := tlsTransport(config)
+		defer cleanup()
+		client := &http.Client{Transport: transport}
 		response, err := client.Do(request)
 		if err != nil {
 			return nil, err

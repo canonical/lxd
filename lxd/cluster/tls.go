@@ -52,3 +52,15 @@ func tlsCheckCert(r *http.Request, info *shared.CertInfo) bool {
 
 	return r.TLS != nil && trusted
 }
+
+// Return an http.Transport configured using the given configuration and a
+// cleanup function to use to close all connections the transport has been
+// used.
+func tlsTransport(config *tls.Config) (*http.Transport, func()) {
+	transport := &http.Transport{
+		TLSClientConfig:   config,
+		DisableKeepAlives: true,
+		MaxIdleConns:      0,
+	}
+	return transport, transport.CloseIdleConnections
+}
