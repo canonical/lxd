@@ -11,6 +11,7 @@ type Info struct {
 	BlockBacking          bool         // Whether driver uses block devices as backing store.
 	RunningQuotaResize    bool         // Whether quota resize is supported whilst instance running.
 	RunningSnapshotFreeze bool         // Whether instance should be frozen during snapshot if running.
+	DirectIO              bool         // Whether the driver supports direct I/O.
 }
 
 // VolumeFiller provides a struct for filling a volume.

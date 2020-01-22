@@ -38,6 +38,7 @@ func (d *dir) Info() Info {
 		BlockBacking:          false,
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: true,
+		DirectIO:              true,
 	}
 }
 
