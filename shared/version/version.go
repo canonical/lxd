@@ -16,7 +16,7 @@ type DottedVersion struct {
 
 // NewDottedVersion returns a new Version.
 func NewDottedVersion(versionString string) (*DottedVersion, error) {
-	formatError := fmt.Errorf("Invalid version format: %s", versionString)
+	formatError := fmt.Errorf("Invalid version format: %q", versionString)
 	split := strings.Split(versionString, ".")
 	if len(split) < 2 {
 		return nil, formatError
