@@ -16,10 +16,12 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var zfsVersion string
 var zfsLoaded bool
+var zfsDirectIO bool
 
 var zfsDefaultSettings = map[string]string{
 	"mountpoint": "none",
@@ -67,6 +69,22 @@ func (d *zfs) load() error {
 		zfsVersion = version
 	}
 
+	// Decide whether we can use direct I/O with datasets (which was added in v0.8).
+	ver80, err := version.Parse("0.8.0")
+	if err != nil {
+		return err
+	}
+
+	ourVer, err := version.Parse(zfsVersion)
+	if err != nil {
+		return err
+	}
+
+	// If v0.8 is older or the same as current version, we can use direct I/O.
+	if ver80.Compare(ourVer) <= 0 {
+		zfsDirectIO = true
+	}
+
 	zfsLoaded = true
 	return nil
 }
@@ -83,6 +101,7 @@ func (d *zfs) Info() Info {
 		BlockBacking:          false,
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: false,
+		DirectIO:              zfsDirectIO,
 	}
 
 	return info
