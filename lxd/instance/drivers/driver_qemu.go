@@ -52,6 +52,9 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// qemuAsyncIO is used to indicate disk should use unsafe cache I/O.
+const qemuUnsafeIO = "unsafeio"
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -584,11 +587,18 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 	defer op.Done(nil)
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Mount the instance's config volume.
-	_, err = vm.mount()
+	ourMount, err := vm.mount()
 	if err != nil {
 		op.Done(err)
 		return err
+	}
+
+	if ourMount {
+		revert.Add(func() { vm.unmount() })
 	}
 
 	err = vm.generateConfigShare()
@@ -769,6 +779,7 @@ func (vm *qemu) Start(stateful bool) error {
 
 	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 
+	revert.Success()
 	return nil
 }
 
@@ -1512,12 +1523,42 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 		DevPath: rootDrivePath,
 	}
 
+	// If the storage pool is on ZFS and backed by a loop file and we can't use DirectIO, then resort to
+	// unsafe async I/O to avoid kernel hangs when running ZFS storage pools in an image file on another FS.
+	driverInfo := pool.Driver().Info()
+	driverConf := pool.Driver().Config()
+	if driverInfo.Name == "zfs" && !driverInfo.DirectIO && shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) {
+		driveConf.Opts = append(driveConf.Opts, qemuUnsafeIO)
+	}
+
 	return vm.addDriveConfig(sb, bootIndexes, driveConf)
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
 func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
-	devName := fmt.Sprintf(driveConf.DevName)
+	// Use native kernel async IO and O_DIRECT by default.
+	aioMode := "native"
+	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics.
+
+	// If drive config indicates we need to use unsafe I/O then use it.
+	if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
+		logger.Warnf("Using unsafe cache I/O with %s", driveConf.DevPath)
+		aioMode = "threads"
+		cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
+	} else if shared.PathExists(driveConf.DevPath) && !shared.IsBlockdevPath(driveConf.DevPath) {
+		// Disk dev path is a file, check whether it is located on a ZFS filesystem.
+		fsType, err := util.FilesystemDetect(driveConf.DevPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed detecting filesystem type of %q", driveConf.DevPath)
+		}
+
+		// If FS is ZFS, avoid using direct I/O and use host page cache only.
+		if fsType == "zfs" {
+			logger.Warnf("Using writeback cache I/O with %s", driveConf.DevPath)
+			aioMode = "threads"
+			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
+		}
+	}
 
 	// Devices use "lxd_" prefix indicating that this is a user named device.
 	t := template.Must(template.New("").Parse(`
@@ -1526,8 +1567,8 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 file = "{{.devPath}}"
 format = "raw"
 if = "none"
-cache = "none"
-aio = "native"
+cache = "{{.cacheMode}}"
+aio = "{{.aioMode}}"
 
 [device "dev-lxd_{{.devName}}"]
 driver = "scsi-hd"
@@ -1540,9 +1581,11 @@ bootindex = "{{.bootIndex}}"
 `))
 
 	m := map[string]interface{}{
-		"devName":   devName,
+		"devName":   driveConf.DevName,
 		"devPath":   driveConf.DevPath,
-		"bootIndex": bootIndexes[devName],
+		"bootIndex": bootIndexes[driveConf.DevName],
+		"cacheMode": cacheMode,
+		"aioMode":   aioMode,
 	}
 	return t.Execute(sb, m)
 }

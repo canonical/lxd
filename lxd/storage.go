@@ -742,17 +742,18 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	}
 
 	for _, poolName := range pools {
-		logger.Debugf("Initializing and checking storage pool \"%s\"", poolName)
+		logger.Debugf("Initializing and checking storage pool %q", poolName)
+		errPrefix := fmt.Sprintf("Failed initializing storage pool %q", poolName)
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
 		if err != storageDrivers.ErrUnknownDriver {
 			if err != nil {
-				return err
+				return errors.Wrap(err, errPrefix)
 			}
 
 			_, err = pool.Mount()
 			if err != nil {
-				return err
+				return errors.Wrap(err, errPrefix)
 			}
 		} else {
 			s, err := storagePoolInit(s, poolName)
@@ -763,7 +764,7 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 
 			err = s.StoragePoolCheck()
 			if err != nil {
-				return err
+				return errors.Wrap(err, errPrefix)
 			}
 		}
 	}
