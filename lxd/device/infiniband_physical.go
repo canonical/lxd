@@ -45,7 +45,7 @@ func (d *infinibandPhysical) validateConfig() error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *infinibandPhysical) validateEnvironment() error {
-	if d.config["name"] == "" {
+	if d.inst.Type() == instancetype.Container && d.config["name"] == "" {
 		return fmt.Errorf("Requires name property to start")
 	}
 
