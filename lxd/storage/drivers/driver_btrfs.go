@@ -74,6 +74,7 @@ func (d *btrfs) Info() Info {
 		BlockBacking:          false,
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: false,
+		DirectIO:              true,
 	}
 }
 
