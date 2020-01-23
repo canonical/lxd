@@ -374,12 +374,19 @@ func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 		return nil, err
 	}
 
+	// Sort the list ahead of dedup
+	sort.Sort(sortedAliases(aliasesList))
+
 	aliases := []api.ImageAliasesEntry{}
-
-	architectureName, _ := osarch.ArchitectureGetLocal()
-
 	for _, entry := range aliasesList {
-		if entry.Architecture != architectureName {
+		dup := false
+		for _, v := range aliases {
+			if v.Name == entry.Name && v.Type == entry.Type {
+				dup = true
+			}
+		}
+
+		if dup {
 			continue
 		}
 
@@ -402,15 +409,12 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 		return nil, err
 	}
 
-	architectureName, _ := osarch.ArchitectureGetLocal()
+	// Sort the list ahead of dedup
+	sort.Sort(sortedAliases(aliasesList))
 
 	var match *api.ImageAliasesEntry
 	for _, entry := range aliasesList {
 		if entry.Name != name {
-			continue
-		}
-
-		if entry.Architecture != architectureName {
 			continue
 		}
 
@@ -419,7 +423,11 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 		}
 
 		if match != nil {
-			return nil, fmt.Errorf("More than one match for alias '%s'", name)
+			if match.Type != entry.Type {
+				return nil, fmt.Errorf("More than one match for alias '%s'", name)
+			}
+
+			continue
 		}
 
 		match = entry.Alias
