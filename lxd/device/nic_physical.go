@@ -5,6 +5,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -62,6 +63,9 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData := make(map[string]string)
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Record the host_name device used for restoration later.
 	saveData["host_name"] = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
@@ -72,16 +76,15 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	// Record whether we created this device or not so it can be removed on stop.
 	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
-	// If we return from this function with an error, ensure we clean up created device.
-	defer func() {
-		if err != nil && statusDev == "created" {
-			NetworkRemoveInterface(saveData["host_name"])
-		}
-	}()
+	if shared.IsTrue(saveData["last_state.created"]) {
+		revert.Add(func() {
+			NetworkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
+		})
+	}
 
-	// If we didn't create the device we should track various properties so we can
-	// restore them when the instance is stopped or the device is detached.
-	if statusDev == "existing" {
+	// If we didn't create the device we should track various properties so we can restore them when the
+	// instance is stopped or the device is detached.
+	if !shared.IsTrue(saveData["last_state.created"]) {
 		err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
 		if err != nil {
 			return nil, err
@@ -124,6 +127,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 			}...)
 	}
 
+	revert.Success()
 	return &runConf, nil
 }
 
@@ -151,9 +155,18 @@ func (d *nicPhysical) postStop() error {
 
 	v := d.volatileGet()
 	hostName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-	err := networkRestorePhysicalNic(hostName, v)
-	if err != nil {
-		return err
+
+	// This will delete the parent interface if we created it for VLAN parent.
+	if shared.IsTrue(v["last_state.created"]) {
+		err := NetworkRemoveInterfaceIfNeeded(d.state, hostName, d.inst, d.config["parent"], d.config["vlan"])
+		if err != nil {
+			return err
+		}
+	} else {
+		err := networkRestorePhysicalNic(hostName, v)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
