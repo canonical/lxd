@@ -134,7 +134,6 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
-		{Key: "devName", Value: d.name},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
@@ -143,8 +142,10 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	if d.inst.Type() == instancetype.VM {
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
-			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
-		)
+			[]deviceConfig.RunConfigItem{
+				{Key: "devName", Value: d.name},
+				{Key: "hwaddr", Value: d.config["hwaddr"]},
+			}...)
 	}
 
 	revert.Success()
