@@ -50,24 +50,26 @@ func (d *dir) Create() error {
 		d.config["source"] = GetPoolMountPath(d.name)
 	}
 
-	if !shared.PathExists(d.config["source"]) {
-		return fmt.Errorf("Source path '%s' doesn't exist", d.config["source"])
+	sourcePath := shared.HostPath(d.config["source"])
+
+	if !shared.PathExists(sourcePath) {
+		return fmt.Errorf("Source path '%s' doesn't exist", sourcePath)
 	}
 
 	// Check that if within LXD_DIR, we're at our expected spot.
-	cleanSource := filepath.Clean(d.config["source"])
+	cleanSource := filepath.Clean(sourcePath)
 	if strings.HasPrefix(cleanSource, shared.VarPath()) && cleanSource != GetPoolMountPath(d.name) {
-		return fmt.Errorf("Source path '%s' is within the LXD directory", d.config["source"])
+		return fmt.Errorf("Source path '%s' is within the LXD directory", cleanSource)
 	}
 
 	// Check that the path is currently empty.
-	isEmpty, err := shared.PathIsEmpty(d.config["source"])
+	isEmpty, err := shared.PathIsEmpty(sourcePath)
 	if err != nil {
 		return err
 	}
 
 	if !isEmpty {
-		return fmt.Errorf("Source path '%s' isn't empty", d.config["source"])
+		return fmt.Errorf("Source path '%s' isn't empty", sourcePath)
 	}
 
 	return nil
@@ -103,19 +105,20 @@ func (d *dir) Update(changedConfig map[string]string) error {
 // Mount mounts the storage pool.
 func (d *dir) Mount() (bool, error) {
 	path := GetPoolMountPath(d.name)
+	sourcePath := shared.HostPath(d.config["source"])
 
 	// Check if we're dealing with an external mount.
-	if d.config["source"] == path {
+	if sourcePath == path {
 		return false, nil
 	}
 
 	// Check if already mounted.
-	if sameMount(d.config["source"], path) {
+	if sameMount(sourcePath, path) {
 		return false, nil
 	}
 
 	// Setup the bind-mount.
-	err := TryMount(d.config["source"], path, "none", unix.MS_BIND, "")
+	err := TryMount(sourcePath, path, "none", unix.MS_BIND, "")
 	if err != nil {
 		return false, err
 	}
