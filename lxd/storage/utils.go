@@ -168,7 +168,7 @@ func GrowFileSystem(fsType string, devPath string, mntpoint string) error {
 	case "ext4":
 		msg, err = shared.TryRunCommand("resize2fs", devPath)
 	case "xfs":
-		msg, err = shared.TryRunCommand("xfs_growfs", devPath)
+		msg, err = shared.TryRunCommand("xfs_growfs", mntpoint)
 	case "btrfs":
 		msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mntpoint)
 	default:
