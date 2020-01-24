@@ -154,7 +154,9 @@ func (m *Monitor) Wait() (chan struct{}, error) {
 // Disconnect forces a disconnection from QEMU.
 func (m *Monitor) Disconnect() {
 	// Stop all go routines and disconnect from socket.
-	close(m.chDisconnect)
+	if !m.disconnected {
+		close(m.chDisconnect)
+	}
 	m.disconnected = true
 	m.qmp.Disconnect()
 
