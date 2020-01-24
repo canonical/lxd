@@ -67,13 +67,13 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
-	parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+	actualParentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
 	// Record the temporary device name used for deletion later.
 	saveData["host_name"] = NetworkRandomDevName("mac")
 
 	// Create VLAN parent device if needed.
-	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
+	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], actualParentName, d.config["vlan"])
 	if err != nil {
 		return nil, err
 	}
@@ -83,19 +83,19 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 
 	if shared.IsTrue(saveData["last_state.created"]) {
 		revert.Add(func() {
-			NetworkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
+			NetworkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
 		})
 	}
 
 	if d.inst.Type() == instancetype.Container {
 		// Create MACVLAN interface.
-		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", parentName, "type", "macvlan", "mode", "bridge")
+		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", actualParentName, "type", "macvlan", "mode", "bridge")
 		if err != nil {
 			return nil, err
 		}
 	} else if d.inst.Type() == instancetype.VM {
 		// Create MACVTAP interface.
-		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", parentName, "type", "macvtap", "mode", "bridge")
+		_, err = shared.RunCommand("ip", "link", "add", "dev", saveData["host_name"], "link", actualParentName, "type", "macvtap", "mode", "bridge")
 		if err != nil {
 			return nil, err
 		}
@@ -187,8 +187,8 @@ func (d *nicMACVLAN) postStop() error {
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
-		parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-		err := NetworkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
+		actualParentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+		err := NetworkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			errs = append(errs, err)
 		}
