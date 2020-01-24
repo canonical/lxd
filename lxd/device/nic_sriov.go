@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -483,27 +482,13 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFunc
 
 // networkGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
 func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (string, error) {
-	file, err := os.Open(fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", d.config["parent"], vfID))
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		// Looking for something like this "PCI_SLOT_NAME=0000:05:10.0"
-		fields := strings.SplitN(scanner.Text(), "=", 2)
-		if len(fields) == 2 && fields[0] == "PCI_SLOT_NAME" {
-			return fields[1], nil
-		}
-	}
-
-	err = scanner.Err()
+	ueventFile := fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", d.config["parent"], vfID)
+	pciDev, err := networkGetDevicePCIDevice(ueventFile)
 	if err != nil {
 		return "", err
 	}
 
-	return "", fmt.Errorf("PCI_SLOT_NAME not found")
+	return pciDev.SlotName, nil
 }
 
 // networkGetVFDeviceDriverPath returns the path to the network virtual function device driver in /sys.
