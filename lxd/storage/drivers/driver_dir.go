@@ -21,6 +21,7 @@ func (d *dir) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
 		"storage_create_vm": nil,
+		"storage_zfs_mount": nil,
 	}
 
 	return nil
