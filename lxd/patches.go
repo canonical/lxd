@@ -78,7 +78,8 @@ var patches = []patch{
 	{name: "storage_api_rename_container_snapshots_dir_again_again", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "clustering_add_roles", run: patchClusteringAddRoles},
 	{name: "clustering_add_roles_again", run: patchClusteringAddRoles},
-	{name: "storage_create_vm", run: patchStorageCreateVM},
+	{name: "storage_create_vm", run: patchGenericStorage},
+	{name: "storage_zfs_mount", run: patchGenericStorage},
 }
 
 type patch struct {
@@ -132,7 +133,7 @@ func patchesApplyAll(d *Daemon) error {
 }
 
 // Patches begin here
-func patchStorageCreateVM(name string, d *Daemon) error {
+func patchGenericStorage(name string, d *Daemon) error {
 	// Load all the pools.
 	pools, _ := d.cluster.StoragePools()
 
@@ -143,7 +144,7 @@ func patchStorageCreateVM(name string, d *Daemon) error {
 				return err
 			}
 
-			err = pool.ApplyPatch("storage_create_vm")
+			err = pool.ApplyPatch(name)
 			if err != nil {
 				return err
 			}
