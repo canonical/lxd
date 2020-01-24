@@ -41,6 +41,7 @@ func (d *zfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
 		"storage_create_vm": d.patchStorageCreateVM,
+		"storage_zfs_mount": d.patchStorageZFSMount,
 	}
 
 	// Done if previously loaded.
