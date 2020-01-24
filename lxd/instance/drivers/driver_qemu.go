@@ -1457,7 +1457,7 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 
 // addNetDevConfig adds the qemu config required for adding a network device.
 func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes map[string]int, nicConfig []deviceConfig.RunConfigItem, fdFiles *[]string) error {
-	var devName, nicName, devHwaddr string
+	var devName, nicName, devHwaddr, pciSlotName string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
 			devName = nicItem.Value
@@ -1465,6 +1465,8 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 			nicName = nicItem.Value
 		} else if nicItem.Key == "hwaddr" {
 			devHwaddr = nicItem.Value
+		} else if nicItem.Key == "pciSlotName" {
+			pciSlotName = nicItem.Value
 		}
 	}
 
@@ -1499,6 +1501,10 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 		// Detect TAP (via TUN driver) device.
 		tplFields["ifName"] = nicName
 		tpl = qemuNetDevTapTun
+	} else if pciSlotName != "" {
+		// Detect physical passthrough device.
+		tplFields["pciSlotName"] = pciSlotName
+		tpl = qemuNetdevPhysical
 	}
 
 	if tpl != nil {
