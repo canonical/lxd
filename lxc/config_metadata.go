@@ -60,7 +60,7 @@ func (c *cmdConfigMetadataEdit) Command() *cobra.Command {
 
 func (c *cmdConfigMetadataEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of the instance metadata.
+		`### This is a YAML representation of the instance metadata.
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample configuration looks like:
@@ -70,9 +70,9 @@ func (c *cmdConfigMetadataEdit) helpTemplate() string {
 ### expiry_date: 0
 ### properties:
 ###   architecture: x86_64
-###   description: Busybox x86_64
+###   description: BusyBox x86_64
 ###   name: busybox-x86_64
-###   os: Busybox
+###   OS: BusyBox
 ### templates:
 ###   /template:
 ###     when:
