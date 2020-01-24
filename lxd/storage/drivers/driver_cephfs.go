@@ -28,6 +28,7 @@ func (d *cephfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
 		"storage_create_vm": nil,
+		"storage_zfs_mount": nil,
 	}
 
 	// Done if previously loaded.
