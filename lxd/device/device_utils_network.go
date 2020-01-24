@@ -783,3 +783,47 @@ func networkParsePortRange(r string) (int64, int64, error) {
 
 	return base, size, nil
 }
+
+// pciDevice represents info about a PCI uevent device.
+type pciDevice struct {
+	ID       string
+	SlotName string
+	Driver   string
+}
+
+// networkGetDevicePCISlot returns the PCI device info for a given uevent file.
+func networkGetDevicePCIDevice(ueventFilePath string) (pciDevice, error) {
+	dev := pciDevice{}
+
+	file, err := os.Open(ueventFilePath)
+	if err != nil {
+		return dev, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		// Looking for something like this "PCI_SLOT_NAME=0000:05:10.0"
+		fields := strings.SplitN(scanner.Text(), "=", 2)
+		if len(fields) == 2 {
+			if fields[0] == "PCI_SLOT_NAME" {
+				dev.SlotName = fields[1]
+			} else if fields[0] == "PCI_ID" {
+				dev.ID = fields[1]
+			} else if fields[0] == "DRIVER" {
+				dev.Driver = fields[1]
+			}
+		}
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		return dev, err
+	}
+
+	if dev.SlotName == "" {
+		return dev, fmt.Errorf("Device uevent file could not be parsed")
+	}
+
+	return dev, nil
+}
