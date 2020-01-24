@@ -3,7 +3,10 @@ package simplestreams
 import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/osarch"
 )
+
+var nativeName, _ = osarch.ArchitectureGetLocal()
 
 type sortedImages []api.Image
 
@@ -59,4 +62,43 @@ func (a sortedImages) Less(i, j int) bool {
 	}
 
 	return a[i].Properties["os"] < a[j].Properties["os"]
+}
+
+type sortedAliases []extendedAlias
+
+func (a sortedAliases) Len() int {
+	return len(a)
+}
+
+func (a sortedAliases) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a sortedAliases) Less(i, j int) bool {
+	if nativeName == a[i].Architecture {
+		return true
+	}
+
+	archID, err := osarch.ArchitectureId(nativeName)
+	if err != nil {
+		return false
+	}
+
+	personalities, err := osarch.ArchitecturePersonalities(archID)
+	if err != nil {
+		return false
+	}
+
+	for _, personality := range personalities {
+		personalityName, err := osarch.ArchitectureName(personality)
+		if err != nil {
+			return false
+		}
+
+		if personalityName == a[i].Architecture {
+			return true
+		}
+	}
+
+	return false
 }
