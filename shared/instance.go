@@ -418,6 +418,10 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		if strings.HasSuffix(key, ".ceph_rbd") {
 			return IsAny, nil
 		}
+
+		if strings.HasSuffix(key, ".driver") {
+			return IsAny, nil
+		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {
