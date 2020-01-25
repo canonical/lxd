@@ -75,29 +75,49 @@ func (a sortedAliases) Swap(i, j int) {
 }
 
 func (a sortedAliases) Less(i, j int) bool {
-	if nativeName == a[i].Architecture {
-		return true
+	// Check functions.
+	isNative := func(arch string) bool {
+		return nativeName == arch
 	}
 
-	archID, err := osarch.ArchitectureId(nativeName)
-	if err != nil {
-		return false
-	}
-
-	personalities, err := osarch.ArchitecturePersonalities(archID)
-	if err != nil {
-		return false
-	}
-
-	for _, personality := range personalities {
-		personalityName, err := osarch.ArchitectureName(personality)
+	isPersonality := func(arch string) bool {
+		archID, err := osarch.ArchitectureId(nativeName)
 		if err != nil {
 			return false
 		}
 
-		if personalityName == a[i].Architecture {
-			return true
+		personalities, err := osarch.ArchitecturePersonalities(archID)
+		if err != nil {
+			return false
 		}
+
+		for _, personality := range personalities {
+			personalityName, err := osarch.ArchitectureName(personality)
+			if err != nil {
+				return false
+			}
+
+			if personalityName == arch {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Same thing.
+	if a[i].Architecture == a[j].Architecture {
+		return false
+	}
+
+	// Look for native.
+	if isNative(a[i].Architecture) {
+		return true
+	}
+
+	// Look for personality.
+	if isPersonality(a[i].Architecture) && !isNative(a[j].Architecture) {
+		return true
 	}
 
 	return false
