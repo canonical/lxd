@@ -36,6 +36,11 @@ func (d *zfs) patchStorageZFSMount() error {
 			continue
 		}
 
+		// Skip bookmarks.
+		if strings.Contains(dataset, "#") {
+			continue
+		}
+
 		// Skip block devices.
 		if strings.HasSuffix(dataset, ".block") {
 			continue
