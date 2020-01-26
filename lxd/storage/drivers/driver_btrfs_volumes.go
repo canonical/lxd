@@ -366,6 +366,10 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 	// Attempt to get the qgroup information.
 	_, usage, err := d.getQGroup(vol.MountPath())
 	if err != nil {
+		if err == errBtrfsNoQuota {
+			return 0, nil
+		}
+
 		return -1, err
 	}
 
