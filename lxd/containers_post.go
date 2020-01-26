@@ -550,6 +550,11 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 		return response.BadRequest(err)
 	}
 
+	// If type isn't specified, match the source type.
+	if req.Type == "" {
+		dbType = source.Type()
+	}
+
 	if dbType != instancetype.Any && dbType != source.Type() {
 		return response.BadRequest(fmt.Errorf("Instance type should not be specified or should match source type"))
 	}
