@@ -479,9 +479,41 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	hasKeyValue := func(args []string) bool {
+		for _, arg := range args {
+			if strings.Contains(arg, "=") {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	onlyKeyValue := func(args []string) bool {
+		for _, arg := range args {
+			if !strings.Contains(arg, "=") {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	isConfig := func(value string) bool {
+		fields := strings.SplitN(value, ":", 2)
+		key := fields[len(fields)-1]
+		return strings.Contains(key, ".")
+	}
+
 	// Parse remote
 	remote := ""
-	if len(args) != 2 && !strings.Contains(args[0], "=") {
+	if onlyKeyValue(args) || isConfig(args[0]) {
+		// server set with: <key>=<value>...
+		remote = ""
+	} else if len(args) == 2 && !hasKeyValue(args) {
+		// server set with: <key> <value>
+		remote = ""
+	} else {
 		remote = args[0]
 	}
 
