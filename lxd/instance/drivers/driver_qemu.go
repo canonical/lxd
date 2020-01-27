@@ -378,7 +378,6 @@ func (vm *qemu) mount() (bool, error) {
 
 // unmount the instance's config volume if needed.
 func (vm *qemu) unmount() (bool, error) {
-	var pool storagePools.Pool
 	pool, err := vm.getStoragePool()
 	if err != nil {
 		return false, err
@@ -591,15 +590,13 @@ func (vm *qemu) Start(stateful bool) error {
 	defer revert.Fail()
 
 	// Mount the instance's config volume.
-	ourMount, err := vm.mount()
+	_, err = vm.mount()
 	if err != nil {
 		op.Done(err)
 		return err
 	}
 
-	if ourMount {
-		revert.Add(func() { vm.unmount() })
-	}
+	revert.Add(func() { vm.unmount() })
 
 	err = vm.generateConfigShare()
 	if err != nil {
@@ -656,6 +653,16 @@ func (vm *qemu) Start(stateful bool) error {
 		if runConf == nil {
 			continue
 		}
+
+		// Use a local function argument to ensure the current device is added to the reverter.
+		func(localDev deviceConfig.DeviceNamed) {
+			revert.Add(func() {
+				err := vm.deviceStop(localDev.Name, localDev.Config)
+				if err != nil {
+					logger.Errorf("Failed to cleanup device '%s': %v", localDev.Name, err)
+				}
+			})
+		}(dev)
 
 		devConfs = append(devConfs, runConf)
 	}
@@ -714,11 +721,13 @@ func (vm *qemu) Start(stateful bool) error {
 		err := filepath.Walk(filepath.Join(vm.Path(), "config"),
 			func(path string, info os.FileInfo, err error) error {
 				if err != nil {
+					op.Done(err)
 					return err
 				}
 
 				err = os.Chown(path, vm.state.OS.UnprivUID, -1)
 				if err != nil {
+					op.Done(err)
 					return err
 				}
 
@@ -749,7 +758,9 @@ func (vm *qemu) Start(stateful bool) error {
 	for _, file := range fdFiles {
 		f, err := os.OpenFile(file, os.O_RDWR, 0)
 		if err != nil {
-			return errors.Wrapf(err, "Error opening exta file %q", file)
+			err = errors.Wrapf(err, "Error opening exta file %q", file)
+			op.Done(err)
+			return err
 		}
 		defer f.Close() // Close file after qemu has started.
 		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
@@ -761,6 +772,25 @@ func (vm *qemu) Start(stateful bool) error {
 		op.Done(err)
 		return err
 	}
+
+	pid, err := vm.pid()
+	if err != nil {
+		logger.Errorf(`Failed to get VM process ID "%d"`, pid)
+		return err
+	}
+
+	revert.Add(func() {
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			logger.Errorf(`Failed to find VM process "%d"`, pid)
+			return
+		}
+
+		proc.Kill()
+		if err != nil {
+			logger.Errorf(`Failed to kill VM process "%d"`, pid)
+		}
+	})
 
 	// Start QMP monitoring.
 	monitor, err := qmp.Connect(vm.getMonitorPath(), vm.getMonitorEventHandler())
@@ -781,13 +811,17 @@ func (vm *qemu) Start(stateful bool) error {
 		// Record current state
 		err = tx.ContainerSetState(vm.id, "RUNNING")
 		if err != nil {
-			return errors.Wrap(err, "Error updating instance state")
+			err = errors.Wrap(err, "Error updating instance state")
+			op.Done(err)
+			return err
 		}
 
 		// Update time instance last started time
 		err = tx.ContainerLastUsedUpdate(vm.id, time.Now().UTC())
 		if err != nil {
-			return errors.Wrap(err, "Error updating instance last used")
+			err = errors.Wrap(err, "Error updating instance last used")
+			op.Done(err)
+			return err
 		}
 
 		return nil
@@ -797,9 +831,8 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
-
 	revert.Success()
+	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
 }
 
@@ -938,7 +971,6 @@ func (vm *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device) err
 
 	canHotPlug, _ := d.CanHotPlug()
 
-	// An empty netns path means we haven't been called from the LXC stop hook, so are running.
 	if vm.IsRunning() && !canHotPlug {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
 	}
