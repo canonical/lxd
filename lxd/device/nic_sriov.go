@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -336,27 +334,20 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
-	vfPCISlot, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
-	if err != nil {
-		return err
-	}
-
-	// Get the path to the VF device's driver now, as once it is unbound we won't be able to
-	// determine its driver path in order to rebind it.
-	vfDriverPath, err := d.networkGetVFDeviceDriverPath(volatile["last_state.vf.id"])
+	vfPCIDev, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
-	err = d.networkDeviceUnbind(vfPCISlot, vfDriverPath)
+	err = networkDeviceUnbind(vfPCIDev)
 	if err != nil {
 		return err
 	}
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	defer d.networkDeviceBind(vfPCISlot, vfDriverPath)
+	defer networkDeviceBind(vfPCIDev)
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
@@ -402,7 +393,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	}
 
 	// Bind VF device onto the host so that the settings will take effect.
-	err = d.networkDeviceBind(vfPCISlot, vfDriverPath)
+	err = networkDeviceBind(vfPCIDev)
 	if err != nil {
 		return err
 	}
@@ -411,7 +402,7 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	// it will re-appear shortly after. Unfortunately the time between sending the bind event
 	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
 	// otherwise next steps of applying settings to interface will fail.
-	err = d.networkDeviceBindWait(volatile["host_name"])
+	err = networkInterfaceBindWait(volatile["host_name"])
 	if err != nil {
 		return err
 	}
@@ -481,42 +472,14 @@ func (d *nicSRIOV) networkGetVirtFuncInfo(devName string, vfID int) (vf virtFunc
 }
 
 // networkGetVFDevicePCISlot returns the PCI slot name for a network virtual function device.
-func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (string, error) {
+func (d *nicSRIOV) networkGetVFDevicePCISlot(vfID string) (pciDevice, error) {
 	ueventFile := fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/uevent", d.config["parent"], vfID)
 	pciDev, err := networkGetDevicePCIDevice(ueventFile)
 	if err != nil {
-		return "", err
+		return pciDev, err
 	}
 
-	return pciDev.SlotName, nil
-}
-
-// networkGetVFDeviceDriverPath returns the path to the network virtual function device driver in /sys.
-func (d *nicSRIOV) networkGetVFDeviceDriverPath(vfID string) (string, error) {
-	return filepath.EvalSymlinks(fmt.Sprintf("/sys/class/net/%s/device/virtfn%s/driver", d.config["parent"], vfID))
-}
-
-// networkDeviceUnbind unbinds a network device from the OS using its PCI Slot Name and driver path.
-func (d *nicSRIOV) networkDeviceUnbind(pciSlotName string, driverPath string) error {
-	return ioutil.WriteFile(fmt.Sprintf("%s/unbind", driverPath), []byte(pciSlotName), 0600)
-}
-
-// networkDeviceUnbind binds a network device to the OS using its PCI Slot Name and driver path.
-func (d *nicSRIOV) networkDeviceBind(pciSlotName string, driverPath string) error {
-	return ioutil.WriteFile(fmt.Sprintf("%s/bind", driverPath), []byte(pciSlotName), 0600)
-}
-
-// networkDeviceBindWait waits for network interface to appear after being binded.
-func (d *nicSRIOV) networkDeviceBindWait(devName string) error {
-	for i := 0; i < 10; i++ {
-		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", devName)) {
-			return nil
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	return fmt.Errorf("Bind of interface \"%s\" took too long", devName)
+	return pciDev, nil
 }
 
 // restoreSriovParent restores SR-IOV parent device settings when removed from an instance using the
@@ -528,27 +491,20 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
-	vfPCISlot, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
-	if err != nil {
-		return err
-	}
-
-	// Get the path to the VF device's driver now, as once it is unbound we won't be able to
-	// determine its driver path in order to rebind it.
-	vfDriverPath, err := d.networkGetVFDeviceDriverPath(volatile["last_state.vf.id"])
+	vfPCIDev, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
-	err = d.networkDeviceUnbind(vfPCISlot, vfDriverPath)
+	err = networkDeviceUnbind(vfPCIDev)
 	if err != nil {
 		return err
 	}
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
 	// The OS won't let an already bound device be bound again so is safe to call twice.
-	defer d.networkDeviceBind(vfPCISlot, vfDriverPath)
+	defer networkDeviceBind(vfPCIDev)
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
@@ -581,7 +537,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	}
 
 	// Bind VF device onto the host so that the settings will take effect.
-	err = d.networkDeviceBind(vfPCISlot, vfDriverPath)
+	err = networkDeviceBind(vfPCIDev)
 	if err != nil {
 		return err
 	}
@@ -590,7 +546,7 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 	// and it will re-appear on the host. Unfortunately the time between sending the bind event
 	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
 	// otherwise next step of restoring MAC and MTU settings in restorePhysicalNic will fail.
-	err = d.networkDeviceBindWait(volatile["host_name"])
+	err = networkInterfaceBindWait(volatile["host_name"])
 	if err != nil {
 		return err
 	}
