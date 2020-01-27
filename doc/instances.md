@@ -565,7 +565,7 @@ Key                 | Type      | Default   | Required  | Description
 limits.read         | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
 limits.write        | string    | -         | no        | I/O limit in byte/s (various suffixes supported, see below) or in iops (must be suffixed with "iops")
 limits.max          | string    | -         | no        | Same as modifying both limits.read and limits.write
-path                | string    | -         | yes       | Path inside the instance where the disk will be mounted
+path                | string    | -         | yes       | Path inside the instance where the disk will be mounted (only for containers).
 source              | string    | -         | yes       | Path on the host, either to a file/directory or to a block device
 required            | boolean   | true      | no        | Controls whether to fail if the source doesn't exist
 readonly            | boolean   | false     | no        | Controls whether to make the mount read-only
