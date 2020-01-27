@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -826,4 +827,54 @@ func networkGetDevicePCIDevice(ueventFilePath string) (pciDevice, error) {
 	}
 
 	return dev, nil
+}
+
+// networkDeviceUnbind unbinds a network device from the OS using its PCI Slot Name and driver name.
+func networkDeviceUnbind(pciDev pciDevice) error {
+	driverUnbindPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/unbind", pciDev.Driver)
+	err := ioutil.WriteFile(driverUnbindPath, []byte(pciDev.SlotName), 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Failed unbinding device %q via %q", pciDev.SlotName, driverUnbindPath)
+	}
+
+	return nil
+}
+
+// networkDeviceBind binds a network device to the OS using its PCI Slot Name and driver name.
+func networkDeviceBind(pciDev pciDevice) error {
+	driverBindPath := fmt.Sprintf("/sys/bus/pci/drivers/%s/bind", pciDev.Driver)
+	err := ioutil.WriteFile(driverBindPath, []byte(pciDev.SlotName), 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Failed binding device %q via %q", pciDev.SlotName, driverBindPath)
+	}
+
+	return nil
+}
+
+// networkDeviceBindWait waits for network device to appear after being binded to a driver.
+func networkDeviceBindWait(pciDev pciDevice) error {
+	devicePath := fmt.Sprintf("/sys/bus/pci/drivers/%s/%s", pciDev.Driver, pciDev.SlotName)
+
+	for i := 0; i < 10; i++ {
+		if shared.PathExists(devicePath) {
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Bind of device %q took too long", devicePath)
+}
+
+// networkInterfaceBindWait waits for network interface to appear after being binded to a driver.
+func networkInterfaceBindWait(ifName string) error {
+	for i := 0; i < 10; i++ {
+		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", ifName)) {
+			return nil
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("Bind of interface %q took too long", ifName)
 }
