@@ -3432,6 +3432,41 @@ func (vm *qemu) maasInterfaces(devices map[string]map[string]string) ([]maas.Con
 	return interfaces, nil
 }
 
+func (vm *qemu) maasRename(newName string) error {
+	maasURL, err := cluster.ConfigGetString(vm.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
+		return nil
+	}
+
+	interfaces, err := vm.maasInterfaces(vm.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if len(interfaces) == 0 {
+		return nil
+	}
+
+	if vm.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+	}
+
+	exists, err := vm.state.MAAS.DefinedContainer(project.Prefix(vm.project, vm.name))
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return vm.maasUpdate(nil)
+	}
+
+	return vm.state.MAAS.RenameContainer(project.Prefix(vm.project, vm.name), project.Prefix(vm.project, newName))
+}
+
 func (vm *qemu) maasDelete() error {
 	maasURL, err := cluster.ConfigGetString(vm.state.Cluster, "maas.api.url")
 	if err != nil {
