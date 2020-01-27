@@ -96,7 +96,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 		if shared.IsTrue(saveData["last_state.created"]) {
 			revert.Add(func() {
-				NetworkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
+				networkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
 			})
 		}
 
@@ -241,7 +241,7 @@ func (d *nicPhysical) postStop() error {
 
 		// This will delete the parent interface if we created it for VLAN parent.
 		if shared.IsTrue(v["last_state.created"]) {
-			err := NetworkRemoveInterfaceIfNeeded(d.state, hostName, d.inst, d.config["parent"], d.config["vlan"])
+			err := networkRemoveInterfaceIfNeeded(d.state, hostName, d.inst, d.config["parent"], d.config["vlan"])
 			if err != nil {
 				return err
 			}

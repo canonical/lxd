@@ -139,8 +139,8 @@ func NetworkRemoveInterface(nic string) error {
 	return err
 }
 
-// NetworkRemoveInterfaceIfNeeded removes a network interface by name but only if no other instance is using it.
-func NetworkRemoveInterfaceIfNeeded(state *state.State, nic string, current instance.Instance, parent string, vlanID string) error {
+// networkRemoveInterfaceIfNeeded removes a network interface by name but only if no other instance is using it.
+func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current instance.Instance, parent string, vlanID string) error {
 	// Check if it's used by another instance.
 	instances, err := InstanceLoadNodeAll(state)
 	if err != nil {
