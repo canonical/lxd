@@ -124,8 +124,13 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 15
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  #| grep "node3" | grep -q "OFFLINE"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node3" | grep -q "OFFLINE"
+
+  # Gracefully remove a node.
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node4
+
+  # The node isn't clustered anymore.
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
 
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
