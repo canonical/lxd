@@ -949,9 +949,11 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	})
 
 	// Update the mountpoints.
-	err = d.setDatasetProperties(d.dataset(newVol, false), fmt.Sprintf("mountpoint=%s", newVol.MountPath()))
-	if err != nil {
-		return err
+	if vol.contentType == ContentTypeFS {
+		err = d.setDatasetProperties(d.dataset(newVol, false), fmt.Sprintf("mountpoint=%s", newVol.MountPath()))
+		if err != nil {
+			return err
+		}
 	}
 
 	// For VM images, create a filesystem volume too.
