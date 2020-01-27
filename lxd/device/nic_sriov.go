@@ -12,6 +12,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -21,14 +22,13 @@ type nicSRIOV struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicSRIOV) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
 	requiredFields := []string{"parent"}
 	optionalFields := []string{
 		"name",
-		"mtu",
 		"hwaddr",
 		"vlan",
 		"security.mac_filtering",
@@ -36,6 +36,12 @@ func (d *nicSRIOV) validateConfig() error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 	}
+
+	// For VMs only NIC properties that can be specified on the parent's VF settings are controllable.
+	if d.inst.Type() == instancetype.Container {
+		optionalFields = append(optionalFields, "mtu")
+	}
+
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
@@ -76,31 +82,33 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	err = d.setupSriovParent(vfDev, vfID, saveData)
+	vfPCIDev, err := d.setupSriovParent(vfDev, vfID, saveData)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set the MAC address.
-	if d.config["hwaddr"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+	if d.inst.Type() == instancetype.Container {
+		// Set the MAC address.
+		if d.config["hwaddr"] != "" {
+			_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+			}
 		}
-	}
 
-	// Set the MTU.
-	if d.config["mtu"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+		// Set the MTU.
+		if d.config["mtu"] != "" {
+			_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+			}
 		}
-	}
 
-	// Bring the interface up.
-	_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to bring up the interface: %v", err)
+		// Bring the interface up.
+		_, err = shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "up")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to bring up the interface: %v", err)
+		}
 	}
 
 	err = d.volatileSet(saveData)
@@ -114,6 +122,14 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
 		{Key: "link", Value: saveData["host_name"]},
+	}
+
+	if d.inst.Type() == instancetype.VM {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			[]deviceConfig.RunConfigItem{
+				{Key: "devName", Value: d.name},
+				{Key: "pciSlotName", Value: vfPCIDev.SlotName},
+			}...)
 	}
 
 	return &runConf, nil
@@ -143,6 +159,7 @@ func (d *nicSRIOV) postStop() error {
 		"last_state.vf.hwaddr":     "",
 		"last_state.vf.vlan":       "",
 		"last_state.vf.spoofcheck": "",
+		"last_state.pci.driver":    "",
 	})
 
 	v := d.volatileGet()
@@ -308,14 +325,19 @@ func (d *nicSRIOV) getFreeVFInterface(reservedDevices map[string]struct{}, vfLis
 	return "", nil
 }
 
-// setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original
-// properties of the physical device into voltatile for restoration on detach.
-func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) error {
+// setupSriovParent configures a SR-IOV virtual function (VF) device on parent and stores original properties of
+// the physical device into voltatile for restoration on detach. Returns VF PCI device info.
+func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[string]string) (pciDevice, error) {
+	var vfPCIDev pciDevice
+
 	// Retrieve VF settings from parent device.
 	vfInfo, err := d.networkGetVirtFuncInfo(d.config["parent"], vfID)
 	if err != nil {
-		return err
+		return vfPCIDev, err
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Record properties of VF settings on the parent device.
 	volatile["last_state.vf.hwaddr"] = vfInfo.mac
@@ -330,30 +352,28 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 	// Record properties of VF device.
 	err = networkSnapshotPhysicalNic(volatile["host_name"], volatile)
 	if err != nil {
-		return err
+		return vfPCIDev, err
 	}
 
 	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
-	vfPCIDev, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
+	vfPCIDev, err = d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
 	if err != nil {
-		return err
+		return vfPCIDev, err
 	}
 
 	// Unbind VF device from the host so that the settings will take effect when we rebind it.
 	err = networkDeviceUnbind(vfPCIDev)
 	if err != nil {
-		return err
+		return vfPCIDev, err
 	}
 
-	// However we return from this function, we must try to rebind the VF so its not orphaned.
-	// The OS won't let an already bound device be bound again so is safe to call twice.
-	defer networkDeviceBind(vfPCIDev)
+	revert.Add(func() { networkDeviceBind(vfPCIDev) })
 
 	// Setup VF VLAN if specified.
 	if d.config["vlan"] != "" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "vlan", d.config["vlan"])
 		if err != nil {
-			return err
+			return vfPCIDev, err
 		}
 	}
 
@@ -370,44 +390,82 @@ func (d *nicSRIOV) setupSriovParent(vfDevice string, vfID int, volatile map[stri
 		// Set MAC on VF (this combined with spoof checking prevents any other MAC being used).
 		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
 		if err != nil {
-			return err
+			return vfPCIDev, err
 		}
 
 		// Now that MAC is set on VF, we can enable spoof checking.
 		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "on")
 		if err != nil {
-			return err
+			return vfPCIDev, err
 		}
 	} else {
 		// Reset VF to ensure no previous MAC restriction exists.
 		_, err := shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", "00:00:00:00:00:00")
 		if err != nil {
-			return err
+			return vfPCIDev, err
 		}
 
 		// Ensure spoof checking is disabled if not enabled in instance.
 		_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "spoofchk", "off")
 		if err != nil {
-			return err
+			return vfPCIDev, err
+		}
+
+		// Set MAC on VF if specified (this should be passed through into VM when it is bound to vfio-pci).
+		if d.inst.Type() == instancetype.VM {
+			// If no MAC specified in config, use current VF interface MAC.
+			mac := d.config["hwaddr"]
+			if mac == "" {
+				mac = volatile["last_state.hwaddr"]
+			}
+
+			_, err = shared.RunCommand("ip", "link", "set", "dev", d.config["parent"], "vf", volatile["last_state.vf.id"], "mac", mac)
+			if err != nil {
+				return vfPCIDev, err
+			}
 		}
 	}
 
-	// Bind VF device onto the host so that the settings will take effect.
-	err = networkDeviceBind(vfPCIDev)
-	if err != nil {
-		return err
+	if d.inst.Type() == instancetype.Container {
+		// Bind VF device onto the host so that the settings will take effect.
+		err = networkDeviceBind(vfPCIDev)
+		if err != nil {
+			return vfPCIDev, err
+		}
+
+		// Wait for VF driver to be reloaded, this will remove the VF interface temporarily, and
+		// it will re-appear shortly after. Unfortunately the time between sending the bind event
+		// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
+		// otherwise next steps of applying settings to interface will fail.
+		err = networkInterfaceBindWait(volatile["host_name"])
+		if err != nil {
+			return vfPCIDev, err
+		}
+	} else if d.inst.Type() == instancetype.VM {
+		// Register VF device with vfio-pci driver so it can be passed to VM.
+		err = networkVFIOPCIRegister(vfPCIDev)
+		if err != nil {
+			return vfPCIDev, err
+		}
+
+		vfioDev := pciDevice{
+			Driver:   "vfio-pci",
+			SlotName: vfPCIDev.SlotName,
+		}
+
+		revert.Add(func() { networkDeviceUnbind(vfioDev) })
+
+		err = networkDeviceBindWait(vfioDev)
+		if err != nil {
+			return vfPCIDev, err
+		}
+
+		// Record original driver used by VF device for restore.
+		volatile["last_state.pci.driver"] = vfPCIDev.Driver
 	}
 
-	// Wait for VF driver to be reloaded, this will remove the VF interface temporarily, and
-	// it will re-appear shortly after. Unfortunately the time between sending the bind event
-	// to the nic and it actually appearing on the host is non-zero, so we need to watch and wait,
-	// otherwise next steps of applying settings to interface will fail.
-	err = networkInterfaceBindWait(volatile["host_name"])
-	if err != nil {
-		return err
-	}
-
-	return nil
+	revert.Success()
+	return vfPCIDev, nil
 }
 
 // virtFuncInfo holds information about SR-IOV virtual functions.
@@ -490,16 +548,33 @@ func (d *nicSRIOV) restoreSriovParent(volatile map[string]string) error {
 		return nil
 	}
 
-	// Get VF device's PCI Slot Name so we can unbind and rebind it from the host.
+	// Get VF device's PCI info so we can unbind and rebind it from the host.
 	vfPCIDev, err := d.networkGetVFDevicePCISlot(volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
 
-	// Unbind VF device from the host so that the settings will take effect when we rebind it.
-	err = networkDeviceUnbind(vfPCIDev)
-	if err != nil {
-		return err
+	if d.inst.Type() == instancetype.Container {
+		// Unbind VF device from the host so that the settings will take effect when we rebind it.
+		err = networkDeviceUnbind(vfPCIDev)
+		if err != nil {
+			return err
+		}
+	} else if d.inst.Type() == instancetype.VM {
+		// Unbind VF device from vfio-pci driver so that we can rebind it on host.
+		vfioDev := pciDevice{
+			Driver:   "vfio-pci",
+			SlotName: vfPCIDev.SlotName,
+		}
+
+		err := networkDeviceUnbind(vfioDev)
+		if err != nil {
+			return err
+		}
+
+		// Before we bind the device back to the host, ensure we restore the original driver info as it
+		// should be currently set to vfio-pci.
+		vfPCIDev.Driver = volatile["last_state.pci.driver"]
 	}
 
 	// However we return from this function, we must try to rebind the VF so its not orphaned.
