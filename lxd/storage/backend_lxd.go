@@ -1937,7 +1937,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	// If an existing DB row was found, check if filesystem is the same as the current pool's filesystem.
 	// If not we need to delete the existing cached image volume and re-create using new filesystem.
 	if imgDBVol != nil && contentType == drivers.ContentTypeFS {
-		if imgDBVol.Config["block.filesystem"] != b.poolBlockFilesystem() {
+		if b.Driver().Info().BlockBacking && imgDBVol.Config["block.filesystem"] != b.poolBlockFilesystem() {
 			logger.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
 			err = b.DeleteImage(fingerprint, op)
 			if err != nil {
