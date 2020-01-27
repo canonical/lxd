@@ -878,3 +878,21 @@ func networkInterfaceBindWait(ifName string) error {
 
 	return fmt.Errorf("Bind of interface %q took too long", ifName)
 }
+
+// networkVFIOPCIRegister registers the PCI device with the VFIO-PCI driver.
+// Should also bind the device to the vfio-pci driver if it is present. Requires the vfio-pci module is loaded.
+func networkVFIOPCIRegister(pciDev pciDevice) error {
+	// vfio-pci module takes device IDs as "n n" but networkGetDevicePCIDevice returns them as "n:n".
+	devIDParts := strings.SplitN(pciDev.ID, ":", 2)
+	if len(devIDParts) < 2 {
+		return fmt.Errorf("Invalid device ID from %q", pciDev.ID)
+	}
+
+	vfioPCINewIDPath := "/sys/bus/pci/drivers/vfio-pci/new_id"
+	err := ioutil.WriteFile(vfioPCINewIDPath, []byte(fmt.Sprintf("%s %s", devIDParts[0], devIDParts[1])), 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Failed registering PCI device ID %q to %q", pciDev.ID, vfioPCINewIDPath)
+	}
+
+	return nil
+}
