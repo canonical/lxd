@@ -234,6 +234,9 @@ ID (database)   | Name                              | Condition     | Descriptio
 8               | [proxy](#type-proxy)              | container     | Proxy device
 
 ### Type: none
+
+Supported instance types: container, VM
+
 A none type device doesn't have any property and doesn't create anything inside the instance.
 
 It's only purpose it to stop inheritance of devices coming from profiles.
@@ -259,6 +262,9 @@ Different network interface types have different additional properties.
 Each possible `nictype` value is documented below along with the relevant properties for nics of that type.
 
 #### nictype: physical
+
+Supported instance types: container, VM
+
 Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
 
 Device configuration properties:
@@ -275,6 +281,9 @@ maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 
 boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: bridged
+
+Supported instance types: container, VM
+
 Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the instance.
 
 Device configuration properties:
@@ -301,6 +310,9 @@ maas.subnet.ipv6         | string    | -                 | no        | MAAS IPv6
 boot.priority            | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: macvlan
+
+Supported instance types: container, VM
+
 Sets up a new network device based on an existing one but using a different MAC address.
 
 Device configuration properties:
@@ -317,6 +329,9 @@ maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 
 boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: ipvlan
+
+Supported instance types: container
+
 Sets up a new network device based on an existing one using the same MAC address but a different IP.
 
 LXD currently supports IPVLAN in L3S mode.
@@ -353,6 +368,9 @@ ipv6.address            | string    | -                 | no        | Comma deli
 vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 
 #### nictype: p2p
+
+Supported instance types: container, VM
+
 Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
 
 Device configuration properties:
@@ -371,6 +389,9 @@ ipv6.routes             | string    | -                 | no        | Comma deli
 boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: sriov
+
+Supported instance types: container, VM
+
 Passes a virtual function of an SR-IOV enabled physical network device into the instance.
 
 Device configuration properties:
@@ -388,6 +409,9 @@ maas.subnet.ipv6        | string    | -                 | no        | MAAS IPv6 
 boot.priority           | integer   | -                 | no        | Boot priority for VMs (higher boots first)
 
 #### nictype: routed
+
+Supported instance types: container
+
 This NIC type is similar in operation to IPVLAN, in that it allows an instance to join an external network without needing to configure a bridge and shares the host's MAC address.
 
 However it differs from IPVLAN because it does not need IPVLAN support in the kernel and the host and instance can communicate with each other.
@@ -500,6 +524,9 @@ If you set the `ipv4.address` or `ipv6.address` keys on the nic, then
 those will be registered as static assignments in MAAS too.
 
 ### Type: infiniband
+
+Supported instance types: container
+
 LXD supports two different kind of network types for infiniband devices:
 
  - `physical`: Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the instance.
@@ -534,6 +561,9 @@ lxc config device add <instance> <device-name> infiniband nictype=sriov parent=<
 ```
 
 ### Type: disk
+
+Supported instance types: container, VM
+
 Disk entries are essentially mountpoints inside the instance. They can
 either be a bind-mount of an existing file or directory on the host, or
 if the source is a block device, a regular mount.
@@ -580,6 +610,9 @@ ceph.cluster\_name  | string    | admin     | no        | If source is ceph or c
 boot.priority       | integer   | -         | no        | Boot priority for VMs (higher boots first)
 
 ### Type: unix-char
+
+Supported instance types: container
+
 Unix character device entries simply make the requested character device
 appear in the instance's `/dev` and allow read/write operations to it.
 
@@ -597,6 +630,9 @@ mode        | int       | 0660              | no        | Mode of the device in 
 required    | boolean   | true              | no        | Whether or not this device is required to start the instance
 
 ### Type: unix-block
+
+Supported instance types: container
+
 Unix block device entries simply make the requested block device
 appear in the instance's `/dev` and allow read/write operations to it.
 
@@ -629,6 +665,9 @@ mode        | int       | 0660              | no        | Mode of the device in 
 required    | boolean   | false             | no        | Whether or not this device is required to start the instance. (The default is false, and all devices are hot-pluggable)
 
 ### Type: gpu
+
+Supported instance types: container
+
 GPU device entries simply make the requested gpu device appear in the
 instance.
 
@@ -645,6 +684,9 @@ gid         | int       | 0                 | no        | GID of the device owne
 mode        | int       | 0660              | no        | Mode of the device in the instance
 
 ### Type: proxy
+
+Supported instance types: container
+
 Proxy devices allow forwarding network connections between host and instance.
 This makes it possible to forward traffic hitting one of the host's
 addresses to an address inside the instance or to do the reverse and
