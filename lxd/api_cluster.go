@@ -909,6 +909,13 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	d.clusterMembershipMutex.Lock()
 	defer d.clusterMembershipMutex.Unlock()
 
+	force, err := strconv.Atoi(r.FormValue("force"))
+	if err != nil {
+		force = 0
+	}
+
+	name := mux.Vars(r)["name"]
+
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -921,20 +928,18 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 	if localAddress != leader {
 		logger.Debugf("Redirect member delete request to %s", leader)
-		url := &url.URL{
-			Scheme: "https",
-			Path:   "/internal/cluster/accept",
-			Host:   leader,
+		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), false)
+		if err != nil {
+			return response.SmartError(err)
 		}
-		return response.SyncResponseRedirect(url.String())
+		err = client.DeleteClusterMember(name, force == 1)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		return response.EmptySyncResponse
 	}
 
-	force, err := strconv.Atoi(r.FormValue("force"))
-	if err != nil {
-		force = 0
-	}
-
-	name := mux.Vars(r)["name"]
 	logger.Debugf("Deleting member %s from cluster (force=%d)", name, force)
 
 	// First check that the node is clear from containers and images and
