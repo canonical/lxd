@@ -651,7 +651,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, false)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, false))
+		migrationTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, false))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
@@ -663,7 +663,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				Name:          src.Name(),
 				Snapshots:     snapshotNames,
-				MigrationType: migrationType,
+				MigrationType: migrationTypes[0],
 				TrackProgress: true, // Do use a progress tracker on sender.
 			}, op)
 
@@ -674,7 +674,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
-				MigrationType: migrationType,
+				MigrationType: migrationTypes[0],
 				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
 
@@ -792,7 +792,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, true)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, true))
+		migrationTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, true))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
@@ -804,7 +804,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				Name:          src.Name(),
 				Snapshots:     snapshotNames,
-				MigrationType: migrationType,
+				MigrationType: migrationTypes[0],
 				TrackProgress: true, // Do use a progress tracker on sender.
 			}, op)
 
@@ -815,7 +815,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				Name:          inst.Name(),
 				Snapshots:     snapshotNames,
-				MigrationType: migrationType,
+				MigrationType: migrationTypes[0],
 				Refresh:       true,  // Indicate to receiver volume should exist.
 				TrackProgress: false, // Do not use a progress tracker on receiver.
 			}, op)
@@ -2214,7 +2214,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 	// Negotiate the migration type to use.
 	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS, false)
 	offerHeader := migration.TypesToHeader(offeredTypes...)
-	migrationType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS, false))
+	migrationTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS, false))
 	if err != nil {
 		return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 	}
@@ -2226,7 +2226,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 		err := srcPool.MigrateCustomVolume(aEnd, &migration.VolumeSourceArgs{
 			Name:          srcVolName,
 			Snapshots:     snapshotNames,
-			MigrationType: migrationType,
+			MigrationType: migrationTypes[0],
 			TrackProgress: true, // Do use a progress tracker on sender.
 		}, op)
 
@@ -2239,7 +2239,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(volName, desc string, config map
 			Description:   desc,
 			Config:        config,
 			Snapshots:     snapshotNames,
-			MigrationType: migrationType,
+			MigrationType: migrationTypes[0],
 			TrackProgress: false, // Do not use a progress tracker on receiver.
 
 		}, op)
