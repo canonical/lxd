@@ -1,9 +1,9 @@
 package subprocess
 
 import (
-	"fmt"
 	"io/ioutil"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -23,13 +23,13 @@ func NewProcess(name string, args []string, stdoutPath string, stderrPath string
 func ImportProcess(path string) (*Process, error) {
 	dat, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read file %s: %s", path, err)
+		return nil, errors.Wrapf(err, "Unable to read file '%s'", path)
 	}
 
 	proc := Process{}
 	err = yaml.Unmarshal(dat, &proc)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse Process YAML: %s", err)
+		return nil, errors.Wrapf(err, "Unable to parse Process YAML")
 	}
 
 	return &proc, nil
