@@ -146,7 +146,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 
 	// Use new storage layer for migration if supported.
 	if pool != nil {
-		migrationType, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+		migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 		if err != nil {
 			logger.Errorf("Failed to negotiate migration type: %v", err)
 			s.sendControl(err)
@@ -155,7 +155,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 
 		volSourceArgs := &migration.VolumeSourceArgs{
 			Name:          volName,
-			MigrationType: migrationType,
+			MigrationType: migrationTypes[0],
 			Snapshots:     snapshotNames,
 			TrackProgress: true,
 		}
@@ -346,13 +346,13 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 		// Extract the source's migration type and then match it against our pool's
 		// supported types and features. If a match is found the combined features list
 		// will be sent back to requester.
-		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS, c.refresh))
+		respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS, c.refresh))
 		if err != nil {
 			return err
 		}
 
 		// Convert response type to response header and copy snapshot info into it.
-		respHeader = migration.TypesToHeader(respType)
+		respHeader = migration.TypesToHeader(respTypes...)
 		respHeader.SnapshotNames = offerHeader.SnapshotNames
 		respHeader.Snapshots = offerHeader.Snapshots
 
@@ -363,7 +363,7 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 				Name:          req.Name,
 				Config:        req.Config,
 				Description:   req.Description,
-				MigrationType: respType,
+				MigrationType: respTypes[0],
 				TrackProgress: true,
 			}
 
