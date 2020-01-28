@@ -837,6 +837,16 @@ func (vm *qemu) Start(stateful bool) error {
 }
 
 func (vm *qemu) setupNvram() error {
+	// Mount the instance's config volume.
+	ourMount, err := vm.mount()
+	if err != nil {
+		return err
+	}
+
+	if ourMount {
+		defer vm.unmount()
+	}
+
 	srcOvmfFile := filepath.Join(vm.ovmfPath(), "OVMF_VARS.fd")
 	if vm.expandedConfig["security.secureboot"] == "" || shared.IsTrue(vm.expandedConfig["security.secureboot"]) {
 		srcOvmfFile = filepath.Join(vm.ovmfPath(), "OVMF_VARS.ms.fd")
@@ -847,7 +857,7 @@ func (vm *qemu) setupNvram() error {
 	}
 
 	os.Remove(vm.getNvramPath())
-	err := shared.FileCopy(srcOvmfFile, vm.getNvramPath())
+	err = shared.FileCopy(srcOvmfFile, vm.getNvramPath())
 	if err != nil {
 		return err
 	}
