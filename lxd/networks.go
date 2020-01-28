@@ -1954,16 +1954,16 @@ func (n *network) Setup(oldConfig map[string]string) error {
 			return fmt.Errorf("dnsmasq is required for LXD managed bridges")
 		}
 
-		// Start dnsmasq (occasionally races, try a few times)
-		_, err = shared.TryRunCommand(dnsmasqCmd[0], dnsmasqCmd[1:]...)
-		if err != nil {
-			return fmt.Errorf("Failed to run: %s: %v", strings.Join(dnsmasqCmd, " "), err)
-		}
-
 		// Update the static leases
 		err = networkUpdateStatic(n.state, n.name)
 		if err != nil {
 			return err
+		}
+
+		// Start dnsmasq (occasionally races, try a few times)
+		_, err = shared.TryRunCommand(dnsmasqCmd[0], dnsmasqCmd[1:]...)
+		if err != nil {
+			return fmt.Errorf("Failed to run: %s: %v", strings.Join(dnsmasqCmd, " "), err)
 		}
 
 		// Spawn DNS forwarder if needed (backgrounded to avoid deadlocks during cluster boot)
