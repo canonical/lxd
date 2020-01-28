@@ -138,7 +138,6 @@ func (d *infinibandSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
-		{Key: "devName", Value: d.name},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
