@@ -13,8 +13,8 @@ import (
 // Type represents the migration transport type. It indicates the method by which the migration can
 // take place and what optional features are available.
 type Type struct {
-	FSType   MigrationFSType
-	Features []string
+	FSType   MigrationFSType // Transport mode selected.
+	Features []string        // Feature hints for selected FSType transport mode.
 }
 
 // VolumeSourceArgs represents the arguments needed to setup a volume migration source.
@@ -103,17 +103,18 @@ func TypesToHeader(types ...Type) MigrationHeader {
 	return header
 }
 
-// MatchTypes attempts to find a matching migration transport type between an offered type sent
-// from a remote source and the types supported by a local storage pool. If a match is found then
-// a Type is returned containing the method and the matching optional features present in both.
-// The function also takes a fallback type which is used as an additional offer type preference
-// in case the preferred remote type is not compatible with the local type available.
-// It is expected that both sides of the migration will support the fallback type for the volume's
-// content type that is being migrated.
-func MatchTypes(offer MigrationHeader, fallbackType MigrationFSType, ourTypes []Type) (Type, error) {
+// MatchTypes attempts to find matching migration transport types between an offered type sent from a remote
+// source and the types supported by a local storage pool. If matches are found then one or more Types are
+// returned containing the method and the matching optional features present in both. The function also takes a
+// fallback type which is used as an additional offer type preference in case the preferred remote type is not
+// compatible with the local type available. It is expected that both sides of the migration will support the
+// fallback type for the volume's content type that is being migrated.
+func MatchTypes(offer MigrationHeader, fallbackType MigrationFSType, ourTypes []Type) ([]Type, error) {
 	// Generate an offer types slice from the preferred type supplied from remote and the
 	// fallback type supplied based on the content type of the transfer.
 	offeredFSTypes := []MigrationFSType{offer.GetFs(), fallbackType}
+
+	matchedTypes := []Type{}
 
 	// Find first matching type.
 	for _, ourType := range ourTypes {
@@ -144,26 +145,30 @@ func MatchTypes(offer MigrationHeader, fallbackType MigrationFSType, ourTypes []
 				}
 			}
 
-			// Return type with combined features.
-			return Type{
+			// Append type with combined features.
+			matchedTypes = append(matchedTypes, Type{
 				FSType:   ourType.FSType,
 				Features: commonFeatures,
-			}, nil
+			})
 		}
 	}
 
-	// No matching transport type found, generate an error with offered types and our types.
-	offeredTypeStrings := make([]string, 0, len(offeredFSTypes))
-	for _, offerFSType := range offeredFSTypes {
-		offeredTypeStrings = append(offeredTypeStrings, offerFSType.String())
+	if len(matchedTypes) < 1 {
+		// No matching transport type found, generate an error with offered types and our types.
+		offeredTypeStrings := make([]string, 0, len(offeredFSTypes))
+		for _, offerFSType := range offeredFSTypes {
+			offeredTypeStrings = append(offeredTypeStrings, offerFSType.String())
+		}
+
+		ourTypeStrings := make([]string, 0, len(ourTypes))
+		for _, ourType := range ourTypes {
+			ourTypeStrings = append(ourTypeStrings, ourType.FSType.String())
+		}
+
+		return matchedTypes, fmt.Errorf("No matching migration types found. Offered types: %v, our types: %v", offeredTypeStrings, ourTypeStrings)
 	}
 
-	ourTypeStrings := make([]string, 0, len(ourTypes))
-	for _, ourType := range ourTypes {
-		ourTypeStrings = append(ourTypeStrings, ourType.FSType.String())
-	}
-
-	return Type{}, fmt.Errorf("No matching migration type found. Offered types: %v, our types: %v", offeredTypeStrings, ourTypeStrings)
+	return matchedTypes, nil
 }
 
 func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
