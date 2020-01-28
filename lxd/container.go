@@ -61,7 +61,7 @@ func containerValidName(name string) error {
 	}
 
 	if !shared.ValidHostname(name) {
-		return fmt.Errorf("Container name isn't a valid hostname")
+		return fmt.Errorf("Container name isn't a valid DNS hostname. Names may not contain dots.")
 	}
 
 	return nil
