@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,38 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+/*
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+#include <stdio.h>
+#include <linux/hidraw.h>
+
+#include "include/memory_utils.h"
+
+#ifndef HIDIOCGRAWINFO
+#define HIDIOCGRAWINFO _IOR('H', 0x03, struct hidraw_devinfo)
+struct hidraw_devinfo {
+	__u32 bustype;
+	__s16 vendor;
+	__s16 product;
+};
+#endif
+
+static int get_hidraw_devinfo(int fd, struct hidraw_devinfo *info)
+{
+	int ret;
+
+	ret = ioctl(fd, HIDIOCGRAWINFO, info);
+	if (ret)
+		return -1;
+
+	return 0;
+}
+
+*/
+import "C"
 
 type deviceTaskCPU struct {
 	id    int
@@ -193,12 +226,12 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					continue
 				}
 
-				vendor, ok := props["ID_VENDOR_ID"]
+				devname, ok := props["DEVNAME"]
 				if !ok {
 					continue
 				}
 
-				product, ok := props["ID_MODEL_ID"]
+				vendor, product, ok := ueventParseVendorProduct(props, subsystem, devname)
 				if !ok {
 					continue
 				}
@@ -209,11 +242,6 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				}
 
 				minor, ok := props["MINOR"]
-				if !ok {
-					continue
-				}
-
-				devname, ok := props["DEVNAME"]
 				if !ok {
 					continue
 				}
@@ -597,4 +625,46 @@ func devicesRegister(s *state.State) {
 			}
 		}
 	}
+}
+
+func getHidrawDevInfo(fd int) (string, string, error) {
+	info := C.struct_hidraw_devinfo{}
+	ret, err := C.get_hidraw_devinfo(C.int(fd), &info)
+	if ret != 0 {
+		return "", "", err
+	}
+
+	return fmt.Sprintf("%04x", info.vendor), fmt.Sprintf("%04x", info.product), nil
+}
+
+func ueventParseVendorProduct(props map[string]string, subsystem string, devname string) (string, string, bool) {
+	if subsystem != "hidraw" {
+		vendor, vendorOk := props["ID_VENDOR_ID"]
+		product, productOk := props["ID_MODEL_ID"]
+
+		if vendorOk && productOk {
+			return vendor, product, true
+		}
+
+		return "", "", false
+	}
+
+	if !filepath.IsAbs(devname) {
+		return "", "", false
+	}
+
+	file, err := os.OpenFile(devname, os.O_RDWR, 0000)
+	if err != nil {
+		return "", "", false
+	}
+
+	defer file.Close()
+
+	vendor, product, err := getHidrawDevInfo(int(file.Fd()))
+	if err != nil {
+		logger.Debugf("Failed to retrieve device info from hidraw device \"%s\"", devname)
+		return "", "", false
+	}
+
+	return vendor, product, true
 }
