@@ -220,6 +220,6 @@ var qemuNetdevPhysical = template.Must(template.New("qemuNetdevPhysical").Parse(
 # Network card ("{{.devName}}" device)
 [device "dev-lxd_{{.devName}}"]
 driver = "vfio-pci"
-host = "{{.host}}"
+host = "{{.pciSlotName}}"
 bootindex = "{{.bootIndex}}"
 `))

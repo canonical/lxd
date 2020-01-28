@@ -3,8 +3,12 @@ package device
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -14,20 +18,22 @@ type nicPhysical struct {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicPhysical) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
 		return ErrUnsupportedDevType
 	}
 
 	requiredFields := []string{"parent"}
 	optionalFields := []string{
 		"name",
-		"mtu",
-		"hwaddr",
-		"vlan",
 		"maas.subnet.ipv4",
 		"maas.subnet.ipv6",
 		"boot.priority",
 	}
+
+	if d.inst.Type() == instancetype.Container {
+		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
+	}
+
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
@@ -62,46 +68,100 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 	saveData := make(map[string]string)
 
-	// Record the host_name device used for restoration later.
-	saveData["host_name"] = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
-	if err != nil {
-		return nil, err
+	revert := revert.New()
+	defer revert.Fail()
+
+	// pciSlotName, used for VM physical passthrough.
+	var pciSlotName string
+
+	// If VM, then try and load the vfio-pci module first.
+	if d.inst.Type() == instancetype.VM {
+		err = util.LoadModule("vfio-pci")
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+		}
 	}
 
-	// Record whether we created this device or not so it can be removed on stop.
-	saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
+	// Record the host_name device used for restoration later.
+	saveData["host_name"] = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
-	// If we return from this function with an error, ensure we clean up created device.
-	defer func() {
-		if err != nil && statusDev == "created" {
-			NetworkRemoveInterface(saveData["host_name"])
-		}
-	}()
-
-	// If we didn't create the device we should track various properties so we can
-	// restore them when the instance is stopped or the device is detached.
-	if statusDev == "existing" {
-		err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
+	if d.inst.Type() == instancetype.Container {
+		statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	// Set the MAC address.
-	if d.config["hwaddr"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
-		}
-	}
+		// Record whether we created this device or not so it can be removed on stop.
+		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
-	// Set the MTU.
-	if d.config["mtu"] != "" {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
-		if err != nil {
-			return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+		if shared.IsTrue(saveData["last_state.created"]) {
+			revert.Add(func() {
+				networkRemoveInterfaceIfNeeded(d.state, saveData["host_name"], d.inst, d.config["parent"], d.config["vlan"])
+			})
 		}
+
+		// If we didn't create the device we should track various properties so we can restore them when the
+		// instance is stopped or the device is detached.
+		if !shared.IsTrue(saveData["last_state.created"]) {
+			err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Set the MAC address.
+		if d.config["hwaddr"] != "" {
+			_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "address", d.config["hwaddr"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed to set the MAC address: %s", err)
+			}
+		}
+
+		// Set the MTU.
+		if d.config["mtu"] != "" {
+			_, err := shared.RunCommand("ip", "link", "set", "dev", saveData["host_name"], "mtu", d.config["mtu"])
+			if err != nil {
+				return nil, fmt.Errorf("Failed to set the MTU: %s", err)
+			}
+		}
+	} else if d.inst.Type() == instancetype.VM {
+		// Get PCI information about the network interface.
+		ueventPath := fmt.Sprintf("/sys/class/net/%s/device/uevent", saveData["host_name"])
+		pciDev, err := networkGetDevicePCIDevice(ueventPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get PCI device info for %q", saveData["host_name"])
+		}
+
+		saveData["last_state.pci.slot.name"] = pciDev.SlotName
+		saveData["last_state.pci.driver"] = pciDev.Driver
+
+		// Unbind the interface from the host.
+		err = networkDeviceUnbind(pciDev)
+		if err != nil {
+			return nil, err
+		}
+
+		revert.Add(func() { networkDeviceBind(pciDev) })
+
+		// Register the device with the vfio-pci module.
+		err = networkVFIOPCIRegister(pciDev)
+		if err != nil {
+			return nil, err
+		}
+
+		vfioDev := pciDevice{
+			Driver:   "vfio-pci",
+			SlotName: pciDev.SlotName,
+		}
+
+		revert.Add(func() { networkDeviceUnbind(vfioDev) })
+
+		err = networkDeviceBindWait(vfioDev)
+		if err != nil {
+			return nil, err
+		}
+
+		pciSlotName = saveData["last_state.pci.slot.name"]
 	}
 
 	err = d.volatileSet(saveData)
@@ -111,13 +171,21 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
-		{Key: "devName", Value: d.name},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "type", Value: "phys"},
 		{Key: "flags", Value: "up"},
 		{Key: "link", Value: saveData["host_name"]},
 	}
 
+	if d.inst.Type() == instancetype.VM {
+		runConf.NetworkInterface = append(runConf.NetworkInterface,
+			[]deviceConfig.RunConfigItem{
+				{Key: "devName", Value: d.name},
+				{Key: "pciSlotName", Value: pciSlotName},
+			}...)
+	}
+
+	revert.Success()
 	return &runConf, nil
 }
 
@@ -137,17 +205,52 @@ func (d *nicPhysical) Stop() (*deviceConfig.RunConfig, error) {
 // postStop is run after the device is removed from the instance.
 func (d *nicPhysical) postStop() error {
 	defer d.volatileSet(map[string]string{
-		"host_name":          "",
-		"last_state.hwaddr":  "",
-		"last_state.mtu":     "",
-		"last_state.created": "",
+		"host_name":                "",
+		"last_state.hwaddr":        "",
+		"last_state.mtu":           "",
+		"last_state.created":       "",
+		"last_state.pci.slot.name": "",
+		"last_state.pci.driver":    "",
 	})
 
 	v := d.volatileGet()
-	hostName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
-	err := networkRestorePhysicalNic(hostName, v)
-	if err != nil {
-		return err
+
+	// If VM physical pass through, unbind from vfio-pci and bind back to host driver.
+	if d.inst.Type() == instancetype.VM && v["last_state.pci.slot.name"] != "" {
+		vfioDev := pciDevice{
+			Driver:   "vfio-pci",
+			SlotName: v["last_state.pci.slot.name"],
+		}
+
+		err := networkDeviceUnbind(vfioDev)
+		if err != nil {
+			return err
+		}
+
+		hostDev := pciDevice{
+			Driver:   v["last_state.pci.driver"],
+			SlotName: v["last_state.pci.slot.name"],
+		}
+
+		err = networkDeviceBind(hostDev)
+		if err != nil {
+			return err
+		}
+	} else if d.inst.Type() == instancetype.Container {
+		hostName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+
+		// This will delete the parent interface if we created it for VLAN parent.
+		if shared.IsTrue(v["last_state.created"]) {
+			err := networkRemoveInterfaceIfNeeded(d.state, hostName, d.inst, d.config["parent"], d.config["vlan"])
+			if err != nil {
+				return err
+			}
+		} else if v["last_state.pci.slot.name"] == "" {
+			err := networkRestorePhysicalNic(hostName, v)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
