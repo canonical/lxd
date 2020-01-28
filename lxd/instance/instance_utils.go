@@ -872,3 +872,31 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 	// No other known types
 	return nil, fmt.Errorf("Unknown instance source type: %s", req.Source.Type)
 }
+
+// ValidName validates an instance name. There are different validation rules for instance snapshot names
+// so it takes an argument indicating whether the name is to be used for a snapshot or not.
+func ValidName(instanceName string, isSnapshot bool) error {
+	if isSnapshot {
+		parentName, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
+		err := shared.ValidHostname(parentName)
+		if err != nil {
+			return errors.Wrap(err, "Invalid instance name")
+		}
+
+		// Snapshot part is more flexible, but doesn't allow space or / character.
+		if strings.ContainsAny(snapshotName, " /") {
+			return fmt.Errorf("Invalid instance snapshot name: Cannot contain space or / characters")
+		}
+	} else {
+		if strings.Contains(instanceName, shared.SnapshotDelimiter) {
+			return fmt.Errorf("The character %q is reserved for snapshots", shared.SnapshotDelimiter)
+		}
+
+		err := shared.ValidHostname(instanceName)
+		if err != nil {
+			return errors.Wrap(err, "Invalid instance name")
+		}
+	}
+
+	return nil
+}
