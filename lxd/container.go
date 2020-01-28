@@ -53,20 +53,6 @@ func init() {
 
 // Helper functions
 
-func containerValidName(name string) error {
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		return fmt.Errorf(
-			"The character '%s' is reserved for snapshots.",
-			shared.SnapshotDelimiter)
-	}
-
-	if !shared.ValidHostname(name) {
-		return fmt.Errorf("Container name isn't a valid hostname")
-	}
-
-	return nil
-}
-
 // instanceCreateAsEmpty creates an empty instance.
 func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance record.
