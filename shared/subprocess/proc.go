@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strings"
 	"syscall"
 
 	"gopkg.in/yaml.v2"
@@ -13,20 +12,23 @@ import (
 
 // Process struct. Has ability to set runtime arguments
 type Process struct {
-	pid    int64
+	exitCode   int64 `yaml:"-"`
+	exitErr    error `yaml:"-"`
+	exited bool `yaml:"-"`
+
 	Name   string   `yaml:"name"`
 	Args   []string `yaml:"args,flow"`
-	Stdin  string   `yaml:"stdin"`
+	Pid    int64    `yaml:"pid"`
 	Stdout string   `yaml:"stdout"`
 	Stderr string   `yaml:"stderr"`
 }
 
 // Pid returns the pid for the given process object
-func (p *Process) Pid() (int64, error) {
-	pr, _ := os.FindProcess(int(p.pid))
+func (p *Process) GetPid() (int64, error) {
+	pr, _ := os.FindProcess(int(p.Pid))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
-		return p.pid, nil
+		return p.Pid, nil
 	}
 
 	return 0, fmt.Errorf("Process not running, cannot retrieve PID")
@@ -34,7 +36,7 @@ func (p *Process) Pid() (int64, error) {
 
 // Stop will stop the given process object
 func (p *Process) Stop() error {
-	pr, _ := os.FindProcess(int(p.pid))
+	pr, _ := os.FindProcess(int(p.Pid))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Kill()
@@ -52,9 +54,12 @@ func (p *Process) Stop() error {
 
 // Start will start the given process object
 func (p *Process) Start() error {
-	args := strings.Join(p.Args, " ")
-	cmd := exec.Command(p.Name, args)
+	cmd := exec.Command(p.Name, p.Args...)
+	cmd.Stdin = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	cmd.SysProcAttr.Setsid = true
 
+	// Setup output capture.
 	if p.Stdout != "" {
 		out, err := os.Create(p.Stdout)
 		if err != nil {
@@ -64,30 +69,40 @@ func (p *Process) Start() error {
 		cmd.Stdout = out
 	}
 
-	if p.Stdin != "" {
-		in, err := os.Open(p.Stdin)
-		if err != nil {
-			return fmt.Errorf("Unable to open stdin file: %s", err)
-		}
-		defer in.Close()
-		cmd.Stdin = in
-	}
-
-	if p.Stderr != "" {
-		sterr, err := os.Create(p.Stderr)
+	if p.Stderr == p.Stdout {
+		cmd.Stderr = cmd.Stdout
+	} else if p.Stderr != "" {
+		out, err := os.Create(p.Stderr)
 		if err != nil {
 			return fmt.Errorf("Unable to open stderr file: %s", err)
 		}
-		defer sterr.Close()
-		cmd.Stderr = sterr
+		defer out.Close()
+		cmd.Stderr = out
 	}
 
+	// Start the process.
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("Unable to start process: %s", err)
 	}
 
-	p.pid = int64(cmd.Process.Pid)
+	p.Pid = int64(cmd.Process.Pid)
+	p.exited = false
+
+	// Spawn a goroutine waiting for it to exit.
+	go func() {
+		procstate, err := cmd.Process.Wait()
+		p.exited = true
+		if err != nil {
+			p.exitCode = -1
+			p.exitErr = err
+			return
+		}
+
+		exitcode := int64(procstate.Sys().(syscall.WaitStatus).ExitStatus())
+		p.exitCode = exitcode
+	}()
+
 	return nil
 }
 
@@ -108,7 +123,7 @@ func (p *Process) Restart() error {
 
 // Reload sends the SIGHUP signal to the given process object
 func (p *Process) Reload() error {
-	pr, _ := os.FindProcess(int(p.pid))
+	pr, _ := os.FindProcess(int(p.Pid))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Signal(syscall.SIGHUP)
@@ -140,7 +155,7 @@ func (p *Process) Save(path string) error {
 
 // Signal will send a signal to the given process object given a signal value
 func (p *Process) Signal(signal int64) error {
-	pr, _ := os.FindProcess(int(p.pid))
+	pr, _ := os.FindProcess(int(p.Pid))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		err = pr.Signal(syscall.Signal(signal))
@@ -157,7 +172,11 @@ func (p *Process) Signal(signal int64) error {
 
 // Wait will wait for the given process object exit code
 func (p *Process) Wait() (int64, error) {
-	pr, _ := os.FindProcess(int(p.pid))
+	if p.exited {
+		return p.exitCode, p.exitErr
+	}
+
+	pr, _ := os.FindProcess(int(p.Pid))
 	err := pr.Signal(syscall.Signal(0))
 	if err == nil {
 		procstate, err := pr.Wait()

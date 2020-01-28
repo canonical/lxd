@@ -8,13 +8,12 @@ import (
 )
 
 // NewProcess is a constructor for a process object. Represents a process with argument config. Returns an address to process
-func NewProcess(name string, args []string, stdin string, stdout string, stderr string) (*Process, error) {
+func NewProcess(name string, args []string, stdoutPath string, stderrPath string) (*Process, error) {
 	proc := Process{
 		Name:   name,
 		Args:   args,
-		Stdin:  stdin,
-		Stdout: stdout,
-		Stderr: stderr,
+		Stdout: stdoutPath,
+		Stderr: stderrPath,
 	}
 
 	return &proc, nil
