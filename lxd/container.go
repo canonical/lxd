@@ -672,19 +672,18 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 		args.Architecture = s.OS.Architectures[0]
 	}
 
-	// Validate container name if not snapshot (as snapshots use disallowed / char in names).
-	if !args.Snapshot {
-		err := containerValidName(args.Name)
-		if err != nil {
-			return nil, err
-		}
+	err := instance.ValidName(args.Name, args.Snapshot)
+	if err != nil {
+		return nil, err
+	}
 
-		// Unset expiry date since containers don't expire.
+	if !args.Snapshot {
+		// Unset expiry date since instances don't expire.
 		args.ExpiryDate = time.Time{}
 	}
 
 	// Validate container config.
-	err := instance.ValidConfig(s.OS, args.Config, false, false)
+	err = instance.ValidConfig(s.OS, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}

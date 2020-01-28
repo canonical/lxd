@@ -58,6 +58,11 @@ func createFromImage(d *Daemon, project string, req *api.InstancesPost) response
 			Profiles:    req.Profiles,
 		}
 
+		err := instance.ValidName(args.Name, args.Snapshot)
+		if err != nil {
+			return err
+		}
+
 		var info *api.Image
 		if req.Source.Server != "" {
 			autoUpdate, err := cluster.ConfigGetBool(d.cluster, "images.auto_update_cached")
