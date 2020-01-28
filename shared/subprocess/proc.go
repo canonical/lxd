@@ -13,9 +13,9 @@ import (
 
 // Process struct. Has ability to set runtime arguments
 type Process struct {
-	exitCode int64 `yaml:"-"`
-	exitErr  error `yaml:"-"`
-	exited   bool  `yaml:"-"`
+	exitCode int64         `yaml:"-"`
+	exitErr  error         `yaml:"-"`
+	chExit   chan struct{} `yaml:"-"`
 
 	Name   string   `yaml:"name"`
 	Args   []string `yaml:"args,flow"`
@@ -88,20 +88,21 @@ func (p *Process) Start() error {
 	}
 
 	p.Pid = int64(cmd.Process.Pid)
-	p.exited = false
+	p.chExit = make(chan struct{})
 
 	// Spawn a goroutine waiting for it to exit.
 	go func() {
 		procstate, err := cmd.Process.Wait()
-		p.exited = true
 		if err != nil {
 			p.exitCode = -1
 			p.exitErr = err
+			close(p.chExit)
 			return
 		}
 
 		exitcode := int64(procstate.Sys().(syscall.WaitStatus).ExitStatus())
 		p.exitCode = exitcode
+		close(p.chExit)
 	}()
 
 	return nil
@@ -173,20 +174,6 @@ func (p *Process) Signal(signal int64) error {
 
 // Wait will wait for the given process object exit code
 func (p *Process) Wait() (int64, error) {
-	if p.exited {
-		return p.exitCode, p.exitErr
-	}
-
-	pr, _ := os.FindProcess(int(p.Pid))
-	err := pr.Signal(syscall.Signal(0))
-	if err == nil {
-		procstate, err := pr.Wait()
-		if err != nil {
-			return -1, errors.Wrapf(err, "Could not wait on process")
-		}
-		exitcode := int64(procstate.Sys().(syscall.WaitStatus).ExitStatus())
-		return exitcode, nil
-	}
-
-	return 0, ErrNotRunning
+	<-p.chExit
+	return p.exitCode, p.exitErr
 }
