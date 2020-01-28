@@ -444,8 +444,8 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 	return nil, fmt.Errorf("Unknown configuration key: %s", key)
 }
 
-// InstanceGetParentAndSnapshotName returns the parent container name, snapshot
-// name, and whether it actually was a snapshot name.
+// InstanceGetParentAndSnapshotName returns the parent instance name, snapshot name,
+// and whether it actually was a snapshot name.
 func InstanceGetParentAndSnapshotName(name string) (string, string, bool) {
 	fields := strings.SplitN(name, SnapshotDelimiter, 2)
 	if len(fields) == 1 {
