@@ -330,9 +330,15 @@ func matchEbtablesRule(activeRule []string, matchRule []string, deleteMode bool)
 			continue
 		}
 
+		// Mangle to line up with different versions of ebtables.
+		active := strings.Replace(activeRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1)
+		match := strings.Replace(matchRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1)
+		active = strings.Replace(active, "fe80::/ffc0::", "fe80::/10", -1)
+		match = strings.Replace(match, "fe80::/ffc0::", "fe80::/10", -1)
+
 		// Check the match rule field matches the active rule field.
 		// If they don't match, then this isn't one of our rules.
-		if strings.Replace(activeRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1) != strings.Replace(matchRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1) {
+		if active != match {
 			return false
 		}
 	}
