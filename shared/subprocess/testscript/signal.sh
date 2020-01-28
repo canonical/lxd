@@ -16,4 +16,5 @@ done
 
 echo "Called with signal 10"
 
+sleep 5
 exit 1
