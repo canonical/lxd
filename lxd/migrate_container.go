@@ -470,12 +470,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	}
 
 	var legacyDriver MigrationStorageSourceDriver
-	var legacyCleanup func()         // Called after migration, to remove any temporary snapshots, etc.
-	var migrationType migration.Type // Negotiated migration type.
-	var rsyncBwlimit string          // Used for CRIU state and legacy storage rsync transfers.
+	var legacyCleanup func()            // Called after migration, to remove any temporary snapshots, etc.
+	var migrationTypes []migration.Type // Negotiated migration types.
+	var rsyncBwlimit string             // Used for CRIU state and legacy storage rsync transfers.
 
 	// Handle rsync options.
 	rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
+
 	if !shared.StringInSlice("bidirectional", rsyncFeatures) {
 		// If no bi-directional support, assume LXD 3.7 level.
 		// NOTE: Do NOT extend this list of arguments.
@@ -507,7 +508,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	if pool != nil {
 		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
-		migrationType, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+		migrationTypes, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 		if err != nil {
 			logger.Errorf("Failed to negotiate migration type: %v", err)
 			return abort(err)
@@ -521,7 +522,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 
 		volSourceArgs.Name = s.instance.Name()
-		volSourceArgs.MigrationType = migrationType
+		volSourceArgs.MigrationType = migrationTypes[0]
 		volSourceArgs.Snapshots = sendSnapshotNames
 		volSourceArgs.TrackProgress = true
 		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
@@ -942,13 +943,13 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		// Extract the source's migration type and then match it against our pool's
 		// supported types and features. If a match is found the combined features list
 		// will be sent back to requester.
-		respType, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
+		respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
 		if err != nil {
 			return err
 		}
 
 		// Convert response type to response header and copy snapshot info into it.
-		respHeader = migration.TypesToHeader(respType)
+		respHeader = migration.TypesToHeader(respTypes...)
 		respHeader.SnapshotNames = offerHeader.SnapshotNames
 		respHeader.Snapshots = offerHeader.Snapshots
 		respHeader.Refresh = &c.refresh
@@ -958,7 +959,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
 			volTargetArgs := migration.VolumeTargetArgs{
 				Name:          args.Instance.Name(),
-				MigrationType: respType,
+				MigrationType: respTypes[0],
 				Refresh:       args.Refresh, // Indicate to receiver volume should exist.
 				TrackProgress: false,        // Do not use a progress tracker on receiver.
 				Live:          args.Live,    // Indicates we will get a final rootfs sync.
