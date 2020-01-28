@@ -71,8 +71,7 @@ func TypesToHeader(types ...Type) MigrationHeader {
 		header.ZfsFeatures = &features
 	}
 
-	// Check all the types for an Rsync method, if found then add its features to the header's
-	// RsyncFeatures list.
+	// Check all the types for an Rsync method, if found add its features to the header's RsyncFeatures list.
 	for _, t := range types {
 		if t.FSType != MigrationFSType_RSYNC {
 			continue
@@ -98,6 +97,7 @@ func TypesToHeader(types ...Type) MigrationHeader {
 		}
 
 		header.RsyncFeatures = &features
+		break // Only use the first rsync transport type found to generate rsync features list.
 	}
 
 	return header
