@@ -1,20 +1,17 @@
+#!/bin/sh
 keep_running="yes"
-
 trap 'keep_running="no"' 1
-
-while [ $keep_running == "yes" ]; do
- # main body of your script here
- sleep 0
+while [ $keep_running = "yes" ]; do
+    sleep 1
 done
 
-echo "Called with signal "
+echo "Called with signal 1"
+
 
 keep_running="yes"
-
 trap 'keep_running="no"' 10
-
-while [ $keep_running == "yes" ]; do
-  sleep 0
+while [ $keep_running = "yes" ]; do
+    sleep 1
 done
 
 echo "Called with signal 10"
