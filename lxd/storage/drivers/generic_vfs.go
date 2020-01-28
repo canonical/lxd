@@ -51,26 +51,28 @@ func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operati
 	srcVolumePath := GetVolumeMountPath(d.Name(), vol.volType, vol.name)
 	dstVolumePath := GetVolumeMountPath(d.Name(), vol.volType, newVolName)
 
-	err := os.Rename(srcVolumePath, dstVolumePath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcVolumePath, dstVolumePath)
-	}
-
 	revertRename := true
-	defer func() {
-		if !revertRename {
-			return
+	if shared.PathExists(srcVolumePath) {
+		err := os.Rename(srcVolumePath, dstVolumePath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcVolumePath, dstVolumePath)
 		}
 
-		os.Rename(dstVolumePath, srcVolumePath)
-	}()
+		defer func() {
+			if !revertRename {
+				return
+			}
+
+			os.Rename(dstVolumePath, srcVolumePath)
+		}()
+	}
 
 	// And if present, the snapshots too.
 	srcSnapshotDir := GetVolumeSnapshotDir(d.Name(), vol.volType, vol.name)
 	dstSnapshotDir := GetVolumeSnapshotDir(d.Name(), vol.volType, newVolName)
 
 	if shared.PathExists(srcSnapshotDir) {
-		err = os.Rename(srcSnapshotDir, dstSnapshotDir)
+		err := os.Rename(srcSnapshotDir, dstSnapshotDir)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", srcSnapshotDir, dstSnapshotDir)
 		}

@@ -849,7 +849,18 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	// For block devices, we make them appear.
 	if vol.contentType == ContentTypeBlock {
-		err := d.setDatasetProperties(d.dataset(vol, false), "volmode=dev")
+		current, err := d.getDatasetProperty(d.dataset(vol, false), "volmode")
+		if err != nil {
+			return false, err
+		}
+
+		// Check if already active.
+		if current == "dev" {
+			return false, nil
+		}
+
+		// Activate.
+		err = d.setDatasetProperties(d.dataset(vol, false), "volmode=dev")
 		if err != nil {
 			return false, err
 		}
@@ -857,7 +868,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		// Wait half a second to give udev a chance to kick in.
 		time.Sleep(500 * time.Millisecond)
 
-		return false, nil
+		return true, nil
 	}
 
 	// Check if not already mounted.
@@ -938,9 +949,11 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 	})
 
 	// Update the mountpoints.
-	err = d.setDatasetProperties(d.dataset(newVol, false), fmt.Sprintf("mountpoint=%s", newVol.MountPath()))
-	if err != nil {
-		return err
+	if vol.contentType == ContentTypeFS {
+		err = d.setDatasetProperties(d.dataset(newVol, false), fmt.Sprintf("mountpoint=%s", newVol.MountPath()))
+		if err != nil {
+			return err
+		}
 	}
 
 	// For VM images, create a filesystem volume too.
