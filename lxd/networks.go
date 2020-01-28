@@ -38,6 +38,9 @@ import (
 func init() {
 	// Link networkGetLeaseAddresses into instance package.
 	instance.NetworkGetLeaseAddresses = networkGetLeaseAddresses
+
+	// Link networkUpdateStatic into instance package.
+	instance.NetworkUpdateStatic = networkUpdateStatic
 }
 
 // Lock to prevent concurent networks creation

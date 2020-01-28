@@ -48,6 +48,10 @@ var Create func(s *state.State, args db.InstanceArgs) (Instance, error)
 // network related functions into their own package at this time.
 var NetworkGetLeaseAddresses func(s *state.State, network string, hwaddr string) ([]api.InstanceStateNetworkAddress, error)
 
+// NetworkUpdateStatic is linked to main.networkUpdateStatic to limit scope of moving
+// network related functions into their own package at this time.
+var NetworkUpdateStatic func(s *state.State, network string) error
+
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
 // exist in the target or its creation date is different to the source. A snapshot will be marked

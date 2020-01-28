@@ -1776,7 +1776,141 @@ func (vm *qemu) Backups() ([]backup.Backup, error) {
 
 // Rename the instance.
 func (vm *qemu) Rename(newName string) error {
-	return fmt.Errorf("Rename Not implemented")
+	oldName := vm.Name()
+	ctxMap := log.Ctx{
+		"project":   vm.project,
+		"name":      vm.name,
+		"created":   vm.creationDate,
+		"ephemeral": vm.ephemeral,
+		"used":      vm.lastUsedDate,
+		"newname":   newName}
+
+	logger.Info("Renaming instance", ctxMap)
+
+	// Sanity checks.
+	if !vm.IsSnapshot() && !shared.ValidHostname(newName) {
+		return fmt.Errorf("Invalid instance name")
+	}
+
+	if vm.IsRunning() {
+		return fmt.Errorf("Renaming of running instance not allowed")
+	}
+
+	// Clean things up.
+	vm.cleanup()
+
+	// Check if we can load new storage layer for pool driver type.
+	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
+	if err != nil {
+		return errors.Wrap(err, "Load instance storage pool")
+	}
+
+	if vm.IsSnapshot() {
+		_, newSnapName, _ := shared.InstanceGetParentAndSnapshotName(newName)
+		err = pool.RenameInstanceSnapshot(vm, newSnapName, nil)
+		if err != nil {
+			return errors.Wrap(err, "Rename instance snapshot")
+		}
+	} else {
+		err = pool.RenameInstance(vm, newName, nil)
+		if err != nil {
+			return errors.Wrap(err, "Rename instance")
+		}
+	}
+
+	if !vm.IsSnapshot() {
+		// Rename all the instance snapshot database entries.
+		results, err := vm.state.Cluster.ContainerGetSnapshots(vm.project, oldName)
+		if err != nil {
+			logger.Error("Failed to get instance snapshots", ctxMap)
+			return err
+		}
+
+		for _, sname := range results {
+			// Rename the snapshot.
+			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
+			baseSnapName := filepath.Base(sname)
+			err := vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+				return tx.InstanceSnapshotRename(vm.project, oldName, oldSnapName, baseSnapName)
+			})
+			if err != nil {
+				logger.Error("Failed renaming snapshot", ctxMap)
+				return err
+			}
+		}
+	}
+
+	// Rename the instance database entry.
+	err = vm.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		if vm.IsSnapshot() {
+			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
+			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
+			return tx.InstanceSnapshotRename(vm.project, oldParts[0], oldParts[1], newParts[1])
+		}
+
+		return tx.InstanceRename(vm.project, oldName, newName)
+	})
+	if err != nil {
+		logger.Error("Failed renaming instance", ctxMap)
+		return err
+	}
+
+	// Rename the logging path.
+	os.RemoveAll(shared.LogPath(newName))
+	if shared.PathExists(vm.LogPath()) {
+		err := os.Rename(vm.LogPath(), shared.LogPath(newName))
+		if err != nil {
+			logger.Error("Failed renaming instance", ctxMap)
+			return err
+		}
+	}
+
+	// Rename the MAAS entry.
+	if !vm.IsSnapshot() {
+		err = vm.maasRename(newName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the backups.
+	backups, err := vm.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+
+		err = backup.Rename(newName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Set the new name in the struct.
+	vm.name = newName
+
+	// Update lease files.
+	instance.NetworkUpdateStatic(vm.state, "")
+
+	logger.Info("Renamed instance", ctxMap)
+
+	if vm.IsSnapshot() {
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-snapshot-renamed",
+			fmt.Sprintf("/1.0/virtual-machines/%s", oldName), map[string]interface{}{
+				"new_name":      newName,
+				"snapshot_name": oldName,
+			})
+	} else {
+		vm.state.Events.SendLifecycle(vm.project, "virtual-machine-renamed",
+			fmt.Sprintf("/1.0/virtual-machines/%s", oldName), map[string]interface{}{
+				"new_name": newName,
+			})
+	}
+
+	return nil
 }
 
 // Update the instance config.
@@ -3430,6 +3564,41 @@ func (vm *qemu) maasInterfaces(devices map[string]map[string]string) ([]maas.Con
 	}
 
 	return interfaces, nil
+}
+
+func (vm *qemu) maasRename(newName string) error {
+	maasURL, err := cluster.ConfigGetString(vm.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
+		return nil
+	}
+
+	interfaces, err := vm.maasInterfaces(vm.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if len(interfaces) == 0 {
+		return nil
+	}
+
+	if vm.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+	}
+
+	exists, err := vm.state.MAAS.DefinedContainer(project.Prefix(vm.project, vm.name))
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return vm.maasUpdate(nil)
+	}
+
+	return vm.state.MAAS.RenameContainer(project.Prefix(vm.project, vm.name), project.Prefix(vm.project, newName))
 }
 
 func (vm *qemu) maasDelete() error {
