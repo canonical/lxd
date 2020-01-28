@@ -12,7 +12,7 @@ func TestSignalHandling(t *testing.T) {
 	var a []string
 	a = append(a, "testscript/signal.sh")
 	var file *os.File
-	p, err := NewProcess("sh", a, "", "testscript/signal_out.txt", "")
+	p, err := NewProcess("sh", a, "testscript/signal_out.txt", "")
 
 	if err != nil {
 		t.Error("Failed process creation: ", err)
@@ -81,7 +81,7 @@ func TestStopRestart(t *testing.T) {
 	var a []string
 	a = append(a, "testscript/stoprestart.sh")
 
-	p, err := NewProcess("sh", a, "", "", "")
+	p, err := NewProcess("sh", a, "", "")
 	if err != nil {
 		t.Error("Failed process creation: ", err)
 	}
@@ -135,7 +135,7 @@ func TestProcessStartWaitExit(t *testing.T) {
 	var exp string
 	var text []byte
 	a = append(a, "testscript/exit1.sh")
-	p, err := NewProcess("sh", a, "", "testscript/out.txt", "")
+	p, err := NewProcess("sh", a, "testscript/out.txt", "")
 	if err != nil {
 		t.Error("Failed process creation: ", err)
 	}
