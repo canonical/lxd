@@ -185,28 +185,7 @@ func mynames() ([]string, error) {
 		return nil, err
 	}
 
-	ret := []string{h}
-
-	ifs, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, iface := range ifs {
-		if IsLoopback(&iface) {
-			continue
-		}
-
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, addr := range addrs {
-			ret = append(ret, addr.String())
-		}
-	}
-
+	ret := []string{h, "127.0.0.1/8", "::1/128"}
 	return ret, nil
 }
 
