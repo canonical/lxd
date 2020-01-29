@@ -553,7 +553,7 @@ func (c *cmdNetworkEdit) Command() *cobra.Command {
 
 func (c *cmdNetworkEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of the network.
+		`### This is a YAML representation of the network.
 ### Any line starting with a '# will be ignored.
 ###
 ### A network consists of a set of configuration items.

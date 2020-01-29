@@ -223,7 +223,7 @@ func (c *cmdStorageEdit) Command() *cobra.Command {
 
 func (c *cmdStorageEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of a storage pool.
+		`### This is a YAML representation of a storage pool.
 ### Any line starting with a '#' will be ignored.
 ###
 ### A storage pool consists of a set of configuration items.

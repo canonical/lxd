@@ -21,7 +21,7 @@ type InstanceConfig struct {
 	Volume    *api.StorageVolume      `yaml:"volume"`
 }
 
-// ParseInstanceConfigYamlFile decodes the yaml file at path specified into an InstanceConfig.
+// ParseInstanceConfigYamlFile decodes the YAML file at path specified into an InstanceConfig.
 func ParseInstanceConfigYamlFile(path string) (*InstanceConfig, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
