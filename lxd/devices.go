@@ -103,8 +103,14 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			ueventBuf := make([]byte, r)
 			copy(ueventBuf, b)
-			ueventLen := 0
+
 			udevEvent := false
+			if strings.HasPrefix(string(ueventBuf), "libudev") {
+				udevEvent = true
+				// Skip the header that libudev prepends
+				ueventBuf = ueventBuf[40 : len(ueventBuf)-1]
+			}
+			ueventLen := 0
 			ueventParts := strings.Split(string(ueventBuf), "\x00")
 			props := map[string]string{}
 			for _, part := range ueventParts {
