@@ -6,16 +6,13 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/version"
-
-	"golang.org/x/sys/unix"
 )
 
 // DHCPAllocation represents an IP allocation from dnsmasq.
@@ -71,85 +68,34 @@ func RemoveStaticEntry(network string, projectName string, instanceName string) 
 
 // Kill kills dnsmasq for a particular network (or optionally reloads it).
 func Kill(name string, reload bool) error {
-	// Check if we have a running dnsmasq at all
 	pidPath := shared.VarPath("networks", name, "dnsmasq.pid")
+
+	// If the pid file doesn't exist, there is no process to kill.
 	if !shared.PathExists(pidPath) {
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
 		return nil
 	}
 
-	// Grab the PID
-	content, err := ioutil.ReadFile(pidPath)
+	// Import saved subprocess details
+	p, err := subprocess.ImportProcess(pidPath)
 	if err != nil {
-		return err
-	}
-	pid := strings.TrimSpace(string(content))
-
-	// Check for empty string
-	if pid == "" {
-		os.Remove(pidPath)
-
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		return nil
+		return fmt.Errorf("Could not read pid file: %s", err)
 	}
 
-	// Check if the process still exists
-	if !shared.PathExists(fmt.Sprintf("/proc/%s", pid)) {
-		os.Remove(pidPath)
-
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		return nil
-	}
-
-	// Check if it's dnsmasq
-	cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pid))
-	if err != nil {
-		cmdPath = ""
-	}
-
-	// Deal with deleted paths
-	cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
-	if cmdName != "dnsmasq" {
-		if reload {
-			return fmt.Errorf("dnsmasq isn't running")
-		}
-
-		os.Remove(pidPath)
-		return nil
-	}
-
-	// Parse the pid
-	pidInt, err := strconv.Atoi(pid)
-	if err != nil {
-		return err
-	}
-
-	// Actually kill the process
 	if reload {
-		err = unix.Kill(pidInt, unix.SIGHUP)
-		if err != nil {
-			return err
+		err = p.Reload()
+		if err != nil && err != subprocess.ErrNotRunning {
+			return fmt.Errorf("Could not reload dnsmasq: %s", err)
 		}
 
 		return nil
 	}
 
-	err = unix.Kill(pidInt, unix.SIGKILL)
-	if err != nil {
-		return err
+	err = p.Stop()
+	if err != nil && err != subprocess.ErrNotRunning {
+		return fmt.Errorf("Unable to kill dnsmasq: %s", err)
 	}
 
 	// Cleanup
-	os.Remove(pidPath)
 	return nil
 }
 

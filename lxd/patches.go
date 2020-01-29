@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -80,6 +81,7 @@ var patches = []patch{
 	{name: "clustering_add_roles_again", run: patchClusteringAddRoles},
 	{name: "storage_create_vm", run: patchGenericStorage},
 	{name: "storage_zfs_mount", run: patchGenericStorage},
+	{name: "network_pid_files", run: patchNetworkPIDFiles},
 }
 
 type patch struct {
@@ -133,6 +135,45 @@ func patchesApplyAll(d *Daemon) error {
 }
 
 // Patches begin here
+func patchNetworkPIDFiles(name string, d *Daemon) error {
+	networks, err := ioutil.ReadDir(shared.VarPath("networks"))
+	if err != nil {
+		return err
+	}
+
+	for _, network := range networks {
+		networkName := network.Name()
+		networkPath := filepath.Join(shared.VarPath("networks"), networkName)
+
+		for _, pidFile := range []string{"dnsmasq.pid", "forkdns.pid"} {
+			pidPath := filepath.Join(networkPath, pidFile)
+			if !shared.PathExists(pidPath) {
+				continue
+			}
+
+			content, err := ioutil.ReadFile(pidPath)
+			if err != nil {
+				logger.Errorf("Failed to read PID file '%s': %v", pidPath, err)
+				continue
+			}
+
+			pid, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+			if err != nil {
+				logger.Errorf("Failed to parse PID file '%s': %v", pidPath, err)
+				continue
+			}
+
+			err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("pid: %d\n", pid)), 0600)
+			if err != nil {
+				logger.Errorf("Failed to write new PID file '%s': %v", pidPath, err)
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
 func patchGenericStorage(name string, d *Daemon) error {
 	// Load all the pools.
 	pools, _ := d.cluster.StoragePools()
