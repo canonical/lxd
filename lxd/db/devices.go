@@ -29,6 +29,8 @@ func dbDeviceTypeToString(t int) (string, error) {
 		return "infiniband", nil
 	case 8:
 		return "proxy", nil
+	case 9:
+		return "unix-hotplug", nil
 	default:
 		return "", fmt.Errorf("Invalid device type %d", t)
 	}
@@ -54,6 +56,8 @@ func dbDeviceTypeToInt(t string) (int, error) {
 		return 7, nil
 	case "proxy":
 		return 8, nil
+	case "unix-hotplug":
+		return 9, nil
 	default:
 		return -1, fmt.Errorf("Invalid device type %s", t)
 	}

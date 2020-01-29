@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,38 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+/*
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+#include <stdio.h>
+#include <linux/hidraw.h>
+
+#include "include/memory_utils.h"
+
+#ifndef HIDIOCGRAWINFO
+#define HIDIOCGRAWINFO _IOR('H', 0x03, struct hidraw_devinfo)
+struct hidraw_devinfo {
+	__u32 bustype;
+	__s16 vendor;
+	__s16 product;
+};
+#endif
+
+static int get_hidraw_devinfo(int fd, struct hidraw_devinfo *info)
+{
+	int ret;
+
+	ret = ioctl(fd, HIDIOCGRAWINFO, info);
+	if (ret)
+		return -1;
+
+	return 0;
+}
+
+*/
+import "C"
+
 type deviceTaskCPU struct {
 	id    int
 	strId string
@@ -32,7 +65,7 @@ func (c deviceTaskCPUs) Len() int           { return len(c) }
 func (c deviceTaskCPUs) Less(i, j int) bool { return *c[i].count < *c[j].count }
 func (c deviceTaskCPUs) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, error) {
+func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent, chan device.UnixHotplugEvent, error) {
 	NETLINK_KOBJECT_UEVENT := 15
 	UEVENT_BUFFER_SIZE := 2048
 
@@ -41,25 +74,26 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 		NETLINK_KOBJECT_UEVENT,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	nl := unix.SockaddrNetlink{
 		Family: unix.AF_NETLINK,
 		Pid:    uint32(os.Getpid()),
-		Groups: 1,
+		Groups: 3,
 	}
 
 	err = unix.Bind(fd, &nl)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	chCPU := make(chan []string, 1)
 	chNetwork := make(chan []string, 0)
 	chUSB := make(chan device.USBEvent)
+	chUnix := make(chan device.UnixHotplugEvent)
 
-	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent) {
+	go func(chCPU chan []string, chNetwork chan []string, chUSB chan device.USBEvent, chUnix chan device.UnixHotplugEvent) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
 			r, err := unix.Read(fd, b)
@@ -69,11 +103,24 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			ueventBuf := make([]byte, r)
 			copy(ueventBuf, b)
+
+			udevEvent := false
+			if strings.HasPrefix(string(ueventBuf), "libudev") {
+				udevEvent = true
+				// Skip the header that libudev prepends
+				ueventBuf = ueventBuf[40 : len(ueventBuf)-1]
+			}
 			ueventLen := 0
 			ueventParts := strings.Split(string(ueventBuf), "\x00")
 			props := map[string]string{}
 			for _, part := range ueventParts {
 				if strings.HasPrefix(part, "SEQNUM=") {
+					continue
+				}
+
+				// libudev string prefix distinguishes udev events from kernel uevents
+				if strings.HasPrefix(part, "libudev") {
+					udevEvent = true
 					continue
 				}
 
@@ -89,7 +136,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			ueventLen--
 
-			if props["SUBSYSTEM"] == "cpu" {
+			if props["SUBSYSTEM"] == "cpu" && !udevEvent {
 				if props["DRIVER"] != "processor" {
 					continue
 				}
@@ -106,7 +153,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				}
 			}
 
-			if props["SUBSYSTEM"] == "net" {
+			if props["SUBSYSTEM"] == "net" && !udevEvent {
 				if props["ACTION"] != "add" && props["ACTION"] != "removed" {
 					continue
 				}
@@ -119,7 +166,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				chNetwork <- []string{props["INTERFACE"], props["ACTION"]}
 			}
 
-			if props["SUBSYSTEM"] == "usb" {
+			if props["SUBSYSTEM"] == "usb" && !udevEvent {
 				parts := strings.Split(props["PRODUCT"], "/")
 				if len(parts) < 2 {
 					continue
@@ -178,10 +225,64 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				chUSB <- usb
 			}
 
-		}
-	}(chCPU, chNetwork, chUSB)
+			// unix hotplug device events rely on information added by udev
+			if udevEvent {
+				subsystem, ok := props["SUBSYSTEM"]
+				if !ok {
+					continue
+				}
 
-	return chCPU, chNetwork, chUSB, nil
+				devname, ok := props["DEVNAME"]
+				if !ok {
+					continue
+				}
+
+				vendor, product, ok := ueventParseVendorProduct(props, subsystem, devname)
+				if !ok {
+					continue
+				}
+
+				major, ok := props["MAJOR"]
+				if !ok {
+					continue
+				}
+
+				minor, ok := props["MINOR"]
+				if !ok {
+					continue
+				}
+
+				zeroPad := func(s string, l int) string {
+					return strings.Repeat("0", l-len(s)) + s
+				}
+
+				unix, err := device.UnixHotplugNewEvent(
+					props["ACTION"],
+					/* udev doesn't zero pad these, while
+					 * everything else does, so let's zero pad them
+					 * for consistency
+					 */
+					zeroPad(vendor, 4),
+					zeroPad(product, 4),
+					major,
+					minor,
+					subsystem,
+					devname,
+					ueventParts[:len(ueventParts)-1],
+					ueventLen,
+				)
+				if err != nil {
+					logger.Error("Error reading unix device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					continue
+				}
+
+				chUnix <- unix
+			}
+
+		}
+	}(chCPU, chNetwork, chUSB, chUnix)
+
+	return chCPU, chNetwork, chUSB, chUnix, nil
 }
 
 func parseCpuset(cpu string) ([]int, error) {
@@ -438,7 +539,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceEventListener(s *state.State) {
-	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
+	chNetlinkCPU, chNetlinkNetwork, chUSB, chUnix, err := deviceNetlinkListener()
 	if err != nil {
 		logger.Errorf("scheduler: Couldn't setup netlink listener: %v", err)
 		return
@@ -473,6 +574,8 @@ func deviceEventListener(s *state.State) {
 			networkAutoAttach(s.Cluster, e[0])
 		case e := <-chUSB:
 			device.USBRunHandlers(s, &e)
+		case e := <-chUnix:
+			device.UnixHotplugRunHandlers(s, &e)
 		case e := <-cgroup.DeviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
@@ -528,4 +631,46 @@ func devicesRegister(s *state.State) {
 			}
 		}
 	}
+}
+
+func getHidrawDevInfo(fd int) (string, string, error) {
+	info := C.struct_hidraw_devinfo{}
+	ret, err := C.get_hidraw_devinfo(C.int(fd), &info)
+	if ret != 0 {
+		return "", "", err
+	}
+
+	return fmt.Sprintf("%04x", info.vendor), fmt.Sprintf("%04x", info.product), nil
+}
+
+func ueventParseVendorProduct(props map[string]string, subsystem string, devname string) (string, string, bool) {
+	if subsystem != "hidraw" {
+		vendor, vendorOk := props["ID_VENDOR_ID"]
+		product, productOk := props["ID_MODEL_ID"]
+
+		if vendorOk && productOk {
+			return vendor, product, true
+		}
+
+		return "", "", false
+	}
+
+	if !filepath.IsAbs(devname) {
+		return "", "", false
+	}
+
+	file, err := os.OpenFile(devname, os.O_RDWR, 0000)
+	if err != nil {
+		return "", "", false
+	}
+
+	defer file.Close()
+
+	vendor, product, err := getHidrawDevInfo(int(file.Fd()))
+	if err != nil {
+		logger.Debugf("Failed to retrieve device info from hidraw device \"%s\"", devname)
+		return "", "", false
+	}
+
+	return vendor, product, true
 }
