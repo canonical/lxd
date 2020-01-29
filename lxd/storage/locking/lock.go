@@ -27,12 +27,12 @@ func Lock(poolName string, volType string, volName string) func() {
 		// Get exclusive access to the map and see if there is already an operation ongoing.
 		ongoingOperationMapLock.Lock()
 		waitCh, ok := ongoingOperationMap[lockID]
-		ongoingOperationMapLock.Unlock()
 
 		if !ok {
 			// No ongoing operation, create a new channel to indicate our new operation.
 			waitCh = make(chan struct{})
 			ongoingOperationMap[lockID] = waitCh
+			ongoingOperationMapLock.Unlock()
 
 			// Return a function that will complete the operation.
 			return func() {
@@ -59,6 +59,7 @@ func Lock(poolName string, volType string, volName string) func() {
 
 		// An existing operation is ongoing, lets wait for that to finish and then try
 		// to get exlusive access to create a new operation again.
+		ongoingOperationMapLock.Unlock()
 		<-waitCh
 	}
 }
