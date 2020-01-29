@@ -166,7 +166,7 @@ class LXD(object):
         return data['metadata']['metadata']
 
 
-class Busybox(object):
+class BusyBox(object):
     workdir = None
 
     def __init__(self):
@@ -192,9 +192,9 @@ class Busybox(object):
         metadata = {'architecture': os.uname()[4],
                     'creation_date': int(os.stat("/bin/busybox").st_ctime),
                     'properties': {
-                        'os': "Busybox",
+                        'os': "BusyBox",
                         'architecture': os.uname()[4],
-                        'description': "Busybox %s" % os.uname()[4],
+                        'description': "BusyBox %s" % os.uname()[4],
                         'name': "busybox-%s" % os.uname()[4]
                         },
                     }
@@ -330,7 +330,7 @@ if __name__ == "__main__":
             print("Setup alias: %s" % alias)
 
     def import_busybox(parser, args):
-        busybox = Busybox()
+        busybox = BusyBox()
 
         if args.split:
             meta_path, rootfs_path = busybox.create_tarball(

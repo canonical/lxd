@@ -249,9 +249,9 @@ func TestInstanceCreate_Snapshot(t *testing.T) {
 		Description:  "container 1",
 		Config: map[string]string{
 			"image.architecture":  "x86_64",
-			"image.description":   "Busybox x86_64",
+			"image.description":   "BusyBox x86_64",
 			"image.name":          "busybox-x86_64",
-			"image.os":            "Busybox",
+			"image.os":            "BusyBox",
 			"volatile.base_image": "1f7f054e6ccb",
 		},
 		Devices:  map[string]map[string]string{},
@@ -275,9 +275,9 @@ func TestInstanceCreate_Snapshot(t *testing.T) {
 		Description:  "container 1",
 		Config: map[string]string{
 			"image.architecture":      "x86_64",
-			"image.description":       "Busybox x86_64",
+			"image.description":       "BusyBox x86_64",
 			"image.name":              "busybox-x86_64",
-			"image.os":                "Busybox",
+			"image.os":                "BusyBox",
 			"volatile.apply_template": "create",
 			"volatile.base_image":     "1f7f054e6ccb",
 			"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",

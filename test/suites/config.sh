@@ -300,10 +300,10 @@ test_container_metadata() {
     lxc init testimage c
 
     # metadata for the container are printed
-    lxc config metadata show c | grep -q Busybox
+    lxc config metadata show c | grep -q BusyBox
 
     # metadata can be edited
-    lxc config metadata show c | sed 's/Busybox/BB/' | lxc config metadata edit c
+    lxc config metadata show c | sed 's/BusyBox/BB/' | lxc config metadata edit c
     lxc config metadata show c | grep -q BB
 
     # templates can be listed
