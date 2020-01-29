@@ -1804,8 +1804,9 @@ func (vm *qemu) Rename(newName string) error {
 	logger.Info("Renaming instance", ctxMap)
 
 	// Sanity checks.
-	if !vm.IsSnapshot() && !shared.ValidHostname(newName) {
-		return fmt.Errorf("Invalid instance name")
+	err := instance.ValidName(newName, vm.IsSnapshot())
+	if err != nil {
+		return err
 	}
 
 	if vm.IsRunning() {

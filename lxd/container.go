@@ -53,20 +53,6 @@ func init() {
 
 // Helper functions
 
-func containerValidName(name string) error {
-	if strings.Contains(name, shared.SnapshotDelimiter) {
-		return fmt.Errorf(
-			"The character '%s' is reserved for snapshots.",
-			shared.SnapshotDelimiter)
-	}
-
-	if !shared.ValidHostname(name) {
-		return fmt.Errorf("Container name isn't a valid hostname")
-	}
-
-	return nil
-}
-
 // instanceCreateAsEmpty creates an empty instance.
 func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance record.
@@ -686,19 +672,18 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 		args.Architecture = s.OS.Architectures[0]
 	}
 
-	// Validate container name if not snapshot (as snapshots use disallowed / char in names).
-	if !args.Snapshot {
-		err := containerValidName(args.Name)
-		if err != nil {
-			return nil, err
-		}
+	err := instance.ValidName(args.Name, args.Snapshot)
+	if err != nil {
+		return nil, err
+	}
 
-		// Unset expiry date since containers don't expire.
+	if !args.Snapshot {
+		// Unset expiry date since instances don't expire.
 		args.ExpiryDate = time.Time{}
 	}
 
 	// Validate container config.
-	err := instance.ValidConfig(s.OS, args.Config, false, false)
+	err = instance.ValidConfig(s.OS, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}

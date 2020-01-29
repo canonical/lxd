@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
@@ -64,7 +65,8 @@ func containerLogsGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	if err := containerValidName(name); err != nil {
+	err = instance.ValidName(name, false)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -118,7 +120,8 @@ func containerLogGet(d *Daemon, r *http.Request) response.Response {
 
 	file := mux.Vars(r)["file"]
 
-	if err := containerValidName(name); err != nil {
+	err = instance.ValidName(name, false)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
@@ -154,7 +157,8 @@ func containerLogDelete(d *Daemon, r *http.Request) response.Response {
 
 	file := mux.Vars(r)["file"]
 
-	if err := containerValidName(name); err != nil {
+	err = instance.ValidName(name, false)
+	if err != nil {
 		return response.BadRequest(err)
 	}
 
