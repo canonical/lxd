@@ -101,7 +101,7 @@ func (c *cmdConfigEdit) Command() *cobra.Command {
 
 func (c *cmdConfigEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of the configuration.
+		`### This is a YAML representation of the configuration.
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample configuration looks like:

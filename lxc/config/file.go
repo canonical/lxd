@@ -20,7 +20,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("Unable to read the configuration file: %v", err)
 	}
 
-	// Decode the yaml document
+	// Decode the YAML document
 	c := NewConfig(filepath.Dir(path), false)
 	err = yaml.Unmarshal(content, &c)
 	if err != nil {

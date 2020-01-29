@@ -140,7 +140,7 @@ func (p *Process) Reload() error {
 	return errors.Wrapf(err, "Could not reload process")
 }
 
-// Save will save the given process object to a yaml file. Can be imported at a later point.
+// Save will save the given process object to a YAML file. Can be imported at a later point.
 func (p *Process) Save(path string) error {
 	dat, err := yaml.Marshal(p)
 	if err != nil {
