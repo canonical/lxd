@@ -51,17 +51,17 @@ const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
-		suite.T().Fatalf("failed to create temp dir: %v", err)
+		suite.T().Errorf("failed to create temp dir: %v", err)
 	}
 	suite.tmpdir = tmpdir
 
 	if err := os.Setenv("LXD_DIR", suite.tmpdir); err != nil {
-		suite.T().Fatalf("failed to set LXD_DIR: %v", err)
+		suite.T().Errorf("failed to set LXD_DIR: %v", err)
 	}
 
 	suite.d, err = mockStartDaemon()
 	if err != nil {
-		suite.T().Fatalf("failed to start daemon: %v", err)
+		suite.T().Errorf("failed to start daemon: %v", err)
 	}
 
 	// Create default storage pool. Make sure that we don't pass a nil to
@@ -73,7 +73,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
 	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.State(), lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
-		suite.T().Fatalf("failed to create default storage pool: %v", err)
+		suite.T().Errorf("failed to create default storage pool: %v", err)
 	}
 
 	rootDev := map[string]string{}
@@ -85,23 +85,23 @@ func (suite *lxdTestSuite) SetupTest() {
 
 	defaultID, _, err := suite.d.cluster.ProfileGet("default", "default")
 	if err != nil {
-		suite.T().Fatalf("failed to get default profile: %v", err)
+		suite.T().Errorf("failed to get default profile: %v", err)
 	}
 
 	tx, err := suite.d.cluster.Begin()
 	if err != nil {
-		suite.T().Fatalf("failed to begin transaction: %v", err)
+		suite.T().Errorf("failed to begin transaction: %v", err)
 	}
 
 	err = db.DevicesAdd(tx, "profile", defaultID, devicesMap)
 	if err != nil {
 		tx.Rollback()
-		suite.T().Fatalf("failed to rollback transaction: %v", err)
+		suite.T().Errorf("failed to rollback transaction: %v", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		suite.T().Fatalf("failed to commit transaction: %v", err)
+		suite.T().Errorf("failed to commit transaction: %v", err)
 	}
 	suite.Req = require.New(suite.T())
 }
@@ -109,10 +109,10 @@ func (suite *lxdTestSuite) SetupTest() {
 func (suite *lxdTestSuite) TearDownTest() {
 	err := suite.d.Stop()
 	if err != nil {
-		suite.T().Fatalf("failed to stop daemon: %v", err)
+		suite.T().Errorf("failed to stop daemon: %v", err)
 	}
 	err = os.RemoveAll(suite.tmpdir)
 	if err != nil {
-		suite.T().Fatalf("failed to remove temp dir: %v", err)
+		suite.T().Errorf("failed to remove temp dir: %v", err)
 	}
 }
