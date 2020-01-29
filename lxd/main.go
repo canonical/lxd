@@ -71,6 +71,17 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// rawArgs returns the raw unprocessed arguments from os.Args after the command name arg is found.
+func (c *cmdGlobal) rawArgs(cmd *cobra.Command) []string {
+	for i, arg := range os.Args {
+		if arg == cmd.Name() && len(os.Args)-1 > i {
+			return os.Args[i+1:]
+		}
+	}
+
+	return []string{}
+}
+
 func main() {
 	// daemon command (main)
 	daemonCmd := cmdDaemon{}
