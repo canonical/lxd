@@ -684,7 +684,7 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	// Check qemu is installed.
-	_, err = exec.LookPath(qemuBinary)
+	qemuPath, err := exec.LookPath(qemuBinary)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -692,7 +692,7 @@ func (vm *qemu) Start(stateful bool) error {
 
 	qemuCmd := []string{
 		"--",
-		qemuBinary,
+		qemuPath,
 		"-S",
 		"-name", vm.Name(),
 		"-uuid", vmUUID,
