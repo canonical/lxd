@@ -63,7 +63,7 @@ func (s *dbTestSuite) CreateTestDb() (*Cluster, func()) {
 		s.Nil(err)
 	}
 
-	db, cleanup := NewTestCluster(s.T())
+	db, cleanup := NewTestCluster(s.T().(*testing.T))
 	return db, cleanup
 }
 
