@@ -472,7 +472,7 @@ func growFileSystem(fsType string, devPath string, vol Volume) error {
 		case "ext4":
 			msg, err = shared.TryRunCommand("resize2fs", devPath)
 		case "xfs":
-			msg, err = shared.TryRunCommand("xfs_growfs", devPath)
+			msg, err = shared.TryRunCommand("xfs_growfs", mountPath)
 		case "btrfs":
 			msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mountPath)
 		default:
