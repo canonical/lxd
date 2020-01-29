@@ -3625,8 +3625,9 @@ func (c *containerLXC) Rename(newName string) error {
 	logger.Info("Renaming container", ctxMap)
 
 	// Sanity checks.
-	if !c.IsSnapshot() && !shared.ValidHostname(newName) {
-		return fmt.Errorf("Invalid container name")
+	err := instance.ValidName(newName, c.IsSnapshot())
+	if err != nil {
+		return err
 	}
 
 	if c.IsRunning() {
