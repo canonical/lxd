@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-19 00:42+0200\n"
+"POT-Creation-Date: 2020-01-29 14:11-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -18,7 +18,7 @@ msgstr ""
 
 #: lxc/storage.go:225
 msgid ""
-"### This is a yaml representation of a storage pool.\n"
+"### This is a YAML representation of a storage pool.\n"
 "### Any line starting with a '#' will be ignored.\n"
 "###\n"
 "### A storage pool consists of a set of configuration items.\n"
@@ -35,7 +35,7 @@ msgstr ""
 
 #: lxc/storage_volume.go:791
 msgid ""
-"### This is a yaml representation of a storage volume.\n"
+"### This is a YAML representation of a storage volume.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A storage volume consists of a set of configuration items.\n"
@@ -49,7 +49,7 @@ msgstr ""
 
 #: lxc/config.go:103
 msgid ""
-"### This is a yaml representation of the configuration.\n"
+"### This is a YAML representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A sample configuration looks like:\n"
@@ -70,7 +70,7 @@ msgstr ""
 
 #: lxc/image.go:336
 msgid ""
-"### This is a yaml representation of the image properties.\n"
+"### This is a YAML representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### Each property is represented by a single line:\n"
@@ -80,7 +80,7 @@ msgstr ""
 
 #: lxc/config_metadata.go:62
 msgid ""
-"### This is a yaml representation of the instance metadata.\n"
+"### This is a YAML representation of the instance metadata.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A sample configuration looks like:\n"
@@ -90,9 +90,9 @@ msgid ""
 "### expiry_date: 0\n"
 "### properties:\n"
 "###   architecture: x86_64\n"
-"###   description: Busybox x86_64\n"
+"###   description: BusyBox x86_64\n"
 "###   name: busybox-x86_64\n"
-"###   os: Busybox\n"
+"###   os: BusyBox\n"
 "### templates:\n"
 "###   /template:\n"
 "###     when:\n"
@@ -104,7 +104,7 @@ msgstr ""
 
 #: lxc/network.go:555
 msgid ""
-"### This is a yaml representation of the network.\n"
+"### This is a YAML representation of the network.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A network consists of a set of configuration items.\n"
@@ -124,7 +124,7 @@ msgstr ""
 
 #: lxc/profile.go:416
 msgid ""
-"### This is a yaml representation of the profile.\n"
+"### This is a YAML representation of the profile.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A profile consists of a set of configuration items followed by a set of\n"
@@ -145,7 +145,7 @@ msgstr ""
 
 #: lxc/project.go:226
 msgid ""
-"### This is a yaml representation of the project.\n"
+"### This is a YAML representation of the project.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A project consists of a set of features and a description.\n"
@@ -216,7 +216,7 @@ msgstr ""
 msgid "--refresh can only be used with instances"
 msgstr ""
 
-#: lxc/config.go:150 lxc/config.go:406 lxc/config.go:499 lxc/config.go:637
+#: lxc/config.go:150 lxc/config.go:406 lxc/config.go:531 lxc/config.go:669
 #: lxc/info.go:424
 msgid "--target cannot be used with instances"
 msgstr ""
@@ -501,7 +501,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:516
+#: lxc/config.go:548
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -534,8 +534,8 @@ msgstr ""
 msgid "Client version: %s\n"
 msgstr ""
 
-#: lxc/config.go:96 lxc/config.go:376 lxc/config.go:469 lxc/config.go:584
-#: lxc/config.go:702 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
+#: lxc/config.go:96 lxc/config.go:376 lxc/config.go:469 lxc/config.go:616
+#: lxc/config.go:734 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
 #: lxc/move.go:59 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
@@ -831,8 +831,8 @@ msgstr ""
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:29 lxc/cluster.go:68 lxc/cluster.go:147
 #: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:332 lxc/config.go:31
-#: lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:580
-#: lxc/config.go:699 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:612
+#: lxc/config.go:731 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327
 #: lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513
 #: lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:28
@@ -2752,7 +2752,7 @@ msgstr ""
 msgid "Show instance metadata files"
 msgstr ""
 
-#: lxc/config.go:579 lxc/config.go:580
+#: lxc/config.go:611 lxc/config.go:612
 msgid "Show instance or server configurations"
 msgstr ""
 
@@ -2796,7 +2796,7 @@ msgstr ""
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:583
+#: lxc/config.go:615
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -3074,7 +3074,7 @@ msgstr ""
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
-#: lxc/config.go:293 lxc/config.go:418 lxc/config.go:536 lxc/config.go:617
+#: lxc/config.go:293 lxc/config.go:418 lxc/config.go:568 lxc/config.go:649
 #: lxc/copy.go:116 lxc/info.go:310 lxc/network.go:759 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -3167,7 +3167,7 @@ msgstr ""
 msgid "Unset instance device configuration keys"
 msgstr ""
 
-#: lxc/config.go:698 lxc/config.go:699
+#: lxc/config.go:730 lxc/config.go:731
 msgid "Unset instance or server configuration keys"
 msgstr ""
 
@@ -4129,7 +4129,7 @@ msgstr ""
 msgid "show [<remote>:]<project>"
 msgstr ""
 
-#: lxc/config.go:578
+#: lxc/config.go:610
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 
@@ -4218,7 +4218,7 @@ msgstr ""
 msgid "unset [<remote>:]<project> <key>"
 msgstr ""
 
-#: lxc/config.go:697
+#: lxc/config.go:729
 msgid "unset [<remote>:][<instance>] <key>"
 msgstr ""
 

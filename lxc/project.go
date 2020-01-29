@@ -224,7 +224,7 @@ func (c *cmdProjectEdit) Command() *cobra.Command {
 
 func (c *cmdProjectEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of the project.
+		`### This is a YAML representation of the project.
 ### Any line starting with a '# will be ignored.
 ###
 ### A project consists of a set of features and a description.

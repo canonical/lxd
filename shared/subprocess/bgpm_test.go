@@ -120,7 +120,7 @@ func TestStopRestart(t *testing.T) {
 	if err != nil {
 		t.Error("Could not wait for process: ", err)
 	} else if exitcode != 0 {
-		t.Error("Exit code expected to be 0")
+		t.Errorf("Exit code expected to be 0 but got %d", exitcode)
 	}
 
 	err = os.Remove("testscript/test2.yaml")

@@ -789,7 +789,7 @@ func (c *cmdStorageVolumeEdit) Command() *cobra.Command {
 
 func (c *cmdStorageVolumeEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of a storage volume.
+		`### This is a YAML representation of a storage volume.
 ### Any line starting with a '# will be ignored.
 ###
 ### A storage volume consists of a set of configuration items.

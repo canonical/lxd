@@ -1438,9 +1438,9 @@ Return:
     "expiry_date": 0,
     "properties": {
         "architecture": "x86_64",
-        "description": "Busybox x86_64",
+        "description": "BusyBox x86_64",
         "name": "busybox-x86_64",
-        "os": "Busybox"
+        "os": "BusyBox"
     },
     "templates": {
         "/template": {
@@ -1471,9 +1471,9 @@ Input:
     "expiry_date": 0,
     "properties": {
         "architecture": "x86_64",
-        "description": "Busybox x86_64",
+        "description": "BusyBox x86_64",
         "name": "busybox-x86_64",
-        "os": "Busybox"
+        "os": "BusyBox"
     },
     "templates": {
         "/template": {

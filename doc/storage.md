@@ -282,6 +282,8 @@ sudo losetup -c <LOOPDEV>
 sudo btrfs filesystem resize max /var/lib/lxd/storage-pools/<POOL>/
 ```
 
+(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/ instead of /var/lib/lxd/`)
+
 ### LVM
 
  - Uses LVs for images, then LV snapshots for instances and instance snapshots.
@@ -417,3 +419,5 @@ sudo zpool set autoexpand=on lxd
 sudo zpool online -e lxd /var/lib/lxd/disks/<POOL>.img
 sudo zpool set autoexpand=off lxd
 ```
+
+(NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/ instead of /var/lib/lxd/`)
