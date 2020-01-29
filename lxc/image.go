@@ -334,7 +334,7 @@ lxc image edit <image> < image.yaml
 
 func (c *cmdImageEdit) helpTemplate() string {
 	return i18n.G(
-		`### This is a yaml representation of the image properties.
+		`### This is a YAML representation of the image properties.
 ### Any line starting with a '# will be ignored.
 ###
 ### Each property is represented by a single line:
