@@ -690,7 +690,9 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	args := []string{
+	qemuCmd := []string{
+		"--",
+		qemuBinary,
 		"-S",
 		"-name", vm.Name(),
 		"-uuid", vmUUID,
@@ -709,7 +711,7 @@ func (vm *qemu) Start(stateful bool) error {
 
 	// Attempt to drop privileges.
 	if vm.state.OS.UnprivUser != "" {
-		args = append(args, "-runas", vm.state.OS.UnprivUser)
+		qemuCmd = append(qemuCmd, "-runas", vm.state.OS.UnprivUser)
 
 		// Change ownership of config directory files so they are accessible to the
 		// unprivileged qemu process so that the 9p share can work.
@@ -740,15 +742,26 @@ func (vm *qemu) Start(stateful bool) error {
 	}
 
 	if shared.IsTrue(vm.expandedConfig["limits.memory.hugepages"]) {
-		args = append(args, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
+		qemuCmd = append(qemuCmd, "-mem-path", "/dev/hugepages/", "-mem-prealloc")
 	}
 
 	if vm.expandedConfig["raw.qemu"] != "" {
 		fields := strings.Split(vm.expandedConfig["raw.qemu"], " ")
-		args = append(args, fields...)
+		qemuCmd = append(qemuCmd, fields...)
 	}
 
-	cmd := exec.Command(qemuBinary, args...)
+	// Run the qemu command via forklimits so we can selectively increase ulimits.
+	forkLimitsCmd := []string{
+		"forklimits",
+		"limit=memlock:unlimited:unlimited", // Required for PCI passthrough.
+	}
+
+	for i := range fdFiles {
+		// Pass through any file descriptors as 3+i (as first 3 file descriptors are taken as standard).
+		forkLimitsCmd = append(forkLimitsCmd, fmt.Sprintf("fd=%d", 3+i))
+	}
+
+	cmd := exec.Command(vm.state.OS.ExecPath, append(forkLimitsCmd, qemuCmd...)...)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -768,7 +781,7 @@ func (vm *qemu) Start(stateful bool) error {
 
 	err = cmd.Run()
 	if err != nil {
-		err = errors.Wrapf(err, "Failed to run: %s %s: %s", qemuBinary, strings.Join(args, " "), strings.TrimSpace(string(stderr.Bytes())))
+		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(cmd.Args, " "), strings.TrimSpace(string(stderr.Bytes())))
 		op.Done(err)
 		return err
 	}
