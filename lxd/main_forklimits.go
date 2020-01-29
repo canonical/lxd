@@ -1,0 +1,143 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"golang.org/x/sys/unix"
+
+	"github.com/spf13/cobra"
+)
+
+var reLimitsArg = regexp.MustCompile(`^limit=(\w+):(\w+):(\w+)$`)
+
+type cmdForklimits struct {
+	global *cmdGlobal
+}
+
+func (c *cmdForklimits) Command() *cobra.Command {
+	// Main subcommand
+	cmd := &cobra.Command{}
+	cmd.Use = "forklimits [fd=<number>...] [limit=<name>:<softlimit>:<hardlimit>...] -- <command> [<arg>...]"
+	cmd.Short = "Execute a task inside the container"
+	cmd.Long = `Description:
+  Execute a command with specific limits set.
+
+  This internal command is used to spawn a command with limits set. It can also pass through one or more filed escriptors specified by fd=n arguments.
+  These are passed through in the order they are specified.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	return cmd
+}
+
+func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
+	// Use raw args instead of cobra passed args, as we need to access the "--" argument.
+	args := c.global.rawArgs(cmd)
+
+	if len(args) == 0 {
+		cmd.Help()
+		return nil
+	}
+
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
+	type limit struct {
+		name string
+		soft string
+		hard string
+	}
+
+	var limits []limit
+	var fds []uintptr
+	var cmdParts []string
+
+	for i, arg := range args {
+		matches := reLimitsArg.FindStringSubmatch(arg)
+		if len(matches) == 4 {
+			limits = append(limits, limit{
+				name: matches[1],
+				soft: matches[2],
+				hard: matches[3],
+			})
+		} else if strings.HasPrefix(arg, "fd=") {
+			fdParts := strings.SplitN(arg, "=", 2)
+			fdNum, err := strconv.Atoi(fdParts[1])
+			if err != nil {
+				cmd.Help()
+				return fmt.Errorf("Invalid file descriptor number")
+			}
+			fds = append(fds, uintptr(fdNum))
+		} else if arg == "--" {
+			if len(args)-1 > i {
+				cmdParts = args[i+1:]
+			}
+			break // No more passing of arguments needed.
+		} else {
+			cmd.Help()
+			return fmt.Errorf("Unrecognised argument")
+		}
+	}
+
+	// Setup rlimits.
+	for _, limit := range limits {
+		var resource int
+		var rLimit unix.Rlimit
+
+		if limit.name == "memlock" {
+			resource = unix.RLIMIT_MEMLOCK
+		} else {
+			return fmt.Errorf("Unsupported limit type: %q", limit.name)
+		}
+
+		if limit.soft == "unlimited" {
+			rLimit.Cur = unix.RLIM_INFINITY
+		} else {
+			softLimit, err := strconv.ParseUint(limit.soft, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Invalid soft limit for %q", limit.name)
+			}
+			rLimit.Cur = softLimit
+		}
+
+		if limit.hard == "unlimited" {
+			rLimit.Max = unix.RLIM_INFINITY
+		} else {
+			hardLimit, err := strconv.ParseUint(limit.hard, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Invalid hard limit for %q", limit.name)
+			}
+			rLimit.Max = hardLimit
+		}
+
+		err := unix.Setrlimit(resource, &rLimit)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(cmdParts) == 0 {
+		cmd.Help()
+		return fmt.Errorf("Missing required command argument")
+	}
+
+	execCmd := exec.Command(cmdParts[0], cmdParts[1:]...)
+	execCmd.Stdin = os.Stdin
+	execCmd.Stdout = os.Stdout
+	execCmd.Stderr = os.Stderr
+
+	// Pass through any file descriptors specified.
+	for _, fd := range fds {
+		execCmd.ExtraFiles = append(execCmd.ExtraFiles, os.NewFile(fd, ""))
+	}
+
+	return execCmd.Run()
+}
