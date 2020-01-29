@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/response"
@@ -82,6 +83,16 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		recursion = 0
 	}
 
+	// Parse filter value
+	filterStr := r.FormValue("filter")
+	var clauses []filter.Clause
+	if filterStr != "" {
+		clauses, err = filter.Parse(filterStr)
+		if err != nil {
+			return nil, errors.Wrap(err, "Invalid filter")
+		}
+	}
+
 	// Parse the project field
 	project := projectParam(r)
 
@@ -109,7 +120,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	// Get the local instances
 	nodeCts := map[string]instance.Instance{}
-	if recursion > 0 {
+	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
+	if mustLoadObjects {
 		cts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
 		if err != nil {
 			return nil, err
@@ -160,9 +172,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 
 		// Mark containers on unavailable nodes as down
-		if recursion > 0 && address == "0.0.0.0" {
+		if mustLoadObjects && address == "0.0.0.0" {
 			for _, container := range containers {
-				if recursion == 1 {
+				if recursion < 2 {
 					resultListAppend(container, api.Instance{}, fmt.Errorf("unavailable"))
 				} else {
 					resultFullListAppend(container, api.InstanceFull{}, fmt.Errorf("unavailable"))
@@ -174,7 +186,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 		// For recursion requests we need to fetch the state of remote
 		// containers from their respective nodes.
-		if recursion > 0 && address != "" && !isClusterNotification(r) {
+		if mustLoadObjects && address != "" && !isClusterNotification(r) {
 			wg.Add(1)
 			go func(address string, containers []string) {
 				defer wg.Done()
@@ -213,8 +225,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 			continue
 		}
-
-		if recursion == 0 {
+		if !mustLoadObjects {
 			for _, container := range containers {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
@@ -243,7 +254,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 							break
 						}
 
-						if recursion == 1 {
+						if recursion < 2 {
 							c, _, err := nodeCts[container].Render()
 							if err != nil {
 								resultListAppend(container, api.Instance{}, err)
@@ -276,6 +287,18 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	wg.Wait()
 
 	if recursion == 0 {
+		if clauses != nil {
+			for _, container := range instance.Filter(resultList, clauses) {
+				instancePath := "instances"
+				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
+					instancePath = "containers"
+				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
+					instancePath = "virtual-machines"
+				}
+				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container.Name)
+				resultString = append(resultString, url)
+			}
+		}
 		return resultString, nil
 	}
 
@@ -284,7 +307,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		sort.Slice(resultList, func(i, j int) bool {
 			return resultList[i].Name < resultList[j].Name
 		})
-
+		if clauses != nil {
+			resultList = instance.Filter(resultList, clauses)
+		}
 		return resultList, nil
 	}
 
@@ -293,6 +318,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
+	if clauses != nil {
+		resultFullList = instance.FilterFull(resultFullList, clauses)
+	}
 	return resultFullList, nil
 }
 
