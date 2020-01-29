@@ -183,7 +183,7 @@ test_projects_snapshots() {
   # Create, rename, restore and delete a snapshot
   lxc snapshot c1
   lxc info c1 | grep -q snap0
-  lxc config show c1/snap0 | grep -q Busybox
+  lxc config show c1/snap0 | grep -q BusyBox
   lxc rename c1/snap0 c1/foo
   lxc restore c1 foo
   lxc delete c1/foo
