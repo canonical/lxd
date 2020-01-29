@@ -106,7 +106,7 @@ func newFunc(t *testing.T, n int) (task.Func, func(time.Duration)) {
 	notifications := make(chan struct{})
 	f := func(context.Context) {
 		if i == n {
-			t.Fatalf("task was supposed to be called at most %d times", n)
+			t.Errorf("task was supposed to be called at most %d times", n)
 		}
 		notifications <- struct{}{}
 		i++
@@ -115,7 +115,7 @@ func newFunc(t *testing.T, n int) (task.Func, func(time.Duration)) {
 		select {
 		case <-notifications:
 		case <-time.After(timeout):
-			t.Fatalf("no notification received in %s", timeout)
+			t.Errorf("no notification received in %s", timeout)
 		}
 	}
 	return f, wait

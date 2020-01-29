@@ -164,7 +164,7 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 		for _, gateway := range f.gateways {
 			isLeader, err := gateway.IsLeader()
 			if err != nil {
-				f.t.Fatalf("failed to check leadership: %v", err)
+				f.t.Errorf("failed to check leadership: %v", err)
 			}
 			if isLeader {
 				return gateway
@@ -173,7 +173,7 @@ func (f *heartbeatFixture) Leader() *cluster.Gateway {
 
 		select {
 		case <-ctx.Done():
-			f.t.Fatalf("no leader was elected within %s", timeout)
+			f.t.Errorf("no leader was elected within %s", timeout)
 		default:
 		}
 
@@ -192,7 +192,7 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 		for _, gateway := range f.gateways {
 			isLeader, err := gateway.IsLeader()
 			if err != nil {
-				f.t.Fatalf("failed to check leadership: %v", err)
+				f.t.Errorf("failed to check leadership: %v", err)
 			}
 			if !isLeader {
 				return gateway
@@ -201,7 +201,7 @@ func (f *heartbeatFixture) Follower() *cluster.Gateway {
 
 		select {
 		case <-ctx.Done():
-			f.t.Fatalf("no node running as follower")
+			f.t.Errorf("no node running as follower")
 		default:
 		}
 

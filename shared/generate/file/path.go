@@ -22,7 +22,7 @@ func absPath(path string) string {
 		}
 	}
 
-	log.Fatalf("Could not found root dir of LXD tree source tree")
+	log.Errorf("Could not found root dir of LXD tree source tree")
 
 	return ""
 }
