@@ -680,8 +680,8 @@ func (vm *qemu) Start(stateful bool) error {
 		devConfs = append(devConfs, runConf)
 	}
 
-	// Get qemu configuration
-	qemuBinary, qemuType, qemuConfig, err := vm.qemuArchConfig()
+	// Get qemu configuration.
+	qemuBinary, err := vm.qemuArchConfig()
 	if err != nil {
 		op.Done(err)
 		return err
@@ -690,7 +690,7 @@ func (vm *qemu) Start(stateful bool) error {
 	// Define a set of files to open and pass their file descriptors to qemu command.
 	fdFiles := make([]string, 0)
 
-	confFile, err := vm.generateQemuConfigFile(qemuType, qemuConfig, devConfs, &fdFiles)
+	confFile, err := vm.generateQemuConfigFile(devConfs, &fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -863,6 +863,11 @@ func (vm *qemu) Start(stateful bool) error {
 }
 
 func (vm *qemu) setupNvram() error {
+	// No UEFI nvram for ppc64le.
+	if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+		return nil
+	}
+
 	// Mount the instance's config volume.
 	ourMount, err := vm.mount()
 	if err != nil {
@@ -891,25 +896,16 @@ func (vm *qemu) setupNvram() error {
 	return nil
 }
 
-func (vm *qemu) qemuArchConfig() (string, string, string, error) {
+func (vm *qemu) qemuArchConfig() (string, error) {
 	if vm.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		conf := `
-[global]
-driver = "ICH9-LPC"
-property = "disable_s3"
-value = "1"
-
-[global]
-driver = "ICH9-LPC"
-property = "disable_s4"
-value = "1"
-`
-		return "qemu-system-x86_64", "q35", conf, nil
+		return "qemu-system-x86_64", nil
 	} else if vm.architecture == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN {
-		return "qemu-system-aarch64", "virt", "", nil
+		return "qemu-system-aarch64", nil
+	} else if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+		return "qemu-system-ppc64", nil
 	}
 
-	return "", "", "", fmt.Errorf("Architecture isn't supported for virtual machines")
+	return "", fmt.Errorf("Architecture isn't supported for virtual machines")
 }
 
 // deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
@@ -1279,12 +1275,11 @@ func (vm *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (vm *qemu) generateQemuConfigFile(qemuType string, qemuConf string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
+func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 
 	err := qemuBase.Execute(sb, map[string]interface{}{
-		"qemuType":         qemuType,
-		"qemuConf":         qemuConf,
+		"architecture":     vm.architectureName,
 		"ringbufSizeBytes": qmp.RingbufSize,
 	})
 	if err != nil {
@@ -1372,6 +1367,7 @@ func (vm *qemu) addMemoryConfig(sb *strings.Builder) error {
 	}
 
 	return qemuMemory.Execute(sb, map[string]interface{}{
+		"architecture": vm.architectureName,
 		"memSizeBytes": memSizeBytes,
 	})
 }
@@ -1379,7 +1375,8 @@ func (vm *qemu) addMemoryConfig(sb *strings.Builder) error {
 // addVsockConfig adds the qemu config required for setting up the host->VM vsock socket.
 func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 	return qemuVsock.Execute(sb, map[string]interface{}{
-		"vsockID": vm.vsockID(),
+		"architecture": vm.architectureName,
+		"vsockID":      vm.vsockID(),
 	})
 }
 
@@ -1397,29 +1394,38 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 	}
 
 	return qemuCPU.Execute(sb, map[string]interface{}{
-		"cpuCount": cpuCount,
+		"architecture": vm.architectureName,
+		"cpuCount":     cpuCount,
 	})
 }
 
 // addMonitorConfig adds the qemu config required for setting up the host side VM monitor device.
 func (vm *qemu) addMonitorConfig(sb *strings.Builder) error {
 	return qemuControlSocket.Execute(sb, map[string]interface{}{
-		"path": vm.getMonitorPath(),
+		"architecture": vm.architectureName,
+		"path":         vm.getMonitorPath(),
 	})
 }
 
 // addFirmwareConfig adds the qemu config required for adding a secure boot compatible EFI firmware.
 func (vm *qemu) addFirmwareConfig(sb *strings.Builder) error {
+	// No UEFI nvram for ppc64le.
+	if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
+		return nil
+	}
+
 	return qemuDriveFirmware.Execute(sb, map[string]interface{}{
-		"roPath":    filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
-		"nvramPath": vm.getNvramPath(),
+		"architecture": vm.architectureName,
+		"roPath":       filepath.Join(vm.ovmfPath(), "OVMF_CODE.fd"),
+		"nvramPath":    vm.getNvramPath(),
 	})
 }
 
 // addConfDriveConfig adds the qemu config required for adding the config drive.
 func (vm *qemu) addConfDriveConfig(sb *strings.Builder) error {
 	return qemuDriveConfig.Execute(sb, map[string]interface{}{
-		"path": filepath.Join(vm.Path(), "config"),
+		"architecture": vm.architectureName,
+		"path":         filepath.Join(vm.Path(), "config"),
 	})
 }
 
@@ -1483,11 +1489,12 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
-		"devName":   driveConf.DevName,
-		"devPath":   driveConf.DevPath,
-		"bootIndex": bootIndexes[driveConf.DevName],
-		"cacheMode": cacheMode,
-		"aioMode":   aioMode,
+		"architecture": vm.architectureName,
+		"devName":      driveConf.DevName,
+		"devPath":      driveConf.DevPath,
+		"bootIndex":    bootIndexes[driveConf.DevName],
+		"cacheMode":    cacheMode,
+		"aioMode":      aioMode,
 	})
 }
 
@@ -1508,6 +1515,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 
 	var tpl *template.Template
 	tplFields := map[string]interface{}{
+		"architecture": vm.architectureName,
 		"devName":      devName,
 		"devHwaddr":    devHwaddr,
 		"bootIndex":    bootIndexes[devName],
