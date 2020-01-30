@@ -65,7 +65,6 @@ addr = "0x2"
 driver = "virtio-scsi-pci"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
-addr = "0x2"
 {{else -}}
 bus = "qemu_pcie1"
 addr = "0x0"
@@ -85,7 +84,6 @@ addr = "0x2.0x1"
 driver = "virtio-balloon-pci"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
-addr = "0x2.0x1"
 {{else -}}
 bus = "qemu_pcie2"
 addr = "0x0"
@@ -110,7 +108,6 @@ driver = "virtio-rng-pci"
 rng = "qemu_rng"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
-addr = "0x2.0x2"
 {{else -}}
 bus = "qemu_pcie3"
 addr = "0x0"
@@ -143,7 +140,6 @@ driver = "vhost-vsock-pci"
 guest-cid = "{{.vsockID}}"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
-addr = "0x2.0x3"
 {{else -}}
 bus = "qemu_pcie4"
 addr = "0x0"
@@ -238,7 +234,6 @@ netdev = "lxd_{{.devName}}"
 mac = "{{.devHwaddr}}"
 {{if eq .architecture "ppc64le" -}}
 bus = "pci.0"
-addr = "0x2.0x{{.pcieAddr}}"
 {{else -}}
 bus = "qemu_pcie{{.chassisIndex}}"
 addr = "0x0"
