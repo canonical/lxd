@@ -15,14 +15,14 @@ func TestValueOf_Instance(t *testing.T) {
 		InstancePut: api.InstancePut{
 			Architecture: "x86_64",
 			Config: map[string]string{
-				"image.os": "Busybox",
+				"image.os": "BusyBox",
 			},
 			Stateful: false,
 		},
 		CreatedAt: date,
 		Name:      "c1",
 		ExpandedConfig: map[string]string{
-			"image.os": "Busybox",
+			"image.os": "BusyBox",
 		},
 		ExpandedDevices: map[string]map[string]string{
 			"root": {
@@ -33,16 +33,17 @@ func TestValueOf_Instance(t *testing.T) {
 		},
 		Status: "Running",
 	}
-	cases := map[string]interface{}{
-		"architecture":               "x86_64",
-		"created_at":                 date,
-		"config.image.os":            "Busybox",
-		"name":                       "c1",
-		"expanded_config.image.os":   "Busybox",
-		"expanded_devices.root.pool": "default",
-		"status":                     "Running",
-		"stateful":                   false,
-	}
+
+	cases := map[string]interface{}{}
+	cases["architecture"] = "x86_64"
+	cases["created_at"] = date
+	cases["config.image.os"] = "BusyBox"
+	cases["name"] = "c1"
+	cases["expanded_config.image.os"] = "BusyBox"
+	cases["expanded_devices.root.pool"] = "default"
+	cases["status"] = "Running"
+	cases["stateful"] = false
+
 	for field := range cases {
 		t.Run(field, func(t *testing.T) {
 			value := filter.ValueOf(instance, field)
