@@ -17,6 +17,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
@@ -40,8 +41,8 @@ type proxyProcInfo struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *proxy) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container) {
 		return ErrUnsupportedDevType
 	}
 
