@@ -26,7 +26,7 @@ test_filtering() {
     count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/instances" --data-urlencode "recursion=2" --data-urlencode "filter=name eq c1" | jq ".metadata | length")
     [ "${count}" = "1" ] || false
 
-    count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=0" --data-urlencode "filter=properties.os eq Busybox" | jq ".metadata | length")
+    count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=0" --data-urlencode "filter=properties.os eq BusyBox" | jq ".metadata | length")
     [ "${count}" = "1" ] || false
 
     count=$(curl -G --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0/images" --data-urlencode "recursion=1" --data-urlencode "filter=properties.os eq Ubuntu" | jq ".metadata | length")
