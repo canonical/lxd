@@ -107,9 +107,6 @@ var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
 # CPU
 [smp-opts]
 cpus = "{{.cpuCount}}"
-#sockets = "1"
-#cores = "1"
-#threads = "1"
 `))
 
 var qemuControlSocket = template.Must(template.New("qemuControlSocket").Parse(`
