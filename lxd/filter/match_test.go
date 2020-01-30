@@ -15,14 +15,14 @@ func TestMatch_Instance(t *testing.T) {
 		InstancePut: api.InstancePut{
 			Architecture: "x86_64",
 			Config: map[string]string{
-				"image.os": "Busybox",
+				"image.os": "BusyBox",
 			},
 			Stateful: false,
 		},
 		CreatedAt: time.Date(2020, 1, 29, 11, 10, 32, 0, time.UTC),
 		Name:      "c1",
 		ExpandedConfig: map[string]string{
-			"image.os": "Busybox",
+			"image.os": "BusyBox",
 		},
 		ExpandedDevices: map[string]map[string]string{
 			"root": {
@@ -37,7 +37,7 @@ func TestMatch_Instance(t *testing.T) {
 		"architecture eq x86_64":                                         true,
 		"architecture eq i686":                                           false,
 		"name eq c1 and status eq Running":                               true,
-		"config.image.os eq Busybox and expanded_devices.root.path eq /": true,
+		"config.image.os eq BusyBox and expanded_devices.root.path eq /": true,
 		"name eq c2 or status eq Running":                                true,
 		"name eq c2 or name eq c3":                                       false,
 	}
