@@ -64,7 +64,7 @@ addr = "0x2"
 [device "qemu_scsi"]
 driver = "virtio-scsi-pci"
 {{if eq .architecture "ppc64le" -}}
-bus = pci.0
+bus = "pci.0"
 addr = "0x2"
 {{else -}}
 bus = "qemu_pcie1"
@@ -84,7 +84,7 @@ addr = "0x2.0x1"
 [device "qemu_ballon"]
 driver = "virtio-balloon-pci"
 {{if eq .architecture "ppc64le" -}}
-bus = pci.0
+bus = "pci.0"
 addr = "0x2.0x1"
 {{else -}}
 bus = "qemu_pcie2"
