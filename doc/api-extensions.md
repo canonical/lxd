@@ -905,3 +905,6 @@ Adds a `boot.priority` property on nic and disk devices to control the boot orde
 
 ## unix\_hotplug\_devices
 Adds support for unix char and block device hotplugging.
+
+## api\_filtering
+Adds support for filtering the result of a GET request for instances and images.
