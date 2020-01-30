@@ -2,6 +2,7 @@ package device
 
 import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 )
 
 type none struct {
@@ -9,7 +10,7 @@ type none struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *none) validateConfig() error {
+func (d *none) validateConfig(instConf instance.ConfigReader) error {
 	rules := map[string]func(string) error{} // No fields allowed.
 	err := d.config.Validate(rules)
 	if err != nil {

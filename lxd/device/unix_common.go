@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 )
@@ -38,8 +39,8 @@ func (d *unixCommon) isRequired() bool {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *unixCommon) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container) {
 		return ErrUnsupportedDevType
 	}
 

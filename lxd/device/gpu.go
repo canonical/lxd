@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
@@ -31,8 +32,8 @@ type gpu struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *gpu) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+func (d *gpu) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container) {
 		return ErrUnsupportedDevType
 	}
 
