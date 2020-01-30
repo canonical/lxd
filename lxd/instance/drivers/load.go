@@ -47,40 +47,27 @@ func load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instanc
 }
 
 // validDevices validate instance device configs.
-func validDevices(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, instanceName string, devices deviceConfig.Devices, expanded bool) error {
+func validDevices(state *state.State, cluster *db.Cluster, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
 	}
 
-	// Create temporary InstanceArgs, populate it's name, localDevices and expandedDevices properties based
-	// on the mode of validation occurring. In non-expanded validation expensive checks should be avoided.
-	instArgs := db.InstanceArgs{
-		Name:    instanceName,
-		Type:    instanceType,
-		Devices: devices.Clone(), // Prevent devices from modifying their config.
+	instConf := &common{
+		dbType:       instanceType,
+		localDevices: devices.Clone(),
 	}
 
-	var expandedDevices deviceConfig.Devices
+	// In non-expanded validation expensive checks should be avoided.
 	if expanded {
 		// The devices being validated are already expanded, so just use the same
 		// devices clone as we used for the main devices config.
-		expandedDevices = instArgs.Devices
-	}
-
-	// Create a temporary Instance for use in device validation.
-	var inst instance.Instance
-	if instArgs.Type == instancetype.Container {
-		inst = LXCInstantiate(state, instArgs, expandedDevices)
-	} else if instArgs.Type == instancetype.VM {
-		inst = qemuInstantiate(state, instArgs, expandedDevices)
-	} else {
-		return fmt.Errorf("Invalid instance type")
+		instConf.expandedDevices = instConf.localDevices
 	}
 
 	// Check each device individually using the device package.
 	for name, config := range devices {
-		_, err := device.New(inst, state, name, config, nil, nil)
+		err := device.Validate(instConf, state, name, config)
 		if err != nil {
 			return errors.Wrapf(err, "Device validation failed %q", name)
 		}

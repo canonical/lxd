@@ -14,8 +14,19 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// ConfigReader is used to read instance config.
+type ConfigReader interface {
+	Type() instancetype.Type
+	ExpandedConfig() map[string]string
+	ExpandedDevices() deviceConfig.Devices
+	LocalConfig() map[string]string
+	LocalDevices() deviceConfig.Devices
+}
+
 // The Instance interface.
 type Instance interface {
+	ConfigReader
+
 	// Instance actions.
 	Freeze() error
 	Shutdown(timeout time.Duration) error
@@ -71,15 +82,11 @@ type Instance interface {
 	Location() string
 	Project() string
 	Name() string
-	Type() instancetype.Type
 	Description() string
 	Architecture() int
 	CreationDate() time.Time
 	LastUsedDate() time.Time
-	ExpandedConfig() map[string]string
-	ExpandedDevices() deviceConfig.Devices
-	LocalConfig() map[string]string
-	LocalDevices() deviceConfig.Devices
+
 	Profiles() []string
 	InitPID() int
 	State() string

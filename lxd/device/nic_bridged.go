@@ -23,6 +23,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -48,8 +49,8 @@ type nicBridged struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *nicBridged) validateConfig() error {
-	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
+func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 

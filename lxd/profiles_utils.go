@@ -21,9 +21,8 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 		return err
 	}
 
-	// Validate instance devices with ProfileValidationName name to indicate profile validation.
-	// At this point we don't know the instance type, so just use Container type for validation.
-	err = instance.ValidDevices(d.State(), d.cluster, instancetype.Container, instance.ProfileValidationName, deviceConfig.NewDevices(req.Devices), false)
+	// At this point we don't know the instance type, so just use instancetype.Any type for validation.
+	err = instance.ValidDevices(d.State(), d.cluster, instancetype.Any, deviceConfig.NewDevices(req.Devices), false)
 	if err != nil {
 		return err
 	}

@@ -32,7 +32,6 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
@@ -84,20 +83,22 @@ func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (ins
 // have access to the profiles used to do it. This can be safely passed as nil if not required.
 func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) *qemu {
 	vm := &qemu{
-		state:        s,
+		common: common{
+			dbType:       args.Type,
+			localConfig:  args.Config,
+			localDevices: args.Devices,
+			project:      args.Project,
+			state:        s,
+			profiles:     args.Profiles,
+		},
 		id:           args.ID,
-		project:      args.Project,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		dbType:       args.Type,
 		snapshot:     args.Snapshot,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
-		profiles:     args.Profiles,
-		localConfig:  args.Config,
-		localDevices: args.Devices,
 		stateful:     args.Stateful,
 		node:         args.Node,
 		expiryDate:   args.ExpiryDate,
@@ -134,22 +135,24 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the instance struct.
 	vm := &qemu{
-		state:        s,
+		common: common{
+			dbType:       args.Type,
+			localConfig:  args.Config,
+			localDevices: args.Devices,
+			state:        s,
+			profiles:     args.Profiles,
+			project:      args.Project,
+		},
 		id:           args.ID,
-		project:      args.Project,
 		name:         args.Name,
 		node:         args.Node,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
-		dbType:       args.Type,
 		snapshot:     args.Snapshot,
 		stateful:     args.Stateful,
 		creationDate: args.CreationDate,
 		lastUsedDate: args.LastUsedDate,
-		profiles:     args.Profiles,
-		localConfig:  args.Config,
-		localDevices: args.Devices,
 		expiryDate:   args.ExpiryDate,
 	}
 
@@ -203,7 +206,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		return nil, err
 	}
 
-	err = instance.ValidDevices(s, s.Cluster, vm.Type(), vm.Name(), vm.expandedDevices, true)
+	err = instance.ValidDevices(s, s.Cluster, vm.Type(), vm.expandedDevices, true)
 	if err != nil {
 		logger.Error("Failed creating instance", ctxMap)
 		return nil, errors.Wrap(err, "Invalid devices")
@@ -267,27 +270,18 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 
 // qemu is the QEMU virtual machine driver.
 type qemu struct {
+	common
+
 	// Properties.
 	architecture int
-	dbType       instancetype.Type
 	snapshot     bool
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
 	id           int
-	project      string
 	name         string
 	description  string
 	stateful     bool
-
-	// Config.
-	expandedConfig  map[string]string
-	expandedDevices deviceConfig.Devices
-	localConfig     map[string]string
-	localDevices    deviceConfig.Devices
-	profiles        []string
-
-	state *state.State
 
 	// Clustering.
 	node string
@@ -1998,7 +1992,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices without using expanded devices validation (expensive checks disabled).
-	err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), vm.Name(), args.Devices, false)
+	err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), args.Devices, false)
 	if err != nil {
 		return errors.Wrap(err, "Invalid devices")
 	}
@@ -2182,7 +2176,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Do full expanded validation of the devices diff.
-	err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), vm.Name(), vm.expandedDevices, true)
+	err = instance.ValidDevices(vm.state, vm.state.Cluster, vm.Type(), vm.expandedDevices, true)
 	if err != nil {
 		return errors.Wrap(err, "Invalid expanded devices")
 	}
@@ -3283,11 +3277,6 @@ func (vm *qemu) Name() string {
 	return vm.name
 }
 
-// Type returns the instance's type.
-func (vm *qemu) Type() instancetype.Type {
-	return vm.dbType
-}
-
 // Description returns the instance's description.
 func (vm *qemu) Description() string {
 	return vm.description
@@ -3306,54 +3295,6 @@ func (vm *qemu) CreationDate() time.Time {
 // LastUsedDate returns the instance's last used date.
 func (vm *qemu) LastUsedDate() time.Time {
 	return vm.lastUsedDate
-}
-
-func (vm *qemu) expandConfig(profiles []api.Profile) error {
-	if profiles == nil && len(vm.profiles) > 0 {
-		var err error
-		profiles, err = vm.state.Cluster.ProfilesGet(vm.project, vm.profiles)
-		if err != nil {
-			return err
-		}
-	}
-
-	vm.expandedConfig = db.ProfilesExpandConfig(vm.localConfig, profiles)
-
-	return nil
-}
-
-func (vm *qemu) expandDevices(profiles []api.Profile) error {
-	if profiles == nil && len(vm.profiles) > 0 {
-		var err error
-		profiles, err = vm.state.Cluster.ProfilesGet(vm.project, vm.profiles)
-		if err != nil {
-			return err
-		}
-	}
-
-	vm.expandedDevices = db.ProfilesExpandDevices(vm.localDevices, profiles)
-
-	return nil
-}
-
-// ExpandedConfig returns instance's expanded config.
-func (vm *qemu) ExpandedConfig() map[string]string {
-	return vm.expandedConfig
-}
-
-// ExpandedDevices returns instance's expanded device config.
-func (vm *qemu) ExpandedDevices() deviceConfig.Devices {
-	return vm.expandedDevices
-}
-
-// LocalConfig returns the instance's local config.
-func (vm *qemu) LocalConfig() map[string]string {
-	return vm.localConfig
-}
-
-// LocalDevices returns the instance's local device config.
-func (vm *qemu) LocalDevices() deviceConfig.Devices {
-	return vm.localDevices
 }
 
 // Profiles returns the instance's profiles.
