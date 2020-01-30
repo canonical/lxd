@@ -10,9 +10,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -71,6 +74,14 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	saveData := make(map[string]string)
+
+	// If VM, then try and load the vfio-pci module first.
+	if d.inst.Type() == instancetype.VM {
+		err = util.LoadModule("vfio-pci")
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+		}
+	}
 
 	reservedDevices, err := instanceGetReservedDevices(d.state, d.config)
 	if err != nil {
