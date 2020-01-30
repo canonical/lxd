@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
@@ -21,8 +22,8 @@ type nicSRIOV struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *nicSRIOV) validateConfig() error {
-	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
+func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -38,7 +39,7 @@ func (d *nicSRIOV) validateConfig() error {
 	}
 
 	// For VMs only NIC properties that can be specified on the parent's VF settings are controllable.
-	if d.inst.Type() == instancetype.Container {
+	if instConf.Type() == instancetype.Container {
 		optionalFields = append(optionalFields, "mtu")
 	}
 

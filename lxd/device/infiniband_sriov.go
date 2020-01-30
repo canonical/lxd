@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
@@ -15,8 +16,8 @@ type infinibandSRIOV struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *infinibandSRIOV) validateConfig() error {
-	if d.inst.Type() != instancetype.Container {
+func (d *infinibandSRIOV) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container) {
 		return ErrUnsupportedDevType
 	}
 

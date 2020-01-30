@@ -49,8 +49,8 @@ func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *disk) validateConfig() error {
-	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
+func (d *disk) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -87,9 +87,9 @@ func (d *disk) validateConfig() error {
 
 	// VMs don't use the "path" property, but containers need it, so if we are validating a profile that can
 	// be used for all instance types, we must allow any value.
-	if d.inst.Name() == instance.ProfileValidationName {
+	if instConf.Type() == instancetype.Any {
 		rules["path"] = shared.IsAny
-	} else if d.inst.Type() == instancetype.Container || d.config["path"] == "/" {
+	} else if instConf.Type() == instancetype.Container || d.config["path"] == "/" {
 		// If we are validating a container or the root device is being validated, then require the value.
 		rules["path"] = shared.IsNotEmpty
 	}
@@ -133,7 +133,7 @@ func (d *disk) validateConfig() error {
 	// same path, so that if merged profiles share the same the path and then one is removed
 	// this can still be cleanly removed.
 	pathCount := 0
-	for _, devConfig := range d.inst.LocalDevices() {
+	for _, devConfig := range instConf.LocalDevices() {
 		if devConfig["type"] == "disk" && d.config["path"] != "" && devConfig["path"] == d.config["path"] {
 			pathCount++
 			if pathCount > 1 {
@@ -165,11 +165,10 @@ func (d *disk) validateConfig() error {
 			return fmt.Errorf("The \"%s\" storage pool doesn't exist", d.config["pool"])
 		}
 
-		// Only check storate volume is available if we are validating an instance device
-		// and not a profile device (check for ProfileValidationName name), and we have least
-		// one expanded device (this is so we only do this expensive check after devices
-		// have been expanded).
-		if d.inst.Name() != instance.ProfileValidationName && len(d.inst.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
+		// Only check storate volume is available if we are validating an instance device and not a profile
+		// device (check for instancetype.Any), and we have least one expanded device (this is so we only
+		// do this expensive check after devices have been expanded).
+		if instConf.Type() != instancetype.Any && len(instConf.ExpandedDevices()) > 0 && d.config["source"] != "" && d.config["path"] != "/" {
 			isAvailable, err := d.state.Cluster.StorageVolumeIsAvailable(d.config["pool"], d.config["source"])
 			if err != nil {
 				return fmt.Errorf("Check if volume is available: %v", err)

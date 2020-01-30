@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -17,8 +18,8 @@ type nicPhysical struct {
 }
 
 // validateConfig checks the supplied config for correctness.
-func (d *nicPhysical) validateConfig() error {
-	if d.inst.Type() != instancetype.Container && d.inst.Type() != instancetype.VM {
+func (d *nicPhysical) validateConfig(instConf instance.ConfigReader) error {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -30,7 +31,7 @@ func (d *nicPhysical) validateConfig() error {
 		"boot.priority",
 	}
 
-	if d.inst.Type() == instancetype.Container {
+	if instConf.Type() == instancetype.Container {
 		optionalFields = append(optionalFields, "mtu", "hwaddr", "vlan")
 	}
 
