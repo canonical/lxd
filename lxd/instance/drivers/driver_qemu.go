@@ -103,6 +103,12 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 		expiryDate:   args.ExpiryDate,
 	}
 
+	// Get the architecture name.
+	archName, err := osarch.ArchitectureName(vm.architecture)
+	if err == nil {
+		vm.architectureName = archName
+	}
+
 	// Cleanup the zero values.
 	if vm.expiryDate.IsZero() {
 		vm.expiryDate = time.Time{}
@@ -147,6 +153,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 		expiryDate:   args.ExpiryDate,
 	}
 
+	// Get the architecture name.
+	archName, err := osarch.ArchitectureName(vm.architecture)
+	if err == nil {
+		vm.architectureName = archName
+	}
+
 	// Cleanup the zero values.
 	if vm.expiryDate.IsZero() {
 		vm.expiryDate = time.Time{}
@@ -178,7 +190,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	}()
 
 	// Load the config.
-	err := vm.init()
+	err = vm.init()
 	if err != nil {
 		logger.Error("Failed creating instance", ctxMap)
 		return nil, err
@@ -288,8 +300,9 @@ type qemu struct {
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
-	agentClient *http.Client
-	storagePool storagePools.Pool
+	agentClient      *http.Client
+	storagePool      storagePools.Pool
+	architectureName string
 }
 
 // getAgentClient returns the current agent client handle. To avoid TLS setup each time this
@@ -2953,9 +2966,6 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 
 // Render returns info about the instance.
 func (vm *qemu) Render() (interface{}, interface{}, error) {
-	// Ignore err as the arch string on error is correct (unknown)
-	architectureName, _ := osarch.ArchitectureName(vm.architecture)
-
 	if vm.IsSnapshot() {
 		// Prepare the ETag
 		etag := []interface{}{vm.expiryDate}
@@ -2968,7 +2978,7 @@ func (vm *qemu) Render() (interface{}, interface{}, error) {
 			Name:            strings.SplitN(vm.name, "/", 2)[1],
 			Stateful:        vm.stateful,
 		}
-		vmSnap.Architecture = architectureName
+		vmSnap.Architecture = vm.architectureName
 		vmSnap.Config = vm.localConfig
 		vmSnap.Devices = vm.localDevices.CloneNative()
 		vmSnap.Ephemeral = vm.ephemeral
@@ -2992,7 +3002,7 @@ func (vm *qemu) Render() (interface{}, interface{}, error) {
 	}
 
 	vmState.Description = vm.description
-	vmState.Architecture = architectureName
+	vmState.Architecture = vm.architectureName
 	vmState.Config = vm.localConfig
 	vmState.CreatedAt = vm.creationDate
 	vmState.Devices = vm.localDevices.CloneNative()
