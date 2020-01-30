@@ -9,11 +9,30 @@ var qemuBase = template.Must(template.New("qemuBase").Parse(`
 # Machine
 [machine]
 graphics = "off"
-type = "{{.qemuType}}"
+{{if eq .architecture "x86_64" -}}
+type = "q35"
+{{end -}}
+{{if eq .architecture "aarch64" -}}
+type = "virt"
+{{end -}}
+{{if eq .architecture "ppc64le" -}}
+type = "pseries"
+{{end -}}
 accel = "kvm"
 usb = "off"
 graphics = "off"
-{{ .qemuConf -}}
+
+{{if eq .architecture "x86_64" -}}
+[global]
+driver = "ICH9-LPC"
+property = "disable_s3"
+value = "1"
+
+[global]
+driver = "ICH9-LPC"
+property = "disable_s4"
+value = "1"
+{{end -}}
 
 [boot-opts]
 strict = "on"
@@ -31,7 +50,8 @@ chardev = "vserial"
 backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
 
-# PCIe root
+# SCSI controller
+{{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie1"]
 driver = "pcie-root-port"
 port = "0x10"
@@ -39,42 +59,62 @@ chassis = "1"
 bus = "pcie.0"
 multifunction = "on"
 addr = "0x2"
+{{- end }}
 
 [device "qemu_scsi"]
 driver = "virtio-scsi-pci"
+{{if eq .architecture "ppc64le" -}}
+bus = pci.0
+addr = "0x2"
+{{else -}}
 bus = "qemu_pcie1"
 addr = "0x0"
+{{end -}}
 
 # Balloon driver
+{{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
 port = "0x11"
 chassis = "2"
 bus = "pcie.0"
 addr = "0x2.0x1"
+{{- end }}
 
 [device "qemu_ballon"]
 driver = "virtio-balloon-pci"
+{{if eq .architecture "ppc64le" -}}
+bus = pci.0
+addr = "0x2.0x1"
+{{else -}}
 bus = "qemu_pcie2"
 addr = "0x0"
+{{end -}}
 
 # Random number generator
 [object "qemu_rng"]
 qom-type = "rng-random"
 filename = "/dev/urandom"
 
+{{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie3"]
 driver = "pcie-root-port"
 port = "0x12"
 chassis = "3"
 bus = "pcie.0"
 addr = "0x2.0x2"
+{{- end }}
 
 [device "dev-qemu_rng"]
 driver = "virtio-rng-pci"
 rng = "qemu_rng"
+{{if eq .architecture "ppc64le" -}}
+bus = "pci.0"
+addr = "0x2.0x2"
+{{else -}}
 bus = "qemu_pcie3"
 addr = "0x0"
+{{end -}}
 
 # Console
 [chardev "console"]
@@ -89,27 +129,31 @@ size = "{{.memSizeBytes}}B"
 
 var qemuVsock = template.Must(template.New("qemuVsock").Parse(`
 # Vsock
+{{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie4"]
 driver = "pcie-root-port"
 port = "0x13"
 chassis = "4"
 bus = "pcie.0"
 addr = "0x2.0x3"
+{{- end }}
 
 [device]
 driver = "vhost-vsock-pci"
 guest-cid = "{{.vsockID}}"
+{{if eq .architecture "ppc64le" -}}
+bus = "pci.0"
+addr = "0x2.0x3"
+{{else -}}
 bus = "qemu_pcie4"
 addr = "0x0"
+{{end -}}
 `))
 
 var qemuCPU = template.Must(template.New("qemuCPU").Parse(`
 # CPU
 [smp-opts]
 cpus = "{{.cpuCount}}"
-#sockets = "1"
-#cores = "1"
-#threads = "1"
 `))
 
 var qemuControlSocket = template.Must(template.New("qemuControlSocket").Parse(`
@@ -179,19 +223,26 @@ bootindex = "{{.bootIndex}}"
 
 // qemuDevTapCommon is common PCI device template for tap based netdevs.
 var qemuDevTapCommon = template.Must(template.New("qemuDevTapCommon").Parse(`
+{{if ne .architecture "ppc64le" -}}
 [device "qemu_pcie{{.chassisIndex}}"]
 driver = "pcie-root-port"
 port = "0x{{.portIndex}}"
 chassis = "{{.chassisIndex}}"
 bus = "pcie.0"
 addr = "0x2.0x{{.pcieAddr}}"
+{{- end }}
 
 [device "dev-lxd_{{.devName}}"]
 driver = "virtio-net-pci"
 netdev = "lxd_{{.devName}}"
 mac = "{{.devHwaddr}}"
+{{if eq .architecture "ppc64le" -}}
+bus = "pci.0"
+addr = "0x2.0x{{.pcieAddr}}"
+{{else -}}
 bus = "qemu_pcie{{.chassisIndex}}"
 addr = "0x0"
+{{end -}}
 bootindex = "{{.bootIndex}}"
 `))
 
