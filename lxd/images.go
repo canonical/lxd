@@ -28,6 +28,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
@@ -916,31 +917,40 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interface{}, error) {
+func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses []filter.Clause) (interface{}, error) {
 	results, err := d.cluster.ImagesGet(project, public)
 	if err != nil {
 		return []string{}, err
 	}
 
-	resultString := make([]string, len(results))
-	resultMap := make([]*api.Image, len(results))
-	i := 0
+	resultString := []string{}
+	resultMap := []*api.Image{}
+
+	mustLoadObjects := recursion || clauses != nil
+
 	for _, name := range results {
-		if !recursion {
+		if !mustLoadObjects {
 			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
-			resultString[i] = url
+			resultString = append(resultString, url)
 		} else {
 			image, response := doImageGet(d.cluster, project, name, public)
 			if response != nil {
 				continue
 			}
-			resultMap[i] = image
+			if clauses != nil && !filter.Match(*image, clauses) {
+				continue
+			}
+			resultMap = append(resultMap, image)
 		}
-
-		i++
 	}
 
 	if !recursion {
+		if clauses != nil {
+			for _, image := range resultMap {
+				url := fmt.Sprintf("/%s/images/%s", version.APIVersion, image.Fingerprint)
+				resultString = append(resultString, url)
+			}
+		}
 		return resultString, nil
 	}
 
@@ -949,9 +959,19 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool) (interf
 
 func imagesGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
+	filterStr := r.FormValue("filter")
 	public := d.checkTrustedClient(r) != nil || AllowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
-	result, err := doImagesGet(d, util.IsRecursionRequest(r), project, public)
+	var clauses []filter.Clause
+	if filterStr != "" {
+		var err error
+		clauses, err = filter.Parse(filterStr)
+		if err != nil {
+			return response.SmartError(errors.Wrap(err, "Invalid filter"))
+		}
+	}
+
+	result, err := doImagesGet(d, util.IsRecursionRequest(r), project, public, clauses)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -185,6 +185,7 @@ var APIExtensions = []string{
 	"storage_lvm_stripes",
 	"vm_boot_priority",
 	"unix_hotplug_devices",
+	"api_filtering",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
