@@ -18,6 +18,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -142,7 +143,7 @@ func NetworkRemoveInterface(nic string) error {
 // networkRemoveInterfaceIfNeeded removes a network interface by name but only if no other instance is using it.
 func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current instance.Instance, parent string, vlanID string) error {
 	// Check if it's used by another instance.
-	instances, err := InstanceLoadNodeAll(state)
+	instances, err := instance.LoadNodeAll(state, instancetype.Any)
 	if err != nil {
 		return err
 	}
@@ -191,7 +192,7 @@ func NetworkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevi
 		}
 
 		// Check if it was created for another running instance.
-		instances, err := InstanceLoadNodeAll(state)
+		instances, err := instance.LoadNodeAll(state, instancetype.Any)
 		if err != nil {
 			return "", err
 		}

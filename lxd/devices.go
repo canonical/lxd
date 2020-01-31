@@ -392,7 +392,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the instances
-	instances, err := instanceLoadNodeAll(s, instancetype.Container)
+	instances, err := instance.LoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		logger.Error("Problem loading instances list", log.Ctx{"err": err})
 		return
@@ -514,7 +514,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	instances, err := instanceLoadNodeAll(s, instancetype.Container)
+	instances, err := instance.LoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		return
 	}
@@ -594,7 +594,7 @@ func deviceEventListener(s *state.State) {
 
 // devicesRegister calls the Register() function on all supported devices so they receive events.
 func devicesRegister(s *state.State) {
-	instances, err := instanceLoadNodeAll(s, instancetype.Container)
+	instances, err := instance.LoadNodeAll(s, instancetype.Container)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
