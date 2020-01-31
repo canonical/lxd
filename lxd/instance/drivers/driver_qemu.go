@@ -3105,7 +3105,7 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 				}
 
 				// Parse the lease file.
-				addresses, err := instance.NetworkGetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
+				addresses, err := network.GetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
 				if err != nil {
 					return nil, err
 				}
