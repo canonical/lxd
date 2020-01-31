@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"math/big"
 	"math/rand"
 	"net"
@@ -25,6 +24,7 @@ import (
 	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -157,7 +157,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Attach host side veth interface to bridge.
-	err = NetworkAttachInterface(d.config["parent"], saveData["host_name"])
+	err = network.AttachInterface(d.config["parent"], saveData["host_name"])
 	if err != nil {
 		NetworkRemoveInterface(saveData["host_name"])
 		return nil, err
@@ -839,7 +839,7 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConf
 
 	// If no custom ranges defined, convert subnet pool to a range.
 	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, dhcpRange{Start: d.networkGetIP(subnet, 1).To4(), End: d.networkGetIP(subnet, -2).To4()})
+		dhcpRanges = append(dhcpRanges, dhcpRange{Start: network.GetIP(subnet, 1).To4(), End: network.GetIP(subnet, -2).To4()})
 	}
 
 	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
@@ -928,7 +928,7 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netCon
 
 	// If no custom ranges defined, convert subnet pool to a range.
 	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, dhcpRange{Start: d.networkGetIP(subnet, 1).To16(), End: d.networkGetIP(subnet, -1).To16()})
+		dhcpRanges = append(dhcpRanges, dhcpRange{Start: network.GetIP(subnet, 1).To16(), End: network.GetIP(subnet, -1).To16()})
 	}
 
 	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
@@ -968,40 +968,6 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netCon
 	}
 
 	return nil, fmt.Errorf("No available IP could not be found")
-}
-
-func (d *nicBridged) networkGetIP(subnet *net.IPNet, host int64) net.IP {
-	// Convert IP to a big int
-	bigIP := big.NewInt(0)
-	bigIP.SetBytes(subnet.IP.To16())
-
-	// Deal with negative offsets
-	bigHost := big.NewInt(host)
-	bigCount := big.NewInt(host)
-	if host < 0 {
-		mask, size := subnet.Mask.Size()
-
-		bigHosts := big.NewFloat(0)
-		bigHosts.SetFloat64((math.Pow(2, float64(size-mask))))
-		bigHostsInt, _ := bigHosts.Int(nil)
-
-		bigCount.Set(bigHostsInt)
-		bigCount.Add(bigCount, bigHost)
-	}
-
-	// Get the new IP int
-	bigIP.Add(bigIP, bigCount)
-
-	// Generate an IPv6
-	if subnet.IP.To4() == nil {
-		newIP := bigIP.Bytes()
-		return newIP
-	}
-
-	// Generate an IPv4
-	newIP := make(net.IP, 4)
-	binary.BigEndian.PutUint32(newIP, uint32(bigIP.Int64()))
-	return newIP
 }
 
 const (
