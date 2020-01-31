@@ -38,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/seccomp"
@@ -3799,7 +3800,7 @@ func (c *containerLXC) Rename(newName string) error {
 	c.cConfig = false
 
 	// Update lease files.
-	networkUpdateStatic(c.state, "")
+	network.UpdateDNSMasqStatic(c.state, "")
 
 	logger.Info("Renamed container", ctxMap)
 
