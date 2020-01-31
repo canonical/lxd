@@ -19,7 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -36,20 +35,6 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
 )
-
-func init() {
-	// Expose instanceLoadNodeAll to the device package converting the response to a slice of Instances.
-	// This is because container types are defined in the main package and are not importable.
-	device.InstanceLoadNodeAll = func(s *state.State) ([]instance.Instance, error) {
-		return instanceLoadNodeAll(s, instancetype.Any)
-	}
-
-	// Expose instance.LoadByProjectAndName to the device package converting the response to an Instance.
-	// This is because container types are defined in the main package and are not importable.
-	device.InstanceLoadByProjectAndName = func(s *state.State, project, name string) (instance.Instance, error) {
-		return instance.LoadByProjectAndName(s, project, name)
-	}
-}
 
 // Helper functions
 
@@ -927,77 +912,9 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 	return nil
 }
 
-func instanceLoadByProject(s *state.State, project string) ([]instance.Instance, error) {
-	// Get all the containers
-	var cts []db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.InstanceFilter{
-			Project: project,
-			Type:    instancetype.Any,
-		}
-		var err error
-		cts, err = tx.InstanceList(filter)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return instance.LoadAllInternal(s, cts)
-}
-
-// Load all instances across all projects.
-func instanceLoadFromAllProjects(s *state.State) ([]instance.Instance, error) {
-	var projects []string
-
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		projects, err = tx.ProjectNames()
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	instances := []instance.Instance{}
-	for _, project := range projects {
-		projectInstances, err := instanceLoadByProject(s, project)
-		if err != nil {
-			return nil, errors.Wrapf(nil, "Load instances in project %s", project)
-		}
-		instances = append(instances, projectInstances...)
-	}
-
-	return instances, nil
-}
-
 // Legacy interface.
 func instanceLoadAll(s *state.State) ([]instance.Instance, error) {
-	return instanceLoadByProject(s, "default")
-}
-
-// Load all instances of this nodes.
-func instanceLoadNodeAll(s *state.State, instanceType instancetype.Type) ([]instance.Instance, error) {
-	// Get all the container arguments
-	var insts []db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		insts, err = tx.ContainerNodeProjectList("", instanceType)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return instance.LoadAllInternal(s, insts)
+	return instance.LoadByProject(s, "default")
 }
 
 // Load all instances of this nodes under the given project.
@@ -1023,7 +940,7 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
-		allContainers, err := instanceLoadNodeAll(d.State(), instancetype.Any)
+		allContainers, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 		if err != nil {
 			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
 			return
@@ -1166,7 +1083,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
-		allInstances, err := instanceLoadNodeAll(d.State(), instancetype.Any)
+		allInstances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 		if err != nil {
 			logger.Error("Failed to load instances for snapshot expiry", log.Ctx{"err": err})
 			return
