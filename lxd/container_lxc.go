@@ -2056,7 +2056,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 		// Start the device.
 		runConf, err := c.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
-			return "", postStartHooks, errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
+			return "", postStartHooks, errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
 		if runConf == nil {
@@ -4627,13 +4627,13 @@ func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevi
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
-				return errors.Wrapf(err, "Failed to stop device '%s'", dev.Name)
+				return errors.Wrapf(err, "Failed to stop device %q", dev.Name)
 			}
 		}
 
 		err := c.deviceRemove(dev.Name, dev.Config)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to remove device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to remove device %q", dev.Name)
 		}
 
 		// Check whether we are about to add the same device back with updated config and
@@ -4641,7 +4641,7 @@ func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevi
 		// this device (as its an actual removal or a device type change).
 		err = c.deviceResetVolatile(dev.Name, dev.Config, addDevices[dev.Name])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to reset volatile data for device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to reset volatile data for device %q", dev.Name)
 		}
 	}
 
@@ -4651,13 +4651,13 @@ func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevi
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to add device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to add device %q", dev.Name)
 		}
 
 		if isRunning {
 			_, err := c.deviceStart(dev.Name, dev.Config, isRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
+				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 			}
 		}
 	}
@@ -4665,7 +4665,7 @@ func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevi
 	for _, dev := range updateDevices.Sorted() {
 		err := c.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, isRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to update device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to update device %q", dev.Name)
 		}
 	}
 
