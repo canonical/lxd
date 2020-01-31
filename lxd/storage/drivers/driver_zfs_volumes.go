@@ -1040,7 +1040,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 				defer shared.RunCommand("zfs", "destroy", finalParent)
 				defer shared.RunCommand("zfs", "destroy", srcSnapshot)
 			} else {
-				volSrcArgs.Data = srcSnapshot
+				volSrcArgs.Data = srcSnapshot // Persist parent state for final sync.
 			}
 		} else {
 			defer shared.RunCommand("zfs", "destroy", srcSnapshot)
