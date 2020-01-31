@@ -124,7 +124,7 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 	// Decide which parent we should use based on VLAN setting.
 	parentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
-	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
+	statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
 	if err != nil {
 		return nil, err
 	}

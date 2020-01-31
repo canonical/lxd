@@ -87,7 +87,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	saveData["host_name"] = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
 	if d.inst.Type() == instancetype.Container {
-		statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
+		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
 		if err != nil {
 			return nil, err
 		}

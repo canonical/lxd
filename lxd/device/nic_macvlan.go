@@ -71,10 +71,10 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	actualParentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
 	// Record the temporary device name used for deletion later.
-	saveData["host_name"] = NetworkRandomDevName("mac")
+	saveData["host_name"] = networkRandomDevName("mac")
 
 	// Create VLAN parent device if needed.
-	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], actualParentName, d.config["vlan"])
+	statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], actualParentName, d.config["vlan"])
 	if err != nil {
 		return nil, err
 	}
