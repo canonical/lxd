@@ -675,3 +675,98 @@ func GetHostDevice(parent string, vlan string) string {
 	// Return the default pattern
 	return defaultVlan
 }
+
+// GetLeaseAddresses returns the lease addresses for a network and hwaddr.
+func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api.InstanceStateNetworkAddress, error) {
+	addresses := []api.InstanceStateNetworkAddress{}
+
+	leaseFile := shared.VarPath("networks", networkName, "dnsmasq.leases")
+	if !shared.PathExists(leaseFile) {
+		return addresses, nil
+	}
+
+	dbInfo, err := LoadByName(s, networkName)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := ioutil.ReadFile(leaseFile)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, lease := range strings.Split(string(content), "\n") {
+		fields := strings.Fields(lease)
+		if len(fields) < 5 {
+			continue
+		}
+
+		// Parse the MAC
+		mac := GetMACSlice(fields[1])
+		macStr := strings.Join(mac, ":")
+
+		if len(macStr) < 17 && fields[4] != "" {
+			macStr = fields[4][len(fields[4])-17:]
+		}
+
+		if macStr != hwaddr {
+			continue
+		}
+
+		// Parse the IP
+		addr := api.InstanceStateNetworkAddress{
+			Address: fields[2],
+			Scope:   "global",
+		}
+
+		ip := net.ParseIP(addr.Address)
+		if ip == nil {
+			continue
+		}
+
+		if ip.To4() != nil {
+			addr.Family = "inet"
+
+			_, subnet, _ := net.ParseCIDR(dbInfo.Config()["ipv4.address"])
+			if subnet != nil {
+				mask, _ := subnet.Mask.Size()
+				addr.Netmask = fmt.Sprintf("%d", mask)
+			}
+		} else {
+			addr.Family = "inet6"
+
+			_, subnet, _ := net.ParseCIDR(dbInfo.Config()["ipv6.address"])
+			if subnet != nil {
+				mask, _ := subnet.Mask.Size()
+				addr.Netmask = fmt.Sprintf("%d", mask)
+			}
+		}
+
+		addresses = append(addresses, addr)
+	}
+
+	return addresses, nil
+}
+
+// GetMACSlice parses MAC address.
+func GetMACSlice(hwaddr string) []string {
+	var buf []string
+
+	if !strings.Contains(hwaddr, ":") {
+		if s, err := strconv.ParseUint(hwaddr, 10, 64); err == nil {
+			hwaddr = fmt.Sprintln(fmt.Sprintf("%x", s))
+			var tuple string
+			for i, r := range hwaddr {
+				tuple = tuple + string(r)
+				if i > 0 && (i+1)%2 == 0 {
+					buf = append(buf, tuple)
+					tuple = ""
+				}
+			}
+		}
+	} else {
+		buf = strings.Split(strings.ToLower(hwaddr), ":")
+	}
+
+	return buf
+}
