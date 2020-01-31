@@ -19,6 +19,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -30,25 +31,9 @@ import (
 // Instances can be started in parallel, so lock the creation of VLANs.
 var networkCreateSharedDeviceLock sync.Mutex
 
-// NetworkGetDevMTU retrieves the current MTU setting for a named network device.
-func NetworkGetDevMTU(devName string) (uint64, error) {
-	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
-	if err != nil {
-		return 0, err
-	}
-
-	// Parse value
-	mtu, err := strconv.ParseUint(strings.TrimSpace(string(content)), 10, 32)
-	if err != nil {
-		return 0, err
-	}
-
-	return mtu, nil
-}
-
 // NetworkSetDevMTU sets the MTU setting for a named network device if different from current.
 func NetworkSetDevMTU(devName string, mtu uint64) error {
-	curMTU, err := NetworkGetDevMTU(devName)
+	curMTU, err := network.GetDevMTU(devName)
 	if err != nil {
 		return err
 	}
@@ -90,48 +75,6 @@ func NetworkSetDevMAC(devName string, mac string) error {
 	}
 
 	return nil
-}
-
-// NetworkGetHostDevice figures out whether there is an existing interface for the supplied
-// parent device and VLAN ID and returns it. Otherwise just returns the parent device name.
-func NetworkGetHostDevice(parent string, vlan string) string {
-	// If no VLAN, just use the raw device
-	if vlan == "" {
-		return parent
-	}
-
-	// If no VLANs are configured, use the default pattern
-	defaultVlan := fmt.Sprintf("%s.%s", parent, vlan)
-	if !shared.PathExists("/proc/net/vlan/config") {
-		return defaultVlan
-	}
-
-	// Look for an existing VLAN
-	f, err := os.Open("/proc/net/vlan/config")
-	if err != nil {
-		return defaultVlan
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		// Only grab the lines we're interested in
-		s := strings.Split(scanner.Text(), "|")
-		if len(s) != 3 {
-			continue
-		}
-
-		vlanIface := strings.TrimSpace(s[0])
-		vlanID := strings.TrimSpace(s[1])
-		vlanParent := strings.TrimSpace(s[2])
-
-		if vlanParent == parent && vlanID == vlan {
-			return vlanIface
-		}
-	}
-
-	// Return the default pattern
-	return defaultVlan
 }
 
 // NetworkRemoveInterface removes a network interface by name.
@@ -217,7 +160,7 @@ func NetworkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevi
 // networkSnapshotPhysicalNic records properties of the NIC to volatile so they can be restored later.
 func networkSnapshotPhysicalNic(hostName string, volatile map[string]string) error {
 	// Store current MTU for restoration on detach.
-	mtu, err := NetworkGetDevMTU(hostName)
+	mtu, err := network.GetDevMTU(hostName)
 	if err != nil {
 		return err
 	}
@@ -284,26 +227,6 @@ func NetworkRandomDevName(prefix string) string {
 	return iface
 }
 
-// NetworkAttachInterface attaches an interface to a bridge.
-func NetworkAttachInterface(netName string, devName string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", netName)
-		if err != nil {
-			return err
-		}
-	} else {
-		_, err := shared.RunCommand("ovs-vsctl", "port-to-br", devName)
-		if err != nil {
-			_, err := shared.RunCommand("ovs-vsctl", "add-port", netName, devName)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 // networkCreateVethPair creates and configures a veth pair. It will set the hwaddr and mtu settings
 // in the supplied config to the newly created peer interface. If mtu is not specified, but parent
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
@@ -350,7 +273,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 			return "", fmt.Errorf("Failed to set the MTU: %v", err)
 		}
 	} else if m["parent"] != "" {
-		parentMTU, err := NetworkGetDevMTU(m["parent"])
+		parentMTU, err := network.GetDevMTU(m["parent"])
 		if err != nil {
 			return "", fmt.Errorf("Failed to get the parent MTU: %v", err)
 		}
@@ -399,7 +322,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 			return errors.Wrap(err, "Failed to set the MTU")
 		}
 	} else if m["parent"] != "" {
-		parentMTU, err := NetworkGetDevMTU(m["parent"])
+		parentMTU, err := network.GetDevMTU(m["parent"])
 		if err != nil {
 			return errors.Wrap(err, "Failed to get the parent MTU")
 		}
