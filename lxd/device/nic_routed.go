@@ -157,7 +157,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["parent"] != "" {
 		parentName = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
 
-		statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
+		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"])
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +176,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 	hostName := d.config["host_name"]
 	if hostName == "" {
-		hostName = NetworkRandomDevName("veth")
+		hostName = networkRandomDevName("veth")
 	}
 	saveData["host_name"] = hostName
 
