@@ -49,9 +49,11 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		return ErrUnsupportedDevType
 	}
 
-	requiredFields := []string{"parent"}
+	var requiredFields []string
 	optionalFields := []string{
 		"name",
+		"network",
+		"parent",
 		"mtu",
 		"hwaddr",
 		"host_name",
@@ -69,6 +71,81 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"maas.subnet.ipv6",
 		"boot.priority",
 	}
+
+	// Check that if network proeperty is set that conflicting keys are not present.
+	if d.config["network"] != "" {
+		requiredFields = append(requiredFields, "network")
+
+		bannedKeys := []string{"parent", "mtu", "maas.subnet.ipv4", "maas.subnet.ipv6"}
+		for _, bannedKey := range bannedKeys {
+			if d.config[bannedKey] != "" {
+				return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
+			}
+		}
+
+		// If network property is specified, lookup network settings and apply them to the device's config.
+		n, err := network.LoadByName(d.state, d.config["network"])
+		if err != nil {
+			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+		}
+		netConfig := n.Config()
+
+		if d.config["ipv4.address"] != "" {
+			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
+			if !n.HasDHCPv4() {
+				return fmt.Errorf("Cannot specify %q when %q is disabled on network %q", "ipv4.address", "ipv4.dhcp", d.config["network"])
+			}
+
+			_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+			if err != nil {
+				return errors.Wrapf(err, "Invalid network ipv4.address")
+			}
+
+			// Check the static IP supplied is valid for the linked network. It should be part of the
+			// network's subnet, but not necessarily part of the dynamic allocation ranges.
+			if !d.networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
+				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
+			}
+		}
+
+		if d.config["ipv6.address"] != "" {
+			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs).
+			if !n.HasDHCPv6() || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
+				return fmt.Errorf("Cannot specify %q when %q or %q are disabled on network %q", "ipv6.address", "ipv6.dhcp", "ipv6.dhcp.stateful", d.config["network"])
+			}
+
+			_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
+			if err != nil {
+				return errors.Wrapf(err, "Invalid network ipv6.address")
+			}
+
+			// Check the static IP supplied is valid for the linked network. It should be part of the
+			// network's subnet, but not necessarily part of the dynamic allocation ranges.
+			if !d.networkDHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
+				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
+			}
+		}
+
+		// Link device to network bridge.
+		d.config["parent"] = d.config["network"]
+
+		// Apply network level config options to device config before validation.
+		if netConfig["bridge.mtu"] != "" {
+			d.config["mtu"] = netConfig["bridge.mtu"]
+		}
+
+		inheritKeys := []string{"maas.subnet.ipv4", "maas.subnet.ipv6"}
+		for _, inheritKey := range inheritKeys {
+			if _, found := netConfig[inheritKey]; found {
+				d.config[inheritKey] = netConfig[inheritKey]
+			}
+		}
+	} else {
+		// If no network property supplied, then parent property is required.
+		requiredFields = append(requiredFields, "parent")
+	}
+
+	// Now run normal validation.
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields))
 	if err != nil {
 		return err
