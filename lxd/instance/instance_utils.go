@@ -41,10 +41,6 @@ var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Ins
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
 var Create func(s *state.State, args db.InstanceArgs) (Instance, error)
 
-// NetworkGetLeaseAddresses is linked from main.networkGetLeaseAddresses to limit scope of moving
-// network related functions into their own package at this time.
-var NetworkGetLeaseAddresses func(s *state.State, network string, hwaddr string) ([]api.InstanceStateNetworkAddress, error)
-
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
 // exist in the target or its creation date is different to the source. A snapshot will be marked
