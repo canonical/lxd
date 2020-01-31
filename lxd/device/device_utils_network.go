@@ -111,8 +111,8 @@ func networkRemoveInterfaceIfNeeded(state *state.State, nic string, current inst
 	return NetworkRemoveInterface(nic)
 }
 
-// NetworkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
-func NetworkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevice string, vlanID string) (string, error) {
+// networkCreateVlanDeviceIfNeeded creates a VLAN device if doesn't already exist.
+func networkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevice string, vlanID string) (string, error) {
 	if vlanID != "" {
 		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", vlanDevice)) {
 			// Bring the parent interface up so we can add a vlan to it.
@@ -212,10 +212,10 @@ func networkRestorePhysicalNic(hostName string, volatile map[string]string) erro
 	return nil
 }
 
-// NetworkRandomDevName returns a random device name with prefix.
+// networkRandomDevName returns a random device name with prefix.
 // If the random string combined with the prefix exceeds 13 characters then empty string is returned.
 // This is to ensure we support buggy dhclient applications: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=858580
-func NetworkRandomDevName(prefix string) string {
+func networkRandomDevName(prefix string) string {
 	// Return a new random veth device name
 	randBytes := make([]byte, 4)
 	rand.Read(randBytes)
@@ -232,7 +232,7 @@ func NetworkRandomDevName(prefix string) string {
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
 // Accepts the name of the host side interface as a parameter and returns the peer interface name.
 func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, error) {
-	peerName := NetworkRandomDevName("veth")
+	peerName := networkRandomDevName("veth")
 
 	_, err := shared.RunCommand("ip", "link", "add", "dev", hostName, "type", "veth", "peer", "name", peerName)
 	if err != nil {
