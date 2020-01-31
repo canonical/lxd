@@ -754,8 +754,10 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// Perform final sync if in multi sync mode.
 	if volSourceArgs.MultiSync {
 		if pool != nil {
-			// Indicate to the storage driver we are doing final sync.
+			// Indicate to the storage driver we are doing final sync and because of this don't send
+			// snapshots as they don't need to have a final sync as not being modified.
 			volSourceArgs.FinalSync = true
+			volSourceArgs.Snapshots = nil
 
 			err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 			if err != nil {
