@@ -493,22 +493,22 @@ func (d *nicBridged) setFilters() (err error) {
 
 	// Check if the parent is managed and load config. If parent is unmanaged continue anyway.
 	var IPv4, IPv6 net.IP
-	_, netInfo, err := d.state.Cluster.NetworkGet(d.config["parent"])
+	net, err := network.LoadByName(d.state, d.config["parent"])
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
 
 	// If parent bridge is unmanaged check that IP filtering isn't enabled.
-	if err == db.ErrNoSuchObject || netInfo == nil {
+	if err == db.ErrNoSuchObject || net == nil {
 		if shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
 			return fmt.Errorf("IP filtering requires using a managed parent bridge")
 		}
 	}
 
 	// If parent bridge is unmanaged we cannot allocate static IPs.
-	if netInfo != nil {
+	if net != nil {
 		// Retrieve existing IPs, or allocate new ones if needed.
-		IPv4, IPv6, err = d.allocateFilterIPs(netInfo.Config)
+		IPv4, IPv6, err = d.allocateFilterIPs(net)
 		if err != nil {
 			return err
 		}
@@ -527,7 +527,7 @@ func (d *nicBridged) setFilters() (err error) {
 // networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
 // This function only works with LXD managed networks, and as such, requires the managed network's
 // config to be supplied.
-func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net.IP, error) {
+func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, error) {
 	var IPv4, IPv6 net.IP
 
 	// Check if there is a valid static IPv4 address defined.
@@ -546,9 +546,11 @@ func (d *nicBridged) allocateFilterIPs(netConfig map[string]string) (net.IP, net
 		}
 	}
 
+	netConfig := n.Config()
+
 	// Check the conditions required to dynamically allocated IPs.
-	canIPv4Allocate := netConfig["ipv4.address"] != "" && netConfig["ipv4.address"] != "none" && (netConfig["ipv4.dhcp"] == "" || shared.IsTrue(netConfig["ipv4.dhcp"]))
-	canIPv6Allocate := netConfig["ipv6.address"] != "" && netConfig["ipv6.address"] != "none" && (netConfig["ipv6.dhcp"] == "" || shared.IsTrue(netConfig["ipv6.dhcp"]))
+	canIPv4Allocate := netConfig["ipv4.address"] != "" && netConfig["ipv4.address"] != "none" && n.HasDHCPv4()
+	canIPv6Allocate := netConfig["ipv6.address"] != "" && netConfig["ipv6.address"] != "none" && n.HasDHCPv6()
 
 	// Check DHCPv4 is enabled on parent if dynamic IPv4 allocation is needed.
 	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && !canIPv4Allocate {
