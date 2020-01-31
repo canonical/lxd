@@ -190,34 +190,3 @@ func networkValidateConfig(name string, config map[string]string) error {
 
 	return nil
 }
-
-func networkFillAuto(config map[string]string) error {
-	if config["ipv4.address"] == "auto" {
-		subnet, err := networkRandomSubnetV4()
-		if err != nil {
-			return err
-		}
-
-		config["ipv4.address"] = subnet
-	}
-
-	if config["ipv6.address"] == "auto" {
-		subnet, err := networkRandomSubnetV6()
-		if err != nil {
-			return err
-		}
-
-		config["ipv6.address"] = subnet
-	}
-
-	if config["fan.underlay_subnet"] == "auto" {
-		subnet, _, err := networkDefaultGatewaySubnetV4()
-		if err != nil {
-			return err
-		}
-
-		config["fan.underlay_subnet"] = subnet.String()
-	}
-
-	return nil
-}
