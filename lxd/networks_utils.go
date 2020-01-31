@@ -159,28 +159,6 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	return nil
 }
 
-func networkGetMacSlice(hwaddr string) []string {
-	var buf []string
-
-	if !strings.Contains(hwaddr, ":") {
-		if s, err := strconv.ParseUint(hwaddr, 10, 64); err == nil {
-			hwaddr = fmt.Sprintln(fmt.Sprintf("%x", s))
-			var tuple string
-			for i, r := range hwaddr {
-				tuple = tuple + string(r)
-				if i > 0 && (i+1)%2 == 0 {
-					buf = append(buf, tuple)
-					tuple = ""
-				}
-			}
-		}
-	} else {
-		buf = strings.Split(strings.ToLower(hwaddr), ":")
-	}
-
-	return buf
-}
-
 func networkGetState(netIf net.Interface) api.NetworkState {
 	netState := "down"
 	netType := "unknown"
