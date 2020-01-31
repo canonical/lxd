@@ -102,6 +102,9 @@ var networkConfigKeys = map[string]func(value string) error{
 	},
 
 	"raw.dnsmasq": shared.IsAny,
+
+	"maas.subnet.ipv4": shared.IsAny,
+	"maas.subnet.ipv6": shared.IsAny,
 }
 
 func networkValidateConfig(name string, config map[string]string) error {
