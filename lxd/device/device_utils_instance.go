@@ -10,12 +10,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 )
 
-// InstanceLoadNodeAll returns all local instance configs.
-var InstanceLoadNodeAll func(s *state.State) ([]instance.Instance, error)
-
-// InstanceLoadByProjectAndName returns instance config by project and name.
-var InstanceLoadByProjectAndName func(s *state.State, project, name string) (instance.Instance, error)
-
 // reservedDevicesMutex used to coordinate access for checking reserved devices.
 var reservedDevicesMutex sync.Mutex
 
@@ -25,7 +19,7 @@ func instanceGetReservedDevices(s *state.State, m deviceConfig.Device) (map[stri
 	reservedDevicesMutex.Lock()
 	defer reservedDevicesMutex.Unlock()
 
-	instances, err := InstanceLoadNodeAll(s)
+	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return nil, err
 	}

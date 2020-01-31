@@ -205,7 +205,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State) error {
 	// Get all the instances
-	result, err := instanceLoadNodeAll(s, instancetype.Any)
+	result, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func containersRestart(s *state.State) error {
 
 func vmMonitor(s *state.State) error {
 	// Get all the instances
-	insts, err := instanceLoadNodeAll(s, instancetype.VM)
+	insts, err := instance.LoadNodeAll(s, instancetype.VM)
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func containersShutdown(s *state.State) error {
 	dbAvailable := true
 
 	// Get all the instances
-	instances, err := instanceLoadNodeAll(s, instancetype.Any)
+	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
