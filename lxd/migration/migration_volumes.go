@@ -25,7 +25,7 @@ type VolumeSourceArgs struct {
 	TrackProgress bool
 	MultiSync     bool
 	FinalSync     bool
-	Data          interface{}
+	Data          interface{} // Optional store to persist storage driver state between MultiSync phases.
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
