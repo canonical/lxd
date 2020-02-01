@@ -53,10 +53,10 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		for _, snap := range snaps {
 			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap)
 			if project == "default" {
-				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
+				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cname, snapName)
 				resultString = append(resultString, url)
 			} else {
-				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, project)
+				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, project)
 				resultString = append(resultString, url)
 			}
 		}
