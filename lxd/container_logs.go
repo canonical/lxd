@@ -82,7 +82,7 @@ func containerLogsGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		result = append(result, fmt.Sprintf("/%s/containers/%s/logs/%s", version.APIVersion, name, f.Name()))
+		result = append(result, fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, name, f.Name()))
 	}
 
 	return response.SyncResponse(true, result)

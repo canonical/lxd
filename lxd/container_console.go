@@ -267,7 +267,7 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/containers/%s/console?project=%s", name, project)
+		url := fmt.Sprintf("/instances/%s/console?project=%s", name, project)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
 			return response.SmartError(err)
