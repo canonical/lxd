@@ -88,29 +88,25 @@ static int seccomp_notify_get_sizes(struct seccomp_notif_sizes *sizes)
 
 static int device_allowed(dev_t dev, mode_t mode)
 {
-	if ((dev == makedev(0, 0)) && (mode & S_IFCHR)) // whiteout
-		return 0;
-
-	if ((dev == makedev(5, 1)) && (mode & S_IFCHR)) // /dev/console
-		return 0;
-
-	if ((dev == makedev(1, 7)) && (mode & S_IFCHR)) // /dev/full
-		return 0;
-
-	if ((dev == makedev(1, 3)) && (mode & S_IFCHR)) // /dev/null
-		return 0;
-
-	if ((dev == makedev(1, 8)) && (mode & S_IFCHR)) // /dev/random
-		return 0;
-
-	if ((dev == makedev(5, 0)) && (mode & S_IFCHR)) // /dev/tty
-		return 0;
-
-	if ((dev == makedev(1, 9)) && (mode & S_IFCHR)) // /dev/urandom
-		return 0;
-
-	if ((dev == makedev(1, 5)) && (mode & S_IFCHR)) // /dev/zero
-		return 0;
+	switch (mode & S_IFMT) {
+	case S_IFCHR:
+		if ((dev == makedev(0, 0))) // whiteout
+			return 0;
+		else if ((dev == makedev(5, 1))) // /dev/console
+			return 0;
+		else if ((dev == makedev(1, 7))) // /dev/full
+			return 0;
+		else if ((dev == makedev(1, 3))) // /dev/null
+			return 0;
+		else if ((dev == makedev(1, 8))) // /dev/random
+			return 0;
+		else if ((dev == makedev(5, 0))) // /dev/tty
+			return 0;
+		else if ((dev == makedev(1, 9))) // /dev/urandom
+			return 0;
+		else if ((dev == makedev(1, 5))) // /dev/zero
+			return 0;
+	}
 
 	return -EPERM;
 }
