@@ -41,14 +41,6 @@ var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Ins
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
 var Create func(s *state.State, args db.InstanceArgs) (Instance, error)
 
-// NetworkGetLeaseAddresses is linked from main.networkGetLeaseAddresses to limit scope of moving
-// network related functions into their own package at this time.
-var NetworkGetLeaseAddresses func(s *state.State, network string, hwaddr string) ([]api.InstanceStateNetworkAddress, error)
-
-// NetworkUpdateStatic is linked to main.networkUpdateStatic to limit scope of moving
-// network related functions into their own package at this time.
-var NetworkUpdateStatic func(s *state.State, network string) error
-
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
 // exist in the target or its creation date is different to the source. A snapshot will be marked
@@ -515,6 +507,75 @@ func LoadAllInternal(s *state.State, dbInstances []db.Instance) ([]Instance, err
 	}
 
 	return instances, nil
+}
+
+// LoadByProject loads all instances in a project.
+func LoadByProject(s *state.State, project string) ([]Instance, error) {
+	// Get all the instances.
+	var cts []db.Instance
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		filter := db.InstanceFilter{
+			Project: project,
+			Type:    instancetype.Any,
+		}
+		var err error
+		cts, err = tx.InstanceList(filter)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return LoadAllInternal(s, cts)
+}
+
+// LoadFromAllProjects loads all instances across all projects.
+func LoadFromAllProjects(s *state.State) ([]Instance, error) {
+	var projects []string
+
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		projects, err = tx.ProjectNames()
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	instances := []Instance{}
+	for _, project := range projects {
+		projectInstances, err := LoadByProject(s, project)
+		if err != nil {
+			return nil, errors.Wrapf(nil, "Load instances in project %s", project)
+		}
+		instances = append(instances, projectInstances...)
+	}
+
+	return instances, nil
+}
+
+// LoadNodeAll loads all instances of this nodes.
+func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, error) {
+	// Get all the container arguments
+	var insts []db.Instance
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		insts, err = tx.ContainerNodeProjectList("", instanceType)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return LoadAllInternal(s, insts)
 }
 
 // WriteBackupFile writes instance's config to a file. Deprecated, use inst.UpdateBackupFile().

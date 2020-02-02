@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/fsnotify.v0"
 
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/dnsutil"
 	"github.com/lxc/lxd/shared/logger"
@@ -28,9 +29,6 @@ type dnsHandler struct {
 	domain    string
 	leaseFile string
 }
-
-const forkdnsServersListPath = "forkdns.servers"
-const forkdnsServersListFile = "servers.conf"
 
 var dnsServersFileLock sync.Mutex
 var dnsServersList []string
@@ -47,7 +45,7 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 		select {
 		case ev := <-watcher.Event:
 			// Ignore files events that dont concern the servers list file.
-			if !strings.HasSuffix(ev.Name, forkdnsServersListPath+"/"+forkdnsServersListFile) {
+			if !strings.HasSuffix(ev.Name, network.ForkdnsServersListPath+"/"+network.ForkdnsServersListFile) {
 				continue
 			}
 			err := loadServersList(networkName)
@@ -63,7 +61,7 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 
 // loadServersList reads the server list path and updates the internal servers list slice.
 func loadServersList(networkName string) error {
-	servers, err := networksGetForkdnsServersList(networkName)
+	servers, err := network.ForkdnsServersList(networkName)
 	if err != nil {
 		return err
 	}
@@ -353,7 +351,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	networkName := args[2]
-	path := shared.VarPath("networks", networkName, forkdnsServersListPath)
+	path := shared.VarPath("networks", networkName, network.ForkdnsServersListPath)
 	err = watcher.Watch(path)
 	if err != nil {
 		return fmt.Errorf("Unable to setup fsnotify watch on %s: %s", path, err)

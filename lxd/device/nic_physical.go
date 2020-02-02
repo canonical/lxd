@@ -8,6 +8,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -84,10 +85,10 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Record the host_name device used for restoration later.
-	saveData["host_name"] = NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+	saveData["host_name"] = network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
 	if d.inst.Type() == instancetype.Container {
-		statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
+		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], saveData["host_name"], d.config["vlan"])
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +239,7 @@ func (d *nicPhysical) postStop() error {
 			return err
 		}
 	} else if d.inst.Type() == instancetype.Container {
-		hostName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+		hostName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
 		// This will delete the parent interface if we created it for VLAN parent.
 		if shared.IsTrue(v["last_state.created"]) {

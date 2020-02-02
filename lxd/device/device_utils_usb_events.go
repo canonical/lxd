@@ -79,7 +79,7 @@ func USBRunHandlers(state *state.State, event *USBEvent) {
 		// If runConf supplied, load instance and call its USB event handler function so
 		// any instance specific device actions can occur.
 		if runConf != nil {
-			instance, err := InstanceLoadByProjectAndName(state, projectName, instanceName)
+			instance, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 			if err != nil {
 				logger.Error("USB event loading instance failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue
