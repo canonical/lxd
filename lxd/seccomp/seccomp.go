@@ -248,6 +248,10 @@ static void prepare_seccomp_iovec(struct iovec *iov,
 	iov[3].iov_base = cookie;
 	iov[3].iov_len = SECCOMP_COOKIE_SIZE;
 }
+
+#ifndef MS_LAZYTIME
+#define MS_LAZYTIME (1<<25)
+#endif
 */
 import "C"
 
