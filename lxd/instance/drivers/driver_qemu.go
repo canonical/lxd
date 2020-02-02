@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -1938,7 +1939,7 @@ func (vm *qemu) Rename(newName string) error {
 	vm.name = newName
 
 	// Update lease files.
-	instance.NetworkUpdateStatic(vm.state, "")
+	network.UpdateDNSMasqStatic(vm.state, "")
 
 	logger.Info("Renamed instance", ctxMap)
 
@@ -3104,7 +3105,7 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 				}
 
 				// Parse the lease file.
-				addresses, err := instance.NetworkGetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
+				addresses, err := network.GetLeaseAddresses(vm.state, m["parent"], m["hwaddr"])
 				if err != nil {
 					return nil, err
 				}

@@ -6,6 +6,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
@@ -68,13 +69,13 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
-	actualParentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+	actualParentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
 	// Record the temporary device name used for deletion later.
-	saveData["host_name"] = NetworkRandomDevName("mac")
+	saveData["host_name"] = networkRandomDevName("mac")
 
 	// Create VLAN parent device if needed.
-	statusDev, err := NetworkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], actualParentName, d.config["vlan"])
+	statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], actualParentName, d.config["vlan"])
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +189,7 @@ func (d *nicMACVLAN) postStop() error {
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
-		actualParentName := NetworkGetHostDevice(d.config["parent"], d.config["vlan"])
+		actualParentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 		err := networkRemoveInterfaceIfNeeded(d.state, actualParentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			errs = append(errs, err)

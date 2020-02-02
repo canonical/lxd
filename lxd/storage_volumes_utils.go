@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -215,7 +216,7 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 }
 
 func storagePoolVolumeUsedByInstancesGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
-	insts, err := instanceLoadByProject(s, project)
+	insts, err := instance.LoadByProject(s, project)
 	if err != nil {
 		return []string{}, err
 	}

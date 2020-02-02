@@ -79,7 +79,7 @@ func UnixHotplugRunHandlers(state *state.State, event *UnixHotplugEvent) {
 		// If runConf supplied, load instance and call its Unix hotplug event handler function so
 		// any instance specific device actions can occur.
 		if runConf != nil {
-			instance, err := InstanceLoadByProjectAndName(state, projectName, instanceName)
+			instance, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 			if err != nil {
 				logger.Error("Unix hotplug event loading instance failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue

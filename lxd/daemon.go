@@ -35,6 +35,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
@@ -1047,7 +1048,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := instanceLoadNodeAll(d.State(), instancetype.Container)
+	results, err := instance.LoadNodeAll(d.State(), instancetype.Container)
 	if err != nil {
 		return 0, err
 	}

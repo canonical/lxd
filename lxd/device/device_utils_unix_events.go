@@ -135,7 +135,7 @@ func unixRunHandlers(state *state.State, event *UnixEvent) {
 		// If runConf supplied, load instance and call its Unix event handler function so
 		// any instance specific device actions can occur.
 		if runConf != nil {
-			instance, err := InstanceLoadByProjectAndName(state, projectName, instanceName)
+			instance, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 			if err != nil {
 				logger.Error("Unix event loading instance failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue

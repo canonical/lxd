@@ -17,6 +17,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -284,20 +285,20 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 			}
 		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes") {
 			// Define the network
-			network := api.NetworksPost{}
-			network.Name = "lxdfan0"
-			network.Config = map[string]string{
+			networkPost := api.NetworksPost{}
+			networkPost.Name = "lxdfan0"
+			networkPost.Config = map[string]string{
 				"bridge.mode": "fan",
 			}
 
 			// Select the underlay
-			network.Config["fan.underlay_subnet"] = cli.AskString("What subnet should be used as the Fan underlay? [default=auto]: ", "auto", func(value string) error {
+			networkPost.Config["fan.underlay_subnet"] = cli.AskString("What subnet should be used as the Fan underlay? [default=auto]: ", "auto", func(value string) error {
 				var err error
 				var subnet *net.IPNet
 
 				// Handle auto
 				if value == "auto" {
-					subnet, _, err = networkDefaultGatewaySubnetV4()
+					subnet, _, err = network.DefaultGatewaySubnetV4()
 					if err != nil {
 						return err
 					}
@@ -317,7 +318,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 			})
 
 			// Add the new network
-			config.Node.Networks = append(config.Node.Networks, network)
+			config.Node.Networks = append(config.Node.Networks, networkPost)
 
 			// Add to the default profile
 			config.Node.Profiles[0].Devices["eth0"] = map[string]string{

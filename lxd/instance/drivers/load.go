@@ -66,7 +66,8 @@ func validDevices(state *state.State, cluster *db.Cluster, instanceType instance
 	}
 
 	// Check each device individually using the device package.
-	for name, config := range devices {
+	// Use instConf.localDevices so that the cloned config is passed into the driver, so it cannot modify it.
+	for name, config := range instConf.localDevices {
 		err := device.Validate(instConf, state, name, config)
 		if err != nil {
 			return errors.Wrapf(err, "Device validation failed %q", name)
