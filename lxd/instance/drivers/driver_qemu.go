@@ -1159,6 +1159,7 @@ func (vm *qemu) generateConfigShare() error {
 
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
+Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Requires=lxd-agent-9p.service
 After=lxd-agent-9p.service
@@ -1180,6 +1181,7 @@ WantedBy=multi-user.target
 
 	lxdConfigShareMountUnit := `[Unit]
 Description=LXD - agent - 9p mount
+Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 
 [Service]
