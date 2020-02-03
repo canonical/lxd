@@ -38,6 +38,12 @@ const ForkdnsServersListFile = "servers.conf"
 
 var forkdnsServersLock sync.Mutex
 
+// DHCPRange represents a range of IPs from start to end.
+type DHCPRange struct {
+	Start net.IP
+	End   net.IP
+}
+
 // Network represents a LXD network.
 type Network struct {
 	// Properties
@@ -1600,4 +1606,44 @@ func (n *Network) HasDHCPv6() bool {
 	}
 
 	return false
+}
+
+// DHCPv4Ranges returns a parsed set of DHCPv4 ranges for this network.
+func (n *Network) DHCPv4Ranges() []DHCPRange {
+	dhcpRanges := make([]DHCPRange, 0)
+	if n.config["ipv4.dhcp.ranges"] != "" {
+		for _, r := range strings.Split(n.config["ipv4.dhcp.ranges"], ",") {
+			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
+			if len(parts) == 2 {
+				startIP := net.ParseIP(parts[0])
+				endIP := net.ParseIP(parts[1])
+				dhcpRanges = append(dhcpRanges, DHCPRange{
+					Start: startIP.To4(),
+					End:   endIP.To4(),
+				})
+			}
+		}
+	}
+
+	return dhcpRanges
+}
+
+// DHCPv6Ranges returns a parsed set of DHCPv6 ranges for this network.
+func (n *Network) DHCPv6Ranges() []DHCPRange {
+	dhcpRanges := make([]DHCPRange, 0)
+	if n.config["ipv6.dhcp.ranges"] != "" {
+		for _, r := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
+			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
+			if len(parts) == 2 {
+				startIP := net.ParseIP(parts[0])
+				endIP := net.ParseIP(parts[1])
+				dhcpRanges = append(dhcpRanges, DHCPRange{
+					Start: startIP.To16(),
+					End:   endIP.To16(),
+				})
+			}
+		}
+	}
+
+	return dhcpRanges
 }
