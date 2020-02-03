@@ -543,7 +543,7 @@ func (n *Network) setup(oldConfig map[string]string) error {
 
 		// Update the dnsmasq config
 		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ip.String()), "--enable-ra"}...)
-		if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
+		if n.HasDHCPv6() {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
 				// Setup basic iptables overrides for DHCP/DNS
 				n.state.Firewall.NetworkSetupIPv6DNSOverrides(n.name)
@@ -1590,7 +1590,10 @@ func (n *Network) HasDHCPv4() bool {
 	return false
 }
 
-// HasDHCPv6 indicates whether the network has DHCPv6 enabled.
+// HasDHCPv6 indicates whether the network has DHCPv6 enabled (includes stateless SLAAC router advertisement mode).
+// Technically speaking stateless SLAAC RA mode isn't DHCPv6, but for consistency with LXD's config paradigm, DHCP
+// here means "an ability to automatically allocate IPs and routes", rather than stateful DHCP with leases.
+// To check if true stateful DHCPv6 is enabled check the "ipv6.dhcp.stateful" config key.
 func (n *Network) HasDHCPv6() bool {
 	if n.config["ipv6.dhcp"] == "" || shared.IsTrue(n.config["ipv6.dhcp"]) {
 		return true
