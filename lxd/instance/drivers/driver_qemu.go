@@ -1479,7 +1479,9 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 
 		// If FS is ZFS, avoid using direct I/O and use host page cache only.
 		if fsType == "zfs" {
-			logger.Warnf("Using writeback cache I/O with %s", driveConf.DevPath)
+			if driveConf.FSType != "iso9660" {
+				logger.Warnf("Using writeback cache I/O with %s", driveConf.DevPath)
+			}
 			aioMode = "threads"
 			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
 		}
