@@ -16,7 +16,9 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -105,8 +107,6 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Target node is offline"))
 	}
 
-	var inst instance.Instance
-
 	// Check whether to forward the request to the node that is running the
 	// container. Here are the possible cases:
 	//
@@ -137,11 +137,6 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		if resp != nil {
 			return resp
 		}
-
-		inst, err = instance.LoadByProjectAndName(d.State(), project, name)
-		if err != nil {
-			return response.SmartError(err)
-		}
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -171,10 +166,15 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		stateful = req.Live
 	}
 
+	inst, err := instance.LoadByProjectAndName(d.State(), project, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if req.Migration {
 		if targetNode != "" {
 			// Check whether the container is running.
-			if inst != nil && inst.IsRunning() {
+			if !sourceNodeOffline && inst.IsRunning() {
 				return response.BadRequest(fmt.Errorf("Container is running"))
 			}
 
@@ -409,86 +409,57 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, project, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
+func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
 	run := func(*operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
-		if c != nil {
-			logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, c.Name(), c.Name(), newName)
-			poolName, err := c.StoragePool()
-			if err != nil {
-				return errors.Wrap(err, "Failed to get source container's storage pool name")
-			}
-			_, pool, err := d.cluster.StoragePoolGet(poolName)
-			if err != nil {
-				return errors.Wrap(err, "Failed to get source container's storage pool")
-			}
-			if pool.Driver != "ceph" {
-				return fmt.Errorf("Source container's storage pool is not of type ceph")
-			}
-			si, err := storagePoolVolumeContainerLoadInit(d.State(), c.Project(), c.Name())
-			if err != nil {
-				return errors.Wrap(err, "Failed to initialize source container's storage pool")
-			}
-			s, ok := si.(*storageCeph)
-			if !ok {
-				return fmt.Errorf("Unexpected source container storage backend")
-			}
-			err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, c.Name(),
-				storagePoolVolumeTypeNameContainer, s.UserName, true)
-			if err != nil {
-				return errors.Wrap(err, "Failed to unmap source container's RBD volume")
-			}
+		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, c.Name(), c.Name(), newName)
+		poolName, err := c.StoragePool()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get source container's storage pool name")
+		}
 
+		pool, err := driver.GetPoolByName(d.State(), poolName)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get source container's storage pool")
+		}
+
+		if pool.Driver().Info().Name != "ceph" {
+			return fmt.Errorf("Source container's storage pool is not of type ceph")
+		}
+
+		args := migration.VolumeSourceArgs{
+			Data: project.Prefix(projectName, newName),
+		}
+
+		// Trigger a rename in the Ceph driver.
+		err = pool.MigrateInstance(c, nil, &args, nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to rename ceph RBD volume")
 		}
 
 		// Re-link the database entries against the new node name.
-		var poolName string
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			err := tx.ContainerNodeMove(project, oldName, newName, newNode)
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			err := tx.ContainerNodeMove(projectName, oldName, newName, newNode)
 			if err != nil {
 				return errors.Wrapf(
 					err, "Move container %s to %s with new name %s", oldName, newNode, newName)
 			}
-			poolName, err = tx.InstancePool(project, newName)
-			if err != nil {
-				return errors.Wrapf(err, "Get the container's storage pool name for %s", newName)
-			}
+
 			return nil
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to relink container database data")
 		}
 
-		// Rename the RBD volume if necessary.
-		if newName != oldName {
-			s := storageCeph{}
-			_, s.pool, err = d.cluster.StoragePoolGet(poolName)
-			if err != nil {
-				return errors.Wrap(err, "Failed to get storage pool")
-			}
-			if err != nil {
-				return errors.Wrap(err, "Failed to get storage pool")
-			}
-			err = s.StoragePoolInit()
-			if err != nil {
-				return errors.Wrap(err, "Failed to initialize ceph storage pool")
-			}
-			err = cephRBDVolumeRename(s.ClusterName, s.OSDPoolName,
-				storagePoolVolumeTypeNameContainer, oldName, newName, s.UserName)
-			if err != nil {
-				return errors.Wrap(err, "Failed to rename ceph RBD volume")
-			}
-		}
-
 		// Create the container mount point on the target node
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, newName, cert, instanceType)
+		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, projectName, newName, cert, instanceType)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := containerPostCreateContainerMountPoint(d, project, newName)
+			err := containerPostCreateContainerMountPoint(d, projectName, newName)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
@@ -508,7 +479,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
