@@ -206,6 +206,7 @@ format = "raw"
 if = "none"
 cache = "{{.cacheMode}}"
 aio = "{{.aioMode}}"
+discard = "on"
 
 [device "dev-lxd_{{.devName}}"]
 driver = "scsi-hd"
@@ -246,6 +247,7 @@ var qemuNetDevTapTun = template.Must(qemuDevTapCommon.New("qemuNetDevTapTun").Pa
 # Network card ("{{.devName}}" device)
 [netdev "lxd_{{.devName}}"]
 type = "tap"
+vhost = "on"
 ifname = "{{.ifName}}"
 script = "no"
 downscript = "no"
@@ -257,6 +259,7 @@ var qemuNetdevTapFD = template.Must(qemuDevTapCommon.New("qemuNetdevTapFD").Pars
 # Network card ("{{.devName}}" device)
 [netdev "lxd_{{.devName}}"]
 type = "tap"
+vhost = "on"
 fd = "{{.tapFD}}"
 {{ template "qemuDevTapCommon" . -}}
 `))

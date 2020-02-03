@@ -384,6 +384,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			{
 				DevPath: isoPath,
 				DevName: d.name,
+				FSType:  "iso9660",
 			},
 		}
 		return &runConf, nil
