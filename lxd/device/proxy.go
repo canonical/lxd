@@ -16,7 +16,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
+	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
@@ -228,8 +228,8 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 // Stop is run when the device is removed from the instance.
 func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
-	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
-	d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
+	d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv4, firewallDrivers.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
+	d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv6, firewallDrivers.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
 
 	devFileName := fmt.Sprintf("proxy.%s", d.name)
 	devPath := filepath.Join(d.inst.DevicesPath(), devFileName)
@@ -295,11 +295,11 @@ func (d *proxy) setupNAT() error {
 	defer func() {
 		if revert {
 			if IPv4Addr != nil {
-				d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, firewallComment)
+				d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv4, firewallDrivers.TableNat, firewallComment)
 			}
 
 			if IPv6Addr != nil {
-				d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, firewallComment)
+				d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv6, firewallDrivers.TableNat, firewallComment)
 			}
 		}
 	}()
@@ -317,14 +317,14 @@ func (d *proxy) setupNAT() error {
 		}
 
 		if IPv4Addr != nil {
-			err := d.state.Firewall.InstanceProxySetupNAT(firewallConsts.FamilyIPv4, listenAddr.ConnType, address, port, IPv4Addr, cPort, firewallComment)
+			err := d.state.Firewall.InstanceProxySetupNAT(firewallDrivers.FamilyIPv4, listenAddr.ConnType, address, port, IPv4Addr, cPort, firewallComment)
 			if err != nil {
 				return err
 			}
 		}
 
 		if IPv6Addr != nil {
-			err := d.state.Firewall.InstanceProxySetupNAT(firewallConsts.FamilyIPv6, listenAddr.ConnType, address, port, IPv6Addr, cPort, firewallComment)
+			err := d.state.Firewall.InstanceProxySetupNAT(firewallDrivers.FamilyIPv6, listenAddr.ConnType, address, port, IPv6Addr, cPort, firewallComment)
 			if err != nil {
 				return err
 			}

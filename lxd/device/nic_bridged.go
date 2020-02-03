@@ -21,7 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
-	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
+	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
@@ -475,7 +475,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	}
 
 	// Remove any IPv6 filters used for this instance.
-	err := d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.inst.Name()))
+	err := d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv6, firewallDrivers.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.inst.Name()))
 	if err != nil {
 		logger.Errorf("Failed to clear ip6tables ipv6_filter rules for %s: %v", m["name"], err)
 	}
