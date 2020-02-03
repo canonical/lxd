@@ -39,12 +39,6 @@ type dhcpAllocation struct {
 	Static bool
 }
 
-// dhcpRange represents a range of IPs from start to end.
-type dhcpRange struct {
-	Start net.IP
-	End   net.IP
-}
-
 type nicBridged struct {
 	deviceCommon
 }
@@ -588,7 +582,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
 		// then we'll need to generate a new one.
-		ranges := d.networkDHCPv4Ranges(netConfig)
+		ranges := n.DHCPv4Ranges()
 		if d.networkDHCPValidIP(subnet, ranges, curIPv4.IP.To4()) {
 			IPv4 = curIPv4.IP.To4()
 		}
@@ -603,7 +597,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 
 		// Check the existing static DHCP IP is still valid in the subnet & ranges, if not
 		// then we'll need to generate a new one.
-		ranges := d.networkDHCPv6Ranges(netConfig)
+		ranges := n.DHCPv6Ranges()
 		if d.networkDHCPValidIP(subnet, ranges, curIPv6.IP.To16()) {
 			IPv6 = curIPv6.IP.To16()
 		}
@@ -619,7 +613,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 
 		// Allocate a new IPv4 address if IPv4 filtering enabled.
 		if IPv4 == nil && canIPv4Allocate && shared.IsTrue(d.config["security.ipv4_filtering"]) {
-			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, netConfig, d.inst.Name(), d.config["hwaddr"])
+			IPv4, err = d.getDHCPFreeIPv4(IPv4Allocs, n, d.inst.Name(), d.config["hwaddr"])
 			if err != nil {
 				return nil, nil, err
 			}
@@ -627,7 +621,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 
 		// Allocate a new IPv6 address if IPv6 filtering enabled.
 		if IPv6 == nil && canIPv6Allocate && shared.IsTrue(d.config["security.ipv6_filtering"]) {
-			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, netConfig, d.inst.Name(), d.config["hwaddr"])
+			IPv6, err = d.getDHCPFreeIPv6(IPv6Allocs, n, d.inst.Name(), d.config["hwaddr"])
 			if err != nil {
 				return nil, nil, err
 			}
@@ -661,48 +655,8 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 	return IPv4, IPv6, nil
 }
 
-// networkDHCPv4Ranges returns a parsed set of DHCPv4 ranges for a particular network.
-func (d *nicBridged) networkDHCPv4Ranges(netConfig map[string]string) []dhcpRange {
-	dhcpRanges := make([]dhcpRange, 0)
-	if netConfig["ipv4.dhcp.ranges"] != "" {
-		for _, r := range strings.Split(netConfig["ipv4.dhcp.ranges"], ",") {
-			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
-			if len(parts) == 2 {
-				startIP := net.ParseIP(parts[0])
-				endIP := net.ParseIP(parts[1])
-				dhcpRanges = append(dhcpRanges, dhcpRange{
-					Start: startIP.To4(),
-					End:   endIP.To4(),
-				})
-			}
-		}
-	}
-
-	return dhcpRanges
-}
-
-// networkDHCPv6Ranges returns a parsed set of DHCPv6 ranges for a particular network.
-func (d *nicBridged) networkDHCPv6Ranges(netConfig map[string]string) []dhcpRange {
-	dhcpRanges := make([]dhcpRange, 0)
-	if netConfig["ipv6.dhcp.ranges"] != "" {
-		for _, r := range strings.Split(netConfig["ipv6.dhcp.ranges"], ",") {
-			parts := strings.SplitN(strings.TrimSpace(r), "-", 2)
-			if len(parts) == 2 {
-				startIP := net.ParseIP(parts[0])
-				endIP := net.ParseIP(parts[1])
-				dhcpRanges = append(dhcpRanges, dhcpRange{
-					Start: startIP.To16(),
-					End:   endIP.To16(),
-				})
-			}
-		}
-	}
-
-	return dhcpRanges
-}
-
 // networkDHCPValidIP returns whether an IP fits inside one of the supplied DHCP ranges and subnet.
-func (d *nicBridged) networkDHCPValidIP(subnet *net.IPNet, ranges []dhcpRange, IP net.IP) bool {
+func (d *nicBridged) networkDHCPValidIP(subnet *net.IPNet, ranges []network.DHCPRange, IP net.IP) bool {
 	inSubnet := subnet.Contains(IP)
 	if !inSubnet {
 		return false
@@ -826,18 +780,18 @@ func (d *nicBridged) getDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAlloca
 // getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the instance.
 // If no previous allocation, then a free IP is picked from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
 	MAC, err := net.ParseMAC(deviceMAC)
 	if err != nil {
 		return nil, err
 	}
 
-	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+	lxdIP, subnet, err := net.ParseCIDR(n.Config()["ipv4.address"])
 	if err != nil {
 		return nil, err
 	}
 
-	dhcpRanges := d.networkDHCPv4Ranges(netConfig)
+	dhcpRanges := n.DHCPv4Ranges()
 
 	// Lets see if there is already an allocation for our device and that it sits within subnet.
 	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
@@ -849,7 +803,10 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConf
 
 	// If no custom ranges defined, convert subnet pool to a range.
 	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, dhcpRange{Start: network.GetIP(subnet, 1).To4(), End: network.GetIP(subnet, -2).To4()})
+		dhcpRanges = append(dhcpRanges, network.DHCPRange{
+			Start: network.GetIP(subnet, 1).To4(),
+			End:   network.GetIP(subnet, -2).To4()},
+		)
 	}
 
 	// If no valid existing allocation found, try and find a free one in the subnet pool/ranges.
@@ -897,13 +854,14 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, netConf
 // DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netConfig map[string]string, ctName string, deviceMAC string) (net.IP, error) {
+func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
+	netConfig := n.Config()
 	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 	if err != nil {
 		return nil, err
 	}
 
-	dhcpRanges := d.networkDHCPv6Ranges(netConfig)
+	dhcpRanges := n.DHCPv6Ranges()
 
 	// Lets see if there is already an allocation for our device and that it sits within subnet.
 	// Because of dnsmasq's lease file format we can only match safely against static
@@ -938,7 +896,10 @@ func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, netCon
 
 	// If no custom ranges defined, convert subnet pool to a range.
 	if len(dhcpRanges) <= 0 {
-		dhcpRanges = append(dhcpRanges, dhcpRange{Start: network.GetIP(subnet, 1).To16(), End: network.GetIP(subnet, -1).To16()})
+		dhcpRanges = append(dhcpRanges, network.DHCPRange{
+			Start: network.GetIP(subnet, 1).To16(),
+			End:   network.GetIP(subnet, -1).To16()},
+		)
 	}
 
 	// If we get here, then someone already has our SLAAC IP, or we are using custom ranges.
