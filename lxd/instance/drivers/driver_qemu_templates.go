@@ -206,6 +206,7 @@ format = "raw"
 if = "none"
 cache = "{{.cacheMode}}"
 aio = "{{.aioMode}}"
+discard = "on"
 
 [device "dev-lxd_{{.devName}}"]
 driver = "scsi-hd"
