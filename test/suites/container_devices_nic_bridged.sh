@@ -29,7 +29,7 @@ test_container_devices_nic_bridged() {
   # Test pre-launch profile config is applied at launch
   lxc profile copy default "${ctName}"
 
-  # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
+  # Modify profile nictype and parent in atomic operation to ensure validation passes.
   lxc profile show "${ctName}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctName}"
 
   lxc profile device set "${ctName}" eth0 ipv4.routes "192.0.2.1${ipRand}/32"
@@ -441,6 +441,56 @@ test_container_devices_nic_bridged() {
   fi
 
   ip link delete "${ctName}"
+
+  # Linked network tests.
+  # Can't use network property when parent is set.
+  ! lxc profile device set "${ctName}" eth0 network="${brName}"
+
+  # Reset mtu and parent settings and assign network in one command.
+  lxc profile device set "${ctName}" eth0 mtu="" parent="" network="${brName}"
+
+  # Can't remove network if parent not specified.
+  ! lxc profile device unset "${ctName}" eth0 network
+
+  # Can't use some settings when network is set.
+  ! lxc profile device set "${ctName}" eth0 mtu="1400"
+  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv4="test"
+  ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv6="test"
+
+  # Can't set static IP that isn't part of network's subnet.
+  ! lxc profile device set "${ctName}" eth0 ipv4.address="192.0.4.2"
+  ! lxc profile device set "${ctName}" eth0 ipv6.address="2001:db8:2::2"
+
+  # Test bridge MTU is inherited.
+  lxc network set "${brName}" bridge.mtu 1400
+  lxc config device remove "${ctName}" eth0
+  lxc start "${ctName}"
+  if ! lxc exec "${ctName}" -- grep "1400" /sys/class/net/eth0/mtu ; then
+    echo "container mtu has not been inherited from network"
+    false
+  fi
+  lxc stop -f "${ctName}"
+  lxc network unset "${brName}" bridge.mtu
+
+  # Test stateful DHCP static IP checks.
+  ! lxc config device override "${ctName}" eth0 ipv4.address="192.0.4.2"
+
+  lxc network set "${brName}" ipv4.dhcp false
+  ! lxc config device override "${ctName}" eth0 ipv4.address="192.0.2.2"
+  lxc network unset "${brName}" ipv4.dhcp
+  lxc config device override "${ctName}" eth0 ipv4.address="192.0.2.2"
+
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8:2::2"
+
+  lxc network set "${brName}" ipv6.dhcp=false ipv6.dhcp.stateful=false
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
+  lxc network set "${brName}" ipv6.dhcp=true ipv6.dhcp.stateful=false
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
+  lxc network set "${brName}" ipv6.dhcp=false ipv6.dhcp.stateful=true
+  ! lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
+
+  lxc network unset "${brName}" ipv6.dhcp
+  lxc config device set "${ctName}" eth0 ipv6.address="2001:db8::2"
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
