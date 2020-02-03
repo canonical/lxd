@@ -1159,6 +1159,7 @@ func (vm *qemu) generateConfigShare() error {
 
 	lxdAgentServiceUnit := `[Unit]
 Description=LXD - agent
+Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Requires=lxd-agent-9p.service
 After=lxd-agent-9p.service
@@ -1180,6 +1181,7 @@ WantedBy=multi-user.target
 
 	lxdConfigShareMountUnit := `[Unit]
 Description=LXD - agent - 9p mount
+Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 
 [Service]
@@ -1477,7 +1479,9 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 
 		// If FS is ZFS, avoid using direct I/O and use host page cache only.
 		if fsType == "zfs" {
-			logger.Warnf("Using writeback cache I/O with %s", driveConf.DevPath)
+			if driveConf.FSType != "iso9660" {
+				logger.Warnf("Using writeback cache I/O with %s", driveConf.DevPath)
+			}
 			aioMode = "threads"
 			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
 		}
