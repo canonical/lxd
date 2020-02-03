@@ -1,4 +1,4 @@
-package consts
+package drivers
 
 // Location is used to determine whether a rule should be appended or prepended
 type Location int
