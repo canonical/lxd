@@ -908,3 +908,7 @@ Adds support for unix char and block device hotplugging.
 
 ## api\_filtering
 Adds support for filtering the result of a GET request for instances and images.
+
+## instance\_nic\_network
+Adds support for the `network` property on a NIC device to allow a NIC to be linked to a managed network.
+This allows it to inherit some of the network's settings and allows better validation of IP settings.
