@@ -31,6 +31,7 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 	defaultValidators := map[string]func(value string) error{
 		"name":                    shared.IsAny,
 		"parent":                  shared.IsAny,
+		"network":                 shared.IsAny,
 		"mtu":                     shared.IsAny,
 		"vlan":                    shared.IsAny,
 		"hwaddr":                  networkValidMAC,

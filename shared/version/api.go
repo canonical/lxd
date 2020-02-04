@@ -186,6 +186,7 @@ var APIExtensions = []string{
 	"vm_boot_priority",
 	"unix_hotplug_devices",
 	"api_filtering",
+	"instance_nic_network",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

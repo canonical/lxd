@@ -655,7 +655,7 @@ func (vm *qemu) Start(stateful bool) error {
 		runConf, err := vm.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
 			op.Done(err)
-			return errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
 		if runConf == nil {
@@ -667,7 +667,7 @@ func (vm *qemu) Start(stateful bool) error {
 			revert.Add(func() {
 				err := vm.deviceStop(localDev.Name, localDev.Config)
 				if err != nil {
-					logger.Errorf("Failed to cleanup device '%s': %v", localDev.Name, err)
+					logger.Errorf("Failed to cleanup device %q: %v", localDev.Name, err)
 				}
 			})
 		}(dev)
@@ -2303,13 +2303,13 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
-				return errors.Wrapf(err, "Failed to stop device '%s'", dev.Name)
+				return errors.Wrapf(err, "Failed to stop device %q", dev.Name)
 			}
 		}
 
 		err := vm.deviceRemove(dev.Name, dev.Config)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to remove device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to remove device %q", dev.Name)
 		}
 
 		// Check whether we are about to add the same device back with updated config and
@@ -2317,7 +2317,7 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 		// this device (as its an actual removal or a device type change).
 		err = vm.deviceResetVolatile(dev.Name, dev.Config, addDevices[dev.Name])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to reset volatile data for device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to reset volatile data for device %q", dev.Name)
 		}
 	}
 
@@ -2327,13 +2327,13 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 		if err == device.ErrUnsupportedDevType {
 			continue // No point in trying to start device below.
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to add device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to add device %q", dev.Name)
 		}
 
 		if isRunning {
 			_, err := vm.deviceStart(dev.Name, dev.Config, isRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to start device '%s'", dev.Name)
+				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 			}
 		}
 	}
@@ -2341,7 +2341,7 @@ func (vm *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices dev
 	for _, dev := range updateDevices.Sorted() {
 		err := vm.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, isRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to update device '%s'", dev.Name)
+			return errors.Wrapf(err, "Failed to update device %q", dev.Name)
 		}
 	}
 
