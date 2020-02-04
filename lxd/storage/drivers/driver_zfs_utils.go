@@ -82,7 +82,7 @@ func (d *zfs) checkDataset(dataset string) bool {
 }
 
 func (d *zfs) getClones(dataset string) ([]string, error) {
-	out, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "value", "-r", "clones", dataset)
+	out, err := shared.RunCommand("zfs", "get", "-H", "-p", "-r", "-o", "value", "clones", dataset)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (d *zfs) getClones(dataset string) ([]string, error) {
 }
 
 func (d *zfs) getDatasets(dataset string) ([]string, error) {
-	out, err := shared.RunCommand("zfs", "get", "name", "-o", "name", "-H", "-r", dataset)
+	out, err := shared.RunCommand("zfs", "get", "-H", "-r", "-o", "name", "name", dataset)
 	if err != nil {
 		return nil, err
 	}
