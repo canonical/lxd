@@ -17,6 +17,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/eui64"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -479,6 +480,13 @@ func (d *nicBridged) setFilters() (err error) {
 	}
 
 	if shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		// Ensure the correct br_netfilter kernel module is loaded before checking for bridge filtering
+		// support in iptables.
+		err := util.LoadModule("br_netfilter")
+		if err != nil {
+			return errors.Wrapf(err, "Error loading %q module", "br_netfilter")
+		}
+
 		// Check br_netfilter is loaded and enabled for IPv6.
 		sysctlPath := "net/bridge/bridge-nf-call-ip6tables"
 		sysctlVal, err := util.SysctlGet(sysctlPath)
