@@ -466,11 +466,11 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 	}
 
 	if changedConfig["lvm.thinpool_name"] != "" {
-		_, err := shared.TryRunCommand("lvrename", d.config["lvm.vg_name"], d.config["lvm.thinpool_name"], changedConfig["lvm.thinpool_name"])
+		_, err := shared.TryRunCommand("lvrename", d.config["lvm.vg_name"], d.thinpoolName(), changedConfig["lvm.thinpool_name"])
 		if err != nil {
-			return errors.Wrapf(err, "Error renaming LVM thin pool from %q to %q", d.config["lvm.thinpool_name"], changedConfig["lvm.thinpool_name"])
+			return errors.Wrapf(err, "Error renaming LVM thin pool from %q to %q", d.thinpoolName(), changedConfig["lvm.thinpool_name"])
 		}
-		d.logger.Debug("Thin pool volume renamed", log.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool": d.config["lvm.thinpool_name"], "new_thinpool": changedConfig["lvm.thinpool_name"]})
+		d.logger.Debug("Thin pool volume renamed", log.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool": d.thinpoolName(), "new_thinpool": changedConfig["lvm.thinpool_name"]})
 	}
 
 	return nil
