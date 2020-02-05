@@ -181,14 +181,7 @@ func WebsocketSendStream(conn *websocket.Conn, r io.Reader, bufferSize int) chan
 				break
 			}
 
-			w, err := conn.NextWriter(websocket.BinaryMessage)
-			if err != nil {
-				logger.Debugf("Got error getting next writer %s", err)
-				break
-			}
-
-			_, err = w.Write(buf)
-			w.Close()
+			err := conn.WriteMessage(websocket.BinaryMessage, buf)
 			if err != nil {
 				logger.Debugf("Got err writing %s", err)
 				break
@@ -308,14 +301,8 @@ func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) 
 			readDone <- true
 			return
 		}
-		w, err := conn.NextWriter(websocket.BinaryMessage)
-		if err != nil {
-			logger.Debugf("Got error getting next writer %s", err)
-			break
-		}
 
-		_, err = w.Write(buf)
-		w.Close()
+		err := conn.WriteMessage(websocket.BinaryMessage, buf)
 		if err != nil {
 			logger.Debugf("Got err writing %s", err)
 			break
@@ -479,14 +466,8 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 				readDone <- true
 				return
 			}
-			w, err := conn.NextWriter(websocket.BinaryMessage)
-			if err != nil {
-				logger.Debugf("Got error getting next writer %s", err)
-				break
-			}
 
-			_, err = w.Write(buf)
-			w.Close()
+			err := conn.WriteMessage(websocket.BinaryMessage, buf)
 			if err != nil {
 				logger.Debugf("Got err writing %s", err)
 				break

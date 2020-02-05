@@ -2882,19 +2882,12 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 
 // forwardControlCommand is used to send command control messages to the lxd-agent.
 func (vm *qemu) forwardControlCommand(control *websocket.Conn, cmd api.InstanceExecControl) error {
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
 	buf, err := json.Marshal(cmd)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(buf)
 
-	w.Close()
-	return err
+	return control.WriteMessage(websocket.TextMessage, buf)
 }
 
 // Exec a command inside the instance.

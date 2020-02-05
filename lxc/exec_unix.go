@@ -141,11 +141,6 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 func (c *cmdExec) forwardSignal(control *websocket.Conn, sig unix.Signal) error {
 	logger.Debugf("Forwarding signal: %s", sig)
 
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
 	msg := api.InstanceExecControl{}
 	msg.Command = "signal"
 	msg.Signal = int(sig)
@@ -154,8 +149,6 @@ func (c *cmdExec) forwardSignal(control *websocket.Conn, sig unix.Signal) error 
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(buf)
 
-	w.Close()
-	return err
+	return control.WriteMessage(websocket.TextMessage, buf)
 }
