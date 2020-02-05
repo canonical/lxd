@@ -680,6 +680,36 @@ func GetHostDevice(parent string, vlan string) string {
 func GetLeaseAddresses(s *state.State, networkName string, hwaddr string) ([]api.InstanceStateNetworkAddress, error) {
 	addresses := []api.InstanceStateNetworkAddress{}
 
+	// Look for neighborhood entries for IPv6.
+	out, err := shared.RunCommand("ip", "-6", "neigh", "show", "dev", networkName)
+	if err == nil {
+		for _, line := range strings.Split(out, "\n") {
+			// Split fields and early validation.
+			fields := strings.Fields(line)
+			if len(fields) != 4 {
+				continue
+			}
+
+			if fields[2] != hwaddr {
+				continue
+			}
+
+			// Prepare the entry.
+			addr := api.InstanceStateNetworkAddress{}
+			addr.Address = fields[0]
+			addr.Family = "inet6"
+
+			if strings.HasPrefix(fields[0], "fe80::") {
+				addr.Scope = "link"
+			} else {
+				addr.Scope = "global"
+			}
+
+			addresses = append(addresses, addr)
+		}
+	}
+
+	// Look for DHCP leases.
 	leaseFile := shared.VarPath("networks", networkName, "dnsmasq.leases")
 	if !shared.PathExists(leaseFile) {
 		return addresses, nil
