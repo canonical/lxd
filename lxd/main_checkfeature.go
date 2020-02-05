@@ -266,8 +266,11 @@ static void is_user_notification_continue_aware(void)
 	if (pid < 0)
 		return;
 
-	if (pid == 0)
+	if (pid == 0) {
 		__do_user_notification_continue();
+		// Should not be reached.
+		_exit(EXIT_FAILURE);
+	}
 
 	ret = waitpid(pid, &status, 0);
 	if ((ret == pid) && WIFEXITED(status) && !WEXITSTATUS(status))
