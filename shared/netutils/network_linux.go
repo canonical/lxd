@@ -198,6 +198,7 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 				break
 			}
 		}
+
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		conn.WriteMessage(websocket.CloseMessage, closeMsg)
 		readDone <- true

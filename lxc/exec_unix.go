@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"os/signal"
 
@@ -145,10 +144,5 @@ func (c *cmdExec) forwardSignal(control *websocket.Conn, sig unix.Signal) error 
 	msg.Command = "signal"
 	msg.Signal = int(sig)
 
-	buf, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	return control.WriteMessage(websocket.TextMessage, buf)
+	return control.WriteJSON(msg)
 }

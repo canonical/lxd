@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -55,12 +54,7 @@ func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 	msg.Args["width"] = strconv.Itoa(width)
 	msg.Args["height"] = strconv.Itoa(height)
 
-	buf, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	return control.WriteMessage(websocket.TextMessage, buf)
+	return control.WriteJSON(msg)
 }
 
 type readWriteCloser struct {
