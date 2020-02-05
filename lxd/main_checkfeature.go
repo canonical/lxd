@@ -170,9 +170,9 @@ static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
 
 __noreturn static void __do_user_notification_continue(void)
 {
+	__do_close_prot_errno int listener = -EBADF;
 	pid_t pid;
 	int ret;
-	int listener;
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
 	struct pollfd pollfd;
