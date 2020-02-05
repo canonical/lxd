@@ -4,7 +4,6 @@ package device
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	udev "github.com/farjump/go-libudev"
@@ -138,18 +137,12 @@ func (d *unixHotplug) Start() (*deviceConfig.RunConfig, error) {
 		return &runConf, nil
 	}
 
-	i, err := strconv.ParseUint(device.PropertyValue("MAJOR"), 10, 32)
-	if err != nil {
-		return nil, err
-	}
-	major := uint32(i)
-	j, err := strconv.ParseUint(device.PropertyValue("MINOR"), 10, 32)
-	if err != nil {
-		return nil, err
-	}
-	minor := uint32(j)
+	devnum := device.Devnum()
+	major := uint32(devnum.Major())
+	minor := uint32(devnum.Minor())
 
 	// setup device
+	var err error
 	if device.Subsystem() == "block" {
 		err = unixDeviceSetupBlockNum(d.state, d.inst.DevicesPath(), "unix", d.name, d.config, major, minor, device.Devnode(), false, &runConf)
 	} else {
@@ -207,6 +200,16 @@ func (d *unixHotplug) loadUnixDevice() *udev.Device {
 	var device *udev.Device
 	for i := range devices {
 		device = devices[i]
+
+		devnum := device.Devnum()
+		if devnum.Major() == 0 || devnum.Minor() == 0 {
+			continue
+		}
+
+		if device.Devnode() == "" {
+			continue
+		}
+
 		if !strings.HasPrefix(device.Subsystem(), "usb") {
 			return device
 		}
