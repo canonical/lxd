@@ -18,6 +18,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -819,10 +820,16 @@ func (d *disk) postStop() error {
 
 	if strings.HasPrefix(d.config["source"], "ceph:") {
 		v := d.volatileGet()
-		err := diskCephRbdUnmap(v["ceph_rbd"])
-		if err != nil {
-			return err
-		}
+
+		// Run unmap async. This is needed as postStop is called from
+		// within a monitor hook, meaning that as we process this, the monitor
+		// process is still running, holding some references.
+		go func() {
+			err := diskCephRbdUnmap(v["ceph_rbd"])
+			if err != nil {
+				logger.Errorf("Failed to unmap RBD volume '%s' for '%s': %v", v["ceph_rbd"], project.Prefix(d.inst.Project(), d.inst.Name()), err)
+			}
+		}()
 	}
 
 	return nil
