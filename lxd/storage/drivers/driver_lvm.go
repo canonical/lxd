@@ -92,6 +92,7 @@ func (d *lvm) Info() Info {
 		RunningQuotaResize:    false,
 		RunningSnapshotFreeze: false,
 		DirectIO:              true,
+		MountedRoot:           false,
 	}
 }
 

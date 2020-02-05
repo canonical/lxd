@@ -12,6 +12,7 @@ type Info struct {
 	RunningQuotaResize    bool         // Whether quota resize is supported whilst instance running.
 	RunningSnapshotFreeze bool         // Whether instance should be frozen during snapshot if running.
 	DirectIO              bool         // Whether the driver supports direct I/O.
+	MountedRoot           bool         // Whether the pool directory itself is a mount.
 }
 
 // VolumeFiller provides a struct for filling a volume.

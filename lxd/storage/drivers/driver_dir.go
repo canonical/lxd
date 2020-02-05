@@ -40,6 +40,7 @@ func (d *dir) Info() Info {
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: true,
 		DirectIO:              true,
+		MountedRoot:           true,
 	}
 }
 
