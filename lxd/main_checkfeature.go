@@ -17,10 +17,10 @@ import (
 #include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <syscall.h>
 #include <linux/seccomp.h>
@@ -39,6 +39,7 @@ __ro_after_init int seccomp_notify_aware = 0;
 __ro_after_init char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
+extern int wait_for_pid(pid_t pid);
 
 static int netns_set_nsid(int fd)
 {
@@ -169,20 +170,20 @@ static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
 
 __noreturn static void __do_user_notification_continue(void)
 {
+	__do_close_prot_errno int listener = -EBADF;
 	pid_t pid;
 	int ret;
-	int status, listener;
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
 	struct pollfd pollfd;
 
 	listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	if (listener < 0)
-		exit(1);
+		_exit(EXIT_FAILURE);
 
 	pid = fork();
 	if (pid < 0)
-		exit(1);
+		_exit(EXIT_FAILURE);
 
 	if (pid == 0) {
 		int dup_fd, pipe_fds[2];
@@ -192,21 +193,21 @@ __noreturn static void __do_user_notification_continue(void)
 		// will be closed anyway.
 		ret = pipe(pipe_fds);
 		if (ret < 0)
-			exit(1);
+			_exit(EXIT_FAILURE);
 
 		// O_CLOEXEC doesn't matter as we're in the child and we're
 		// not going to exec.
 		dup_fd = dup(pipe_fds[0]);
 		if (dup_fd < 0)
-			exit(1);
+			_exit(EXIT_FAILURE);
 
 		self = getpid();
 
 		ret = filecmp(self, self, pipe_fds[0], dup_fd);
 		if (ret)
-			exit(2);
+			_exit(EXIT_FAILURE);
 
-		exit(0);
+		_exit(EXIT_SUCCESS);
 	}
 
 	pollfd.fd = listener;
@@ -247,10 +248,10 @@ __noreturn static void __do_user_notification_continue(void)
 	}
 
 cleanup_wait:
-	ret = waitpid(pid, &status, 0);
-	if ((ret != pid) || !WIFEXITED(status) || WEXITSTATUS(status))
-		exit(1);
-	exit(0);
+	ret = wait_for_pid(pid);
+	if (ret)
+		_exit(EXIT_FAILURE);
+	_exit(EXIT_SUCCESS);
 
 cleanup_sigkill:
 	kill(pid, SIGKILL);
@@ -259,18 +260,21 @@ cleanup_sigkill:
 
 static void is_user_notification_continue_aware(void)
 {
-	int ret, status;
+	int ret;
 	pid_t pid;
 
 	pid = fork();
 	if (pid < 0)
 		return;
 
-	if (pid == 0)
+	if (pid == 0) {
 		__do_user_notification_continue();
+		// Should not be reached.
+		_exit(EXIT_FAILURE);
+	}
 
-	ret = waitpid(pid, &status, 0);
-	if ((ret == pid) && WIFEXITED(status) && !WEXITSTATUS(status))
+	ret = wait_for_pid(pid);
+	if (!ret)
 		seccomp_notify_aware = 2;
 }
 
