@@ -81,6 +81,14 @@ func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 
 	// If dealing with a remote storage pool, we're done now.
 	if b.driver.Info().Remote && localOnly {
+		if !b.driver.Info().MountedRoot {
+			// Create the directory structure.
+			err = b.createStorageStructure(path)
+			if err != nil {
+				return err
+			}
+		}
+
 		revert.Success()
 		return nil
 	}
@@ -198,14 +206,14 @@ func (b *lxdBackend) Delete(localOnly bool, op *operations.Operation) error {
 		return nil
 	}
 
-	// Delete the low-level storage.
-	if !localOnly || !b.driver.Info().Remote {
-		err := b.driver.Delete(op)
+	if localOnly && b.driver.Info().Remote && b.driver.Info().MountedRoot {
+		_, err := b.driver.Unmount()
 		if err != nil {
 			return err
 		}
 	} else {
-		_, err := b.driver.Unmount()
+		// Delete the low-level storage.
+		err := b.driver.Delete(op)
 		if err != nil {
 			return err
 		}
