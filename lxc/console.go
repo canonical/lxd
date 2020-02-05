@@ -49,11 +49,6 @@ func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 
 	logger.Debugf("Window size is now: %dx%d", width, height)
 
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
 	msg := api.InstanceExecControl{}
 	msg.Command = "window-resize"
 	msg.Args = make(map[string]string)
@@ -64,10 +59,8 @@ func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(buf)
 
-	w.Close()
-	return err
+	return control.WriteMessage(websocket.TextMessage, buf)
 }
 
 type readWriteCloser struct {
