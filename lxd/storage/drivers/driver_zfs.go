@@ -103,6 +103,7 @@ func (d *zfs) Info() Info {
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: false,
 		DirectIO:              zfsDirectIO,
+		MountedRoot:           false,
 	}
 
 	return info
