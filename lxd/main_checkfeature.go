@@ -10,7 +10,6 @@ import (
 #endif
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/kcmp.h>
 #include <linux/types.h>
 #include <poll.h>
 #include <stdbool.h>
@@ -161,7 +160,10 @@ static int user_trap_syscall(int nr, unsigned int flags)
 static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
 {
 #ifdef __NR_kcmp
-	return syscall(__NR_kcmp, pid1, pid2, KCMP_FILE, fd1, fd2);
+#ifndef KCMP_FILE
+#define KCMP_FILE 0
+#endif
+	return syscall(__NR_kcmp, pid1, pid2, 0, fd1, fd2);
 #else
 	errno = ENOSYS;
 	return -1;
