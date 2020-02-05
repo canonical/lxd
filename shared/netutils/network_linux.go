@@ -184,23 +184,21 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 			if !ok {
 				r.Close()
 				logger.Debugf("sending write barrier")
-				conn.WriteMessage(websocket.TextMessage, []byte{})
+				err := conn.WriteMessage(websocket.TextMessage, []byte{})
+				if err != nil {
+					logger.Debugf("Got err writing barrier %s", err)
+				}
 				readDone <- true
 				return
 			}
-			w, err := conn.NextWriter(websocket.BinaryMessage)
-			if err != nil {
-				logger.Debugf("Got error getting next writer %s", err)
-				break
-			}
 
-			_, err = w.Write(buf)
-			w.Close()
+			err := conn.WriteMessage(websocket.BinaryMessage, buf)
 			if err != nil {
 				logger.Debugf("Got err writing %s", err)
 				break
 			}
 		}
+
 		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 		conn.WriteMessage(websocket.CloseMessage, closeMsg)
 		readDone <- true

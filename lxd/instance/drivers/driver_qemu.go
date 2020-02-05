@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -2880,23 +2879,6 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 	return console, chDisconnect, nil
 }
 
-// forwardControlCommand is used to send command control messages to the lxd-agent.
-func (vm *qemu) forwardControlCommand(control *websocket.Conn, cmd api.InstanceExecControl) error {
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
-	buf, err := json.Marshal(cmd)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(buf)
-
-	w.Close()
-	return err
-}
-
 // Exec a command inside the instance.
 func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	revert := revert.New()
@@ -2937,8 +2919,7 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 		for {
 			select {
 			case cmd := <-controlSendCh:
-				err := vm.forwardControlCommand(control, cmd)
-				controlResCh <- err
+				controlResCh <- control.WriteJSON(cmd)
 			case <-dataDone:
 				return
 			}

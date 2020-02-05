@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -49,25 +48,13 @@ func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 
 	logger.Debugf("Window size is now: %dx%d", width, height)
 
-	w, err := control.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-
 	msg := api.InstanceExecControl{}
 	msg.Command = "window-resize"
 	msg.Args = make(map[string]string)
 	msg.Args["width"] = strconv.Itoa(width)
 	msg.Args["height"] = strconv.Itoa(height)
 
-	buf, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(buf)
-
-	w.Close()
-	return err
+	return control.WriteJSON(msg)
 }
 
 type readWriteCloser struct {
