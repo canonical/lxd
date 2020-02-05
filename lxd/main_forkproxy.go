@@ -41,6 +41,7 @@ import (
 extern char* advance_arg(bool required);
 extern void attach_userns(int pid);
 extern int dosetns(int pid, char *nstype);
+extern int wait_for_pid(pid_t pid);
 
 int whoami = -ESRCH;
 
@@ -56,24 +57,6 @@ static int switch_uid_gid(uint32_t uid, uint32_t gid)
 	if (setuid((uid_t)uid) < 0)
 		return -1;
 
-	return 0;
-}
-
-static int wait_for_pid(pid_t pid)
-{
-	int status, ret;
-
-again:
-	ret = waitpid(pid, &status, 0);
-	if (ret == -1) {
-		if (errno == EINTR)
-			goto again;
-		return -1;
-	}
-	if (ret != pid)
-		goto again;
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-		return -1;
 	return 0;
 }
 
