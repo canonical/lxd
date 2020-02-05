@@ -711,7 +711,7 @@ func resetContainerDiskIdmap(container *containerLXC, srcIdmap *idmap.IdmapSet) 
 	return nil
 }
 
-func SetupStorageDriver(s *state.State, forceCheck bool) error {
+func setupStorageDriver(s *state.State, forceCheck bool) error {
 	pools, err := s.Cluster.StoragePoolsNotPending()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
