@@ -71,6 +71,7 @@ func (d *cephfs) Info() Info {
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: false,
 		DirectIO:              true,
+		MountedRoot:           true,
 	}
 }
 

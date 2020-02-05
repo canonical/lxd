@@ -76,6 +76,7 @@ func (d *btrfs) Info() Info {
 		RunningQuotaResize:    true,
 		RunningSnapshotFreeze: false,
 		DirectIO:              true,
+		MountedRoot:           true,
 	}
 }
 
