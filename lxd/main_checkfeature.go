@@ -17,10 +17,10 @@ import (
 #include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <syscall.h>
 #include <linux/seccomp.h>
@@ -39,6 +39,7 @@ __ro_after_init int seccomp_notify_aware = 0;
 __ro_after_init char errbuf[4096];
 
 extern int can_inject_uevent(const char *uevent, size_t len);
+extern int wait_for_pid(pid_t pid);
 
 static int netns_set_nsid(int fd)
 {
@@ -171,7 +172,7 @@ __noreturn static void __do_user_notification_continue(void)
 {
 	pid_t pid;
 	int ret;
-	int status, listener;
+	int listener;
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
 	struct pollfd pollfd;
@@ -247,8 +248,8 @@ __noreturn static void __do_user_notification_continue(void)
 	}
 
 cleanup_wait:
-	ret = waitpid(pid, &status, 0);
-	if ((ret != pid) || !WIFEXITED(status) || WEXITSTATUS(status))
+	ret = wait_for_pid(pid);
+	if (ret)
 		_exit(EXIT_FAILURE);
 	_exit(EXIT_SUCCESS);
 
@@ -259,7 +260,7 @@ cleanup_sigkill:
 
 static void is_user_notification_continue_aware(void)
 {
-	int ret, status;
+	int ret;
 	pid_t pid;
 
 	pid = fork();
@@ -272,8 +273,8 @@ static void is_user_notification_continue_aware(void)
 		_exit(EXIT_FAILURE);
 	}
 
-	ret = waitpid(pid, &status, 0);
-	if ((ret == pid) && WIFEXITED(status) && !WEXITSTATUS(status))
+	ret = wait_for_pid(pid);
+	if (!ret)
 		seccomp_notify_aware = 2;
 }
 

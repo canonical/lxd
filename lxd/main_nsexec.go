@@ -33,6 +33,7 @@ package main
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "include/memory_utils.h"
@@ -50,6 +51,24 @@ extern void forkuevent();
 char *cmdline_buf = NULL;
 char *cmdline_cur = NULL;
 ssize_t cmdline_size = -1;
+
+int wait_for_pid(pid_t pid)
+{
+	int status, ret;
+
+again:
+	ret = waitpid(pid, &status, 0);
+	if (ret == -1) {
+		if (errno == EINTR)
+			goto again;
+		return -1;
+	}
+	if (ret != pid)
+		goto again;
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+		return -1;
+	return 0;
+}
 
 char* advance_arg(bool required) {
 	while (*cmdline_cur != 0)
