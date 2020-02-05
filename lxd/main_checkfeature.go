@@ -178,11 +178,11 @@ __noreturn static void __do_user_notification_continue(void)
 
 	listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	if (listener < 0)
-		exit(1);
+		_exit(EXIT_FAILURE);
 
 	pid = fork();
 	if (pid < 0)
-		exit(1);
+		_exit(EXIT_FAILURE);
 
 	if (pid == 0) {
 		int dup_fd, pipe_fds[2];
@@ -192,21 +192,21 @@ __noreturn static void __do_user_notification_continue(void)
 		// will be closed anyway.
 		ret = pipe(pipe_fds);
 		if (ret < 0)
-			exit(1);
+			_exit(EXIT_FAILURE);
 
 		// O_CLOEXEC doesn't matter as we're in the child and we're
 		// not going to exec.
 		dup_fd = dup(pipe_fds[0]);
 		if (dup_fd < 0)
-			exit(1);
+			_exit(EXIT_FAILURE);
 
 		self = getpid();
 
 		ret = filecmp(self, self, pipe_fds[0], dup_fd);
 		if (ret)
-			exit(2);
+			_exit(EXIT_FAILURE);
 
-		exit(0);
+		_exit(EXIT_SUCCESS);
 	}
 
 	pollfd.fd = listener;
@@ -249,8 +249,8 @@ __noreturn static void __do_user_notification_continue(void)
 cleanup_wait:
 	ret = waitpid(pid, &status, 0);
 	if ((ret != pid) || !WIFEXITED(status) || WEXITSTATUS(status))
-		exit(1);
-	exit(0);
+		_exit(EXIT_FAILURE);
+	_exit(EXIT_SUCCESS);
 
 cleanup_sigkill:
 	kill(pid, SIGKILL);
