@@ -152,12 +152,7 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 				event = eventCopy
 			}
 
-			body, err := json.Marshal(event)
-			if err != nil {
-				return
-			}
-
-			err = listener.connection.WriteMessage(websocket.TextMessage, body)
+			err := listener.connection.WriteJSON(event)
 			if err != nil {
 				// Remove the listener from the list
 				s.lock.Lock()
