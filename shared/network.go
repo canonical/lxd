@@ -206,7 +206,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 			}
 
 			if mt == websocket.TextMessage {
-				logger.Debugf("got message barrier")
+				logger.Debugf("Got message barrier")
 				break
 			}
 
@@ -296,7 +296,7 @@ func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) 
 		buf, ok := <-in
 		if !ok {
 			r.Close()
-			logger.Debugf("sending write barrier")
+			logger.Debugf("Sending write barrier")
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 			readDone <- true
 			return
@@ -460,7 +460,7 @@ func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadClo
 			buf, ok := <-in
 			if !ok {
 				r.Close()
-				logger.Debugf("sending write barrier")
+				logger.Debugf("Sending write barrier")
 				conn.WriteMessage(websocket.BinaryMessage, []byte("\r"))
 				conn.WriteMessage(websocket.TextMessage, []byte{})
 				readDone <- true
