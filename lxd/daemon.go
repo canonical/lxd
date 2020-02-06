@@ -815,7 +815,7 @@ func (d *Daemon) init() error {
 
 	/* Read the storage pools */
 	logger.Infof("Initializing storage pools")
-	err = SetupStorageDriver(d.State(), false)
+	err = setupStorageDriver(d.State(), false)
 	if err != nil {
 		return err
 	}
