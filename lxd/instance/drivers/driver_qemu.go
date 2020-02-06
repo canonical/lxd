@@ -2160,7 +2160,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// between oldDevice and newDevice. The result of this is that as long as the
 		// devices are otherwise identical except for the fields returned here, then the
 		// device is considered to be being "updated" rather than "added & removed".
-		if oldDevice["type"] != newDevice["type"] || oldDevice["nictype"] != newDevice["nictype"] {
+		if oldDevice["type"] != newDevice["type"] || oldDevice.NICType() != newDevice.NICType() {
 			return []string{} // Device types aren't the same, so this cannot be an update.
 		}
 
@@ -2371,7 +2371,7 @@ func (vm *qemu) deviceResetVolatile(devName string, oldConfig, newConfig deviceC
 	// If the device type has changed, remove all old volatile keys.
 	// This will occur if the newConfig is empty (i.e the device is actually being removed) or
 	// if the device type is being changed but keeping the same name.
-	if newConfig["type"] != oldConfig["type"] || newConfig["nictype"] != oldConfig["nictype"] {
+	if newConfig["type"] != oldConfig["type"] || newConfig.NICType() != oldConfig.NICType() {
 		for k := range vm.localConfig {
 			if !strings.HasPrefix(k, devicePrefix) {
 				continue
@@ -3079,7 +3079,7 @@ func (vm *qemu) RenderState() (*api.InstanceState, error) {
 			networks := map[string]api.InstanceStateNetwork{}
 			for k, m := range vm.ExpandedDevices() {
 				// We only care about nics.
-				if m["type"] != "nic" || m["nictype"] != "bridged" {
+				if m["type"] != "nic" || m.NICType() != "bridged" {
 					continue
 				}
 
@@ -3451,7 +3451,7 @@ func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceCon
 	}
 
 	// Fill in the MAC address
-	if !shared.StringInSlice(m["nictype"], []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
+	if !shared.StringInSlice(m.NICType(), []string{"physical", "ipvlan", "sriov"}) && m["hwaddr"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := vm.localConfig[configKey]
 		if volatileHwaddr == "" {

@@ -34,7 +34,7 @@ func IsInUse(c instance.Instance, networkName string) bool {
 			continue
 		}
 
-		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
+		if !shared.StringInSlice(d.NICType(), []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
 			continue
 		}
 
@@ -236,7 +236,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		// Go through all its devices (including profiles
 		for k, d := range inst.ExpandedDevices() {
 			// Skip uninteresting entries
-			if d["type"] != "nic" || d["nictype"] != "bridged" || !shared.StringInSlice(d["parent"], networks) {
+			if d["type"] != "nic" || d.NICType() != "bridged" || !shared.StringInSlice(d["parent"], networks) {
 				continue
 			}
 
