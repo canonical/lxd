@@ -388,7 +388,7 @@ func networkSetupHostVethDevice(device deviceConfig.Device, oldDevice deviceConf
 func networkSetVethRoutes(m deviceConfig.Device) error {
 	// Decide whether the route should point to the veth parent or the bridge parent.
 	routeDev := m["host_name"]
-	if m["nictype"] == "bridged" {
+	if m.NICType() == "bridged" {
 		routeDev = m["parent"]
 	}
 
@@ -426,7 +426,7 @@ func networkSetVethRoutes(m deviceConfig.Device) error {
 func networkRemoveVethRoutes(m deviceConfig.Device) {
 	// Decide whether the route should point to the veth parent or the bridge parent
 	routeDev := m["host_name"]
-	if m["nictype"] == "bridged" {
+	if m.NICType() == "bridged" {
 		routeDev = m["parent"]
 	}
 
