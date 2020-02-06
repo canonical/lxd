@@ -174,12 +174,12 @@ CREATE TABLE images_profiles (
 	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
 	UNIQUE (image_id, profile_id)
 );
-INSERT INTO images_profiles (image_id, profile_id) 
+INSERT INTO images_profiles (image_id, profile_id)
 	SELECT images.id, profiles.id FROM images
 	JOIN profiles ON images.project_id = profiles.project_id
 	WHERE profiles.name = 'default';
 INSERT INTO images_profiles (image_id, profile_id)
-	SELECT images.id, profiles.id FROM projects_config AS R 
+	SELECT images.id, profiles.id FROM projects_config AS R
 	JOIN projects_config AS S ON R.project_id = S.project_id
 	JOIN images ON images.project_id = R.project_id
 	JOIN profiles ON profiles.project_id = 1 AND profiles.name = "default"
