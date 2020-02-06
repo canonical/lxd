@@ -267,7 +267,7 @@ func (d *proxy) setupNAT() error {
 	var IPv6Addr net.IP
 
 	for _, devConfig := range d.inst.ExpandedDevices() {
-		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig["nictype"] != "bridged") {
+		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig.NICType() != "bridged") {
 			continue
 		}
 

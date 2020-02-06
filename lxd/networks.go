@@ -699,7 +699,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 			// Go through all its devices (including profiles
 			for k, d := range inst.ExpandedDevices() {
 				// Skip uninteresting entries
-				if d["type"] != "nic" || d["nictype"] != "bridged" || d["parent"] != name {
+				if d["type"] != "nic" || d.NICType() != "bridged" || d["parent"] != name {
 					continue
 				}
 
