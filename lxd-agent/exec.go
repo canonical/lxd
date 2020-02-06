@@ -339,7 +339,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						logger.Errorf("Failed forwarding signal '%d' to PID %d", command.Signal, attachedChildPid)
 						continue
 					}
-					logger.Errorf("Forwarded signal '%d' to PID %d", command.Signal, attachedChildPid)
+					logger.Infof("Forwarded signal '%d' to PID %d", command.Signal, attachedChildPid)
 				}
 			}
 		}()
