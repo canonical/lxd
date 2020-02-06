@@ -446,13 +446,14 @@ test_container_devices_nic_bridged() {
   # Can't use network property when parent is set.
   ! lxc profile device set "${ctName}" eth0 network="${brName}"
 
-  # Reset mtu and parent settings and assign network in one command.
-  lxc profile device set "${ctName}" eth0 mtu="" parent="" network="${brName}"
+  # Remove mtu, nictype and parent settings and assign network in one command.
+  lxc profile device set "${ctName}" eth0 mtu="" parent="" nictype="" network="${brName}"
 
   # Can't remove network if parent not specified.
   ! lxc profile device unset "${ctName}" eth0 network
 
   # Can't use some settings when network is set.
+  ! lxc profile device set "${ctName}" eth0 nictype="bridged"
   ! lxc profile device set "${ctName}" eth0 mtu="1400"
   ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv4="test"
   ! lxc profile device set "${ctName}" eth0 maas.subnet.ipv6="test"
@@ -469,6 +470,17 @@ test_container_devices_nic_bridged() {
     echo "container mtu has not been inherited from network"
     false
   fi
+
+  # Check profile routes are applied on boot (as these use derived nictype).
+  if ! ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list dev "${brName}" | grep "2001:db8::1${ipRand}" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
+
   lxc stop -f "${ctName}"
   lxc network unset "${brName}" bridge.mtu
 

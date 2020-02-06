@@ -12,7 +12,7 @@ var infinibandTypes = map[string]func() device{
 
 // infinibandLoadByType returns an Infiniband device instantiated with supplied config.
 func infinibandLoadByType(c deviceConfig.Device) device {
-	f := infinibandTypes[c["nictype"]]
+	f := infinibandTypes[c.NICType()]
 	if f != nil {
 		return f()
 	}
