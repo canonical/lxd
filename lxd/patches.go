@@ -451,7 +451,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		return err
 	}
 
-	return SetupStorageDriver(d.State(), true)
+	return setupStorageDriver(d.State(), true)
 }
 
 func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string, defaultStorageTypeName string, cRegular []string, cSnapshots []string, imgPublic []string, imgPrivate []string) error {

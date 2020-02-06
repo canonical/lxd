@@ -59,6 +59,49 @@ var updates = map[int]schema.Update{
 	21: updateFromV20,
 	22: updateFromV21,
 	23: updateFromV22,
+	24: updateFromV23,
+}
+
+// The lvm.vg_name config key is required for LVM to function.
+func updateFromV23(tx *sql.Tx) error {
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing lvm pools.
+	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='lvm'`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current lvm pools")
+	}
+
+	for _, poolID := range poolIDs {
+		for _, nodeID := range nodeIDs {
+			// Fetch the config for this lvm pool.
+			config, err := query.SelectConfig(tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, nodeID)
+			if err != nil {
+				return errors.Wrap(err, "Failed to fetch of lvm pool config")
+			}
+
+			// Check if already set.
+			_, ok := config["lvm.vg_name"]
+			if ok {
+				continue
+			}
+
+			// Add lvm.vg_name config entry.
+			_, err = tx.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+SELECT ?, ?, 'lvm.vg_name', name FROM storage_pools WHERE id=?
+`, poolID, nodeID, poolID)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create lvm.vg_name node config")
+			}
+		}
+	}
+
+	return nil
 }
 
 // The zfs.pool_name config key is required for ZFS to function.
@@ -131,12 +174,12 @@ CREATE TABLE images_profiles (
 	FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE,
 	UNIQUE (image_id, profile_id)
 );
-INSERT INTO images_profiles (image_id, profile_id) 
+INSERT INTO images_profiles (image_id, profile_id)
 	SELECT images.id, profiles.id FROM images
 	JOIN profiles ON images.project_id = profiles.project_id
 	WHERE profiles.name = 'default';
 INSERT INTO images_profiles (image_id, profile_id)
-	SELECT images.id, profiles.id FROM projects_config AS R 
+	SELECT images.id, profiles.id FROM projects_config AS R
 	JOIN projects_config AS S ON R.project_id = S.project_id
 	JOIN images ON images.project_id = R.project_id
 	JOIN profiles ON profiles.project_id = 1 AND profiles.name = "default"
