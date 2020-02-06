@@ -38,11 +38,15 @@ func IsInUse(c instance.Instance, networkName string) bool {
 			continue
 		}
 
+		if d["network"] == networkName {
+			return true
+		}
+
 		if d["parent"] == "" {
 			continue
 		}
 
-		if GetHostDevice(d["parent"], d["vlan"]) == networkName || d["network"] == networkName {
+		if GetHostDevice(d["parent"], d["vlan"]) == networkName {
 			return true
 		}
 	}
