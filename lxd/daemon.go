@@ -808,41 +808,41 @@ func (d *Daemon) init() error {
 		containersRestart(s)
 	}
 
-	// Setup the user-agent
+	// Setup the user-agent.
 	if clustered {
 		version.UserAgentFeatures([]string{"cluster"})
 	}
 
-	/* Read the storage pools */
+	// Read the storage pools.
 	logger.Infof("Initializing storage pools")
-	err = SetupStorageDriver(d.State(), false)
+	err = setupStorageDriver(d.State(), false)
 	if err != nil {
 		return err
 	}
 
-	// Mount any daemon storage
+	// Mount any daemon storage.
 	err = daemonStorageMount(d.State())
 	if err != nil {
 		return err
 	}
 
-	/* Apply all patches */
+	// Apply all patches.
 	err = patchesApplyAll(d)
 	if err != nil {
 		return err
 	}
 
-	/* Setup the networks */
+	// Setup the networks.
 	logger.Infof("Initializing networks")
 	err = networkStartup(d.State())
 	if err != nil {
 		return err
 	}
 
-	// Cleanup leftover images
+	// Cleanup leftover images.
 	pruneLeftoverImages(d)
 
-	/* Setup the proxy handler, external authentication and MAAS */
+	// Setup the proxy handler, external authentication and MAAS.
 	candidAPIURL := ""
 	candidAPIKey := ""
 	candidDomains := ""

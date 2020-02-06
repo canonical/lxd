@@ -50,7 +50,10 @@ func (d *zfs) load() error {
 	}
 
 	// Load the kernel module.
-	util.LoadModule("zfs")
+	err := util.LoadModule("zfs")
+	if err != nil {
+		return errors.Wrapf(err, "Error loading %q module", "zfs")
+	}
 
 	// Validate the needed tools are present.
 	for _, tool := range []string{"zpool", "zfs"} {
