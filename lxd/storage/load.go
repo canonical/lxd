@@ -2,11 +2,11 @@ package storage
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
@@ -34,23 +34,19 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// format <project>_<volume>. However not all volume types currently use this
 		// encoding format, so if there is no underscore in the volume name then we assume
 		// the project is default.
-		project := "default"
+		projectName := project.Default
 
 		// Currently only Containers and VMs support project level volumes.
 		// This means that other volume types may have underscores in their names that don't
 		// indicate the project name.
 		if volType == drivers.VolumeTypeContainer || volType == drivers.VolumeTypeVM {
-			volParts := strings.SplitN(volName, "_", 2)
-			if len(volParts) > 1 {
-				project = volParts[0]
-				volName = volParts[1]
-			}
+			projectName, volName = project.InstanceParts(volName)
 		}
 
-		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volName, volTypeID, poolID)
+		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, volTypeID, poolID)
 		if err != nil {
 			if err == db.ErrNoSuchObject {
-				return -1, fmt.Errorf("Failed to get volume ID for project '%s', volume '%s', type '%s': Volume doesn't exist", project, volName, volType)
+				return -1, fmt.Errorf("Failed to get volume ID for project '%s', volume '%s', type '%s': Volume doesn't exist", projectName, volName, volType)
 			}
 
 			return -1, err
