@@ -532,8 +532,8 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 		}
 
 		err = os.Remove(mountPath)
-		if err != nil {
-			return err
+		if err != nil && !os.IsNotExist(err) {
+			return errors.Wrapf(err, "Failed to remove '%s'", mountPath)
 		}
 	}
 
@@ -981,8 +981,8 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 		}
 
 		err = os.Remove(mountPath)
-		if err != nil {
-			return err
+		if err != nil && !os.IsNotExist(err) {
+			return errors.Wrapf(err, "Failed to remove '%s'", mountPath)
 		}
 	}
 
