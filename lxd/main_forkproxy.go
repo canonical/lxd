@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/device"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/netutils"
 )
@@ -328,7 +329,7 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 	}
 }
 
-func listenerInstance(epFd C.int, lAddr *device.ProxyAddress, cAddr *device.ProxyAddress, connFd C.int, lStruct *lStruct, proxy bool) error {
+func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *deviceConfig.ProxyAddress, connFd C.int, lStruct *lStruct, proxy bool) error {
 	if lAddr.ConnType == "udp" {
 		// This only handles udp <-> udp. The C constructor will have
 		// verified this before.
