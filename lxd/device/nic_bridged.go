@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"math/rand"
 	"net"
@@ -483,56 +482,15 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	var IPv4, IPv6 dhcpAllocation
+	var IPv4, IPv6 dnsmasq.DHCPAllocation
 	if shared.PathExists(shared.VarPath("networks", m["parent"], "dnsmasq.hosts") + "/" + d.inst.Name()) {
-		IPv4, IPv6, err = d.getDHCPStaticIPs(m["parent"], d.inst.Name())
+		IPv4, IPv6, err = dnsmasq.DHCPStaticIPs(m["parent"], d.inst.Name())
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
 		}
 	}
 
 	return d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4.IP, IPv6.IP)
-}
-
-// getDHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a instance.
-// Returns IPv4 and IPv6 dhcpAllocation structs respectively.
-func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcpAllocation, dhcpAllocation, error) {
-	var IPv4, IPv6 dhcpAllocation
-
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts") + "/" + instanceName)
-	if err != nil {
-		return IPv4, IPv6, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fields := strings.SplitN(scanner.Text(), ",", -1)
-		for _, field := range fields {
-			// Check if field is IPv4 or IPv6 address.
-			if strings.Count(field, ".") == 3 {
-				IP := net.ParseIP(field)
-				if IP.To4() == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
-				}
-				IPv4 = dhcpAllocation{Name: d.inst.Name(), Static: true, IP: IP.To4()}
-
-			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
-				IP := net.ParseIP(field[1 : len(field)-1])
-				if IP == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
-				}
-				IPv6 = dhcpAllocation{Name: d.inst.Name(), Static: true, IP: IP}
-			}
-		}
-	}
-
-	err = scanner.Err()
-	if err != nil {
-		return IPv4, IPv6, err
-	}
-
-	return IPv4, IPv6, nil
 }
 
 // setFilters sets up any network level filters defined for the instance.
@@ -645,7 +603,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 	defer dnsmasq.ConfigMutex.Unlock()
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	curIPv4, curIPv6, err := d.getDHCPStaticIPs(d.config["parent"], d.inst.Name())
+	curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d.config["parent"], d.inst.Name())
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, err
 	}
@@ -683,7 +641,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 	// If we need to generate either a new IPv4 or IPv6, load existing IPs used in network.
 	if (IPv4 == nil && canIPv4Allocate) || (IPv6 == nil && canIPv6Allocate) {
 		// Get existing allocations in network.
-		IPv4Allocs, IPv6Allocs, err := d.getDHCPAllocatedIPs(d.config["parent"])
+		IPv4Allocs, IPv6Allocs, err := dnsmasq.DHCPAllocatedIPs(d.config["parent"])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -752,112 +710,10 @@ func (d *nicBridged) networkDHCPValidIP(subnet *net.IPNet, ranges []network.DHCP
 	return false
 }
 
-// getDHCPAllocatedIPs returns a map of IPs currently allocated (statically and dynamically)
-// in dnsmasq for a specific network. The returned map is keyed by a 16 byte array representing
-// the net.IP format. The value of each map item is a dhcpAllocation struct containing at least
-// whether the allocation was static or dynamic and optionally instance name or MAC address.
-// MAC addresses are only included for dynamic IPv4 allocations (where name is not reliable).
-// Static allocations are not overridden by dynamic allocations, allowing for instance name to be
-// included for static IPv6 allocations. IPv6 addresses that are dynamically assigned cannot be
-// reliably linked to instances using either name or MAC because dnsmasq does not record the MAC
-// address for these records, and the recorded host name can be set by the instance if the dns.mode
-// for the network is set to "dynamic" and so cannot be trusted, so in this case we do not return
-// any identifying info.
-func (d *nicBridged) getDHCPAllocatedIPs(network string) (map[[4]byte]dhcpAllocation, map[[16]byte]dhcpAllocation, error) {
-	IPv4s := make(map[[4]byte]dhcpAllocation)
-	IPv6s := make(map[[16]byte]dhcpAllocation)
-
-	// First read all statically allocated IPs.
-	files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
-	if err != nil {
-		return IPv4s, IPv6s, err
-	}
-
-	for _, entry := range files {
-		IPv4, IPv6, err := d.getDHCPStaticIPs(network, entry.Name())
-		if err != nil {
-			return IPv4s, IPv6s, err
-		}
-
-		if IPv4.IP != nil {
-			var IPKey [4]byte
-			copy(IPKey[:], IPv4.IP.To4())
-			IPv4s[IPKey] = IPv4
-		}
-
-		if IPv6.IP != nil {
-			var IPKey [16]byte
-			copy(IPKey[:], IPv6.IP.To16())
-			IPv6s[IPKey] = IPv6
-		}
-	}
-
-	// Next read all dynamic allocated IPs.
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.leases"))
-	if err != nil {
-		return IPv4s, IPv6s, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) == 5 {
-			IP := net.ParseIP(fields[2])
-			if IP == nil {
-				return IPv4s, IPv6s, fmt.Errorf("Error parsing IP address: %v", fields[2])
-			}
-
-			// Handle IPv6 addresses.
-			if IP.To4() == nil {
-				var IPKey [16]byte
-				copy(IPKey[:], IP.To16())
-
-				// Don't replace IPs from static config as more reliable.
-				if IPv6s[IPKey].Name != "" {
-					continue
-				}
-
-				IPv6s[IPKey] = dhcpAllocation{
-					Static: false,
-					IP:     IP.To16(),
-				}
-			} else {
-				// MAC only available in IPv4 leases.
-				MAC, err := net.ParseMAC(fields[1])
-				if err != nil {
-					return IPv4s, IPv6s, err
-				}
-
-				var IPKey [4]byte
-				copy(IPKey[:], IP.To4())
-
-				// Don't replace IPs from static config as more reliable.
-				if IPv4s[IPKey].Name != "" {
-					continue
-				}
-
-				IPv4s[IPKey] = dhcpAllocation{
-					MAC:    MAC,
-					Static: false,
-					IP:     IP.To4(),
-				}
-			}
-		}
-	}
-
-	err = scanner.Err()
-	if err != nil {
-		return IPv4s, IPv6s, err
-	}
-
-	return IPv4s, IPv6s, nil
-}
-
 // getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the instance.
 // If no previous allocation, then a free IP is picked from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
+func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
 	MAC, err := net.ParseMAC(deviceMAC)
 	if err != nil {
 		return nil, err
@@ -931,7 +787,7 @@ func (d *nicBridged) getDHCPFreeIPv4(usedIPs map[[4]byte]dhcpAllocation, n *netw
 // DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
-func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dhcpAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
+func (d *nicBridged) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, n *network.Network, ctName string, deviceMAC string) (net.IP, error) {
 	netConfig := n.Config()
 	lxdIP, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 	if err != nil {
