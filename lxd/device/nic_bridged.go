@@ -359,10 +359,7 @@ func (d *nicBridged) postStop() error {
 	}
 
 	networkRemoveVethRoutes(d.config)
-	err := d.removeFilters(d.config)
-	if err != nil {
-		logger.Errorf("Failed to remove nic filters: %v", err)
-	}
+	d.removeFilters(d.config)
 
 	return nil
 }
@@ -466,31 +463,56 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) error {
 }
 
 // removeFilters removes any network level filters defined for the instance.
-func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
+func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if m["hwaddr"] == "" {
-		return fmt.Errorf("Failed to remove network filters for %s: hwaddr not defined", m["name"])
+		logger.Errorf("Failed to remove network filters for %s: hwaddr not defined", m["name"])
+		return
 	}
 
 	if m["host_name"] == "" {
-		return fmt.Errorf("Failed to remove network filters for %s: host_name not defined", m["name"])
+		logger.Errorf("Failed to remove network filters for %s: host_name not defined", m["name"])
+		return
 	}
 
 	// Remove any IPv6 filters used for this instance.
 	err := d.state.Firewall.InstanceClear(firewallConsts.FamilyIPv6, firewallConsts.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.inst.Name()))
 	if err != nil {
-		return fmt.Errorf("Failed to clear ip6tables ipv6_filter rules for %s: %v", m["name"], err)
+		logger.Errorf("Failed to clear ip6tables ipv6_filter rules for %s: %v", m["name"], err)
 	}
 
-	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	var IPv4, IPv6 dnsmasq.DHCPAllocation
-	if shared.PathExists(shared.VarPath("networks", m["parent"], "dnsmasq.hosts") + "/" + d.inst.Name()) {
-		IPv4, IPv6, err = dnsmasq.DHCPStaticIPs(m["parent"], d.inst.Name())
-		if err != nil {
-			return fmt.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
+	var IPv4, IPv6 net.IP
+
+	if m["ipv4.address"] != "" {
+		IPv4 = net.ParseIP(m["ipv4.address"])
+	}
+
+	if m["ipv6.address"] != "" {
+		IPv6 = net.ParseIP(m["ipv6.address"])
+	}
+
+	// Remove filters for static MAC and IPs (if specified above).
+	// This covers the case when filtering is used with an unmanaged bridge.
+	err = d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4, IPv6)
+	if err != nil {
+		logger.Errorf("Failed to remove nic static filters: %v", err)
+	}
+
+	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
+	// This covers the case when IPs are not defined in config, but have been assigned in managed DHCP.
+	IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticIPs(m["parent"], d.inst.Name())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
 		}
+
+		logger.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
+		return
 	}
 
-	return d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4.IP, IPv6.IP)
+	err = d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4Alloc.IP, IPv6Alloc.IP)
+	if err != nil {
+		logger.Errorf("Failed to remove nic DHCP assigned filters: %v", err)
+	}
 }
 
 // setFilters sets up any network level filters defined for the instance.
