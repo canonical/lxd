@@ -21,7 +21,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
-	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
@@ -465,19 +464,13 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) error {
 // removeFilters removes any network level filters defined for the instance.
 func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if m["hwaddr"] == "" {
-		logger.Errorf("Failed to remove network filters for %s: hwaddr not defined", m["name"])
+		logger.Errorf("Failed to remove network filters for %q: hwaddr not defined", d.name)
 		return
 	}
 
 	if m["host_name"] == "" {
-		logger.Errorf("Failed to remove network filters for %s: host_name not defined", m["name"])
+		logger.Errorf("Failed to remove network filters for %q: host_name not defined", d.name)
 		return
-	}
-
-	// Remove any IPv6 filters used for this instance.
-	err := d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv6, firewallDrivers.TableFilter, fmt.Sprintf("%s - ipv6_filtering", d.inst.Name()))
-	if err != nil {
-		logger.Errorf("Failed to clear ip6tables ipv6_filter rules for %s: %v", m["name"], err)
 	}
 
 	var IPv4, IPv6 net.IP
@@ -492,9 +485,9 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
-	err = d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4, IPv6)
+	err := d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4, IPv6)
 	if err != nil {
-		logger.Errorf("Failed to remove nic static filters: %v", err)
+		logger.Errorf("Failed to remove static IP network filters for %q: %v", d.name, err)
 	}
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
@@ -505,13 +498,13 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 			return
 		}
 
-		logger.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
+		logger.Errorf("Failed to get static IP allocations for filter removal from %q: %v", d.name, err)
 		return
 	}
 
-	err = d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4Alloc.IP, IPv6Alloc.IP)
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Alloc.IP, IPv6Alloc.IP)
 	if err != nil {
-		logger.Errorf("Failed to remove nic DHCP assigned filters: %v", err)
+		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
 	}
 }
 
@@ -552,22 +545,22 @@ func (d *nicBridged) setFilters() (err error) {
 
 	// Check if the parent is managed and load config. If parent is unmanaged continue anyway.
 	var IPv4, IPv6 net.IP
-	net, err := network.LoadByName(d.state, d.config["parent"])
+	n, err := network.LoadByName(d.state, d.config["parent"])
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
 
 	// If parent bridge is unmanaged check that IP filtering isn't enabled.
-	if err == db.ErrNoSuchObject || net == nil {
+	if err == db.ErrNoSuchObject || n == nil {
 		if shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
 			return fmt.Errorf("IP filtering requires using a managed parent bridge")
 		}
 	}
 
 	// If parent bridge is unmanaged we cannot allocate static IPs.
-	if net != nil {
+	if n != nil {
 		// Retrieve existing IPs, or allocate new ones if needed.
-		IPv4, IPv6, err = d.allocateFilterIPs(net)
+		IPv4, IPv6, err = d.allocateFilterIPs(n)
 		if err != nil {
 			return err
 		}
@@ -580,7 +573,16 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}()
 
-	return d.state.Firewall.InstanceNicBridgedSetFilters(d.config, IPv4, IPv6, d.inst.Name())
+	// Indicate to the firewall package which IP family of filtering we want enabled by passing non-nil IPs.
+	if !shared.IsTrue(d.config["security.ipv4_filtering"]) {
+		IPv4 = nil
+	}
+
+	if !shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		IPv6 = nil
+	}
+
+	return d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6)
 }
 
 // networkAllocateVethFilterIPs retrieves previously allocated IPs, or allocate new ones if needed.
