@@ -376,7 +376,12 @@ test_container_devices_nic_bridged_filtering() {
     echo "Shouldn't be able to unset IPv6 address with ipv4_filtering enabled and DHCPv6 disabled"
   fi
 
+  # Delete container and check filters are cleaned up.
   lxc delete -f "${ctPrefix}A"
+  if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+      echo "ebtables filter still applied after delete"
+      false
+  fi
 
   # Test MAC filtering on unmanaged bridge.
   ip link add "${brName}2" type bridge
