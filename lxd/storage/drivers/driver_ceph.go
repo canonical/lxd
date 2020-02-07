@@ -24,6 +24,7 @@ type ceph struct {
 	common
 }
 
+// load is used to run one-time action per-driver rather than per-pool.
 func (d *ceph) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
@@ -74,6 +75,8 @@ func (d *ceph) Info() Info {
 	}
 }
 
+// Create is called during pool creation and is effectively using an empty driver struct.
+// WARNING: The Create() function cannot rely on any of the struct attributes being set.
 func (d *ceph) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
@@ -194,6 +197,7 @@ func (d *ceph) Create() error {
 	return nil
 }
 
+// Delete removes the storage pool from the storage device.
 func (d *ceph) Delete(op *operations.Operation) error {
 	// test if pool exists
 	poolExists := d.osdPoolExists()
@@ -228,15 +232,47 @@ func (d *ceph) Delete(op *operations.Operation) error {
 	return nil
 }
 
+// Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
+func (d *ceph) Validate(config map[string]string) error {
+	rules := map[string]func(value string) error{
+		"ceph.cluster_name":       shared.IsAny,
+		"ceph.osd.force_reuse":    shared.IsBool,
+		"ceph.osd.pg_num":         shared.IsAny,
+		"ceph.osd.pool_name":      shared.IsAny,
+		"ceph.osd.data_pool_name": shared.IsAny,
+		"ceph.rbd.clone_copy":     shared.IsBool,
+		"ceph.user.name":          shared.IsAny,
+		"volatile.pool.pristine":  shared.IsAny,
+		"volume.block.filesystem": func(value string) error {
+			if value == "" {
+				return nil
+			}
+			return shared.IsOneOf(value, cephAllowedFilesystems)
+		},
+		"volume.block.mount_options": shared.IsAny,
+	}
+
+	return d.validatePool(config, rules)
+}
+
+// Update applies any driver changes required from a configuration change.
+func (d *ceph) Update(changedConfig map[string]string) error {
+	return nil
+}
+
+// Mount mounts the storage pool.
 func (d *ceph) Mount() (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
+
+// Unmount unmounts the storage pool.
 func (d *ceph) Unmount() (bool, error) {
 	// Nothing to do here.
 	return true, nil
 }
 
+// GetResources returns the pool resource usage information.
 func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	var stdout bytes.Buffer
 
@@ -294,32 +330,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 	return &res, nil
 }
 
-func (d *ceph) Validate(config map[string]string) error {
-	rules := map[string]func(value string) error{
-		"ceph.cluster_name":       shared.IsAny,
-		"ceph.osd.force_reuse":    shared.IsBool,
-		"ceph.osd.pg_num":         shared.IsAny,
-		"ceph.osd.pool_name":      shared.IsAny,
-		"ceph.osd.data_pool_name": shared.IsAny,
-		"ceph.rbd.clone_copy":     shared.IsBool,
-		"ceph.user.name":          shared.IsAny,
-		"volatile.pool.pristine":  shared.IsAny,
-		"volume.block.filesystem": func(value string) error {
-			if value == "" {
-				return nil
-			}
-			return shared.IsOneOf(value, cephAllowedFilesystems)
-		},
-		"volume.block.mount_options": shared.IsAny,
-	}
-
-	return d.validatePool(config, rules)
-}
-
-func (d *ceph) Update(changedConfig map[string]string) error {
-	return nil
-}
-
+// MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
 	if contentType != ContentTypeFS {
 		return nil
