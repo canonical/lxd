@@ -16,11 +16,11 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
-	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type proxy struct {
@@ -228,8 +228,10 @@ func (d *proxy) checkProcStarted(logPath string) (bool, error) {
 // Stop is run when the device is removed from the instance.
 func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	// Remove possible iptables entries
-	d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv4, firewallDrivers.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
-	d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv6, firewallDrivers.TableNat, fmt.Sprintf("%s (%s)", d.inst.Name(), d.name))
+	err := d.state.Firewall.InstanceClearProxyNAT(d.inst.Project(), d.inst.Name(), d.name)
+	if err != nil {
+		logger.Errorf("Failed to remove proxy NAT filters: %v", err)
+	}
 
 	devFileName := fmt.Sprintf("proxy.%s", d.name)
 	devPath := filepath.Join(d.inst.DevicesPath(), devFileName)
@@ -239,7 +241,7 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 		return nil, nil
 	}
 
-	err := d.killProxyProc(devPath)
+	err = d.killProxyProc(devPath)
 	if err != nil {
 		return nil, err
 	}
@@ -258,80 +260,63 @@ func (d *proxy) setupNAT() error {
 		return err
 	}
 
-	address, _, err := net.SplitHostPort(connectAddr.Addr[0])
+	connectHost, _, err := net.SplitHostPort(connectAddr.Addr[0])
 	if err != nil {
 		return err
 	}
 
-	var IPv4Addr net.IP
-	var IPv6Addr net.IP
+	ipFamily := "ipv4"
+	if strings.Contains(connectHost, ":") {
+		ipFamily = "ipv6"
+	}
+
+	var connectIP net.IP
 
 	for _, devConfig := range d.inst.ExpandedDevices() {
 		if devConfig["type"] != "nic" || (devConfig["type"] == "nic" && devConfig.NICType() != "bridged") {
 			continue
 		}
 
-		// Check whether the NIC has a static IP.
-		ip := devConfig["ipv4.address"]
-		// Ensure that the provided IP address matches the container's IP
-		// address otherwise we could mess with other containers.
-		if ip != "" && IPv4Addr == nil && (address == ip || address == "0.0.0.0") {
-			IPv4Addr = net.ParseIP(ip)
-		}
-
-		ip = devConfig["ipv6.address"]
-		if ip != "" && IPv6Addr == nil && (address == ip || address == "::") {
-			IPv6Addr = net.ParseIP(ip)
+		// Ensure the connect IP matches one of the NIC's static IPs otherwise we could mess with other
+		// instance's network traffic. If the wildcard address is supplied as the connect host then the
+		// first bridged NIC which has a static IP address defined is selected as the connect host IP.
+		if ipFamily == "ipv4" && devConfig["ipv4.address"] != "" {
+			if connectHost == devConfig["ipv4.address"] || connectHost == "0.0.0.0" {
+				connectIP = net.ParseIP(devConfig["ipv4.address"])
+				break
+			}
+		} else if ipFamily == "ipv6" && devConfig["ipv6.address"] != "" {
+			if connectHost == devConfig["ipv6.address"] || connectHost == "::" {
+				connectIP = net.ParseIP(devConfig["ipv6.address"])
+				break
+			}
 		}
 	}
 
-	if IPv4Addr == nil && IPv6Addr == nil {
-		return fmt.Errorf("NIC IP doesn't match proxy target IP")
+	if connectIP == nil {
+		return fmt.Errorf("Proxy connect IP cannot be used with any NIC static IPs")
 	}
 
-	firewallComment := fmt.Sprintf("%s (%s)", d.inst.Name(), d.name)
-
-	revert := true
-	defer func() {
-		if revert {
-			if IPv4Addr != nil {
-				d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv4, firewallDrivers.TableNat, firewallComment)
-			}
-
-			if IPv6Addr != nil {
-				d.state.Firewall.InstanceClear(firewallDrivers.FamilyIPv6, firewallDrivers.TableNat, firewallComment)
-			}
-		}
-	}()
-
-	for i, lAddr := range listenAddr.Addr {
-		address, port, err := net.SplitHostPort(lAddr)
+	// Override the host part of the connectAddr.Addr to the chosen connect IP.
+	for i, addr := range connectAddr.Addr {
+		_, port, err := net.SplitHostPort(addr)
 		if err != nil {
 			return err
 		}
-		var cPort string
-		if len(connectAddr.Addr) == 1 {
-			_, cPort, _ = net.SplitHostPort(connectAddr.Addr[0])
-		} else {
-			_, cPort, _ = net.SplitHostPort(connectAddr.Addr[i])
-		}
 
-		if IPv4Addr != nil {
-			err := d.state.Firewall.InstanceProxySetupNAT(firewallDrivers.FamilyIPv4, listenAddr.ConnType, address, port, IPv4Addr, cPort, firewallComment)
-			if err != nil {
-				return err
-			}
-		}
-
-		if IPv6Addr != nil {
-			err := d.state.Firewall.InstanceProxySetupNAT(firewallDrivers.FamilyIPv6, listenAddr.ConnType, address, port, IPv6Addr, cPort, firewallComment)
-			if err != nil {
-				return err
-			}
+		if ipFamily == "ipv4" {
+			connectAddr.Addr[i] = fmt.Sprintf("%s:%s", connectIP.String(), port)
+		} else if ipFamily == "ipv6" {
+			// IPv6 addresses need to be enclosed in square brackets.
+			connectAddr.Addr[i] = fmt.Sprintf("[%s]:%s", connectIP.String(), port)
 		}
 	}
 
-	revert = false
+	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, listenAddr, connectAddr)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
