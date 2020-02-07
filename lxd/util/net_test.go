@@ -52,11 +52,13 @@ func TestCanonicalNetworkAddress(t *testing.T) {
 }
 
 func TestIsAddressCovered(t *testing.T) {
-	cases := []struct {
+	type testCase struct {
 		address1 string
 		address2 string
 		covered  bool
-	}{
+	}
+
+	cases := []testCase{
 		{"127.0.0.1:8443", "127.0.0.1:8443", true},
 		{"garbage", "127.0.0.1:8443", false},
 		{"127.0.0.1:8444", "garbage", false},
@@ -69,8 +71,17 @@ func TestIsAddressCovered(t *testing.T) {
 		{"[::1]:8443", ":8443", true},
 		{":8443", "[::]:8443", true},
 		{"0.0.0.0:8443", "[::]:8443", true},
-		{"127.0.0.1:8443", "localhost:8443", true},
-		{"[::1]:8443", "ip6-localhost:8443", true},
+	}
+
+	// Test some localhost cases too
+	ips, err := net.LookupHost("localhost")
+	if err == nil && len(ips) > 0 && ips[0] == "127.0.0.1" {
+		cases = append(cases, testCase{"127.0.0.1:8443", "localhost:8443", true})
+	}
+
+	ips, err = net.LookupHost("ip6-localhost")
+	if err == nil && len(ips) > 0 && ips[0] == "::1" {
+		cases = append(cases, testCase{"[::1]:8443", "ip6-localhost:8443", true})
 	}
 
 	for _, c := range cases {
