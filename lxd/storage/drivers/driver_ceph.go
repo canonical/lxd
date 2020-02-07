@@ -95,21 +95,21 @@ func (d *ceph) Create() error {
 	if d.config["ceph.osd.pg_num"] == "" {
 		d.config["ceph.osd.pg_num"] = "32"
 	} else {
-		// Validate
+		// Validate.
 		_, err := units.ParseByteSizeString(d.config["ceph.osd.pg_num"])
 		if err != nil {
 			return err
 		}
 	}
 
-	// sanity check
+	// Sanity check.
 	if d.config["source"] != "" &&
 		d.config["ceph.osd.pool_name"] != "" &&
 		d.config["source"] != d.config["ceph.osd.pool_name"] {
 		return fmt.Errorf(`The "source" and "ceph.osd.pool_name" property must not differ for CEPH OSD storage pools`)
 	}
 
-	// use an existing OSD pool
+	// Use an existing OSD pool.
 	if d.config["source"] != "" {
 		d.config["ceph.osd.pool_name"] = d.config["source"]
 	}
@@ -122,7 +122,7 @@ func (d *ceph) Create() error {
 	dummyVol := NewVolume(d, d.name, VolumeType("lxd"), ContentTypeFS, d.config["ceph.osd.pool_name"], nil, nil)
 
 	if !d.osdPoolExists() {
-		// Create new osd pool
+		// Create new osd pool.
 		_, err := shared.TryRunCommand("ceph",
 			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
 			"--cluster", d.config["ceph.cluster_name"],
@@ -137,8 +137,7 @@ func (d *ceph) Create() error {
 
 		revert.Add(func() { d.osdDeletePool() })
 
-		// Initialize the pool. This is not necessary but allows the pool
-		// to be monitored.
+		// Initialize the pool. This is not necessary but allows the pool to be monitored.
 		_, err = shared.TryRunCommand("rbd",
 			"--id", d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
@@ -164,7 +163,7 @@ func (d *ceph) Create() error {
 			}
 		}
 
-		// Use existing osd pool
+		// Use existing OSD pool.
 		msg, err := shared.RunCommand("ceph",
 			"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
 			"--cluster", d.config["ceph.cluster_name"],
@@ -199,7 +198,7 @@ func (d *ceph) Create() error {
 
 // Delete removes the storage pool from the storage device.
 func (d *ceph) Delete(op *operations.Operation) error {
-	// test if pool exists
+	// Test if the pool exists.
 	poolExists := d.osdPoolExists()
 	if !poolExists {
 		d.logger.Warn("Pool does not exist", log.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
@@ -286,7 +285,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 		return nil, err
 	}
 
-	// Temporary structs for parsing
+	// Temporary structs for parsing.
 	type cephDfPoolStats struct {
 		BytesUsed      int64 `json:"bytes_used"`
 		BytesAvailable int64 `json:"max_avail"`
@@ -301,7 +300,7 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 		Pools []cephDfPool `json:"pools"`
 	}
 
-	// Parse the JSON output
+	// Parse the JSON output.
 	df := cephDf{}
 	err = json.NewDecoder(&stdout).Decode(&df)
 	if err != nil {

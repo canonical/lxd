@@ -106,7 +106,7 @@ func (d *ceph) rbdDeleteVolume(vol Volume) error {
 	return nil
 }
 
-// rbdMapVolume maps a given RBD storage volume
+// rbdMapVolume maps a given RBD storage volume.
 // This will ensure that the RBD storage volume is accessible as a block device
 // in the /dev directory and is therefore necessary in order to mount it.
 func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
@@ -130,7 +130,7 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 	return strings.TrimSpace(devPath), nil
 }
 
-// rbdUnmapVolume unmaps a given RBD storage volume
+// rbdUnmapVolume unmaps a given RBD storage volume.
 // This is a precondition in order to delete an RBD storage volume can.
 func (d *ceph) rbdUnmapVolume(vol Volume, unmapUntilEINVAL bool) error {
 	busyCount := 0
@@ -150,18 +150,18 @@ again:
 			if ok {
 				waitStatus := exitError.Sys().(syscall.WaitStatus)
 				if waitStatus.ExitStatus() == 22 {
-					// EINVAL (already unmapped)
+					// EINVAL (already unmapped).
 					return nil
 				}
 
 				if waitStatus.ExitStatus() == 16 {
-					// EBUSY (currently in use)
+					// EBUSY (currently in use).
 					busyCount++
 					if busyCount == 10 {
 						return err
 					}
 
-					// Wait a second an try again
+					// Wait a second an try again.
 					time.Sleep(time.Second)
 					goto again
 				}
@@ -178,7 +178,7 @@ again:
 	return nil
 }
 
-// rbdUnmapVolumeSnapshot unmaps a given RBD snapshot
+// rbdUnmapVolumeSnapshot unmaps a given RBD snapshot.
 // This is a precondition in order to delete an RBD snapshot can.
 func (d *ceph) rbdUnmapVolumeSnapshot(vol Volume, snapshotName string, unmapUntilEINVAL bool) error {
 again:
@@ -196,7 +196,7 @@ again:
 			if ok {
 				waitStatus := exitError.Sys().(syscall.WaitStatus)
 				if waitStatus.ExitStatus() == 22 {
-					// EINVAL (already unmapped)
+					// EINVAL (already unmapped).
 					return nil
 				}
 			}
@@ -211,8 +211,7 @@ again:
 	return nil
 }
 
-// rbdCreateVolumeSnapshot creates a read-write snapshot of a given RBD storage
-// volume
+// rbdCreateVolumeSnapshot creates a read-write snapshot of a given RBD storage volume.
 func (d *ceph) rbdCreateVolumeSnapshot(vol Volume, snapshotName string) error {
 	_, err := shared.RunCommand(
 		"rbd",
@@ -230,7 +229,7 @@ func (d *ceph) rbdCreateVolumeSnapshot(vol Volume, snapshotName string) error {
 	return nil
 }
 
-// rbdProtectVolumeSnapshot protects a given snapshot from being deleted
+// rbdProtectVolumeSnapshot protects a given snapshot from being deleted.
 // This is a precondition to be able to create RBD clones from a given snapshot.
 func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 	_, err := shared.RunCommand(
@@ -249,7 +248,7 @@ func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 			if ok {
 				waitStatus := exitError.Sys().(syscall.WaitStatus)
 				if waitStatus.ExitStatus() == 16 {
-					// EBUSY (snapshot already protected)
+					// EBUSY (snapshot already protected).
 					return nil
 				}
 			}
@@ -260,7 +259,7 @@ func (d *ceph) rbdProtectVolumeSnapshot(vol Volume, snapshotName string) error {
 	return nil
 }
 
-// rbdUnprotectVolumeSnapshot unprotects a given snapshot
+// rbdUnprotectVolumeSnapshot unprotects a given snapshot.
 // - This is a precondition to be able to delete an RBD snapshot.
 // - This command will only succeed if the snapshot does not have any clones.
 func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error {
@@ -280,7 +279,7 @@ func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error
 			if ok {
 				waitStatus := exitError.Sys().(syscall.WaitStatus)
 				if waitStatus.ExitStatus() == 22 {
-					// EBUSY (snapshot already unprotected)
+					// EBUSY (snapshot already unprotected).
 					return nil
 				}
 			}
@@ -291,7 +290,7 @@ func (d *ceph) rbdUnprotectVolumeSnapshot(vol Volume, snapshotName string) error
 	return nil
 }
 
-// rbdCreateClone creates a clone from a protected RBD snapshot
+// rbdCreateClone creates a clone from a protected RBD snapshot.
 func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targetVol Volume) error {
 	cmd := []string{
 		"--id", d.config["ceph.user.name"],
@@ -316,7 +315,7 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 	return nil
 }
 
-// rbdListSnapshotClones list all clones of an RBD snapshot
+// rbdListSnapshotClones list all clones of an RBD snapshot.
 func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string, error) {
 	msg, err := shared.RunCommand(
 		"rbd",
@@ -339,8 +338,7 @@ func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string,
 	return clones, nil
 }
 
-// rbdMarkVolumeDeleted marks an RBD storage volume as being in "zombie"
-// state
+// rbdMarkVolumeDeleted marks an RBD storage volume as being in "zombie" state.
 // An RBD storage volume that is in zombie state is not tracked in LXD's
 // database anymore but still needs to be kept around for the sake of any
 // dependent storage entities in the storage pool. This usually happens when an
@@ -367,7 +365,7 @@ func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string, suffix str
 	return nil
 }
 
-// rbdRenameVolume renames a given RBD storage volume
+// rbdRenameVolume renames a given RBD storage volume.
 // Note that this usually requires that the image be unmapped under its original
 // name, then renamed, and finally will be remapped again. If it is not unmapped
 // under its original name and the callers maps it under its new name the image
@@ -389,7 +387,7 @@ func (d *ceph) rbdRenameVolume(vol Volume, newVolumeName string) error {
 	return nil
 }
 
-// rbdRenameVolumeSnapshot renames a given RBD storage volume
+// rbdRenameVolumeSnapshot renames a given RBD storage volume.
 // Note that if the snapshot is mapped - which it usually shouldn't be - this
 // usually requires that the snapshot be unmapped under its original name, then
 // renamed, and finally will be remapped again. If it is not unmapped under its
@@ -411,8 +409,7 @@ func (d *ceph) rbdRenameVolumeSnapshot(vol Volume, oldSnapshotName string, newSn
 	return nil
 }
 
-// rbdGetVolumeParent will return the snapshot the RBD clone was created
-// from
+// rbdGetVolumeParent will return the snapshot the RBD clone was created from:
 // - If the RBD storage volume is not a clone then this function will return
 //   db.NoSuchObjectError.
 // - The snapshot will be returned as
@@ -450,7 +447,7 @@ func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
 	return msg, nil
 }
 
-// rbdDeleteVolumeSnapshot deletes an RBD snapshot
+// rbdDeleteVolumeSnapshot deletes an RBD snapshot.
 // This requires that the snapshot does not have any clones and is unmapped and
 // unprotected.
 func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
@@ -469,7 +466,7 @@ func (d *ceph) rbdDeleteVolumeSnapshot(vol Volume, snapshotName string) error {
 	return nil
 }
 
-// rbdListVolumeSnapshots retrieves the snapshots of an RBD storage volume
+// rbdListVolumeSnapshots retrieves the snapshots of an RBD storage volume.
 // The format of the snapshot names is simply the part after the @. So given a
 // valid RBD path relative to a pool
 // <osd-pool-name>/<rbd-storage-volume>@<rbd-snapshot-name>
@@ -518,8 +515,7 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	return snapshots, nil
 }
 
-// getRBDSize returns the size the RBD storage volume is supposed to be created
-// with
+// getRBDSize returns the size the RBD storage volume is supposed to be created with.
 func (d *ceph) getRBDSize(vol Volume) (string, error) {
 	size, ok := vol.config["size"]
 	if !ok {
@@ -539,8 +535,7 @@ func (d *ceph) getRBDSize(vol Volume) (string, error) {
 	return fmt.Sprintf("%dB", sz), nil
 }
 
-// getRBDFilesystem returns the filesystem the RBD storage volume is supposed to
-// be created with
+// getRBDFilesystem returns the filesystem the RBD storage volume is supposed to be created with.
 func (d *ceph) getRBDFilesystem(vol Volume) string {
 	if vol.config["block.filesystem"] != "" {
 		return vol.config["block.filesystem"]
@@ -553,9 +548,8 @@ func (d *ceph) getRBDFilesystem(vol Volume) string {
 	return "ext4"
 }
 
-// getRBDMountOptions returns the mount options the storage volume is supposed
-// to be mounted with
-// The option string that is returned needs to be passed to the approriate
+// getRBDMountOptions returns the mount options the storage volume is supposed to be mounted with
+// the option string that is returned needs to be passed to the approriate
 // helper (currently named "LXDResolveMountoptions") which will take on the job
 // of splitting it into appropriate flags and string options.
 func (d *ceph) getRBDMountOptions(vol Volume) string {
@@ -574,8 +568,7 @@ func (d *ceph) getRBDMountOptions(vol Volume) string {
 	return "discard"
 }
 
-// copyWithSnapshots creates a non-sparse copy of a container including its
-// snapshots
+// copyWithSnapshots creates a non-sparse copy of a container including its snapshots.
 // This does not introduce a dependency relation between the source RBD storage
 // volume and the target RBD storage volume.
 func (d *ceph) copyWithSnapshots(sourceVolumeName string,
@@ -591,7 +584,7 @@ func (d *ceph) copyWithSnapshots(sourceVolumeName string,
 		args = append(args, "--from-snap", sourceParentSnapshot)
 	}
 
-	// redirect output to stdout
+	// Redirect output to stdout.
 	args = append(args, "-")
 
 	rbdSendCmd := exec.Command("rbd", args...)
@@ -625,8 +618,7 @@ func (d *ceph) copyWithSnapshots(sourceVolumeName string,
 	return nil
 }
 
-// deleteVolume deletes the RBD storage volume of a container including
-// any dependencies
+// deleteVolume deletes the RBD storage volume of a container including any dependencies.
 // - This function takes care to delete any RBD storage entities that are marked
 //   as zombie and whose existence is solely dependent on the RBD storage volume
 //   for the container to be deleted.
@@ -657,7 +649,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 		}
 
 		if zombies > 0 {
-			// unmap
+			// Unmap.
 			err = d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return -1, err
@@ -690,13 +682,13 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return -1, err
 			}
 
-			// unmap
+			// Unmap.
 			err = d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return -1, err
 			}
 
-			// delete
+			// Delete.
 			err = d.rbdDeleteVolume(vol)
 			if err != nil {
 				return -1, err
@@ -719,13 +711,13 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return -1, err
 			}
 
-			// unmap
+			// Unmap.
 			err = d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return -1, err
 			}
 
-			// delete
+			// Delete.
 			err = d.rbdDeleteVolume(vol)
 			if err != nil {
 				return -1, err
@@ -736,8 +728,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 	return 0, nil
 }
 
-// deleteVolumeSnapshot deletes an RBD snapshot of a container including
-// any dependencies
+// deleteVolumeSnapshot deletes an RBD snapshot of a container including any dependencies.
 // - This function takes care to delete any RBD storage entities that are marked
 //   as zombie and whose existence is solely dependent on the RBD snapshot for
 //   the container to be deleted.
@@ -761,19 +752,19 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return -1, err
 		}
 
-		// unprotect
+		// Unprotect.
 		err = d.rbdUnprotectVolumeSnapshot(vol, snapshotName)
 		if err != nil {
 			return -1, err
 		}
 
-		// unmap
+		// Unmap.
 		err = d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
 
-		// delete
+		// Delete.
 		err = d.rbdDeleteVolumeSnapshot(vol, snapshotName)
 		if err != nil {
 			return -1, err
@@ -809,26 +800,26 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 		if ret < 0 {
 			return -1, err
 		} else if ret == 1 {
-			// Only marked as zombie
+			// Only marked as zombie.
 			canDelete = false
 		}
 	}
 
 	if canDelete {
-		// unprotect
+		// Unprotect.
 		err = d.rbdUnprotectVolumeSnapshot(vol, snapshotName)
 		if err != nil {
 			return -1, err
 		}
 
-		// unmap
+		// Unmap.
 		err = d.rbdUnmapVolumeSnapshot(vol, snapshotName,
 			true)
 		if err != nil {
 			return -1, err
 		}
 
-		// delete
+		// Delete.
 		err = d.rbdDeleteVolumeSnapshot(vol, snapshotName)
 		if err != nil {
 			return -1, err
@@ -864,8 +855,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 	return 1, nil
 }
 
-// parseParent splits a string describing a RBD storage entity into its
-// components
+// parseParent splits a string describing a RBD storage entity into its components.
 // This can be used on strings like
 // <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>@<rbd-snapshot-name>
 // and will split it into
@@ -918,7 +908,7 @@ func (d *ceph) parseParent(parent string) (string, string, string, string, error
 	return poolName, volumeType, volumeName, snapshotName, nil
 }
 
-// parseClone splits a strings describing an RBD storage volume
+// parseClone splits a strings describing an RBD storage volume.
 // For example a string like
 // <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>
 // will be split into
@@ -964,7 +954,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 	return poolName, volumeType, volumeName, nil
 }
 
-// getRBDMappedDevPath looks at sysfs to retrieve the device path
+// getRBDMappedDevPath looks at sysfs to retrieve the device path.
 // "/dev/rbd<idx>" for an RBD image. If it doesn't find it it will map it if
 // told to do so.
 func (d *ceph) getRBDMappedDevPath(vol Volume,
@@ -1056,7 +1046,7 @@ mapImage:
 	return strings.TrimSpace(devPath), 2
 }
 
-// generateUUID regenerates the XFS/btrfs UUID as needed
+// generateUUID regenerates the XFS/btrfs UUID as needed.
 func (d *ceph) generateUUID(vol Volume) error {
 	fsType := d.getRBDFilesystem(vol)
 
@@ -1064,14 +1054,14 @@ func (d *ceph) generateUUID(vol Volume) error {
 		return nil
 	}
 
-	// Map the RBD volume
+	// Map the RBD volume.
 	RBDDevPath, err := d.rbdMapVolume(vol)
 	if err != nil {
 		return err
 	}
 	defer d.rbdUnmapVolume(vol, true)
 
-	// Update the UUID
+	// Update the UUID.
 	err = regenerateFilesystemUUID(fsType, RBDDevPath)
 	if err != nil {
 		return err
@@ -1106,7 +1096,7 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 	} else {
 		if isSnapshot {
 			// If volumeName is a snapshot (<vol>/<snap>) and snapName is not set,
-			// assue that it's a normal snapshot (not a zombie) and prefix it with
+			// assume that it's a normal snapshot (not a zombie) and prefix it with
 			// "snapshot_".
 			out = fmt.Sprintf("%s_%s@snapshot_%s", volumeType, parentName, snapshotName)
 		} else {
@@ -1155,7 +1145,7 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 		args = append(args, "--from-snap", volumeParentName)
 	}
 
-	// redirect output to stdout
+	// Redirect output to stdout.
 	args = append(args, "-")
 
 	cmd := exec.Command("rbd", args...)
