@@ -42,7 +42,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 	// Check if we have a zombie image. If so, restore it otherwise
 	// create a new image volume.
 	if vol.volType == VolumeTypeImage && d.HasVolume(zombieImageVol) {
-		// unmark deleted
+		// Unmark deleted.
 		oldName := d.getRBDVolumeName(zombieImageVol, "", false, true)
 		newName := d.getRBDVolumeName(vol, "", false, true)
 
@@ -61,13 +61,13 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		return nil
 	}
 
-	// get size
+	// Get size.
 	RBDSize, err := d.getRBDSize(vol)
 	if err != nil {
 		return err
 	}
 
-	// create volume
+	// Create volume.
 	err = d.rbdCreateVolume(vol, RBDSize)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 
 	revert.Add(func() { d.rbdUnmapVolume(vol, true) })
 
-	// get filesystem
+	// Get filesystem.
 	RBDFilesystem := d.getRBDFilesystem(vol)
 	_, err = makeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
@@ -170,7 +170,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		}
 	}
 
-	// Copy without snapshots
+	// Copy without snapshots.
 	if !copySnapshots || len(snapshots) == 0 {
 		if d.config["ceph.rbd.clone_copy"] != "" &&
 			!shared.IsTrue(d.config["ceph.rbd.clone_copy"]) &&
@@ -208,14 +208,14 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 					parentVol = NewVolume(d, d.name, srcVol.volType, srcVol.contentType, srcParentName, nil, nil)
 				} else {
-					// create snapshot
+					// Create snapshot.
 					err := d.rbdCreateVolumeSnapshot(srcVol, snapshotName)
 					if err != nil {
 						return err
 					}
 				}
 
-				// protect volume so we can create clones of it
+				// Protect volume so we can create clones of it.
 				err = d.rbdProtectVolumeSnapshot(parentVol, snapshotName)
 				if err != nil {
 					return err
@@ -233,7 +233,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		}
 
 		if vol.contentType == ContentTypeFS {
-			// Re-generate the UUID
+			// Re-generate the UUID.
 			err = d.generateUUID(vol)
 			if err != nil {
 				return err
@@ -264,8 +264,9 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		return nil
 	}
 
-	// Copy with snapshots
-	// create empty dummy volume
+	// Copy with snapshots.
+
+	// Create empty dummy volume
 	err = d.rbdCreateVolume(vol, "0")
 	if err != nil {
 		return err
@@ -273,7 +274,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 	revert.Add(func() { d.rbdDeleteVolume(vol) })
 
-	// receive over the dummy volume we created above
+	// Receive over the dummy volume we created above.
 	targetVolumeName := d.getRBDVolumeName(vol, "", false, true)
 
 	lastSnap := ""
@@ -315,7 +316,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		}
 	}
 
-	// copy snapshot
+	// Copy snapshot.
 	sourceVolumeName := d.getRBDVolumeName(srcVol, "", false, true)
 
 	err = d.copyWithSnapshots(
@@ -326,7 +327,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 		return err
 	}
 
-	// Re-generate the UUID
+	// Re-generate the UUID.
 	err = d.generateUUID(vol)
 	if err != nil {
 		return err
@@ -404,7 +405,7 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 	}
 
 	defer func() {
-		// Delete all migration-send-* snapshots
+		// Delete all migration-send-* snapshots.
 		snaps, err := d.rbdListVolumeSnapshots(vol)
 		if err != nil {
 			return
@@ -450,23 +451,23 @@ func (d *ceph) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, o
 // this function will return an error.
 func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 	if vol.volType == VolumeTypeImage {
-		// Try to umount but don't fail
+		// Try to umount but don't fail.
 		d.UnmountVolume(vol, op)
 
-		// Check if image has dependant snapshots
+		// Check if image has dependant snapshots.
 		_, err := d.rbdListSnapshotClones(vol, "readonly")
 		if err != nil {
 			if err != db.ErrNoSuchObject {
 				return err
 			}
 
-			// Unprotect snapshot
+			// Unprotect snapshot.
 			err = d.rbdUnprotectVolumeSnapshot(vol, "readonly")
 			if err != nil {
 				return err
 			}
 
-			// Delete snapshots
+			// Delete snapshots.
 			_, err = shared.RunCommand(
 				"rbd",
 				"--id", d.config["ceph.user.name"],
@@ -479,13 +480,13 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			// Unmap image
+			// Unmap image.
 			err = d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return err
 			}
 
-			// Delete image
+			// Delete image.
 			err = d.rbdDeleteVolume(vol)
 		} else {
 			err = d.rbdUnmapVolume(vol, true)
@@ -627,7 +628,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			"--size", fmt.Sprintf("%dM", (newSize/1024/1024)),
 			d.getRBDVolumeName(vol, "", false, false))
 	} else {
-		// Grow the block device
+		// Grow the block device.
 		_, err = shared.TryRunCommand(
 			"rbd",
 			"resize",
@@ -640,7 +641,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			return err
 		}
 
-		// Grow the filesystem
+		// Grow the filesystem.
 		err = growFileSystem(fsType, RBDDevPath, vol)
 	}
 	if err != nil {
@@ -720,7 +721,7 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 		return false, err
 	}
 
-	// Attempt to unmap
+	// Attempt to unmap.
 	if vol.volType == VolumeTypeCustom {
 		err = d.rbdUnmapVolume(vol, true)
 		if err != nil {
@@ -1036,7 +1037,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 		revert.Add(func() { d.rbdDeleteVolume(cloneVol) })
 
-		// Map volume
+		// Map volume.
 		rbdDevPath, err := d.rbdMapVolume(cloneVol)
 		if err != nil {
 			return false, err
@@ -1108,7 +1109,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 		return true, nil
 	}
 
-	// Delete the temporary RBD volume
+	// Delete the temporary RBD volume.
 	err = d.rbdDeleteVolume(cloneVol)
 	if err != nil {
 		return false, err
