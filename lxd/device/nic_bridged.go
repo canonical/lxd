@@ -482,56 +482,15 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) error {
 	}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	var IPv4, IPv6 dhcpAllocation
+	var IPv4, IPv6 dnsmasq.DHCPAllocation
 	if shared.PathExists(shared.VarPath("networks", m["parent"], "dnsmasq.hosts") + "/" + d.inst.Name()) {
-		IPv4, IPv6, err = d.getDHCPStaticIPs(m["parent"], d.inst.Name())
+		IPv4, IPv6, err = dnsmasq.DHCPStaticIPs(m["parent"], d.inst.Name())
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve static IPs for filter removal from %s: %v", m["name"], err)
 		}
 	}
 
 	return d.state.Firewall.InstanceNicBridgedRemoveFilters(m, IPv4.IP, IPv6.IP)
-}
-
-// getDHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a instance.
-// Returns IPv4 and IPv6 dhcpAllocation structs respectively.
-func (d *nicBridged) getDHCPStaticIPs(network string, instanceName string) (dhcpAllocation, dhcpAllocation, error) {
-	var IPv4, IPv6 dhcpAllocation
-
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts") + "/" + instanceName)
-	if err != nil {
-		return IPv4, IPv6, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fields := strings.SplitN(scanner.Text(), ",", -1)
-		for _, field := range fields {
-			// Check if field is IPv4 or IPv6 address.
-			if strings.Count(field, ".") == 3 {
-				IP := net.ParseIP(field)
-				if IP.To4() == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
-				}
-				IPv4 = dhcpAllocation{Name: d.inst.Name(), Static: true, IP: IP.To4()}
-
-			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
-				IP := net.ParseIP(field[1 : len(field)-1])
-				if IP == nil {
-					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
-				}
-				IPv6 = dhcpAllocation{Name: d.inst.Name(), Static: true, IP: IP}
-			}
-		}
-	}
-
-	err = scanner.Err()
-	if err != nil {
-		return IPv4, IPv6, err
-	}
-
-	return IPv4, IPv6, nil
 }
 
 // setFilters sets up any network level filters defined for the instance.
@@ -644,7 +603,7 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 	defer dnsmasq.ConfigMutex.Unlock()
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	curIPv4, curIPv6, err := d.getDHCPStaticIPs(d.config["parent"], d.inst.Name())
+	curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d.config["parent"], d.inst.Name())
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, err
 	}
