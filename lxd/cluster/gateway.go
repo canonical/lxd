@@ -700,6 +700,7 @@ func (g *Gateway) waitLeadership() error {
 		g.lock.RLock()
 		isLeader, err := g.isLeader()
 		if err != nil {
+			g.lock.RUnlock()
 			return err
 		}
 		if isLeader {
