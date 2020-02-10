@@ -257,7 +257,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], inst.Name())
+				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], inst.Project(), inst.Name())
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
