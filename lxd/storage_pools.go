@@ -674,27 +674,41 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 		return response.InternalError(err)
 	}
 
-	if len(volumeNames) > 0 {
-		volumes, err := cluster.StoragePoolVolumesGet("default", poolID, supportedVolumeTypes)
-		if err != nil {
-			return response.InternalError(err)
-		}
+	var projects []string
 
-		for _, volume := range volumes {
-			if volume.Type != "image" {
-				return response.BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		projects, err = tx.ProjectNames()
+		return err
+	})
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	if len(volumeNames) > 0 {
+		for _, project := range projects {
+			volumes, err := cluster.StoragePoolVolumesGet(project, poolID, supportedVolumeTypes)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			for _, volume := range volumes {
+				if volume.Type != "image" {
+					return response.BadRequest(fmt.Errorf("storage pool %q has volumes attached to it", poolName))
+				}
 			}
 		}
 	}
 
-	// Check if the storage pool is still referenced in any profiles.
-	profiles, err := profilesUsingPoolGetNames(cluster, "default", poolName)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	for _, project := range projects {
+		// Check if the storage pool is still referenced in any profiles.
+		profiles, err := profilesUsingPoolGetNames(cluster, project, poolName)
+		if err != nil {
+			return response.SmartError(err)
+		}
 
-	if len(profiles) > 0 {
-		return response.BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
+		if len(profiles) > 0 {
+			return response.BadRequest(fmt.Errorf("Storage pool %q has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
+		}
 	}
 
 	return nil
