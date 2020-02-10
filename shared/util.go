@@ -106,6 +106,30 @@ func IsUnixSocket(path string) bool {
 	return (stat.Mode() & os.ModeSocket) == os.ModeSocket
 }
 
+// HostPathFollow takes a valid path (from HostPath) and resolves it
+// all the way to its target or to the last which can be resolved.
+func HostPathFollow(path string) string {
+	// Check if the path is already snap-aware
+	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
+		if path == prefix || strings.HasPrefix(path, fmt.Sprintf("%s/", prefix)) {
+			return path
+		}
+	}
+
+	for {
+		target, err := os.Readlink(path)
+		if err != nil {
+			return path
+		}
+
+		if target == path {
+			return path
+		}
+
+		path = HostPath(target)
+	}
+}
+
 // HostPath returns the host path for the provided path
 // On a normal system, this does nothing
 // When inside of a snap environment, returns the real path
