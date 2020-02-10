@@ -71,6 +71,7 @@ func (d *ceph) Info() Info {
 		BlockBacking:          true,
 		RunningQuotaResize:    false,
 		RunningSnapshotFreeze: true,
+		DirectIO:              true,
 		MountedRoot:           false,
 	}
 }
