@@ -138,6 +138,9 @@ func NetworkInterfaceAddress() string {
 // address2, in the sense that they are either the same address or address2 is
 // specified using a wildcard with the same port of address1.
 func IsAddressCovered(address1, address2 string) bool {
+	address1 = CanonicalNetworkAddress(address1)
+	address2 = CanonicalNetworkAddress(address2)
+
 	if address1 == address2 {
 		return true
 	}
