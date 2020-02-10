@@ -464,18 +464,18 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv4.nat"]) {
 			//If a SNAT source address is specified, use that, otherwise default to using MASQUERADE mode.
-			args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+			var srcIP net.IP
 			if n.config["ipv4.nat.address"] != "" {
-				args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", n.config["ipv4.nat.address"]}
+				srcIP = net.ParseIP(n.config["ipv4.nat.address"])
 			}
 
 			if n.config["ipv4.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupNAT(firewallDrivers.FamilyIPv4, n.name, firewallDrivers.LocationAppend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = n.state.Firewall.NetworkSetupNAT(firewallDrivers.FamilyIPv4, n.name, firewallDrivers.LocationPrepend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, false)
 				if err != nil {
 					return err
 				}
@@ -634,18 +634,18 @@ func (n *Network) setup(oldConfig map[string]string) error {
 
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv6.nat"]) {
-			args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+			var srcIP net.IP
 			if n.config["ipv6.nat.address"] != "" {
-				args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", n.config["ipv6.nat.address"]}
+				srcIP = net.ParseIP(n.config["ipv6.nat.address"])
 			}
 
 			if n.config["ipv6.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupNAT(firewallDrivers.FamilyIPv6, n.name, firewallDrivers.LocationAppend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = n.state.Firewall.NetworkSetupNAT(firewallDrivers.FamilyIPv6, n.name, firewallDrivers.LocationPrepend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, false)
 				if err != nil {
 					return err
 				}
@@ -805,12 +805,12 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		// Configure NAT
 		if n.config["ipv4.nat"] == "" || shared.IsTrue(n.config["ipv4.nat"]) {
 			if n.config["ipv4.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupTunnelNAT(n.name, firewallDrivers.LocationAppend, *overlaySubnet)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = n.state.Firewall.NetworkSetupTunnelNAT(n.name, firewallDrivers.LocationPrepend, *overlaySubnet)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, false)
 				if err != nil {
 					return err
 				}
