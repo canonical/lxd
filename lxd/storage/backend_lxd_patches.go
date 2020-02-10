@@ -7,7 +7,8 @@ import (
 var lxdEarlyPatches = map[string]func(b *lxdBackend) error{}
 
 var lxdLatePatches = map[string]func(b *lxdBackend) error{
-	"storage_create_vm": lxdPatchStorageCreateVM,
+	"storage_create_vm":       lxdPatchStorageCreateVM,
+	"storage_create_vm_again": lxdPatchStorageCreateVM,
 }
 
 // Patches start here.
