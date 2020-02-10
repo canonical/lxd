@@ -71,6 +71,7 @@ func TestIsAddressCovered(t *testing.T) {
 		{"[::1]:8443", ":8443", true},
 		{":8443", "[::]:8443", true},
 		{"0.0.0.0:8443", "[::]:8443", true},
+		{"10.30.0.8:8443", "[::]", true},
 	}
 
 	// Test some localhost cases too
