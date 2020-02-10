@@ -363,12 +363,12 @@ func (n *Network) setup(oldConfig map[string]string) error {
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		if n.HasDHCPv4() && (n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"])) {
 			// Setup basic iptables overrides for DHCP/DNS
-			n.state.Firewall.NetworkSetupIPv4DNSOverrides(n.name)
+			n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 4)
 		}
 
 		// Attempt a workaround for broken DHCP clients
 		if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-			n.state.Firewall.NetworkSetupIPv4DHCPWorkaround(n.name)
+			n.state.Firewall.NetworkSetupDHCPv4Checksum(n.name)
 		}
 
 		// Allow forwarding
@@ -552,7 +552,7 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		if n.HasDHCPv6() {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
 				// Setup basic iptables overrides for DHCP/DNS
-				n.state.Firewall.NetworkSetupIPv6DNSOverrides(n.name)
+				n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 6)
 			}
 
 			// Build DHCP configuration
