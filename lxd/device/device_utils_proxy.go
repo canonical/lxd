@@ -5,18 +5,12 @@ import (
 	"net"
 	"strings"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 )
 
-// ProxyAddress represents a proxy address configuration.
-type ProxyAddress struct {
-	ConnType string
-	Addr     []string
-	Abstract bool
-}
-
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.
-func ProxyParseAddr(addr string) (*ProxyAddress, error) {
+func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 	// Split into <protocol> and <address>.
 	fields := strings.SplitN(addr, ":", 2)
 
@@ -24,7 +18,7 @@ func ProxyParseAddr(addr string) (*ProxyAddress, error) {
 		return nil, fmt.Errorf("Unknown connection type '%s'", fields[0])
 	}
 
-	newProxyAddr := &ProxyAddress{
+	newProxyAddr := &deviceConfig.ProxyAddress{
 		ConnType: fields[0],
 		Abstract: strings.HasPrefix(fields[1], "@"),
 	}

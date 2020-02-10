@@ -112,10 +112,10 @@ func GetVersion() (*version.DottedVersion, error) {
 
 // DHCPStaticIPs retrieves the dnsmasq statically allocated IPs for a container.
 // Returns IPv4 and IPv6 DHCPAllocation structs respectively.
-func DHCPStaticIPs(network string, containerName string) (DHCPAllocation, DHCPAllocation, error) {
+func DHCPStaticIPs(network, projectName, instanceName string) (DHCPAllocation, DHCPAllocation, error) {
 	var IPv4, IPv6 DHCPAllocation
 
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts") + "/" + containerName)
+	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)))
 	if err != nil {
 		return IPv4, IPv6, err
 	}
@@ -131,14 +131,14 @@ func DHCPStaticIPs(network string, containerName string) (DHCPAllocation, DHCPAl
 				if IP.To4() == nil {
 					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
 				}
-				IPv4 = DHCPAllocation{Name: containerName, Static: true, IP: IP.To4()}
+				IPv4 = DHCPAllocation{Name: instanceName, Static: true, IP: IP.To4()}
 
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
 					return IPv4, IPv6, fmt.Errorf("Error parsing IP address: %v", field)
 				}
-				IPv6 = DHCPAllocation{Name: containerName, Static: true, IP: IP}
+				IPv6 = DHCPAllocation{Name: instanceName, Static: true, IP: IP}
 			}
 		}
 	}
@@ -171,7 +171,8 @@ func DHCPAllocatedIPs(network string) (map[[4]byte]DHCPAllocation, map[[16]byte]
 	}
 
 	for _, entry := range files {
-		IPv4, IPv6, err := DHCPStaticIPs(network, entry.Name())
+		projectName, instanceName := project.InstanceParts(entry.Name())
+		IPv4, IPv6, err := DHCPStaticIPs(network, projectName, instanceName)
 		if err != nil {
 			return IPv4s, IPv6s, err
 		}
