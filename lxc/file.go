@@ -535,6 +535,9 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		if f == "-" {
 			file = os.Stdin
 		} else {
+			// Follow symlinks within the snap environment.
+			f = shared.HostPathFollow(f)
+
 			file, err = os.Open(f)
 			if err != nil {
 				return err
