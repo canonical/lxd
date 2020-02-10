@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/dnsmasq"
-	firewallConsts "github.com/lxc/lxd/lxd/firewall/consts"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -321,21 +320,9 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Remove any existing IPv4 iptables rules
-	if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) || (oldConfig != nil && (oldConfig["ipv4.firewall"] == "" || shared.IsTrue(oldConfig["ipv4.firewall"]))) {
-		err = n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv4, firewallConsts.TableAll, n.name)
-		if err != nil {
-			return err
-		}
-
-		err = n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv4, firewallConsts.TableMangle, n.name)
-		if err != nil {
-			return err
-		}
-	}
-
-	if shared.IsTrue(n.config["ipv4.nat"]) || (oldConfig != nil && shared.IsTrue(oldConfig["ipv4.nat"])) {
-		err = n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, n.name)
+	// Remove any existing IPv4 firewall rules.
+	if UsesIPv4Firewall(n.config) || UsesIPv4Firewall(oldConfig) {
+		err = n.state.Firewall.NetworkClear(n.name, 4)
 		if err != nil {
 			return err
 		}
@@ -361,14 +348,14 @@ func (n *Network) setup(oldConfig map[string]string) error {
 
 	// Configure IPv4 firewall (includes fan)
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
-		if n.HasDHCPv4() && (n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"])) {
+		if n.HasDHCPv4() && n.HasIPv4Firewall() {
 			// Setup basic iptables overrides for DHCP/DNS
-			n.state.Firewall.NetworkSetupIPv4DNSOverrides(n.name)
+			n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 4)
 		}
 
 		// Attempt a workaround for broken DHCP clients
-		if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-			n.state.Firewall.NetworkSetupIPv4DHCPWorkaround(n.name)
+		if n.HasIPv4Firewall() {
+			n.state.Firewall.NetworkSetupDHCPv4Checksum(n.name)
 		}
 
 		// Allow forwarding
@@ -378,15 +365,15 @@ func (n *Network) setup(oldConfig map[string]string) error {
 				return err
 			}
 
-			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallConsts.FamilyIPv4, n.name, firewallConsts.ActionAccept)
+			if n.HasIPv4Firewall() {
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, true)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
-			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallConsts.FamilyIPv4, n.name, firewallConsts.ActionReject)
+			if n.HasIPv4Firewall() {
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, false)
 				if err != nil {
 					return err
 				}
@@ -464,18 +451,18 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv4.nat"]) {
 			//If a SNAT source address is specified, use that, otherwise default to using MASQUERADE mode.
-			args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+			var srcIP net.IP
 			if n.config["ipv4.nat.address"] != "" {
-				args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", n.config["ipv4.nat.address"]}
+				srcIP = net.ParseIP(n.config["ipv4.nat.address"])
 			}
 
 			if n.config["ipv4.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupNAT(firewallConsts.FamilyIPv4, n.name, firewallConsts.LocationAppend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = n.state.Firewall.NetworkSetupNAT(firewallConsts.FamilyIPv4, n.name, firewallConsts.LocationPrepend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, false)
 				if err != nil {
 					return err
 				}
@@ -500,16 +487,9 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		}
 	}
 
-	// Remove any existing IPv6 iptables rules
-	if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) || (oldConfig != nil && (oldConfig["ipv6.firewall"] == "" || shared.IsTrue(oldConfig["ipv6.firewall"]))) {
-		err = n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv6, firewallConsts.TableAll, n.name)
-		if err != nil {
-			return err
-		}
-	}
-
-	if shared.IsTrue(n.config["ipv6.nat"]) || (oldConfig != nil && shared.IsTrue(oldConfig["ipv6.nat"])) {
-		err = n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, n.name)
+	// Remove any existing IPv6 firewall rules.
+	if UsesIPv6Firewall(n.config) || UsesIPv6Firewall(oldConfig) {
+		err = n.state.Firewall.NetworkClear(n.name, 6)
 		if err != nil {
 			return err
 		}
@@ -552,7 +532,7 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		if n.HasDHCPv6() {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
 				// Setup basic iptables overrides for DHCP/DNS
-				n.state.Firewall.NetworkSetupIPv6DNSOverrides(n.name)
+				n.state.Firewall.NetworkSetupDHCPDNSAccess(n.name, 6)
 			}
 
 			// Build DHCP configuration
@@ -612,14 +592,14 @@ func (n *Network) setup(oldConfig map[string]string) error {
 			}
 
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallConsts.FamilyIPv6, n.name, firewallConsts.ActionAccept)
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 6, true)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallConsts.FamilyIPv6, n.name, firewallConsts.ActionReject)
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 6, false)
 				if err != nil {
 					return err
 				}
@@ -634,18 +614,18 @@ func (n *Network) setup(oldConfig map[string]string) error {
 
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv6.nat"]) {
-			args := []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE"}
+			var srcIP net.IP
 			if n.config["ipv6.nat.address"] != "" {
-				args = []string{"-s", subnet.String(), "!", "-d", subnet.String(), "-j", "SNAT", "--to", n.config["ipv6.nat.address"]}
+				srcIP = net.ParseIP(n.config["ipv6.nat.address"])
 			}
 
 			if n.config["ipv6.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupNAT(firewallConsts.FamilyIPv6, n.name, firewallConsts.LocationAppend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = n.state.Firewall.NetworkSetupNAT(firewallConsts.FamilyIPv6, n.name, firewallConsts.LocationPrepend, args...)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, subnet, srcIP, false)
 				if err != nil {
 					return err
 				}
@@ -805,12 +785,12 @@ func (n *Network) setup(oldConfig map[string]string) error {
 		// Configure NAT
 		if n.config["ipv4.nat"] == "" || shared.IsTrue(n.config["ipv4.nat"]) {
 			if n.config["ipv4.nat.order"] == "after" {
-				err = n.state.Firewall.NetworkSetupTunnelNAT(n.name, firewallConsts.LocationAppend, *overlaySubnet)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = n.state.Firewall.NetworkSetupTunnelNAT(n.name, firewallConsts.LocationPrepend, *overlaySubnet)
+				err = n.state.Firewall.NetworkSetupOutboundNAT(n.name, overlaySubnet, nil, false)
 				if err != nil {
 					return err
 				}
@@ -1072,35 +1052,16 @@ func (n *Network) Stop() error {
 		}
 	}
 
-	// Cleanup iptables
-	if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-		err := n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv4, firewallConsts.TableAll, n.name)
-		if err != nil {
-			return err
-		}
-
-		err = n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv4, firewallConsts.TableMangle, n.name)
+	// Cleanup firewall rules.
+	if UsesIPv4Firewall(n.config) {
+		err := n.state.Firewall.NetworkClear(n.name, 4)
 		if err != nil {
 			return err
 		}
 	}
 
-	if shared.IsTrue(n.config["ipv4.nat"]) {
-		err := n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv4, firewallConsts.TableNat, n.name)
-		if err != nil {
-			return err
-		}
-	}
-
-	if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-		err := n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv6, firewallConsts.TableAll, n.name)
-		if err != nil {
-			return err
-		}
-	}
-
-	if shared.IsTrue(n.config["ipv6.nat"]) {
-		err := n.state.Firewall.NetworkClear(firewallConsts.FamilyIPv6, firewallConsts.TableNat, n.name)
+	if UsesIPv6Firewall(n.config) {
+		err := n.state.Firewall.NetworkClear(n.name, 6)
 		if err != nil {
 			return err
 		}
@@ -1646,4 +1607,22 @@ func (n *Network) DHCPv6Ranges() []DHCPRange {
 	}
 
 	return dhcpRanges
+}
+
+// HasIPv4Firewall indicates whether the network has IPv4 firewall enabled.
+func (n *Network) HasIPv4Firewall() bool {
+	if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
+		return true
+	}
+
+	return false
+}
+
+// HasIPv6Firewall indicates whether the network has IPv6 firewall enabled.
+func (n *Network) HasIPv6Firewall() bool {
+	if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
+		return true
+	}
+
+	return false
 }

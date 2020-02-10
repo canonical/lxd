@@ -19,7 +19,7 @@ teardown_clustering_bridge() {
   if [ -e "/sys/class/net/${name}" ]; then
       echo "==> Teardown clustering bridge ${name}"
       echo 0 > /proc/sys/net/ipv4/ip_forward
-      iptables -w -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
+      iptables -w -t nat -D POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
       ip link del dev "${name}"
   fi
 }

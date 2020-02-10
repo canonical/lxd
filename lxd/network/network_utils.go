@@ -257,7 +257,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], inst.Name())
+				curIPv4, curIPv6, err := dnsmasq.DHCPStaticIPs(d["parent"], inst.Project(), inst.Name())
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -803,4 +803,38 @@ func GetMACSlice(hwaddr string) []string {
 	}
 
 	return buf
+}
+
+// UsesIPv4Firewall returns whether network config will need to use the IPv4 firewall.
+func UsesIPv4Firewall(netConfig map[string]string) bool {
+	if netConfig == nil {
+		return false
+	}
+
+	if netConfig["ipv4.firewall"] == "" || shared.IsTrue(netConfig["ipv4.firewall"]) {
+		return true
+	}
+
+	if shared.IsTrue(netConfig["ipv4.nat"]) {
+		return true
+	}
+
+	return false
+}
+
+// UsesIPv6Firewall returns whether network config will need to use the IPv6 firewall.
+func UsesIPv6Firewall(netConfig map[string]string) bool {
+	if netConfig == nil {
+		return false
+	}
+
+	if netConfig["ipv6.firewall"] == "" || shared.IsTrue(netConfig["ipv6.firewall"]) {
+		return true
+	}
+
+	if shared.IsTrue(netConfig["ipv6.nat"]) {
+		return true
+	}
+
+	return false
 }
