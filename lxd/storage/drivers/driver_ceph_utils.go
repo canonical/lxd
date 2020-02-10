@@ -571,8 +571,7 @@ func (d *ceph) getRBDMountOptions(vol Volume) string {
 // copyWithSnapshots creates a non-sparse copy of a container including its snapshots.
 // This does not introduce a dependency relation between the source RBD storage
 // volume and the target RBD storage volume.
-func (d *ceph) copyWithSnapshots(sourceVolumeName string,
-	targetVolumeName string, sourceParentSnapshot string) error {
+func (d *ceph) copyWithSnapshots(sourceVolumeName string, targetVolumeName string, sourceParentSnapshot string) error {
 	args := []string{
 		"export-diff",
 		"--id", d.config["ceph.user.name"],
@@ -957,8 +956,7 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 // getRBDMappedDevPath looks at sysfs to retrieve the device path.
 // "/dev/rbd<idx>" for an RBD image. If it doesn't find it it will map it if
 // told to do so.
-func (d *ceph) getRBDMappedDevPath(vol Volume,
-	doMap bool) (string, int) {
+func (d *ceph) getRBDMappedDevPath(vol Volume, doMap bool) (string, int) {
 	files, err := ioutil.ReadDir("/sys/devices/rbd")
 	if err != nil {
 		if os.IsNotExist(err) {
