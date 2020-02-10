@@ -627,6 +627,9 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			"--pool", d.config["ceph.osd.pool_name"],
 			"--size", fmt.Sprintf("%dM", (newSize/1024/1024)),
 			d.getRBDVolumeName(vol, "", false, false))
+		if err != nil {
+			return err
+		}
 	} else {
 		// Grow the block device.
 		_, err = shared.TryRunCommand(
@@ -643,9 +646,9 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 
 		// Grow the filesystem.
 		err = growFileSystem(fsType, RBDDevPath, vol)
-	}
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -667,11 +670,10 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
 		RBDFilesystem := d.getRBDFilesystem(vol)
-		ourMount := false
 
 		err := vol.EnsureMountPath()
 		if err != nil {
-			return ourMount, err
+			return false, err
 		}
 
 		RBDDevPath, ret := d.getRBDMappedDevPath(vol, true)
@@ -680,13 +682,14 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 			mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(vol))
 
 			err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
-			ourMount = true
-		}
-		if err != nil || ret < 0 {
-			return false, err
+			if err != nil {
+				return false, err
+			}
+		} else {
+			return false, fmt.Errorf("RBD path not found")
 		}
 
-		return ourMount, nil
+		return true, nil
 	}
 
 	// For VMs, mount the filesystem volume.
