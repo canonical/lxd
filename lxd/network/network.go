@@ -379,14 +379,14 @@ func (n *Network) setup(oldConfig map[string]string) error {
 			}
 
 			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallDrivers.FamilyIPv4, n.name, firewallDrivers.ActionAccept)
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, true)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
 			if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallDrivers.FamilyIPv4, n.name, firewallDrivers.ActionReject)
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 4, false)
 				if err != nil {
 					return err
 				}
@@ -612,14 +612,14 @@ func (n *Network) setup(oldConfig map[string]string) error {
 			}
 
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallDrivers.FamilyIPv6, n.name, firewallDrivers.ActionAccept)
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 6, true)
 				if err != nil {
 					return err
 				}
 			}
 		} else {
 			if n.config["ipv6.firewall"] == "" || shared.IsTrue(n.config["ipv6.firewall"]) {
-				err = n.state.Firewall.NetworkSetupAllowForwarding(firewallDrivers.FamilyIPv6, n.name, firewallDrivers.ActionReject)
+				err = n.state.Firewall.NetworkSetupForwardingPolicy(n.name, 6, false)
 				if err != nil {
 					return err
 				}
