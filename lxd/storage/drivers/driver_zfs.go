@@ -40,8 +40,9 @@ type zfs struct {
 func (d *zfs) load() error {
 	// Register the patches.
 	d.patches = map[string]func() error{
-		"storage_create_vm": d.patchStorageCreateVM,
-		"storage_zfs_mount": d.patchStorageZFSMount,
+		"storage_create_vm":       d.patchStorageCreateVM,
+		"storage_zfs_mount":       d.patchStorageZFSMount,
+		"storage_create_vm_again": nil,
 	}
 
 	// Done if previously loaded.

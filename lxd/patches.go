@@ -82,6 +82,7 @@ var patches = []patch{
 	{name: "storage_create_vm", run: patchGenericStorage},
 	{name: "storage_zfs_mount", run: patchGenericStorage},
 	{name: "network_pid_files", run: patchNetworkPIDFiles},
+	{name: "storage_create_vm_again", run: patchGenericStorage},
 }
 
 type patch struct {
