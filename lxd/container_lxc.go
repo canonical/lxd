@@ -5349,6 +5349,12 @@ func (c *containerLXC) FileExists(path string) error {
 }
 
 func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
+	// Check for ongoing operations (that may involve shifting).
+	op := operationlock.Get(c.id)
+	if op != nil {
+		op.Wait()
+	}
+
 	var ourStart bool
 	var err error
 	// Setup container storage if needed
@@ -5472,6 +5478,12 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 }
 
 func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
+	// Check for ongoing operations (that may involve shifting).
+	op := operationlock.Get(c.id)
+	if op != nil {
+		op.Wait()
+	}
+
 	var rootUid int64
 	var rootGid int64
 	var errStr string
