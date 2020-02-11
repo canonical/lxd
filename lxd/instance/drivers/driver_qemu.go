@@ -2904,14 +2904,7 @@ func (vm *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, 
 			return nil, err
 		}
 
-		revert.Add(func() {
-			termios.Restore(int(stdin.Fd()), oldttystate)
-
-			// Write a reset escape sequence to the console to cancel any ongoing reads to the handle
-			// and then close it.
-			stdout.Write([]byte("\x1bc"))
-			stdout.Close()
-		})
+		revert.Add(func() { termios.Restore(int(stdin.Fd()), oldttystate) })
 	}
 
 	dataDone := make(chan bool)
