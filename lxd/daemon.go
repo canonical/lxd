@@ -1444,7 +1444,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 			// Exclude nodes that the leader considers offline.
 			// This is to avoid forkdns delaying results by querying an offline node.
 			if !node.Online {
-				if role != db.RaftStandBy {
+				if role != db.RaftSpare {
 					isDegraded = true
 				}
 				logger.Warnf("Excluding offline node from refresh: %+v", node)
