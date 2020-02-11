@@ -156,6 +156,9 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 // Return an updated list raft database nodes (possibly including the newly
 // accepted node).
 func Accept(state *state.State, gateway *Gateway, name, address string, schema, api, arch int) ([]db.RaftNode, error) {
+	var maxVoters int64
+	var maxStandBy int64
+
 	// Check parameters
 	if name == "" {
 		return nil, fmt.Errorf("node name must not be empty")
@@ -167,8 +170,15 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 	// Insert the new node into the nodes table.
 	var id int64
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "Load cluster configuration")
+		}
+		maxVoters = config.MaxVoters()
+		maxStandBy = config.MaxStandBy()
+
 		// Check that the node can be accepted with these parameters.
-		err := membershipCheckClusterStateForAccept(tx, name, address, schema, api)
+		err = membershipCheckClusterStateForAccept(tx, name, address, schema, api)
 		if err != nil {
 			return err
 		}
@@ -211,9 +221,9 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 		}
 	}
 	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
-	if count > 1 && voters < MaxVoters {
+	if count > 1 && voters < int(maxVoters) {
 		node.Role = db.RaftVoter
-	} else if standbys < MaxStandBys {
+	} else if standbys < int(maxStandBy) {
 		node.Role = db.RaftStandBy
 	}
 	nodes = append(nodes, node)
@@ -490,12 +500,16 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 	// timestamp and check whether they are offline.
 	nodesByAddress := map[string]db.NodeInfo{}
 	var offlineThreshold time.Duration
+	var maxVoters int64
+	var maxStandBy int64
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed load cluster configuration")
 		}
 		offlineThreshold = config.OfflineThreshold()
+		maxVoters = config.MaxVoters()
+		maxStandBy = config.MaxStandBy()
 		nodes, err := tx.Nodes()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster nodes")
@@ -559,12 +573,12 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	var role db.RaftRole
 
-	if len(voters) < MaxVoters && len(voters) > 1 {
+	if len(voters) < int(maxVoters) && len(voters) > 1 {
 		role = db.RaftVoter
 		// Include stand-by nodes among the ones that can be promoted,
 		// preferring them over spare ones.
 		candidates = append(standbys, candidates...)
-	} else if len(standbys) < MaxStandBys {
+	} else if len(standbys) < int(maxStandBy) {
 		role = db.RaftStandBy
 	} else {
 		// We're already at full capacity or would have a two-member cluster.
@@ -1123,9 +1137,3 @@ func membershipCheckNoLeftoverClusterCert(dir string) error {
 
 // SchemaVersion holds the version of the cluster database schema.
 var SchemaVersion = cluster.SchemaVersion
-
-// We currently aim at having 3 voter nodes and 2 stand-by.
-//
-// TODO: these numbers should probably be configurable.
-const MaxVoters = 3
-const MaxStandBys = 2
