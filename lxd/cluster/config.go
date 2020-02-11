@@ -130,6 +130,18 @@ func (c *Config) ImagesMinimalReplica() int64 {
 	return c.m.GetInt64("cluster.images_minimal_replica")
 }
 
+// MaxVoters returns the maximum number of members in a cluster that will be
+// assigned the voter role.
+func (c *Config) MaxVoters() int64 {
+	return c.m.GetInt64("cluster.max_voters")
+}
+
+// MaxStandBy returns the maximum number of standby members in a cluster that
+// will be assigned the stand-by role.
+func (c *Config) MaxStandBy() int64 {
+	return c.m.GetInt64("cluster.max_standby")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -222,6 +234,8 @@ var ConfigSchema = config.Schema{
 	"backups.compression_algorithm":  {Default: "gzip", Validator: validateCompression},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
+	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
+	"cluster.max_standby":            {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},
 	"core.https_allowed_origin":      {},
@@ -287,6 +301,32 @@ func imageMinimalReplicaValidator(value string) error {
 
 	if count < 1 && count != -1 {
 		return fmt.Errorf("Invalid value for image replica count")
+	}
+
+	return nil
+}
+
+func maxVotersValidator(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Value is not a number")
+	}
+
+	if n < 3 || n%2 != 1 {
+		return fmt.Errorf("Value must be an odd number equal to or higher than 3")
+	}
+
+	return nil
+}
+
+func maxStandByValidator(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Value is not a number")
+	}
+
+	if n < 0 || n > 5 {
+		return fmt.Errorf("Value must be between 0 and 5")
 	}
 
 	return nil
