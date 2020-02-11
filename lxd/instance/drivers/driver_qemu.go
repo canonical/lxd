@@ -819,6 +819,46 @@ func (vm *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	// Apply CPU pinning.
+	cpuLimit, ok := vm.expandedConfig["limits.cpu"]
+	if ok && cpuLimit != "" {
+		_, err := strconv.Atoi(cpuLimit)
+		if err != nil {
+			// Expand to a set of CPU identifiers.
+			pins, err := instance.ParseCpuset(cpuLimit)
+			if err != nil {
+				op.Done(err)
+				return err
+			}
+
+			// Get the list of PIDs from the VM.
+			pids, err := monitor.GetCPUs()
+			if err != nil {
+				op.Done(err)
+				return err
+			}
+
+			// Confirm nothing weird is going on.
+			if len(pins) != len(pids) {
+				return fmt.Errorf("QEMU has less vCPUs than configured")
+			}
+
+			for i, pin := range pins {
+				pid := pids[i]
+
+				set := unix.CPUSet{}
+				set.Set(pin)
+
+				// Apply the pin.
+				err := unix.SchedSetaffinity(pid, &set)
+				if err != nil {
+					op.Done(err)
+					return err
+				}
+			}
+		}
+	}
+
 	// Start the VM.
 	err = monitor.Start()
 	if err != nil {
@@ -1386,7 +1426,12 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 
 	cpuCount, err := strconv.Atoi(cpus)
 	if err != nil {
-		return fmt.Errorf("limits.cpu invalid: %v", err)
+		pins, err := instance.ParseCpuset(cpus)
+		if err != nil {
+			return fmt.Errorf("limits.cpu invalid: %v", err)
+		}
+
+		cpuCount = len(pins)
 	}
 
 	return qemuCPU.Execute(sb, map[string]interface{}{
