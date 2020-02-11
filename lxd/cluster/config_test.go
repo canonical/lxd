@@ -64,6 +64,19 @@ func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 
 }
 
+// Max number of voters must be odd.
+func TestConfigLoad_MaxVotersValidator(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	config, err := cluster.ConfigLoad(tx)
+	require.NoError(t, err)
+
+	_, err = config.Patch(map[string]interface{}{"cluster.max_voters": "4"})
+	require.EqualError(t, err, "cannot set 'cluster.max_voters' to '4': Value must be an odd number equal to or higher than 3")
+
+}
+
 // If some previously set values are missing from the ones passed to Replace(),
 // they are deleted from the configuration.
 func TestConfig_ReplaceDeleteValues(t *testing.T) {

@@ -131,6 +131,38 @@ Once your cluster is formed you can see a list of its nodes and their
 status by running `lxc cluster list`. More detailed information about
 an individual node is available with `lxc cluster show <node name>`.
 
+### Voting and stand-by members
+
+The cluster uses a distributed [database](database.md) to store its state. All
+nodes in the cluster need to access such distributed database in order to serve
+user requests.
+
+If the cluster has many nodes, only some of them will be picked to replicate
+database data. Each node that is picked can replicate data either as "voter" or
+as "stand-by". The database (and hence the cluster) will remain available as
+long as a majority of voters is online. A stand-by node will automatically be
+promoted to voter when another voter is shutdown gracefully or when its detected
+to be offline.
+
+The default number of voting nodes is 3 and the default number of stand-by nodes
+is 2. This means that your cluster will remain operation as long as you switch
+off at most one voting node at a time.
+
+You can change the desired number of voting and stand-by nodes with:
+
+```bash
+lxc config set cluster.max_voters <n>
+```
+
+and
+
+```bash
+lxc config set cluster.max_standby <n>
+```
+
+with the constraint that the maximum number of voters must be odd and must be
+least 3, while the maximum number of stand-by nodes must be between 0 and 5.
+
 ### Deleting nodes
 
 To cleanly delete a node from the cluster use `lxc cluster remove <node name>`.
@@ -151,6 +183,15 @@ available again.
 
 If you can't or don't want to bring the node back online, you can
 delete it from the cluster using `lxc cluster remove --force <node name>`.
+
+You can tweak the amount of seconds after which a non-responding node will be
+considered offline by running:
+
+```bash
+lxc config set cluster.offline_threshold <n seconds>
+```
+
+The minimum value is 10 seconds.
 
 ### Upgrading nodes
 

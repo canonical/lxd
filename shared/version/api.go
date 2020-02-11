@@ -187,6 +187,7 @@ var APIExtensions = []string{
 	"unix_hotplug_devices",
 	"api_filtering",
 	"instance_nic_network",
+	"clustering_sizing",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
