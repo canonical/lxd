@@ -349,8 +349,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			logger.Info("Started mirroring websocket")
-			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			pollFD := int(ptys[0].Fd())
+			logger.Infof("Started mirroring websocket with FD %v", pollFD)
+			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, pollFD)
 
 			<-readDone
 			<-writeDone
@@ -388,6 +389,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 			tty.Close()
 		}
 
+		// Ensure PTYs are closed before websocket to end wgEOF.Wait().
+		for _, pty := range ptys {
+			pty.Close()
+		}
+
 		s.connsLock.Lock()
 		conn := s.conns[-1]
 		s.connsLock.Unlock()
@@ -401,12 +407,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}
 
 		attachedChildIsDead <- true
-
 		wgEOF.Wait()
-
-		for _, pty := range ptys {
-			pty.Close()
-		}
 
 		metadata := shared.Jmap{"return": cmdResult}
 		err = op.UpdateMetadata(metadata)
