@@ -912,3 +912,9 @@ Adds support for filtering the result of a GET request for instances and images.
 ## instance\_nic\_network
 Adds support for the `network` property on a NIC device to allow a NIC to be linked to a managed network.
 This allows it to inherit some of the network's settings and allows better validation of IP settings.
+
+## clustering\_sizing
+Support specifying a custom values for database voters and standbys.
+The new cluster.max_voters and cluster.max_standby configuration keys were introduced
+to specify to the ideal number of database voter and standbys.
+
