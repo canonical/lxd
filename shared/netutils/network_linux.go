@@ -171,14 +171,22 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 	return networks, nil
 }
 
-func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, exited chan bool, fd int) (chan bool, chan bool) {
+// WebsocketExecMirror if supplied with pollFd then it uses polling on that descriptor.
+func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, exited chan bool, pollFd int) (chan bool, chan bool) {
 	readDone := make(chan bool, 1)
 	writeDone := make(chan bool, 1)
 
 	go shared.DefaultWriter(conn, w, writeDone)
 
 	go func(conn *websocket.Conn, r io.ReadCloser) {
-		in := shared.ExecReaderToChannel(r, -1, exited, fd)
+		var in <-chan []byte
+		if pollFd > 0 {
+			in = shared.ExecReaderToChannel(r, -1, exited, pollFd)
+
+		} else {
+			in = shared.ReaderToChannel(r, -1)
+		}
+
 		for {
 			buf, ok := <-in
 			if !ok {
