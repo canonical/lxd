@@ -1444,7 +1444,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 			// Exclude nodes that the leader considers offline.
 			// This is to avoid forkdns delaying results by querying an offline node.
 			if !node.Online {
-				if role != db.RaftStandBy {
+				if role != db.RaftSpare {
 					isDegraded = true
 				}
 				logger.Warnf("Excluding offline node from refresh: %+v", node)
@@ -1478,7 +1478,23 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	// don't have enough voters or standbys, let's see if we can upgrade
 	// some member.
 	if len(heartbeatData.Members) > 2 {
-		if isDegraded || voters < cluster.MaxVoters || standbys < cluster.MaxStandBys {
+		var maxVoters int64
+		var maxStandBy int64
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return err
+			}
+			maxVoters = config.MaxVoters()
+			maxStandBy = config.MaxStandBy()
+			return nil
+		})
+		if err != nil {
+			logger.Errorf("Error loading cluster configuration: %v", err)
+			return
+		}
+
+		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
 			go func() {
 				d.clusterMembershipMutex.Lock()
 				defer d.clusterMembershipMutex.Unlock()

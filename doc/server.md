@@ -22,6 +22,8 @@ candid.domains                      | string    | global    | -         | candid
 cluster.https\_address              | string    | local     | -         | clustering\_server\_address       | Address the server should using for clustering traffic
 cluster.offline\_threshold          | integer   | global    | 20        | clustering                        | Number of seconds after which an unresponsive node is considered offline
 cluster.images\_minimal\_replica    | integer   | global    | 3         | clustering\_image\_replication    | Minimal numbers of cluster members with a copy of a particular image (set 1 for no replication, -1 for all members)
+cluster.max\_voters                 | integer   | global    | 3         | clustering\_sizing                | Maximum number of cluster members that will be assigned the database voter role
+cluster.max\_standby                | integer   | global    | 2         | clustering\_sizing                | Maximum number of cluster members that will be assigned the database stand-by role
 core.debug\_address                 | string    | local     | -         | pprof\_http                       | Address to bind the pprof debug server to (HTTP)
 core.https\_address                 | string    | local     | -         | -                                 | Address to bind for the remote API (HTTPS)
 core.https\_allowed\_credentials    | boolean   | global    | -         | -                                 | Whether to set Access-Control-Allow-Credentials http header value to "true"
