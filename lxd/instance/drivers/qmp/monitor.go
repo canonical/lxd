@@ -284,3 +284,39 @@ func (m *Monitor) Quit() error {
 func (m *Monitor) AgentReady() bool {
 	return m.agentReady
 }
+
+// GetCPUs fetches the vCPU information for pinning.
+func (m *Monitor) GetCPUs() ([]int, error) {
+	// Check if disconnected
+	if m.disconnected {
+		return nil, ErrMonitorDisconnect
+	}
+
+	// Query the consoles.
+	respRaw, err := m.qmp.Run([]byte("{'execute': 'query-cpus'}"))
+	if err != nil {
+		m.Disconnect()
+		return nil, ErrMonitorDisconnect
+	}
+
+	// Process the response.
+	var respDecoded struct {
+		Return []struct {
+			CPU int `json:"CPU"`
+			PID int `json:"thread_id"`
+		} `json:"return"`
+	}
+
+	err = json.Unmarshal(respRaw, &respDecoded)
+	if err != nil {
+		return nil, ErrMonitorBadReturn
+	}
+
+	// Make a slice of PIDs.
+	pids := []int{}
+	for _, cpu := range respDecoded.Return {
+		pids = append(pids, cpu.PID)
+	}
+
+	return pids, nil
+}
