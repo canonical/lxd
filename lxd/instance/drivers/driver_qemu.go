@@ -1437,6 +1437,9 @@ func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
 	return qemuCPU.Execute(sb, map[string]interface{}{
 		"architecture": vm.architectureName,
 		"cpuCount":     cpuCount,
+		"cpuSockets":   1,
+		"cpuCores":     cpuCount,
+		"cpuThreads":   1,
 	})
 }
 
