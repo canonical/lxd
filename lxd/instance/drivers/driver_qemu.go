@@ -36,6 +36,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -824,8 +825,8 @@ func (vm *qemu) Start(stateful bool) error {
 	if ok && cpuLimit != "" {
 		_, err := strconv.Atoi(cpuLimit)
 		if err != nil {
-			// Expand to a set of CPU identifiers.
-			pins, err := instance.ParseCpuset(cpuLimit)
+			// Expand to a set of CPU identifiers and get the pinning map.
+			_, _, _, pins, err := vm.cpuTopology(cpuLimit)
 			if err != nil {
 				op.Done(err)
 				return err
@@ -843,11 +844,9 @@ func (vm *qemu) Start(stateful bool) error {
 				return fmt.Errorf("QEMU has less vCPUs than configured")
 			}
 
-			for i, pin := range pins {
-				pid := pids[i]
-
+			for i, pid := range pids {
 				set := unix.CPUSet{}
-				set.Set(pin)
+				set.Set(int(pins[uint64(i)]))
 
 				// Apply the pin.
 				err := unix.SchedSetaffinity(pid, &set)
@@ -1418,29 +1417,37 @@ func (vm *qemu) addVsockConfig(sb *strings.Builder) error {
 
 // addCPUConfig adds the qemu config required for setting the number of virtualised CPUs.
 func (vm *qemu) addCPUConfig(sb *strings.Builder) error {
-	// Configure CPU limit. TODO add control of sockets, cores and threads.
+	// Default to a single core.
 	cpus := vm.expandedConfig["limits.cpu"]
 	if cpus == "" {
 		cpus = "1"
 	}
 
-	cpuCount, err := strconv.Atoi(cpus)
-	if err != nil {
-		pins, err := instance.ParseCpuset(cpus)
-		if err != nil {
-			return fmt.Errorf("limits.cpu invalid: %v", err)
-		}
-
-		cpuCount = len(pins)
+	ctx := map[string]interface{}{
+		"architecture": vm.architectureName,
 	}
 
-	return qemuCPU.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"cpuCount":     cpuCount,
-		"cpuSockets":   1,
-		"cpuCores":     cpuCount,
-		"cpuThreads":   1,
-	})
+	cpuCount, err := strconv.Atoi(cpus)
+	if err == nil {
+		// If not pinning, default to exposing cores.
+		ctx["cpuCount"] = cpuCount
+		ctx["cpuSockets"] = 1
+		ctx["cpuCores"] = cpuCount
+		ctx["cpuThreads"] = 1
+	} else {
+		// Expand to a set of CPU identifiers and get the pinning map.
+		nrSockets, nrCores, nrThreads, vcpus, err := vm.cpuTopology(cpus)
+		if err != nil {
+			return err
+		}
+
+		ctx["cpuCount"] = len(vcpus)
+		ctx["cpuSockets"] = nrSockets
+		ctx["cpuCores"] = nrCores
+		ctx["cpuThreads"] = nrThreads
+	}
+
+	return qemuCPU.Execute(sb, ctx)
 }
 
 // addMonitorConfig adds the qemu config required for setting up the host side VM monitor device.
@@ -3717,4 +3724,111 @@ func (vm *qemu) UpdateBackupFile() error {
 	}
 
 	return pool.UpdateInstanceBackupFile(vm, nil)
+}
+
+func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, error) {
+	// Get CPU topology.
+	cpus, err := resources.GetCPU()
+	if err != nil {
+		return -1, -1, -1, nil, err
+	}
+
+	// Expand the pins.
+	pins, err := instance.ParseCpuset(limit)
+	if err != nil {
+		return -1, -1, -1, nil, err
+	}
+
+	// Match tracking.
+	vcpus := map[uint64]uint64{}
+	sockets := map[uint64][]uint64{}
+	cores := map[uint64][]uint64{}
+
+	// Go through the physical CPUs looking for matches.
+	i := uint64(0)
+	for _, cpu := range cpus.Sockets {
+		for _, core := range cpu.Cores {
+			for _, thread := range core.Threads {
+				for _, pin := range pins {
+					if thread.ID == int64(pin) {
+						// Found a matching CPU.
+						vcpus[i] = uint64(pin)
+						i++
+
+						// Track cores per socket.
+						_, ok := sockets[cpu.Socket]
+						if !ok {
+							sockets[cpu.Socket] = []uint64{}
+						}
+						if !shared.Uint64InSlice(core.Core, sockets[cpu.Socket]) {
+							sockets[cpu.Socket] = append(sockets[cpu.Socket], core.Core)
+						}
+
+						// Track threads per core.
+						_, ok = cores[core.Core]
+						if !ok {
+							cores[core.Core] = []uint64{}
+						}
+						if !shared.Uint64InSlice(thread.Thread, cores[core.Core]) {
+							cores[core.Core] = append(cores[core.Core], thread.Thread)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Confirm we're getting the expected number of CPUs.
+	if len(pins) != len(vcpus) {
+		return -1, -1, -1, nil, fmt.Errorf("Unavailable CPUs requested: %s", limit)
+	}
+
+	// Validate the topology.
+	valid := true
+	nrSockets := 0
+	nrCores := 0
+	nrThreads := 0
+
+	// Confirm that there is no balancing inconsistencies.
+	countCores := -1
+	for _, cores := range sockets {
+		if countCores != -1 && len(cores) != countCores {
+			valid = false
+			break
+		}
+
+		countCores = len(cores)
+	}
+
+	countThreads := -1
+	for _, threads := range cores {
+		if countThreads != -1 && len(threads) != countThreads {
+			valid = false
+			break
+		}
+
+		countThreads = len(threads)
+	}
+
+	// Check against double listing of CPU.
+	if len(sockets)*countCores*countThreads != len(vcpus) {
+		valid = false
+	}
+
+	// Build up the topology.
+	if valid {
+		// Valid topology.
+		nrSockets = len(sockets)
+		nrCores = countCores
+		nrThreads = countThreads
+	} else {
+		logger.Warnf("Instance '%s' uses a CPU pinning profile which doesn't match hardware layout", project.Prefix(vm.Project(), vm.Name()))
+
+		// Fallback on pretending everything are cores.
+		nrSockets = 1
+		nrCores = len(vcpus)
+		nrThreads = 1
+	}
+
+	return nrSockets, nrCores, nrThreads, vcpus, nil
 }
