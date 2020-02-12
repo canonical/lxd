@@ -55,10 +55,17 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 				return
 			}
 		case unix.SIGHUP:
+			file, err := os.OpenFile("/dev/tty", os.O_RDONLY|unix.O_NOCTTY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0666)
+			if err == nil {
+				file.Close()
+				err = c.forwardSignal(control, unix.SIGHUP)
+			} else {
+				err = c.forwardSignal(control, unix.SIGTERM)
+				sig = unix.SIGTERM
+			}
 			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
-			err := c.forwardSignal(control, unix.SIGHUP)
 			if err != nil {
-				logger.Debugf("Failed to forward signal '%s'.", unix.SIGHUP)
+				logger.Debugf("Failed to forward signal '%s'.", sig)
 				return
 			}
 		case unix.SIGINT:
