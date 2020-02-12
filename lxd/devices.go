@@ -285,42 +285,6 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 	return chCPU, chNetwork, chUSB, chUnix, nil
 }
 
-func parseCpuset(cpu string) ([]int, error) {
-	cpus := []int{}
-	chunks := strings.Split(cpu, ",")
-	for _, chunk := range chunks {
-		if strings.Contains(chunk, "-") {
-			// Range
-			fields := strings.SplitN(chunk, "-", 2)
-			if len(fields) != 2 {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
-			}
-
-			low, err := strconv.Atoi(fields[0])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
-			}
-
-			high, err := strconv.Atoi(fields[1])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
-			}
-
-			for i := low; i <= high; i++ {
-				cpus = append(cpus, i)
-			}
-		} else {
-			// Simple entry
-			nr, err := strconv.Atoi(chunk)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid cpuset value: %s", cpu)
-			}
-			cpus = append(cpus, nr)
-		}
-	}
-	return cpus, nil
-}
-
 func deviceTaskBalance(s *state.State) {
 	min := func(x, y int) int {
 		if x < y {
@@ -345,7 +309,7 @@ func deviceTaskBalance(s *state.State) {
 		}
 	}
 
-	effectiveCpusInt, err := parseCpuset(effectiveCpus)
+	effectiveCpusInt, err := instance.ParseCpuset(effectiveCpus)
 	if err != nil {
 		logger.Errorf("Error parsing effective CPU set")
 		return
@@ -362,7 +326,7 @@ func deviceTaskBalance(s *state.State) {
 		// File might exist even though there are no isolated cpus.
 		isolatedCpus := strings.TrimSpace(string(buf))
 		if isolatedCpus != "" {
-			isolatedCpusInt, err = parseCpuset(isolatedCpus)
+			isolatedCpusInt, err = instance.ParseCpuset(isolatedCpus)
 			if err != nil {
 				logger.Errorf("Error parsing isolated CPU set: %s", string(isolatedCpus))
 				return
@@ -385,7 +349,7 @@ func deviceTaskBalance(s *state.State) {
 	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
 		logger.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
 	}
-	cpus, err := parseCpuset(effectiveCpus)
+	cpus, err := instance.ParseCpuset(effectiveCpus)
 	if err != nil {
 		logger.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
@@ -418,7 +382,7 @@ func deviceTaskBalance(s *state.State) {
 			balancedInstances[c] = count
 		} else {
 			// Pinned
-			containerCpus, err := parseCpuset(cpulimit)
+			containerCpus, err := instance.ParseCpuset(cpulimit)
 			if err != nil {
 				return
 			}
