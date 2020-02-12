@@ -119,7 +119,7 @@ int get_poll_revents(int lfd, int timeout, int flags, int *revents, int *saved_e
 again:
 	ret = poll(&pfd, 1, timeout);
 	if (ret < 0) {
-		if (errno == EINTR)
+		if (errno == EINTR || errno == EAGAIN)
 			goto again;
 
 		*saved_errno = errno;
