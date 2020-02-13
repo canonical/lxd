@@ -2,9 +2,12 @@ package node
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/shared"
+	"github.com/pkg/errors"
 )
 
 // Config holds node-local configuration values for a certain LXD instance.
@@ -153,7 +156,7 @@ var ConfigSchema = config.Schema{
 	"core.https_address": {},
 
 	// Network address for cluster communication
-	"cluster.https_address": {},
+	"cluster.https_address": {Validator: validateClusterHTTPSAddress},
 
 	// Network address for the debug server
 	"core.debug_address": {},
@@ -164,4 +167,18 @@ var ConfigSchema = config.Schema{
 	// Storage volumes to store backups/images on
 	"storage.backups_volume": {},
 	"storage.images_volume":  {},
+}
+
+func validateClusterHTTPSAddress(value string) error {
+	if value == "" {
+		return nil // Deleting entry
+	}
+	host, _, err := net.SplitHostPort(value)
+	if err != nil {
+		return errors.Wrap(err, "Address not in form of <HOST>:<PORT>")
+	}
+	if shared.StringInSlice(host, []string{"[::]", "0.0.0.0"}) {
+		return fmt.Errorf("Invalid IP address or DNS name")
+	}
+	return nil
 }
