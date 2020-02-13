@@ -1,4 +1,4 @@
 package version
 
 // Version contains the LXD version number
-var Version = "3.20"
+var Version = "3.21"
