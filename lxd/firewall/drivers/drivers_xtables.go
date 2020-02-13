@@ -234,10 +234,12 @@ func (d Xtables) InstanceClearBridgeFilter(projectName, instanceName, deviceName
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Xtables) InstanceSetupProxyNAT(projectName, instanceName, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
 	connectAddrCount := len(connect.Addr)
-	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
-
 	if connectAddrCount < 1 {
 		return fmt.Errorf("At least 1 connect address must be supplied")
+	}
+
+	if len(listen.Addr) < 1 {
+		return fmt.Errorf("At least 1 listen address must be supplied")
 	}
 
 	if connectAddrCount > 1 && len(listen.Addr) != connectAddrCount {
@@ -247,6 +249,8 @@ func (d Xtables) InstanceSetupProxyNAT(projectName, instanceName, deviceName str
 	revert := revert.New()
 	defer revert.Fail()
 	revert.Add(func() { d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
+
+	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	for i, lAddr := range listen.Addr {
 		listenHost, listenPort, err := net.SplitHostPort(lAddr)
