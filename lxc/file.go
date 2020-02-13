@@ -235,7 +235,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Determine the target
-	target := shared.HostPath(filepath.Clean(args[len(args)-1]))
+	target := shared.HostPathFollow(filepath.Clean(args[len(args)-1]))
 	targetIsDir := false
 	sb, err := os.Stat(target)
 	if err != nil && !os.IsNotExist(err) {
@@ -457,7 +457,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	// Make a list of paths to transfer
 	sourcefilenames := []string{}
 	for _, fname := range args[:len(args)-1] {
-		sourcefilenames = append(sourcefilenames, shared.HostPath(filepath.Clean(fname)))
+		sourcefilenames = append(sourcefilenames, shared.HostPathFollow(filepath.Clean(fname)))
 	}
 
 	// Determine the target mode
@@ -483,7 +483,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 
 		// Create needed paths if requested
 		if c.file.flagMkdir {
-			f, err := os.Open(args[0])
+			f, err := os.Open(sourcefilenames[0])
 			if err != nil {
 				return err
 			}
@@ -535,9 +535,6 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		if f == "-" {
 			file = os.Stdin
 		} else {
-			// Follow symlinks within the snap environment.
-			f = shared.HostPathFollow(f)
-
 			file, err = os.Open(f)
 			if err != nil {
 				return err
