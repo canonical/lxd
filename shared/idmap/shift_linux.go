@@ -227,14 +227,10 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 	}
 	defer C.acl_free(unsafe.Pointer(acl))
 
-	newAcl := C.acl_init(0)
-	defer C.acl_free(unsafe.Pointer(newAcl))
-
 	// Iterate through all ACL entries
 	update := false
 	for entryId := C.ACL_FIRST_ENTRY; ; entryId = C.ACL_NEXT_ENTRY {
 		var ent C.acl_entry_t
-		var newEnt C.acl_entry_t
 		var tag C.acl_tag_t
 
 		// Get the ACL entry
@@ -245,19 +241,8 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 			return fmt.Errorf("Failed to get the ACL entry for %s", path)
 		}
 
-		// Setup the new entry
-		ret = C.acl_create_entry(&newAcl, &newEnt)
-		if ret == -1 {
-			return fmt.Errorf("Failed to allocate a new ACL entry for %s", path)
-		}
-
-		ret = C.acl_copy_entry(newEnt, ent)
-		if ret == -1 {
-			return fmt.Errorf("Failed to copy the ACL entry for %s", path)
-		}
-
 		// Get the ACL type
-		ret = C.acl_get_tag_type(newEnt, &tag)
+		ret = C.acl_get_tag_type(ent, &tag)
 		if ret == -1 {
 			return fmt.Errorf("Failed to get the ACL type for %s", path)
 		}
@@ -268,7 +253,7 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 		}
 
 		// Get the value
-		idp := (*C.id_t)(C.acl_get_qualifier(newEnt))
+		idp := (*C.id_t)(C.acl_get_qualifier(ent))
 		if idp == nil {
 			return fmt.Errorf("Failed to get current ACL value for %s", path)
 		}
@@ -277,7 +262,7 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 		newId, _ := shiftIds((int64)(*idp), -1)
 
 		// Update the new entry with the shifted value
-		ret = C.acl_set_qualifier(newEnt, unsafe.Pointer(&newId))
+		ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newId))
 		if ret == -1 {
 			return fmt.Errorf("Failed to set ACL qualifier on %s", path)
 		}
@@ -287,7 +272,7 @@ func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) 
 
 	// Update the on-disk ACLs to match
 	if update {
-		ret := C.acl_set_file(cpath, C.uint(aclType), newAcl)
+		ret := C.acl_set_file(cpath, C.uint(aclType), acl)
 		if ret == -1 {
 			return fmt.Errorf("Failed to change ACLs on %s", path)
 		}
