@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
@@ -116,8 +116,16 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 
 		// Cluster server address
 		address := util.NetworkInterfaceAddress()
+		validateServerAddress := func(value string) error {
+			address := util.CanonicalNetworkAddress(value)
+			host, _, _ := net.SplitHostPort(address)
+			if shared.StringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
+				return fmt.Errorf("Invalid IP address or DNS name")
+			}
+			return nil
+		}
 		serverAddress := util.CanonicalNetworkAddress(cli.AskString(
-			fmt.Sprintf("What IP address or DNS name should be used to reach this node? [default=%s]: ", address), address, nil))
+			fmt.Sprintf("What IP address or DNS name should be used to reach this node? [default=%s]: ", address), address, validateServerAddress))
 		config.Node.Config["core.https_address"] = serverAddress
 
 		if cli.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
