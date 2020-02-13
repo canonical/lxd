@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-29 14:11-0500\n"
+"POT-Creation-Date: 2020-02-13 16:28-0500\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -300,7 +300,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d mehr)"
 
-#: lxc/file.go:844
+#: lxc/file.go:847
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s ist kein Verzeichnis"
@@ -310,7 +310,7 @@ msgstr "%s ist kein Verzeichnis"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (zwei weitere Male unterbrechen, um zu erzwingen)"
 
-#: lxc/file.go:738
+#: lxc/file.go:741
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr ""
@@ -483,12 +483,12 @@ msgstr "Netzwerkschnittstellen an Container anbinden"
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:31
+#: lxc/console.go:30
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/console.go:32
+#: lxc/console.go:31
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -748,7 +748,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
 
-#: lxc/console.go:141
+#: lxc/console.go:128
 msgid "Console log:"
 msgstr ""
 
@@ -1025,7 +1025,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/config_template.go:109 lxc/config_template.go:151
 #: lxc/config_template.go:237 lxc/config_template.go:296 lxc/config_trust.go:29
 #: lxc/config_trust.go:58 lxc/config_trust.go:116 lxc/config_trust.go:194
-#: lxc/console.go:32 lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41
+#: lxc/console.go:31 lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:40
 #: lxc/export.go:33 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154
 #: lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:128
 #: lxc/image.go:270 lxc/image.go:321 lxc/image.go:446 lxc/image.go:605
@@ -1120,15 +1120,15 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr ""
 
-#: lxc/exec.go:61
+#: lxc/exec.go:60
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
-#: lxc/exec.go:57
+#: lxc/exec.go:56
 msgid "Disable pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/exec.go:58
+#: lxc/exec.go:57
 msgid "Disable stdin (reads from /dev/null)"
 msgstr ""
 
@@ -1247,7 +1247,7 @@ msgid ""
 "  for the address if not yet set."
 msgstr ""
 
-#: lxc/exec.go:54
+#: lxc/exec.go:53
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
@@ -1265,11 +1265,11 @@ msgstr "Fehler beim hinzufügen des Alias %s\n"
 msgid "Event type to listen for"
 msgstr ""
 
-#: lxc/exec.go:40
+#: lxc/exec.go:39
 msgid "Execute commands in instances"
 msgstr ""
 
-#: lxc/exec.go:41
+#: lxc/exec.go:40
 #, fuzzy
 msgid ""
 "Execute commands in instances\n"
@@ -1357,7 +1357,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:733
+#: lxc/file.go:736
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -1378,7 +1378,7 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr "Fingerabdruck: %s\n"
 
-#: lxc/exec.go:56
+#: lxc/exec.go:55
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
@@ -1498,7 +1498,7 @@ msgstr ""
 msgid "Get values for storage volume configuration keys"
 msgstr ""
 
-#: lxc/exec.go:60
+#: lxc/exec.go:59
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
@@ -2414,7 +2414,7 @@ msgstr "Profil %s gelöscht\n"
 msgid "Override the source project"
 msgstr ""
 
-#: lxc/exec.go:55
+#: lxc/exec.go:54
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
@@ -2628,7 +2628,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Pull files from instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:364 lxc/file.go:687
+#: lxc/file.go:364 lxc/file.go:690
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -2638,7 +2638,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:623 lxc/file.go:779
+#: lxc/file.go:626 lxc/file.go:782
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -2831,7 +2831,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Restore storage volume snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/console.go:39
+#: lxc/console.go:38
 #, fuzzy
 msgid "Retrieve the instance's console log"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -3394,7 +3394,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:185
+#: lxc/console.go:172
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -3482,7 +3482,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:720
+#: lxc/file.go:723
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -3544,7 +3544,7 @@ msgstr ""
 msgid "Used: %v"
 msgstr ""
 
-#: lxc/exec.go:59
+#: lxc/exec.go:58
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
@@ -3621,11 +3621,11 @@ msgstr "Zustand des laufenden Containers sichern oder nicht"
 msgid "YES"
 msgstr ""
 
-#: lxc/exec.go:105
+#: lxc/exec.go:92
 msgid "You can't pass -t and -T at the same time"
 msgstr ""
 
-#: lxc/exec.go:109
+#: lxc/exec.go:96
 #, fuzzy
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -3710,7 +3710,7 @@ msgstr ""
 msgid "config"
 msgstr ""
 
-#: lxc/console.go:30
+#: lxc/console.go:29
 #, fuzzy
 msgid "console [<remote>:]<instance>"
 msgstr ""
@@ -3967,7 +3967,7 @@ msgstr ""
 msgid "error: %v"
 msgstr "Fehler: %v\n"
 
-#: lxc/exec.go:39
+#: lxc/exec.go:38
 msgid "exec [<remote>:]<instance> [flags] [--] <command line>"
 msgstr ""
 

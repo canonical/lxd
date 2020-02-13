@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-01-29 14:11-0500\n"
+"POT-Creation-Date: 2020-02-13 16:28-0500\n"
 "PO-Revision-Date: 2019-11-05 18:27+0000\n"
 "Last-Translator: Hiroaki Nakamura <hnakamur@gmail.com>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -173,7 +173,7 @@ msgstr "%d (id: %d, オンライン: %v)"
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:844
+#: lxc/file.go:847
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -184,7 +184,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:738
+#: lxc/file.go:741
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
@@ -362,12 +362,12 @@ msgstr "新たにストレージボリュームをコンテナに追加します
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
-#: lxc/console.go:31
+#: lxc/console.go:30
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "コンテナのコンソールに接続します"
 
-#: lxc/console.go:32
+#: lxc/console.go:31
 #, fuzzy
 msgid ""
 "Attach to instance consoles\n"
@@ -622,7 +622,7 @@ msgstr "移動先のコンテナに適用するキー/値の設定"
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
 
-#: lxc/console.go:141
+#: lxc/console.go:128
 msgid "Console log:"
 msgstr "コンソールログ:"
 
@@ -901,7 +901,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:109 lxc/config_template.go:151
 #: lxc/config_template.go:237 lxc/config_template.go:296 lxc/config_trust.go:29
 #: lxc/config_trust.go:58 lxc/config_trust.go:116 lxc/config_trust.go:194
-#: lxc/console.go:32 lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:41
+#: lxc/console.go:31 lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:40
 #: lxc/export.go:33 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154
 #: lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:128
 #: lxc/image.go:270 lxc/image.go:321 lxc/image.go:446 lxc/image.go:605
@@ -993,15 +993,15 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
-#: lxc/exec.go:61
+#: lxc/exec.go:60
 msgid "Directory to run the command in (default /root)"
 msgstr "コマンドを実行するディレクトリ (デフォルト /root)"
 
-#: lxc/exec.go:57
+#: lxc/exec.go:56
 msgid "Disable pseudo-terminal allocation"
 msgstr "擬似端末の割り当てを無効にします"
 
-#: lxc/exec.go:58
+#: lxc/exec.go:57
 msgid "Disable stdin (reads from /dev/null)"
 msgstr "標準入力を無効にします (/dev/null から読み込みます)"
 
@@ -1132,7 +1132,7 @@ msgstr ""
 "  これは 'lxc config get core.https_address' コマンドでチェックできます。\n"
 "  まだ使用可能でない場合は、アドレスを設定することもできます。"
 
-#: lxc/exec.go:54
+#: lxc/exec.go:53
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
@@ -1150,12 +1150,12 @@ msgstr "テンプレートファイル更新のエラー: %s"
 msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
-#: lxc/exec.go:40
+#: lxc/exec.go:39
 #, fuzzy
 msgid "Execute commands in instances"
 msgstr "コンテナ内でコマンドを実行します"
 
-#: lxc/exec.go:41
+#: lxc/exec.go:40
 #, fuzzy
 msgid ""
 "Execute commands in instances\n"
@@ -1253,7 +1253,7 @@ msgstr "新しいコンテナ名が取得できません"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:733
+#: lxc/file.go:736
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -1271,7 +1271,7 @@ msgstr "情報表示のフィルタリングはまだサポートされていま
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/exec.go:56
+#: lxc/exec.go:55
 msgid "Force pseudo-terminal allocation"
 msgstr "強制的に擬似端末を割り当てます"
 
@@ -1405,7 +1405,7 @@ msgstr "ストレージプールの設定値を取得します"
 msgid "Get values for storage volume configuration keys"
 msgstr "ストレージボリュームの設定値を取得します"
 
-#: lxc/exec.go:60
+#: lxc/exec.go:59
 msgid "Group ID to run the command as (default 0)"
 msgstr "コマンドを実行する際のグループ ID (GID) (デフォルト 0)"
 
@@ -2404,7 +2404,7 @@ msgstr "バックグラウンド操作 %s を削除しました"
 msgid "Override the source project"
 msgstr "プロジェクトを指定します"
 
-#: lxc/exec.go:55
+#: lxc/exec.go:54
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
@@ -2617,7 +2617,7 @@ msgstr "コンテナの出力中: %s"
 msgid "Pull files from instances"
 msgstr "コンテナからファイルを取得します"
 
-#: lxc/file.go:364 lxc/file.go:687
+#: lxc/file.go:364 lxc/file.go:690
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
@@ -2627,7 +2627,7 @@ msgstr "ファイル %s を %s から取得します: %%s"
 msgid "Push files into instances"
 msgstr "コンテナ内にファイルをコピーします"
 
-#: lxc/file.go:623 lxc/file.go:779
+#: lxc/file.go:626 lxc/file.go:782
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
@@ -2822,7 +2822,7 @@ msgstr "スナップショットからコンテナをリストアします"
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
-#: lxc/console.go:39
+#: lxc/console.go:38
 #, fuzzy
 msgid "Retrieve the instance's console log"
 msgstr "コンテナのコンソールログを取得します"
@@ -3429,7 +3429,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:185
+#: lxc/console.go:172
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -3522,7 +3522,7 @@ msgstr "テンポラリファイルを作成できません: %v"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
-#: lxc/file.go:720
+#: lxc/file.go:723
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -3584,7 +3584,7 @@ msgstr ""
 msgid "Used: %v"
 msgstr "使用済: %v"
 
-#: lxc/exec.go:59
+#: lxc/exec.go:58
 msgid "User ID to run the command as (default 0)"
 msgstr "コマンドを実行する際のユーザ ID (UID) (デフォルト 0)"
 
@@ -3658,11 +3658,11 @@ msgstr "コンテナの稼動状態のスナップショットを取得するか
 msgid "YES"
 msgstr ""
 
-#: lxc/exec.go:105
+#: lxc/exec.go:92
 msgid "You can't pass -t and -T at the same time"
 msgstr "-t と -T は同時に指定できません"
 
-#: lxc/exec.go:109
+#: lxc/exec.go:96
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
@@ -3736,7 +3736,7 @@ msgstr ""
 msgid "config"
 msgstr ""
 
-#: lxc/console.go:30
+#: lxc/console.go:29
 #, fuzzy
 msgid "console [<remote>:]<instance>"
 msgstr "restore [<remote>:]<container> <snapshot>"
@@ -3938,7 +3938,7 @@ msgstr "有効"
 msgid "error: %v"
 msgstr "エラー: %v"
 
-#: lxc/exec.go:39
+#: lxc/exec.go:38
 msgid "exec [<remote>:]<instance> [flags] [--] <command line>"
 msgstr ""
 
