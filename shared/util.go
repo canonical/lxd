@@ -109,20 +109,22 @@ func IsUnixSocket(path string) bool {
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
 func HostPathFollow(path string) string {
-	// Check if the path is already snap-aware
-	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
-		if path == prefix || strings.HasPrefix(path, fmt.Sprintf("%s/", prefix)) {
-			return path
-		}
+	// Check if we're running in a snap package.
+	_, inSnap := os.LookupEnv("SNAP")
+	snapName := os.Getenv("SNAP_NAME")
+	if !inSnap || snapName != "lxd" {
+		return path
 	}
 
+	// Rely on "readlink -m" to do the right thing.
 	for {
-		target, err := os.Readlink(path)
+		target, err := RunCommand("readlink", "-m", path)
 		if err != nil {
 			return path
 		}
+		target = strings.TrimSpace(target)
 
-		if target == path {
+		if path == HostPath(target) {
 			return path
 		}
 
