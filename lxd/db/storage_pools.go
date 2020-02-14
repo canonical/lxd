@@ -843,7 +843,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
-	volumeTypeName, err := StoragePoolVolumeTypeToName(volumeType)
+	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -1084,9 +1084,8 @@ var StoragePoolNodeConfigKeys = []string{
 	"lvm.vg_name",
 }
 
-// StoragePoolVolumeTypeToName converts a volume integer type code to its
-// human-readable name.
-func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
+// Convert a volume integer type code to its human-readable name.
+func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {
 	case StoragePoolVolumeTypeContainer:
 		return StoragePoolVolumeTypeNameContainer, nil
