@@ -735,7 +735,7 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 			return nil, errors.Wrap(err, "failed to fetch volume types")
 		}
 		for _, volumeName := range volumeNames {
-			_, volume, err := c.StoragePoolVolumeGetType(project, volumeName, volumeType, poolID, nodeID)
+			_, volume, err := c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, nodeID)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to fetch volume type")
 			}
@@ -814,9 +814,9 @@ func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([
 	return c.storagePoolVolumesGetType("default", volumeType, poolID, c.nodeID)
 }
 
-// StoragePoolVolumeGetType returns a single storage volume attached to a
-// given storage pool of a given type, on the node with the given ID.
-func (c *Cluster) StoragePoolVolumeGetType(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
+// Return a single storage volume attached to a given storage pool of a given
+// type, on the node with the given ID.
+func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
 	// Custom volumes are "global", i.e. they are associated with the
 	// default project.
 	if volumeType == StoragePoolVolumeTypeCustom {
@@ -868,7 +868,7 @@ func (c *Cluster) StoragePoolNodeVolumeGetType(volumeName string, volumeType int
 // StoragePoolNodeVolumeGetTypeByProject gets a single storage volume attached to a
 // given storage pool of a given type, on the current node in the given project.
 func (c *Cluster) StoragePoolNodeVolumeGetTypeByProject(project, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	return c.StoragePoolVolumeGetType(project, volumeName, volumeType, poolID, c.nodeID)
+	return c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, c.nodeID)
 }
 
 // StoragePoolVolumeUpdateByProject updates the storage volume attached to a given storage pool.
