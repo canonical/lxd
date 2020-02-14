@@ -61,6 +61,35 @@ var updates = map[int]schema.Update{
 	23: updateFromV22,
 	24: updateFromV23,
 	25: updateFromV24,
+	26: updateFromV25,
+}
+
+// Create new storage snapshot tables and migrate data to them.
+func updateFromV25(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE storage_volumes_snapshots (
+    id INTEGER NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    UNIQUE (id),
+    UNIQUE (storage_volume_id, name),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
+);
+CREATE TABLE storage_volumes_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (storage_volume_snapshot_id) REFERENCES storage_volumes_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_snapshot_id, key)
+);
+`
+	_, err := tx.Exec(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create storage snapshots tables")
+	}
+	return nil
 }
 
 // The ceph.user.name config key is required for Ceph to function.
