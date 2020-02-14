@@ -494,6 +494,23 @@ CREATE TABLE storage_volumes_config (
     UNIQUE (storage_volume_id, key),
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
+CREATE TABLE storage_volumes_snapshots (
+    id INTEGER NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    UNIQUE (id),
+    UNIQUE (storage_volume_id, name),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
+);
+CREATE TABLE storage_volumes_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (storage_volume_snapshot_id) REFERENCES storage_volumes_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_snapshot_id, key)
+);
 
-INSERT INTO schema (version, updated_at) VALUES (25, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (26, strftime("%s"))
 `
