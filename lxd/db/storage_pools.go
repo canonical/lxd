@@ -823,7 +823,7 @@ func (c *Cluster) StoragePoolVolumeGetType(project string, volumeName string, vo
 		project = "default"
 	}
 
-	volumeID, err := c.StoragePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
+	volumeID, err := c.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -1018,9 +1018,9 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, des
 	return thisVolumeID, err
 }
 
-// StoragePoolVolumeGetTypeID returns the ID of a storage volume on a given
-// storage pool of a given storage volume type, on the given node.
-func (c *Cluster) StoragePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
+// Return the ID of a storage volume on a given storage pool of a given storage
+// volume type, on the given node.
+func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	volumeID := int64(-1)
 	query := `SELECT storage_volumes.id
 FROM storage_volumes
@@ -1045,13 +1045,13 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 // StoragePoolNodeVolumeGetTypeID get the ID of a storage volume on a given
 // storage pool of a given storage volume type, on the current node.
 func (c *Cluster) StoragePoolNodeVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
-	return c.StoragePoolVolumeGetTypeID("default", volumeName, volumeType, poolID, c.nodeID)
+	return c.storagePoolVolumeGetTypeID("default", volumeName, volumeType, poolID, c.nodeID)
 }
 
 // StoragePoolNodeVolumeGetTypeIDByProject gets the ID of a storage volume on a given storage pool
 // of a given storage volume type and project, on the current node.
 func (c *Cluster) StoragePoolNodeVolumeGetTypeIDByProject(project, volumeName string, volumeType int, poolID int64) (int64, error) {
-	return c.StoragePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, c.nodeID)
+	return c.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, c.nodeID)
 }
 
 // XXX: this was extracted from lxd/storage_volume_utils.go, we find a way to
