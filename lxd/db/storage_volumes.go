@@ -85,8 +85,8 @@ SELECT nodes.id, nodes.address
 	return addresses, nil
 }
 
-// StorageVolumeNodeGet returns the name of the node a storage volume is on.
-func (c *Cluster) StorageVolumeNodeGet(volumeID int64) (string, error) {
+// Return the name of the node a storage volume is on.
+func (c *Cluster) storageVolumeNodeGet(volumeID int64) (string, error) {
 	name := ""
 	query := `
 SELECT nodes.name FROM storage_volumes
