@@ -67,6 +67,37 @@ var updates = map[int]schema.Update{
 // Create new storage snapshot tables and migrate data to them.
 func updateFromV25(tx *sql.Tx) error {
 	stmts := `
+ALTER TABLE storage_volumes RENAME TO old_storage_volumes;
+CREATE TABLE "storage_volumes" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+ALTER TABLE storage_volumes_config RENAME TO old_storage_volumes_config;
+CREATE TABLE storage_volumes_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_volume_id, key),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
+);
+INSERT INTO storage_volumes(id, name, storage_pool_id, node_id, type, description, project_id)
+   SELECT id, name, storage_pool_id, node_id, type, description, project_id FROM old_storage_volumes
+     WHERE snapshot=0;
+INSERT INTO storage_volumes_config
+   SELECT * FROM old_storage_volumes_config
+     WHERE storage_volume_id IN (SELECT id FROM storage_volumes);
+DROP TABLE old_storage_volumes;
+DROP TABLE old_storage_volumes_config;
 CREATE TABLE storage_volumes_snapshots (
     id INTEGER NOT NULL,
     storage_volume_id INTEGER NOT NULL,
