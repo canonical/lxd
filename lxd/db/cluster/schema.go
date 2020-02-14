@@ -485,6 +485,33 @@ CREATE TABLE "storage_volumes" (
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
+CREATE VIEW storage_volumes_all (
+         id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id) AS
+  SELECT id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id
+    FROM storage_volumes UNION
+  SELECT storage_volumes_snapshots.id,
+         printf('%s/%s',
+    storage_volumes.name,
+    storage_volumes_snapshots.name),
+         storage_volumes.storage_pool_id,
+         storage_volumes.node_id,
+         storage_volumes.type,
+         storage_volumes_snapshots.description,
+         storage_volumes.project_id
+    FROM storage_volumes
+    JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
 CREATE TABLE storage_volumes_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     storage_volume_id INTEGER NOT NULL,
