@@ -890,7 +890,7 @@ func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, v
 				return err
 			}
 
-			return StorageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription)
+			return storageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription)
 		})
 		if err != nil {
 			return err
