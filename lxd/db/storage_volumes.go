@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 
@@ -150,17 +149,23 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	return description.String, nil
 }
 
-// StorageVolumeNextSnapshot returns the index the next snapshot of the storage
+// StorageVolumeNextSnapshot returns the index of the next snapshot of the storage
 // volume with the given name should have.
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
 func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int) int {
-	base := name + shared.SnapshotDelimiter + "snap"
+	base := "snap"
 	length := len(base)
-	q := fmt.Sprintf("SELECT name FROM storage_volumes WHERE type=? AND snapshot=? AND SUBSTR(name,1,?)=?")
+	q := fmt.Sprintf(`
+SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
+  JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
+ WHERE storage_volumes.type=?
+   AND storage_volumes.name=?
+   AND SUBSTR(storage_volumes_snapshots.name,1,?)=?
+`)
 	var numstr string
-	inargs := []interface{}{typ, true, length, base}
+	inargs := []interface{}{typ, name, length, base}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -169,13 +174,9 @@ func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int) int {
 	max := 0
 
 	for _, r := range results {
-		numstr = r[0].(string)
-		if len(numstr) <= length {
-			continue
-		}
-		substr := numstr[length:]
+		substr := r[0].(string)
 		var num int
-		count, err := fmt.Sscanf(substr, "%d", &num)
+		count, err := fmt.Sscanf(substr, base+"%d", &num)
 		if err != nil || count != 1 {
 			continue
 		}
