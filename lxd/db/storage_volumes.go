@@ -35,6 +35,8 @@ type StorageVolumeArgs struct {
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
 // volume with the given name if defined.
 //
+// The volume name can be either a regular name or a volume snapshot name.
+//
 // The empty string is used in place of the address of the current node.
 func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
 	nodes := []struct {
@@ -52,9 +54,12 @@ func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name strin
 	sql := `
 SELECT nodes.id, nodes.address
   FROM nodes
-  JOIN storage_volumes ON storage_volumes.node_id=nodes.id
-  JOIN projects ON projects.id = storage_volumes.project_id
- WHERE storage_volumes.storage_pool_id=? AND projects.name=? AND storage_volumes.name=? AND storage_volumes.type=?
+  JOIN storage_volumes_all ON storage_volumes_all.node_id=nodes.id
+  JOIN projects ON projects.id = storage_volumes_all.project_id
+ WHERE storage_volumes_all.storage_pool_id=?
+   AND projects.name=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type=?
 `
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
