@@ -833,7 +833,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
-	volumeConfig, err := c.StorageVolumeConfigGet(volumeID)
+	volumeConfig, err := c.storageVolumeConfigGet(volumeID)
 	if err != nil {
 		return -1, nil, err
 	}
