@@ -251,8 +251,8 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 	return isAvailable, nil
 }
 
-// StorageVolumeDescriptionUpdate updates the description of a storage volume.
-func StorageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string) error {
+// Updates the description of a storage volume.
+func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string) error {
 	_, err := tx.Exec("UPDATE storage_volumes SET description=? WHERE id=?", description, volumeID)
 	return err
 }
