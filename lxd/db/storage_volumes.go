@@ -108,8 +108,8 @@ SELECT nodes.name FROM storage_volumes
 	return name, nil
 }
 
-// StorageVolumeConfigGet gets the config of a storage volume.
-func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
+// Get the config of a storage volume.
+func (c *Cluster) storageVolumeConfigGet(volumeID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
 	inargs := []interface{}{volumeID}
