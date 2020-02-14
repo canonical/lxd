@@ -781,15 +781,21 @@ SELECT storage_volumes.name
 // Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	result := []StorageVolumeArgs{}
-	regexp := volumeName + shared.SnapshotDelimiter
-	length := len(regexp)
 
 	// ORDER BY id is important here as the users of this function can expect that the results
 	// will be returned in the order that the snapshots were created. This is specifically used
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
-	query := "SELECT name, description FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=? AND snapshot=? AND SUBSTR(name,1,?)=? ORDER BY id"
-	inargs := []interface{}{poolID, c.nodeID, volumeType, true, length, regexp}
+	query := `
+SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FROM storage_volumes_snapshots
+  JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
+  WHERE storage_volumes.storage_pool_id=?
+    AND storage_volumes.node_id=?
+    AND storage_volumes.type=?
+    AND storage_volumes.name=?
+  ORDER BY storage_volumes_snapshots.id
+`
+	inargs := []interface{}{poolID, c.nodeID, volumeType, volumeName}
 	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
 	outfmt := []interface{}{typeGuide.Name, typeGuide.Description}
 	dbResults, err := queryScan(c.db, query, inargs, outfmt)
@@ -799,7 +805,7 @@ func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeTyp
 
 	for _, r := range dbResults {
 		row := StorageVolumeArgs{
-			Name:        r[0].(string),
+			Name:        volumeName + shared.SnapshotDelimiter + r[0].(string),
 			Description: r[1].(string),
 		}
 		result = append(result, row)
