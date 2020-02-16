@@ -11,12 +11,15 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 )
 
+// ContainerTarWriter provides a TarWriter implementation that handles
+// ID shifting and hardlink tracking for containers
 type ContainerTarWriter struct {
 	tarWriter *tar.Writer
 	idmapSet  *idmap.IdmapSet
 	linkMap   map[uint64]string
 }
 
+// NewContainerTarWriter returns a ContainerTarWriter for the provided target Writer and id map
 func NewContainerTarWriter(writer io.Writer, idmapSet *idmap.IdmapSet) *ContainerTarWriter {
 	ctw := new(ContainerTarWriter)
 	ctw.tarWriter = tar.NewWriter(writer)
@@ -25,6 +28,7 @@ func NewContainerTarWriter(writer io.Writer, idmapSet *idmap.IdmapSet) *Containe
 	return ctw
 }
 
+// WriteFile adds a file to the tarball
 func (ctw *ContainerTarWriter) WriteFile(offset int, path string, fi os.FileInfo) error {
 	var err error
 	var major, minor uint32
@@ -114,6 +118,7 @@ func (ctw *ContainerTarWriter) WriteFile(offset int, path string, fi os.FileInfo
 	return nil
 }
 
+// Close finishes writing the tarball
 func (ctw *ContainerTarWriter) Close() error {
 	err := ctw.tarWriter.Close()
 	if err != nil {
