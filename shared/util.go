@@ -109,6 +109,16 @@ func IsUnixSocket(path string) bool {
 // HostPathFollow takes a valid path (from HostPath) and resolves it
 // all the way to its target or to the last which can be resolved.
 func HostPathFollow(path string) string {
+	// Ignore empty paths
+	if len(path) == 0 {
+		return path
+	}
+
+	// Don't prefix stdin/stdout
+	if path == "-" {
+		return path
+	}
+
 	// Check if we're running in a snap package.
 	_, inSnap := os.LookupEnv("SNAP")
 	snapName := os.Getenv("SNAP_NAME")
