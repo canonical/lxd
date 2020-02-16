@@ -86,7 +86,7 @@ func newDbMapperStmt() *cobra.Command {
 			kind := args[0]
 
 			if entity == "" {
-				return fmt.Errorf("No database entity given.")
+				return fmt.Errorf("No database entity given")
 			}
 
 			config, err := parseParams(args[1:])
@@ -126,7 +126,7 @@ func newDbMapperMethod() *cobra.Command {
 			kind := args[0]
 
 			if entity == "" {
-				return fmt.Errorf("No database entity given.")
+				return fmt.Errorf("No database entity given")
 			}
 
 			config, err := parseParams(args[1:])
