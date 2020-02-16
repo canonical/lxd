@@ -4,11 +4,15 @@ import (
 	"io"
 )
 
+// SnapshotVersion represents the version of the snapshot metadata
 type SnapshotVersion int
 
 const (
+	// SnapshotVersionMin is the minimum snapshot metadata version
 	SnapshotVersionMin SnapshotVersion = 0
-	SnapshotVersionMax                 = 1
+
+	// SnapshotVersionMax is the maximum snapshot metadata version
+	SnapshotVersionMax = 1
 )
 
 // SnapshotMeta is for metadata of a snapshot.
