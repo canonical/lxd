@@ -24,8 +24,9 @@ import (
 */
 import "C"
 
+// NetnsGetifaddrs returns a map of InstanceStateNetwork for a particular process.
 func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error) {
-	var netnsid_aware C.bool
+	var netnsidAware C.bool
 	var ifaddrs *C.struct_netns_ifaddrs
 	var netnsID C.__s32
 
@@ -44,13 +45,13 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 		netnsID = -1
 	}
 
-	ret := C.netns_getifaddrs(&ifaddrs, netnsID, &netnsid_aware)
+	ret := C.netns_getifaddrs(&ifaddrs, netnsID, &netnsidAware)
 	if ret < 0 {
 		return nil, fmt.Errorf("Failed to retrieve network interfaces and addresses")
 	}
 	defer C.netns_freeifaddrs(ifaddrs)
 
-	if netnsID >= 0 && !netnsid_aware {
+	if netnsID >= 0 && !netnsidAware {
 		return nil, fmt.Errorf("Netlink requests are not fully network namespace id aware")
 	}
 
@@ -105,13 +106,13 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 				family = "inet6"
 			}
 
-			addr_ptr := C.get_addr_ptr(addr.ifa_addr)
-			if addr_ptr == nil {
+			addrPtr := C.get_addr_ptr(addr.ifa_addr)
+			if addrPtr == nil {
 				return nil, fmt.Errorf("Failed to retrieve valid address pointer")
 			}
 
-			address_str := C.inet_ntop(C.int(addr.ifa_addr.sa_family), addr_ptr, &address[0], C.INET6_ADDRSTRLEN)
-			if address_str == nil {
+			addressStr := C.inet_ntop(C.int(addr.ifa_addr.sa_family), addrPtr, &address[0], C.INET6_ADDRSTRLEN)
+			if addressStr == nil {
 				return nil, fmt.Errorf("Failed to retrieve address string")
 			}
 
@@ -119,7 +120,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 				addNetwork.Addresses = []api.InstanceStateNetworkAddress{}
 			}
 
-			goAddrString := C.GoString(address_str)
+			goAddrString := C.GoString(addressStr)
 			scope := "global"
 			if strings.HasPrefix(goAddrString, "127") {
 				scope = "local"
@@ -171,6 +172,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 	return networks, nil
 }
 
+// WebsocketExecMirror mirrors a websocket connection with a set of Writer/Reader.
 func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, exited chan bool, fd int) (chan bool, chan bool) {
 	readDone := make(chan bool, 1)
 	writeDone := make(chan bool, 1)
@@ -208,10 +210,11 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 	return readDone, writeDone
 }
 
+// AbstractUnixSendFd sends a Unix file descriptor over a Unix socket.
 func AbstractUnixSendFd(sockFD int, sendFD int) error {
 	fd := C.int(sendFD)
-	sk_fd := C.int(sockFD)
-	ret := C.lxc_abstract_unix_send_fds(sk_fd, &fd, C.int(1), nil, C.size_t(0))
+	skFd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_send_fds(skFd, &fd, C.int(1), nil, C.size_t(0))
 	if ret < 0 {
 		return fmt.Errorf("Failed to send file descriptor via abstract unix socket")
 	}
@@ -219,10 +222,11 @@ func AbstractUnixSendFd(sockFD int, sendFD int) error {
 	return nil
 }
 
+// AbstractUnixReceiveFd receives a Unix file descriptor from a Unix socket.
 func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
 	fd := C.int(-1)
-	sk_fd := C.int(sockFD)
-	ret := C.lxc_abstract_unix_recv_fds(sk_fd, &fd, C.int(1), nil, C.size_t(0))
+	skFd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_recv_fds(skFd, &fd, C.int(1), nil, C.size_t(0))
 	if ret < 0 {
 		return nil, fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
 	}
@@ -231,10 +235,11 @@ func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
 	return file, nil
 }
 
-func AbstractUnixReceiveFdData(sockFD int, num_fds int, iov unsafe.Pointer, iovLen int32) (uint64, []C.int, error) {
-	cfd := make([]C.int, num_fds)
-	sk_fd := C.int(sockFD)
-	ret, errno := C.lxc_abstract_unix_recv_fds_iov(sk_fd, (*C.int)(&cfd[0]), C.int(num_fds), (*C.struct_iovec)(iov), C.size_t(iovLen))
+// AbstractUnixReceiveFdData is a low level function to receive a file descriptor over a unix socket.
+func AbstractUnixReceiveFdData(sockFD int, numFds int, iov unsafe.Pointer, iovLen int32) (uint64, []C.int, error) {
+	cfd := make([]C.int, numFds)
+	skFd := C.int(sockFD)
+	ret, errno := C.lxc_abstract_unix_recv_fds_iov(skFd, (*C.int)(&cfd[0]), C.int(numFds), (*C.struct_iovec)(iov), C.size_t(iovLen))
 	if ret < 0 {
 		return 0, []C.int{-C.EBADF}, fmt.Errorf("Failed to receive file descriptor via abstract unix socket: errno=%d", errno)
 	}

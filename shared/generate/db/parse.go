@@ -80,6 +80,7 @@ func RefFilters(pkg *ast.Package, entity string, ref string) [][]string {
 	return filters
 }
 
+// Criteria returns a list of criteria
 func Criteria(pkg *ast.Package, entity string) ([]string, error) {
 	name := fmt.Sprintf("%sFilter", lex.Camel(entity))
 	str := findStruct(pkg.Scope, name)
