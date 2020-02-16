@@ -9,13 +9,13 @@ import (
 
 // Return the table name for the given database entity.
 func entityTable(entity string) string {
-	entity_parts := strings.Split(lex.Snake(entity), "_")
-	table_parts := make([]string, len(entity_parts))
-	for i, part := range entity_parts {
-		table_parts[i] = lex.Plural(part)
+	entityParts := strings.Split(lex.Snake(entity), "_")
+	tableParts := make([]string, len(entityParts))
+	for i, part := range entityParts {
+		tableParts[i] = lex.Plural(part)
 	}
 
-	return strings.Join(table_parts, "_")
+	return strings.Join(tableParts, "_")
 }
 
 // Return Go type of the given database entity.

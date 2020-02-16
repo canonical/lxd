@@ -395,12 +395,12 @@ func convertContainer(d lxd.ContainerServer, container *lxc.Container, storage s
 		arch = value[0]
 	}
 
-	archId, err := osarch.ArchitectureId(arch)
+	archID, err := osarch.ArchitectureId(arch)
 	if err != nil {
 		return err
 	}
 
-	req.Architecture, err = osarch.ArchitectureName(archId)
+	req.Architecture, err = osarch.ArchitectureName(archID)
 	if err != nil {
 		return err
 	}
