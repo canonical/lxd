@@ -1,11 +1,11 @@
 package migration
 
+// GetRsyncFeaturesSlice returns a slice of strings representing the supported RSYNC features
 func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 	features := []string{}
 	if m == nil {
 		return features
 	}
-
 	if m.RsyncFeatures != nil {
 		if m.RsyncFeatures.Xattrs != nil && *m.RsyncFeatures.Xattrs == true {
 			features = append(features, "xattrs")
@@ -27,6 +27,7 @@ func (m *MigrationHeader) GetRsyncFeaturesSlice() []string {
 	return features
 }
 
+// GetZfsFeaturesSlice returns a slice of strings representing the supported ZFS features
 func (m *MigrationHeader) GetZfsFeaturesSlice() []string {
 	features := []string{}
 	if m == nil {
