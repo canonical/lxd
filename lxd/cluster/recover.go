@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ListDatabaseNodes returns a list of database node names.
 func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	nodes := []db.RaftNode{}
 	err := database.Transaction(func(tx *db.NodeTx) error {
@@ -30,6 +31,7 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 	return addresses, nil
 }
 
+// Recover attempts data recovery on the cluster database.
 func Recover(database *db.Node) error {
 	// Figure out if we actually act as dqlite node.
 	var info *db.RaftNode

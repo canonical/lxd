@@ -20,9 +20,10 @@ var (
 	dbLogs = []byte("logs")
 	dbConf = []byte("conf")
 
-	// An error indicating a given key does not exist
+	// ErrKeyNotFound indicates that a given key does not exist
 	ErrKeyNotFound = errors.New("not found")
 
+	// ErrLogNotFound indicates that the raft log was not found
 	ErrLogNotFound = errors.New("log not found")
 )
 
@@ -123,11 +124,12 @@ func (b *BoltStore) FirstIndex() (uint64, error) {
 	defer tx.Rollback()
 
 	curs := tx.Bucket(dbLogs).Cursor()
-	if first, _ := curs.First(); first == nil {
+	first, _ := curs.First()
+	if first == nil {
 		return 0, nil
-	} else {
-		return bytesToUint64(first), nil
 	}
+
+	return bytesToUint64(first), nil
 }
 
 // LastIndex returns the last known index from the Raft log.
@@ -139,11 +141,12 @@ func (b *BoltStore) LastIndex() (uint64, error) {
 	defer tx.Rollback()
 
 	curs := tx.Bucket(dbLogs).Cursor()
-	if last, _ := curs.Last(); last == nil {
+	last, _ := curs.Last()
+	if last == nil {
 		return 0, nil
-	} else {
-		return bytesToUint64(last), nil
 	}
+
+	return bytesToUint64(last), nil
 }
 
 // GetLog is used to retrieve a log from BoltDB at a given index.
