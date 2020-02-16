@@ -353,15 +353,15 @@ func (s *Stmt) create(buf *file.Buffer) error {
 			table := entityTable(ref)
 			params[i] = fmt.Sprintf("(SELECT %s.id FROM %s", table, table)
 			for _, other := range via[ref] {
-				other_ref := lex.Snake(other.Name)
-				other_table := entityTable(other_ref)
-				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", other_table, other_table, table, other_ref)
+				otherRef := lex.Snake(other.Name)
+				otherTable := entityTable(otherRef)
+				params[i] += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, table, otherRef)
 			}
 			params[i] += fmt.Sprintf(" WHERE")
 			for _, other := range via[ref] {
-				other_ref := lex.Snake(other.Name)
-				other_table := entityTable(other_ref)
-				params[i] += fmt.Sprintf(" %s.name = ? AND", other_table)
+				otherRef := lex.Snake(other.Name)
+				otherTable := entityTable(otherRef)
+				params[i] += fmt.Sprintf(" %s.name = ? AND", otherTable)
 			}
 			params[i] += fmt.Sprintf(" %s.name = ?)", table)
 		} else {
@@ -568,20 +568,20 @@ func naturalKeyWhere(mapping *Mapping) string {
 	for i, field := range fields {
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
-			ref_table := entityTable(ref)
-			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", ref_table, ref_table)
+			refTable := entityTable(ref)
+			subSelect := fmt.Sprintf("SELECT %s.id FROM %s", refTable, refTable)
 			for _, other := range via[ref] {
-				other_ref := lex.Snake(other.Name)
-				other_table := entityTable(other_ref)
-				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", other_table, other_table, ref_table, other_ref)
+				otherRef := lex.Snake(other.Name)
+				otherTable := entityTable(otherRef)
+				subSelect += fmt.Sprintf(" JOIN %s ON %s.id = %s.%s_id", otherTable, otherTable, refTable, otherRef)
 			}
 			subSelect += fmt.Sprintf(" WHERE")
 			for _, other := range via[ref] {
-				other_ref := lex.Snake(other.Name)
-				other_table := entityTable(other_ref)
-				subSelect += fmt.Sprintf(" %s.name = ? AND", other_table)
+				otherRef := lex.Snake(other.Name)
+				otherTable := entityTable(otherRef)
+				subSelect += fmt.Sprintf(" %s.name = ? AND", otherTable)
 			}
-			subSelect += fmt.Sprintf(" %s.name = ?", ref_table)
+			subSelect += fmt.Sprintf(" %s.name = ?", refTable)
 			where[i] = fmt.Sprintf("%s_id = (%s)", ref, subSelect)
 		} else {
 
