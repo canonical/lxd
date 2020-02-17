@@ -366,6 +366,10 @@ func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
 	if err != nil {
 		return err
 	}
+	err = exec(c.db, "DELETE FROM storage_volumes_snapshots_config WHERE key='lvm.thinpool_name';")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
