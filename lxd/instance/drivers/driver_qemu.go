@@ -711,6 +711,7 @@ func (vm *qemu) Start(stateful bool) error {
 		"-nodefaults",
 		"-no-reboot",
 		"-no-user-config",
+		"-sandbox", "on,obsolete=deny,elevateprivileges=allow,spawn=deny,resourcecontrol=deny",
 		"-readconfig", confFile,
 		"-pidfile", vm.pidFilePath(),
 		"-D", vm.LogFilePath(),
