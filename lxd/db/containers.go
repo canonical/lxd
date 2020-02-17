@@ -1123,9 +1123,12 @@ func (c *ClusterTx) instancePoolSnapshot(project, fullName string) (string, erro
 	poolName := ""
 	query := `
 SELECT storage_pools.name FROM storage_pools
-  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-  JOIN projects ON projects.id=storage_volumes.project_id
- WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type IN(?,?)
+  JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
+  JOIN projects ON projects.id=storage_volumes_all.project_id
+ WHERE projects.name=?
+   AND storage_volumes_all.node_id=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type IN(?,?)
 `
 	inargs := []interface{}{project, c.nodeID, fullName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
 	outargs := []interface{}{&poolName}
