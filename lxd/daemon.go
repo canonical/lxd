@@ -784,6 +784,7 @@ func (d *Daemon) init() error {
 	}
 
 	d.firewall = firewall.New()
+	logger.Infof("Firewall loaded driver %q", d.firewall)
 
 	err = cluster.NotifyUpgradeCompleted(d.State(), certInfo)
 	if err != nil {
