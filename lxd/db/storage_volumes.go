@@ -263,8 +263,15 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 }
 
 // Updates the description of a storage volume.
-func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string) error {
-	_, err := tx.Exec("UPDATE storage_volumes SET description=? WHERE id=?", description, volumeID)
+func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string, isSnapshot bool) error {
+	var table string
+	if isSnapshot {
+		table = "storage_volumes_snapshots"
+	} else {
+		table = "storage_volumes"
+	}
+	stmt := fmt.Sprintf("UPDATE %s SET description=? WHERE id=?", table)
+	_, err := tx.Exec(stmt, description, volumeID)
 	return err
 }
 

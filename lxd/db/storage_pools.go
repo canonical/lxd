@@ -889,6 +889,8 @@ func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, v
 		return err
 	}
 
+	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+
 	err = c.Transaction(func(tx *ClusterTx) error {
 		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
 			err = storageVolumeConfigClear(tx.tx, volumeID)
@@ -901,7 +903,7 @@ func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, v
 				return err
 			}
 
-			return storageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription)
+			return storageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription, isSnapshot)
 		})
 		if err != nil {
 			return err
