@@ -210,3 +210,24 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 		assert.Nil(t, volume)
 	}
 }
+
+// Test creating a volume snapshot.
+func TestStoragePoolVolumeCreate_Snapshot(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	poolID, err := cluster.StoragePoolCreate("p1", "", "dir", nil)
+	require.NoError(t, err)
+
+	config := map[string]string{"k": "v"}
+	_, err = cluster.StoragePoolVolumeCreate("default", "v1", "", 1, false, poolID, config)
+	require.NoError(t, err)
+
+	config = map[string]string{"k": "v"}
+	_, err = cluster.StoragePoolVolumeCreate("default", "v1/snap0", "", 1, true, poolID, config)
+	require.NoError(t, err)
+
+	n := cluster.StorageVolumeNextSnapshot("v1", 1)
+	assert.Equal(t, n, 1)
+
+}
