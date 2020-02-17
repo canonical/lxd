@@ -276,8 +276,13 @@ func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description stri
 }
 
 // Add a new storage volume config into database.
-func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string) error {
-	str := "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
+func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string, isSnapshot bool) error {
+	var str string
+	if isSnapshot {
+		str = "INSERT INTO storage_volumes_snapshots_config (storage_volume_snapshot_id, key, value) VALUES(?, ?, ?)"
+	} else {
+		str = "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
+	}
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
 	if err != nil {

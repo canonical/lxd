@@ -898,7 +898,7 @@ func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, v
 				return err
 			}
 
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig)
+			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, isSnapshot)
 			if err != nil {
 				return err
 			}
@@ -1024,7 +1024,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, des
 				thisVolumeID = volumeID
 			}
 
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig)
+			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, snapshot)
 			if err != nil {
 				tx.tx.Rollback()
 				return err
