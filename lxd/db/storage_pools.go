@@ -832,6 +832,8 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		project = "default"
 	}
 
+	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+
 	volumeID, err := c.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
 	if err != nil {
 		return -1, nil, err
@@ -842,7 +844,7 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 		return -1, nil, err
 	}
 
-	volumeConfig, err := c.storageVolumeConfigGet(volumeID)
+	volumeConfig, err := c.storageVolumeConfigGet(volumeID, isSnapshot)
 	if err != nil {
 		return -1, nil, err
 	}

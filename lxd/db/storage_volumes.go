@@ -113,9 +113,14 @@ SELECT nodes.name FROM storage_volumes_all
 }
 
 // Get the config of a storage volume.
-func (c *Cluster) storageVolumeConfigGet(volumeID int64) (map[string]string, error) {
+func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
 	var key, value string
-	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
+	var query string
+	if isSnapshot {
+		query = "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id=?"
+	} else {
+		query = "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
+	}
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{key, value}
 
