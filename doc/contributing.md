@@ -8,6 +8,7 @@ be merged in the main branch.
 
 ## Commit structure
 Separate commits should be used for:
+
  - API extension (`api: Add XYZ extension`, contains `doc/api-extensions.md` and `shared/version.api.go`)
  - Documentation (`doc: Update XYZ` for files in `doc/`)
  - API structure (`shared/api: Add XYZ` for changes to `shared/api/`)
@@ -21,6 +22,7 @@ The same kind of pattern extends to the other tools in the LXD code tree
 and depending on complexity, things may be split into even smaller chunks.
 
 When updating strings in the CLI tool (`lxc/`), you may need a commit to update the templates:
+
  - make i18n
  - git commit -a -s -m "i18n: Update translation templates" po/
 
