@@ -93,9 +93,9 @@ SELECT nodes.id, nodes.address
 func (c *Cluster) storageVolumeNodeGet(volumeID int64) (string, error) {
 	name := ""
 	query := `
-SELECT nodes.name FROM storage_volumes
-  JOIN nodes ON nodes.id=storage_volumes.node_id
-   WHERE storage_volumes.id=?
+SELECT nodes.name FROM storage_volumes_all
+  JOIN nodes ON nodes.id=storage_volumes_all.node_id
+   WHERE storage_volumes_all.id=?
 `
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&name}
