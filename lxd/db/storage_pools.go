@@ -669,7 +669,7 @@ func (c *Cluster) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
 // a given storage pool.
 func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) ([]string, error) {
 	var volumeName string
-	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=?"
+	query := "SELECT name FROM storage_volumes_all WHERE storage_pool_id=? AND node_id=?"
 	inargs := []interface{}{poolID, c.nodeID}
 	outargs := []interface{}{volumeName}
 
