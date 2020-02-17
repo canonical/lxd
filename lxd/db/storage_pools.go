@@ -948,9 +948,19 @@ func (c *Cluster) StoragePoolVolumeRename(project, oldVolumeName string, newVolu
 		return err
 	}
 
+	isSnapshot := strings.Contains(oldVolumeName, shared.SnapshotDelimiter)
+	var stmt string
+	if isSnapshot {
+		parts := strings.Split(newVolumeName, shared.SnapshotDelimiter)
+		newVolumeName = parts[1]
+		stmt = "UPDATE storage_volumes_snapshots SET name=? WHERE id=?"
+	} else {
+		stmt = "UPDATE storage_volumes SET name=? WHERE id=?"
+	}
+
 	err = c.Transaction(func(tx *ClusterTx) error {
 		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
-			_, err := tx.tx.Exec("UPDATE storage_volumes SET name=? WHERE id=? AND type=?", newVolumeName, volumeID, volumeType)
+			_, err := tx.tx.Exec(stmt, newVolumeName, volumeID)
 			return err
 		})
 		return err
