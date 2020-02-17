@@ -139,7 +139,7 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64) (map[string]string, err
 // StorageVolumeDescriptionGet gets the description of a storage volume.
 func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	description := sql.NullString{}
-	query := "SELECT description FROM storage_volumes WHERE id=?"
+	query := "SELECT description FROM storage_volumes_all WHERE id=?"
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&description}
 
