@@ -918,9 +918,17 @@ func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType
 		return err
 	}
 
+	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
+	var stmt string
+	if isSnapshot {
+		stmt = "DELETE FROM storage_volumes_snapshots WHERE id=?"
+	} else {
+		stmt = "DELETE FROM storage_volumes WHERE id=?"
+	}
+
 	err = c.Transaction(func(tx *ClusterTx) error {
 		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
-			_, err := tx.tx.Exec("DELETE FROM storage_volumes WHERE id=?", volumeID)
+			_, err := tx.tx.Exec(stmt, volumeID)
 			return err
 		})
 		return err
