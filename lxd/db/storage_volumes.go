@@ -300,10 +300,13 @@ func storageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 // given pool, regardless of their node_id column.
 func storageVolumeIDsGet(tx *sql.Tx, project, volumeName string, volumeType int, poolID int64) ([]int64, error) {
 	ids, err := query.SelectIntegers(tx, `
-SELECT storage_volumes.id
-  FROM storage_volumes
-  JOIN projects ON projects.id = storage_volumes.project_id
- WHERE projects.name=? AND storage_volumes.name=? AND storage_volumes.type=? AND storage_pool_id=?
+SELECT storage_volumes_all.id
+  FROM storage_volumes_all
+  JOIN projects ON projects.id = storage_volumes_all.project_id
+ WHERE projects.name=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type=?
+   AND storage_volumes_all.storage_pool_id=?
 `, project, volumeName, volumeType, poolID)
 	if err != nil {
 		return nil, err
