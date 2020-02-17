@@ -1028,12 +1028,12 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, des
 // volume type, on the given node.
 func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	volumeID := int64(-1)
-	query := `SELECT storage_volumes.id
-FROM storage_volumes
-JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
-JOIN projects ON storage_volumes.project_id = projects.id
-WHERE projects.name=? AND storage_volumes.storage_pool_id=? AND storage_volumes.node_id=?
-AND storage_volumes.name=? AND storage_volumes.type=?`
+	query := `SELECT storage_volumes_all.id
+FROM storage_volumes_all
+JOIN storage_pools ON storage_volumes_all.storage_pool_id = storage_pools.id
+JOIN projects ON storage_volumes_all.project_id = projects.id
+WHERE projects.name=? AND storage_volumes_all.storage_pool_id=? AND storage_volumes_all.node_id=?
+AND storage_volumes_all.name=? AND storage_volumes_all.type=?`
 	inargs := []interface{}{project, poolID, nodeID, volumeName, volumeType}
 	outargs := []interface{}{&volumeID}
 
