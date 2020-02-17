@@ -918,3 +918,5 @@ Support specifying a custom values for database voters and standbys.
 The new cluster.max_voters and cluster.max_standby configuration keys were introduced
 to specify to the ideal number of database voter and standbys.
 
+## firewall\_driver
+Adds the `Firewall` property to the ServerEnvironment struct indicating the firewall driver being used.
