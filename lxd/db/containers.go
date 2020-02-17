@@ -467,10 +467,6 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
-	snapshots, err := c.snapshotIDsAndNames(project, oldName)
-	if err != nil {
-		return errors.Wrap(err, "failed to get container's snapshots")
-	}
 	node, err := c.NodeByName(newNode)
 	if err != nil {
 		return errors.Wrap(err, "failed to get new node's info")
@@ -493,7 +489,7 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 		return nil
 	}
 
-	// Update the container's and snapshots' storage volume name (since this is ceph,
+	// Update the instance's storage volume name (since this is ceph,
 	// there's a clone of the volume for each node).
 	count, err := c.NodesCount()
 	if err != nil {
@@ -510,23 +506,6 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	}
 	if n != int64(count) {
 		return fmt.Errorf("unexpected number of updated rows in volumes table: %d", n)
-	}
-	for _, snapshotName := range snapshots {
-		oldSnapshotName := oldName + shared.SnapshotDelimiter + snapshotName
-		newSnapshotName := newName + shared.SnapshotDelimiter + snapshotName
-		stmt := "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
-		result, err := c.tx.Exec(
-			stmt, newSnapshotName, oldSnapshotName, poolID, StoragePoolVolumeTypeContainer)
-		if err != nil {
-			return errors.Wrap(err, "failed to update snapshot volume")
-		}
-		n, err = result.RowsAffected()
-		if err != nil {
-			return errors.Wrap(err, "failed to get rows affected by snapshot volume update")
-		}
-		if n != int64(count) {
-			return fmt.Errorf("unexpected number of updated snapshots in volumes table: %d", n)
-		}
 	}
 
 	return nil
