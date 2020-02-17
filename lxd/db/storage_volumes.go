@@ -257,8 +257,8 @@ func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description stri
 	return err
 }
 
-// StorageVolumeConfigAdd adds a new storage volume config into database.
-func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string) error {
+// Add a new storage volume config into database.
+func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string) error {
 	str := "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
