@@ -20,7 +20,114 @@ import (
 // Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type Xtables struct{}
 
-//networkIPTablesComment returns the iptables comment that is added to each network related rule.
+// String returns the driver name.
+func (d Xtables) String() string {
+	return "xtables"
+}
+
+// Compat returns whether the host is compatible with this driver and whether the driver backend is in use.
+func (d Xtables) Compat() (bool, bool) {
+	// xtables commands can be powered by nftables, so check we are using non-nft version first, otherwise
+	// we should be using the nftables driver instead.
+	cmds := []string{"iptables", "ip6tables", "ebtables"}
+	for _, cmd := range cmds {
+		// Check command exists.
+		_, err := exec.LookPath(cmd)
+		if err != nil {
+			logger.Debugf("Firewall xtables backend command %q missing", cmd)
+			return false, false
+		}
+
+		// Check whether it is an nftables shim.
+		if d.xtablesIsNftables(cmd) {
+			logger.Debugf("Firewall xtables backend command %q is an nftables shim", cmd)
+			return false, false
+		}
+	}
+
+	// Check whether any of the backends are in use already.
+	if d.iptablesInUse("iptables") {
+		logger.Debug("Firewall xtables detected iptables is in use")
+		return true, true
+	}
+
+	if d.iptablesInUse("ip6tables") {
+		logger.Debug("Firewall xtables detected ip6tables is in use")
+		return true, true
+	}
+
+	if d.ebtablesInUse() {
+		logger.Debug("Firewall xtables detected ebtables is in use")
+		return true, true
+	}
+
+	return true, false
+}
+
+// xtablesIsNftables checks whether the specified xtables backend command is actually an nftables shim.
+func (d Xtables) xtablesIsNftables(cmd string) bool {
+	output, err := shared.RunCommandCLocale(cmd, "--version")
+	if err != nil {
+		return false
+	}
+
+	if strings.Contains(output, "nf_tables") {
+		return true
+	}
+
+	return false
+}
+
+// iptablesInUse returns whether the specified iptables backend command has any rules defined.
+func (d Xtables) iptablesInUse(iptablesCmd string) bool {
+	tables := []string{"filter", "nat", "mangle", "raw"}
+	for _, table := range tables {
+		cmd := exec.Command(iptablesCmd, "-S", "-t", table)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return false
+		}
+		err = cmd.Start()
+		if err != nil {
+			return false
+		}
+
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			// Check for lines that indicate a rule being used.
+			if strings.HasPrefix(line, "-A") || strings.HasPrefix(line, "-R") || strings.HasPrefix(line, "-I") {
+				return true
+			}
+		}
+		cmd.Wait()
+	}
+
+	return false
+}
+
+// ebtablesInUse returns whether the ebtables backend command has any rules defined.
+func (d Xtables) ebtablesInUse() bool {
+	cmd := exec.Command("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return false
+	}
+	err = cmd.Start()
+	if err != nil {
+		return false
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		return true
+	}
+
+	return false
+}
+
+// networkIPTablesComment returns the iptables comment that is added to each network related rule.
 func (d Xtables) networkIPTablesComment(networkName string) string {
 	return fmt.Sprintf("LXD network %s", networkName)
 }
