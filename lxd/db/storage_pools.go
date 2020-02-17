@@ -755,10 +755,13 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 func (c *Cluster) storagePoolVolumesGetType(project string, volumeType int, poolID, nodeID int64) ([]string, error) {
 	var poolName string
 	query := `
-SELECT storage_volumes.name
-  FROM storage_volumes
-  JOIN projects ON projects.id=storage_volumes.project_id
- WHERE (projects.name=? OR storage_volumes.type=?) AND storage_pool_id=? AND node_id=? AND type=?
+SELECT storage_volumes_all.name
+  FROM storage_volumes_all
+  JOIN projects ON projects.id=storage_volumes_all.project_id
+ WHERE (projects.name=? OR storage_volumes_all.type=?)
+   AND storage_volumes_all.storage_pool_id=?
+   AND storage_volumes_all.node_id=?
+   AND storage_volumes_all.type=?
 `
 	inargs := []interface{}{project, StoragePoolVolumeTypeCustom, poolID, nodeID, volumeType}
 	outargs := []interface{}{poolName}
