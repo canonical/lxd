@@ -161,6 +161,7 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 		return fmt.Errorf("not all ceph volumes were copied")
 	}
 	for i, otherVolumeID := range otherVolumeIDs {
+		volumeID := volumeIDs[i]
 		config, err := query.SelectConfig(
 			c.tx, "storage_volumes_config", "storage_volume_id=?", otherVolumeID)
 		if err != nil {
@@ -169,9 +170,49 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 		for key, value := range config {
 			_, err := c.tx.Exec(`
 INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?)
-`, volumeIDs[i], key, value)
+`, volumeID, key, value)
 			if err != nil {
 				return errors.Wrap(err, "failed to copy volume config")
+			}
+		}
+
+		// Copy volume snapshots as well.
+		otherSnapshotIDs, err := query.SelectIntegers(c.tx,
+			"SELECT id FROM storage_volumes_snapshots WHERE storage_volume_id = ?",
+			otherVolumeID)
+		if err != nil {
+			return err
+		}
+
+		for _, otherSnapshotID := range otherSnapshotIDs {
+			var snapshotID int64
+			_, err := c.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
+			if err != nil {
+				return errors.Wrap(err, "Increment storage volumes sequence")
+			}
+			row := c.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
+			err = row.Scan(&snapshotID)
+			if err != nil {
+				return errors.Wrap(err, "Fetch next storage volume ID")
+			}
+
+			_, err = c.tx.Exec(`
+INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description)
+SELECT ?, ?, name, description
+  FROM storage_volumes_snapshots WHERE id=?
+`, snapshotID, volumeID, otherSnapshotID)
+			if err != nil {
+				return errors.Wrap(err, "Copy volume snapshot")
+			}
+
+			_, err = c.tx.Exec(`
+INSERT INTO storage_volumes_snapshots_config (storage_volume_snapshot_id, key, value)
+SELECT ?, key, value
+  FROM storage_volumes_snapshots_config
+ WHERE storage_volume_snapshot_id=?
+`, snapshotID, otherSnapshotID)
+			if err != nil {
+				return errors.Wrap(err, "Copy volume snapshot config")
 			}
 		}
 	}
