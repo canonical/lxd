@@ -280,8 +280,8 @@ func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	return nil
 }
 
-// StorageVolumeConfigClear deletes storage volume config.
-func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
+// Delete storage volume config.
+func storageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 	_, err := tx.Exec("DELETE FROM storage_volumes_config WHERE storage_volume_id=?", volumeID)
 	if err != nil {
 		return err
