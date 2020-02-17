@@ -1096,10 +1096,13 @@ func (c *ClusterTx) InstancePool(project, instanceName string) (string, error) {
 	poolName := ""
 	query := `
 SELECT storage_pools.name FROM storage_pools
-  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-  JOIN instances ON instances.name=storage_volumes.name
+  JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
+  JOIN instances ON instances.name=storage_volumes_all.name
   JOIN projects ON projects.id=instances.project_id
- WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type IN(?,?)
+ WHERE projects.name=?
+   AND storage_volumes_all.node_id=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type IN(?,?)
 `
 	inargs := []interface{}{project, c.nodeID, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
 	outargs := []interface{}{&poolName}
