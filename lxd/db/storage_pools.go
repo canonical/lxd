@@ -696,9 +696,9 @@ func (c *Cluster) StoragePoolVolumesGet(project string, poolID int64, volumeType
 		var err error
 		nodeIDs, err = query.SelectIntegers(tx.tx, `
 SELECT DISTINCT node_id
-  FROM storage_volumes
-  JOIN projects ON projects.id = storage_volumes.project_id
- WHERE (projects.name=? OR storage_volumes.type=?) AND storage_pool_id=?
+  FROM storage_volumes_all
+  JOIN projects ON projects.id = storage_volumes_all.project_id
+ WHERE (projects.name=? OR storage_volumes_all.type=?) AND storage_volumes_all.storage_pool_id=?
 `, project, StoragePoolVolumeTypeCustom, poolID)
 		return err
 	})
