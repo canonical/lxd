@@ -893,7 +893,7 @@ func (c *Cluster) StoragePoolVolumeUpdateByProject(project, volumeName string, v
 
 	err = c.Transaction(func(tx *ClusterTx) error {
 		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
-			err = storageVolumeConfigClear(tx.tx, volumeID)
+			err = storageVolumeConfigClear(tx.tx, volumeID, isSnapshot)
 			if err != nil {
 				return err
 			}
