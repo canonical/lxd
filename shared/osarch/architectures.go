@@ -35,8 +35,8 @@ var architectureNames = map[int]string{
 	ARCH_32BIT_MIPS_LITTLE_ENDIAN:    "mipsle",
 	ARCH_64BIT_MIPS64_BIG_ENDIAN:     "mips64",
 	ARCH_64BIT_MIPS64_LITTLE_ENDIAN:  "mips64le",
-	ARCH_32BIT_RISCV_LITTLE_ENDIAN:   "rv32",
-	ARCH_64BIT_RISCV_LITTLE_ENDIAN:   "rv64",
+	ARCH_32BIT_RISCV_LITTLE_ENDIAN:   "riscv32",
+	ARCH_64BIT_RISCV_LITTLE_ENDIAN:   "riscv64",
 }
 
 var architectureAliases = map[int][]string{
@@ -51,8 +51,8 @@ var architectureAliases = map[int][]string{
 	ARCH_32BIT_MIPS_LITTLE_ENDIAN:    {"mipsle"},
 	ARCH_64BIT_MIPS64_BIG_ENDIAN:     {"mips64"},
 	ARCH_64BIT_MIPS64_LITTLE_ENDIAN:  {"mips64le"},
-	ARCH_32BIT_RISCV_LITTLE_ENDIAN:   {"rv32", "riscv32"},
-	ARCH_64BIT_RISCV_LITTLE_ENDIAN:   {"rv64", "riscv64"},
+	ARCH_32BIT_RISCV_LITTLE_ENDIAN:   {},
+	ARCH_64BIT_RISCV_LITTLE_ENDIAN:   {},
 }
 
 var architecturePersonalities = map[int]string{
