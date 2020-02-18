@@ -528,6 +528,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// containing the instance's root disk device's config so that the driver's post hook function can access
 	// that config to perform any post instance creation setup.
 	postHook = func(inst instance.Instance) error {
+		logger.Debug("CreateInstanceFromBackup post hook started")
+		defer logger.Debug("CreateInstanceFromBackup post hook finished")
+
 		// Get the root disk device config.
 		rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 		if err != nil {
