@@ -126,6 +126,22 @@ func HostPathFollow(path string) string {
 		return path
 	}
 
+	// Handle relative paths
+	if path[0] != os.PathSeparator {
+		// Use the cwd of the parent as snap-confine alters our own cwd on launch
+		ppid := os.Getppid()
+		if ppid < 1 {
+			return path
+		}
+
+		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
+		if err != nil {
+			return path
+		}
+
+		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
+	}
+
 	// Rely on "readlink -m" to do the right thing.
 	for {
 		target, err := RunCommand("readlink", "-m", path)
