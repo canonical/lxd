@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -12,7 +13,8 @@ import (
 type cmdImport struct {
 	global *cmdGlobal
 
-	flagForce bool
+	flagForce   bool
+	flagProject string
 }
 
 func (c *cmdImport) Command() *cobra.Command {
@@ -32,6 +34,7 @@ func (c *cmdImport) Command() *cobra.Command {
 `
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force the import (override existing data or partial restore)")
+	cmd.Flags().StringVar(&c.flagProject, "project", "", "Specify the project")
 
 	return cmd
 }
@@ -64,7 +67,10 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, _, err = d.RawQuery("POST", "/internal/containers", req, "")
+	v := url.Values{}
+	v.Set("project", c.flagProject)
+
+	_, _, err = d.RawQuery("POST", fmt.Sprintf("/internal/containers?%s", v.Encode()), req, "")
 	if err != nil {
 		return err
 	}
