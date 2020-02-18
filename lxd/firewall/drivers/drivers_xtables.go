@@ -17,16 +17,123 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// XTables is an implmentation of LXD firewall using {ip, ip6, eb}tables
-type XTables struct{}
+// Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
+type Xtables struct{}
 
-//networkIPTablesComment returns the iptables comment that is added to each network related rule.
-func (d XTables) networkIPTablesComment(networkName string) string {
+// String returns the driver name.
+func (d Xtables) String() string {
+	return "xtables"
+}
+
+// Compat returns whether the host is compatible with this driver and whether the driver backend is in use.
+func (d Xtables) Compat() (bool, bool) {
+	// xtables commands can be powered by nftables, so check we are using non-nft version first, otherwise
+	// we should be using the nftables driver instead.
+	cmds := []string{"iptables", "ip6tables", "ebtables"}
+	for _, cmd := range cmds {
+		// Check command exists.
+		_, err := exec.LookPath(cmd)
+		if err != nil {
+			logger.Debugf("Firewall xtables backend command %q missing", cmd)
+			return false, false
+		}
+
+		// Check whether it is an nftables shim.
+		if d.xtablesIsNftables(cmd) {
+			logger.Debugf("Firewall xtables backend command %q is an nftables shim", cmd)
+			return false, false
+		}
+	}
+
+	// Check whether any of the backends are in use already.
+	if d.iptablesInUse("iptables") {
+		logger.Debug("Firewall xtables detected iptables is in use")
+		return true, true
+	}
+
+	if d.iptablesInUse("ip6tables") {
+		logger.Debug("Firewall xtables detected ip6tables is in use")
+		return true, true
+	}
+
+	if d.ebtablesInUse() {
+		logger.Debug("Firewall xtables detected ebtables is in use")
+		return true, true
+	}
+
+	return true, false
+}
+
+// xtablesIsNftables checks whether the specified xtables backend command is actually an nftables shim.
+func (d Xtables) xtablesIsNftables(cmd string) bool {
+	output, err := shared.RunCommandCLocale(cmd, "--version")
+	if err != nil {
+		return false
+	}
+
+	if strings.Contains(output, "nf_tables") {
+		return true
+	}
+
+	return false
+}
+
+// iptablesInUse returns whether the specified iptables backend command has any rules defined.
+func (d Xtables) iptablesInUse(iptablesCmd string) bool {
+	tables := []string{"filter", "nat", "mangle", "raw"}
+	for _, table := range tables {
+		cmd := exec.Command(iptablesCmd, "-S", "-t", table)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return false
+		}
+		err = cmd.Start()
+		if err != nil {
+			return false
+		}
+
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			// Check for lines that indicate a rule being used.
+			if strings.HasPrefix(line, "-A") || strings.HasPrefix(line, "-R") || strings.HasPrefix(line, "-I") {
+				return true
+			}
+		}
+		cmd.Wait()
+	}
+
+	return false
+}
+
+// ebtablesInUse returns whether the ebtables backend command has any rules defined.
+func (d Xtables) ebtablesInUse() bool {
+	cmd := exec.Command("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return false
+	}
+	err = cmd.Start()
+	if err != nil {
+		return false
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		return true
+	}
+
+	return false
+}
+
+// networkIPTablesComment returns the iptables comment that is added to each network related rule.
+func (d Xtables) networkIPTablesComment(networkName string) string {
 	return fmt.Sprintf("LXD network %s", networkName)
 }
 
 // NetworkSetupForwardingPolicy allows forwarding dependent on boolean argument
-func (d XTables) NetworkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error {
+func (d Xtables) NetworkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error {
 	forwardType := "REJECT"
 	if allow {
 		forwardType = "ACCEPT"
@@ -49,7 +156,7 @@ func (d XTables) NetworkSetupForwardingPolicy(networkName string, ipVersion uint
 
 // NetworkSetupOutboundNAT configures outbound NAT.
 // If srcIP is non-nil then SNAT is used with the specified address, otherwise MASQUERADE mode is used.
-func (d XTables) NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, appendRule bool) error {
+func (d Xtables) NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, appendRule bool) error {
 	family := uint(4)
 	if subnet.IP.To4() == nil {
 		family = 6
@@ -86,7 +193,7 @@ func (d XTables) NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 }
 
 // NetworkSetupDHCPDNSAccess sets up basic iptables overrides for DHCP/DNS.
-func (d XTables) NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
+func (d Xtables) NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
 	var rules [][]string
 	if ipVersion == 4 {
 		rules = [][]string{
@@ -126,13 +233,13 @@ func (d XTables) NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) e
 }
 
 // NetworkSetupDHCPv4Checksum attempts a workaround for broken DHCP clients.
-func (d XTables) NetworkSetupDHCPv4Checksum(networkName string) error {
+func (d Xtables) NetworkSetupDHCPv4Checksum(networkName string) error {
 	comment := d.networkIPTablesComment(networkName)
 	return d.iptablesPrepend(4, comment, "mangle", "POSTROUTING", "-o", networkName, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
 }
 
 // NetworkClear removes network rules from filter, mangle and nat tables.
-func (d XTables) NetworkClear(networkName string, ipVersion uint) error {
+func (d Xtables) NetworkClear(networkName string, ipVersion uint) error {
 	err := d.iptablesClear(ipVersion, d.networkIPTablesComment(networkName), "filter", "mangle", "nat")
 	if err != nil {
 		return err
@@ -142,12 +249,12 @@ func (d XTables) NetworkClear(networkName string, ipVersion uint) error {
 }
 
 //instanceDeviceIPTablesComment returns the iptables comment that is added to each instance device related rule.
-func (d XTables) instanceDeviceIPTablesComment(projectName, instanceName, deviceName string) string {
+func (d Xtables) instanceDeviceIPTablesComment(projectName, instanceName, deviceName string) string {
 	return fmt.Sprintf("LXD container %s (%s)", project.Prefix(projectName, instanceName), deviceName)
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d XTables) InstanceSetupBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
+func (d Xtables) InstanceSetupBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
@@ -179,7 +286,7 @@ func (d XTables) InstanceSetupBridgeFilter(projectName, instanceName, deviceName
 }
 
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
-func (d XTables) InstanceClearBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
+func (d Xtables) InstanceClearBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	// Get a current list of rules active on the host.
@@ -232,12 +339,14 @@ func (d XTables) InstanceClearBridgeFilter(projectName, instanceName, deviceName
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d XTables) InstanceSetupProxyNAT(projectName, instanceName, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
+func (d Xtables) InstanceSetupProxyNAT(projectName, instanceName, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
 	connectAddrCount := len(connect.Addr)
-	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
-
 	if connectAddrCount < 1 {
 		return fmt.Errorf("At least 1 connect address must be supplied")
+	}
+
+	if len(listen.Addr) < 1 {
+		return fmt.Errorf("At least 1 listen address must be supplied")
 	}
 
 	if connectAddrCount > 1 && len(listen.Addr) != connectAddrCount {
@@ -247,6 +356,8 @@ func (d XTables) InstanceSetupProxyNAT(projectName, instanceName, deviceName str
 	revert := revert.New()
 	defer revert.Fail()
 	revert.Add(func() { d.InstanceClearProxyNAT(projectName, instanceName, deviceName) })
+
+	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	for i, lAddr := range listen.Addr {
 		listenHost, listenPort, err := net.SplitHostPort(lAddr)
@@ -292,7 +403,7 @@ func (d XTables) InstanceSetupProxyNAT(projectName, instanceName, deviceName str
 }
 
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
-func (d XTables) InstanceClearProxyNAT(projectName, instanceName, deviceName string) error {
+func (d Xtables) InstanceClearProxyNAT(projectName, instanceName, deviceName string) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 	errs := []error{}
 	err := d.iptablesClear(4, comment, "nat")
@@ -313,7 +424,7 @@ func (d XTables) InstanceClearProxyNAT(projectName, instanceName, deviceName str
 }
 
 // generateFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
-func (d XTables) generateFilterEbtablesRules(hostName, hwAddr string, IPv4, IPv6 net.IP) [][]string {
+func (d Xtables) generateFilterEbtablesRules(hostName, hwAddr string, IPv4, IPv6 net.IP) [][]string {
 	// MAC source filtering rules. Blocks any packet coming from instance with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
@@ -352,7 +463,7 @@ func (d XTables) generateFilterEbtablesRules(hostName, hwAddr string, IPv4, IPv6
 }
 
 // generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (d XTables) generateFilterIptablesRules(projectName, instanceName, parentName, hostName, hwAddr string, _ net.IP, IPv6 net.IP) (rules [][]string, err error) {
+func (d Xtables) generateFilterIptablesRules(projectName, instanceName, parentName, hostName, hwAddr string, _ net.IP, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
 		return
@@ -386,7 +497,7 @@ func (d XTables) generateFilterIptablesRules(projectName, instanceName, parentNa
 // matchEbtablesRule compares an active rule to a supplied match rule to see if they match.
 // If deleteMode is true then the "-A" flag in the active rule will be modified to "-D" and will
 // not be part of the equality match. This allows delete commands to be generated from dumped add commands.
-func (d XTables) matchEbtablesRule(activeRule []string, matchRule []string, deleteMode bool) bool {
+func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, deleteMode bool) bool {
 	for i := range matchRule {
 		// Active rules will be dumped in "add" format, we need to detect
 		// this and switch it to "delete" mode if requested. If this has already been
@@ -413,7 +524,7 @@ func (d XTables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 }
 
 // iptablesAdd adds an iptables rule.
-func (d XTables) iptablesConfig(ipVersion uint, comment, table, method, chain string, rule ...string) error {
+func (d Xtables) iptablesConfig(ipVersion uint, comment, table, method, chain string, rule ...string) error {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
@@ -452,17 +563,17 @@ func (d XTables) iptablesConfig(ipVersion uint, comment, table, method, chain st
 }
 
 // iptablesAppend appends an iptables rule.
-func (d XTables) iptablesAppend(ipVersion uint, comment, table, chain string, rule ...string) error {
+func (d Xtables) iptablesAppend(ipVersion uint, comment, table, chain string, rule ...string) error {
 	return d.iptablesConfig(ipVersion, comment, table, "-A", chain, rule...)
 }
 
 // iptablesPrepend prepends an iptables rule.
-func (d XTables) iptablesPrepend(ipVersion uint, comment, table, chain string, rule ...string) error {
+func (d Xtables) iptablesPrepend(ipVersion uint, comment, table, chain string, rule ...string) error {
 	return d.iptablesConfig(ipVersion, comment, table, "-I", chain, rule...)
 }
 
 // iptablesClear clears iptables rules matching the supplied comment in the specified tables.
-func (d XTables) iptablesClear(ipVersion uint, comment string, fromTables ...string) error {
+func (d Xtables) iptablesClear(ipVersion uint, comment string, fromTables ...string) error {
 	var cmd string
 	var tablesFile string
 	if ipVersion == 4 {

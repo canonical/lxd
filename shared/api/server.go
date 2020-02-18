@@ -32,6 +32,7 @@ type ServerEnvironment struct {
 	ServerVersion  string `json:"server_version" yaml:"server_version"`
 	Storage        string `json:"storage" yaml:"storage"`
 	StorageVersion string `json:"storage_version" yaml:"storage_version"`
+	Firewall       string `json:"firewall" yaml:"firewall"`
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
