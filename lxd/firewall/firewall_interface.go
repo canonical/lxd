@@ -8,6 +8,8 @@ import (
 
 // Firewall represents an LXD firewall.
 type Firewall interface {
+	String() string
+	Compat() (bool, bool)
 	NetworkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error
 	NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, append bool) error
 	NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) error

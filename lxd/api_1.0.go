@@ -203,6 +203,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		ServerVersion:          version.Version,
 		ServerClustered:        clustered,
 		ServerName:             serverName,
+		Firewall:               fmt.Sprintf("%s", d.firewall),
 	}
 
 	env.KernelFeatures = map[string]string{
