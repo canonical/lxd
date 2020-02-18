@@ -65,16 +65,21 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 func (b *lxdBackend) create(localOnly bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "localOnly": localOnly})
 	logger.Debug("create started")
-	defer logger.Debug("created finished")
+	defer logger.Debug("create finished")
 
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Create the storage path.
 	path := drivers.GetPoolMountPath(b.name)
+
+	if shared.IsDir(path) {
+		return fmt.Errorf("Storage pool directory %q already exists", path)
+	}
+
+	// Create the storage path.
 	err := os.MkdirAll(path, 0711)
-	if err != nil && !os.IsExist(err) {
-		return errors.Wrapf(err, "Failed to create directory '%s'", path)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create storage pool directory %q", path)
 	}
 
 	revert.Add(func() { os.RemoveAll(path) })
@@ -528,6 +533,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// containing the instance's root disk device's config so that the driver's post hook function can access
 	// that config to perform any post instance creation setup.
 	postHook = func(inst instance.Instance) error {
+		logger.Debug("CreateInstanceFromBackup post hook started")
+		defer logger.Debug("CreateInstanceFromBackup post hook finished")
+
 		// Get the root disk device config.
 		rootDiskConf, err := b.instanceRootVolumeConfig(inst)
 		if err != nil {
