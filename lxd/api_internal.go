@@ -409,8 +409,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf(`The name of the container ` +
-			`is required`))
+		return response.BadRequest(fmt.Errorf(`The name of the instance is required`))
 	}
 
 	storagePoolsPath := shared.VarPath("storage-pools")
@@ -440,11 +439,9 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	// Sanity checks.
 	if len(containerMntPoints) > 1 {
-		return response.BadRequest(fmt.Errorf(`The container "%s" seems to `+
-			`exist on multiple storage pools`, req.Name))
+		return response.BadRequest(fmt.Errorf(`The instance %q seems to exist on multiple storage pools`, req.Name))
 	} else if len(containerMntPoints) != 1 {
-		return response.BadRequest(fmt.Errorf(`The container "%s" does not `+
-			`seem to exist on any storage pool`, req.Name))
+		return response.BadRequest(fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, req.Name))
 	}
 
 	// User needs to make sure that we can access the directory where
@@ -456,10 +453,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if isEmpty {
-		return response.BadRequest(fmt.Errorf(`The container's directory "%s" `+
-			`appears to be empty. Please ensure that the `+
-			`container's storage volume is mounted`,
-			containerMntPoint))
+		return response.BadRequest(fmt.Errorf(`The instance's directory %q appears to be empty. Please ensure that the instance's storage volume is mounted`, containerMntPoint))
 	}
 
 	// Read in the backup.yaml file.
@@ -487,9 +481,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	if backup.Pool == nil {
 		// We don't know what kind of storage type the pool is.
-		return response.BadRequest(fmt.Errorf(`No storage pool struct in the ` +
-			`backup file found. The storage pool needs to be ` +
-			`recovered manually`))
+		return response.BadRequest(fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`))
 	}
 
 	if poolErr == db.ErrNoSuchObject {
@@ -507,17 +499,11 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	} else {
 		if backup.Pool.Name != containerPoolName {
-			return response.BadRequest(fmt.Errorf(`The storage pool "%s" `+
-				`the container was detected on does not match `+
-				`the storage pool "%s" specified in the `+
-				`backup file`, containerPoolName, backup.Pool.Name))
+			return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backup.Pool.Name))
 		}
 
 		if backup.Pool.Driver != pool.Driver {
-			return response.BadRequest(fmt.Errorf(`The storage pool's `+
-				`"%s" driver "%s" conflicts with the driver `+
-				`"%s" recorded in the container's backup file`,
-				containerPoolName, pool.Driver, backup.Pool.Driver))
+			return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver, backup.Pool.Driver))
 		}
 	}
 
@@ -552,8 +538,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	existingSnapshots := []*api.InstanceSnapshot{}
-	needForce := fmt.Errorf(`The snapshot does not exist on disk. Pass ` +
-		`"force" to discard non-existing snapshots`)
+	needForce := fmt.Errorf(`The snapshot does not exist on disk. Pass "force" to discard non-existing snapshots`)
 
 	// Retrieve all snapshots that exist on disk.
 	onDiskSnapshots := []string{}
@@ -649,10 +634,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	if len(backup.Snapshots) != len(onDiskSnapshots) {
 		if !req.Force {
-			msg := `There are either snapshots that don't exist ` +
-				`on disk anymore or snapshots that are not ` +
-				`recorded in the "backup.yaml" file. Pass ` +
-				`"force" to remove them`
+			msg := `There are either snapshots that don't exist on disk anymore or snapshots that are not recorded in the "backup.yaml" file. Pass "force" to remove them`
 			logger.Errorf(msg)
 			return response.InternalError(fmt.Errorf(msg))
 		}
@@ -675,9 +657,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !req.Force {
-			msg := `There are snapshots that are not recorded in ` +
-				`the "backup.yaml" file. Pass "force" to ` +
-				`remove them`
+			msg := `There are snapshots that are not recorded in the "backup.yaml" file. Pass "force" to remove them`
 			logger.Errorf(msg)
 			return response.InternalError(fmt.Errorf(msg))
 		}
@@ -818,9 +798,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 	// If a storage volume entry exists only proceed if force was specified.
 	if ctVolErr == nil && !req.Force {
-		return response.BadRequest(fmt.Errorf(`Storage volume for container `+
-			`"%s" already exists in the database. Set "force" to `+
-			`overwrite`, req.Name))
+		return response.BadRequest(fmt.Errorf(`Storage volume for instance %q already exists in the database. Set "force" to overwrite`, req.Name))
 	}
 
 	// Check if an entry for the container already exists in the db.
@@ -832,29 +810,20 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 	// If a db entry exists only proceed if force was specified.
 	if containerErr == nil && !req.Force {
-		return response.BadRequest(fmt.Errorf(`Entry for container "%s" `+
-			`already exists in the database. Set "force" to `+
-			`overwrite`, req.Name))
+		return response.BadRequest(fmt.Errorf(`Entry for instance %q already exists in the database. Set "force" to overwrite`, req.Name))
 	}
 
 	if backup.Volume == nil {
-		return response.BadRequest(fmt.Errorf(`No storage volume struct in the ` +
-			`backup file found. The storage volume needs to be ` +
-			`recovered manually`))
+		return response.BadRequest(fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`))
 	}
 
 	if ctVolErr == nil {
 		if volume.Name != backup.Volume.Name {
-			return response.BadRequest(fmt.Errorf(`The name "%s" of the `+
-				`storage volume is not identical to the `+
-				`container's name "%s"`, volume.Name, req.Name))
+			return response.BadRequest(fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, volume.Name, req.Name))
 		}
 
 		if volume.Type != backup.Volume.Type {
-			return response.BadRequest(fmt.Errorf(`The type "%s" of the `+
-				`storage volume is not identical to the `+
-				`container's type "%s"`, volume.Type,
-				backup.Volume.Type))
+			return response.BadRequest(fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backup.Volume.Type))
 		}
 
 		// Remove the storage volume db entry for the container since
@@ -958,9 +927,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 		// If a db entry exists only proceed if force was specified.
 		if snapErr == nil && !req.Force {
-			return response.BadRequest(fmt.Errorf(`Entry for snapshot "%s" `+
-				`already exists in the database. Set "force" `+
-				`to overwrite`, snap.Name))
+			return response.BadRequest(fmt.Errorf(`Entry for snapshot %q already exists in the database. Set "force" to overwrite`, snap.Name))
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
@@ -974,9 +941,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 		// If a storage volume entry exists only proceed if force was specified.
 		if csVolErr == nil && !req.Force {
-			return response.BadRequest(fmt.Errorf(`Storage volume for `+
-				`snapshot "%s" already exists in the `+
-				`database. Set "force" to overwrite`, snap.Name))
+			return response.BadRequest(fmt.Errorf(`Storage volume for snapshot %q already exists in the database. Set "force" to overwrite`, snap.Name))
 		}
 
 		if snapErr == nil {
