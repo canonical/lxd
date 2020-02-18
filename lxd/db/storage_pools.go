@@ -1052,25 +1052,39 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, des
 // Return the ID of a storage volume on a given storage pool of a given storage
 // volume type, on the given node.
 func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
-	volumeID := int64(-1)
-	query := `SELECT storage_volumes_all.id
-FROM storage_volumes_all
-JOIN storage_pools ON storage_volumes_all.storage_pool_id = storage_pools.id
-JOIN projects ON storage_volumes_all.project_id = projects.id
-WHERE projects.name=? AND storage_volumes_all.storage_pool_id=? AND storage_volumes_all.node_id=?
-AND storage_volumes_all.name=? AND storage_volumes_all.type=?`
-	inargs := []interface{}{project, poolID, nodeID, volumeName, volumeType}
-	outargs := []interface{}{&volumeID}
-
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	var id int64
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		id, err = tx.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
+		return err
+	})
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, ErrNoSuchObject
-		}
+		return -1, err
+	}
+	return id, nil
+}
+
+func (c *ClusterTx) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
+	result, err := query.SelectIntegers(c.tx, `
+SELECT storage_volumes_all.id
+  FROM storage_volumes_all
+  JOIN storage_pools ON storage_volumes_all.storage_pool_id = storage_pools.id
+  JOIN projects ON storage_volumes_all.project_id = projects.id
+ WHERE projects.name=?
+   AND storage_volumes_all.storage_pool_id=?
+   AND storage_volumes_all.node_id=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type=?`, project, poolID, nodeID, volumeName, volumeType)
+
+	if err != nil {
 		return -1, err
 	}
 
-	return volumeID, nil
+	if len(result) == 0 {
+		return -1, ErrNoSuchObject
+	}
+
+	return int64(result[0]), nil
 }
 
 // StoragePoolNodeVolumeGetTypeID get the ID of a storage volume on a given
