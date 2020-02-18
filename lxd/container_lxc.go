@@ -3670,28 +3670,6 @@ func (c *containerLXC) Rename(newName string) error {
 
 		poolID, _, _ := c.storage.GetContainerPoolInfo()
 
-		if !c.IsSnapshot() {
-			// Rename all the snapshot volumes.
-			results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
-			if err != nil {
-				logger.Error("Failed to get container snapshots", ctxMap)
-				return err
-			}
-
-			for _, sname := range results {
-				// Rename the snapshot volume.
-				baseSnapName := filepath.Base(sname)
-				newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-
-				// Rename storage volume for the snapshot.
-				err = c.state.Cluster.StoragePoolVolumeRename(c.project, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
-				if err != nil {
-					logger.Error("Failed renaming storage volume", ctxMap)
-					return err
-				}
-			}
-		}
-
 		// Rename storage volume for the container.
 		err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
