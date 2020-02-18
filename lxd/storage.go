@@ -52,12 +52,6 @@ var lxdStorageOngoingOperationMap = map[string]chan bool{}
 // lxdStorageMapLock is used to access lxdStorageOngoingOperationMap.
 var lxdStorageMapLock sync.Mutex
 
-// The following functions are used to construct simple operation codes that are
-// unique.
-func getPoolMountLockID(poolName string) string {
-	return fmt.Sprintf("mount/pool/%s", poolName)
-}
-
 func getImageCreateLockID(poolName string, fingerprint string) string {
 	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
 }
