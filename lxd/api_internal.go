@@ -455,19 +455,19 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	// Read in the backup.yaml file.
 	backupYamlPath := filepath.Join(containerMntPoint, "backup.yaml")
-	backup, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
+	backupConf, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Update snapshot names to include container name (if needed).
-	for i, snap := range backup.Snapshots {
+	for i, snap := range backupConf.Snapshots {
 		if !strings.Contains(snap.Name, "/") {
-			backup.Snapshots[i].Name = fmt.Sprintf("%s/%s", backup.Container.Name, snap.Name)
+			backupConf.Snapshots[i].Name = fmt.Sprintf("%s/%s", backupConf.Container.Name, snap.Name)
 		}
 	}
 
-	if backup.Pool == nil {
+	if backupConf.Pool == nil {
 		// We don't know what kind of storage type the pool is.
 		return response.BadRequest(fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`))
 	}
@@ -476,7 +476,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	pool, err := storagePools.GetPoolByName(d.State(), containerPoolName)
 	if err == db.ErrNoSuchObject {
 		// Create the storage pool db entry if it doesn't exist.
-		_, err = storagePoolDBCreate(d.State(), containerPoolName, "", backup.Pool.Driver, backup.Pool.Config)
+		_, err = storagePoolDBCreate(d.State(), containerPoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
 		if err != nil {
 			return response.SmartError(errors.Wrap(err, "Create storage pool database entry"))
 		}
@@ -489,12 +489,12 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrap(err, "Find storage pool database entry"))
 	}
 
-	if backup.Pool.Name != containerPoolName {
-		return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backup.Pool.Name))
+	if backupConf.Pool.Name != containerPoolName {
+		return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backupConf.Pool.Name))
 	}
 
-	if backup.Pool.Driver != pool.Driver().Info().Name {
-		return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver().Info().Name, backup.Pool.Driver))
+	if backupConf.Pool.Driver != pool.Driver().Info().Name {
+		return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver().Info().Name, backupConf.Pool.Driver))
 	}
 
 	existingSnapshots := []*api.InstanceSnapshot{}
@@ -591,7 +591,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	if len(backup.Snapshots) != len(onDiskSnapshots) {
+	if len(backupConf.Snapshots) != len(onDiskSnapshots) {
 		if !req.Force {
 			msg := `There are either snapshots that don't exist on disk anymore or snapshots that are not recorded in the "backup.yaml" file. Pass "force" to remove them`
 			logger.Errorf(msg)
@@ -603,7 +603,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	od := ""
 	for _, od = range onDiskSnapshots {
 		inBackupFile := false
-		for _, ib := range backup.Snapshots {
+		for _, ib := range backupConf.Snapshots {
 			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(ib.Name)
 			if od == snapOnlyName {
 				inBackupFile = true
@@ -622,7 +622,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		var err error
-		switch backup.Pool.Driver {
+		switch backupConf.Pool.Driver {
 		case "btrfs":
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
 			err = btrfsSnapshotDeleteInternal(projectName, pool.Name(), snapName)
@@ -630,7 +630,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
 			err = dirSnapshotDeleteInternal(projectName, pool.Name(), snapName)
 		case "lvm":
-			onDiskPoolName := backup.Pool.Config["lvm.vg_name"]
+			onDiskPoolName := backupConf.Pool.Config["lvm.vg_name"]
 			if onDiskPoolName == "" {
 				onDiskPoolName = pool.Name()
 			}
@@ -639,23 +639,23 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			err = lvmContainerDeleteInternal(projectName, pool.Name(), req.Name, true, onDiskPoolName, snapPath)
 		case "ceph":
 			clusterName := "ceph"
-			if backup.Pool.Config["ceph.cluster_name"] != "" {
-				clusterName = backup.Pool.Config["ceph.cluster_name"]
+			if backupConf.Pool.Config["ceph.cluster_name"] != "" {
+				clusterName = backupConf.Pool.Config["ceph.cluster_name"]
 			}
 
 			userName := "admin"
-			if backup.Pool.Config["ceph.user.name"] != "" {
-				userName = backup.Pool.Config["ceph.user.name"]
+			if backupConf.Pool.Config["ceph.user.name"] != "" {
+				userName = backupConf.Pool.Config["ceph.user.name"]
 			}
 
-			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
+			onDiskPoolName := backupConf.Pool.Config["ceph.osd.pool_name"]
 			snapName := fmt.Sprintf("snapshot_%s", od)
 			ret := cephContainerSnapshotDelete(clusterName, onDiskPoolName, project.Prefix(projectName, req.Name), storagePoolVolumeTypeNameContainer, snapName, userName)
 			if ret < 0 {
 				err = fmt.Errorf(`Failed to delete snapshot`)
 			}
 		case "zfs":
-			onDiskPoolName := backup.Pool.Config["zfs.pool_name"]
+			onDiskPoolName := backupConf.Pool.Config["zfs.pool_name"]
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
 			err = zfsSnapshotDeleteInternal(projectName, pool.Name(), snapName, onDiskPoolName)
 		}
@@ -664,10 +664,10 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	for _, snap := range backup.Snapshots {
-		switch backup.Pool.Driver {
+	for _, snap := range backupConf.Snapshots {
+		switch backupConf.Pool.Driver {
 		case "btrfs":
-			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
+			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backupConf.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) || !btrfsIsSubVolume(snpMntPt) {
 				if req.Force {
 					continue
@@ -675,7 +675,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(needForce)
 			}
 		case "dir":
-			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
+			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backupConf.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) {
 				if req.Force {
 					continue
@@ -699,16 +699,16 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 		case "ceph":
 			clusterName := "ceph"
-			if backup.Pool.Config["ceph.cluster_name"] != "" {
-				clusterName = backup.Pool.Config["ceph.cluster_name"]
+			if backupConf.Pool.Config["ceph.cluster_name"] != "" {
+				clusterName = backupConf.Pool.Config["ceph.cluster_name"]
 			}
 
 			userName := "admin"
-			if backup.Pool.Config["ceph.user.name"] != "" {
-				userName = backup.Pool.Config["ceph.user.name"]
+			if backupConf.Pool.Config["ceph.user.name"] != "" {
+				userName = backupConf.Pool.Config["ceph.user.name"]
 			}
 
-			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
+			onDiskPoolName := backupConf.Pool.Config["ceph.osd.pool_name"]
 			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			ctName = project.Prefix(projectName, ctName)
 			snapshotName := fmt.Sprintf("snapshot_%s", csName)
@@ -765,17 +765,17 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`Entry for instance %q already exists in the database. Set "force" to overwrite`, req.Name))
 	}
 
-	if backup.Volume == nil {
+	if backupConf.Volume == nil {
 		return response.BadRequest(fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`))
 	}
 
 	if ctVolErr == nil {
-		if volume.Name != backup.Volume.Name {
+		if volume.Name != backupConf.Volume.Name {
 			return response.BadRequest(fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, volume.Name, req.Name))
 		}
 
-		if volume.Type != backup.Volume.Type {
-			return response.BadRequest(fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backup.Volume.Type))
+		if volume.Type != backupConf.Volume.Type {
+			return response.BadRequest(fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backupConf.Volume.Type))
 		}
 
 		// Remove the storage volume db entry for the container since force was specified.
@@ -808,28 +808,28 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	fd.Close()
 	defer os.Remove(fd.Name())
 
-	baseImage := backup.Container.Config["volatile.base_image"]
+	baseImage := backupConf.Container.Config["volatile.base_image"]
 
 	// Add root device if missing.
-	root, _, _ := shared.GetRootDiskDevice(backup.Container.Devices)
+	root, _, _ := shared.GetRootDiskDevice(backupConf.Container.Devices)
 	if root == "" {
-		if backup.Container.Devices == nil {
-			backup.Container.Devices = map[string]map[string]string{}
+		if backupConf.Container.Devices == nil {
+			backupConf.Container.Devices = map[string]map[string]string{}
 		}
 
 		rootDevName := "root"
 		for i := 0; i < 100; i++ {
-			if backup.Container.Devices[rootDevName] == nil {
+			if backupConf.Container.Devices[rootDevName] == nil {
 				break
 			}
 			rootDevName = fmt.Sprintf("root%d", i)
 			continue
 		}
 
-		backup.Container.Devices[rootDevName] = rootDev
+		backupConf.Container.Devices[rootDevName] = rootDev
 	}
 
-	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
+	arch, err := osarch.ArchitectureId(backupConf.Container.Architecture)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -837,16 +837,16 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
-		Config:       backup.Container.Config,
-		CreationDate: backup.Container.CreatedAt,
+		Config:       backupConf.Container.Config,
+		CreationDate: backupConf.Container.CreatedAt,
 		Type:         instancetype.Container,
-		Description:  backup.Container.Description,
-		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
-		Ephemeral:    backup.Container.Ephemeral,
-		LastUsedDate: backup.Container.LastUsedAt,
-		Name:         backup.Container.Name,
-		Profiles:     backup.Container.Profiles,
-		Stateful:     backup.Container.Stateful,
+		Description:  backupConf.Container.Description,
+		Devices:      deviceConfig.NewDevices(backupConf.Container.Devices),
+		Ephemeral:    backupConf.Container.Ephemeral,
+		LastUsedDate: backupConf.Container.LastUsedAt,
+		Name:         backupConf.Container.Name,
+		Profiles:     backupConf.Container.Profiles,
+		Stateful:     backupConf.Container.Stateful,
 	})
 	if err != nil {
 		err = errors.Wrap(err, "Create container")
@@ -855,7 +855,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	containerPath := storagePools.InstancePath(instancetype.Container, projectName, req.Name, false)
 	isPrivileged := false
-	if backup.Container.Config["security.privileged"] == "" {
+	if backupConf.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
 	}
 	err = storagePools.CreateContainerMountpoint(containerMntPoint, containerPath,
@@ -953,11 +953,11 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Recreate missing mountpoints and symlinks.
-		snapshotMountPoint := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name,
+		snapshotMountPoint := storagePools.GetSnapshotMountPoint(projectName, backupConf.Pool.Name,
 			snap.Name)
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 		sourceName = project.Prefix(projectName, sourceName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backupConf.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = storagePools.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
