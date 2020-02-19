@@ -26,7 +26,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -462,19 +461,10 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Update snapshot names to include container name (if needed)
+	// Update snapshot names to include container name (if needed).
 	for i, snap := range backup.Snapshots {
 		if !strings.Contains(snap.Name, "/") {
 			backup.Snapshots[i].Name = fmt.Sprintf("%s/%s", backup.Container.Name, snap.Name)
-		}
-	}
-
-	// Try to retrieve the storage pool the container supposedly lives on.
-	var poolErr error
-	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)
-	if poolErr != nil {
-		if poolErr != db.ErrNoSuchObject {
-			return response.SmartError(poolErr)
 		}
 	}
 
@@ -483,57 +473,29 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`))
 	}
 
-	if poolErr == db.ErrNoSuchObject {
+	// Try to retrieve the storage pool the container supposedly lives on.
+	pool, err := storagePools.GetPoolByName(d.State(), containerPoolName)
+	if err == db.ErrNoSuchObject {
 		// Create the storage pool db entry if it doesn't exist.
-		_, err := storagePoolDBCreate(d.State(), containerPoolName, "",
-			backup.Pool.Driver, backup.Pool.Config)
+		_, err = storagePoolDBCreate(d.State(), containerPoolName, "", backup.Pool.Driver, backup.Pool.Config)
 		if err != nil {
-			err = errors.Wrap(err, "Create storage pool database entry")
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrap(err, "Create storage pool database entry"))
 		}
 
-		poolID, err = d.cluster.StoragePoolGetID(containerPoolName)
+		pool, err = storagePools.GetPoolByName(d.State(), containerPoolName)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrap(err, "Load storage pool database entry"))
 		}
-	} else {
-		if backup.Pool.Name != containerPoolName {
-			return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backup.Pool.Name))
-		}
-
-		if backup.Pool.Driver != pool.Driver {
-			return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver, backup.Pool.Driver))
-		}
+	} else if err != nil {
+		return response.SmartError(errors.Wrap(err, "Find storage pool database entry"))
 	}
 
-	var poolName string
-	_, err = storagePools.GetPoolByName(d.State(), backup.Pool.Name)
-	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
-		if err != nil {
-			return response.InternalError(err)
-		}
+	if backup.Pool.Name != containerPoolName {
+		return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backup.Pool.Name))
+	}
 
-		// FIXME: In the new world, we don't expose the on-disk pool
-		// name, instead we need to change the per-driver logic below to using
-		// clean storage functions.
-		poolName = backup.Pool.Name
-	} else {
-		initPool, err := storagePoolInit(d.State(), backup.Pool.Name)
-		if err != nil {
-			err = errors.Wrap(err, "Initialize storage")
-			return response.InternalError(err)
-		}
-
-		ourMount, err := initPool.StoragePoolMount()
-		if err != nil {
-			return response.InternalError(err)
-		}
-		if ourMount {
-			defer initPool.StoragePoolUmount()
-		}
-
-		// retrieve on-disk pool name
-		_, _, poolName = initPool.GetContainerPoolInfo()
+	if backup.Pool.Driver != pool.Driver().Info().Name {
+		return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver().Info().Name, backup.Pool.Driver))
 	}
 
 	existingSnapshots := []*api.InstanceSnapshot{}
@@ -544,7 +506,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	if len(backup.Snapshots) > 0 {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, poolName, req.Name)
+			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, pool.Name(), req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return response.InternalError(err)
@@ -556,7 +518,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 			snapshotsDir.Close()
 		case "dir":
-			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, poolName, req.Name)
+			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, pool.Name(), req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return response.InternalError(err)
@@ -664,19 +626,18 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		switch backup.Pool.Driver {
 		case "btrfs":
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = btrfsSnapshotDeleteInternal(projectName, poolName, snapName)
+			err = btrfsSnapshotDeleteInternal(projectName, pool.Name(), snapName)
 		case "dir":
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = dirSnapshotDeleteInternal(projectName, poolName, snapName)
+			err = dirSnapshotDeleteInternal(projectName, pool.Name(), snapName)
 		case "lvm":
 			onDiskPoolName := backup.Pool.Config["lvm.vg_name"]
 			if onDiskPoolName == "" {
-				onDiskPoolName = poolName
+				onDiskPoolName = pool.Name()
 			}
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
 			snapPath := storagePools.InstancePath(instancetype.Container, projectName, snapName, true)
-			err = lvmContainerDeleteInternal(projectName, poolName, req.Name,
-				true, onDiskPoolName, snapPath)
+			err = lvmContainerDeleteInternal(projectName, pool.Name(), req.Name, true, onDiskPoolName, snapPath)
 		case "ceph":
 			clusterName := "ceph"
 			if backup.Pool.Config["ceph.cluster_name"] != "" {
@@ -690,17 +651,14 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
 			snapName := fmt.Sprintf("snapshot_%s", od)
-			ret := cephContainerSnapshotDelete(clusterName,
-				onDiskPoolName, project.Prefix(projectName, req.Name),
-				storagePoolVolumeTypeNameContainer, snapName, userName)
+			ret := cephContainerSnapshotDelete(clusterName, onDiskPoolName, project.Prefix(projectName, req.Name), storagePoolVolumeTypeNameContainer, snapName, userName)
 			if ret < 0 {
 				err = fmt.Errorf(`Failed to delete snapshot`)
 			}
 		case "zfs":
 			onDiskPoolName := backup.Pool.Config["zfs.pool_name"]
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = zfsSnapshotDeleteInternal(projectName, poolName, snapName,
-				onDiskPoolName)
+			err = zfsSnapshotDeleteInternal(projectName, pool.Name(), snapName, onDiskPoolName)
 		}
 		if err != nil {
 			logger.Warnf(`Failed to delete snapshot`)
@@ -728,9 +686,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		case "lvm":
 			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			ctLvmName := lvmNameToLVName(fmt.Sprintf("%s/%s", project.Prefix(projectName, ctName), csName))
-			ctLvName := lvmLVName(poolName,
-				storagePoolVolumeAPIEndpointContainers,
-				ctLvmName)
+			ctLvName := lvmLVName(pool.Name(), storagePoolVolumeAPIEndpointContainers, ctLvmName)
 			exists, err := lvmLVExists(ctLvName)
 			if err != nil {
 				return response.InternalError(err)
@@ -772,9 +728,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 			snapshotName := fmt.Sprintf("snapshot-%s", csName)
 
-			exists := zfsFilesystemEntityExists(poolName,
-				fmt.Sprintf("containers/%s@%s", project.Prefix(projectName, ctName),
-					snapshotName))
+			exists := zfsFilesystemEntityExists(pool.Name(), fmt.Sprintf("containers/%s@%s", project.Prefix(projectName, ctName), snapshotName))
 			if !exists {
 				if req.Force {
 					continue
@@ -787,7 +741,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, storagePoolVolumeTypeContainer, poolID)
+	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, storagePoolVolumeTypeContainer, pool.ID())
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
 			return response.SmartError(ctVolErr)
@@ -826,7 +780,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove the storage volume db entry for the container since force was specified.
-		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, storagePoolVolumeTypeContainer, poolID)
+		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, storagePoolVolumeTypeContainer, pool.ID())
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -928,7 +882,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, storagePoolVolumeTypeContainer, poolID)
+		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, storagePoolVolumeTypeContainer, pool.ID())
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
 				return response.SmartError(csVolErr)
@@ -948,7 +902,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, storagePoolVolumeTypeContainer, poolID)
+			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, storagePoolVolumeTypeContainer, pool.ID())
 			if err != nil {
 				return response.SmartError(err)
 			}
