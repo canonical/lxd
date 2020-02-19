@@ -1157,19 +1157,18 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
-		err = d.cluster.ImageAliasesMove(id, newId)
+		err = d.cluster.ImageAliasesMove(id, newID)
 		if err != nil {
 			logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
-		err = d.cluster.ImageCopyDefaultProfiles(id, newId)
+		err = d.cluster.ImageCopyDefaultProfiles(id, newID)
 		if err != nil {
 			logger.Error("Copying default profiles", log.Ctx{"err": err, "fp": hash})
 		}
 
-		// If we do have optimized pools, make sure we remove
-		// the volumes associated with the image.
+		// If we do have optimized pools, make sure we remove the volumes associated with the image.
 		if poolName != "" {
 			err = doDeleteImageFromPool(d.State(), fingerprint, poolName)
 			if err != nil {
