@@ -1126,7 +1126,6 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 
 	for _, poolName := range poolNames {
 		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, info.Type, false, true, poolName, false, project)
-
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})
 			continue
@@ -1138,7 +1137,7 @@ func autoUpdateImage(d *Daemon, op *operations.Operation, id int, info *api.Imag
 			continue
 		}
 
-		newId, _, err := d.cluster.ImageGet("default", hash, false, true)
+		newID, _, err := d.cluster.ImageGet(project, hash, false, true)
 		if err != nil {
 			logger.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
 			continue
