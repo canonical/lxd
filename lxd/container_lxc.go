@@ -3454,16 +3454,10 @@ func (c *containerLXC) Delete() error {
 		// the creation of the instance and we are now being asked to delete the instance,
 		// we should not remove the storage volumes themselves as this would cause data loss.
 		isImport := false
-		poolName := pool.Name()
-		if c.IsSnapshot() {
-			cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
-			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", cName, ".importing")) {
-				isImport = true
-			}
-		} else {
-			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", c.name, ".importing")) {
-				isImport = true
-			}
+		cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.Name())
+		importingFilePath := storagePools.InstanceImportingFilePath(c.Type(), pool.Name(), c.Project(), cName)
+		if shared.PathExists(importingFilePath) {
+			isImport = true
 		}
 
 		if c.IsSnapshot() {
@@ -3508,15 +3502,10 @@ func (c *containerLXC) Delete() error {
 		// the creation of the instance and we are now being asked to delete the instance,
 		// we should not remove the storage volumes themselves as this would cause data loss.
 		isImport := false
-		if c.IsSnapshot() {
-			cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
-			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", cName, ".importing")) {
-				isImport = true
-			}
-		} else {
-			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", c.name, ".importing")) {
-				isImport = true
-			}
+		cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.Name())
+		importingFilePath := storagePools.InstanceImportingFilePath(c.Type(), poolName, c.Project(), cName)
+		if shared.PathExists(importingFilePath) {
+			isImport = true
 		}
 
 		if c.IsSnapshot() {

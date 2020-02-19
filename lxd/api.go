@@ -120,7 +120,7 @@ func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == "lxd-cluster-notifier"
 }
 
-// Extract the project query parameter from the given request.
+// projectParam returns the project query parameter from the given request or "default" if parameter is not set.
 func projectParam(request *http.Request) string {
 	project := queryParam(request, "project")
 	if project == "" {

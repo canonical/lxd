@@ -26,6 +26,21 @@ func InstancePath(instanceType instancetype.Type, projectName, instanceName stri
 	return shared.VarPath("containers", fullName)
 }
 
+// InstanceImportingFilePath returns the file path used to indicate an instance import is in progress.
+// This marker file is created when using `lxd import` to import an instance that exists on the storage device
+// but does not exist in the LXD database. The presence of this file causes the instance not to be removed from
+// the storage device if the import should fail for some reason.
+func InstanceImportingFilePath(instanceType instancetype.Type, poolName, projectName, instanceName string) string {
+	fullName := project.Prefix(projectName, instanceName)
+
+	typeDir := "containers"
+	if instanceType == instancetype.VM {
+		typeDir = "virtual-machines"
+	}
+
+	return shared.VarPath("storage-pools", poolName, typeDir, fullName, ".importing")
+}
+
 // GetStoragePoolMountPoint returns the mountpoint of the given pool.
 // {LXD_DIR}/storage-pools/<pool>
 // Deprecated, use GetPoolMountPath in storage/drivers package.
