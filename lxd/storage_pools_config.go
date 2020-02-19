@@ -81,6 +81,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"lvm.vg_name":             shared.IsAny,
 	"volume.lvm.stripes":      shared.IsUint32,
 	"volume.lvm.stripes.size": shared.IsSize,
+	"lvm.vg.force_reuse":      shared.IsBool,
 
 	// valid drivers: btrfs, lvm, zfs
 	"size": shared.IsSize,
