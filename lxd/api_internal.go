@@ -850,7 +850,8 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	rootDev["pool"] = containerPoolName
 
 	// Mark the filesystem as going through an import
-	fd, err := os.Create(filepath.Join(containerMntPoint, ".importing"))
+	importingFilePath := storagePools.InstanceImportingFilePath(instancetype.Container, containerPoolName, projectName, req.Name)
+	fd, err := os.Create(importingFilePath)
 	if err != nil {
 		return response.InternalError(err)
 	}
