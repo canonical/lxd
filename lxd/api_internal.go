@@ -25,7 +25,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
-	driver "github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
@@ -430,7 +429,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	containerMntPoints := []string{}
 	containerPoolName := ""
 	for _, poolName := range storagePoolNames {
-		containerMntPoint := driver.GetContainerMountPoint(projectName, poolName, req.Name)
+		containerMntPoint := storagePools.GetContainerMountPoint(projectName, poolName, req.Name)
 		if shared.PathExists(containerMntPoint) {
 			containerMntPoints = append(containerMntPoints, containerMntPoint)
 			containerPoolName = poolName
@@ -545,7 +544,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	if len(backup.Snapshots) > 0 {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snapshotsDirPath := driver.GetSnapshotMountPoint(projectName, poolName, req.Name)
+			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return response.InternalError(err)
@@ -557,7 +556,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 			snapshotsDir.Close()
 		case "dir":
-			snapshotsDirPath := driver.GetSnapshotMountPoint(projectName, poolName, req.Name)
+			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return response.InternalError(err)
@@ -676,7 +675,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				onDiskPoolName = poolName
 			}
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			snapPath := driver.InstancePath(instancetype.Container, projectName, snapName, true)
+			snapPath := storagePools.InstancePath(instancetype.Container, projectName, snapName, true)
 			err = lvmContainerDeleteInternal(projectName, poolName, req.Name,
 				true, onDiskPoolName, snapPath)
 		case "ceph":
@@ -712,7 +711,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	for _, snap := range backup.Snapshots {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snpMntPt := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
+			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) || !isBtrfsSubVolume(snpMntPt) {
 				if req.Force {
 					continue
@@ -720,7 +719,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(needForce)
 			}
 		case "dir":
-			snpMntPt := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
+			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) {
 				if req.Force {
 					continue
@@ -903,12 +902,12 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	containerPath := driver.InstancePath(instancetype.Container, projectName, req.Name, false)
+	containerPath := storagePools.InstancePath(instancetype.Container, projectName, req.Name, false)
 	isPrivileged := false
 	if backup.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
 	}
-	err = driver.CreateContainerMountpoint(containerMntPoint, containerPath,
+	err = storagePools.CreateContainerMountpoint(containerMntPoint, containerPath,
 		isPrivileged)
 	if err != nil {
 		return response.InternalError(err)
@@ -1005,13 +1004,13 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Recreate missing mountpoints and symlinks.
-		snapshotMountPoint := driver.GetSnapshotMountPoint(projectName, backup.Pool.Name,
+		snapshotMountPoint := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name,
 			snap.Name)
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 		sourceName = project.Prefix(projectName, sourceName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		err = driver.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = storagePools.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return response.InternalError(err)
 		}
