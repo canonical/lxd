@@ -920,3 +920,9 @@ to specify to the ideal number of database voter and standbys.
 
 ## firewall\_driver
 Adds the `Firewall` property to the ServerEnvironment struct indicating the firewall driver being used.
+
+## storage\_lvm\_vg\_force\_reuse
+Introduces the ability to create a storage pool from an existing non-empty volume group.
+This option should be used with care, as LXD can then not guarantee that volume name conflicts won't occur
+with non-LXD created volumes in the same volume group.
+This could also potentially lead to LXD deleting a non-LXD volume should name conflicts occur.
