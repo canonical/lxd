@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
 )
@@ -66,6 +67,56 @@ var updates = map[int]schema.Update{
 
 // Create new storage snapshot tables and migrate data to them.
 func updateFromV25(tx *sql.Tx) error {
+	// Get the total number of snapshot rows in the storage_volumes table.
+	count, err := query.Count(tx, "storage_volumes", "snapshot=1")
+	if err != nil {
+		return errors.Wrap(err, "Failed to volume snapshot count")
+	}
+
+	// Fetch all snapshot rows in the storage_volumes table.
+	snapshots := make([]struct {
+		ID            int
+		Name          string
+		StoragePoolID int
+		NodeID        int
+		Type          int
+		Description   string
+		ProjectID     int
+		Config        map[string]string
+	}, count)
+	dest := func(i int) []interface{} {
+		return []interface{}{
+			&snapshots[i].ID,
+			&snapshots[i].Name,
+			&snapshots[i].StoragePoolID,
+			&snapshots[i].NodeID,
+			&snapshots[i].Type,
+			&snapshots[i].Description,
+			&snapshots[i].ProjectID,
+		}
+	}
+	stmt, err := tx.Prepare(`
+SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), project_id
+  FROM storage_volumes
+ WHERE snapshot=1
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare volume snapshot query")
+	}
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch instances")
+	}
+	for i, snapshot := range snapshots {
+		config, err := query.SelectConfig(tx,
+			"storage_volumes_config", "storage_volume_id=?",
+			snapshot.ID)
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch volume snapshot config")
+		}
+		snapshots[i].Config = config
+	}
+
 	stmts := `
 ALTER TABLE storage_volumes RENAME TO old_storage_volumes;
 CREATE TABLE "storage_volumes" (
@@ -153,10 +204,45 @@ CREATE VIEW storage_volumes_all (
     FROM storage_volumes
     JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
 `
-	_, err := tx.Exec(stmts)
+	_, err = tx.Exec(stmts)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create storage snapshots tables")
 	}
+
+	// Migrate snapshots to the new tables.
+	for _, snapshot := range snapshots {
+		parts := strings.Split(snapshot.Name, shared.SnapshotDelimiter)
+		if len(parts) != 2 {
+			logger.Errorf("Invalid volume snapshot name: %s", snapshot.Name)
+			continue
+		}
+		volume := parts[0]
+		name := parts[1]
+		ids, err := query.SelectIntegers(tx, "SELECT id FROM storage_volumes WHERE name=?", volume)
+		if err != nil {
+			return err
+		}
+		if len(ids) != 1 {
+			logger.Errorf("Volume snapshot %s has no parent", snapshot.Name)
+			continue
+		}
+		volumeID := ids[0]
+		_, err = tx.Exec(`
+INSERT INTO storage_volumes_snapshots(id, storage_volume_id, name, description) VALUES(?, ?, ?, ?)
+`, snapshot.ID, volumeID, name, snapshot.Description)
+		if err != nil {
+			return err
+		}
+		for key, value := range snapshot.Config {
+			_, err = tx.Exec(`
+INSERT INTO storage_volumes_snapshots_config(storage_volume_snapshot_id, key, value) VALUES(?, ?, ?)
+`, snapshot.ID, key, value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
