@@ -442,8 +442,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, req.Name))
 	}
 
-	// User needs to make sure that we can access the directory where
-	// backup.yaml lives.
+	// User needs to make sure that we can access the directory where backup.yaml lives.
 	containerMntPoint := containerMntPoints[0]
 	isEmpty, err := shared.PathIsEmpty(containerMntPoint)
 	if err != nil {
@@ -540,7 +539,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			snaps := strings.Fields(msg)
 			prefix := fmt.Sprintf("containers_%s-", project.Prefix(projectName, req.Name))
 			for _, v := range snaps {
-				// ignore zombies
+				// Ignore zombies.
 				if strings.HasPrefix(v, prefix) {
 					onDiskSnapshots = append(onDiskSnapshots,
 						v[len(prefix):])
@@ -568,7 +567,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, v := range snaps {
-				// ignore zombies
+				// Ignore zombies.
 				if strings.HasPrefix(v, "snapshot_") {
 					onDiskSnapshots = append(onDiskSnapshots,
 						v[len("snapshot_"):])
@@ -583,7 +582,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			}
 
 			for _, v := range snaps {
-				// ignore zombies
+				// Ignore zombies.
 				if strings.HasPrefix(v, "snapshot-") {
 					onDiskSnapshots = append(onDiskSnapshots,
 						v[len("snapshot-"):])
@@ -600,7 +599,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// delete snapshots that do not exist in backup.yaml
+	// Delete snapshots that do not exist in backup.yaml.
 	od := ""
 	for _, od = range onDiskSnapshots {
 		inBackupFile := false
@@ -794,13 +793,13 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Prepare root disk entry if needed
+	// Prepare root disk entry if needed.
 	rootDev := map[string]string{}
 	rootDev["type"] = "disk"
 	rootDev["path"] = "/"
 	rootDev["pool"] = containerPoolName
 
-	// Mark the filesystem as going through an import
+	// Mark the filesystem as going through an import.
 	importingFilePath := storagePools.InstanceImportingFilePath(instancetype.Container, containerPoolName, projectName, req.Name)
 	fd, err := os.Create(importingFilePath)
 	if err != nil {
@@ -811,7 +810,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	baseImage := backup.Container.Config["volatile.base_image"]
 
-	// Add root device if missing
+	// Add root device if missing.
 	root, _, _ := shared.GetRootDiskDevice(backup.Container.Devices)
 	if root == "" {
 		if backup.Container.Devices == nil {
@@ -915,7 +914,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		// Add root device if missing
+		// Add root device if missing.
 		root, _, _ := shared.GetRootDiskDevice(snap.Devices)
 		if root == "" {
 			if snap.Devices == nil {
