@@ -246,13 +246,20 @@ func (d *lvm) Create() error {
 			empty = true
 		}
 
-		if !empty {
-			return fmt.Errorf("Volume group %q is not empty", d.config["lvm.vg_name"])
-		}
+		// Skip the in use checks if the force reuse option is enabled. This allows a storage pool to be
+		// backed by an existing non-empty volume group. Note: This option should be used with care, as LXD
+		// can then not guarantee that volume name conflicts won't occur with non-LXD created volumes in
+		// the same volume group. This could also potentially lead to LXD deleting a non-LXD volume should
+		// name conflicts occur.
+		if !shared.IsTrue(d.config["lvm.vg.force_reuse"]) {
+			if !empty {
+				return fmt.Errorf("Volume group %q is not empty", d.config["lvm.vg_name"])
+			}
 
-		// Check the tags on the volume group to check it is not already being used by LXD.
-		if shared.StringInSlice(lvmVgPoolMarker, vgTags) {
-			return fmt.Errorf("Volume group %q is already used by LXD", d.config["lvm.vg_name"])
+			// Check the tags on the volume group to check it is not already being used by LXD.
+			if shared.StringInSlice(lvmVgPoolMarker, vgTags) {
+				return fmt.Errorf("Volume group %q is already used by LXD", d.config["lvm.vg_name"])
+			}
 		}
 	} else {
 		// Create physical volume if doesn't exist.
@@ -430,6 +437,7 @@ func (d *lvm) Validate(config map[string]string) error {
 		},
 		"volume.lvm.stripes":      shared.IsUint32,
 		"volume.lvm.stripes.size": shared.IsSize,
+		"lvm.vg.force_reuse":      shared.IsBool,
 	}
 
 	err := d.validatePool(config, rules)
