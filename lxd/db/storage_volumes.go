@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 
@@ -36,6 +35,8 @@ type StorageVolumeArgs struct {
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
 // volume with the given name if defined.
 //
+// The volume name can be either a regular name or a volume snapshot name.
+//
 // The empty string is used in place of the address of the current node.
 func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
 	nodes := []struct {
@@ -53,9 +54,12 @@ func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name strin
 	sql := `
 SELECT nodes.id, nodes.address
   FROM nodes
-  JOIN storage_volumes ON storage_volumes.node_id=nodes.id
-  JOIN projects ON projects.id = storage_volumes.project_id
- WHERE storage_volumes.storage_pool_id=? AND projects.name=? AND storage_volumes.name=? AND storage_volumes.type=?
+  JOIN storage_volumes_all ON storage_volumes_all.node_id=nodes.id
+  JOIN projects ON projects.id = storage_volumes_all.project_id
+ WHERE storage_volumes_all.storage_pool_id=?
+   AND projects.name=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type=?
 `
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
@@ -85,13 +89,13 @@ SELECT nodes.id, nodes.address
 	return addresses, nil
 }
 
-// StorageVolumeNodeGet returns the name of the node a storage volume is on.
-func (c *Cluster) StorageVolumeNodeGet(volumeID int64) (string, error) {
+// Return the name of the node a storage volume is on.
+func (c *Cluster) storageVolumeNodeGet(volumeID int64) (string, error) {
 	name := ""
 	query := `
-SELECT nodes.name FROM storage_volumes
-  JOIN nodes ON nodes.id=storage_volumes.node_id
-   WHERE storage_volumes.id=?
+SELECT nodes.name FROM storage_volumes_all
+  JOIN nodes ON nodes.id=storage_volumes_all.node_id
+   WHERE storage_volumes_all.id=?
 `
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&name}
@@ -108,10 +112,15 @@ SELECT nodes.name FROM storage_volumes
 	return name, nil
 }
 
-// StorageVolumeConfigGet gets the config of a storage volume.
-func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
+// Get the config of a storage volume.
+func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[string]string, error) {
 	var key, value string
-	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
+	var query string
+	if isSnapshot {
+		query = "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id=?"
+	} else {
+		query = "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
+	}
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{key, value}
 
@@ -135,7 +144,7 @@ func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, err
 // StorageVolumeDescriptionGet gets the description of a storage volume.
 func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	description := sql.NullString{}
-	query := "SELECT description FROM storage_volumes WHERE id=?"
+	query := "SELECT description FROM storage_volumes_all WHERE id=?"
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&description}
 
@@ -150,17 +159,23 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	return description.String, nil
 }
 
-// StorageVolumeNextSnapshot returns the index the next snapshot of the storage
+// StorageVolumeNextSnapshot returns the index of the next snapshot of the storage
 // volume with the given name should have.
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
 func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int) int {
-	base := name + shared.SnapshotDelimiter + "snap"
+	base := "snap"
 	length := len(base)
-	q := fmt.Sprintf("SELECT name FROM storage_volumes WHERE type=? AND snapshot=? AND SUBSTR(name,1,?)=?")
+	q := fmt.Sprintf(`
+SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
+  JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
+ WHERE storage_volumes.type=?
+   AND storage_volumes.name=?
+   AND SUBSTR(storage_volumes_snapshots.name,1,?)=?
+`)
 	var numstr string
-	inargs := []interface{}{typ, true, length, base}
+	inargs := []interface{}{typ, name, length, base}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -169,13 +184,9 @@ func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int) int {
 	max := 0
 
 	for _, r := range results {
-		numstr = r[0].(string)
-		if len(numstr) <= length {
-			continue
-		}
-		substr := numstr[length:]
+		substr := r[0].(string)
 		var num int
-		count, err := fmt.Sscanf(substr, "%d", &num)
+		count, err := fmt.Sscanf(substr, base+"%d", &num)
 		if err != nil || count != 1 {
 			continue
 		}
@@ -251,15 +262,27 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 	return isAvailable, nil
 }
 
-// StorageVolumeDescriptionUpdate updates the description of a storage volume.
-func StorageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string) error {
-	_, err := tx.Exec("UPDATE storage_volumes SET description=? WHERE id=?", description, volumeID)
+// Updates the description of a storage volume.
+func storageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string, isSnapshot bool) error {
+	var table string
+	if isSnapshot {
+		table = "storage_volumes_snapshots"
+	} else {
+		table = "storage_volumes"
+	}
+	stmt := fmt.Sprintf("UPDATE %s SET description=? WHERE id=?", table)
+	_, err := tx.Exec(stmt, description, volumeID)
 	return err
 }
 
-// StorageVolumeConfigAdd adds a new storage volume config into database.
-func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string) error {
-	str := "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
+// Add a new storage volume config into database.
+func storageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string, isSnapshot bool) error {
+	var str string
+	if isSnapshot {
+		str = "INSERT INTO storage_volumes_snapshots_config (storage_volume_snapshot_id, key, value) VALUES(?, ?, ?)"
+	} else {
+		str = "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
+	}
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
 	if err != nil {
@@ -280,9 +303,15 @@ func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	return nil
 }
 
-// StorageVolumeConfigClear deletes storage volume config.
-func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
-	_, err := tx.Exec("DELETE FROM storage_volumes_config WHERE storage_volume_id=?", volumeID)
+// Delete storage volume config.
+func storageVolumeConfigClear(tx *sql.Tx, volumeID int64, isSnapshot bool) error {
+	var stmt string
+	if isSnapshot {
+		stmt = "DELETE FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id=?"
+	} else {
+		stmt = "DELETE FROM storage_volumes_config WHERE storage_volume_id=?"
+	}
+	_, err := tx.Exec(stmt, volumeID)
 	if err != nil {
 		return err
 	}
@@ -294,10 +323,13 @@ func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 // given pool, regardless of their node_id column.
 func storageVolumeIDsGet(tx *sql.Tx, project, volumeName string, volumeType int, poolID int64) ([]int64, error) {
 	ids, err := query.SelectIntegers(tx, `
-SELECT storage_volumes.id
-  FROM storage_volumes
-  JOIN projects ON projects.id = storage_volumes.project_id
- WHERE projects.name=? AND storage_volumes.name=? AND storage_volumes.type=? AND storage_pool_id=?
+SELECT storage_volumes_all.id
+  FROM storage_volumes_all
+  JOIN projects ON projects.id = storage_volumes_all.project_id
+ WHERE projects.name=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type=?
+   AND storage_volumes_all.storage_pool_id=?
 `, project, volumeName, volumeType, poolID)
 	if err != nil {
 		return nil, err
@@ -331,6 +363,10 @@ func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
 	}
 
 	err = exec(c.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
+	if err != nil {
+		return err
+	}
+	err = exec(c.db, "DELETE FROM storage_volumes_snapshots_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}

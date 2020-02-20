@@ -467,10 +467,6 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
-	snapshots, err := c.snapshotIDsAndNames(project, oldName)
-	if err != nil {
-		return errors.Wrap(err, "failed to get container's snapshots")
-	}
 	node, err := c.NodeByName(newNode)
 	if err != nil {
 		return errors.Wrap(err, "failed to get new node's info")
@@ -493,7 +489,7 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 		return nil
 	}
 
-	// Update the container's and snapshots' storage volume name (since this is ceph,
+	// Update the instance's storage volume name (since this is ceph,
 	// there's a clone of the volume for each node).
 	count, err := c.NodesCount()
 	if err != nil {
@@ -510,23 +506,6 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	}
 	if n != int64(count) {
 		return fmt.Errorf("unexpected number of updated rows in volumes table: %d", n)
-	}
-	for _, snapshotName := range snapshots {
-		oldSnapshotName := oldName + shared.SnapshotDelimiter + snapshotName
-		newSnapshotName := newName + shared.SnapshotDelimiter + snapshotName
-		stmt := "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
-		result, err := c.tx.Exec(
-			stmt, newSnapshotName, oldSnapshotName, poolID, StoragePoolVolumeTypeContainer)
-		if err != nil {
-			return errors.Wrap(err, "failed to update snapshot volume")
-		}
-		n, err = result.RowsAffected()
-		if err != nil {
-			return errors.Wrap(err, "failed to get rows affected by snapshot volume update")
-		}
-		if n != int64(count) {
-			return fmt.Errorf("unexpected number of updated snapshots in volumes table: %d", n)
-		}
 	}
 
 	return nil
@@ -1096,10 +1075,13 @@ func (c *ClusterTx) InstancePool(project, instanceName string) (string, error) {
 	poolName := ""
 	query := `
 SELECT storage_pools.name FROM storage_pools
-  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-  JOIN instances ON instances.name=storage_volumes.name
+  JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
+  JOIN instances ON instances.name=storage_volumes_all.name
   JOIN projects ON projects.id=instances.project_id
- WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type IN(?,?)
+ WHERE projects.name=?
+   AND storage_volumes_all.node_id=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type IN(?,?)
 `
 	inargs := []interface{}{project, c.nodeID, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
 	outargs := []interface{}{&poolName}
@@ -1120,9 +1102,12 @@ func (c *ClusterTx) instancePoolSnapshot(project, fullName string) (string, erro
 	poolName := ""
 	query := `
 SELECT storage_pools.name FROM storage_pools
-  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-  JOIN projects ON projects.id=storage_volumes.project_id
- WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type IN(?,?)
+  JOIN storage_volumes_all ON storage_pools.id=storage_volumes_all.storage_pool_id
+  JOIN projects ON projects.id=storage_volumes_all.project_id
+ WHERE projects.name=?
+   AND storage_volumes_all.node_id=?
+   AND storage_volumes_all.name=?
+   AND storage_volumes_all.type IN(?,?)
 `
 	inargs := []interface{}{project, c.nodeID, fullName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM}
 	outargs := []interface{}{&poolName}

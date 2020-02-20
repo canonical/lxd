@@ -479,13 +479,46 @@ CREATE TABLE "storage_volumes" (
     node_id INTEGER NOT NULL,
     type INTEGER NOT NULL,
     description TEXT,
-    snapshot INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER NOT NULL,
     UNIQUE (storage_pool_id, node_id, project_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
+CREATE VIEW storage_volumes_all (
+         id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id) AS
+  SELECT id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id
+    FROM storage_volumes UNION
+  SELECT storage_volumes_snapshots.id,
+         printf('%s/%s',
+    storage_volumes.name,
+    storage_volumes_snapshots.name),
+         storage_volumes.storage_pool_id,
+         storage_volumes.node_id,
+         storage_volumes.type,
+         storage_volumes_snapshots.description,
+         storage_volumes.project_id
+    FROM storage_volumes
+    JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
+CREATE TRIGGER storage_volumes_check_id
+  BEFORE INSERT ON storage_volumes
+  WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
+  BEGIN
+    SELECT RAISE(FAIL,
+    "invalid ID");
+  END;
 CREATE TABLE storage_volumes_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     storage_volume_id INTEGER NOT NULL,
@@ -494,6 +527,30 @@ CREATE TABLE storage_volumes_config (
     UNIQUE (storage_volume_id, key),
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
+CREATE TABLE storage_volumes_snapshots (
+    id INTEGER NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    UNIQUE (id),
+    UNIQUE (storage_volume_id, name),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
+);
+CREATE TRIGGER storage_volumes_snapshots_check_id
+  BEFORE INSERT ON storage_volumes_snapshots
+  WHEN NEW.id IN (SELECT id FROM storage_volumes)
+  BEGIN
+    SELECT RAISE(FAIL,
+    "invalid ID");
+  END;
+CREATE TABLE storage_volumes_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (storage_volume_snapshot_id) REFERENCES storage_volumes_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_snapshot_id, key)
+);
 
-INSERT INTO schema (version, updated_at) VALUES (25, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (26, strftime("%s"))
 `
