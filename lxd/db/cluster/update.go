@@ -60,6 +60,38 @@ var updates = map[int]schema.Update{
 	22: updateFromV21,
 	23: updateFromV22,
 	24: updateFromV23,
+	25: updateFromV24,
+}
+
+// The ceph.user.name config key is required for Ceph to function.
+func updateFromV24(tx *sql.Tx) error {
+	// Fetch the IDs of all existing Ceph pools.
+	poolIDs, err := query.SelectIntegers(tx, `SELECT id FROM storage_pools WHERE driver='ceph'`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get IDs of current ceph pools")
+	}
+
+	for _, poolID := range poolIDs {
+		// Fetch the config for this Ceph pool.
+		config, err := query.SelectConfig(tx, "storage_pools_config", "storage_pool_id=?", poolID)
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch of ceph pool config")
+		}
+
+		// Check if already set.
+		_, ok := config["ceph.user.name"]
+		if ok {
+			continue
+		}
+
+		// Add ceph.user.name config entry.
+		_, err = tx.Exec("INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES (?, 'ceph.user.name', 'ceph')", poolID)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create ceph.user.name config")
+		}
+	}
+
+	return nil
 }
 
 // The lvm.vg_name config key is required for LVM to function.
