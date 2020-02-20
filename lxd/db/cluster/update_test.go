@@ -620,3 +620,55 @@ VALUES (2, 'n2', '', '2.2.3.4:666', 1, 32, ?, 0)`, time.Now())
 	require.True(t, ok)
 	assert.Equal(t, sqliteErr.Code, sqlite3.ErrConstraint)
 }
+
+func TestUpdateFromV25(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(26, func(db *sql.DB) {
+		// Insert a node.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0, 1)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Insert a pool
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a volume v1 on pool p1, associated with n1 and a config.
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (1, 'v1', 1, 1, 1, '', 0, 1)")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes_config VALUES (1, 1, 'k', 'v')")
+		require.NoError(t, err)
+
+		// Create a snapshot v1/snap0 with a config.
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (2, 'v1/snap0', 1, 1, 1, '', 1, 1)")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes_config VALUES (2, 2, 'k', 'v-old')")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+	defer db.Close()
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	defer tx.Rollback()
+
+	// Check that regular volumes were kept.
+	count, err := query.Count(tx, "storage_volumes", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+	count, err = query.Count(tx, "storage_volumes_config", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	// Check that volume snapshots were migrated.
+	count, err = query.Count(tx, "storage_volumes_snapshots", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	config, err := query.SelectConfig(tx, "storage_volumes_snapshots_config", "")
+	require.NoError(t, err)
+	assert.Len(t, config, 1)
+	assert.Equal(t, config["k"], "v-old")
+}

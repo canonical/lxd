@@ -50,7 +50,7 @@ SELECT version FROM schema ORDER BY version
 func selectTablesSQL(tx *sql.Tx) ([]string, error) {
 	statement := `
 SELECT sql FROM sqlite_master WHERE
-  type IN ('table', 'index', 'view') AND
+  type IN ('table', 'index', 'view', 'trigger') AND
   name != 'schema' AND
   name NOT LIKE 'sqlite_%'
 ORDER BY name

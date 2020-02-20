@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
 )
@@ -61,6 +62,188 @@ var updates = map[int]schema.Update{
 	23: updateFromV22,
 	24: updateFromV23,
 	25: updateFromV24,
+	26: updateFromV25,
+}
+
+// Create new storage snapshot tables and migrate data to them.
+func updateFromV25(tx *sql.Tx) error {
+	// Get the total number of snapshot rows in the storage_volumes table.
+	count, err := query.Count(tx, "storage_volumes", "snapshot=1")
+	if err != nil {
+		return errors.Wrap(err, "Failed to volume snapshot count")
+	}
+
+	// Fetch all snapshot rows in the storage_volumes table.
+	snapshots := make([]struct {
+		ID            int
+		Name          string
+		StoragePoolID int
+		NodeID        int
+		Type          int
+		Description   string
+		ProjectID     int
+		Config        map[string]string
+	}, count)
+	dest := func(i int) []interface{} {
+		return []interface{}{
+			&snapshots[i].ID,
+			&snapshots[i].Name,
+			&snapshots[i].StoragePoolID,
+			&snapshots[i].NodeID,
+			&snapshots[i].Type,
+			&snapshots[i].Description,
+			&snapshots[i].ProjectID,
+		}
+	}
+	stmt, err := tx.Prepare(`
+SELECT id, name, storage_pool_id, node_id, type, coalesce(description, ''), project_id
+  FROM storage_volumes
+ WHERE snapshot=1
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to prepare volume snapshot query")
+	}
+	err = query.SelectObjects(stmt, dest)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch instances")
+	}
+	for i, snapshot := range snapshots {
+		config, err := query.SelectConfig(tx,
+			"storage_volumes_config", "storage_volume_id=?",
+			snapshot.ID)
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch volume snapshot config")
+		}
+		snapshots[i].Config = config
+	}
+
+	stmts := `
+ALTER TABLE storage_volumes RENAME TO old_storage_volumes;
+CREATE TABLE "storage_volumes" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+ALTER TABLE storage_volumes_config RENAME TO old_storage_volumes_config;
+CREATE TABLE storage_volumes_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_volume_id, key),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
+);
+INSERT INTO storage_volumes(id, name, storage_pool_id, node_id, type, description, project_id)
+   SELECT id, name, storage_pool_id, node_id, type, description, project_id FROM old_storage_volumes
+     WHERE snapshot=0;
+INSERT INTO storage_volumes_config
+   SELECT * FROM old_storage_volumes_config
+     WHERE storage_volume_id IN (SELECT id FROM storage_volumes);
+DROP TABLE old_storage_volumes;
+DROP TABLE old_storage_volumes_config;
+CREATE TABLE storage_volumes_snapshots (
+    id INTEGER NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    UNIQUE (id),
+    UNIQUE (storage_volume_id, name),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
+);
+CREATE TRIGGER storage_volumes_check_id
+  BEFORE INSERT ON storage_volumes
+  WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
+  BEGIN
+    SELECT RAISE(FAIL, "invalid ID");
+  END;
+CREATE TRIGGER storage_volumes_snapshots_check_id
+  BEFORE INSERT ON storage_volumes_snapshots
+  WHEN NEW.id IN (SELECT id FROM storage_volumes)
+  BEGIN
+    SELECT RAISE(FAIL, "invalid ID");
+  END;
+CREATE TABLE storage_volumes_snapshots_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (storage_volume_snapshot_id) REFERENCES storage_volumes_snapshots (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_snapshot_id, key)
+);
+CREATE VIEW storage_volumes_all (
+         id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id) AS
+  SELECT id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id
+    FROM storage_volumes UNION
+  SELECT storage_volumes_snapshots.id,
+         printf('%s/%s', storage_volumes.name, storage_volumes_snapshots.name),
+         storage_volumes.storage_pool_id,
+         storage_volumes.node_id,
+         storage_volumes.type,
+         storage_volumes_snapshots.description,
+         storage_volumes.project_id
+    FROM storage_volumes
+    JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
+`
+	_, err = tx.Exec(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create storage snapshots tables")
+	}
+
+	// Migrate snapshots to the new tables.
+	for _, snapshot := range snapshots {
+		parts := strings.Split(snapshot.Name, shared.SnapshotDelimiter)
+		if len(parts) != 2 {
+			logger.Errorf("Invalid volume snapshot name: %s", snapshot.Name)
+			continue
+		}
+		volume := parts[0]
+		name := parts[1]
+		ids, err := query.SelectIntegers(tx, "SELECT id FROM storage_volumes WHERE name=?", volume)
+		if err != nil {
+			return err
+		}
+		if len(ids) != 1 {
+			logger.Errorf("Volume snapshot %s has no parent", snapshot.Name)
+			continue
+		}
+		volumeID := ids[0]
+		_, err = tx.Exec(`
+INSERT INTO storage_volumes_snapshots(id, storage_volume_id, name, description) VALUES(?, ?, ?, ?)
+`, snapshot.ID, volumeID, name, snapshot.Description)
+		if err != nil {
+			return err
+		}
+		for key, value := range snapshot.Config {
+			_, err = tx.Exec(`
+INSERT INTO storage_volumes_snapshots_config(storage_volume_snapshot_id, key, value) VALUES(?, ?, ?)
+`, snapshot.ID, key, value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // The ceph.user.name config key is required for Ceph to function.
