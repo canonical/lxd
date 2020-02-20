@@ -391,17 +391,17 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		return &runConf, nil
 	} else if d.config["source"] != "" {
 		// This is a normal disk device or image.
-		if !shared.PathExists(d.config["source"]) {
+		if !shared.PathExists(shared.HostPath(d.config["source"])) {
 			return nil, fmt.Errorf("Cannot find disk source")
 		}
 
-		if shared.IsDir(d.config["source"]) {
+		if shared.IsDir(shared.HostPath(d.config["source"])) {
 			return nil, fmt.Errorf("Only block devices and disk images can be attached to VMs")
 		}
 
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
-				DevPath: d.config["source"],
+				DevPath: shared.HostPath(d.config["source"]),
 				DevName: d.name,
 			},
 		}
