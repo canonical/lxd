@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
@@ -43,28 +45,22 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 }
 
 func expireLogs(ctx context.Context, state *state.State) error {
+	// List the instances.
+	instances, err := instance.LoadNodeAll(state, instancetype.Any)
+	if err != nil {
+		return err
+	}
+
+	// List the directory.
 	entries, err := ioutil.ReadDir(state.OS.LogDir)
 	if err != nil {
 		return err
 	}
 
-	// FIXME: our DB APIs don't yet support cancellation, se we need to run
-	//        them in a goroutine and abort this task if the context gets
-	//        cancelled.
-	var containers []string
-	ch := make(chan struct{})
-	go func() {
-		containers, err = state.Cluster.ContainersNodeList(instancetype.Container)
-		ch <- struct{}{}
-	}()
-	select {
-	case <-ctx.Done():
-		return nil // Context expired
-	case <-ch:
-	}
-
-	if err != nil {
-		return err
+	// Build the expected names.
+	names := []string{}
+	for _, inst := range instances {
+		names = append(names, project.Prefix(inst.Project(), inst.Name()))
 	}
 
 	newestFile := func(path string, dir os.FileInfo) time.Time {
@@ -92,14 +88,14 @@ func expireLogs(ctx context.Context, state *state.State) error {
 		default:
 		}
 
-		// We only care about container directories
+		// We only care about instance directories.
 		if !entry.IsDir() {
 			continue
 		}
 
-		// Check if the container still exists
-		if shared.StringInSlice(entry.Name(), containers) {
-			// Remove any log file which wasn't modified in the past 48 hours
+		// Check if the container still exists.
+		if shared.StringInSlice(entry.Name(), names) {
+			// Remove any log file which wasn't modified in the past 48 hours.
 			logs, err := ioutil.ReadDir(shared.LogPath(entry.Name()))
 			if err != nil {
 				return err
@@ -108,12 +104,12 @@ func expireLogs(ctx context.Context, state *state.State) error {
 			for _, logfile := range logs {
 				path := shared.LogPath(entry.Name(), logfile.Name())
 
-				// Always keep the LXC config
-				if logfile.Name() == "lxc.conf" {
+				// Always keep the config files.
+				if logfile.Name() == "lxc.conf" || logfile.Name() == "qemu.conf" {
 					continue
 				}
 
-				// Deal with directories (snapshots)
+				// Deal with directories (snapshots).
 				if logfile.IsDir() {
 					newest := newestFile(path, logfile)
 					if time.Since(newest).Hours() >= 48 {
@@ -126,7 +122,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 					continue
 				}
 
-				// Individual files
+				// Individual files.
 				if time.Since(logfile.ModTime()).Hours() >= 48 {
 					err := os.Remove(path)
 					if err != nil {
@@ -135,7 +131,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 				}
 			}
 		} else {
-			// Empty directory if unchanged in the past 24 hours
+			// Empty directory if unchanged in the past 24 hours.
 			path := shared.LogPath(entry.Name())
 			newest := newestFile(path, entry)
 			if time.Since(newest).Hours() >= 24 {
