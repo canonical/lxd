@@ -777,6 +777,16 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Set type from URL if missing
+	urlType, err := urlInstanceTypeDetect(r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	if req.Type == "" && urlType != instancetype.Any {
+		req.Type = api.InstanceType(urlType.String())
+	}
+
 	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		// If no target node was specified, pick the node with the
