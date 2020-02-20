@@ -85,7 +85,7 @@ func updateFromV24(tx *sql.Tx) error {
 		}
 
 		// Add ceph.user.name config entry.
-		_, err = tx.Exec("INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES (?, 'ceph.user.name', 'ceph')", poolID)
+		_, err = tx.Exec("INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES (?, 'ceph.user.name', 'admin')", poolID)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create ceph.user.name config")
 		}
