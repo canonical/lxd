@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -48,25 +47,13 @@ func daemonStorageMount(s *state.State) error {
 
 		// Mount volume.
 		pool, err := storagePools.GetPoolByName(s, poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
 
-			_, err = pool.MountCustomVolume(volumeName, nil)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", source)
-			}
-		} else {
-			volume, err := storageInit(s, "default", poolName, volumeName, storagePoolVolumeTypeCustom)
-			if err != nil {
-				return errors.Wrapf(err, "Unable to load storage volume \"%s\"", source)
-			}
-
-			_, err = volume.StoragePoolVolumeMount()
-			if err != nil {
-				return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", source)
-			}
+		_, err = pool.MountCustomVolume(volumeName, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", source)
 		}
 
 		return nil
@@ -156,33 +143,17 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	pool, err := storagePools.GetPoolByName(s, poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
-		// Mount volume
-		ourMount, err := pool.MountCustomVolume(volumeName, nil)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", target)
-		}
-		if ourMount {
-			defer pool.UnmountCustomVolume(volumeName, nil)
-		}
-	} else {
-		volume, err := storageInit(s, "default", poolName, volumeName, storagePoolVolumeTypeCustom)
-		if err != nil {
-			return errors.Wrapf(err, "Unable to load storage volume \"%s/%s\"", poolName, volumeName)
-		}
-
-		// Mount volume
-		ourMount, err := volume.StoragePoolVolumeMount()
-		if err != nil {
-			return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", target)
-		}
-		if ourMount {
-			defer volume.StoragePoolUmount()
-		}
+	// Mount volume.
+	ourMount, err := pool.MountCustomVolume(volumeName, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", target)
+	}
+	if ourMount {
+		defer pool.UnmountCustomVolume(volumeName, nil)
 	}
 
 	// Validate volume is empty (ignore lost+found).
@@ -271,27 +242,14 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		}
 
 		pool, err := storagePools.GetPoolByName(s, sourcePool)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
 
-			// Unmount old volume
-			_, err = pool.UnmountCustomVolume(sourceVolume, nil)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to umount storage volume \"%s/%s\"", sourcePool, sourceVolume)
-			}
-		} else {
-			// Unmount old volume
-			volume, err := storageInit(s, "default", sourcePool, sourceVolume, storagePoolVolumeTypeCustom)
-			if err != nil {
-				return errors.Wrapf(err, "Unable to load storage volume \"%s/%s\"", sourcePool, sourceVolume)
-			}
-
-			_, err = volume.StoragePoolVolumeUmount()
-			if err != nil {
-				return errors.Wrapf(err, "Failed to umount storage volume \"%s/%s\"", sourcePool, sourceVolume)
-			}
+		// Unmount old volume.
+		_, err = pool.UnmountCustomVolume(sourceVolume, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to umount storage volume \"%s/%s\"", sourcePool, sourceVolume)
 		}
 
 		return nil
@@ -352,27 +310,14 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		}
 
 		pool, err := storagePools.GetPoolByName(s, sourcePool)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
 
-			// Unmount old volume
-			_, err = pool.UnmountCustomVolume(sourceVolume, nil)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to umount storage volume \"%s/%s\"", sourcePool, sourceVolume)
-			}
-		} else {
-			// Unmount old volume
-			volume, err := storageInit(s, "default", sourcePool, sourceVolume, storagePoolVolumeTypeCustom)
-			if err != nil {
-				return errors.Wrapf(err, "Unable to load storage volume \"%s/%s\"", sourcePool, sourceVolume)
-			}
-
-			_, err = volume.StoragePoolVolumeUmount()
-			if err != nil {
-				return errors.Wrapf(err, "Failed to umount storage volume \"%s/%s\"", sourcePool, sourceVolume)
-			}
+		// Unmount old volume.
+		_, err = pool.UnmountCustomVolume(sourceVolume, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to umount storage volume \"%s/%s\"", sourcePool, sourceVolume)
 		}
 
 		return nil
