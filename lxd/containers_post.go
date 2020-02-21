@@ -23,11 +23,9 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -265,79 +263,17 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	if !req.Source.Refresh {
 		// Check if we can load new storage layer for pool driver type.
 		_, err := storagePools.GetPoolByName(d.State(), storagePool)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return response.InternalError(err)
-			}
+		if err != nil {
+			return response.InternalError(err)
+		}
 
-			// Create the instance DB records only and let the storage layer populate
-			// the storage devices. Note: At this stage we do not yet know if snapshots
-			// are going to be received and so we cannot create their DB records. This
-			// will be done if needed in the migrationSink.Do() function called as part
-			// of the operation below.
-			inst, err = instanceCreateInternal(d.State(), args)
-			if err != nil {
-				return response.InternalError(err)
-			}
-		} else {
-			/* Only create a container from an image if we're going to
-			 * rsync over the top of it. In the case of a better file
-			 * transfer mechanism, let's just use that.
-			 *
-			 * TODO: we could invent some negotiation here, where if the
-			 * source and sink both have the same image, we can clone from
-			 * it, but we have to know before sending the snapshot that
-			 * we're sending the whole thing or just a delta from the
-			 * image, so one extra negotiation round trip is needed. An
-			 * alternative is to move actual container object to a later
-			 * point and just negotiate it over the migration control
-			 * socket. Anyway, it'll happen later :)
-			 */
-			_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
-			if err != nil {
-				inst, err = instanceCreateAsEmpty(d, args)
-				if err != nil {
-					return response.InternalError(err)
-				}
-			} else {
-				// Retrieve the future storage pool.
-				tmpInst, err := instance.Load(d.State(), args, nil)
-				if err != nil {
-					return response.InternalError(err)
-				}
-
-				_, rootDiskDevice, err := shared.GetRootDiskDevice(tmpInst.ExpandedDevices().CloneNative())
-				if err != nil {
-					return response.InternalError(err)
-				}
-
-				if rootDiskDevice["pool"] == "" {
-					return response.BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
-				}
-
-				storagePool = rootDiskDevice["pool"]
-
-				var migrationType migration.MigrationFSType
-
-				ps, err := storagePoolInit(d.State(), storagePool)
-				if err != nil {
-					return response.InternalError(err)
-				}
-
-				migrationType = ps.MigrationType()
-
-				if migrationType == migration.MigrationFSType_RSYNC {
-					inst, err = instanceCreateFromImage(d, args, req.Source.BaseImage, nil)
-					if err != nil {
-						return response.InternalError(err)
-					}
-				} else {
-					inst, err = instanceCreateAsEmpty(d, args)
-					if err != nil {
-						return response.InternalError(err)
-					}
-				}
-			}
+		// Create the instance DB records only and let the storage layer populate the storage devices.
+		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
+		// create their DB records. This will be done if needed in the migrationSink.Do() function called
+		// as part of the operation below.
+		inst, err = instanceCreateInternal(d.State(), args)
+		if err != nil {
+			return response.InternalError(err)
 		}
 	}
 
