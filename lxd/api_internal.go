@@ -459,6 +459,10 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if req.Name != backupConf.Container.Name {
+		return response.InternalError(fmt.Errorf("Instance name in request %q doesn't match instance name in backup config %q", req.Name, backupConf.Container.Name))
+	}
+
 	// Update snapshot names to include container name (if needed).
 	for i, snap := range backupConf.Snapshots {
 		if !strings.Contains(snap.Name, "/") {
