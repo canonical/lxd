@@ -36,7 +36,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -628,31 +627,14 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 		return fmt.Errorf("No storage pool specified")
 	}
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(d.State(), storagePool)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
-		err = pool.EnsureImage(info.Fingerprint, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Initialize a new storage interface.
-		s, err := storagePoolInit(d.State(), storagePool)
-		if err != nil {
-			return err
-		}
-
-		// Create the storage volume for the image on the requested storage
-		// pool.
-		err = s.ImageCreate(info.Fingerprint, nil)
-		if err != nil {
-			return err
-		}
-
+	err = pool.EnsureImage(info.Fingerprint, nil)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1385,34 +1367,12 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 }
 
 func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool string) error {
-	// New storage pool handling.
 	pool, err := storagePools.GetPoolByName(state, storagePool)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
-
-		err = pool.DeleteImage(fingerprint, nil)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	// Initialize a new storage interface.
-	s, err := storagePoolVolumeImageInit(state, storagePool, fingerprint)
 	if err != nil {
 		return err
 	}
 
-	// Delete the storage volume for the image from the storage pool.
-	err = s.ImageDelete(fingerprint)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return pool.DeleteImage(fingerprint, nil)
 }
 
 func imageDelete(d *Daemon, r *http.Request) response.Response {
