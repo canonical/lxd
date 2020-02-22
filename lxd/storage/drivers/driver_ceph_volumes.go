@@ -240,15 +240,6 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 			}
 		}
 
-		ourMount, err := d.MountVolume(vol, op)
-		if err != nil {
-			return err
-		}
-
-		if ourMount {
-			defer d.UnmountVolume(vol, op)
-		}
-
 		// For VMs, also copy the filesystem volume.
 		if vol.IsVMBlock() {
 			srcFSVol := srcVol.NewVMBlockFilesystemVolume()
