@@ -951,92 +951,87 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 // getRBDMappedDevPath looks at sysfs to retrieve the device path.
 // "/dev/rbd<idx>" for an RBD image. If it doesn't find it it will map it if
 // told to do so.
-func (d *ceph) getRBDMappedDevPath(vol Volume, doMap bool) (string, int) {
+func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
+	// List all RBD devices.
 	files, err := ioutil.ReadDir("/sys/devices/rbd")
-	if err != nil {
-		if os.IsNotExist(err) {
-			if doMap {
-				goto mapImage
-			}
-
-			return "", 0
-		}
-
-		return "", -1
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
 	}
 
+	// Go through the existing RBD devices.
 	for _, f := range files {
+		fName := f.Name()
+
+		// Skip if not a directory.
 		if !f.IsDir() {
 			continue
 		}
 
-		fName := f.Name()
+		// Skip if not a device directory.
 		idx, err := strconv.ParseUint(fName, 10, 64)
 		if err != nil {
 			continue
 		}
 
-		tmp := fmt.Sprintf("/sys/devices/rbd/%s/pool", fName)
-		contents, err := ioutil.ReadFile(tmp)
+		// Get the pool for the RBD device.
+		devPoolName, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/pool", fName))
 		if err != nil {
+			// Skip if no pool file.
 			if os.IsNotExist(err) {
 				continue
 			}
 
-			return "", -1
+			return "", err
 		}
 
-		detectedPoolName := strings.TrimSpace(string(contents))
-
-		if detectedPoolName != d.config["ceph.osd.pool_name"] {
+		// Skip if the pools don't match.
+		if strings.TrimSpace(string(devPoolName)) != d.config["ceph.osd.pool_name"] {
 			continue
 		}
 
-		tmp = fmt.Sprintf("/sys/devices/rbd/%s/name", fName)
-		contents, err = ioutil.ReadFile(tmp)
+		// Get the volume name for the RBD device.
+		devName, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/name", fName))
 		if err != nil {
+			// Skip if no name file.
 			if os.IsNotExist(err) {
 				continue
 			}
 
-			return "", -1
+			return "", err
 		}
 
-		typedVolumeName := d.getRBDVolumeName(vol, "", false, false)
-		detectedVolumeName := strings.TrimSpace(string(contents))
-		if detectedVolumeName != typedVolumeName {
+		// Skip if the names don't match.
+		if strings.TrimSpace(string(devName)) != d.getRBDVolumeName(vol, "", false, false) {
 			continue
 		}
 
-		tmp = fmt.Sprintf("/sys/devices/rbd/%s/snap", fName)
-		contents, err = ioutil.ReadFile(tmp)
+		// Get the snapshot name for the RBD device.
+		devSnap, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/snap", fName))
 		if err != nil {
 			if os.IsNotExist(err) {
-				return fmt.Sprintf("/dev/rbd%d", idx), 1
+				// We found a match.
+				return fmt.Sprintf("/dev/rbd%d", idx), nil
 			}
 
-			return "", -1
+			return "", err
 		}
 
-		detectedSnapName := strings.TrimSpace(string(contents))
-		if detectedSnapName != "-" {
+		// Skip if we're dealing with a snapshot.
+		if !shared.StringInSlice(strings.TrimSpace(string(devSnap)), []string{"-", ""}) {
 			continue
 		}
 
-		return fmt.Sprintf("/dev/rbd%d", idx), 1
+		// We found a match.
+		return fmt.Sprintf("/dev/rbd%d", idx), nil
 	}
 
-	if !doMap {
-		return "", 0
-	}
-
-mapImage:
+	// No device could be found, map it ourselves.
 	devPath, err := d.rbdMapVolume(vol)
 	if err != nil {
-		return "", -1
+		return "", err
 	}
 
-	return strings.TrimSpace(devPath), 2
+	return strings.TrimSpace(devPath), nil
 }
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.

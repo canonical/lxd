@@ -600,9 +600,9 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	fsType := d.getRBDFilesystem(vol)
 
-	RBDDevPath, ret := d.getRBDMappedDevPath(vol, true)
-	if ret < 0 {
-		return fmt.Errorf("Failed to get mapped RBD path")
+	RBDDevPath, err := d.getRBDMappedDevPath(vol)
+	if err != nil {
+		return err
 	}
 
 	oldSize, err := units.ParseByteSizeString(vol.config["size"])
@@ -666,8 +666,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 	if vol.IsVMBlock() {
-		devPath, _ := d.getRBDMappedDevPath(vol, true)
-		return devPath, nil
+		return d.getRBDMappedDevPath(vol)
 	}
 
 	return "", ErrNotImplemented
@@ -685,17 +684,15 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 			return false, err
 		}
 
-		RBDDevPath, ret := d.getRBDMappedDevPath(vol, true)
+		RBDDevPath, err := d.getRBDMappedDevPath(vol)
+		if err != nil {
+			return false, err
+		}
 
-		if ret >= 0 {
-			mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(vol))
-
-			err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
-			if err != nil {
-				return false, err
-			}
-		} else {
-			return false, fmt.Errorf("RBD path not found")
+		mountFlags, mountOptions := resolveMountOptions(d.getRBDMountOptions(vol))
+		err = TryMount(RBDDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
+		if err != nil {
+			return false, err
 		}
 
 		return true, nil
