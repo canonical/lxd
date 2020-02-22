@@ -8,8 +8,12 @@ type ServerEnvironment struct {
 	CertificateFingerprint string   `json:"certificate_fingerprint" yaml:"certificate_fingerprint"`
 	Driver                 string   `json:"driver" yaml:"driver"`
 	DriverVersion          string   `json:"driver_version" yaml:"driver_version"`
-	Kernel                 string   `json:"kernel" yaml:"kernel"`
-	KernelArchitecture     string   `json:"kernel_architecture" yaml:"kernel_architecture"`
+
+	// API extension: firewall_driver
+	Firewall string `json:"firewall" yaml:"firewall"`
+
+	Kernel             string `json:"kernel" yaml:"kernel"`
+	KernelArchitecture string `json:"kernel_architecture" yaml:"kernel_architecture"`
 
 	// API extension: kernel_features
 	KernelFeatures map[string]string `json:"kernel_features" yaml:"kernel_features"`
@@ -32,7 +36,6 @@ type ServerEnvironment struct {
 	ServerVersion  string `json:"server_version" yaml:"server_version"`
 	Storage        string `json:"storage" yaml:"storage"`
 	StorageVersion string `json:"storage_version" yaml:"storage_version"`
-	Firewall       string `json:"firewall" yaml:"firewall"`
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
