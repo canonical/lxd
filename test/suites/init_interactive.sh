@@ -34,7 +34,7 @@ EOF
     lxc network list | grep -q "lxdt$$"
     lxc storage list | grep -q "my-storage-pool"
     lxc profile show default | grep -q "pool: my-storage-pool"
-    lxc profile show default | grep -q "parent: lxdt$$"
+    lxc profile show default | grep -q "network: lxdt$$"
     printf 'config: {}\ndevices: {}' | lxc profile edit default
     lxc network delete lxdt$$
   )

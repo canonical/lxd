@@ -331,9 +331,8 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 			// Add to the default profile
 			config.Node.Profiles[0].Devices["eth0"] = map[string]string{
 				"type":    "nic",
-				"nictype": "bridged",
 				"name":    "eth0",
-				"parent":  "lxdfan0",
+				"network": "lxdfan0",
 			}
 		}
 
@@ -356,9 +355,8 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 		// Add to the default profile
 		config.Node.Profiles[0].Devices["eth0"] = map[string]string{
 			"type":    "nic",
-			"nictype": "bridged",
 			"name":    "eth0",
-			"parent":  network.Name,
+			"network": network.Name,
 		}
 
 		// IPv4
