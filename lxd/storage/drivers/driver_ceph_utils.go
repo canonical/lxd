@@ -201,6 +201,7 @@ again:
 				}
 			}
 		}
+
 		return err
 	}
 
@@ -345,12 +346,9 @@ func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string,
 // RBD storage volume has protected snapshots; a scenario most common when
 // creating a sparse copy of a container or when LXD updated an image and the
 // image still has dependent container clones.
-func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string, suffix string) error {
+func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, nil, nil)
 	deletedName := d.getRBDVolumeName(newVol, "", true, true)
-	if suffix != "" {
-		deletedName = fmt.Sprintf("%s_%s", deletedName, suffix)
-	}
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -659,9 +657,8 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return 1, nil
 			}
 
-			newVolumeName := fmt.Sprintf("%s_%s", vol.name,
-				uuid.NewRandom().String())
-			err := d.rbdMarkVolumeDeleted(vol, newVolumeName, "")
+			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.NewRandom().String())
+			err := d.rbdMarkVolumeDeleted(vol, newVolumeName)
 			if err != nil {
 				return -1, err
 			}
@@ -837,14 +834,12 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return 1, nil
 		}
 
-		err := d.rbdUnmapVolumeSnapshot(vol, snapshotName,
-			true)
+		err := d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
 
-		newSnapshotName := fmt.Sprintf("zombie_%s", snapshotName)
-
+		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.NewRandom().String())
 		err = d.rbdRenameVolumeSnapshot(vol, snapshotName, newSnapshotName)
 		if err != nil {
 			return -1, err
@@ -1072,6 +1067,10 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 	out := ""
 	volumeType := string(vol.volType)
 	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)
+
+	if vol.volType == VolumeTypeImage {
+		parentName = fmt.Sprintf("%s_%s", parentName, d.getRBDFilesystem(vol))
+	}
 
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		parentName = fmt.Sprintf("%s.block", parentName)

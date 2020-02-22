@@ -36,16 +36,22 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 		revert.Add(func() { os.Remove(vol.MountPath()) })
 	}
 
+	// Figure out the potential zombie volume.
 	zombieImageVol := NewVolume(d, d.name, VolumeType("zombie_image"), vol.contentType,
 		fmt.Sprintf("%s_%s", vol.name, d.getRBDFilesystem(vol)), nil, nil)
+	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
+		zombieImageVol = NewVolume(d, d.name, VolumeType("zombie_image"), vol.contentType,
+			fmt.Sprintf("%s_%s.block", vol.name, d.getRBDFilesystem(vol)), nil, nil)
+	}
 
 	// Check if we have a zombie image. If so, restore it otherwise
 	// create a new image volume.
 	if vol.volType == VolumeTypeImage && d.HasVolume(zombieImageVol) {
-		// Unmark deleted.
+		// Figure out the names.
 		oldName := d.getRBDVolumeName(zombieImageVol, "", false, true)
 		newName := d.getRBDVolumeName(vol, "", false, true)
 
+		// Rename back to active.
 		_, err := shared.RunCommand(
 			"rbd",
 			"--id", d.config["ceph.user.name"],
@@ -55,6 +61,18 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 			newName)
 		if err != nil {
 			return err
+		}
+
+		// For VMs, also create the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+
+			err := d.CreateVolume(fsVol, nil, op)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { d.DeleteVolume(fsVol, op) })
 		}
 
 		revert.Success()
@@ -485,7 +503,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			err = d.rbdMarkVolumeDeleted(vol, vol.name, vol.config["block.filesystem"])
+			err = d.rbdMarkVolumeDeleted(vol, vol.name)
 		}
 		if err != nil {
 			return err
@@ -694,7 +712,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 // UnmountVolume simulates unmounting a volume.
 func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
-	// For VMs, also mount the filesystem dataset.
+	// For VMs, also unmount the filesystem dataset.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
 
@@ -704,23 +722,19 @@ func (d *ceph) UnmountVolume(vol Volume, op *operations.Operation) (bool, error)
 		}
 	}
 
+	// Attempt to unmount the volume.
 	mountPath := vol.MountPath()
-
-	if !shared.IsMountPoint(mountPath) {
-		return false, nil
-	}
-
-	err := TryUnmount(mountPath, unix.MNT_DETACH)
-	if err != nil {
-		return false, err
+	if shared.IsMountPoint(mountPath) {
+		err := TryUnmount(mountPath, unix.MNT_DETACH)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	// Attempt to unmap.
-	if vol.volType == VolumeTypeCustom {
-		err = d.rbdUnmapVolume(vol, true)
-		if err != nil {
-			return true, err
-		}
+	err := d.rbdUnmapVolume(vol, true)
+	if err != nil {
+		return true, err
 	}
 
 	return true, nil
