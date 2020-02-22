@@ -740,7 +740,7 @@ func (d *Daemon) init() error {
 
 		store := d.gateway.NodeStore()
 
-		contextTimeout := 5 * time.Second
+		contextTimeout := 30 * time.Second
 		if !clustered {
 			// FIXME: this is a workaround for #5234. We set a very
 			// high timeout when we're not clustered, since there's
