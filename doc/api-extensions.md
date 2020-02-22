@@ -915,7 +915,7 @@ This allows it to inherit some of the network's settings and allows better valid
 
 ## clustering\_sizing
 Support specifying a custom values for database voters and standbys.
-The new cluster.max_voters and cluster.max_standby configuration keys were introduced
+The new cluster.max\_voters and cluster.max\_standby configuration keys were introduced
 to specify to the ideal number of database voter and standbys.
 
 ## firewall\_driver
