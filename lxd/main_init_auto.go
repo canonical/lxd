@@ -163,8 +163,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 					Devices: map[string]map[string]string{
 						"eth0": {
 							"type":    "nic",
-							"nictype": "bridged",
-							"parent":  network.Name,
+							"network": network.Name,
 							"name":    "eth0",
 						},
 					},
@@ -173,8 +172,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 		} else {
 			config.Profiles[0].Devices["eth0"] = map[string]string{
 				"type":    "nic",
-				"nictype": "bridged",
-				"parent":  network.Name,
+				"network": network.Name,
 				"name":    "eth0",
 			}
 		}
