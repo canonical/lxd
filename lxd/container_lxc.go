@@ -579,7 +579,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cts, err := instanceLoadAll(state)
+	cts, err := instance.LoadNodeAll(state, instancetype.Container)
 	if err != nil {
 		return nil, 0, err
 	}
