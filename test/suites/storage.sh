@@ -52,8 +52,6 @@ test_storage() {
       lxc copy uuid1 uuid2
       lxc start uuid1
       lxc start uuid2
-      lxc stop --force uuid1
-      lxc stop --force uuid2
       if [ "$lxd_backend" = "lvm" ]; then
         [ "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid1)" != "$(blkid -s UUID -o value -p /dev/"${POOL}"/containers_uuid2)" ]
       elif [ "$lxd_backend" = "ceph" ]; then
