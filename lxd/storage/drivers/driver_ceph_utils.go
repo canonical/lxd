@@ -201,6 +201,7 @@ again:
 				}
 			}
 		}
+
 		return err
 	}
 
@@ -345,12 +346,9 @@ func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string,
 // RBD storage volume has protected snapshots; a scenario most common when
 // creating a sparse copy of a container or when LXD updated an image and the
 // image still has dependent container clones.
-func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string, suffix string) error {
+func (d *ceph) rbdMarkVolumeDeleted(vol Volume, newVolumeName string) error {
 	newVol := NewVolume(d, d.name, vol.volType, vol.contentType, newVolumeName, nil, nil)
 	deletedName := d.getRBDVolumeName(newVol, "", true, true)
-	if suffix != "" {
-		deletedName = fmt.Sprintf("%s_%s", deletedName, suffix)
-	}
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
@@ -659,9 +657,8 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return 1, nil
 			}
 
-			newVolumeName := fmt.Sprintf("%s_%s", vol.name,
-				uuid.NewRandom().String())
-			err := d.rbdMarkVolumeDeleted(vol, newVolumeName, "")
+			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.NewRandom().String())
+			err := d.rbdMarkVolumeDeleted(vol, newVolumeName)
 			if err != nil {
 				return -1, err
 			}
@@ -837,14 +834,12 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return 1, nil
 		}
 
-		err := d.rbdUnmapVolumeSnapshot(vol, snapshotName,
-			true)
+		err := d.rbdUnmapVolumeSnapshot(vol, snapshotName, true)
 		if err != nil {
 			return -1, err
 		}
 
-		newSnapshotName := fmt.Sprintf("zombie_%s", snapshotName)
-
+		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.NewRandom().String())
 		err = d.rbdRenameVolumeSnapshot(vol, snapshotName, newSnapshotName)
 		if err != nil {
 			return -1, err
@@ -956,92 +951,87 @@ func (d *ceph) parseClone(clone string) (string, string, string, error) {
 // getRBDMappedDevPath looks at sysfs to retrieve the device path.
 // "/dev/rbd<idx>" for an RBD image. If it doesn't find it it will map it if
 // told to do so.
-func (d *ceph) getRBDMappedDevPath(vol Volume, doMap bool) (string, int) {
+func (d *ceph) getRBDMappedDevPath(vol Volume) (string, error) {
+	// List all RBD devices.
 	files, err := ioutil.ReadDir("/sys/devices/rbd")
-	if err != nil {
-		if os.IsNotExist(err) {
-			if doMap {
-				goto mapImage
-			}
-
-			return "", 0
-		}
-
-		return "", -1
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
 	}
 
+	// Go through the existing RBD devices.
 	for _, f := range files {
+		fName := f.Name()
+
+		// Skip if not a directory.
 		if !f.IsDir() {
 			continue
 		}
 
-		fName := f.Name()
+		// Skip if not a device directory.
 		idx, err := strconv.ParseUint(fName, 10, 64)
 		if err != nil {
 			continue
 		}
 
-		tmp := fmt.Sprintf("/sys/devices/rbd/%s/pool", fName)
-		contents, err := ioutil.ReadFile(tmp)
+		// Get the pool for the RBD device.
+		devPoolName, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/pool", fName))
 		if err != nil {
+			// Skip if no pool file.
 			if os.IsNotExist(err) {
 				continue
 			}
 
-			return "", -1
+			return "", err
 		}
 
-		detectedPoolName := strings.TrimSpace(string(contents))
-
-		if detectedPoolName != d.config["ceph.osd.pool_name"] {
+		// Skip if the pools don't match.
+		if strings.TrimSpace(string(devPoolName)) != d.config["ceph.osd.pool_name"] {
 			continue
 		}
 
-		tmp = fmt.Sprintf("/sys/devices/rbd/%s/name", fName)
-		contents, err = ioutil.ReadFile(tmp)
+		// Get the volume name for the RBD device.
+		devName, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/name", fName))
 		if err != nil {
+			// Skip if no name file.
 			if os.IsNotExist(err) {
 				continue
 			}
 
-			return "", -1
+			return "", err
 		}
 
-		typedVolumeName := d.getRBDVolumeName(vol, "", false, false)
-		detectedVolumeName := strings.TrimSpace(string(contents))
-		if detectedVolumeName != typedVolumeName {
+		// Skip if the names don't match.
+		if strings.TrimSpace(string(devName)) != d.getRBDVolumeName(vol, "", false, false) {
 			continue
 		}
 
-		tmp = fmt.Sprintf("/sys/devices/rbd/%s/snap", fName)
-		contents, err = ioutil.ReadFile(tmp)
+		// Get the snapshot name for the RBD device.
+		devSnap, err := ioutil.ReadFile(fmt.Sprintf("/sys/devices/rbd/%s/snap", fName))
 		if err != nil {
 			if os.IsNotExist(err) {
-				return fmt.Sprintf("/dev/rbd%d", idx), 1
+				// We found a match.
+				return fmt.Sprintf("/dev/rbd%d", idx), nil
 			}
 
-			return "", -1
+			return "", err
 		}
 
-		detectedSnapName := strings.TrimSpace(string(contents))
-		if detectedSnapName != "-" {
+		// Skip if we're dealing with a snapshot.
+		if !shared.StringInSlice(strings.TrimSpace(string(devSnap)), []string{"-", ""}) {
 			continue
 		}
 
-		return fmt.Sprintf("/dev/rbd%d", idx), 1
+		// We found a match.
+		return fmt.Sprintf("/dev/rbd%d", idx), nil
 	}
 
-	if !doMap {
-		return "", 0
-	}
-
-mapImage:
+	// No device could be found, map it ourselves.
 	devPath, err := d.rbdMapVolume(vol)
 	if err != nil {
-		return "", -1
+		return "", err
 	}
 
-	return strings.TrimSpace(devPath), 2
+	return strings.TrimSpace(devPath), nil
 }
 
 // generateUUID regenerates the XFS/btrfs UUID as needed.
@@ -1072,6 +1062,10 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 	out := ""
 	volumeType := string(vol.volType)
 	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)
+
+	if vol.volType == VolumeTypeImage {
+		parentName = fmt.Sprintf("%s_%s", parentName, d.getRBDFilesystem(vol))
+	}
 
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
 		parentName = fmt.Sprintf("%s.block", parentName)
