@@ -62,7 +62,6 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	}
 	defer os.RemoveAll(tmpPath)
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
 	if err != nil {
 		return errors.Wrap(err, "Load instance storage pool")

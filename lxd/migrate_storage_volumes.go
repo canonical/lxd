@@ -43,7 +43,6 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
-	// Check if sending storage pool supports new storage layer.
 	pool, err := storagePools.GetPoolByName(state, poolName)
 	if err != nil {
 		return err
@@ -300,7 +299,6 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 	// The migration header to be sent back to source with our target options.
 	var respHeader migration.MigrationHeader
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(state, poolName)
 	if err != nil {
 		return err

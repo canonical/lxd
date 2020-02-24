@@ -1729,7 +1729,7 @@ func (vm *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	var ctxMap log.Ctx
 
-	// Load the storage driver
+	// Load the storage driver.
 	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
 	if err != nil {
 		return err
@@ -1904,7 +1904,6 @@ func (vm *qemu) Rename(newName string) error {
 	// Clean things up.
 	vm.cleanup()
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(vm.state, vm)
 	if err != nil {
 		return errors.Wrap(err, "Load instance storage pool")

@@ -342,7 +342,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(state, s.instance)
 	if err != nil {
 		return err

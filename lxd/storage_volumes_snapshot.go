@@ -462,7 +462,6 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	snapshotDelete := func(op *operations.Operation) error {
-		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
 		if err != nil {
 			return err
