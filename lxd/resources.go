@@ -54,7 +54,6 @@ func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 	var res *api.ResourcesStoragePool
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.InternalError(err)

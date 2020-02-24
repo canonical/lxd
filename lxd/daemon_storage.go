@@ -45,12 +45,12 @@ func daemonStorageMount(s *state.State) error {
 		poolName := fields[0]
 		volumeName := fields[1]
 
-		// Mount volume.
 		pool, err := storagePools.GetPoolByName(s, poolName)
 		if err != nil {
 			return err
 		}
 
+		// Mount volume.
 		_, err = pool.MountCustomVolume(volumeName, nil)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to mount storage volume \"%s\"", source)

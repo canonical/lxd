@@ -261,7 +261,6 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 
 	if !req.Source.Refresh {
-		// Check if we can load new storage layer for pool driver type.
 		_, err := storagePools.GetPoolByName(d.State(), storagePool)
 		if err != nil {
 			return response.InternalError(err)
