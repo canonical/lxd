@@ -181,7 +181,7 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 		os.RemoveAll(backupPath)
 	}()
 
-	args := []string{"-cf", backupPath, "--numeric-owner", "--xattrs", "-C", path, "--transform", "s,^./,backup/,", "."}
+	args := []string{"-cf", backupPath, "--numeric-owner", "--xattrs", "-C", path, "--transform", "s,^./,backup/,S", "."}
 	_, err = shared.RunCommand("tar", args...)
 	if err != nil {
 		return err
