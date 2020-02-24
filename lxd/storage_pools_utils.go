@@ -2,92 +2,23 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
 func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
-	// Handle the new logic
 	pool, err := storagePools.GetPoolByName(state, name)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
-
-		return pool.Update(!withDB, newDescription, newConfig, nil)
-	}
-
-	// Old logic
-	s, err := storagePoolInit(state, name)
 	if err != nil {
 		return err
 	}
 
-	oldWritable := s.GetStoragePoolWritable()
-	newWritable := oldWritable
-
-	// Backup the current state
-	oldDescription := oldWritable.Description
-	oldConfig := map[string]string{}
-	err = shared.DeepCopy(&oldWritable.Config, &oldConfig)
-	if err != nil {
-		return err
-	}
-
-	// Define a function which reverts everything.  Defer this function
-	// so that it doesn't need to be explicitly called in every failing
-	// return path. Track whether or not we want to undo the changes
-	// using a closure.
-	undoChanges := true
-	defer func() {
-		if undoChanges {
-			s.SetStoragePoolWritable(&oldWritable)
-		}
-	}()
-
-	changedConfig, userOnly := storagePools.ConfigDiff(oldConfig, newConfig)
-	// Apply config changes if there are any
-	if len(changedConfig) != 0 {
-		newWritable.Description = newDescription
-		newWritable.Config = newConfig
-
-		// Update the storage pool
-		if !userOnly {
-			if shared.StringInSlice("driver", changedConfig) {
-				return fmt.Errorf("the \"driver\" property of a storage pool cannot be changed")
-			}
-
-			err = s.StoragePoolUpdate(&newWritable, changedConfig)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Apply the new configuration
-		s.SetStoragePoolWritable(&newWritable)
-	}
-
-	// Update the database if something changed and the withDB flag is true
-	// (i.e. this is not a clustering notification.
-	if withDB && (len(changedConfig) != 0 || newDescription != oldDescription) {
-		err = state.Cluster.StoragePoolUpdate(name, newDescription, newConfig)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Success, update the closure to mark that the changes should be kept.
-	undoChanges = false
-
-	return nil
+	return pool.Update(!withDB, newDescription, newConfig, nil)
 }
 
 // Report all LXD objects that are currently using the given storage pool.
@@ -265,61 +196,28 @@ func storagePoolCreateLocal(state *state.State, id int64, req api.StoragePoolsPo
 	var updatedReq api.StoragePoolsPost
 	shared.DeepCopy(&req, &updatedReq)
 
-	// Attempt to create using the new storage pool logic.
 	pool, err := storagePools.CreatePool(state, id, &updatedReq, isNotification, nil)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return nil, err
-		}
-
-		// Mount the pool
-		_, err = pool.Mount()
-		if err != nil {
-			return nil, err
-		}
-
-		// Record the updated config.
-		updatedConfig = updatedReq.Config
-
-		// Setup revert function.
-		defer func() {
-			if !tryUndo {
-				return
-			}
-
-			pool.Delete(isNotification, nil)
-		}()
-	} else {
-		// Load the old storage struct
-		s, err := storagePoolInit(state, req.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		// If this is a clustering notification for a ceph storage, we don't
-		// want this node to actually create the pool, as it's already been
-		// done by the node that triggered this notification. We just need to
-		// create the storage pool directory.
-		if s, ok := s.(*storageCeph); ok && isNotification {
-			volumeMntPoint := storagePools.GetStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-			return nil, os.MkdirAll(volumeMntPoint, 0711)
-		}
-
-		// Create the pool
-		err = s.StoragePoolCreate()
-		if err != nil {
-			return nil, err
-		}
-
-		updatedConfig = s.GetStoragePoolWritable().Config
-
-		defer func() {
-			if !tryUndo {
-				return
-			}
-			s.StoragePoolDelete()
-		}()
+	if err != nil {
+		return nil, err
 	}
+
+	// Mount the pool.
+	_, err = pool.Mount()
+	if err != nil {
+		return nil, err
+	}
+
+	// Record the updated config.
+	updatedConfig = updatedReq.Config
+
+	// Setup revert function.
+	defer func() {
+		if !tryUndo {
+			return
+		}
+
+		pool.Delete(isNotification, nil)
+	}()
 
 	// In case the storage pool config was changed during the pool creation,
 	// we need to update the database to reflect this change. This can e.g.
