@@ -204,8 +204,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 	etag := []interface{}{
 		project.Description,
-		project.Config["features.images"],
-		project.Config["features.profiles"],
+		project.Config,
 	}
 
 	return response.SyncResponseETag(true, project, etag)
@@ -233,8 +232,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	// Validate ETag
 	etag := []interface{}{
 		project.Description,
-		project.Config["features.images"],
-		project.Config["features.profiles"],
+		project.Config,
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -274,8 +272,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	// Validate ETag
 	etag := []interface{}{
 		project.Description,
-		project.Config["features.images"],
-		project.Config["features.profiles"],
+		project.Config,
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
