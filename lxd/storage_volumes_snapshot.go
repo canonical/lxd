@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -112,57 +111,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	snapshot := func(op *operations.Operation) error {
-		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			err = pool.CreateCustomVolumeSnapshot(volumeName, req.Name, op)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Ensure that the storage volume exists.
-			storage, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
-			if err != nil {
-				return err
-			}
-
-			// Start the storage.
-			ourMount, err := storage.StoragePoolVolumeMount()
-			if err != nil {
-				return err
-			}
-			if ourMount {
-				defer storage.StoragePoolVolumeUmount()
-			}
-
-			volWritable := storage.GetStoragePoolVolumeWritable()
-			fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
-			req.Name = fullSnapName
-			dbArgs := &db.StorageVolumeArgs{
-				Name:        fullSnapName,
-				PoolName:    poolName,
-				TypeName:    volumeTypeName,
-				Snapshot:    true,
-				Config:      volWritable.Config,
-				Description: volWritable.Description,
-			}
-
-			err = storage.StoragePoolVolumeSnapshotCreate(&req)
-			if err != nil {
-				return err
-			}
-
-			_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
 		}
 
-		return nil
+		return pool.CreateCustomVolumeSnapshot(volumeName, req.Name, op)
 	}
 
 	resources := map[string][]string{}
@@ -310,25 +264,12 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	snapshotRename := func(op *operations.Operation) error {
-		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			err = pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
-		} else {
-			var s storage
-			s, err = storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
-			if err != nil {
-				return err
-			}
-
-			err = s.StoragePoolVolumeSnapshotRename(req.Name)
+		if err != nil {
+			return err
 		}
 
-		return err
+		return pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
 	}
 
 	resources := map[string][]string{}
@@ -459,29 +400,13 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	do := func(op *operations.Operation) error {
-		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			// Handle custom volume update requests.
-			err = pool.UpdateCustomVolumeSnapshot(vol.Name, req.Description, nil, op)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Update the database if description changed. Use current config.
-			if req.Description != vol.Description {
-				err = d.cluster.StoragePoolVolumeUpdateByProject("default", vol.Name, volumeType, poolID, req.Description, vol.Config)
-				if err != nil {
-					return err
-				}
-			}
+		if err != nil {
+			return err
 		}
 
-		return nil
+		// Handle custom volume update requests.
+		return pool.UpdateCustomVolumeSnapshot(vol.Name, req.Description, nil, op)
 	}
 
 	resources := map[string][]string{}
@@ -539,23 +464,11 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	snapshotDelete := func(op *operations.Operation) error {
 		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			err = pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
-		} else {
-			var s storage
-			s, err = storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
-			if err != nil {
-				return err
-			}
-
-			err = s.StoragePoolVolumeSnapshotDelete()
+		if err != nil {
+			return err
 		}
 
-		return err
+		return pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
 	}
 
 	resources := map[string][]string{}
