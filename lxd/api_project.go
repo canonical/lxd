@@ -320,8 +320,17 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 // Common logic between PUT and PATCH.
 func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
+	// Make a list of config keys that have changed.
+	configChanged := []string{}
+	for key := range project.Config {
+		if req.Config[key] != project.Config[key] {
+			configChanged = append(configChanged, key)
+		}
+	}
+	keyHasChanged := func(key string) bool { return shared.StringInSlice(key, configChanged) }
+
 	// Flag indicating if any feature has changed.
-	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
+	featuresChanged := keyHasChanged("features.images") || keyHasChanged("features.profiles")
 
 	// Sanity checks
 	if project.Name == "default" && featuresChanged {
@@ -345,7 +354,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 			return errors.Wrap(err, "Persist profile changes")
 		}
 
-		if req.Config["features.profiles"] != project.Config["features.profiles"] {
+		if keyHasChanged("features.profiles") {
 			if req.Config["features.profiles"] == "true" {
 				err = projectCreateDefaultProfile(tx, project.Name)
 				if err != nil {
