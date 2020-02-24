@@ -474,10 +474,6 @@ func storagePoolVolumeInit(s *state.State, project, poolName, volumeName string,
 	return storageInit(s, project, poolName, volumeName, volumeType)
 }
 
-func storagePoolVolumeImageInit(s *state.State, poolName string, imageFingerprint string) (storage, error) {
-	return storagePoolVolumeInit(s, "default", poolName, imageFingerprint, storagePoolVolumeTypeImage)
-}
-
 func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
 	poolName, err := s.Cluster.InstancePool(project, containerName)
