@@ -26,7 +26,6 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -638,26 +637,13 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 		errPrefix := fmt.Sprintf("Failed initializing storage pool %q", poolName)
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return errors.Wrap(err, errPrefix)
-			}
+		if err != nil {
+			return errors.Wrap(err, errPrefix)
+		}
 
-			_, err = pool.Mount()
-			if err != nil {
-				return errors.Wrap(err, errPrefix)
-			}
-		} else {
-			s, err := storagePoolInit(s, poolName)
-			if err != nil {
-				logger.Errorf("Error initializing storage pool \"%s\": %s, correct functionality of the storage pool cannot be guaranteed", pool, err)
-				continue
-			}
-
-			err = s.StoragePoolCheck()
-			if err != nil {
-				return errors.Wrap(err, errPrefix)
-			}
+		_, err = pool.Mount()
+		if err != nil {
+			return errors.Wrap(err, errPrefix)
 		}
 	}
 
@@ -730,86 +716,39 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 
 	volumeType, _ := storagePools.VolumeTypeNameToType(volumeTypeName)
 	pool, err := storagePools.GetPoolByName(state, poolName)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		// Mount the storage volume
-		ourMount, err := pool.MountCustomVolume(volumeName, nil)
-		if err != nil {
-			return err
-		}
-
-		revert := true
-		if ourMount {
-			defer func() {
-				if !revert {
-					return
-				}
-
-				pool.UnmountCustomVolume(volumeName, nil)
-			}()
-		}
-
-		// Custom storage volumes do not currently support projects, so hardcode "default" project.
-		err = storagePoolVolumeAttachPrepare(state, poolName, volumeName, volumeType, c)
-		if err != nil {
-			return err
-		}
-
-		revert = false
-	} else {
-		// Load the volume
-		s, err := storageInit(state, "default", poolName, volumeName, volumeType)
-		if err != nil {
-			return err
-		}
-
-		// Mount the storage volume
-		ourMount, err := s.StoragePoolVolumeMount()
-		if err != nil {
-			return err
-		}
-
-		revert := true
-		if ourMount {
-			defer func() {
-				if !revert {
-					return
-				}
-
-				s.StoragePoolVolumeUmount()
-			}()
-		}
-
-		// Custom storage volumes do not currently support projects, so hardcode "default" project.
-		err = storagePoolVolumeAttachPrepare(state, poolName, volumeName, volumeType, c)
-		if err != nil {
-			return err
-		}
-
-		revert = false
+	// Mount the storage volume
+	ourMount, err := pool.MountCustomVolume(volumeName, nil)
+	if err != nil {
+		return err
 	}
 
+	revert := true
+	if ourMount {
+		defer func() {
+			if !revert {
+				return
+			}
+
+			pool.UnmountCustomVolume(volumeName, nil)
+		}()
+	}
+
+	// Custom storage volumes do not currently support projects, so hardcode "default" project.
+	err = storagePoolVolumeAttachPrepare(state, poolName, volumeName, volumeType, c)
+	if err != nil {
+		return err
+	}
+
+	revert = false
 	return nil
 }
 
 // storageVolumeUmount unmounts a storage volume on a pool.
 func storageVolumeUmount(state *state.State, poolName string, volumeName string, volumeType int) error {
 	pool, err := storagePools.GetPoolByName(state, poolName)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		_, err = pool.UnmountCustomVolume(volumeName, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Custom storage volumes do not currently support projects, so hardcode "default" project.
-		s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
-		if err != nil {
-			return err
-		}
-
-		_, err = s.StoragePoolVolumeUmount()
-		if err != nil {
-			return err
-		}
+	_, err = pool.UnmountCustomVolume(volumeName, nil)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -819,39 +758,9 @@ func storageVolumeUmount(state *state.State, poolName string, volumeName string,
 // return false indicating that the quota needs to be stored in volatile to be applied on next boot.
 func storageRootFSApplyQuota(state *state.State, inst instance.Instance, size string) error {
 	pool, err := storagePools.GetPoolByInstance(state, inst)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		err = pool.SetInstanceQuota(inst, size, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		c, ok := inst.(*containerLXC)
-		if !ok {
-			return fmt.Errorf("Received non-LXC container instance")
-		}
-
-		err := c.initStorage()
-		if err != nil {
-			return errors.Wrap(err, "Initialize storage")
-		}
-
-		storageTypeName := c.storage.GetStorageTypeName()
-		storageIsReady := c.storage.ContainerStorageReady(c)
-
-		// If we cannot apply the quota now, then return false as needs to be applied on next boot.
-		if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() || !storageIsReady {
-			return storagePools.ErrRunningQuotaResizeNotSupported
-		}
-
-		newSizeBytes, err := units.ParseByteSizeString(size)
-		if err != nil {
-			return err
-		}
-
-		err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, newSizeBytes, c)
-		if err != nil {
-			return errors.Wrap(err, "Set storage quota")
-		}
+	err = pool.SetInstanceQuota(inst, size, nil)
+	if err != nil {
+		return err
 	}
 
 	return nil
