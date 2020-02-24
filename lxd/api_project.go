@@ -303,14 +303,16 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		req.Description = project.Description
 	}
 
-	_, err = reqRaw.GetBool("features.images")
+	config, err := reqRaw.GetMap("config")
 	if err != nil {
-		req.Config["features.images"] = project.Config["features.images"]
-	}
-
-	_, err = reqRaw.GetBool("features.profiles")
-	if err != nil {
-		req.Config["features.images"] = project.Config["features.profiles"]
+		req.Config = project.Config
+	} else {
+		for k, v := range project.Config {
+			_, ok := config[k]
+			if !ok {
+				config[k] = v
+			}
+		}
 	}
 
 	return projectChange(d, project, req)
