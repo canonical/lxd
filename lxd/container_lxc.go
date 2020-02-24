@@ -3432,7 +3432,7 @@ func (c *containerLXC) Delete() error {
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
 	if err != nil && err != db.ErrNoSuchObject {
 		return err
-	} else if err != db.ErrNoSuchObject {
+	} else if pool != nil {
 		// Check if we're dealing with "lxd import".
 		// "lxd import" is used for disaster recovery, where you already have a container
 		// and snapshots on disk but no DB entry. As such if something has gone wrong during
