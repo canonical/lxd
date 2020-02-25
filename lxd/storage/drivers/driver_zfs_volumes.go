@@ -81,19 +81,19 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
+		// Use volmode=none so volume is invisible until mounted.
+		opts := []string{"volmode=none"}
+
 		loopPath := loopFilePath(d.name)
 		if d.config["source"] == loopPath {
 			// Create the volume dataset with sync disabled (to avoid kernel lockups when using a disk based pool).
-			err = d.createVolume(d.dataset(vol, false), sizeBytes, "sync=disabled")
-			if err != nil {
-				return err
-			}
-		} else {
-			// Create the volume dataset.
-			err = d.createVolume(d.dataset(vol, false), sizeBytes)
-			if err != nil {
-				return err
-			}
+			opts = append(opts, "sync=disabled")
+		}
+
+		// Create the volume dataset.
+		err = d.createVolume(d.dataset(vol, false), sizeBytes, opts...)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -458,8 +458,19 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			}
 		}
 	} else {
+		args := []string{
+			"clone",
+			srcSnapshot,
+			d.dataset(vol, false),
+		}
+
+		if vol.contentType == ContentTypeBlock {
+			// Use volmode=none so volume is invisible until mounted.
+			args = append(args, "-o", "volmode=none")
+		}
+
 		// Clone the snapshot.
-		_, err := shared.RunCommand("zfs", "clone", srcSnapshot, d.dataset(vol, false))
+		_, err := shared.RunCommand("zfs", args...)
 		if err != nil {
 			return err
 		}
