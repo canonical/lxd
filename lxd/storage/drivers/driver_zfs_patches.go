@@ -86,3 +86,18 @@ func (d *zfs) patchStorageZFSMount() error {
 
 	return nil
 }
+
+func (d *zfs) patchStorageZFSVolMode() error {
+	// Set volmode=none on the parent virtual-machines directory
+	err := d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], "virtual-machines"), "volmode=none")
+	if err != nil {
+		return err
+	}
+
+	err = d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], "deleted", "virtual-machines"), "volmode=none")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

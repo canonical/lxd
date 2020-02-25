@@ -43,6 +43,7 @@ func (d *zfs) load() error {
 		"storage_create_vm":       d.patchStorageCreateVM,
 		"storage_zfs_mount":       d.patchStorageZFSMount,
 		"storage_create_vm_again": nil,
+		"storage_zfs_volmode":     d.patchStorageZFSVolMode,
 	}
 
 	// Done if previously loaded.
@@ -241,7 +242,13 @@ func (d *zfs) Create() error {
 
 	// Create the initial datasets.
 	for _, dataset := range d.initialDatasets() {
-		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=none")
+
+		properties := []string{"mountpoint=none"}
+		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
+			properties = append(properties, "volmode=none")
+		}
+
+		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), properties...)
 		if err != nil {
 			return err
 		}
