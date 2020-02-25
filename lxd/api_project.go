@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -327,6 +328,14 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 			configChanged = append(configChanged, key)
 		}
 	}
+
+	for key := range req.Config {
+		_, ok := project.Config[key]
+		if !ok {
+			configChanged = append(configChanged, key)
+		}
+	}
+
 	keyHasChanged := func(key string) bool { return shared.StringInSlice(key, configChanged) }
 
 	// Flag indicating if any feature has changed.
@@ -349,7 +358,12 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 
 	// Update the database entry
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		err := tx.ProjectUpdate(project.Name, req)
+		err := projecthelpers.ValidateLimitsUponProjectUpdate(tx, project.Name, req.Config, configChanged)
+		if err != nil {
+			return err
+		}
+
+		err = tx.ProjectUpdate(project.Name, req)
 		if err != nil {
 			return errors.Wrap(err, "Persist profile changes")
 		}
