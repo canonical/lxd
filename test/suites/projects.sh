@@ -481,5 +481,147 @@ test_projects_limits() {
   ! lxc project set p1 limits.containers xxx || false
   ! lxc project set p1 limits.virtual-machines -1 || false
 
+  lxc project switch p1
+
+  # Add a root device to the default profile of the project and import an image.
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${pool}"
+
+  deps/import-busybox --project p1 --alias testimage
+  fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
+
+  # Create a couple of containers in the project.
+  lxc init testimage c1
+  lxc init testimage c2
+
+  # Can't set the containers limit below the current count.
+  ! lxc project set p1 limits.containers 1 || false
+
+  # Can't create containers anymore after the limit is reached.
+  lxc project set p1 limits.containers 2
+  ! lxc init testimage c3
+
+  # Can't set the project's memory limit to a percentage value.
+  ! lxc project set p1 limits.memory 10% || false
+
+  # Can't set the project's memory limit because not all instances have
+  # limits.memory defined.
+  ! lxc project set p1 limits.memory 10GB || false
+
+  # Set limits.memory on the default profile.
+  lxc profile set default limits.memory 1GB
+
+  # Can't set the memory limit below the current total usage.
+  ! lxc project set p1 limits.memory 1GB || false
+
+  # Configure a valid project memory limit.
+  lxc project set p1 limits.memory 3GB
+
+  lxc delete c2
+
+  # Create a new profile which does not define "limits.memory".
+  lxc profile create unrestricted
+  lxc profile device add unrestricted root disk path="/" pool="${pool}"
+
+  # Can't create a new container without denfining "limits.memory"
+  ! lxc init testimage c2 -p unrestricted || false
+
+  # Can't create a new container if "limits.memory" is too high
+  ! lxc init testimage c2 -p unrestricted -c limits.memory=4GB || false
+
+  # Can't create a new container if "limits.memory" is a percentage
+  ! lxc init testimage c2 -p unrestricted -c limits.memory=10% || false
+
+  # No error occurs if we define "limits.memory" and stay within the limits.
+  lxc init testimage c2 -p unrestricted -c limits.memory=1GB
+
+  # Can't change the container's "limits.memory" if it would overflow the limit.
+  ! lxc config set c2 limits.memory=4GB || false
+
+  # Can't unset the instance's "limits.memory".
+  ! lxc config unset c2 limits.memory || false
+
+  # Can't unset the default profile's "limits.memory", as it would leave c1
+  # without an effective "limits.memory".
+  ! lxc profile unset default limits.memory || false
+
+  # Can't check the default profile's "limits.memory" to a value that would
+  # violate project's limits.
+  ! lxc profile set default limits.memory=4GB || false
+
+  # Can't change limits.memory to a percentage.
+  ! lxc profile set default limits.memory=10% || false
+  ! lxc config set c2 limits.memory=10%
+
+  # It's possible to change both a profile and an instance memory limit, if they
+  # don't break the project's aggregate allowance.
+  lxc profile set default limits.memory=2GB
+  lxc config set c2 limits.memory=512MB
+
+  # Can't set the project's processes limit because no instance has
+  # limits.processes defined.
+  ! lxc project set p1 limits.processes 100 || false
+
+  # Set processes limits on the default profile and on c2.
+  lxc profile set default limits.processes=50
+  lxc config set c2 limits.processes=50
+
+  # Can't set the project's processes limit if it's below the current total.
+  ! lxc project set p1 limits.processes 75 || false
+
+  # Set the project's processes limit.
+  lxc project set p1 limits.processes 150
+
+  # Changing profile and instance processes limits within the aggregate
+  # project's limit is fine.
+  lxc profile set default limits.processes=75
+  lxc config set c2 limits.processes=75
+
+  # Changing profile and instance processes limits above the aggregate project's
+  # limit is not possible.
+  ! lxc profile set default limits.processes=80 || false
+  ! lxc config set c2 limits.processes=80 || false
+
+  # Changing the project's processes limit below the current aggregate amount is
+  # not possible.
+  ! lxc project set p1 limits.processes 125 || false
+
+  # Set a cpu limit on the default profile and on the instance, with c2
+  # using CPU pinning.
+  lxc profile set default limits.cpu=2
+  lxc config set c2 limits.cpu=0,1
+
+  # It's not possible to set the project's cpu limit since c2 is using CPU
+  # pinning.
+  ! lxc project set p1 limits.cpu 4 || false
+
+  # Change c2's from cpu pinning to a regular cpu count limit.
+  lxc config set c2 limits.cpu=2
+
+  # Can't set the project's cpu limit below the current aggregate count.
+  ! lxc project set p1 limits.cpu 3 || false
+
+  # Set the project's cpu limit
+  lxc project set p1 limits.cpu 4
+
+  # Can't update the project's cpu limit below the current aggregate count.
+  ! lxc project set p1 limits.cpu 3 || false
+
+  # Changing profile and instance cpu limits above the aggregate project's
+  # limit is not possible.
+  ! lxc profile set default limits.cpu=3 || false
+  ! lxc config set c2 limits.cpu=3 || false
+
+  # CPU limits can be updated if they stay within limits.
+  lxc project set p1 limits.cpu 7
+  lxc profile set default limits.cpu=3
+  lxc config set c2 limits.cpu=3
+
+  lxc delete c1
+  lxc delete c2
+  lxc image delete testimage
+  lxc profile delete unrestricted
+
+  lxc project switch default
   lxc project delete p1
 }
