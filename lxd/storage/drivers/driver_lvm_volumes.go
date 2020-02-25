@@ -1,10 +1,14 @@
 package drivers
 
 import (
+	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -728,10 +732,50 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	// We use the vfsVolumeSnapshots rather than inspecting the logical volumes themselves because the origin
+	fullVolName := d.lvmFullVolumeName(vol.volType, vol.contentType, vol.name)
+
+	// We use the volume list rather than inspecting the logical volumes themselves because the origin
 	// property of an LVM snapshot can be removed/changed when restoring snapshots, such that they are no
-	// marked as origin of the parent volume.
-	return genericVFSVolumeSnapshots(d, vol, op)
+	// marked as origin of the parent volume. Instead we use prefix matching on the volume names to find the
+	// snapshot volumes.
+	cmd := exec.Command("lvs", "--noheadings", "-o", "lv_name", d.config["lvm.vg_name"])
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots := []string{}
+	scanner := bufio.NewScanner(stdout)
+	prefix := fmt.Sprintf("%s-", fullVolName)
+	for scanner.Scan() {
+		snapLine := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(snapLine, prefix) {
+			// Remove volume name prefix (including snapshot delimiter) and unescape snapshot name.
+			snapshots = append(snapshots, strings.Replace(strings.TrimPrefix(snapLine, prefix), "--", "-", -1))
+		}
+	}
+
+	errMsg, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return nil, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get snapshot list for volume %q: %v", fullVolName, strings.TrimSpace(string(errMsg)))
+	}
+
+	return snapshots, nil
 }
 
 // RestoreVolume restores a volume from a snapshot.

@@ -26,9 +26,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -443,8 +441,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, req.Name))
 	}
 
-	// User needs to make sure that we can access the directory where
-	// backup.yaml lives.
+	// User needs to make sure that we can access the directory where backup.yaml lives.
 	containerMntPoint := containerMntPoints[0]
 	isEmpty, err := shared.PathIsEmpty(containerMntPoint)
 	if err != nil {
@@ -457,338 +454,64 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	// Read in the backup.yaml file.
 	backupYamlPath := filepath.Join(containerMntPoint, "backup.yaml")
-	backup, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
+	backupConf, err := backup.ParseInstanceConfigYamlFile(backupYamlPath)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Update snapshot names to include container name (if needed)
-	for i, snap := range backup.Snapshots {
+	if req.Name != backupConf.Container.Name {
+		return response.InternalError(fmt.Errorf("Instance name in request %q doesn't match instance name in backup config %q", req.Name, backupConf.Container.Name))
+	}
+
+	// Update snapshot names to include container name (if needed).
+	for i, snap := range backupConf.Snapshots {
 		if !strings.Contains(snap.Name, "/") {
-			backup.Snapshots[i].Name = fmt.Sprintf("%s/%s", backup.Container.Name, snap.Name)
+			backupConf.Snapshots[i].Name = fmt.Sprintf("%s/%s", backupConf.Container.Name, snap.Name)
 		}
 	}
 
-	// Try to retrieve the storage pool the container supposedly lives on.
-	var poolErr error
-	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)
-	if poolErr != nil {
-		if poolErr != db.ErrNoSuchObject {
-			return response.SmartError(poolErr)
-		}
-	}
-
-	if backup.Pool == nil {
+	if backupConf.Pool == nil {
 		// We don't know what kind of storage type the pool is.
 		return response.BadRequest(fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`))
 	}
 
-	if poolErr == db.ErrNoSuchObject {
+	// Try to retrieve the storage pool the container supposedly lives on.
+	pool, err := storagePools.GetPoolByName(d.State(), containerPoolName)
+	if err == db.ErrNoSuchObject {
 		// Create the storage pool db entry if it doesn't exist.
-		_, err := storagePoolDBCreate(d.State(), containerPoolName, "",
-			backup.Pool.Driver, backup.Pool.Config)
+		_, err = storagePoolDBCreate(d.State(), containerPoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
 		if err != nil {
-			err = errors.Wrap(err, "Create storage pool database entry")
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrap(err, "Create storage pool database entry"))
 		}
 
-		poolID, err = d.cluster.StoragePoolGetID(containerPoolName)
+		pool, err = storagePools.GetPoolByName(d.State(), containerPoolName)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(errors.Wrap(err, "Load storage pool database entry"))
 		}
-	} else {
-		if backup.Pool.Name != containerPoolName {
-			return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backup.Pool.Name))
-		}
-
-		if backup.Pool.Driver != pool.Driver {
-			return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver, backup.Pool.Driver))
-		}
+	} else if err != nil {
+		return response.SmartError(errors.Wrap(err, "Find storage pool database entry"))
 	}
 
-	var poolName string
-	_, err = storagePools.GetPoolByName(d.State(), backup.Pool.Name)
-	if err != storageDrivers.ErrUnknownDriver && err != db.ErrNoSuchObject {
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		// FIXME: In the new world, we don't expose the on-disk pool
-		// name, instead we need to change the per-driver logic below to using
-		// clean storage functions.
-		poolName = backup.Pool.Name
-	} else {
-		initPool, err := storagePoolInit(d.State(), backup.Pool.Name)
-		if err != nil {
-			err = errors.Wrap(err, "Initialize storage")
-			return response.InternalError(err)
-		}
-
-		ourMount, err := initPool.StoragePoolMount()
-		if err != nil {
-			return response.InternalError(err)
-		}
-		if ourMount {
-			defer initPool.StoragePoolUmount()
-		}
-
-		// retrieve on-disk pool name
-		_, _, poolName = initPool.GetContainerPoolInfo()
+	if backupConf.Pool.Name != containerPoolName {
+		return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, containerPoolName, backupConf.Pool.Name))
 	}
 
-	existingSnapshots := []*api.InstanceSnapshot{}
-	needForce := fmt.Errorf(`The snapshot does not exist on disk. Pass "force" to discard non-existing snapshots`)
-
-	// Retrieve all snapshots that exist on disk.
-	onDiskSnapshots := []string{}
-	if len(backup.Snapshots) > 0 {
-		switch backup.Pool.Driver {
-		case "btrfs":
-			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, poolName, req.Name)
-			snapshotsDir, err := os.Open(snapshotsDirPath)
-			if err != nil {
-				return response.InternalError(err)
-			}
-			onDiskSnapshots, err = snapshotsDir.Readdirnames(-1)
-			if err != nil {
-				snapshotsDir.Close()
-				return response.InternalError(err)
-			}
-			snapshotsDir.Close()
-		case "dir":
-			snapshotsDirPath := storagePools.GetSnapshotMountPoint(projectName, poolName, req.Name)
-			snapshotsDir, err := os.Open(snapshotsDirPath)
-			if err != nil {
-				return response.InternalError(err)
-			}
-			onDiskSnapshots, err = snapshotsDir.Readdirnames(-1)
-			if err != nil {
-				snapshotsDir.Close()
-				return response.InternalError(err)
-			}
-			snapshotsDir.Close()
-		case "lvm":
-			onDiskPoolName := backup.Pool.Config["lvm.vg_name"]
-			msg, err := shared.RunCommand("lvs", "-o", "lv_name",
-				onDiskPoolName, "--noheadings")
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			snaps := strings.Fields(msg)
-			prefix := fmt.Sprintf("containers_%s-", project.Prefix(projectName, req.Name))
-			for _, v := range snaps {
-				// ignore zombies
-				if strings.HasPrefix(v, prefix) {
-					onDiskSnapshots = append(onDiskSnapshots,
-						v[len(prefix):])
-				}
-			}
-		case "ceph":
-			clusterName := "ceph"
-			if backup.Pool.Config["ceph.cluster_name"] != "" {
-				clusterName = backup.Pool.Config["ceph.cluster_name"]
-			}
-
-			userName := "admin"
-			if backup.Pool.Config["ceph.user.name"] != "" {
-				userName = backup.Pool.Config["ceph.user.name"]
-			}
-
-			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			snaps, err := cephRBDVolumeListSnapshots(clusterName,
-				onDiskPoolName, project.Prefix(projectName, req.Name),
-				storagePoolVolumeTypeNameContainer, userName)
-			if err != nil {
-				if err != db.ErrNoSuchObject {
-					return response.InternalError(err)
-				}
-			}
-
-			for _, v := range snaps {
-				// ignore zombies
-				if strings.HasPrefix(v, "snapshot_") {
-					onDiskSnapshots = append(onDiskSnapshots,
-						v[len("snapshot_"):])
-				}
-			}
-		case "zfs":
-			onDiskPoolName := backup.Pool.Config["zfs.pool_name"]
-			snaps, err := zfsPoolListSnapshots(onDiskPoolName,
-				fmt.Sprintf("containers/%s", project.Prefix(projectName, req.Name)))
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			for _, v := range snaps {
-				// ignore zombies
-				if strings.HasPrefix(v, "snapshot-") {
-					onDiskSnapshots = append(onDiskSnapshots,
-						v[len("snapshot-"):])
-				}
-			}
-
-		}
+	if backupConf.Pool.Driver != pool.Driver().Info().Name {
+		return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, containerPoolName, pool.Driver().Info().Name, backupConf.Pool.Driver))
 	}
 
-	if len(backup.Snapshots) != len(onDiskSnapshots) {
-		if !req.Force {
-			msg := `There are either snapshots that don't exist on disk anymore or snapshots that are not recorded in the "backup.yaml" file. Pass "force" to remove them`
-			logger.Errorf(msg)
-			return response.InternalError(fmt.Errorf(msg))
-		}
-	}
-
-	// delete snapshots that do not exist in backup.yaml
-	od := ""
-	for _, od = range onDiskSnapshots {
-		inBackupFile := false
-		for _, ib := range backup.Snapshots {
-			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(ib.Name)
-			if od == snapOnlyName {
-				inBackupFile = true
-				break
-			}
+	// Check snapshots are consistent, and if not, if req.Force is true, then delete snapshots that do not exist in backup.yaml.
+	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, req.Force, nil)
+	if err != nil {
+		if errors.Cause(err) == storagePools.ErrBackupSnapshotsMismatch {
+			return response.InternalError(fmt.Errorf(`%s. Set "force" to discard non-existing snapshots`, err))
 		}
 
-		if inBackupFile {
-			continue
-		}
-
-		if !req.Force {
-			msg := `There are snapshots that are not recorded in the "backup.yaml" file. Pass "force" to remove them`
-			logger.Errorf(msg)
-			return response.InternalError(fmt.Errorf(msg))
-		}
-
-		var err error
-		switch backup.Pool.Driver {
-		case "btrfs":
-			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = btrfsSnapshotDeleteInternal(projectName, poolName, snapName)
-		case "dir":
-			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = dirSnapshotDeleteInternal(projectName, poolName, snapName)
-		case "lvm":
-			onDiskPoolName := backup.Pool.Config["lvm.vg_name"]
-			if onDiskPoolName == "" {
-				onDiskPoolName = poolName
-			}
-			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			snapPath := storagePools.InstancePath(instancetype.Container, projectName, snapName, true)
-			err = lvmContainerDeleteInternal(projectName, poolName, req.Name,
-				true, onDiskPoolName, snapPath)
-		case "ceph":
-			clusterName := "ceph"
-			if backup.Pool.Config["ceph.cluster_name"] != "" {
-				clusterName = backup.Pool.Config["ceph.cluster_name"]
-			}
-
-			userName := "admin"
-			if backup.Pool.Config["ceph.user.name"] != "" {
-				userName = backup.Pool.Config["ceph.user.name"]
-			}
-
-			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			snapName := fmt.Sprintf("snapshot_%s", od)
-			ret := cephContainerSnapshotDelete(clusterName,
-				onDiskPoolName, project.Prefix(projectName, req.Name),
-				storagePoolVolumeTypeNameContainer, snapName, userName)
-			if ret < 0 {
-				err = fmt.Errorf(`Failed to delete snapshot`)
-			}
-		case "zfs":
-			onDiskPoolName := backup.Pool.Config["zfs.pool_name"]
-			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = zfsSnapshotDeleteInternal(projectName, poolName, snapName,
-				onDiskPoolName)
-		}
-		if err != nil {
-			logger.Warnf(`Failed to delete snapshot`)
-		}
-	}
-
-	for _, snap := range backup.Snapshots {
-		switch backup.Pool.Driver {
-		case "btrfs":
-			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
-			if !shared.PathExists(snpMntPt) || !isBtrfsSubVolume(snpMntPt) {
-				if req.Force {
-					continue
-				}
-				return response.BadRequest(needForce)
-			}
-		case "dir":
-			snpMntPt := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name, snap.Name)
-			if !shared.PathExists(snpMntPt) {
-				if req.Force {
-					continue
-				}
-				return response.BadRequest(needForce)
-			}
-		case "lvm":
-			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-			ctLvmName := containerNameToLVName(fmt.Sprintf("%s/%s", project.Prefix(projectName, ctName), csName))
-			ctLvName := getLVName(poolName,
-				storagePoolVolumeAPIEndpointContainers,
-				ctLvmName)
-			exists, err := storageLVExists(ctLvName)
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if !exists {
-				if req.Force {
-					continue
-				}
-				return response.BadRequest(needForce)
-			}
-		case "ceph":
-			clusterName := "ceph"
-			if backup.Pool.Config["ceph.cluster_name"] != "" {
-				clusterName = backup.Pool.Config["ceph.cluster_name"]
-			}
-
-			userName := "admin"
-			if backup.Pool.Config["ceph.user.name"] != "" {
-				userName = backup.Pool.Config["ceph.user.name"]
-			}
-
-			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-			ctName = project.Prefix(projectName, ctName)
-			snapshotName := fmt.Sprintf("snapshot_%s", csName)
-
-			exists := cephRBDSnapshotExists(clusterName,
-				onDiskPoolName, ctName,
-				storagePoolVolumeTypeNameContainer,
-				snapshotName, userName)
-			if !exists {
-				if req.Force {
-					continue
-				}
-				return response.BadRequest(needForce)
-			}
-		case "zfs":
-			ctName, csName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-			snapshotName := fmt.Sprintf("snapshot-%s", csName)
-
-			exists := zfsFilesystemEntityExists(poolName,
-				fmt.Sprintf("containers/%s@%s", project.Prefix(projectName, ctName),
-					snapshotName))
-			if !exists {
-				if req.Force {
-					continue
-				}
-				return response.BadRequest(needForce)
-			}
-		}
-
-		existingSnapshots = append(existingSnapshots, snap)
+		return response.InternalError(errors.Wrap(err, "Checking snapshots"))
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, storagePoolVolumeTypeContainer, poolID)
+	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, storagePoolVolumeTypeContainer, pool.ID())
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
 			return response.SmartError(ctVolErr)
@@ -813,21 +536,21 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf(`Entry for instance %q already exists in the database. Set "force" to overwrite`, req.Name))
 	}
 
-	if backup.Volume == nil {
+	if backupConf.Volume == nil {
 		return response.BadRequest(fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`))
 	}
 
 	if ctVolErr == nil {
-		if volume.Name != backup.Volume.Name {
+		if volume.Name != backupConf.Volume.Name {
 			return response.BadRequest(fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, volume.Name, req.Name))
 		}
 
-		if volume.Type != backup.Volume.Type {
-			return response.BadRequest(fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backup.Volume.Type))
+		if volume.Type != backupConf.Volume.Type {
+			return response.BadRequest(fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backupConf.Volume.Type))
 		}
 
 		// Remove the storage volume db entry for the container since force was specified.
-		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, storagePoolVolumeTypeContainer, poolID)
+		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, storagePoolVolumeTypeContainer, pool.ID())
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -841,13 +564,13 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Prepare root disk entry if needed
+	// Prepare root disk entry if needed.
 	rootDev := map[string]string{}
 	rootDev["type"] = "disk"
 	rootDev["path"] = "/"
 	rootDev["pool"] = containerPoolName
 
-	// Mark the filesystem as going through an import
+	// Mark the filesystem as going through an import.
 	importingFilePath := storagePools.InstanceImportingFilePath(instancetype.Container, containerPoolName, projectName, req.Name)
 	fd, err := os.Create(importingFilePath)
 	if err != nil {
@@ -856,28 +579,28 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	fd.Close()
 	defer os.Remove(fd.Name())
 
-	baseImage := backup.Container.Config["volatile.base_image"]
+	baseImage := backupConf.Container.Config["volatile.base_image"]
 
-	// Add root device if missing
-	root, _, _ := shared.GetRootDiskDevice(backup.Container.Devices)
+	// Add root device if missing.
+	root, _, _ := shared.GetRootDiskDevice(backupConf.Container.Devices)
 	if root == "" {
-		if backup.Container.Devices == nil {
-			backup.Container.Devices = map[string]map[string]string{}
+		if backupConf.Container.Devices == nil {
+			backupConf.Container.Devices = map[string]map[string]string{}
 		}
 
 		rootDevName := "root"
 		for i := 0; i < 100; i++ {
-			if backup.Container.Devices[rootDevName] == nil {
+			if backupConf.Container.Devices[rootDevName] == nil {
 				break
 			}
 			rootDevName = fmt.Sprintf("root%d", i)
 			continue
 		}
 
-		backup.Container.Devices[rootDevName] = rootDev
+		backupConf.Container.Devices[rootDevName] = rootDev
 	}
 
-	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
+	arch, err := osarch.ArchitectureId(backupConf.Container.Architecture)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -885,16 +608,16 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
-		Config:       backup.Container.Config,
-		CreationDate: backup.Container.CreatedAt,
+		Config:       backupConf.Container.Config,
+		CreationDate: backupConf.Container.CreatedAt,
 		Type:         instancetype.Container,
-		Description:  backup.Container.Description,
-		Devices:      deviceConfig.NewDevices(backup.Container.Devices),
-		Ephemeral:    backup.Container.Ephemeral,
-		LastUsedDate: backup.Container.LastUsedAt,
-		Name:         backup.Container.Name,
-		Profiles:     backup.Container.Profiles,
-		Stateful:     backup.Container.Stateful,
+		Description:  backupConf.Container.Description,
+		Devices:      deviceConfig.NewDevices(backupConf.Container.Devices),
+		Ephemeral:    backupConf.Container.Ephemeral,
+		LastUsedDate: backupConf.Container.LastUsedAt,
+		Name:         backupConf.Container.Name,
+		Profiles:     backupConf.Container.Profiles,
+		Stateful:     backupConf.Container.Stateful,
 	})
 	if err != nil {
 		err = errors.Wrap(err, "Create container")
@@ -903,11 +626,10 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 
 	containerPath := storagePools.InstancePath(instancetype.Container, projectName, req.Name, false)
 	isPrivileged := false
-	if backup.Container.Config["security.privileged"] == "" {
+	if backupConf.Container.Config["security.privileged"] == "" {
 		isPrivileged = true
 	}
-	err = storagePools.CreateContainerMountpoint(containerMntPoint, containerPath,
-		isPrivileged)
+	err = storagePools.CreateContainerMountpoint(containerMntPoint, containerPath, isPrivileged)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -929,7 +651,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, storagePoolVolumeTypeContainer, poolID)
+		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, storagePoolVolumeTypeContainer, pool.ID())
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
 				return response.SmartError(csVolErr)
@@ -949,7 +671,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, storagePoolVolumeTypeContainer, poolID)
+			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, storagePoolVolumeTypeContainer, pool.ID())
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -962,7 +684,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		// Add root device if missing
+		// Add root device if missing.
 		root, _, _ := shared.GetRootDiskDevice(snap.Devices)
 		if root == "" {
 			if snap.Devices == nil {
@@ -1001,11 +723,10 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Recreate missing mountpoints and symlinks.
-		snapshotMountPoint := storagePools.GetSnapshotMountPoint(projectName, backup.Pool.Name,
-			snap.Name)
+		snapshotMountPoint := storagePools.GetSnapshotMountPoint(projectName, backupConf.Pool.Name, snap.Name)
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 		sourceName = project.Prefix(projectName, sourceName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backupConf.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = storagePools.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {

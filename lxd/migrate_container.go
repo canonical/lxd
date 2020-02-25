@@ -387,12 +387,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				Bidirectional: &hasFeature,
 			},
 		}
-
-		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-			offerHeader.ZfsFeatures = &migration.ZfsFeatures{
-				Compress: &hasFeature,
-			}
-		}
 	} else {
 		return fmt.Errorf("Instance type not supported")
 	}
@@ -1034,15 +1028,6 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				Delete:        offerHeader.RsyncFeatures.Delete,
 				Compress:      offerHeader.RsyncFeatures.Compress,
 				Bidirectional: offerHeader.RsyncFeatures.Bidirectional,
-			}
-		}
-
-		// Return those ZFS features we know about (with the value sent by the remote).
-		if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-			if offerHeader.ZfsFeatures != nil && offerHeader.ZfsFeatures.Compress != nil {
-				respHeader.ZfsFeatures = &migration.ZfsFeatures{
-					Compress: offerHeader.ZfsFeatures.Compress,
-				}
 			}
 		}
 

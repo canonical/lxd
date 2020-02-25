@@ -206,12 +206,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 			return err
 		}
 
-		sType, err := storageStringToType(pool.Driver)
-		if err != nil {
-			return err
-		}
-
-		if sType != storageTypeLvm {
+		if pool.Driver != "lvm" {
 			continue
 		}
 
@@ -227,9 +222,9 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 
 		for _, volume := range volumes {
 			oldName := fmt.Sprintf("%s/custom_%s", vgName, volume)
-			newName := fmt.Sprintf("%s/custom_%s", vgName, containerNameToLVName(volume))
+			newName := fmt.Sprintf("%s/custom_%s", vgName, lvmNameToLVName(volume))
 
-			exists, err := storageLVExists(newName)
+			exists, err := lvmLVExists(newName)
 			if err != nil {
 				return err
 			}
@@ -329,23 +324,18 @@ func patchStorageApi(name string, d *Daemon) error {
 	lvmVgName := daemonConfig["storage.lvm_vg_name"]
 	zfsPoolName := daemonConfig["storage.zfs_pool_name"]
 	defaultPoolName := "default"
-	preStorageApiStorageType := storageTypeDir
+	preStorageApiStorageType := "dir"
 
 	if lvmVgName != "" {
-		preStorageApiStorageType = storageTypeLvm
+		preStorageApiStorageType = "lvm"
 		defaultPoolName = lvmVgName
 	} else if zfsPoolName != "" {
-		preStorageApiStorageType = storageTypeZfs
+		preStorageApiStorageType = "zfs"
 		defaultPoolName = zfsPoolName
 	} else if d.os.BackingFS == "btrfs" {
-		preStorageApiStorageType = storageTypeBtrfs
+		preStorageApiStorageType = "btrfs"
 	} else {
 		// Dir storage pool.
-	}
-
-	defaultStorageTypeName, err := storageTypeToString(preStorageApiStorageType)
-	if err != nil {
-		return err
 	}
 
 	// In case we detect that an lvm name or a zfs name exists it makes
@@ -392,13 +382,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	// If any of these are actually called, there's no way back.
 	poolName := defaultPoolName
 	switch preStorageApiStorageType {
-	case storageTypeBtrfs:
-		err = upgradeFromStorageTypeBtrfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeDir:
-		err = upgradeFromStorageTypeDir(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeLvm:
-		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, defaultStorageTypeName, cRegular, cSnapshots, imgPublic, imgPrivate)
-	case storageTypeZfs:
+	case "btrfs":
+		err = upgradeFromStorageTypeBtrfs(name, d, defaultPoolName, preStorageApiStorageType, cRegular, cSnapshots, imgPublic, imgPrivate)
+	case "dir":
+		err = upgradeFromStorageTypeDir(name, d, defaultPoolName, preStorageApiStorageType, cRegular, cSnapshots, imgPublic, imgPrivate)
+	case "lvm":
+		err = upgradeFromStorageTypeLvm(name, d, defaultPoolName, preStorageApiStorageType, cRegular, cSnapshots, imgPublic, imgPrivate)
+	case "zfs":
 		// The user is using a zfs dataset. This case needs to be
 		// handled with care:
 
@@ -410,7 +400,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		if strings.Contains(defaultPoolName, "/") {
 			poolName = "default"
 		}
-		err = upgradeFromStorageTypeZfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, []string{}, imgPublic, imgPrivate)
+		err = upgradeFromStorageTypeZfs(name, d, defaultPoolName, preStorageApiStorageType, cRegular, []string{}, imgPublic, imgPrivate)
 	default: // Shouldn't happen.
 		return fmt.Errorf("Invalid storage type. Upgrading not possible")
 	}
@@ -1057,7 +1047,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	// Activate volume group
-	err = storageVGActivate(defaultPoolName)
+	err = lvmVGActivate(defaultPoolName)
 	if err != nil {
 		logger.Errorf("Could not activate volume group \"%s\". Manual intervention needed", defaultPoolName)
 		return err
@@ -1173,9 +1163,9 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
 		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
-		ctLvName := containerNameToLVName(ct)
+		ctLvName := lvmNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
-		containerLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
+		containerLvDevPath := lvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
 			oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, ctLvName)
 			// If the old LVM device path for the logical volume
@@ -1329,9 +1319,9 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			os.Remove(oldSnapshotMntPoint + ".lv")
 
 			// Make sure we use a valid lv name.
-			csLvName := containerNameToLVName(cs)
+			csLvName := lvmNameToLVName(cs)
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, csLvName)
-			snapshotLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
+			snapshotLvDevPath := lvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
 				oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, csLvName)
 				if shared.PathExists(oldLvDevPath) {
@@ -1511,7 +1501,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Rename the logical volume device.
 		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointImages, img)
-		imageLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointImages, img)
+		imageLvDevPath := lvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointImages, img)
 		oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, img)
 		// Only create logical volumes for images that have a logical
 		// volume on the pre-storage-api LXD instance. If not, we don't
@@ -2487,8 +2477,8 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 			// It shouldn't be possible that false volume types
 			// exist in the db, so it's safe to ignore the error.
 			volumeTypeApiEndpoint, _ := storagePoolVolumeTypeNameToAPIEndpoint(volume.Type)
-			lvmName := containerNameToLVName(volume.Name)
-			lvmLvDevPath := getLvmDevPath("default", poolName, volumeTypeApiEndpoint, lvmName)
+			lvmName := lvmNameToLVName(volume.Name)
+			lvmLvDevPath := lvmDevPath("default", poolName, volumeTypeApiEndpoint, lvmName)
 			size, err := lvmGetLVSize(lvmLvDevPath)
 			if err != nil {
 				logger.Errorf("Failed to detect size of logical volume: %s", err)
