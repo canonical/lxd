@@ -130,6 +130,14 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				if err != nil {
 					return err
 				}
+
+				// Move the GPT alt header to end of disk if needed.
+				if vol.IsVMBlock() {
+					err = d.moveGPTAltHeader(devPath)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 
@@ -763,6 +771,26 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		sizeBytes = (sizeBytes / 8192) * 8192
 
 		err := d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+		if err != nil {
+			return err
+		}
+
+		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+			devPath, err := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return err
+			}
+
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}, op)
 		if err != nil {
 			return err
 		}
