@@ -43,53 +43,22 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
-	// Check if sending storage pool supports new storage layer.
 	pool, err := storagePools.GetPoolByName(state, poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
-		}
-
-		// The refresh argument passed to MigrationTypes() is always set
-		// to false here. The migration source/sender doesn't need to care whether
-		// or not it's doing a refresh as the migration sink/receiver will know
-		// this, and adjust the migration types accordingly.
-		poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS, false)
-		if len(poolMigrationTypes) < 0 {
-			return fmt.Errorf("No source migration types available")
-		}
-
-		// Convert the pool's migration type options to an offer header to target.
-		offerHeader = migration.TypesToHeader(poolMigrationTypes...)
-	} else {
-		storage, err := storagePoolVolumeInit(state, "default", poolName, volName, storagePoolVolumeTypeCustom)
-		if err != nil {
-			return err
-		}
-		s.storage = storage
-		myType := s.storage.MigrationType()
-		hasFeature := true
-		offerHeader = migration.MigrationHeader{
-			Fs: &myType,
-			RsyncFeatures: &migration.RsyncFeatures{
-				Xattrs:        &hasFeature,
-				Delete:        &hasFeature,
-				Compress:      &hasFeature,
-				Bidirectional: &hasFeature,
-			},
-		}
-
-		// Storage needs to start unconditionally now, since we need to initialize a new
-		// storage interface.
-		ourMount, err := s.storage.StoragePoolVolumeMount()
-		if err != nil {
-			logger.Errorf("Failed to mount storage volume")
-			return err
-		}
-		if ourMount {
-			defer s.storage.StoragePoolVolumeUmount()
-		}
+	if err != nil {
+		return err
 	}
+
+	// The refresh argument passed to MigrationTypes() is always set
+	// to false here. The migration source/sender doesn't need to care whether
+	// or not it's doing a refresh as the migration sink/receiver will know
+	// this, and adjust the migration types accordingly.
+	poolMigrationTypes = pool.MigrationTypes(storageDrivers.ContentTypeFS, false)
+	if len(poolMigrationTypes) < 0 {
+		return fmt.Errorf("No source migration types available")
+	}
+
+	// Convert the pool's migration type options to an offer header to target.
+	offerHeader = migration.TypesToHeader(poolMigrationTypes...)
 
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
@@ -330,82 +299,45 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 	// The migration header to be sent back to source with our target options.
 	var respHeader migration.MigrationHeader
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(state, poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return err
+	if err != nil {
+		return err
+	}
+
+	// Extract the source's migration type and then match it against our pool's
+	// supported types and features. If a match is found the combined features list
+	// will be sent back to requester.
+	respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS, c.refresh))
+	if err != nil {
+		return err
+	}
+
+	// Convert response type to response header and copy snapshot info into it.
+	respHeader = migration.TypesToHeader(respTypes...)
+	respHeader.SnapshotNames = offerHeader.SnapshotNames
+	respHeader.Snapshots = offerHeader.Snapshots
+
+	// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
+	// with the new storage layer.
+	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
+		volTargetArgs := migration.VolumeTargetArgs{
+			Name:          req.Name,
+			Config:        req.Config,
+			Description:   req.Description,
+			MigrationType: respTypes[0],
+			TrackProgress: true,
 		}
 
-		// Extract the source's migration type and then match it against our pool's
-		// supported types and features. If a match is found the combined features list
-		// will be sent back to requester.
-		respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS, c.refresh))
-		if err != nil {
-			return err
-		}
-
-		// Convert response type to response header and copy snapshot info into it.
-		respHeader = migration.TypesToHeader(respTypes...)
-		respHeader.SnapshotNames = offerHeader.SnapshotNames
-		respHeader.Snapshots = offerHeader.Snapshots
-
-		// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
-		// with the new storage layer.
-		myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
-			volTargetArgs := migration.VolumeTargetArgs{
-				Name:          req.Name,
-				Config:        req.Config,
-				Description:   req.Description,
-				MigrationType: respTypes[0],
-				TrackProgress: true,
+		// A zero length Snapshots slice indicates volume only migration in
+		// VolumeTargetArgs. So if VoluneOnly was requested, do not populate them.
+		if !args.VolumeOnly {
+			volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
+			for _, snap := range args.Snapshots {
+				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
 			}
-
-			// A zero length Snapshots slice indicates volume only migration in
-			// VolumeTargetArgs. So if VoluneOnly was requested, do not populate them.
-			if !args.VolumeOnly {
-				volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
-				for _, snap := range args.Snapshots {
-					volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
-				}
-			}
-
-			return pool.CreateCustomVolumeFromMigration(&shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
-		}
-	} else {
-		// Setup legacy storage migration sink if destination pool isn't supported yet by
-		// new storage layer.
-		storage, err := storagePoolVolumeDBCreateInternal(state, poolName, req)
-		if err != nil {
-			return err
 		}
 
-		// Link the storage variable into the migrationSink (like NewStorageMigrationSink
-		// would have done originally).
-		c.src.storage = storage
-		c.dest.storage = storage
-		myTarget = c.src.storage.StorageMigrationSink
-		myType := c.src.storage.MigrationType()
-
-		hasFeature := true
-		respHeader = migration.MigrationHeader{
-			Fs:            &myType,
-			Snapshots:     offerHeader.Snapshots,
-			SnapshotNames: offerHeader.SnapshotNames,
-			RsyncFeatures: &migration.RsyncFeatures{
-				Xattrs:        &hasFeature,
-				Delete:        &hasFeature,
-				Compress:      &hasFeature,
-				Bidirectional: &hasFeature,
-			},
-		}
-
-		// If the storage type the source has doesn't match what we have, then we have to
-		// use rsync.
-		if *offerHeader.Fs != *respHeader.Fs {
-			myTarget = rsyncStorageMigrationSink
-			myType = migration.MigrationFSType_RSYNC
-		}
+		return pool.CreateCustomVolumeFromMigration(&shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
 	}
 
 	err = sender(&respHeader)
