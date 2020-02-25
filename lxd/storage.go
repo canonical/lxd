@@ -52,16 +52,6 @@ var lxdStorageOngoingOperationMap = map[string]chan bool{}
 // lxdStorageMapLock is used to access lxdStorageOngoingOperationMap.
 var lxdStorageMapLock sync.Mutex
 
-// The following functions are used to construct simple operation codes that are
-// unique.
-func getPoolMountLockID(poolName string) string {
-	return fmt.Sprintf("mount/pool/%s", poolName)
-}
-
-func getPoolUmountLockID(poolName string) string {
-	return fmt.Sprintf("umount/pool/%s", poolName)
-}
-
 func getImageCreateLockID(poolName string, fingerprint string) string {
 	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
 }
@@ -100,30 +90,18 @@ func readStoragePoolDriversCache() map[string]string {
 type storageType int
 
 const (
-	storageTypeBtrfs storageType = iota
-	storageTypeCeph
-	storageTypeDir
-	storageTypeLvm
+	storageTypeCeph storageType = iota
 	storageTypeMock
-	storageTypeZfs
 )
 
 var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
 
 func storageTypeToString(sType storageType) (string, error) {
 	switch sType {
-	case storageTypeBtrfs:
-		return "btrfs", nil
 	case storageTypeCeph:
 		return "ceph", nil
-	case storageTypeDir:
-		return "dir", nil
-	case storageTypeLvm:
-		return "lvm", nil
 	case storageTypeMock:
 		return "mock", nil
-	case storageTypeZfs:
-		return "zfs", nil
 	}
 
 	return "", fmt.Errorf("Invalid storage type")
@@ -131,18 +109,10 @@ func storageTypeToString(sType storageType) (string, error) {
 
 func storageStringToType(sName string) (storageType, error) {
 	switch sName {
-	case "btrfs":
-		return storageTypeBtrfs, nil
 	case "ceph":
 		return storageTypeCeph, nil
-	case "dir":
-		return storageTypeDir, nil
-	case "lvm":
-		return storageTypeLvm, nil
 	case "mock":
 		return storageTypeMock, nil
-	case "zfs":
-		return storageTypeZfs, nil
 	}
 
 	return -1, fmt.Errorf("Invalid storage type name")
@@ -261,20 +231,6 @@ func storageCoreInit(driver string) (storage, error) {
 	}
 
 	switch sType {
-	case storageTypeBtrfs:
-		btrfs := storageBtrfs{}
-		err = btrfs.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &btrfs, nil
-	case storageTypeDir:
-		dir := storageDir{}
-		err = dir.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &dir, nil
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		err = ceph.StorageCoreInit()
@@ -282,13 +238,6 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &ceph, nil
-	case storageTypeLvm:
-		lvm := storageLvm{}
-		err = lvm.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		err = mock.StorageCoreInit()
@@ -296,13 +245,6 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &mock, nil
-	case storageTypeZfs:
-		zfs := storageZfs{}
-		err = zfs.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &zfs, nil
 	}
 
 	return nil, fmt.Errorf("invalid storage type")
@@ -324,9 +266,8 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
-	volumeID := int64(-1)
 	if volumeName != "" {
-		volumeID, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
+		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -338,29 +279,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 	}
 
 	switch sType {
-	case storageTypeBtrfs:
-		btrfs := storageBtrfs{}
-		btrfs.poolID = poolID
-		btrfs.pool = pool
-		btrfs.volume = volume
-		btrfs.s = s
-		err = btrfs.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &btrfs, nil
-	case storageTypeDir:
-		dir := storageDir{}
-		dir.poolID = poolID
-		dir.pool = pool
-		dir.volume = volume
-		dir.volumeID = volumeID
-		dir.s = s
-		err = dir.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &dir, nil
 	case storageTypeCeph:
 		ceph := storageCeph{}
 		ceph.poolID = poolID
@@ -372,17 +290,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &ceph, nil
-	case storageTypeLvm:
-		lvm := storageLvm{}
-		lvm.poolID = poolID
-		lvm.pool = pool
-		lvm.volume = volume
-		lvm.s = s
-		err = lvm.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &lvm, nil
 	case storageTypeMock:
 		mock := storageMock{}
 		mock.poolID = poolID
@@ -394,17 +301,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 			return nil, err
 		}
 		return &mock, nil
-	case storageTypeZfs:
-		zfs := storageZfs{}
-		zfs.poolID = poolID
-		zfs.pool = pool
-		zfs.volume = volume
-		zfs.s = s
-		err = zfs.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &zfs, nil
 	}
 
 	return nil, fmt.Errorf("invalid storage type")
@@ -520,7 +416,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = lastIdmap.UnshiftRootfs(remapPath, zfsIdmapSetSkipper)
+				err = lastIdmap.UnshiftRootfs(remapPath, shiftZfsSkipper)
 			} else {
 				err = lastIdmap.UnshiftRootfs(remapPath, nil)
 			}
@@ -538,7 +434,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = nextIdmap.ShiftRootfs(remapPath, zfsIdmapSetSkipper)
+				err = nextIdmap.ShiftRootfs(remapPath, shiftZfsSkipper)
 			} else {
 				err = nextIdmap.ShiftRootfs(remapPath, nil)
 			}

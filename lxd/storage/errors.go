@@ -12,3 +12,6 @@ var ErrNotImplemented = fmt.Errorf("Not implemented")
 
 // ErrRunningQuotaResizeNotSupported is the "Running quota resize not supported" error.
 var ErrRunningQuotaResizeNotSupported = fmt.Errorf("Running quota resize not supported")
+
+// ErrBackupSnapshotsMismatch is the "Backup snapshots mismatch" error.
+var ErrBackupSnapshotsMismatch = fmt.Errorf("Backup snapshots mismatch")
