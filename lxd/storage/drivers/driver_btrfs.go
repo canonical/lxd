@@ -32,6 +32,7 @@ func (d *btrfs) load() error {
 		"storage_create_vm":       nil,
 		"storage_zfs_mount":       nil,
 		"storage_create_vm_again": nil,
+		"storage_zfs_volmode":     nil,
 	}
 
 	// Done if previously loaded.
