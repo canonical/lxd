@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -775,33 +776,6 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
 	}
 
-	if req.Name == "" {
-		var names []string
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-			names, err = tx.InstanceNames(project)
-			return err
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		i := 0
-		for {
-			i++
-			req.Name = strings.ToLower(petname.Generate(2, "-"))
-			if !shared.StringInSlice(req.Name, names) {
-				break
-			}
-
-			if i > 100 {
-				return response.InternalError(fmt.Errorf("Couldn't generate a new unique name after 100 tries"))
-			}
-		}
-
-		logger.Debugf("No name provided, creating %s", req.Name)
-	}
-
 	if req.Devices == nil {
 		req.Devices = map[string]map[string]string{}
 	}
@@ -825,6 +799,62 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
 		return response.BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
+	}
+
+	// Check that the project's limits are not violated. Also, possibly
+	// automatically assign a name.
+	//
+	// Note this check is performed after automatically generated config
+	// values (such as the ones from an InstanceType) have been set.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		if req.Type == "" {
+			switch req.Source.Type {
+			case "copy":
+				if req.Source.Source == "" {
+					return fmt.Errorf("Must specify a source instance")
+				}
+
+				source, err := instance.LoadInstanceDatabaseObject(tx, project, req.Source.Source)
+				if err != nil {
+					return errors.Wrap(err, "Load source instance from database")
+				}
+
+				req.Type = api.InstanceType(source.Type.String())
+			case "migration":
+				req.Type = api.InstanceTypeContainer
+			}
+		}
+
+		err := projecthelpers.CheckLimitsUponInstanceCreation(tx, project, req)
+		if err != nil {
+			return err
+		}
+
+		if req.Name == "" {
+			names, err := tx.InstanceNames(project)
+			if err != nil {
+				return err
+			}
+
+			i := 0
+			for {
+				i++
+				req.Name = strings.ToLower(petname.Generate(2, "-"))
+				if !shared.StringInSlice(req.Name, names) {
+					break
+				}
+
+				if i > 100 {
+					return fmt.Errorf("Couldn't generate a new unique name after 100 tries")
+				}
+			}
+
+			logger.Debugf("No name provided, creating %s", req.Name)
+		}
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	switch req.Source.Type {
