@@ -48,6 +48,9 @@ test_projects_crud() {
   lxc project set foo features.profiles true
   lxc profile show default | grep -E -q '^description: Default LXD profile for project foo$'
 
+  # Invalid config values are rejected.
+  ! lxc project set foo garbage xxx || false
+
   lxc project switch default
 
   # Delete the projects
@@ -467,4 +470,16 @@ test_projects_network() {
   lxc project delete foo
 
   lxc network delete "${network}"
+}
+
+# Set resource limits on projects.
+test_projects_limits() {
+  # Create a project
+  lxc project create p1
+
+  # Instance limits validation
+  ! lxc project set p1 limits.containers xxx || false
+  ! lxc project set p1 limits.virtual-machines -1 || false
+
+  lxc project delete p1
 }

@@ -501,8 +501,13 @@ func projectIsEmpty(project *api.Project) bool {
 
 // Validate the project configuration
 var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles": shared.IsBool,
-	"features.images":   shared.IsBool,
+	"features.profiles":       shared.IsBool,
+	"features.images":         shared.IsBool,
+	"limits.containers":       shared.IsUint32,
+	"limits.virtual-machines": shared.IsUint32,
+	"limits.memory":           shared.IsSize,
+	"limits.processes":        shared.IsUint32,
+	"limits.cpu":              shared.IsUint32,
 }
 
 func projectValidateConfig(config map[string]string) error {
