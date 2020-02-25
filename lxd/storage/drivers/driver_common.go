@@ -2,12 +2,16 @@ package drivers
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -173,4 +177,41 @@ func (d *common) ApplyPatch(name string) error {
 	}
 
 	return patch()
+}
+
+// moveGPTAltHeader moves the GPT alternative header to the end of the disk device supplied.
+// If the device supplied is not detected as not being a GPT disk then no action is taken and nil is returned.
+// If the required sgdisk command is not available a warning is logged, but no error is returned, as really it is
+// the job of the VM quest to ensure the partitions are resized to the size of the disk (as LXD does not dicatate
+// what partition structure (if any) the disk should have. However we do attempt to move the GPT alternative
+// header where possible so that the backup header is where it is expected in case of any corruption with the
+// primary header.
+func (d *common) moveGPTAltHeader(devPath string) error {
+	path, err := exec.LookPath("sgdisk")
+	if err != nil {
+		d.logger.Warn("Skipped moving GPT alternative header to end of disk as sgdisk command not found", log.Ctx{"dev": devPath})
+		return nil
+	}
+
+	_, err = shared.RunCommand(path, "--move-second-header", devPath)
+	if err == nil {
+		d.logger.Debug("Moved GPT alternative header to end of disk", log.Ctx{"dev": devPath})
+		return nil
+	}
+
+	runErr, ok := err.(shared.RunError)
+	if ok {
+		exitError, ok := runErr.Err.(*exec.ExitError)
+		if ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+
+			// sgdisk manpage says exit status 3 means:
+			// "Non-GPT disk detected and no -g option, but operation requires a write action".
+			if waitStatus.ExitStatus() == 3 {
+				return nil // Non-error as non-GPT disk specified.
+			}
+		}
+	}
+
+	return err
 }
