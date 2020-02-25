@@ -20,7 +20,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -63,33 +62,14 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	}
 	defer os.RemoveAll(tmpPath)
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return errors.Wrap(err, "Load instance storage pool")
-		}
+	if err != nil {
+		return errors.Wrap(err, "Load instance storage pool")
+	}
 
-		err = pool.BackupInstance(sourceInst, tmpPath, b.OptimizedStorage(), !b.InstanceOnly(), nil)
-		if err != nil {
-			return errors.Wrap(err, "Backup create")
-		}
-	} else if sourceInst.Type() == instancetype.Container {
-		ourStart, err := sourceInst.StorageStart()
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer sourceInst.StorageStop()
-		}
-
-		ct := sourceInst.(*containerLXC)
-		err = ct.Storage().ContainerBackupCreate(tmpPath, *b, sourceInst)
-		if err != nil {
-			return errors.Wrap(err, "Backup create")
-		}
-	} else {
-		return fmt.Errorf("Instance type not supported")
+	err = pool.BackupInstance(sourceInst, tmpPath, b.OptimizedStorage(), !b.InstanceOnly(), nil)
+	if err != nil {
+		return errors.Wrap(err, "Backup create")
 	}
 
 	// Pack the backup.
@@ -121,17 +101,12 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 	}
 
 	pool, err := storagePools.GetPoolByInstance(s, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && err != db.ErrNoSuchObject {
-		if err != nil {
-			return err
-		}
-
-		info := pool.Driver().Info()
-		indexFile.Backend = info.Name
-	} else {
-		ct := c.(*containerLXC)
-		indexFile.Backend = ct.Storage().GetStorageTypeName()
+	if err != nil {
+		return err
 	}
+
+	info := pool.Driver().Info()
+	indexFile.Backend = info.Name
 
 	if !b.InstanceOnly() {
 		snaps, err := c.Snapshots()

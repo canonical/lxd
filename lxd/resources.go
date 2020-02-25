@@ -8,7 +8,6 @@ import (
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -55,32 +54,14 @@ func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 	var res *api.ResourcesStoragePool
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
-	if err != storageDrivers.ErrUnknownDriver {
-		if err != nil {
-			return response.InternalError(err)
-		}
+	if err != nil {
+		return response.InternalError(err)
+	}
 
-		res, err = pool.GetResources()
-		if err != nil {
-			return response.InternalError(err)
-		}
-	} else { // Fallback to old storage layer.
-		s, err := storagePoolInit(d.State(), poolName)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		err = s.StoragePoolCheck()
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		res, err = s.StoragePoolResources()
-		if err != nil {
-			return response.InternalError(err)
-		}
+	res, err = pool.GetResources()
+	if err != nil {
+		return response.InternalError(err)
 	}
 
 	return response.SyncResponse(true, res)

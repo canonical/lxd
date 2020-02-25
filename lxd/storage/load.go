@@ -15,9 +15,6 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 )
 
-// MockBackend controls whether to run the storage logic in mock mode.
-var MockBackend = false
-
 // volIDFuncMake returns a function that can be supplied to the underlying storage drivers allowing
 // them to lookup the volume ID for a specific volume type and volume name. This function is tied
 // to the Pool ID that it is generated for, meaning the storage drivers do not need to know the ID
@@ -78,11 +75,17 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 	}
 
 	// Handle mock requests.
-	if MockBackend {
+	if state.OS.MockMode {
 		pool := mockBackend{}
 		pool.name = dbPool.Name
 		pool.state = state
 		pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": "mock", "pool": pool.name})
+		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		pool.driver = driver
+
 		return &pool, nil
 	}
 
@@ -120,11 +123,17 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost, 
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 func GetPoolByName(state *state.State, name string) (Pool, error) {
 	// Handle mock requests.
-	if MockBackend {
+	if state.OS.MockMode {
 		pool := mockBackend{}
 		pool.name = name
 		pool.state = state
 		pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": "mock", "pool": pool.name})
+		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		pool.driver = driver
+
 		return &pool, nil
 	}
 

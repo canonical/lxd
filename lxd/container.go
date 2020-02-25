@@ -23,17 +23,13 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
-	"github.com/lxc/lxd/shared/units"
 )
 
 // Helper functions
@@ -55,27 +51,14 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 		inst.Delete()
 	}()
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return nil, errors.Wrap(err, "Load instance storage pool")
-		}
+	if err != nil {
+		return nil, errors.Wrap(err, "Load instance storage pool")
+	}
 
-		err = pool.CreateInstance(inst, nil)
-		if err != nil {
-			return nil, errors.Wrap(err, "Create instance")
-		}
-	} else if inst.Type() == instancetype.Container {
-		ct := inst.(*containerLXC)
-
-		// Now create the empty storage.
-		err = ct.Storage().ContainerCreate(inst)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, fmt.Errorf("Instance type not supported")
+	err = pool.CreateInstance(inst, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Create instance")
 	}
 
 	// Apply any post-storage configuration.
@@ -94,84 +77,14 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 // created in the database to run any storage layer finalisations, and a revert hook that can be
 // run if the instance database load process fails that will remove anything created thus far.
 func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(instance.Instance) error, func(), error) {
-	// Define hook functions that will be returned to caller.
-	var postHook func(instance.Instance) error
-	var revertHook func()
-
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByName(s, info.Pool)
-
-	supportedInstanceType := false
-	if pool != nil {
-		// No concept of instance type in backups yet, so default to container type.
-		volType, err := storagePools.InstanceTypeToVolumeType(instancetype.Container)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// We don't have an instance yet so cannot use GetPoolByInstance, so interrogate the driver
-		// directly for instance type support.
-		for _, supportedType := range pool.Driver().Info().VolumeTypes {
-			if supportedType == volType {
-				supportedInstanceType = true
-			}
-		}
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if err != storageDrivers.ErrUnknownDriver && supportedInstanceType {
-		if err != nil {
-			return nil, nil, err
-		}
-
-		postHook, revertHook, err = pool.CreateInstanceFromBackup(info, srcData, nil)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else { // Fallback to old storage layer.
-
-		// Find the compression algorithm.
-		srcData.Seek(0, 0)
-		tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		pool, err := storagePoolInit(s, info.Pool)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Unpack tarball from the source tar stream.
-		srcData.Seek(0, 0)
-		err = pool.ContainerBackupLoad(info, srcData, tarArgs)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Update pool information in the backup.yaml file.
-		// Requires the volume and snapshots be mounted from pool.ContainerBackupLoad().
-		mountPath := shared.VarPath("storage-pools", info.Pool, "containers", project.Prefix(info.Project, info.Name))
-		err = backup.UpdateInstanceConfigStoragePool(s.Cluster, info, mountPath)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Set revert function to remove the files created so far.
-		revertHook = func() {
-			// Create a temporary container struct (because the container DB record
-			// hasn't been imported yet) for use with storage layer.
-			ctTmp := &containerLXC{name: info.Name, project: info.Project}
-			pool.ContainerDelete(ctTmp)
-		}
-
-		postHook = func(inst instance.Instance) error {
-			_, err = inst.StorageStop()
-			if err != nil {
-				return errors.Wrap(err, "Stop storage pool")
-			}
-
-			return nil
-		}
+	postHook, revertHook, err := pool.CreateInstanceFromBackup(info, srcData, nil)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return postHook, revertHook, nil
@@ -281,36 +194,14 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return nil, errors.Wrap(err, "Load instance storage pool")
-		}
+	if err != nil {
+		return nil, errors.Wrap(err, "Load instance storage pool")
+	}
 
-		err = pool.CreateInstanceFromImage(inst, hash, op)
-		if err != nil {
-			return nil, errors.Wrap(err, "Create instance from image")
-		}
-	} else if inst.Type() == instancetype.Container {
-		metadata := make(map[string]interface{})
-		var tracker *ioprogress.ProgressTracker
-		if op != nil {
-			tracker = &ioprogress.ProgressTracker{
-				Handler: func(percent, speed int64) {
-					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)
-					op.UpdateMetadata(metadata)
-				}}
-		}
-
-		// Now create the storage from an image.
-		ct := inst.(*containerLXC)
-		err = ct.Storage().ContainerCreateFromImage(inst, hash, tracker)
-		if err != nil {
-			return nil, errors.Wrap(err, "Create instance from image")
-		}
-	} else {
-		return nil, fmt.Errorf("Instance type not supported")
+	err = pool.CreateInstanceFromImage(inst, hash, op)
+	if err != nil {
+		return nil, errors.Wrap(err, "Create instance from image")
 	}
 
 	// Apply any post-storage configuration.
@@ -447,41 +338,21 @@ func instanceCreateAsCopy(s *state.State, args db.InstanceArgs, sourceInst insta
 		}
 	}
 
-	// Check if we can load new storage layer for both target and source pool driver types.
 	pool, err := storagePools.GetPoolByInstance(s, inst)
-	_, srcPoolErr := storagePools.GetPoolByInstance(s, sourceInst)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && srcPoolErr != storageDrivers.ErrUnknownDriver && srcPoolErr != storageDrivers.ErrNotImplemented {
+	if err != nil {
+		return nil, errors.Wrap(err, "Load instance storage pool")
+	}
+
+	if refresh {
+		err = pool.RefreshInstance(inst, sourceInst, snapshots, op)
 		if err != nil {
-			return nil, errors.Wrap(err, "Load instance storage pool")
-		}
-
-		if refresh {
-			err = pool.RefreshInstance(inst, sourceInst, snapshots, op)
-			if err != nil {
-				return nil, errors.Wrap(err, "Refresh instance")
-			}
-		} else {
-			err = pool.CreateInstanceFromCopy(inst, sourceInst, !instanceOnly, op)
-			if err != nil {
-				return nil, errors.Wrap(err, "Create instance from copy")
-			}
-		}
-	} else if inst.Type() == instancetype.Container {
-		ct := inst.(*containerLXC)
-
-		if refresh {
-			err = ct.Storage().ContainerRefresh(inst, sourceInst, snapshots)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			err = ct.Storage().ContainerCopy(inst, sourceInst, instanceOnly)
-			if err != nil {
-				return nil, err
-			}
+			return nil, errors.Wrap(err, "Refresh instance")
 		}
 	} else {
-		return nil, fmt.Errorf("Instance type not supported")
+		err = pool.CreateInstanceFromCopy(inst, sourceInst, !instanceOnly, op)
+		if err != nil {
+			return nil, errors.Wrap(err, "Create instance from copy")
+		}
 	}
 
 	// Apply any post-storage configuration.
@@ -569,44 +440,23 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		inst.Delete()
 	}()
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(s, inst)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		err = pool.CreateInstanceSnapshot(inst, sourceInstance, op)
-		if err != nil {
-			return nil, errors.Wrap(err, "Create instance snapshot")
-		}
+	err = pool.CreateInstanceSnapshot(inst, sourceInstance, op)
+	if err != nil {
+		return nil, errors.Wrap(err, "Create instance snapshot")
+	}
 
-		// Mount volume for backup.yaml writing.
-		ourStart, err := pool.MountInstance(sourceInstance, op)
-		if err != nil {
-			return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
-		}
-		if ourStart {
-			defer pool.UnmountInstance(sourceInstance, op)
-		}
-	} else if inst.Type() == instancetype.Container {
-		ct := sourceInstance.(*containerLXC)
-		err = ct.Storage().ContainerSnapshotCreate(inst, sourceInstance)
-		if err != nil {
-			return nil, err
-		}
-
-		// Mount volume for backup.yaml writing.
-		ourStart, err := sourceInstance.StorageStart()
-		if err != nil {
-			return nil, err
-		}
-		if ourStart {
-			defer sourceInstance.StorageStop()
-		}
-
-	} else {
-		return nil, fmt.Errorf("Instance type not supported")
+	// Mount volume for backup.yaml writing.
+	ourStart, err := pool.MountInstance(sourceInstance, op)
+	if err != nil {
+		return nil, errors.Wrap(err, "Create instance snapshot (mount source)")
+	}
+	if ourStart {
+		defer pool.UnmountInstance(sourceInstance, op)
 	}
 
 	// Attempt to update backup.yaml for instance.
@@ -841,67 +691,29 @@ func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Inst
 
 // instanceConfigureInternal applies quota set in volatile "apply_quota" and writes a backup file.
 func instanceConfigureInternal(state *state.State, c instance.Instance) error {
-	// Find the root device
+	// Find the root device.
 	rootDiskDeviceKey, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices().CloneNative())
 	if err != nil {
 		return err
 	}
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return errors.Wrap(err, "Load instance storage pool")
-		}
+	if err != nil {
+		return errors.Wrap(err, "Load instance storage pool")
+	}
 
-		if rootDiskDevice["size"] != "" {
-			err = pool.SetInstanceQuota(c, rootDiskDevice["size"], nil)
+	if rootDiskDevice["size"] != "" {
+		err = pool.SetInstanceQuota(c, rootDiskDevice["size"], nil)
 
-			// If the storage driver can't set the quota now, store in volatile.
-			if err == storagePools.ErrRunningQuotaResizeNotSupported {
-				err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
-				if err != nil {
-					return err
-				}
-			} else if err != nil {
+		// If the storage driver can't set the quota now, store in volatile.
+		if err == storagePools.ErrRunningQuotaResizeNotSupported {
+			err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
+			if err != nil {
 				return err
 			}
-		}
-	} else if c.Type() == instancetype.Container {
-		ourStart, err := c.StorageStart()
-		if err != nil {
+		} else if err != nil {
 			return err
 		}
-
-		ct := c.(*containerLXC)
-
-		// handle quota: at this point, storage is guaranteed to be ready.
-		storage := ct.Storage()
-		if rootDiskDevice["size"] != "" {
-			storageTypeName := storage.GetStorageTypeName()
-			if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
-				err = c.VolatileSet(map[string]string{fmt.Sprintf("volatile.%s.apply_quota", rootDiskDeviceKey): rootDiskDevice["size"]})
-				if err != nil {
-					return err
-				}
-			} else {
-				size, err := units.ParseByteSizeString(rootDiskDevice["size"])
-				if err != nil {
-					return err
-				}
-
-				err = storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		if ourStart {
-			defer c.StorageStop()
-		}
-	} else {
-		return fmt.Errorf("Instance type not supported")
 	}
 
 	err = c.UpdateBackupFile()

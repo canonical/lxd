@@ -23,7 +23,6 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -343,53 +342,23 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(state, s.instance)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && err != db.ErrNoSuchObject {
-		if err != nil {
-			return err
-		}
-
-		// The refresh argument passed to MigrationTypes() is always set
-		// to false here. The migration source/sender doesn't need to care whether
-		// or not it's doing a refresh as the migration sink/receiver will know
-		// this, and adjust the migration types accordingly.
-		poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
-		if len(poolMigrationTypes) < 0 {
-			return fmt.Errorf("No source migration types available")
-		}
-
-		// Convert the pool's migration type options to an offer header to target.
-		// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
-		offerHeader = migration.TypesToHeader(poolMigrationTypes...)
-	} else if s.instance.Type() == instancetype.Container {
-		// Fallback to legacy storage layer and populate the Fs, ZfsFeatures and
-		// RsyncFeatures fields.
-
-		// Storage needs to start unconditionally now, since we need to initialize a new
-		// storage interface.
-		ourStart, err := s.instance.StorageStart()
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer s.instance.StorageStop()
-		}
-
-		myType := ct.Storage().MigrationType()
-		hasFeature := true
-		offerHeader = migration.MigrationHeader{
-			Fs: &myType,
-			RsyncFeatures: &migration.RsyncFeatures{
-				Xattrs:        &hasFeature,
-				Delete:        &hasFeature,
-				Compress:      &hasFeature,
-				Bidirectional: &hasFeature,
-			},
-		}
-	} else {
-		return fmt.Errorf("Instance type not supported")
+	if err != nil {
+		return err
 	}
+
+	// The refresh argument passed to MigrationTypes() is always set
+	// to false here. The migration source/sender doesn't need to care whether
+	// or not it's doing a refresh as the migration sink/receiver will know
+	// this, and adjust the migration types accordingly.
+	poolMigrationTypes = pool.MigrationTypes(storagePools.InstanceContentType(s.instance), false)
+	if len(poolMigrationTypes) < 0 {
+		return fmt.Errorf("No source migration types available")
+	}
+
+	// Convert the pool's migration type options to an offer header to target.
+	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
+	offerHeader = migration.TypesToHeader(poolMigrationTypes...)
 
 	// Add CRIO info to source header.
 	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
@@ -931,114 +900,82 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	var respHeader migration.MigrationHeader
 
 	pool, err := storagePools.GetPoolByInstance(state, c.src.instance)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return err
+	if err != nil {
+		return err
+	}
+
+	// Extract the source's migration type and then match it against our pool's
+	// supported types and features. If a match is found the combined features list
+	// will be sent back to requester.
+	respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
+	if err != nil {
+		return err
+	}
+
+	// Convert response type to response header and copy snapshot info into it.
+	respHeader = migration.TypesToHeader(respTypes...)
+	respHeader.SnapshotNames = offerHeader.SnapshotNames
+	respHeader.Snapshots = offerHeader.Snapshots
+	respHeader.Refresh = &c.refresh
+
+	// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
+	// with the new storage layer.
+	myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
+		volTargetArgs := migration.VolumeTargetArgs{
+			Name:          args.Instance.Name(),
+			MigrationType: respTypes[0],
+			Refresh:       args.Refresh, // Indicate to receiver volume should exist.
+			TrackProgress: false,        // Do not use a progress tracker on receiver.
+			Live:          args.Live,    // Indicates we will get a final rootfs sync.
 		}
 
-		// Extract the source's migration type and then match it against our pool's
-		// supported types and features. If a match is found the combined features list
-		// will be sent back to requester.
-		respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
-		if err != nil {
-			return err
+		// At this point we have already figured out the parent container's root
+		// disk device so we can simply retrieve it from the expanded devices.
+		parentStoragePool := ""
+		parentExpandedDevices := args.Instance.ExpandedDevices()
+		parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
+		if parentLocalRootDiskDeviceKey != "" {
+			parentStoragePool = parentLocalRootDiskDevice["pool"]
 		}
 
-		// Convert response type to response header and copy snapshot info into it.
-		respHeader = migration.TypesToHeader(respTypes...)
-		respHeader.SnapshotNames = offerHeader.SnapshotNames
-		respHeader.Snapshots = offerHeader.Snapshots
-		respHeader.Refresh = &c.refresh
+		if parentStoragePool == "" {
+			return fmt.Errorf("Instance's root device is missing the pool property")
+		}
 
-		// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
-		// with the new storage layer.
-		myTarget = func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error {
-			volTargetArgs := migration.VolumeTargetArgs{
-				Name:          args.Instance.Name(),
-				MigrationType: respTypes[0],
-				Refresh:       args.Refresh, // Indicate to receiver volume should exist.
-				TrackProgress: false,        // Do not use a progress tracker on receiver.
-				Live:          args.Live,    // Indicates we will get a final rootfs sync.
-			}
+		// A zero length Snapshots slice indicates volume only migration in
+		// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
+		if !args.VolumeOnly {
+			volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
+			for _, snap := range args.Snapshots {
+				volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
+				snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
 
-			// At this point we have already figured out the parent container's root
-			// disk device so we can simply retrieve it from the expanded devices.
-			parentStoragePool := ""
-			parentExpandedDevices := args.Instance.ExpandedDevices()
-			parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices.CloneNative())
-			if parentLocalRootDiskDeviceKey != "" {
-				parentStoragePool = parentLocalRootDiskDevice["pool"]
-			}
-
-			if parentStoragePool == "" {
-				return fmt.Errorf("Instance's root device is missing the pool property")
-			}
-
-			// A zero length Snapshots slice indicates volume only migration in
-			// VolumeTargetArgs. So if VolumeOnly was requested, do not populate them.
-			if !args.VolumeOnly {
-				volTargetArgs.Snapshots = make([]string, 0, len(args.Snapshots))
-				for _, snap := range args.Snapshots {
-					volTargetArgs.Snapshots = append(volTargetArgs.Snapshots, *snap.Name)
-					snapArgs := snapshotProtobufToInstanceArgs(args.Instance.Project(), args.Instance.Name(), snap)
-
-					// Ensure that snapshot and parent container have the same
-					// storage pool in their local root disk device. If the root
-					// disk device for the snapshot comes from a profile on the
-					// new instance as well we don't need to do anything.
-					if snapArgs.Devices != nil {
-						snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
-						if snapLocalRootDiskDeviceKey != "" {
-							snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
-						}
+				// Ensure that snapshot and parent container have the same
+				// storage pool in their local root disk device. If the root
+				// disk device for the snapshot comes from a profile on the
+				// new instance as well we don't need to do anything.
+				if snapArgs.Devices != nil {
+					snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapArgs.Devices.CloneNative())
+					if snapLocalRootDiskDeviceKey != "" {
+						snapArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 					}
+				}
 
-					// Check if snapshot exists already and if not then create
-					// a new snapshot DB record so that the storage layer can
-					// populate the volume on the storage device.
-					_, err := instance.LoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
+				// Check if snapshot exists already and if not then create
+				// a new snapshot DB record so that the storage layer can
+				// populate the volume on the storage device.
+				_, err := instance.LoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
+				if err != nil {
+					// Create the snapshot as it doesn't seem to exist.
+					_, err := instanceCreateInternal(state, snapArgs)
 					if err != nil {
-						// Create the snapshot as it doesn't seem to exist.
-						_, err := instanceCreateInternal(state, snapArgs)
-						if err != nil {
-							return err
-						}
+						return err
 					}
 				}
 			}
-
-			return pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
-		}
-	} else if c.src.instance.Type() == instancetype.Container {
-		ct := c.src.instance.(*containerLXC)
-		myTarget = ct.Storage().MigrationSink
-		myType := ct.Storage().MigrationType()
-
-		respHeader = migration.MigrationHeader{
-			Fs:            &myType,
-			Snapshots:     offerHeader.Snapshots,
-			SnapshotNames: offerHeader.SnapshotNames,
-			Refresh:       &c.refresh,
 		}
 
-		// Return those rsync features we know about (with the value sent by the remote).
-		if offerHeader.RsyncFeatures != nil {
-			respHeader.RsyncFeatures = &migration.RsyncFeatures{
-				Xattrs:        offerHeader.RsyncFeatures.Xattrs,
-				Delete:        offerHeader.RsyncFeatures.Delete,
-				Compress:      offerHeader.RsyncFeatures.Compress,
-				Bidirectional: offerHeader.RsyncFeatures.Bidirectional,
-			}
-		}
-
-		// If refresh mode or the storage type the source has doesn't match what we have,
-		// then we have to use rsync.
-		if c.refresh || *offerHeader.Fs != *respHeader.Fs {
-			myTarget = rsyncMigrationSink
-			myType = migration.MigrationFSType_RSYNC
-		}
-	} else {
-		return fmt.Errorf("Instance type not supported")
+		return pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
 	}
 
 	// Add CRIU info to response.

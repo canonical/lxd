@@ -17,6 +17,7 @@ type mockBackend struct {
 	name   string
 	state  *state.State
 	logger logger.Logger
+	driver drivers.Driver
 }
 
 func (b *mockBackend) ID() int64 {
@@ -28,7 +29,7 @@ func (b *mockBackend) Name() string {
 }
 
 func (b *mockBackend) Driver() drivers.Driver {
-	return nil
+	return b.driver
 }
 
 func (b *mockBackend) MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type {

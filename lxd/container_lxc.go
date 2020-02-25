@@ -249,25 +249,16 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 		return nil, err
 	}
 
-	// Initialize the container storage
-	// Check if we can load new storage layer for pool driver type.
+	// Initialize the container storage.
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return nil, err
-		}
-		c.storagePool = pool
-	} else {
-		// Fallback to legacy storage layer.
-		cStorage, err := storagePoolVolumeContainerCreateInit(s, args.Project, storagePool, args.Name)
-		if err != nil {
-			c.Delete()
-			s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, storagePoolVolumeTypeContainer, poolID)
-			logger.Error("Failed to initialize container storage", ctxMap)
-			return nil, err
-		}
-		c.storage = cStorage
+	if err != nil {
+		c.Delete()
+		s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, storagePoolVolumeTypeContainer, poolID)
+		logger.Error("Failed to initialize container storage", ctxMap)
+		return nil, err
 	}
+
+	c.storagePool = pool
 
 	// Setup initial idmap config
 	var idmap *idmap.IdmapSet
@@ -3220,34 +3211,18 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
-		// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-		ourStart, err := pool.MountInstance(c, nil)
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer pool.UnmountInstance(c, nil)
-		}
-	} else {
-		err = c.initStorage()
-		if err != nil {
-			return err
-		}
-
-		ourStart, err := c.mount()
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer c.unmount()
-		}
+	// Ensure that storage is mounted for state path checks and for backup.yaml updates.
+	ourStart, err := pool.MountInstance(c, nil)
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer pool.UnmountInstance(c, nil)
 	}
 
 	// Check for CRIU if necessary, before doing a bunch of filesystem manipulations.
@@ -3454,13 +3429,10 @@ func (c *containerLXC) Delete() error {
 		return err
 	}
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented && err != db.ErrNoSuchObject {
-		if err != nil {
-			return err
-		}
-
+	if err != nil && err != db.ErrNoSuchObject {
+		return err
+	} else if pool != nil {
 		// Check if we're dealing with "lxd import".
 		// "lxd import" is used for disaster recovery, where you already have a container
 		// and snapshots on disk but no DB entry. As such if something has gone wrong during
@@ -3497,66 +3469,6 @@ func (c *containerLXC) Delete() error {
 					return err
 				}
 			}
-		}
-	} else if err != db.ErrNoSuchObject {
-		// Attempt to initialize storage interface for the container.
-		err := c.initStorage()
-		if err != nil {
-			logger.Warnf("Failed to init storage: %v", err)
-		}
-
-		// Get the name and ID of the storage pool the container is attached to. This
-		// reverse-engineering works because container names are globally unique.
-		poolID, poolName, _ := c.storage.GetContainerPoolInfo()
-
-		// Check if we're dealing with "lxd import".
-		// "lxd import" is used for disaster recovery, where you already have a container
-		// and snapshots on disk but no DB entry. As such if something has gone wrong during
-		// the creation of the instance and we are now being asked to delete the instance,
-		// we should not remove the storage volumes themselves as this would cause data loss.
-		isImport := false
-		cName, _, _ := shared.InstanceGetParentAndSnapshotName(c.Name())
-		importingFilePath := storagePools.InstanceImportingFilePath(c.Type(), poolName, c.Project(), cName)
-		if shared.PathExists(importingFilePath) {
-			isImport = true
-		}
-
-		if c.IsSnapshot() {
-			// Remove the snapshot.
-			if c.storage != nil && !isImport {
-				err := c.storage.ContainerSnapshotDelete(c)
-				if err != nil {
-					logger.Warn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
-					return err
-				}
-			}
-		} else {
-			// Remove all snapshots.
-			err := instance.DeleteSnapshots(c.state, c.Project(), c.Name())
-			if err != nil {
-				logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
-				return err
-			}
-
-			// Delete the container from disk.
-			if c.storage != nil && !isImport {
-				_, poolName, _ := c.storage.GetContainerPoolInfo()
-				containerMountPoint := storagePools.GetContainerMountPoint(c.Project(), poolName, c.Name())
-				if shared.PathExists(c.Path()) ||
-					shared.PathExists(containerMountPoint) {
-					err := c.storage.ContainerDelete(c)
-					if err != nil {
-						logger.Error("Failed deleting container storage", log.Ctx{"name": c.Name(), "err": err})
-						return err
-					}
-				}
-			}
-		}
-
-		// Remove volume from storage pool.
-		err = c.state.Cluster.StoragePoolVolumeDelete(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -3640,61 +3552,22 @@ func (c *containerLXC) Rename(newName string) error {
 	// Clean things up.
 	c.cleanup()
 
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
+	if err != nil {
+		return errors.Wrap(err, "Load instance storage pool")
+	}
+
+	if c.IsSnapshot() {
+		_, newSnapName, _ := shared.InstanceGetParentAndSnapshotName(newName)
+		err = pool.RenameInstanceSnapshot(c, newSnapName, nil)
 		if err != nil {
-			return errors.Wrap(err, "Load instance storage pool")
+			return errors.Wrap(err, "Rename instance snapshot")
 		}
-
-		if c.IsSnapshot() {
-			_, newSnapName, _ := shared.InstanceGetParentAndSnapshotName(newName)
-			err = pool.RenameInstanceSnapshot(c, newSnapName, nil)
-			if err != nil {
-				return errors.Wrap(err, "Rename instance snapshot")
-			}
-		} else {
-			err = pool.RenameInstance(c, newName, nil)
-			if err != nil {
-				return errors.Wrap(err, "Rename instance")
-			}
-		}
-	} else if c.Type() == instancetype.Container {
-		// Initialize storage interface for the container.
-		err = c.initStorage()
-		if err != nil {
-			return err
-		}
-
-		// Rename the storage entry.
-		if c.IsSnapshot() {
-			err := c.storage.ContainerSnapshotRename(c, newName)
-			if err != nil {
-				logger.Error("Failed renaming container", ctxMap)
-				return err
-			}
-		} else {
-			err := c.storage.ContainerRename(c, newName)
-			if err != nil {
-				logger.Error("Failed renaming container", ctxMap)
-				return err
-			}
-		}
-
-		poolID, _, _ := c.storage.GetContainerPoolInfo()
-
-		// Rename storage volume for the container.
-		err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
-		if err != nil {
-			logger.Error("Failed renaming storage volume", ctxMap)
-			return err
-		}
-
-		// Update the storage volume name in the storage interface.
-		sNew := c.storage.GetStoragePoolVolumeWritable()
-		c.storage.SetStoragePoolVolumeWritable(&sNew)
 	} else {
-		return fmt.Errorf("Instance type not supported")
+		err = pool.RenameInstance(c, newName, nil)
+		if err != nil {
+			return errors.Wrap(err, "Rename instance")
+		}
 	}
 
 	if !c.IsSnapshot() {
@@ -4951,17 +4824,12 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.cmd})
 	}
 
-	var preservesInodes bool
 	pool, err := c.getStoragePool()
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return err
-		}
-
-		preservesInodes = pool.Driver().Info().PreservesInodes
-	} else {
-		preservesInodes = c.storage.PreservesInodes()
+	if err != nil {
+		return err
 	}
+
+	preservesInodes := pool.Driver().Info().PreservesInodes
 
 	/* This feature was only added in 2.0.1, let's not ask for it
 	 * before then or migrations will fail.
@@ -5816,26 +5684,18 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 
 		var usage int64
 
-		// Check if we can load new storage layer for pool driver type.
 		pool, err := storagePools.GetPoolByInstance(c.state, c)
-		if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-			if err != nil {
-				logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
-				continue
-			}
+		if err != nil {
+			logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
+			continue
+		}
 
-			usage, err = pool.GetInstanceUsage(c)
-			if err != nil {
-				if err != storageDrivers.ErrNotSupported {
-					logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
-				}
-				continue
+		usage, err = pool.GetInstanceUsage(c)
+		if err != nil {
+			if err != storageDrivers.ErrNotSupported {
+				logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
 			}
-		} else {
-			usage, err = c.storage.ContainerGetUsage(c)
-			if err != nil {
-				continue
-			}
+			continue
 		}
 
 		disk[dev.Name] = api.InstanceStateDisk{Usage: usage}
@@ -6033,17 +5893,12 @@ func (c *containerLXC) getStoragePool() (storagePools.Pool, error) {
 
 // getStorageType returns the storage type of the instance's storage pool.
 func (c *containerLXC) getStorageType() (string, error) {
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := c.getStoragePool()
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return "", err
-		}
-
-		return pool.Driver().Info().Name, nil
+	if err != nil {
+		return "", err
 	}
 
-	return storageTypeToString(c.legacyStorage().GetStorageType())
+	return pool.Driver().Info().Name, nil
 }
 
 // StorageStart mounts the instance's rootfs volume. Deprecated.
@@ -6053,23 +5908,13 @@ func (c *containerLXC) StorageStart() (bool, error) {
 
 // mount the instance's rootfs volume if needed.
 func (c *containerLXC) mount() (bool, error) {
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := c.getStoragePool()
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return false, err
-		}
+	if err != nil {
+		return false, err
+	}
 
-		if c.IsSnapshot() {
-			ourMount, err := pool.MountInstanceSnapshot(c, nil)
-			if err != nil {
-				return false, err
-			}
-
-			return ourMount, nil
-		}
-
-		ourMount, err := pool.MountInstance(c, nil)
+	if c.IsSnapshot() {
+		ourMount, err := pool.MountInstanceSnapshot(c, nil)
 		if err != nil {
 			return false, err
 		}
@@ -6077,20 +5922,12 @@ func (c *containerLXC) mount() (bool, error) {
 		return ourMount, nil
 	}
 
-	// Initialize storage interface for the container.
-	err = c.initStorage()
+	ourMount, err := pool.MountInstance(c, nil)
 	if err != nil {
 		return false, err
 	}
 
-	var isOurOperation bool
-	if c.IsSnapshot() {
-		isOurOperation, err = c.storage.ContainerSnapshotStart(c)
-	} else {
-		isOurOperation, err = c.storage.ContainerMount(c)
-	}
-
-	return isOurOperation, err
+	return ourMount, nil
 }
 
 // StorageStop unmounts the instance's rootfs volume. Deprecated.
@@ -6100,23 +5937,13 @@ func (c *containerLXC) StorageStop() (bool, error) {
 
 // unmount the instance's rootfs volume if needed.
 func (c *containerLXC) unmount() (bool, error) {
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := c.getStoragePool()
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return false, err
-		}
+	if err != nil {
+		return false, err
+	}
 
-		if c.IsSnapshot() {
-			unmounted, err := pool.UnmountInstanceSnapshot(c, nil)
-			if err != nil {
-				return false, err
-			}
-
-			return unmounted, nil
-		}
-
-		unmounted, err := pool.UnmountInstance(c, nil)
+	if c.IsSnapshot() {
+		unmounted, err := pool.UnmountInstanceSnapshot(c, nil)
 		if err != nil {
 			return false, err
 		}
@@ -6124,20 +5951,12 @@ func (c *containerLXC) unmount() (bool, error) {
 		return unmounted, nil
 	}
 
-	// Initialize legacy storage interface for the container.
-	err = c.initStorage()
+	unmounted, err := pool.UnmountInstance(c, nil)
 	if err != nil {
 		return false, err
 	}
 
-	var isOurOperation bool
-	if c.IsSnapshot() {
-		isOurOperation, err = c.storage.ContainerSnapshotStop(c)
-	} else {
-		isOurOperation, err = c.storage.ContainerUmount(c, c.Path())
-	}
-
-	return isOurOperation, err
+	return unmounted, nil
 }
 
 // Mount handling
@@ -7050,16 +6869,10 @@ func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, ke
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
 func (c *containerLXC) UpdateBackupFile() error {
-	// Check if we can load new storage layer for pool driver type.
 	pool, err := c.getStoragePool()
-	if err != storageDrivers.ErrUnknownDriver && err != storageDrivers.ErrNotImplemented {
-		if err != nil {
-			return err
-		}
-
-		return pool.UpdateInstanceBackupFile(c, nil)
+	if err != nil {
+		return err
 	}
 
-	// Fallback to legacy backup function for old storage drivers.
-	return instance.WriteBackupFile(c.state, c)
+	return pool.UpdateInstanceBackupFile(c, nil)
 }
