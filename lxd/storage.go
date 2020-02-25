@@ -710,9 +710,17 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 		return fmt.Errorf("Received non-LXC container instance")
 	}
 
-	volumeType, _ := storagePools.VolumeTypeNameToType(volumeTypeName)
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return err
+	}
+
 	pool, err := storagePools.GetPoolByName(state, poolName)
-	// Mount the storage volume
+	if err != nil {
+		return err
+	}
+
+	// Mount the storage volume.
 	ourMount, err := pool.MountCustomVolume(volumeName, nil)
 	if err != nil {
 		return err
@@ -742,6 +750,10 @@ func storageVolumeMount(state *state.State, poolName string, volumeName string, 
 // storageVolumeUmount unmounts a storage volume on a pool.
 func storageVolumeUmount(state *state.State, poolName string, volumeName string, volumeType int) error {
 	pool, err := storagePools.GetPoolByName(state, poolName)
+	if err != nil {
+		return err
+	}
+
 	_, err = pool.UnmountCustomVolume(volumeName, nil)
 	if err != nil {
 		return err
@@ -754,6 +766,10 @@ func storageVolumeUmount(state *state.State, poolName string, volumeName string,
 // return false indicating that the quota needs to be stored in volatile to be applied on next boot.
 func storageRootFSApplyQuota(state *state.State, inst instance.Instance, size string) error {
 	pool, err := storagePools.GetPoolByInstance(state, inst)
+	if err != nil {
+		return err
+	}
+
 	err = pool.SetInstanceQuota(inst, size, nil)
 	if err != nil {
 		return err
