@@ -332,9 +332,9 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 	return result, nil
 }
 
-// ContainerListExpanded loads all containers across all projects and expands
-// their config and devices using the profiles they are associated to.
-func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
+// Load all instances across all projects and expands their config and devices
+// using the profiles they are associated to.
+func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 	instances, err := c.InstanceList(InstanceFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load containers")
