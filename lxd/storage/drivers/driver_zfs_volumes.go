@@ -108,49 +108,41 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		revert.Add(func() { d.DeleteVolume(fsVol, op) })
 	}
 
-	// Mount the dataset.
-	_, err := d.MountVolume(vol, op)
-	if err != nil {
-		return err
-	}
+	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		// Run the volume filler function if supplied.
+		if filler != nil && filler.Fill != nil {
+			if vol.contentType == ContentTypeFS {
+				// Run the filler.
+				err := filler.Fill(mountPath, "")
+				if err != nil {
+					return err
+				}
+			} else {
+				// Get the device path.
+				devPath, err := d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
 
-	if vol.contentType == ContentTypeFS {
-		// Set the permissions.
-		err = vol.EnsureMountPath()
-		if err != nil {
-			d.UnmountVolume(vol, op)
-			return err
+				// Run the filler.
+				err = filler.Fill(mountPath, devPath)
+				if err != nil {
+					return err
+				}
+			}
 		}
-	}
 
-	// Run the volume filler function if supplied.
-	if filler != nil && filler.Fill != nil {
 		if vol.contentType == ContentTypeFS {
-			// Run the filler.
-			err = filler.Fill(vol.MountPath(), "")
+			// Run EnsureMountPath again after mounting and filling to ensure the mount directory has
+			// the correct permissions set.
+			err := vol.EnsureMountPath()
 			if err != nil {
-				d.UnmountVolume(vol, op)
-				return err
-			}
-		} else {
-			// Get the device path.
-			devPath, err := d.GetVolumeDiskPath(vol)
-			if err != nil {
-				d.UnmountVolume(vol, op)
-				return err
-			}
-
-			// Run the filler.
-			err = filler.Fill(vol.MountPath(), devPath)
-			if err != nil {
-				d.UnmountVolume(vol, op)
 				return err
 			}
 		}
-	}
 
-	// Unmount the volume.
-	_, err = d.UnmountVolume(vol, op)
+		return nil
+	}, op)
 	if err != nil {
 		return err
 	}
