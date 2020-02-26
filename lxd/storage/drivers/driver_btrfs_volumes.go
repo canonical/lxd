@@ -65,7 +65,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		err := ensureVolumeBlockFile(vol, rootBlockPath)
+		err := ensureVolumeBlockFile(rootBlockPath, vol.ExpandedConfig("size"))
 		if err != nil {
 			return err
 		}
