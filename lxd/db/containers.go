@@ -340,6 +340,17 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 		return nil, errors.Wrap(err, "Load containers")
 	}
 
+	projects, err := c.ProjectList(ProjectFilter{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Load projects")
+	}
+
+	// Map to check which projects have the profiles features on.
+	projectHasProfiles := map[string]bool{}
+	for _, project := range projects {
+		projectHasProfiles[project.Name] = project.Config["features.profiles"] == "true"
+	}
+
 	profiles, err := c.ProfileList(ProfileFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load profiles")
@@ -358,8 +369,17 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 
 	for i, instance := range instances {
 		profiles := make([]api.Profile, len(instance.Profiles))
+
+		profilesProject := instance.Project
+
+		// If the instance's project does not have the profiles feature
+		// enable, we fall back to the default project.
+		if !projectHasProfiles[profilesProject] {
+			profilesProject = "default"
+		}
+
 		for j, name := range instance.Profiles {
-			profile := profilesByProjectAndName[instance.Project][name]
+			profile := profilesByProjectAndName[profilesProject][name]
 			profiles[j] = *ProfileToAPI(&profile)
 		}
 
