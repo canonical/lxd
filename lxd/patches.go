@@ -24,6 +24,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -494,13 +495,16 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 		poolID = tmp
-
-		s, err := storagePoolInit(d.State(), defaultPoolName)
-		if err != nil {
-			return err
+		poolInfo := api.StoragePoolsPost{
+			StoragePoolPut: api.StoragePoolPut{
+				Config:      poolConfig,
+				Description: "",
+			},
+			Name:   defaultPoolName,
+			Driver: defaultStorageTypeName,
 		}
 
-		err = s.StoragePoolCreate()
+		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo, false, nil)
 		if err != nil {
 			return err
 		}
@@ -791,13 +795,16 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 		poolID = tmp
-
-		s, err := storagePoolInit(d.State(), defaultPoolName)
-		if err != nil {
-			return err
+		poolInfo := api.StoragePoolsPost{
+			StoragePoolPut: api.StoragePoolPut{
+				Config:      poolConfig,
+				Description: "",
+			},
+			Name:   defaultPoolName,
+			Driver: defaultStorageTypeName,
 		}
 
-		err = s.StoragePoolCreate()
+		_, err = storagePools.CreatePool(d.State(), poolID, &poolInfo, false, nil)
 		if err != nil {
 			return err
 		}
