@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-02-13 16:28-0500\n"
+"POT-Creation-Date: 2020-02-26 08:16-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -294,7 +294,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:847
+#: lxc/file.go:844
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
@@ -304,7 +304,7 @@ msgstr "%s n'est pas un répertoire"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompre encore deux fois pour forcer)"
 
-#: lxc/file.go:741
+#: lxc/file.go:738
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' n'est pas un format de fichier pris en charge."
@@ -1367,7 +1367,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:736
+#: lxc/file.go:733
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2693,7 +2693,7 @@ msgstr "Ignorer l'état du conteneur (seulement pour start)"
 msgid "Pull files from instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:364 lxc/file.go:690
+#: lxc/file.go:364 lxc/file.go:687
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -2703,7 +2703,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:626 lxc/file.go:782
+#: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -3565,7 +3565,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:723
+#: lxc/file.go:720
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -4948,7 +4948,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 
 #: lxc/project.go:664
 #, fuzzy
-msgid "switch [<remote>:] <project>"
+msgid "switch [<remote>:]<project>"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
 #: lxc/info.go:575
