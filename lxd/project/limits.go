@@ -140,6 +140,10 @@ func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, confi
 
 	instances = expandInstancesConfig(instances, profiles)
 
+	// List of keys that need to check aggregate values across all project
+	// instances.
+	aggregateKeys := []string{}
+
 	for _, key := range changed {
 		switch key {
 		case "limits.containers":
@@ -149,7 +153,24 @@ func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, confi
 			if err != nil {
 				return err
 			}
+		case "limits.memory":
+			aggregateKeys = append(aggregateKeys, key)
+
 		}
+	}
+
+	if len(aggregateKeys) > 0 {
+		totals, err := getTotalsAcrossInstances(instances, aggregateKeys)
+		if err != nil {
+			return err
+		}
+		for _, key := range aggregateKeys {
+			err := validateAggregateLimit(totals, key, config[key])
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 
 	return nil
@@ -184,6 +205,23 @@ func validateInstanceCountLimit(instances []db.Instance, key, value, project str
 var countConfigInstanceType = map[string]api.InstanceType{
 	"limits.containers":       api.InstanceTypeContainer,
 	"limits.virtual-machines": api.InstanceTypeVM,
+}
+
+// Validates an aggregate limit, checking that the new value is not below the
+// current total amount.
+func validateAggregateLimit(totals map[string]int64, key, value string) error {
+	parser := aggregateLimitConfigValueParsers[key]
+	limit, err := parser(value)
+	if err != nil {
+		errors.Wrapf(err, "Invalid value '%s' for limit %s", value, key)
+	}
+
+	total := totals[key]
+	if limit < total {
+		return fmt.Errorf("'%s' is too low: current total is %s", key, units.GetByteSizeString(total, 1))
+	}
+
+	return nil
 }
 
 // Fetch the given project from the database along with its profiles and instances.
