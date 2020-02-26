@@ -40,6 +40,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 	} else {
+		// Filesystem quotas only used with non-block volume types.
 		revertFunc, err := d.setupInitialQuota(vol)
 		if err != nil {
 			return err
@@ -62,9 +63,17 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		err := ensureVolumeBlockFile(vol, rootBlockPath)
+		err := ensureVolumeBlockFile(rootBlockPath, vol.ExpandedConfig("size"))
 		if err != nil {
 			return err
+		}
+
+		// Move the GPT alt header to end of disk if needed and if filler specified.
+		if vol.IsVMBlock() && filler != nil && filler.Fill != nil {
+			err = d.moveGPTAltHeader(rootBlockPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -236,14 +245,41 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota sets the quota on the volume.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	volPath := vol.MountPath()
+	// For VM block files, resize the file if needed.
+	if vol.contentType == ContentTypeBlock {
+		rootBlockPath, err := d.GetVolumeDiskPath(vol)
+		if err != nil {
+			return err
+		}
 
+		// If size not specified in volume config, then use pool's default block size.
+		if size == "" || size == "0" {
+			size = defaultBlockSize
+		}
+
+		resized, err := genericVFSResizeBlockFile(rootBlockPath, size)
+		if err != nil {
+			return err
+		}
+
+		// Move the GPT alt header to end of disk if needed and resize has taken place.
+		if vol.IsVMBlock() && resized {
+			err = d.moveGPTAltHeader(rootBlockPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	// For non-VM block volumes, set filesystem quota.
 	volID, err := d.getVolID(vol.volType, vol.name)
 	if err != nil {
 		return err
 	}
 
-	return d.setQuota(volPath, volID, size)
+	return d.setQuota(vol.MountPath(), volID, size)
 }
 
 // GetVolumeDiskPath returns the location of a disk volume.

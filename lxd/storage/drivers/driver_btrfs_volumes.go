@@ -57,7 +57,21 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 	// If we are creating a block volume, resize it to the requested size or the default.
 	// We expect the filler function to have converted the qcow2 image to raw into the rootBlockPath.
 	if vol.contentType == ContentTypeBlock {
-		err := ensureVolumeBlockFile(vol, rootBlockPath)
+		err := ensureVolumeBlockFile(rootBlockPath, vol.ExpandedConfig("size"))
+		if err != nil {
+			return err
+		}
+
+		// Move the GPT alt header to end of disk if needed.
+		if vol.IsVMBlock() {
+			err = d.moveGPTAltHeader(rootBlockPath)
+			if err != nil {
+				return err
+			}
+		}
+	} else if vol.contentType == ContentTypeFS {
+		// Set initial quota for filesystem volumes.
+		err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 		if err != nil {
 			return err
 		}
@@ -193,6 +207,12 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
 	// Recursively copy the main volume.
 	err := d.snapshotSubvolume(srcVol.MountPath(), vol.MountPath(), false, true)
+	if err != nil {
+		return err
+	}
+
+	// Set quota for volume.
+	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 	if err != nil {
 		return err
 	}
@@ -358,7 +378,14 @@ func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error 
 		return ErrNotSupported
 	}
 
-	return d.SetVolumeQuota(vol, vol.config["size"], nil)
+	if _, changed := changedConfig["size"]; changed {
+		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
@@ -378,6 +405,35 @@ func (d *btrfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota sets the quota on the volume.
 func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+	// For VM block files, resize the file if needed.
+	if vol.contentType == ContentTypeBlock {
+		rootBlockPath, err := d.GetVolumeDiskPath(vol)
+		if err != nil {
+			return err
+		}
+
+		// If size not specified in volume config, then use pool's default block size.
+		if size == "" || size == "0" {
+			size = defaultBlockSize
+		}
+
+		resized, err := genericVFSResizeBlockFile(rootBlockPath, size)
+		if err != nil {
+			return err
+		}
+
+		// Move the GPT alt header to end of disk if needed and resize has taken place.
+		if vol.IsVMBlock() && resized {
+			err = d.moveGPTAltHeader(rootBlockPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	// For non-VM block volumes, set filesystem quota.
 	volPath := vol.MountPath()
 
 	// Convert to bytes.

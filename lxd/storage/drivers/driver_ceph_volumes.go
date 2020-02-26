@@ -136,6 +136,14 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 				return err
 			}
 
+			// Move the GPT alt header to end of disk if needed.
+			if vol.IsVMBlock() {
+				err = d.moveGPTAltHeader(devPath)
+				if err != nil {
+					return err
+				}
+			}
+
 			return err
 		}, op)
 		if err != nil {
