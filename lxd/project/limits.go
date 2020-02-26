@@ -78,7 +78,7 @@ func checkAggregateInstanceLimits(tx *db.ClusterTx, project *api.Project, instan
 	// across all project instances.
 	aggregateKeys := []string{}
 	for key := range project.Config {
-		if shared.StringInSlice(key, []string{"limits.memory", "limits.processes"}) {
+		if shared.StringInSlice(key, []string{"limits.memory", "limits.processes", "limits.cpu"}) {
 			aggregateKeys = append(aggregateKeys, key)
 		}
 	}
@@ -188,6 +188,8 @@ func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, confi
 				return err
 			}
 		case "limits.processes":
+			fallthrough
+		case "limits.cpu":
 			fallthrough
 		case "limits.memory":
 			aggregateKeys = append(aggregateKeys, key)
@@ -397,6 +399,18 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 		}
 		return int64(limit), nil
 	},
+	"limits.cpu": func(value string) (int64, error) {
+		if strings.Contains(value, ",") || strings.Contains(value, "-") {
+			return -1, fmt.Errorf("CPUs can't be pinned if project limits are used")
+		}
+
+		limit, err := strconv.Atoi(value)
+		if err != nil {
+			return -1, err
+		}
+
+		return int64(limit), nil
+	},
 }
 
 var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
@@ -404,6 +418,9 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 		return units.GetByteSizeString(limit, 1)
 	},
 	"limits.processes": func(limit int64) string {
+		return fmt.Sprintf("%d", limit)
+	},
+	"limits.cpu": func(limit int64) string {
 		return fmt.Sprintf("%d", limit)
 	},
 }
