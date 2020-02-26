@@ -776,7 +776,26 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 	if vol.contentType == ContentTypeBlock {
 		sizeBytes = (sizeBytes / 8192) * 8192
 
-		err := d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
+		oldSizeBytesStr, err := d.getDatasetProperty(d.dataset(vol, false), "volsize")
+		if err != nil {
+			return err
+		}
+
+		oldVolSizeBytesInt, err := strconv.ParseInt(oldSizeBytesStr, 10, 64)
+		if err != nil {
+			return err
+		}
+		oldVolSizeBytes := int64(oldVolSizeBytesInt)
+
+		if oldVolSizeBytes == sizeBytes {
+			return nil
+		}
+
+		if sizeBytes < oldVolSizeBytes {
+			return fmt.Errorf("You cannot shrink block volumes")
+		}
+
+		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("volsize=%d", sizeBytes))
 		if err != nil {
 			return err
 		}
