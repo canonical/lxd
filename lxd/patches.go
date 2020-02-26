@@ -2954,18 +2954,18 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		pool, err := storagePoolInit(d.State(), poolName)
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
 
-		ourMount, err := pool.StoragePoolMount()
+		ourMount, err := pool.Mount()
 		if err != nil {
 			return err
 		}
 
 		if ourMount {
-			defer pool.StoragePoolUmount()
+			defer pool.Unmount()
 		}
 
 		// chmod storage pool directory
@@ -3225,18 +3225,18 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 	// Iterate through all configured pools
 	for _, poolName := range pools {
 		// Make sure the pool is mounted
-		pool, err := storagePoolInit(d.State(), poolName)
+		pool, err := storagePools.GetPoolByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
 
-		ourMount, err := pool.StoragePoolMount()
+		ourMount, err := pool.Mount()
 		if err != nil {
 			return err
 		}
 
 		if ourMount {
-			defer pool.StoragePoolUmount()
+			defer pool.Unmount()
 		}
 
 		// Figure out source/target path
