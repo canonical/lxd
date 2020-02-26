@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
@@ -127,6 +128,62 @@ func CheckLimitsUponInstanceUpdate(tx *db.ClusterTx, projectName, instanceName s
 	}
 
 	return nil
+}
+
+// ValidateLimitsUponProjectUpdate checks the new limits to be set on a project
+// are valid.
+func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
+	_, profiles, instances, err := fetchProject(tx, projectName)
+	if err != nil {
+		return err
+	}
+
+	instances = expandInstancesConfig(instances, profiles)
+
+	for _, key := range changed {
+		switch key {
+		case "limits.containers":
+			fallthrough
+		case "limits.virtual-machines":
+			err := validateInstanceCountLimit(instances, key, config[key], projectName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Check that limits.containers or limits.virtual-machines is equal or above
+// the current count.
+func validateInstanceCountLimit(instances []db.Instance, key, value, project string) error {
+	instanceType := countConfigInstanceType[key]
+	limit, err := strconv.Atoi(value)
+	if err != nil {
+		return err
+	}
+	dbType, err := instancetype.New(string(instanceType))
+	if err != nil {
+		return err
+	}
+	count := 0
+	for _, instance := range instances {
+		if instance.Type == dbType {
+			count++
+		}
+	}
+	if limit < count {
+		return fmt.Errorf(
+			"'%s' is too low: there currently are %d instances of type %s in project %s",
+			key, count, instanceType, project)
+	}
+	return nil
+}
+
+var countConfigInstanceType = map[string]api.InstanceType{
+	"limits.containers":       api.InstanceTypeContainer,
+	"limits.virtual-machines": api.InstanceTypeVM,
 }
 
 // Fetch the given project from the database along with its profiles and instances.
