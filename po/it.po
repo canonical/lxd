@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-02-13 16:28-0500\n"
+"POT-Creation-Date: 2020-02-26 08:16-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -286,7 +286,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (altri %d)"
 
-#: lxc/file.go:847
+#: lxc/file.go:844
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s non è una directory"
@@ -296,7 +296,7 @@ msgstr "%s non è una directory"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompi altre due volte per forzare)"
 
-#: lxc/file.go:741
+#: lxc/file.go:738
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' non è un tipo di file supportato."
@@ -1281,7 +1281,7 @@ msgstr ""
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:736
+#: lxc/file.go:733
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2490,7 +2490,7 @@ msgstr "Creazione del container in corso"
 msgid "Pull files from instances"
 msgstr ""
 
-#: lxc/file.go:364 lxc/file.go:690
+#: lxc/file.go:364 lxc/file.go:687
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -2500,7 +2500,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "Creazione del container in corso"
 
-#: lxc/file.go:626 lxc/file.go:782
+#: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -3308,7 +3308,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:723
+#: lxc/file.go:720
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -4359,8 +4359,9 @@ msgid "switch <remote>"
 msgstr ""
 
 #: lxc/project.go:664
-msgid "switch [<remote>:] <project>"
-msgstr ""
+#, fuzzy
+msgid "switch [<remote>:]<project>"
+msgstr "Creazione del container in corso"
 
 #: lxc/info.go:575
 #, c-format
