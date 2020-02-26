@@ -130,6 +130,30 @@ func CheckLimitsUponInstanceUpdate(tx *db.ClusterTx, projectName, instanceName s
 	return nil
 }
 
+// CheckLimitsUponProfileUpdate checks that project limits are not violated
+// when changing a profile.
+func CheckLimitsUponProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
+	project, profiles, instances, err := fetchProject(tx, projectName)
+	if err != nil {
+		return err
+	}
+
+	// Change the profile being updated.
+	for i, profile := range profiles {
+		if profile.Name != profileName {
+			continue
+		}
+		profiles[i].Config = req.Config
+	}
+
+	err = checkAggregateInstanceLimits(tx, project, instances, profiles)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ValidateLimitsUponProjectUpdate checks the new limits to be set on a project
 // are valid.
 func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
