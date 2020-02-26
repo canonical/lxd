@@ -412,9 +412,9 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 			return err
 		}
 
-		// If size not specified in volume config, then use pool's default volume.size setting.
+		// If size not specified in volume config, then use pool's default block size.
 		if size == "" || size == "0" {
-			size = d.config["volume.size"]
+			size = defaultBlockSize
 		}
 
 		resized, err := genericVFSResizeBlockFile(rootBlockPath, size)
