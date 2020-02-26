@@ -357,7 +357,12 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 }
 
 var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
-	"limits.memory": units.ParseByteSizeString,
+	"limits.memory": func(value string) (int64, error) {
+		if strings.HasSuffix(value, "%") {
+			return -1, fmt.Errorf("Value can't be a percentage")
+		}
+		return units.ParseByteSizeString(value)
+	},
 	"limits.processes": func(value string) (int64, error) {
 		limit, err := strconv.Atoi(value)
 		if err != nil {
