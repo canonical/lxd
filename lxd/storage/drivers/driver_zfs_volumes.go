@@ -485,6 +485,12 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		}
 	}
 
+	// Resize the new volume and filesystem to the correct size.
+	err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), nil)
+	if err != nil {
+		return err
+	}
+
 	// All done.
 	revert.Success()
 
