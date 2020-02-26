@@ -332,12 +332,23 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 	return result, nil
 }
 
-// ContainerListExpanded loads all containers across all projects and expands
-// their config and devices using the profiles they are associated to.
-func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
+// Load all instances across all projects and expands their config and devices
+// using the profiles they are associated to.
+func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 	instances, err := c.InstanceList(InstanceFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Load containers")
+	}
+
+	projects, err := c.ProjectList(ProjectFilter{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Load projects")
+	}
+
+	// Map to check which projects have the profiles features on.
+	projectHasProfiles := map[string]bool{}
+	for _, project := range projects {
+		projectHasProfiles[project.Name] = project.Config["features.profiles"] == "true"
 	}
 
 	profiles, err := c.ProfileList(ProfileFilter{})
@@ -358,8 +369,17 @@ func (c *ClusterTx) ContainerListExpanded() ([]Instance, error) {
 
 	for i, instance := range instances {
 		profiles := make([]api.Profile, len(instance.Profiles))
+
+		profilesProject := instance.Project
+
+		// If the instance's project does not have the profiles feature
+		// enable, we fall back to the default project.
+		if !projectHasProfiles[profilesProject] {
+			profilesProject = "default"
+		}
+
 		for j, name := range instance.Profiles {
-			profile := profilesByProjectAndName[instance.Project][name]
+			profile := profilesByProjectAndName[profilesProject][name]
 			profiles[j] = *ProfileToAPI(&profile)
 		}
 

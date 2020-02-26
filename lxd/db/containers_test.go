@@ -187,7 +187,7 @@ func TestInstanceListExpanded(t *testing.T) {
 	_, err = tx.InstanceCreate(container)
 	require.NoError(t, err)
 
-	containers, err := tx.ContainerListExpanded()
+	containers, err := tx.InstanceListExpanded()
 	require.NoError(t, err)
 
 	assert.Len(t, containers, 1)
