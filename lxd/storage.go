@@ -305,10 +305,6 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 	return nil, fmt.Errorf("invalid storage type")
 }
 
-func storagePoolInit(s *state.State, poolName string) (storage, error) {
-	return storageInit(s, "default", poolName, "", -1)
-}
-
 func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) error {
 	// Load the DB records
 	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
