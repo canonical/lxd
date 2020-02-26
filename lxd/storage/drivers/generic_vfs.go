@@ -247,3 +247,41 @@ func genericVFSBackupVolume(d Driver, vol Volume, targetPath string, snapshots b
 
 	return nil
 }
+
+// genericVFSResizeBlockFile resizes an existing block file to the specified size. Returns true if resize took
+// place, false if not. Both requested size and existing file size are rounded to nearest block size using
+// roundVolumeBlockFileSizeBytes() before decision whether to resize is taken.
+func genericVFSResizeBlockFile(filePath, size string) (bool, error) {
+	if size == "" || size == "0" {
+		return false, fmt.Errorf("Size cannot be zero")
+	}
+
+	fi, err := os.Stat(filePath)
+	if err != nil {
+		return false, err
+	}
+
+	oldSizeBytes := fi.Size()
+
+	// Round the supplied size the same way the block files created are so its accurate comparison.
+	newSizeBytes, err := roundVolumeBlockFileSizeBytes(size)
+	if err != nil {
+		return false, err
+	}
+
+	if newSizeBytes < oldSizeBytes {
+		return false, fmt.Errorf("You cannot shrink block volumes")
+	}
+
+	if newSizeBytes == oldSizeBytes {
+		return false, nil
+	}
+
+	// Resize block file.
+	err = ensureVolumeBlockFile(filePath, size)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}

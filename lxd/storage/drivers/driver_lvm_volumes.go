@@ -50,8 +50,8 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		revert.Add(func() { d.DeleteVolume(fsVol, op) })
 	}
 
-	if filler != nil && filler.Fill != nil {
-		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		if filler != nil && filler.Fill != nil {
 			if vol.contentType == ContentTypeFS {
 				d.logger.Debug("Running filler function", log.Ctx{"path": volPath})
 				err = filler.Fill(mountPath, "")
@@ -71,20 +71,30 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				if err != nil {
 					return err
 				}
-			}
 
-			// Run EnsureMountPath again after mounting to ensure the mount directory has the correct
-			// permissions set.
+				// Move the GPT alt header to end of disk if needed.
+				if vol.IsVMBlock() {
+					err = d.moveGPTAltHeader(devPath)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		if vol.contentType == ContentTypeFS {
+			// Run EnsureMountPath again after mounting and filling to ensure the mount directory has
+			// the correct permissions set.
 			err = vol.EnsureMountPath()
 			if err != nil {
 				return err
 			}
-
-			return nil
-		}, op)
-		if err != nil {
-			return err
 		}
+
+		return nil
+	}, op)
+	if err != nil {
+		return err
 	}
 
 	revert.Success()
@@ -378,6 +388,14 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		if err != nil {
 			return err
 
+		}
+
+		// Move the GPT alt header to end of disk if needed.
+		if vol.IsVMBlock() {
+			err = d.moveGPTAltHeader(volDevPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
