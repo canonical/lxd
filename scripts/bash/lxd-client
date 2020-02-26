@@ -33,6 +33,11 @@ _have lxc && {
       COMPREPLY=( $( compgen -W "$( lxc profile list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
     }
 
+    _lxd_projects()
+    {
+      COMPREPLY=( $( compgen -W "$( lxc project list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
+    }
+
     _lxd_networks()
     {
       COMPREPLY=( $( compgen -W \
@@ -124,6 +129,8 @@ _have lxc && {
       ipv4.routes ipv4.routing ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
       ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.nat.order \
       ipv6.routes ipv6.routing raw.dnsmasq"
+
+    project_keys="features.images features.profiles"
 
     storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
       ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name ceph.osd.data_pool_name \
@@ -302,6 +309,33 @@ _have lxc && {
               ;;
             esac
             ;;
+        esac
+        ;;
+      "project")
+        case $pos in
+          2)
+            COMPREPLY=( $(compgen -W "create delete edit get list rename set show switch unset " -- $cur) )
+            ;;
+
+          3)
+            case ${no_dashargs[2]} in
+              "get"|"set"|"unset"|"create"|"delete"|"edit"|"list"|"show"|"switch"|"rename")
+                _lxd_projects
+                ;;
+            esac
+            ;;
+          4)
+            case ${no_dashargs[2]} in
+              "get"|"set"|"unset")
+                COMPREPLY=( $(compgen -W "$project_keys" -- $cur) )
+                ;;
+            esac
+          5)
+            case ${no_dashargs[2]} in
+              "rename")
+                _lxd_projects
+                ;;
+            esac
         esac
         ;;
       "publish")
