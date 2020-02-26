@@ -71,6 +71,14 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 				if err != nil {
 					return err
 				}
+
+				// Move the GPT alt header to end of disk if needed.
+				if vol.IsVMBlock() {
+					err = d.moveGPTAltHeader(devPath)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 
@@ -380,6 +388,14 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		if err != nil {
 			return err
 
+		}
+
+		// Move the GPT alt header to end of disk if needed.
+		if vol.IsVMBlock() {
+			err = d.moveGPTAltHeader(volDevPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
