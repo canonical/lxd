@@ -104,6 +104,31 @@ func checkAggregateInstanceLimits(tx *db.ClusterTx, project *api.Project, instan
 	return nil
 }
 
+// CheckLimitsUponInstanceUpdate returns an error if any project-specific limit
+// is violated when updating an existing instance.
+func CheckLimitsUponInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut) error {
+	project, profiles, instances, err := fetchProject(tx, projectName)
+	if err != nil {
+		return err
+	}
+
+	// Change the instance being updated.
+	for i, instance := range instances {
+		if instance.Name != instanceName {
+			continue
+		}
+		instances[i].Profiles = req.Profiles
+		instances[i].Config = req.Config
+	}
+
+	err = checkAggregateInstanceLimits(tx, project, instances, profiles)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Fetch the given project from the database along with its profiles and instances.
 func fetchProject(tx *db.ClusterTx, projectName string) (*api.Project, []db.Profile, []db.Instance, error) {
 	project, err := tx.ProjectGet(projectName)
