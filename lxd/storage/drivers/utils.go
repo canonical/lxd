@@ -289,16 +289,11 @@ func createSparseFile(filePath string, sizeBytes int64) error {
 	return nil
 }
 
-// ensureVolumeBlockFile creates or resizes the raw block file for a volume.
-func ensureVolumeBlockFile(vol Volume, path string) error {
-	blockSize := vol.ExpandedConfig("size")
-	if blockSize == "" {
-		blockSize = defaultBlockSize
-	}
-
+// roundVolumeBlockFileSizeBytes parses the supplied size string and then rounds it to the nearest 8k bytes.
+func roundVolumeBlockFileSizeBytes(blockSize string) (int64, error) {
 	blockSizeBytes, err := units.ParseByteSizeString(blockSize)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Qemu requires image files to be in traditional storage block boundaries.
@@ -309,7 +304,20 @@ func ensureVolumeBlockFile(vol Volume, path string) error {
 	}
 
 	// Round the size to closest minBlockBoundary bytes to avoid qemu boundary issues.
-	blockSizeBytes = int64(blockSizeBytes/minBlockBoundary) * minBlockBoundary
+	return int64(blockSizeBytes/minBlockBoundary) * minBlockBoundary, nil
+}
+
+// ensureVolumeBlockFile creates or resizes the raw block file for a volume to the specified size.
+func ensureVolumeBlockFile(path, blockSize string) error {
+	if blockSize == "" {
+		blockSize = defaultBlockSize
+	}
+
+	// Get rounded block size to avoid qemu boundary issues.
+	blockSizeBytes, err := roundVolumeBlockFileSizeBytes(blockSize)
+	if err != nil {
+		return err
+	}
 
 	if shared.PathExists(path) {
 		_, err = shared.RunCommand("qemu-img", "resize", "-f", "raw", path, fmt.Sprintf("%d", blockSizeBytes))
