@@ -52,6 +52,14 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		if err != nil {
 			return err
 		}
+
+		// Move the GPT alt header to end of disk if needed.
+		if vol.IsVMBlock() {
+			err = d.moveGPTAltHeader(rootBlockPath)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// If we are creating a block volume, resize it to the requested size or the default.
