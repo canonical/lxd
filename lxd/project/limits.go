@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -15,9 +16,12 @@ import (
 // CheckLimitsUponInstanceCreation returns an error if any project-specific
 // limit is violated when creating a new instance.
 func CheckLimitsUponInstanceCreation(tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
-	project, profiles, instances, err := fetchProject(tx, projectName)
+	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
+	}
+	if project == nil {
+		return nil
 	}
 
 	err = checkInstanceCountLimit(project, len(instances), req.Type)
@@ -108,9 +112,12 @@ func checkAggregateInstanceLimits(tx *db.ClusterTx, project *api.Project, instan
 // CheckLimitsUponInstanceUpdate returns an error if any project-specific limit
 // is violated when updating an existing instance.
 func CheckLimitsUponInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut) error {
-	project, profiles, instances, err := fetchProject(tx, projectName)
+	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
+	}
+	if project == nil {
+		return nil
 	}
 
 	// Change the instance being updated.
@@ -133,9 +140,12 @@ func CheckLimitsUponInstanceUpdate(tx *db.ClusterTx, projectName, instanceName s
 // CheckLimitsUponProfileUpdate checks that project limits are not violated
 // when changing a profile.
 func CheckLimitsUponProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
-	project, profiles, instances, err := fetchProject(tx, projectName)
+	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
+	}
+	if project == nil {
+		return nil
 	}
 
 	// Change the profile being updated.
@@ -157,7 +167,7 @@ func CheckLimitsUponProfileUpdate(tx *db.ClusterTx, projectName, profileName str
 // ValidateLimitsUponProjectUpdate checks the new limits to be set on a project
 // are valid.
 func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]string, changed []string) error {
-	_, profiles, instances, err := fetchProject(tx, projectName)
+	_, profiles, instances, err := fetchProject(tx, projectName, false)
 	if err != nil {
 		return err
 	}
@@ -251,11 +261,28 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 	return nil
 }
 
+// Return true if the project has some limits.
+func projectHasLimits(project *api.Project) bool {
+	for k := range project.Config {
+		if strings.HasPrefix(k, "limits.") {
+			return true
+		}
+	}
+	return false
+}
+
 // Fetch the given project from the database along with its profiles and instances.
-func fetchProject(tx *db.ClusterTx, projectName string) (*api.Project, []db.Profile, []db.Instance, error) {
+//
+// If the skipIfNoLimits flag is true, profiles and instances won't be loaded
+// if the profile has no limits set on it, and nil will be returned.
+func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*api.Project, []db.Profile, []db.Instance, error) {
 	project, err := tx.ProjectGet(projectName)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "Fetch project database object")
+	}
+
+	if skipIfNoLimits && !projectHasLimits(project) {
+		return nil, nil, nil, nil
 	}
 
 	profilesFilter := db.ProfileFilter{}
