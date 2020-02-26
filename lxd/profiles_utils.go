@@ -9,14 +9,23 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
 
 func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
+	// Check project limits.
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return projecthelpers.CheckLimitsUponProfileUpdate(tx, project, name, req)
+	})
+	if err != nil {
+		return err
+	}
+
 	// Sanity checks
-	err := instance.ValidConfig(d.os, req.Config, true, false)
+	err = instance.ValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return err
 	}
