@@ -661,7 +661,7 @@ type cmdProjectSwitch struct {
 
 func (c *cmdProjectSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("switch [<remote>:] <project>")
+	cmd.Use = i18n.G("switch [<remote>:]<project>")
 	cmd.Short = i18n.G("Switch the current project")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Switch the current project`))

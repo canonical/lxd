@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-02-13 16:28-0500\n"
+"POT-Creation-Date: 2020-02-26 08:16-0500\n"
 "PO-Revision-Date: 2019-11-05 18:27+0000\n"
 "Last-Translator: Hiroaki Nakamura <hnakamur@gmail.com>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -173,7 +173,7 @@ msgstr "%d (id: %d, オンライン: %v)"
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:847
+#: lxc/file.go:844
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -184,7 +184,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:741
+#: lxc/file.go:738
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
@@ -1253,7 +1253,7 @@ msgstr "新しいコンテナ名が取得できません"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:736
+#: lxc/file.go:733
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -2617,7 +2617,7 @@ msgstr "コンテナの出力中: %s"
 msgid "Pull files from instances"
 msgstr "コンテナからファイルを取得します"
 
-#: lxc/file.go:364 lxc/file.go:690
+#: lxc/file.go:364 lxc/file.go:687
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
@@ -2627,7 +2627,7 @@ msgstr "ファイル %s を %s から取得します: %%s"
 msgid "Push files into instances"
 msgstr "コンテナ内にファイルをコピーします"
 
-#: lxc/file.go:626 lxc/file.go:782
+#: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
@@ -3522,7 +3522,7 @@ msgstr "テンポラリファイルを作成できません: %v"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
-#: lxc/file.go:723
+#: lxc/file.go:720
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -4736,7 +4736,8 @@ msgid "switch <remote>"
 msgstr "switch <remote>"
 
 #: lxc/project.go:664
-msgid "switch [<remote>:] <project>"
+#, fuzzy
+msgid "switch [<remote>:]<project>"
 msgstr "switch [<remote>:] <project>"
 
 #: lxc/info.go:575
