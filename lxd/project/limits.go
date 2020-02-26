@@ -74,7 +74,7 @@ func checkAggregateInstanceLimits(tx *db.ClusterTx, project *api.Project, instan
 	// across all project instances.
 	aggregateKeys := []string{}
 	for key := range project.Config {
-		if shared.StringInSlice(key, []string{"limits.memory"}) {
+		if shared.StringInSlice(key, []string{"limits.memory", "limits.processes"}) {
 			aggregateKeys = append(aggregateKeys, key)
 		}
 	}
@@ -177,6 +177,8 @@ func ValidateLimitsUponProjectUpdate(tx *db.ClusterTx, projectName string, confi
 			if err != nil {
 				return err
 			}
+		case "limits.processes":
+			fallthrough
 		case "limits.memory":
 			aggregateKeys = append(aggregateKeys, key)
 
@@ -242,7 +244,8 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 
 	total := totals[key]
 	if limit < total {
-		return fmt.Errorf("'%s' is too low: current total is %s", key, units.GetByteSizeString(total, 1))
+		printer := aggregateLimitConfigValuePrinters[key]
+		return fmt.Errorf("'%s' is too low: current total is %s", key, printer(total))
 	}
 
 	return nil
@@ -355,4 +358,20 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 
 var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 	"limits.memory": units.ParseByteSizeString,
+	"limits.processes": func(value string) (int64, error) {
+		limit, err := strconv.Atoi(value)
+		if err != nil {
+			return -1, err
+		}
+		return int64(limit), nil
+	},
+}
+
+var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
+	"limits.memory": func(limit int64) string {
+		return units.GetByteSizeString(limit, 1)
+	},
+	"limits.processes": func(limit int64) string {
+		return fmt.Sprintf("%d", limit)
+	},
 }
