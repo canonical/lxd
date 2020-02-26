@@ -69,6 +69,12 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 				return err
 			}
 		}
+	} else if vol.contentType == ContentTypeFS {
+		// Set initial quota for filesystem volumes.
+		err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Tweak any permissions that need tweaking.
@@ -201,6 +207,12 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool, op *operations.Operation) error {
 	// Recursively copy the main volume.
 	err := d.snapshotSubvolume(srcVol.MountPath(), vol.MountPath(), false, true)
+	if err != nil {
+		return err
+	}
+
+	// Set quota for volume.
+	err = d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), op)
 	if err != nil {
 		return err
 	}
@@ -366,7 +378,14 @@ func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error 
 		return ErrNotSupported
 	}
 
-	return d.SetVolumeQuota(vol, vol.config["size"], nil)
+	if _, changed := changedConfig["size"]; changed {
+		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetVolumeUsage returns the disk space used by the volume.
