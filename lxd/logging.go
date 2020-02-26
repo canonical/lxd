@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -93,25 +94,19 @@ func expireLogs(ctx context.Context, state *state.State) error {
 			continue
 		}
 
-		// Check if the container still exists.
+		// Check if the instance still exists.
 		if shared.StringInSlice(entry.Name(), names) {
-			// Remove any log file which wasn't modified in the past 48 hours.
-			logs, err := ioutil.ReadDir(shared.LogPath(entry.Name()))
+			instDirEntries, err := ioutil.ReadDir(shared.LogPath(entry.Name()))
 			if err != nil {
 				return err
 			}
 
-			for _, logfile := range logs {
-				path := shared.LogPath(entry.Name(), logfile.Name())
-
-				// Always keep the config files.
-				if logfile.Name() == "lxc.conf" || logfile.Name() == "qemu.conf" {
-					continue
-				}
+			for _, instDirEntry := range instDirEntries {
+				path := shared.LogPath(entry.Name(), instDirEntry.Name())
 
 				// Deal with directories (snapshots).
-				if logfile.IsDir() {
-					newest := newestFile(path, logfile)
+				if instDirEntry.IsDir() {
+					newest := newestFile(path, instDirEntry)
 					if time.Since(newest).Hours() >= 48 {
 						err := os.RemoveAll(path)
 						if err != nil {
@@ -122,11 +117,14 @@ func expireLogs(ctx context.Context, state *state.State) error {
 					continue
 				}
 
-				// Individual files.
-				if time.Since(logfile.ModTime()).Hours() >= 48 {
-					err := os.Remove(path)
-					if err != nil {
-						return err
+				// Only remove old log files (keep other files, such as conf, pid, monitor etc).
+				if strings.HasSuffix(instDirEntry.Name(), ".log") || strings.HasSuffix(instDirEntry.Name(), ".log.old") {
+					// Remove any log file which wasn't modified in the past 48 hours.
+					if time.Since(instDirEntry.ModTime()).Hours() >= 48 {
+						err := os.Remove(path)
+						if err != nil {
+							return err
+						}
 					}
 				}
 			}
