@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-02-13 16:28-0500\n"
+"POT-Creation-Date: 2020-02-26 08:16-0500\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -300,7 +300,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d mehr)"
 
-#: lxc/file.go:847
+#: lxc/file.go:844
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s ist kein Verzeichnis"
@@ -310,7 +310,7 @@ msgstr "%s ist kein Verzeichnis"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (zwei weitere Male unterbrechen, um zu erzwingen)"
 
-#: lxc/file.go:741
+#: lxc/file.go:738
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr ""
@@ -1357,7 +1357,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:736
+#: lxc/file.go:733
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2628,7 +2628,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Pull files from instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:364 lxc/file.go:690
+#: lxc/file.go:364 lxc/file.go:687
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
@@ -2638,7 +2638,7 @@ msgstr ""
 msgid "Push files into instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:626 lxc/file.go:782
+#: lxc/file.go:623 lxc/file.go:779
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -3482,7 +3482,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:723
+#: lxc/file.go:720
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -4775,8 +4775,12 @@ msgid "switch <remote>"
 msgstr ""
 
 #: lxc/project.go:664
-msgid "switch [<remote>:] <project>"
+#, fuzzy
+msgid "switch [<remote>:]<project>"
 msgstr ""
+"Ändert den Laufzustand eines Containers in %s.\n"
+"\n"
+"lxd %s <Name>\n"
 
 #: lxc/info.go:575
 #, c-format
