@@ -129,9 +129,9 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 		return fmt.Errorf("Missing volume ID")
 	}
 
-	// If size not specified in volume config, then use pool's default volume.size setting.
+	// If size not specified in volume config, then use pool's default size setting.
 	if size == "" || size == "0" {
-		size = d.config["volume.size"]
+		size = defaultBlockSize
 	}
 
 	sizeBytes, err := units.ParseByteSizeString(size)
