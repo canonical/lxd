@@ -223,32 +223,6 @@ type storage interface {
 	StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 }
 
-func storageCoreInit(driver string) (storage, error) {
-	sType, err := storageStringToType(driver)
-	if err != nil {
-		return nil, err
-	}
-
-	switch sType {
-	case storageTypeCeph:
-		ceph := storageCeph{}
-		err = ceph.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &ceph, nil
-	case storageTypeMock:
-		mock := storageMock{}
-		err = mock.StorageCoreInit()
-		if err != nil {
-			return nil, err
-		}
-		return &mock, nil
-	}
-
-	return nil, fmt.Errorf("invalid storage type")
-}
-
 func storageInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
 	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
