@@ -458,9 +458,8 @@ type containerLXC struct {
 	idmapset *idmap.IdmapSet
 
 	// Storage
-	// Do not use these variables directly, instead use their associated get functions so they
+	// Do not use this variable directly, instead use their associated get functions so they
 	// will be initialised on demand.
-	storage     storage
 	storagePool storagePools.Pool
 
 	// Clustering
@@ -1801,26 +1800,6 @@ func (c *containerLXC) DeviceEventHandler(runConf *deviceConfig.RunConfig) error
 			}
 		}
 	}
-
-	return nil
-}
-
-// Initialize storage interface for this container
-func (c *containerLXC) initStorage() error {
-	if c.storagePool != nil {
-		logger.Warn("Use of old storage layer when new storage layer is initialised")
-	}
-
-	if c.storage != nil {
-		return nil
-	}
-
-	s, err := storagePoolVolumeContainerLoadInit(c.state, c.Project(), c.Name())
-	if err != nil {
-		return err
-	}
-
-	c.storage = s
 
 	return nil
 }
@@ -5829,20 +5808,6 @@ func (c *containerLXC) processesState() int64 {
 	}
 
 	return int64(len(pids))
-}
-
-// Storage gets instance's legacy storage pool. Deprecated.
-func (c *containerLXC) Storage() storage {
-	return c.legacyStorage()
-}
-
-// legacyStorage returns the instance's legacy storage pool. Deprecated.
-func (c *containerLXC) legacyStorage() storage {
-	if c.storage == nil {
-		c.initStorage()
-	}
-
-	return c.storage
 }
 
 // getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
