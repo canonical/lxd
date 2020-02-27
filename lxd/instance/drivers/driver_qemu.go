@@ -970,6 +970,11 @@ func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 	}
 }
 
+// RegisterDevices is not used by VMs.
+func (vm *qemu) RegisterDevices() {
+	return
+}
+
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
 func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
