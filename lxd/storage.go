@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 
@@ -31,37 +30,6 @@ func init() {
 
 	// Expose storageRootFSApplyQuota to the device package as StorageRootFSApplyQuota.
 	device.StorageRootFSApplyQuota = storageRootFSApplyQuota
-}
-
-// lxdStorageLockMap is a hashmap that allows functions to check whether the
-// operation they are about to perform is already in progress. If it is the
-// channel can be used to wait for the operation to finish. If it is not, the
-// function that wants to perform the operation should store its code in the
-// hashmap.
-// Note that any access to this map must be done while holding a lock.
-var lxdStorageOngoingOperationMap = map[string]chan bool{}
-
-// lxdStorageMapLock is used to access lxdStorageOngoingOperationMap.
-var lxdStorageMapLock sync.Mutex
-
-func getImageCreateLockID(poolName string, fingerprint string) string {
-	return fmt.Sprintf("create/image/%s/%s", poolName, fingerprint)
-}
-
-func getContainerMountLockID(poolName string, containerName string) string {
-	return fmt.Sprintf("mount/container/%s/%s", poolName, containerName)
-}
-
-func getContainerUmountLockID(poolName string, containerName string) string {
-	return fmt.Sprintf("umount/container/%s/%s", poolName, containerName)
-}
-
-func getCustomMountLockID(poolName string, volumeName string) string {
-	return fmt.Sprintf("mount/custom/%s/%s", poolName, volumeName)
-}
-
-func getCustomUmountLockID(poolName string, volumeName string) string {
-	return fmt.Sprintf("umount/custom/%s/%s", poolName, volumeName)
 }
 
 // Simply cache used to storage the activated drivers on this LXD instance. This
@@ -233,89 +201,6 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 	err = s.Cluster.StoragePoolVolumeUpdateByProject("default", volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, storageTypeName string) error {
-	if shared.PathExists(mountPointSymlink) {
-		err := os.Remove(mountPointSymlink)
-		if err != nil {
-			return err
-		}
-	}
-
-	if shared.PathExists(mountPoint) {
-		err := os.Remove(mountPoint)
-		if err != nil {
-			return err
-		}
-	}
-
-	if storageTypeName == "" {
-		return nil
-	}
-
-	mntPointSuffix := storageTypeName
-	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointSymlink,
-		mntPointSuffix)
-	if shared.PathExists(oldStyleMntPointSymlink) {
-		err := os.Remove(oldStyleMntPointSymlink)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func renameContainerMountpoint(oldMountPoint string, oldMountPointSymlink string, newMountPoint string, newMountPointSymlink string) error {
-	if shared.PathExists(oldMountPoint) {
-		err := os.Rename(oldMountPoint, newMountPoint)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Rename the symlink target.
-	if shared.PathExists(oldMountPointSymlink) {
-		err := os.Remove(oldMountPointSymlink)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Create the new symlink.
-	err := os.Symlink(newMountPoint, newMountPointSymlink)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget string, snapshotsSymlink string) error {
-	if shared.PathExists(snapshotMountpoint) {
-		err := os.Remove(snapshotMountpoint)
-		if err != nil {
-			return err
-		}
-	}
-
-	couldRemove := false
-	if shared.PathExists(snapshotsSymlinkTarget) {
-		err := os.Remove(snapshotsSymlinkTarget)
-		if err == nil {
-			couldRemove = true
-		}
-	}
-
-	if couldRemove && shared.PathExists(snapshotsSymlink) {
-		err := os.Remove(snapshotsSymlink)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
