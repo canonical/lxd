@@ -6774,3 +6774,21 @@ func (c *lxc) UpdateBackupFile() error {
 
 	return pool.UpdateInstanceBackupFile(c, nil)
 }
+
+// SaveConfigFile generates the LXC config file on disk.
+func (c *LXC) SaveConfigFile() error {
+	err := c.initLXC(true)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to generate LXC config")
+	}
+
+	// Generate the LXC config.
+	configPath := filepath.Join(c.LogPath(), "lxc.conf")
+	err = c.c.SaveConfigFile(configPath)
+	if err != nil {
+		os.Remove(configPath)
+		return fmt.Errorf("Failed to save LXC config to file %q", configPath, err)
+	}
+
+	return nil
+}
