@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -204,8 +205,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 	etag := []interface{}{
 		project.Description,
-		project.Config["features.images"],
-		project.Config["features.profiles"],
+		project.Config,
 	}
 
 	return response.SyncResponseETag(true, project, etag)
@@ -233,8 +233,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	// Validate ETag
 	etag := []interface{}{
 		project.Description,
-		project.Config["features.images"],
-		project.Config["features.profiles"],
+		project.Config,
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -274,8 +273,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	// Validate ETag
 	etag := []interface{}{
 		project.Description,
-		project.Config["features.images"],
-		project.Config["features.profiles"],
+		project.Config,
 	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -306,14 +304,16 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		req.Description = project.Description
 	}
 
-	_, err = reqRaw.GetBool("features.images")
+	config, err := reqRaw.GetMap("config")
 	if err != nil {
-		req.Config["features.images"] = project.Config["features.images"]
-	}
-
-	_, err = reqRaw.GetBool("features.profiles")
-	if err != nil {
-		req.Config["features.images"] = project.Config["features.profiles"]
+		req.Config = project.Config
+	} else {
+		for k, v := range project.Config {
+			_, ok := config[k]
+			if !ok {
+				config[k] = v
+			}
+		}
 	}
 
 	return projectChange(d, project, req)
@@ -321,8 +321,25 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 // Common logic between PUT and PATCH.
 func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
+	// Make a list of config keys that have changed.
+	configChanged := []string{}
+	for key := range project.Config {
+		if req.Config[key] != project.Config[key] {
+			configChanged = append(configChanged, key)
+		}
+	}
+
+	for key := range req.Config {
+		_, ok := project.Config[key]
+		if !ok {
+			configChanged = append(configChanged, key)
+		}
+	}
+
+	keyHasChanged := func(key string) bool { return shared.StringInSlice(key, configChanged) }
+
 	// Flag indicating if any feature has changed.
-	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
+	featuresChanged := keyHasChanged("features.images") || keyHasChanged("features.profiles")
 
 	// Sanity checks
 	if project.Name == "default" && featuresChanged {
@@ -341,12 +358,17 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 
 	// Update the database entry
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		err := tx.ProjectUpdate(project.Name, req)
+		err := projecthelpers.ValidateLimitsUponProjectUpdate(tx, project.Name, req.Config, configChanged)
+		if err != nil {
+			return err
+		}
+
+		err = tx.ProjectUpdate(project.Name, req)
 		if err != nil {
 			return errors.Wrap(err, "Persist profile changes")
 		}
 
-		if req.Config["features.profiles"] != project.Config["features.profiles"] {
+		if keyHasChanged("features.profiles") {
 			if req.Config["features.profiles"] == "true" {
 				err = projectCreateDefaultProfile(tx, project.Name)
 				if err != nil {
@@ -493,8 +515,13 @@ func projectIsEmpty(project *api.Project) bool {
 
 // Validate the project configuration
 var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles": shared.IsBool,
-	"features.images":   shared.IsBool,
+	"features.profiles":       shared.IsBool,
+	"features.images":         shared.IsBool,
+	"limits.containers":       shared.IsUint32,
+	"limits.virtual-machines": shared.IsUint32,
+	"limits.memory":           shared.IsSize,
+	"limits.processes":        shared.IsUint32,
+	"limits.cpu":              shared.IsUint32,
 }
 
 func projectValidateConfig(config map[string]string) error {

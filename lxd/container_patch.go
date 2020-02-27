@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -118,6 +119,14 @@ func containerPatch(d *Daemon, r *http.Request) response.Response {
 				req.Devices[k] = v
 			}
 		}
+	}
+
+	// Check project limits.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return projecthelpers.CheckLimitsUponInstanceUpdate(tx, project, name, req)
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Update container configuration
