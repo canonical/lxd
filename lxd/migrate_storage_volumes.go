@@ -146,8 +146,8 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 
 func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:    migrationFields{storage: args.Storage, volumeOnly: args.VolumeOnly},
-		dest:   migrationFields{storage: args.Storage, volumeOnly: args.VolumeOnly},
+		src:    migrationFields{volumeOnly: args.VolumeOnly},
+		dest:   migrationFields{volumeOnly: args.VolumeOnly},
 		url:    args.Url,
 		dialer: args.Dialer,
 		push:   args.Push,
@@ -315,7 +315,6 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 			// as part of MigrationSinkArgs below.
 			rsyncFeatures := respHeader.GetRsyncFeaturesSlice()
 			args := MigrationSinkArgs{
-				Storage:       c.dest.storage,
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     respHeader.Snapshots,
 				VolumeOnly:    c.src.volumeOnly,
