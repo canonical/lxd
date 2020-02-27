@@ -90,29 +90,6 @@ func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadS
 	return postHook, revertHook, nil
 }
 
-func containerCreateEmptySnapshot(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
-	// Create the snapshot
-	c, err := instanceCreateInternal(s, args)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.Type() != instancetype.Container {
-		return nil, fmt.Errorf("Instance type must be container")
-	}
-
-	ct := c.(*containerLXC)
-
-	// Now create the empty snapshot
-	err = ct.Storage().ContainerSnapshotCreateEmpty(c)
-	if err != nil {
-		c.Delete()
-		return nil, err
-	}
-
-	return c, nil
-}
-
 // instanceCreateFromImage creates an instance from a rootfs image.
 func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
 	s := d.State()
