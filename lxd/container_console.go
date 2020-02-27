@@ -354,7 +354,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 	ent := response.FileResponseEntry{}
 	if !c.IsRunning() {
 		// Hand back the contents of the console ringbuffer logfile.
@@ -408,7 +408,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 
 	truncateConsoleLogFile := func(path string) error {
 		// Check that this is a regular file. We don't want to try and unlink
