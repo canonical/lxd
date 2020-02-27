@@ -147,40 +147,6 @@ func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSour
 	return rsyncStorageSourceDriver{nil, nil, args.RsyncFeatures}, nil
 }
 
-func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	var snapshots = []instance.Instance{}
-	if !args.InstanceOnly {
-		allSnapshots, err := args.Instance.Snapshots()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, snap := range allSnapshots {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
-			if !shared.StringInSlice(snapName, refreshSnapshots) {
-				continue
-			}
-
-			snapshots = append(snapshots, snap)
-		}
-	}
-
-	return rsyncStorageSourceDriver{args.Instance, snapshots, args.RsyncFeatures}, nil
-}
-
-func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	var err error
-	var snapshots = []instance.Instance{}
-	if !args.InstanceOnly {
-		snapshots, err = args.Instance.Snapshots()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return rsyncStorageSourceDriver{args.Instance, snapshots, args.RsyncFeatures}, nil
-}
-
 func snapshotProtobufToInstanceArgs(project string, containerName string, snap *migration.Snapshot) db.InstanceArgs {
 	config := map[string]string{}
 

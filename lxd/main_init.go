@@ -198,15 +198,8 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 			continue
 		}
 
-		// Check if available as a new style driver.
+		// Check if available as a driver.
 		if shared.StringInSlice(driver, availableDrivers) {
-			drivers = append(drivers, driver)
-			continue
-		}
-
-		// Check if available as an old style driver.
-		_, err := storageCoreInit(driver)
-		if err == nil {
 			drivers = append(drivers, driver)
 			continue
 		}
