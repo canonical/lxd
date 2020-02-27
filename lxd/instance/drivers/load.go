@@ -32,7 +32,7 @@ func load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instanc
 	var err error
 
 	if args.Type == instancetype.Container {
-		inst, err = LXCLoad(s, args, profiles)
+		inst, err = lxcLoad(s, args, profiles)
 	} else if args.Type == instancetype.VM {
 		inst, err = qemuLoad(s, args, profiles)
 	} else {
@@ -88,7 +88,7 @@ func validDevices(state *state.State, cluster *db.Cluster, instanceType instance
 
 func create(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	if args.Type == instancetype.Container {
-		return LXCCreate(s, args)
+		return lxcCreate(s, args)
 	} else if args.Type == instancetype.VM {
 		return qemuCreate(s, args)
 	}
