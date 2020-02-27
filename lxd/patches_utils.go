@@ -11,10 +11,9 @@ import (
 	"strings"
 	"syscall"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -102,7 +101,7 @@ func btrfsSubVolumeDelete(subvol string) error {
 
 func btrfsSubVolumesDelete(subvol string) error {
 	// Delete subsubvols.
-	subsubvols, err := btrfsSubVolumesGet(subvol)
+	subsubvols, err := storageDrivers.BTRFSSubVolumesGet(subvol)
 	if err != nil {
 		return err
 	}
@@ -153,75 +152,6 @@ func btrfsSnapshot(s *state.State, source string, dest string, readonly bool) er
 	}
 
 	return err
-}
-
-func btrfsIsSubVolume(subvolPath string) bool {
-	fs := unix.Stat_t{}
-	err := unix.Lstat(subvolPath, &fs)
-	if err != nil {
-		return false
-	}
-
-	// Check if BTRFS_FIRST_FREE_OBJECTID
-	if fs.Ino != 256 {
-		return false
-	}
-
-	return true
-}
-
-func btrfsSubVolumeIsRo(path string) bool {
-	output, err := shared.RunCommand("btrfs", "property", "get", "-ts", path)
-	if err != nil {
-		return false
-	}
-
-	return strings.HasPrefix(string(output), "ro=true")
-}
-
-func btrfsSubVolumeMakeRo(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "true")
-	return err
-}
-
-func btrfsSubVolumeMakeRw(path string) error {
-	_, err := shared.RunCommand("btrfs", "property", "set", "-ts", path, "ro", "false")
-	return err
-}
-
-func btrfsSubVolumesGet(path string) ([]string, error) {
-	result := []string{}
-
-	if !strings.HasSuffix(path, "/") {
-		path = path + "/"
-	}
-
-	// Unprivileged users can't get to fs internals
-	filepath.Walk(path, func(fpath string, fi os.FileInfo, err error) error {
-		// Skip walk errors
-		if err != nil {
-			return nil
-		}
-
-		// Ignore the base path
-		if strings.TrimRight(fpath, "/") == strings.TrimRight(path, "/") {
-			return nil
-		}
-
-		// Subvolumes can only be directories
-		if !fi.IsDir() {
-			return nil
-		}
-
-		// Check if a btrfs subvolume
-		if btrfsIsSubVolume(fpath) {
-			result = append(result, strings.TrimPrefix(fpath, path))
-		}
-
-		return nil
-	})
-
-	return result, nil
 }
 
 // For 'lvm' storage backend.
