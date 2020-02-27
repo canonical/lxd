@@ -3023,22 +3023,31 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 
 		for _, vol := range volumes {
-			volStruct, err := storagePoolVolumeInit(d.State(), "default", poolName, vol, storagePoolVolumeTypeCustom)
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
 			if err != nil {
 				return err
 			}
 
-			ourMount, err := volStruct.StoragePoolVolumeMount()
-			if err != nil {
-				return err
-			}
-			if ourMount {
-				defer volStruct.StoragePoolVolumeUmount()
-			}
+			// Run task in anonymous function so as not to stack up defers.
+			err = func() error {
+				ourMount, err := pool.MountCustomVolume(vol, nil)
+				if err != nil {
+					return err
+				}
 
-			cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
-			err = os.Chmod(cuMntPoint, 0711)
-			if err != nil && !os.IsNotExist(err) {
+				if ourMount {
+					defer pool.UnmountCustomVolume(vol, nil)
+				}
+
+				cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
+				err = os.Chmod(cuMntPoint, 0711)
+				if err != nil && !os.IsNotExist(err) {
+					return err
+				}
+
+				return nil
+			}()
+			if err != nil {
 				return err
 			}
 		}
