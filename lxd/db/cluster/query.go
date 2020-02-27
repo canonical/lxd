@@ -43,7 +43,7 @@ func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 		return []interface{}{&versions[i][0], &versions[i][1]}
 	}
 
-	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes")
+	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes WHERE pending=0")
 	if err != nil {
 		return nil, err
 	}
