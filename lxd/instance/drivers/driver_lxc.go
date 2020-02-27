@@ -21,7 +21,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
@@ -58,7 +58,7 @@ import (
 )
 
 // Helper functions
-func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
+func lxcSetConfigItem(c *liblxc.Container, key string, value string) error {
 	if c == nil {
 		return fmt.Errorf("Uninitialized go-lxc struct")
 	}
@@ -122,7 +122,7 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 	return nil
 }
 
-func lxcStatusCode(state lxc.State) api.StatusCode {
+func lxcStatusCode(state liblxc.State) api.StatusCode {
 	return map[int]api.StatusCode{
 		1: api.Stopped,
 		2: api.Starting,
@@ -441,7 +441,7 @@ type lxc struct {
 	profiles        []string
 
 	// Cache
-	c       *lxc.Container
+	c       *liblxc.Container
 	cConfig bool
 
 	state    *state.State
@@ -684,7 +684,7 @@ func (c *lxc) initLXC(config bool) error {
 
 	// Load the go-lxc struct
 	cname := project.Prefix(c.Project(), c.Name())
-	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
+	cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -1561,7 +1561,7 @@ func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 	if stopHookNetnsPath == "" {
 		// For some reason, having network config confuses detach, so get our own go-lxc struct.
 		cname := project.Prefix(c.Project(), c.Name())
-		cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
+		cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err != nil {
 			return err
 		}
@@ -2957,18 +2957,18 @@ var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
 // If we don't get a reply, assume the lxc monitor is hung
 func (c *lxc) getLxcState() (liblxc.State, error) {
 	if c.IsSnapshot() {
-		return lxc.StateMap["STOPPED"], nil
+		return liblxc.StateMap["STOPPED"], nil
 	}
 
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
-		return lxc.StateMap["STOPPED"], err
+		return liblxc.StateMap["STOPPED"], err
 	}
 
-	monitor := make(chan lxc.State, 1)
+	monitor := make(chan liblxc.State, 1)
 
-	go func(c *lxc.Container) {
+	go func(c *liblxc.Container) {
 		monitor <- c.State()
 	}(c.c)
 
@@ -4747,13 +4747,13 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 
 	prettyCmd := ""
 	switch args.cmd {
-	case lxc.MIGRATE_PRE_DUMP:
+	case liblxc.MIGRATE_PRE_DUMP:
 		prettyCmd = "pre-dump"
-	case lxc.MIGRATE_DUMP:
+	case liblxc.MIGRATE_DUMP:
 		prettyCmd = "dump"
-	case lxc.MIGRATE_RESTORE:
+	case liblxc.MIGRATE_RESTORE:
 		prettyCmd = "restore"
-	case lxc.MIGRATE_FEATURE_CHECK:
+	case liblxc.MIGRATE_FEATURE_CHECK:
 		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
@@ -4781,7 +4781,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	 * instead of having it be a child of LXD, so let's hijack the command
 	 * here and do the extra fork.
 	 */
-	if args.cmd == lxc.MIGRATE_RESTORE {
+	if args.cmd == liblxc.MIGRATE_RESTORE {
 		// Run the shared start
 		_, postStartHooks, err := c.startCommon()
 		if err != nil {
@@ -4853,13 +4853,13 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 				return err
 			}
 		}
-	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {
+	} else if args.cmd == liblxc.MIGRATE_FEATURE_CHECK {
 		err := c.initLXC(true)
 		if err != nil {
 			return err
 		}
 
-		opts := lxc.MigrateOptions{
+		opts := liblxc.MigrateOptions{
 			FeaturesToCheck: args.features,
 		}
 		migrateErr = c.c.Migrate(args.cmd, opts)
@@ -4891,7 +4891,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		// slow.
 		ghostLimit := uint64(256 * 1024 * 1024)
 
-		opts := lxc.MigrateOptions{
+		opts := liblxc.MigrateOptions{
 			Stop:            args.stop,
 			Directory:       finalStateDir,
 			Verbose:         true,
@@ -6115,7 +6115,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 
 		// Attempt to include all existing interfaces
 		cname := project.Prefix(c.Project(), c.Name())
-		cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
+		cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err == nil {
 			defer cc.Release()
 
@@ -6747,12 +6747,12 @@ func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 		return nil, err
 	}
 
-	cg.UnifiedCapable = lxc.HasApiExtension("cgroup2")
+	cg.UnifiedCapable = liblxc.HasApiExtension("cgroup2")
 	return cg, nil
 }
 
 type lxcCgroupReadWriter struct {
-	cc      *lxc.Container
+	cc      *liblxc.Container
 	conf    bool
 	cgroup2 bool
 }
