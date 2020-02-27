@@ -1,4 +1,4 @@
-package main
+package drivers
 
 import (
 	"bufio"
@@ -34,7 +34,6 @@ import (
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
-	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
@@ -147,9 +146,9 @@ func lxcStatusCode(state lxc.State) api.StatusCode {
 }
 
 // Loader functions
-func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
+func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Create the container struct
-	c := &containerLXC{
+	c := &lxc{
 		state:        s,
 		id:           args.ID,
 		project:      args.Project,
@@ -354,20 +353,20 @@ func containerLXCCreate(s *state.State, args db.InstanceArgs) (instance.Instance
 	return c, nil
 }
 
-func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
+func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instance.Instance, error) {
 	// Create the container struct
-	c := containerLXCInstantiate(s, args, nil)
+	c := lxcInstantiate(s, args, nil)
 
 	// Setup finalizer
-	runtime.SetFinalizer(c, containerLXCUnload)
+	runtime.SetFinalizer(c, lxcUnload)
 
 	// Expand config and devices
-	err := c.(*containerLXC).expandConfig(profiles)
+	err := c.(*lxc).expandConfig(profiles)
 	if err != nil {
 		return nil, err
 	}
 
-	err = c.(*containerLXC).expandDevices(profiles)
+	err = c.(*lxc).expandDevices(profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -376,7 +375,7 @@ func containerLXCLoad(s *state.State, args db.InstanceArgs, profiles []api.Profi
 }
 
 // Unload is called by the garbage collector
-func containerLXCUnload(c *containerLXC) {
+func lxcUnload(c *lxc) {
 	runtime.SetFinalizer(c, nil)
 	if c.c != nil {
 		c.c.Release()
@@ -385,8 +384,8 @@ func containerLXCUnload(c *containerLXC) {
 }
 
 // Create a container struct without initializing it.
-func containerLXCInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
-	c := &containerLXC{
+func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices deviceConfig.Devices) instance.Instance {
+	c := &lxc{
 		state:        s,
 		id:           args.ID,
 		project:      args.Project,
@@ -427,8 +426,8 @@ func containerLXCInstantiate(s *state.State, args db.InstanceArgs, expandedDevic
 	return c
 }
 
-// The LXC container driver
-type containerLXC struct {
+// The LXC container driver.
+type lxc struct {
 	// Properties
 	architecture int
 	dbType       instancetype.Type
@@ -471,7 +470,7 @@ type containerLXC struct {
 	expiryDate time.Time
 }
 
-func (c *containerLXC) Type() instancetype.Type {
+func (c *lxc) Type() instancetype.Type {
 	return c.dbType
 }
 
@@ -659,7 +658,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container")
 }
 
-func (c *containerLXC) init() error {
+func (c *lxc) init() error {
 	// Compute the expanded config and device list
 	err := c.expandConfig(nil)
 	if err != nil {
@@ -674,7 +673,7 @@ func (c *containerLXC) init() error {
 	return nil
 }
 
-func (c *containerLXC) initLXC(config bool) error {
+func (c *lxc) initLXC(config bool) error {
 	// No need to go through all that for snapshots
 	if c.IsSnapshot() {
 		return nil
@@ -1275,7 +1274,7 @@ func (c *containerLXC) initLXC(config bool) error {
 }
 
 // runHooks executes the callback functions returned from a function.
-func (c *containerLXC) runHooks(hooks []func() error) error {
+func (c *lxc) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
 	if len(hooks) > 0 {
 		for _, hook := range hooks {
@@ -1290,7 +1289,7 @@ func (c *containerLXC) runHooks(hooks []func() error) error {
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (c *containerLXC) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
+func (c *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
 	var err error
 
@@ -1312,7 +1311,7 @@ func (c *containerLXC) deviceLoad(deviceName string, rawConfig deviceConfig.Devi
 }
 
 // deviceAdd loads a new device and calls its Add() function.
-func (c *containerLXC) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
+func (c *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1324,7 +1323,7 @@ func (c *containerLXC) deviceAdd(deviceName string, rawConfig deviceConfig.Devic
 // deviceStart loads a new device and calls its Start() function. After processing the runtime
 // config returned from Start(), it also runs the device's Register() function irrespective of
 // whether the container is running or not.
-func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
+func (c *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, isRunning bool) (*deviceConfig.RunConfig, error) {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
@@ -1389,7 +1388,7 @@ func (c *containerLXC) deviceStart(deviceName string, rawConfig deviceConfig.Dev
 }
 
 // deviceStaticShiftMounts statically shift device mount files ownership to active idmap if needed.
-func (c *containerLXC) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) error {
+func (c *lxc) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryItem) error {
 	idmapSet, err := c.CurrentIdmap()
 	if err != nil {
 		return fmt.Errorf("Failed to get idmap for device: %s", err)
@@ -1417,7 +1416,7 @@ func (c *containerLXC) deviceStaticShiftMounts(mounts []deviceConfig.MountEntryI
 }
 
 // deviceAddCgroupRules live adds cgroup rules to a container.
-func (c *containerLXC) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
+func (c *lxc) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem) error {
 	cg, err := c.cgroup(nil)
 	if err != nil {
 		return err
@@ -1440,7 +1439,7 @@ func (c *containerLXC) deviceAddCgroupRules(cgroups []deviceConfig.RunConfigItem
 }
 
 // deviceAttachNIC live attaches a NIC device to a container.
-func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
+func (c *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
 	for _, dev := range netIF {
 		if dev.Key == "link" {
@@ -1469,7 +1468,7 @@ func (c *containerLXC) deviceAttachNIC(configCopy map[string]string, netIF []dev
 }
 
 // deviceUpdate loads a new device and calls its Update() function.
-func (c *containerLXC) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
+func (c *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, isRunning bool) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
@@ -1484,7 +1483,7 @@ func (c *containerLXC) deviceUpdate(deviceName string, rawConfig deviceConfig.De
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (c *containerLXC) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
+func (c *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, stopHookNetnsPath string) error {
 	d, configCopy, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1553,7 +1552,7 @@ func (c *containerLXC) deviceStop(deviceName string, rawConfig deviceConfig.Devi
 }
 
 // deviceDetachNIC detaches a NIC device from a container.
-func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem, stopHookNetnsPath string) error {
+func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig.RunConfigItem, stopHookNetnsPath string) error {
 	// Get requested device name to detach interface back to on the host.
 	devName := ""
 	for _, dev := range netIF {
@@ -1614,7 +1613,7 @@ func (c *containerLXC) deviceDetachNIC(configCopy map[string]string, netIF []dev
 
 // deviceHandleMounts live attaches or detaches mounts on a container.
 // If the mount DevPath is empty the mount action is treated as unmount.
-func (c *containerLXC) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
+func (c *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 	for _, mount := range mounts {
 		if mount.DevPath != "" {
 			flags := 0
@@ -1661,7 +1660,7 @@ func (c *containerLXC) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) 
 }
 
 // deviceRemove loads a new device and calls its Remove() function.
-func (c *containerLXC) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
+func (c *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device) error {
 	d, _, err := c.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
@@ -1681,7 +1680,7 @@ func (c *containerLXC) deviceRemove(deviceName string, rawConfig deviceConfig.De
 
 // deviceVolatileGetFunc returns a function that retrieves a named device's volatile config and
 // removes its device prefix from the keys.
-func (c *containerLXC) deviceVolatileGetFunc(devName string) func() map[string]string {
+func (c *lxc) deviceVolatileGetFunc(devName string) func() map[string]string {
 	return func() map[string]string {
 		volatile := make(map[string]string)
 		prefix := fmt.Sprintf("volatile.%s.", devName)
@@ -1696,7 +1695,7 @@ func (c *containerLXC) deviceVolatileGetFunc(devName string) func() map[string]s
 
 // deviceVolatileSetFunc returns a function that can be called to save a named device's volatile
 // config using keys that do not have the device's name prefixed.
-func (c *containerLXC) deviceVolatileSetFunc(devName string) func(save map[string]string) error {
+func (c *lxc) deviceVolatileSetFunc(devName string) func(save map[string]string) error {
 	return func(save map[string]string) error {
 		volatileSave := make(map[string]string)
 		for k, v := range save {
@@ -1709,7 +1708,7 @@ func (c *containerLXC) deviceVolatileSetFunc(devName string) func(save map[strin
 
 // deviceResetVolatile resets a device's volatile data when its removed or updated in such a way
 // that it is removed then added immediately afterwards.
-func (c *containerLXC) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
+func (c *lxc) deviceResetVolatile(devName string, oldConfig, newConfig deviceConfig.Device) error {
 	volatileClear := make(map[string]string)
 	devicePrefix := fmt.Sprintf("volatile.%s.", devName)
 
@@ -1746,7 +1745,7 @@ func (c *containerLXC) deviceResetVolatile(devName string, oldConfig, newConfig 
 }
 
 // DeviceEventHandler actions the results of a RunConfig after an event has occurred on a device.
-func (c *containerLXC) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
+func (c *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	// Device events can only be processed when the container is running.
 	if !c.IsRunning() {
 		return nil
@@ -1807,7 +1806,7 @@ func (c *containerLXC) DeviceEventHandler(runConf *deviceConfig.RunConfig) error
 }
 
 // Config handling
-func (c *containerLXC) expandConfig(profiles []api.Profile) error {
+func (c *lxc) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
 		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
@@ -1821,7 +1820,7 @@ func (c *containerLXC) expandConfig(profiles []api.Profile) error {
 	return nil
 }
 
-func (c *containerLXC) expandDevices(profiles []api.Profile) error {
+func (c *lxc) expandDevices(profiles []api.Profile) error {
 	if profiles == nil && len(c.profiles) > 0 {
 		var err error
 		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
@@ -1886,7 +1885,7 @@ func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 }
 
 // Start functions
-func (c *containerLXC) startCommon() (string, []func() error, error) {
+func (c *lxc) startCommon() (string, []func() error, error) {
 	var ourStart bool
 	postStartHooks := []func() error{}
 
@@ -2247,7 +2246,7 @@ func (c *containerLXC) startCommon() (string, []func() error, error) {
 
 // detachInterfaceRename enters the container's network namespace and moves the named interface
 // in ifName back to the network namespace of the running process as the name specified in hostName.
-func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostName string) error {
+func (c *lxc) detachInterfaceRename(netns string, ifName string, hostName string) error {
 	lxdPID := os.Getpid()
 
 	// Run forknet detach
@@ -2269,7 +2268,7 @@ func (c *containerLXC) detachInterfaceRename(netns string, ifName string, hostNa
 	return nil
 }
 
-func (c *containerLXC) Start(stateful bool) error {
+func (c *lxc) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
@@ -2313,14 +2312,14 @@ func (c *containerLXC) Start(stateful bool) error {
 			return fmt.Errorf("Container has no existing state to restore")
 		}
 
-		criuMigrationArgs := CriuMigrationArgs{
-			cmd:          lxc.MIGRATE_RESTORE,
-			stateDir:     c.StatePath(),
-			function:     "snapshot",
-			stop:         false,
-			actionScript: false,
-			dumpDir:      "",
-			preDumpDir:   "",
+		criuMigrationArgs := instance.CriuMigrationArgs{
+			Cmd:          liblxc.MIGRATE_RESTORE,
+			StateDir:     c.StatePath(),
+			Function:     "snapshot",
+			Stop:         false,
+			ActionScript: false,
+			DumpDir:      "",
+			PreDumpDir:   "",
 		}
 
 		err := c.Migrate(&criuMigrationArgs)
@@ -2421,7 +2420,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	return nil
 }
 
-func (c *containerLXC) OnStart() error {
+func (c *lxc) OnStart() error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
@@ -2478,7 +2477,7 @@ func (c *containerLXC) OnStart() error {
 
 	// Apply network priority
 	if c.expandedConfig["limits.network.priority"] != "" {
-		go func(c *containerLXC) {
+		go func(c *lxc) {
 			c.fromHook = false
 			err := c.setNetworkPriority()
 			if err != nil {
@@ -2511,7 +2510,7 @@ func (c *containerLXC) OnStart() error {
 }
 
 // Stop functions
-func (c *containerLXC) Stop(stateful bool) error {
+func (c *lxc) Stop(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Check that we're not already stopped
@@ -2549,14 +2548,14 @@ func (c *containerLXC) Stop(stateful bool) error {
 			return err
 		}
 
-		criuMigrationArgs := CriuMigrationArgs{
-			cmd:          lxc.MIGRATE_DUMP,
-			stateDir:     stateDir,
-			function:     "snapshot",
-			stop:         true,
-			actionScript: false,
-			dumpDir:      "",
-			preDumpDir:   "",
+		criuMigrationArgs := instance.CriuMigrationArgs{
+			Cmd:          liblxc.MIGRATE_DUMP,
+			StateDir:     stateDir,
+			Function:     "snapshot",
+			Stop:         true,
+			ActionScript: false,
+			DumpDir:      "",
+			PreDumpDir:   "",
 		}
 
 		// Checkpoint
@@ -2652,7 +2651,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	return nil
 }
 
-func (c *containerLXC) Shutdown(timeout time.Duration) error {
+func (c *lxc) Shutdown(timeout time.Duration) error {
 	var ctxMap log.Ctx
 
 	// Check that we're not already stopped
@@ -2715,7 +2714,7 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 
 // OnStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
 // namespaces have been closed. The netns path of the stopped container is provided.
-func (c *containerLXC) OnStopNS(target string, netns string) error {
+func (c *lxc) OnStopNS(target string, netns string) error {
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		logger.Error("Container sent invalid target to OnStopNS", log.Ctx{"container": c.Name(), "target": target})
@@ -2730,7 +2729,7 @@ func (c *containerLXC) OnStopNS(target string, netns string) error {
 
 // OnStop is triggered by LXC's post-stop hook once a container is shutdown and after the
 // container's namespaces have been closed.
-func (c *containerLXC) OnStop(target string) error {
+func (c *lxc) OnStop(target string) error {
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		logger.Error("Container sent invalid target to OnStop", log.Ctx{"container": c.Name(), "target": target})
@@ -2795,7 +2794,7 @@ func (c *containerLXC) OnStop(target string) error {
 		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 	}
 
-	go func(c *containerLXC, target string, op *operationlock.InstanceOperation) {
+	go func(c *lxc, target string, op *operationlock.InstanceOperation) {
 		c.fromHook = false
 		err = nil
 
@@ -2845,7 +2844,7 @@ func (c *containerLXC) OnStop(target string) error {
 }
 
 // cleanupDevices performs any needed device cleanup steps when container is stopped.
-func (c *containerLXC) cleanupDevices(netns string) {
+func (c *lxc) cleanupDevices(netns string) {
 	for _, dev := range c.expandedDevices.Sorted() {
 		// Use the device interface if device supports it.
 		err := c.deviceStop(dev.Name, dev.Config, netns)
@@ -2858,7 +2857,7 @@ func (c *containerLXC) cleanupDevices(netns string) {
 }
 
 // Freezer functions
-func (c *containerLXC) Freeze() error {
+func (c *lxc) Freeze() error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
@@ -2911,7 +2910,7 @@ func (c *containerLXC) Freeze() error {
 	return err
 }
 
-func (c *containerLXC) Unfreeze() error {
+func (c *lxc) Unfreeze() error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
@@ -2965,7 +2964,7 @@ var LxcMonitorStateError = fmt.Errorf("Monitor is hung")
 
 // Get lxc container state, with 1 second timeout
 // If we don't get a reply, assume the lxc monitor is hung
-func (c *containerLXC) getLxcState() (lxc.State, error) {
+func (c *lxc) getLxcState() (liblxc.State, error) {
 	if c.IsSnapshot() {
 		return lxc.StateMap["STOPPED"], nil
 	}
@@ -2986,11 +2985,11 @@ func (c *containerLXC) getLxcState() (lxc.State, error) {
 	case state := <-monitor:
 		return state, nil
 	case <-time.After(5 * time.Second):
-		return lxc.StateMap["FROZEN"], LxcMonitorStateError
+		return liblxc.StateMap["FROZEN"], LxcMonitorStateError
 	}
 }
 
-func (c *containerLXC) Render() (interface{}, interface{}, error) {
+func (c *lxc) Render() (interface{}, interface{}, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(c.architecture)
 
@@ -3049,7 +3048,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	return &ct, etag, nil
 }
 
-func (c *containerLXC) RenderFull() (*api.InstanceFull, interface{}, error) {
+func (c *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
 	if c.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull only works with containers")
 	}
@@ -3107,7 +3106,7 @@ func (c *containerLXC) RenderFull() (*api.InstanceFull, interface{}, error) {
 	return &ct, etag, nil
 }
 
-func (c *containerLXC) RenderState() (*api.InstanceState, error) {
+func (c *lxc) RenderState() (*api.InstanceState, error) {
 	cState, err := c.getLxcState()
 	if err != nil {
 		return nil, err
@@ -3131,7 +3130,7 @@ func (c *containerLXC) RenderState() (*api.InstanceState, error) {
 	return &status, nil
 }
 
-func (c *containerLXC) Snapshots() ([]instance.Instance, error) {
+func (c *lxc) Snapshots() ([]instance.Instance, error) {
 	var snaps []db.Instance
 
 	if c.IsSnapshot() {
@@ -3166,7 +3165,7 @@ func (c *containerLXC) Snapshots() ([]instance.Instance, error) {
 	return instances, nil
 }
 
-func (c *containerLXC) Backups() ([]backup.Backup, error) {
+func (c *lxc) Backups() ([]backup.Backup, error) {
 	// Get all the backups
 	backupNames, err := c.state.Cluster.ContainerGetBackups(c.project, c.name)
 	if err != nil {
@@ -3188,7 +3187,7 @@ func (c *containerLXC) Backups() ([]backup.Backup, error) {
 }
 
 // Restore restores a snapshot.
-func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool) error {
+func (c *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
@@ -3313,14 +3312,14 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 		logger.Debug("Performing stateful restore", ctxMap)
 		c.stateful = true
 
-		criuMigrationArgs := CriuMigrationArgs{
-			cmd:          lxc.MIGRATE_RESTORE,
-			stateDir:     c.StatePath(),
-			function:     "snapshot",
-			stop:         false,
-			actionScript: false,
-			dumpDir:      "",
-			preDumpDir:   "",
+		criuMigrationArgs := instance.CriuMigrationArgs{
+			Cmd:          liblxc.MIGRATE_RESTORE,
+			StateDir:     c.StatePath(),
+			Function:     "snapshot",
+			Stop:         false,
+			ActionScript: false,
+			DumpDir:      "",
+			PreDumpDir:   "",
 		}
 
 		// Checkpoint.
@@ -3360,7 +3359,7 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 	return nil
 }
 
-func (c *containerLXC) cleanup() {
+func (c *lxc) cleanup() {
 	// Unmount any leftovers
 	c.removeUnixDevices()
 	c.removeDiskDevices()
@@ -3376,7 +3375,7 @@ func (c *containerLXC) cleanup() {
 	os.RemoveAll(c.ShmountsPath())
 }
 
-func (c *containerLXC) Delete() error {
+func (c *lxc) Delete() error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
@@ -3490,7 +3489,7 @@ func (c *containerLXC) Delete() error {
 	return nil
 }
 
-func (c *containerLXC) Rename(newName string) error {
+func (c *lxc) Rename(newName string) error {
 	oldName := c.Name()
 	ctxMap := log.Ctx{
 		"project":   c.project,
@@ -3636,7 +3635,7 @@ func (c *containerLXC) Rename(newName string) error {
 	return nil
 }
 
-func (c *containerLXC) CGroupGet(key string) (string, error) {
+func (c *lxc) CGroupGet(key string) (string, error) {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
@@ -3652,7 +3651,7 @@ func (c *containerLXC) CGroupGet(key string) (string, error) {
 	return strings.Join(value, "\n"), nil
 }
 
-func (c *containerLXC) CGroupSet(key string, value string) error {
+func (c *lxc) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
@@ -3672,7 +3671,7 @@ func (c *containerLXC) CGroupSet(key string, value string) error {
 	return nil
 }
 
-func (c *containerLXC) VolatileSet(changes map[string]string) error {
+func (c *lxc) VolatileSet(changes map[string]string) error {
 	// Sanity check
 	for key := range changes {
 		if !strings.HasPrefix(key, "volatile.") {
@@ -3710,7 +3709,7 @@ func (c *containerLXC) VolatileSet(changes map[string]string) error {
 	return nil
 }
 
-func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
+func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Set sane defaults for unset keys
 	if args.Project == "" {
 		args.Project = "default"
@@ -4433,7 +4432,7 @@ func (c *containerLXC) Update(args db.InstanceArgs, userRequested bool) error {
 	return nil
 }
 
-func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
+func (c *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices deviceConfig.Devices, updateDevices deviceConfig.Devices, oldExpandedDevices deviceConfig.Devices) error {
 	isRunning := c.IsRunning()
 
 	// Remove devices in reverse order to how they were added.
@@ -4488,7 +4487,7 @@ func (c *containerLXC) updateDevices(removeDevices deviceConfig.Devices, addDevi
 	return nil
 }
 
-func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
+func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 	ctxMap := log.Ctx{
 		"project":   c.project,
 		"name":      c.name,
@@ -4735,18 +4734,7 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
-type CriuMigrationArgs struct {
-	cmd          uint
-	stateDir     string
-	function     string
-	stop         bool
-	actionScript bool
-	dumpDir      string
-	preDumpDir   string
-	features     lxc.CriuFeatures
-}
-
-func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
+func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	ctxMap := log.Ctx{
 		"project":      c.project,
 		"name":         c.name,
@@ -4954,7 +4942,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 // DeferTemplateApply sets volatile key to apply template on next start. Used when instance's
 // volume isn't mounted.
-func (c *containerLXC) DeferTemplateApply(trigger string) error {
+func (c *lxc) DeferTemplateApply(trigger string) error {
 	err := c.VolatileSet(map[string]string{"volatile.apply_template": trigger})
 	if err != nil {
 		return errors.Wrap(err, "Failed to set apply_template volatile key")
@@ -4963,7 +4951,7 @@ func (c *containerLXC) DeferTemplateApply(trigger string) error {
 	return nil
 }
 
-func (c *containerLXC) templateApplyNow(trigger string) error {
+func (c *lxc) templateApplyNow(trigger string) error {
 	// If there's no metadata, just return
 	fname := filepath.Join(c.Path(), "metadata.yaml")
 	if !shared.PathExists(fname) {
@@ -5105,7 +5093,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 	return nil
 }
 
-func (c *containerLXC) FileExists(path string) error {
+func (c *lxc) FileExists(path string) error {
 	// Setup container storage if needed
 	var ourStart bool
 	var err error
@@ -5153,7 +5141,7 @@ func (c *containerLXC) FileExists(path string) error {
 	return nil
 }
 
-func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
+func (c *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
 	// Check for ongoing operations (that may involve shifting).
 	op := operationlock.Get(c.id)
 	if op != nil {
@@ -5282,7 +5270,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	return uid, gid, os.FileMode(mode), type_, dirEnts, nil
 }
 
-func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
+func (c *lxc) FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
 	// Check for ongoing operations (that may involve shifting).
 	op := operationlock.Get(c.id)
 	if op != nil {
@@ -5378,7 +5366,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	return nil
 }
 
-func (c *containerLXC) FileRemove(path string) error {
+func (c *lxc) FileRemove(path string) error {
 	var errStr string
 	var ourStart bool
 	var err error
@@ -5439,7 +5427,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	return nil
 }
 
-func (c *containerLXC) Console() (*os.File, chan error, error) {
+func (c *lxc) Console() (*os.File, chan error, error) {
 	chDisconnect := make(chan error, 1)
 
 	args := []string{
@@ -5492,7 +5480,7 @@ func (c *containerLXC) Console() (*os.File, chan error, error) {
 	return master, chDisconnect, nil
 }
 
-func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
+func (c *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
 	msg, err := c.c.ConsoleLog(opts)
 	if err != nil {
 		return "", err
@@ -5501,7 +5489,7 @@ func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 	return string(msg), nil
 }
 
-func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
+func (c *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
 	// Prepare the environment
 	envSlice := []string{}
 
@@ -5583,7 +5571,7 @@ func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os
 		return nil, err
 	}
 
-	instCmd := &ContainerLXCCmd{
+	instCmd := &lxcCmd{
 		cmd:              &cmd,
 		attachedChildPid: attachedPid,
 	}
@@ -5591,7 +5579,7 @@ func (c *containerLXC) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os
 	return instCmd, nil
 }
 
-func (c *containerLXC) cpuState() api.InstanceStateCPU {
+func (c *lxc) cpuState() api.InstanceStateCPU {
 	cpu := api.InstanceStateCPU{}
 
 	// CPU usage in seconds
@@ -5621,7 +5609,7 @@ func (c *containerLXC) cpuState() api.InstanceStateCPU {
 	return cpu
 }
 
-func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
+func (c *lxc) diskState() map[string]api.InstanceStateDisk {
 	disk := map[string]api.InstanceStateDisk{}
 
 	for _, dev := range c.expandedDevices.Sorted() {
@@ -5655,7 +5643,7 @@ func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 	return disk
 }
 
-func (c *containerLXC) memoryState() api.InstanceStateMemory {
+func (c *lxc) memoryState() api.InstanceStateMemory {
 	memory := api.InstanceStateMemory{}
 	cg, err := c.cgroup(nil)
 	if err != nil {
@@ -5705,7 +5693,7 @@ func (c *containerLXC) memoryState() api.InstanceStateMemory {
 	return memory
 }
 
-func (c *containerLXC) networkState() map[string]api.InstanceStateNetwork {
+func (c *lxc) networkState() map[string]api.InstanceStateNetwork {
 	result := map[string]api.InstanceStateNetwork{}
 
 	pid := c.InitPID()
@@ -5763,7 +5751,7 @@ func (c *containerLXC) networkState() map[string]api.InstanceStateNetwork {
 	return result
 }
 
-func (c *containerLXC) processesState() int64 {
+func (c *lxc) processesState() int64 {
 	// Return 0 if not running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -5813,8 +5801,8 @@ func (c *containerLXC) processesState() int64 {
 }
 
 // getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
-// function is called, the handle is cached internally in the containerLXC struct.
-func (c *containerLXC) getStoragePool() (storagePools.Pool, error) {
+// function is called, the handle is cached internally in the lxc struct.
+func (c *lxc) getStoragePool() (storagePools.Pool, error) {
 	if c.storagePool != nil {
 		return c.storagePool, nil
 	}
@@ -5829,7 +5817,7 @@ func (c *containerLXC) getStoragePool() (storagePools.Pool, error) {
 }
 
 // getStorageType returns the storage type of the instance's storage pool.
-func (c *containerLXC) getStorageType() (string, error) {
+func (c *lxc) getStorageType() (string, error) {
 	pool, err := c.getStoragePool()
 	if err != nil {
 		return "", err
@@ -5839,12 +5827,12 @@ func (c *containerLXC) getStorageType() (string, error) {
 }
 
 // StorageStart mounts the instance's rootfs volume. Deprecated.
-func (c *containerLXC) StorageStart() (bool, error) {
+func (c *lxc) StorageStart() (bool, error) {
 	return c.mount()
 }
 
 // mount the instance's rootfs volume if needed.
-func (c *containerLXC) mount() (bool, error) {
+func (c *lxc) mount() (bool, error) {
 	pool, err := c.getStoragePool()
 	if err != nil {
 		return false, err
@@ -5868,12 +5856,12 @@ func (c *containerLXC) mount() (bool, error) {
 }
 
 // StorageStop unmounts the instance's rootfs volume. Deprecated.
-func (c *containerLXC) StorageStop() (bool, error) {
+func (c *lxc) StorageStop() (bool, error) {
 	return c.unmount()
 }
 
 // unmount the instance's rootfs volume if needed.
-func (c *containerLXC) unmount() (bool, error) {
+func (c *lxc) unmount() (bool, error) {
 	pool, err := c.getStoragePool()
 	if err != nil {
 		return false, err
@@ -5897,7 +5885,7 @@ func (c *containerLXC) unmount() (bool, error) {
 }
 
 // Mount handling
-func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, mntnsPID int, shiftfs bool) error {
+func (c *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID int, shiftfs bool) error {
 	pid := mntnsPID
 	if pid <= 0 {
 		// Get the init PID
@@ -5955,7 +5943,7 @@ func (c *containerLXC) insertMountLXD(source, target, fstype string, flags int, 
 	return nil
 }
 
-func (c *containerLXC) insertMountLXC(source, target, fstype string, flags int) error {
+func (c *lxc) insertMountLXC(source, target, fstype string, flags int) error {
 	cname := project.Prefix(c.Project(), c.Name())
 	configPath := filepath.Join(c.LogPath(), "lxc.conf")
 	if fstype == "" {
@@ -5974,7 +5962,7 @@ func (c *containerLXC) insertMountLXC(source, target, fstype string, flags int) 
 	return nil
 }
 
-func (c *containerLXC) insertMount(source, target, fstype string, flags int, shiftfs bool) error {
+func (c *lxc) insertMount(source, target, fstype string, flags int, shiftfs bool) error {
 	if c.state.OS.LXCFeatures["mount_injection_file"] && !shiftfs {
 		return c.insertMountLXC(source, target, fstype, flags)
 	}
@@ -5982,7 +5970,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int, shi
 	return c.insertMountLXD(source, target, fstype, flags, -1, shiftfs)
 }
 
-func (c *containerLXC) removeMount(mount string) error {
+func (c *lxc) removeMount(mount string) error {
 	// Get the init PID
 	pid := c.InitPID()
 	if pid == -1 {
@@ -6014,7 +6002,7 @@ func (c *containerLXC) removeMount(mount string) error {
 	return nil
 }
 
-func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error {
+func (c *lxc) InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error {
 	if pid < 0 {
 		return fmt.Errorf("Invalid request PID specified")
 	}
@@ -6069,7 +6057,7 @@ func (c *containerLXC) InsertSeccompUnixDevice(prefix string, m deviceConfig.Dev
 	return c.insertMountLXD(devPath, tgtPath, "none", unix.MS_BIND, pid, false)
 }
 
-func (c *containerLXC) removeUnixDevices() error {
+func (c *lxc) removeUnixDevices() error {
 	// Check that we indeed have devices to remove
 	if !shared.PathExists(c.DevicesPath()) {
 		return nil
@@ -6101,7 +6089,7 @@ func (c *containerLXC) removeUnixDevices() error {
 
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
-func (c *containerLXC) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
+func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
 	var err error
 	newDevice := m.Clone()
 
@@ -6260,7 +6248,7 @@ func (c *containerLXC) FillNetworkDevice(name string, m deviceConfig.Device) (de
 	return newDevice, nil
 }
 
-func (c *containerLXC) removeDiskDevices() error {
+func (c *lxc) removeDiskDevices() error {
 	// Check that we indeed have devices to remove
 	if !shared.PathExists(c.DevicesPath()) {
 		return nil
@@ -6294,7 +6282,7 @@ func (c *containerLXC) removeDiskDevices() error {
 }
 
 // Network I/O limits
-func (c *containerLXC) setNetworkPriority() error {
+func (c *lxc) setNetworkPriority() error {
 	cg, err := c.cgroup(nil)
 	if err != nil {
 		return err
@@ -6347,23 +6335,23 @@ func (c *containerLXC) setNetworkPriority() error {
 }
 
 // Various state query functions
-func (c *containerLXC) IsStateful() bool {
+func (c *lxc) IsStateful() bool {
 	return c.stateful
 }
 
-func (c *containerLXC) IsEphemeral() bool {
+func (c *lxc) IsEphemeral() bool {
 	return c.ephemeral
 }
 
-func (c *containerLXC) IsFrozen() bool {
+func (c *lxc) IsFrozen() bool {
 	return c.State() == "FROZEN"
 }
 
-func (c *containerLXC) IsNesting() bool {
+func (c *lxc) IsNesting() bool {
 	return shared.IsTrue(c.expandedConfig["security.nesting"])
 }
 
-func (c *containerLXC) isCurrentlyPrivileged() bool {
+func (c *lxc) isCurrentlyPrivileged() bool {
 	if !c.IsRunning() {
 		return c.IsPrivileged()
 	}
@@ -6376,44 +6364,44 @@ func (c *containerLXC) isCurrentlyPrivileged() bool {
 	return idmap == nil
 }
 
-func (c *containerLXC) IsPrivileged() bool {
+func (c *lxc) IsPrivileged() bool {
 	return shared.IsTrue(c.expandedConfig["security.privileged"])
 }
 
-func (c *containerLXC) IsRunning() bool {
+func (c *lxc) IsRunning() bool {
 	state := c.State()
 	return state != "BROKEN" && state != "STOPPED"
 }
 
-func (c *containerLXC) IsSnapshot() bool {
+func (c *lxc) IsSnapshot() bool {
 	return c.snapshot
 }
 
 // Various property query functions
-func (c *containerLXC) Architecture() int {
+func (c *lxc) Architecture() int {
 	return c.architecture
 }
 
-func (c *containerLXC) CreationDate() time.Time {
+func (c *lxc) CreationDate() time.Time {
 	return c.creationDate
 }
-func (c *containerLXC) LastUsedDate() time.Time {
+func (c *lxc) LastUsedDate() time.Time {
 	return c.lastUsedDate
 }
-func (c *containerLXC) ExpandedConfig() map[string]string {
+func (c *lxc) ExpandedConfig() map[string]string {
 	return c.expandedConfig
 }
 
-func (c *containerLXC) ExpandedDevices() deviceConfig.Devices {
+func (c *lxc) ExpandedDevices() deviceConfig.Devices {
 	return c.expandedDevices
 }
 
 // ID gets container's ID.
-func (c *containerLXC) ID() int {
+func (c *lxc) ID() int {
 	return c.id
 }
 
-func (c *containerLXC) InitPID() int {
+func (c *lxc) InitPID() int {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
@@ -6423,42 +6411,42 @@ func (c *containerLXC) InitPID() int {
 	return c.c.InitPid()
 }
 
-func (c *containerLXC) LocalConfig() map[string]string {
+func (c *lxc) LocalConfig() map[string]string {
 	return c.localConfig
 }
 
-func (c *containerLXC) LocalDevices() deviceConfig.Devices {
+func (c *lxc) LocalDevices() deviceConfig.Devices {
 	return c.localDevices
 }
 
-func (c *containerLXC) CurrentIdmap() (*idmap.IdmapSet, error) {
+func (c *lxc) CurrentIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.current"]
 	if !ok {
 		return c.DiskIdmap()
 	}
 
-	return idmapsetFromString(jsonIdmap)
+	return idmap.JSONUnmarshal(jsonIdmap)
 }
 
-func (c *containerLXC) DiskIdmap() (*idmap.IdmapSet, error) {
+func (c *lxc) DiskIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.last_state.idmap"]
 	if !ok {
 		return nil, nil
 	}
 
-	return idmapsetFromString(jsonIdmap)
+	return idmap.JSONUnmarshal(jsonIdmap)
 }
 
-func (c *containerLXC) NextIdmap() (*idmap.IdmapSet, error) {
+func (c *lxc) NextIdmap() (*idmap.IdmapSet, error) {
 	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.next"]
 	if !ok {
 		return c.CurrentIdmap()
 	}
 
-	return idmapsetFromString(jsonIdmap)
+	return idmap.JSONUnmarshal(jsonIdmap)
 }
 
-func (c *containerLXC) DaemonState() *state.State {
+func (c *lxc) DaemonState() *state.State {
 	// FIXME: This function should go away, since the abstract container
 	//        interface should not be coupled with internal state details.
 	//        However this is not currently possible, because many
@@ -6468,27 +6456,27 @@ func (c *containerLXC) DaemonState() *state.State {
 	return c.state
 }
 
-func (c *containerLXC) Location() string {
+func (c *lxc) Location() string {
 	return c.node
 }
 
-func (c *containerLXC) Project() string {
+func (c *lxc) Project() string {
 	return c.project
 }
 
-func (c *containerLXC) Name() string {
+func (c *lxc) Name() string {
 	return c.name
 }
 
-func (c *containerLXC) Description() string {
+func (c *lxc) Description() string {
 	return c.description
 }
 
-func (c *containerLXC) Profiles() []string {
+func (c *lxc) Profiles() []string {
 	return c.profiles
 }
 
-func (c *containerLXC) State() string {
+func (c *lxc) State() string {
 	state, err := c.getLxcState()
 	if err != nil {
 		return api.Error.String()
@@ -6497,42 +6485,42 @@ func (c *containerLXC) State() string {
 }
 
 // Various container paths
-func (c *containerLXC) Path() string {
+func (c *lxc) Path() string {
 	return storagePools.InstancePath(c.Type(), c.Project(), c.Name(), c.IsSnapshot())
 }
 
-func (c *containerLXC) DevicesPath() string {
+func (c *lxc) DevicesPath() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return shared.VarPath("devices", name)
 }
 
-func (c *containerLXC) ShmountsPath() string {
+func (c *lxc) ShmountsPath() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return shared.VarPath("shmounts", name)
 }
 
-func (c *containerLXC) LogPath() string {
+func (c *lxc) LogPath() string {
 	name := project.Prefix(c.Project(), c.Name())
 	return shared.LogPath(name)
 }
 
-func (c *containerLXC) LogFilePath() string {
+func (c *lxc) LogFilePath() string {
 	return filepath.Join(c.LogPath(), "lxc.log")
 }
 
-func (c *containerLXC) ConsoleBufferLogPath() string {
+func (c *lxc) ConsoleBufferLogPath() string {
 	return filepath.Join(c.LogPath(), "console.log")
 }
 
-func (c *containerLXC) RootfsPath() string {
+func (c *lxc) RootfsPath() string {
 	return filepath.Join(c.Path(), "rootfs")
 }
 
-func (c *containerLXC) TemplatesPath() string {
+func (c *lxc) TemplatesPath() string {
 	return filepath.Join(c.Path(), "templates")
 }
 
-func (c *containerLXC) StatePath() string {
+func (c *lxc) StatePath() string {
 	/* FIXME: backwards compatibility: we used to use Join(RootfsPath(),
 	 * "state"), which was bad. Let's just check to see if that directory
 	 * exists.
@@ -6544,7 +6532,7 @@ func (c *containerLXC) StatePath() string {
 	return filepath.Join(c.Path(), "state")
 }
 
-func (c *containerLXC) StoragePool() (string, error) {
+func (c *lxc) StoragePool() (string, error) {
 	poolName, err := c.state.Cluster.InstancePool(c.Project(), c.Name())
 	if err != nil {
 		return "", err
@@ -6554,11 +6542,11 @@ func (c *containerLXC) StoragePool() (string, error) {
 }
 
 // Progress tracking
-func (c *containerLXC) SetOperation(op *operations.Operation) {
+func (c *lxc) SetOperation(op *operations.Operation) {
 	c.op = op
 }
 
-func (c *containerLXC) ExpiryDate() time.Time {
+func (c *lxc) ExpiryDate() time.Time {
 	if c.IsSnapshot() {
 		return c.expiryDate
 	}
@@ -6567,7 +6555,7 @@ func (c *containerLXC) ExpiryDate() time.Time {
 	return time.Time{}
 }
 
-func (c *containerLXC) updateProgress(progress string) {
+func (c *lxc) updateProgress(progress string) {
 	if c.op == nil {
 		return
 	}
@@ -6584,7 +6572,7 @@ func (c *containerLXC) updateProgress(progress string) {
 }
 
 // Internal MAAS handling
-func (c *containerLXC) maasInterfaces(devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
+func (c *lxc) maasInterfaces(devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
 	interfaces := []maas.ContainerInterface{}
 	for k, m := range devices {
 		if m["type"] != "nic" {
@@ -6634,7 +6622,7 @@ func (c *containerLXC) maasInterfaces(devices map[string]map[string]string) ([]m
 	return interfaces, nil
 }
 
-func (c *containerLXC) maasUpdate(oldDevices map[string]map[string]string) error {
+func (c *lxc) maasUpdate(oldDevices map[string]map[string]string) error {
 	// Check if MAAS is configured
 	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
 	if err != nil {
@@ -6684,7 +6672,7 @@ func (c *containerLXC) maasUpdate(oldDevices map[string]map[string]string) error
 	return c.state.MAAS.CreateContainer(project.Prefix(c.project, c.name), interfaces)
 }
 
-func (c *containerLXC) maasRename(newName string) error {
+func (c *lxc) maasRename(newName string) error {
 	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
 	if err != nil {
 		return err
@@ -6719,7 +6707,7 @@ func (c *containerLXC) maasRename(newName string) error {
 	return c.state.MAAS.RenameContainer(project.Prefix(c.project, c.name), project.Prefix(c.project, newName))
 }
 
-func (c *containerLXC) maasDelete() error {
+func (c *lxc) maasDelete() error {
 	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
 	if err != nil {
 		return err
@@ -6754,7 +6742,7 @@ func (c *containerLXC) maasDelete() error {
 	return c.state.MAAS.DeleteContainer(project.Prefix(c.project, c.name))
 }
 
-func (c *containerLXC) cgroup(cc *lxc.Container) (*cgroup.CGroup, error) {
+func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 	rw := lxcCgroupReadWriter{}
 	if cc != nil {
 		rw.cc = cc
@@ -6805,7 +6793,7 @@ func (rw *lxcCgroupReadWriter) Set(version cgroup.Backend, controller string, ke
 }
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
-func (c *containerLXC) UpdateBackupFile() error {
+func (c *lxc) UpdateBackupFile() error {
 	pool, err := c.getStoragePool()
 	if err != nil {
 		return err
