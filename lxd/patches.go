@@ -1210,14 +1210,6 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				// means that this was a mixed-storage LXD
 				// instance.
 
-				// Initialize storage interface for the new
-				// container.
-				ctStorage, err := storagePoolVolumeContainerLoadInit(d.State(), "default", ct)
-				if err != nil {
-					logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s", ct, err)
-					return err
-				}
-
 				// Load the container from the database.
 				ctStruct, err := instance.LoadByProjectAndName(d.State(), "default", ct)
 				if err != nil {
@@ -1225,29 +1217,43 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					return err
 				}
 
-				// Create an empty LVM logical volume for the
-				// container.
-				err = ctStorage.ContainerCreate(ctStruct)
+				pool, err := storagePools.GetPoolByInstance(d.State(), ctStruct)
+				if err != nil {
+					return err
+				}
+
+				// Create an empty LVM logical volume for the container.
+				err = pool.CreateInstance(ctStruct, nil)
 				if err != nil {
 					logger.Errorf("Failed to create empty LVM logical volume for container %s: %s", ct, err)
 					return err
 				}
 
-				// In case the new LVM logical volume for the
-				// container is not mounted mount it.
-				if !shared.IsMountPoint(newContainerMntPoint) {
-					_, err = ctStorage.ContainerMount(ctStruct)
-					if err != nil {
-						logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
-						return err
-					}
-				}
+				err = func() error {
+					// In case the new LVM logical volume for the container is not mounted mount it.
+					if !shared.IsMountPoint(newContainerMntPoint) {
+						ourMount, err := pool.MountInstance(ctStruct, nil)
+						if err != nil {
+							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
+							return err
+						}
 
-				// Use rsync to fill the empty volume.
-				output, err := rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+						if ourMount {
+							defer pool.UnmountInstance(ctStruct, nil)
+						}
+					}
+
+					// Use rsync to fill the empty volume.
+					output, err := rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+					if err != nil {
+						pool.DeleteInstance(ctStruct, nil)
+						return fmt.Errorf("rsync failed: %s", string(output))
+					}
+
+					return nil
+				}()
 				if err != nil {
-					ctStorage.ContainerDelete(ctStruct)
-					return fmt.Errorf("rsync failed: %s", string(output))
+					return err
 				}
 
 				// Remove the old container.
