@@ -245,7 +245,11 @@ func (d *zfs) Create() error {
 
 		properties := []string{"mountpoint=none"}
 		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
-			properties = append(properties, "volmode=none")
+			if len(zfsVersion) >= 3 && zfsVersion[0:3] == "0.6" {
+				d.logger.Warn("Unable to set volmode on parent virtual-machines datasets due to ZFS being too old")
+			} else {
+				properties = append(properties, "volmode=none")
+			}
 		}
 
 		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), properties...)
