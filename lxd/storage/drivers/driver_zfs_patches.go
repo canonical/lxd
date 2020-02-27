@@ -88,6 +88,11 @@ func (d *zfs) patchStorageZFSMount() error {
 }
 
 func (d *zfs) patchStorageZFSVolMode() error {
+	if len(zfsVersion) >= 3 && zfsVersion[0:3] == "0.6" {
+		d.logger.Warn("Unable to set volmode on parent virtual-machines datasets due to ZFS being too old")
+		return nil
+	}
+
 	// Set volmode=none on the parent virtual-machines directory
 	err := d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], "virtual-machines"), "volmode=none")
 	if err != nil {
