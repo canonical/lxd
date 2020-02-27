@@ -189,6 +189,7 @@ var APIExtensions = []string{
 	"instance_nic_network",
 	"clustering_sizing",
 	"firewall_driver",
+	"projects_limits",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -11,6 +11,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
+	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -63,6 +64,14 @@ func containerPut(d *Daemon, r *http.Request) response.Response {
 	architecture, err := osarch.ArchitectureId(configRaw.Architecture)
 	if err != nil {
 		architecture = 0
+	}
+
+	// Check project limits.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return projecthelpers.CheckLimitsUponInstanceUpdate(tx, project, name, configRaw)
+	})
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	var do func(*operations.Operation) error
