@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"unsafe"
 
 	"github.com/gorilla/mux"
@@ -150,15 +149,6 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
-
-func devlxdEventSend(c instance.Instance, eventType string, eventMessage interface{}) error {
-	event := shared.Jmap{}
-	event["type"] = eventType
-	event["timestamp"] = time.Now()
-	event["metadata"] = eventMessage
-
-	return c.DaemonState().DevlxdEvents.Send(strconv.Itoa(c.ID()), eventType, eventMessage)
-}
 
 var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
