@@ -135,7 +135,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 	err = c.OnStart()
 	if err != nil {
 		logger.Error("The start hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -166,7 +166,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 	err = c.OnStopNS(target, netns)
 	if err != nil {
 		logger.Error("The stopns hook failed", log.Ctx{"container": c.Name(), "err": err})
@@ -196,7 +196,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 	err = c.OnStop(target)
 	if err != nil {
 		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})
