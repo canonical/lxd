@@ -48,7 +48,7 @@ func Load(state *state.State, driverName string, name string, config map[string]
 
 // SupportedDrivers returns a list of supported storage drivers.
 func SupportedDrivers(s *state.State) []Info {
-	supportedDrivers := []Info{}
+	supportedDrivers := make([]Info, 0, len(drivers))
 
 	for driverName := range drivers {
 		driver, err := Load(s, driverName, "", nil, nil, nil, nil)
@@ -60,4 +60,14 @@ func SupportedDrivers(s *state.State) []Info {
 	}
 
 	return supportedDrivers
+}
+
+// AllDriverNames returns a list of all storage driver names.
+func AllDriverNames() []string {
+	supportDriverNames := make([]string, 0, len(drivers))
+	for driverName := range drivers {
+		supportDriverNames = append(supportDriverNames, driverName)
+	}
+
+	return supportDriverNames
 }

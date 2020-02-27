@@ -7,44 +7,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/units"
 )
-
-func updateStoragePoolError(unchangeable []string, driverName string) error {
-	return fmt.Errorf(`The %v properties cannot be changed for "%s" `+
-		`storage pools`, unchangeable, driverName)
-}
-
-var changeableStoragePoolProperties = map[string][]string{
-	"btrfs": {
-		"rsync.bwlimit",
-		"btrfs.mount_options"},
-
-	"ceph": {
-		"volume.block.filesystem",
-		"volume.block.mount_options",
-		"volume.size"},
-
-	"cephfs": {
-		"rsync.bwlimit"},
-
-	"dir": {
-		"rsync.bwlimit"},
-
-	"lvm": {
-		"lvm.thinpool_name",
-		"lvm.vg_name",
-		"volume.block.filesystem",
-		"volume.block.mount_options",
-		"volume.size"},
-
-	"zfs": {
-		"rsync_bwlimit",
-		"volume.zfs.remove_snapshots",
-		"volume.zfs.use_refquota",
-		"zfs.clone_copy"},
-}
 
 var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: btrfs
@@ -118,7 +84,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string, oldConfig map[string]string) error {
 	err := func(value string) error {
-		return shared.IsOneOf(value, supportedStoragePoolDrivers)
+		return shared.IsOneOf(value, storageDrivers.AllDriverNames())
 	}(driver)
 	if err != nil {
 		return err

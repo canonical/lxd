@@ -375,32 +375,3 @@ func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeTy
 
 	return usedBy, nil
 }
-
-func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (storage, error) {
-	// Create database entry for new storage volume.
-	err := storagePools.VolumeDBCreate(state, "default", dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, true, dbArgs.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert the volume type name to our internal integer representation.
-	poolID, err := state.Cluster.StoragePoolGetID(dbArgs.PoolName)
-	if err != nil {
-		return nil, err
-	}
-
-	volumeType, err := storagePools.VolumeTypeNameToType(dbArgs.TypeName)
-	if err != nil {
-		state.Cluster.StoragePoolVolumeDelete("default", dbArgs.Name, volumeType, poolID)
-		return nil, err
-	}
-
-	// Initialize new storage volume on the target storage pool.
-	s, err := storagePoolVolumeInit(state, "default", dbArgs.PoolName, dbArgs.Name, volumeType)
-	if err != nil {
-		state.Cluster.StoragePoolVolumeDelete("default", dbArgs.Name, volumeType, poolID)
-		return nil, err
-	}
-
-	return s, nil
-}
