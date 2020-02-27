@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -2068,34 +2069,23 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 
 	for _, ct := range cts {
 		// Load the container from the database.
-		c, err := instance.LoadByProjectAndName(d.State(), "default", ct)
+		inst, err := instance.LoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to open container '%s': %v", ct, err)
 			continue
 		}
 
-		if !c.IsRunning() {
+		if inst.Type() != instancetype.Container {
 			continue
 		}
 
-		lxcCt, ok := c.(*containerLXC)
-		if !ok {
+		if !inst.IsRunning() {
 			continue
 		}
 
-		err = lxcCt.initLXC(true)
+		err = inst.SaveConfigFile()
 		if err != nil {
-			logger.Errorf("Failed to generate LXC config for '%s': %v", ct, err)
-			continue
-		}
-
-		// Generate the LXC config
-		configPath := filepath.Join(lxcCt.LogPath(), "lxc.conf")
-		err = lxcCt.c.SaveConfigFile(configPath)
-		if err != nil {
-			os.Remove(configPath)
-			logger.Errorf("Failed to save LXC config for '%s': %v", ct, err)
-			continue
+			logger.Errorf("Failed to save LXC config for %q: %v", inst.Name(), err)
 		}
 	}
 
