@@ -1288,6 +1288,29 @@ func (c *lxc) runHooks(hooks []func() error) error {
 	return nil
 }
 
+// RegisterDevices calls the Register() function on all of the instance's devices.
+func (c *LXC) RegisterDevices() {
+	devices := c.ExpandedDevices()
+	for _, dev := range devices.Sorted() {
+		d, _, err := c.deviceLoad(dev.Name, dev.Config)
+		if err == device.ErrUnsupportedDevType {
+			continue
+		}
+
+		if err != nil {
+			logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": c.Name(), "device": dev.Name})
+			continue
+		}
+
+		// Check whether device wants to register for any events.
+		err = d.Register()
+		if err != nil {
+			logger.Error("Failed to register device", log.Ctx{"err": err, "instance": c.Name(), "device": dev.Name})
+			continue
+		}
+	}
+}
+
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
 func (c *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
