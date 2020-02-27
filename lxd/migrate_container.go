@@ -432,8 +432,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return err
 	}
 
-	var legacyDriver MigrationStorageSourceDriver
-	var legacyCleanup func()            // Called after migration, to remove any temporary snapshots, etc.
 	var migrationTypes []migration.Type // Negotiated migration types.
 	var rsyncBwlimit string             // Used for CRIU state and legacy storage rsync transfers.
 
@@ -454,10 +452,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// the purpose of using defer. An abort function reduces the odds of mishandling errors
 	// without introducing the fragility of closing on err.
 	abort := func(err error) error {
-		if legacyCleanup != nil {
-			legacyCleanup()
-		}
-
 		go s.sendControl(err)
 		return err
 	}
@@ -469,71 +463,27 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// Indicate this info to the storage driver so that it can alter its behaviour if needed.
 	volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
 
-	if pool != nil {
-		rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
-		migrationTypes, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
-		if err != nil {
-			logger.Errorf("Failed to negotiate migration type: %v", err)
-			return abort(err)
-		}
+	rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
+	migrationTypes, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	if err != nil {
+		logger.Errorf("Failed to negotiate migration type: %v", err)
+		return abort(err)
+	}
 
-		sendSnapshotNames := snapshotNames
+	sendSnapshotNames := snapshotNames
 
-		// If we are in refresh mode, only send the snapshots the target has asked for.
-		if respHeader.GetRefresh() {
-			sendSnapshotNames = respHeader.GetSnapshotNames()
-		}
+	// If we are in refresh mode, only send the snapshots the target has asked for.
+	if respHeader.GetRefresh() {
+		sendSnapshotNames = respHeader.GetSnapshotNames()
+	}
 
-		volSourceArgs.Name = s.instance.Name()
-		volSourceArgs.MigrationType = migrationTypes[0]
-		volSourceArgs.Snapshots = sendSnapshotNames
-		volSourceArgs.TrackProgress = true
-		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
-		if err != nil {
-			return abort(err)
-		}
-	} else {
-		// Handle zfs options.
-		zfsFeatures := respHeader.GetZfsFeaturesSlice()
-
-		// Set source args.
-		sourceArgs := MigrationSourceArgs{
-			Instance:      s.instance,
-			InstanceOnly:  s.instanceOnly,
-			RsyncFeatures: rsyncFeatures,
-			ZfsFeatures:   zfsFeatures,
-		}
-
-		// Initialize storage driver.
-		legacyDriver, err = ct.Storage().MigrationSource(sourceArgs)
-		if err != nil {
-			return abort(err)
-		}
-		legacyCleanup = legacyDriver.Cleanup
-
-		if respHeader.GetRefresh() || *offerHeader.Fs != *respHeader.Fs {
-			myType := migration.MigrationFSType_RSYNC
-			respHeader.Fs = &myType
-
-			if respHeader.GetRefresh() {
-				legacyDriver, _ = rsyncRefreshSource(respHeader.GetSnapshotNames(), sourceArgs)
-			} else {
-				legacyDriver, _ = rsyncMigrationSource(sourceArgs)
-			}
-
-			// Check if this storage pool has a rate limit set for rsync.
-			poolwritable := ct.Storage().GetStoragePoolWritable()
-			if poolwritable.Config != nil {
-				rsyncBwlimit = poolwritable.Config["rsync.bwlimit"]
-			}
-		}
-
-		logger.Debugf("SendWhileRunning starting")
-		err = legacyDriver.SendWhileRunning(s.fsConn, migrateOp, rsyncBwlimit, s.instanceOnly)
-		if err != nil {
-			return abort(err)
-		}
-		logger.Debugf("SendWhileRunning finished")
+	volSourceArgs.Name = s.instance.Name()
+	volSourceArgs.MigrationType = migrationTypes[0]
+	volSourceArgs.Snapshots = sendSnapshotNames
+	volSourceArgs.TrackProgress = true
+	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+	if err != nil {
+		return abort(err)
 	}
 
 	restoreSuccess := make(chan bool, 1)
@@ -716,29 +666,15 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	// Perform final sync if in multi sync mode.
 	if volSourceArgs.MultiSync {
-		if pool != nil {
-			// Indicate to the storage driver we are doing final sync and because of this don't send
-			// snapshots as they don't need to have a final sync as not being modified.
-			volSourceArgs.FinalSync = true
-			volSourceArgs.Snapshots = nil
+		// Indicate to the storage driver we are doing final sync and because of this don't send
+		// snapshots as they don't need to have a final sync as not being modified.
+		volSourceArgs.FinalSync = true
+		volSourceArgs.Snapshots = nil
 
-			err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
-			if err != nil {
-				return abort(err)
-			}
-		} else {
-			logger.Debugf("SendAfterCheckpoint starting")
-			err = legacyDriver.SendAfterCheckpoint(s.fsConn, rsyncBwlimit)
-			if err != nil {
-				return abort(err)
-			}
-			logger.Debugf("SendAfterCheckpoint finished")
+		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+		if err != nil {
+			return abort(err)
 		}
-	}
-
-	// Perform any storage level cleanup, such as removing any temporary snapshots.
-	if legacyCleanup != nil {
-		legacyCleanup()
 	}
 
 	msg := migration.MigrationControl{}
