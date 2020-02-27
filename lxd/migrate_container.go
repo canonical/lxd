@@ -129,15 +129,15 @@ func snapshotToProtobuf(c instance.Instance) *migration.Snapshot {
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)
-	criuMigrationArgs := CriuMigrationArgs{
-		cmd:          lxc.MIGRATE_FEATURE_CHECK,
-		stateDir:     "",
-		function:     "feature-check",
-		stop:         false,
-		actionScript: false,
-		dumpDir:      "",
-		preDumpDir:   "",
-		features:     lxc.FEATURE_MEM_TRACK,
+	criuMigrationArgs := instance.CriuMigrationArgs{
+		Cmd:          lxc.MIGRATE_FEATURE_CHECK,
+		StateDir:     "",
+		Function:     "feature-check",
+		Stop:         false,
+		ActionScript: false,
+		DumpDir:      "",
+		PreDumpDir:   "",
+		Features:     lxc.FEATURE_MEM_TRACK,
 	}
 
 	if s.instance.Type() != instancetype.Container {
@@ -240,14 +240,14 @@ type preDumpLoopArgs struct {
 // of memory pages transferred by pre-dumping has been reached.
 func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// Do a CRIU pre-dump
-	criuMigrationArgs := CriuMigrationArgs{
-		cmd:          lxc.MIGRATE_PRE_DUMP,
-		stop:         false,
-		actionScript: false,
-		preDumpDir:   args.preDumpDir,
-		dumpDir:      args.dumpDir,
-		stateDir:     args.checkpointDir,
-		function:     "migration",
+	criuMigrationArgs := instance.CriuMigrationArgs{
+		Cmd:          lxc.MIGRATE_PRE_DUMP,
+		Stop:         false,
+		ActionScript: false,
+		PreDumpDir:   args.preDumpDir,
+		DumpDir:      args.dumpDir,
+		StateDir:     args.checkpointDir,
+		Function:     "migration",
 	}
 
 	logger.Debugf("Doing another pre-dump in %s", args.preDumpDir)
@@ -335,7 +335,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return fmt.Errorf("Instance is not container type")
 	}
 
-	ct := s.instance.(*containerLXC)
+	ct := s.instance.(instance.Container)
 
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
@@ -607,14 +607,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			}
 
 			go func() {
-				criuMigrationArgs := CriuMigrationArgs{
-					cmd:          lxc.MIGRATE_DUMP,
-					stop:         true,
-					actionScript: true,
-					preDumpDir:   preDumpDir,
-					dumpDir:      "final",
-					stateDir:     checkpointDir,
-					function:     "migration",
+				criuMigrationArgs := instance.CriuMigrationArgs{
+					Cmd:          lxc.MIGRATE_DUMP,
+					Stop:         true,
+					ActionScript: true,
+					PreDumpDir:   preDumpDir,
+					DumpDir:      "final",
+					StateDir:     checkpointDir,
+					Function:     "migration",
 				}
 
 				// Do the final CRIU dump. This is needs no special handling if
@@ -634,14 +634,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		} else {
 			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
 			defer os.RemoveAll(checkpointDir)
-			criuMigrationArgs := CriuMigrationArgs{
-				cmd:          lxc.MIGRATE_DUMP,
-				stateDir:     checkpointDir,
-				function:     "migration",
-				stop:         true,
-				actionScript: false,
-				dumpDir:      "final",
-				preDumpDir:   "",
+			criuMigrationArgs := instance.CriuMigrationArgs{
+				Cmd:          lxc.MIGRATE_DUMP,
+				StateDir:     checkpointDir,
+				Function:     "migration",
+				Stop:         true,
+				ActionScript: false,
+				DumpDir:      "final",
+				PreDumpDir:   "",
 			}
 
 			err = s.instance.Migrate(&criuMigrationArgs)
@@ -1042,7 +1042,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			// stream, then at the end we need to record that map as last_state so that
 			// LXD can shift on startup if needed.
 			if c.src.instance.Type() == instancetype.Container {
-				ct := c.src.instance.(*containerLXC)
+				ct := c.src.instance.(instance.Container)
 				err = resetContainerDiskIdmap(ct, srcIdmap)
 				if err != nil {
 					fsTransfer <- err
@@ -1120,14 +1120,14 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 		}
 
 		if live {
-			criuMigrationArgs := CriuMigrationArgs{
-				cmd:          lxc.MIGRATE_RESTORE,
-				stateDir:     imagesDir,
-				function:     "migration",
-				stop:         false,
-				actionScript: false,
-				dumpDir:      "final",
-				preDumpDir:   "",
+			criuMigrationArgs := instance.CriuMigrationArgs{
+				Cmd:          lxc.MIGRATE_RESTORE,
+				StateDir:     imagesDir,
+				Function:     "migration",
+				Stop:         false,
+				ActionScript: false,
+				DumpDir:      "final",
+				PreDumpDir:   "",
 			}
 
 			// Currently we only do a single CRIU pre-dump so we can hardcode "final"
