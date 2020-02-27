@@ -152,7 +152,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = lastIdmap.UnshiftRootfs(remapPath, shiftZfsSkipper)
+				err = lastIdmap.UnshiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
 			} else {
 				err = lastIdmap.UnshiftRootfs(remapPath, nil)
 			}
@@ -170,7 +170,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = nextIdmap.ShiftRootfs(remapPath, shiftZfsSkipper)
+				err = nextIdmap.ShiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
 			} else {
 				err = nextIdmap.ShiftRootfs(remapPath, nil)
 			}
