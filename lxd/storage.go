@@ -3,28 +3,21 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"sync"
 	"sync/atomic"
 
-	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
-	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -83,200 +76,6 @@ func readStoragePoolDriversCache() map[string]string {
 	}
 
 	return drivers.(map[string]string)
-}
-
-// storageType defines the type of a storage
-type storageType int
-
-const (
-	storageTypeCeph storageType = iota
-	storageTypeMock
-)
-
-var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
-
-func storageTypeToString(sType storageType) (string, error) {
-	switch sType {
-	case storageTypeCeph:
-		return "ceph", nil
-	case storageTypeMock:
-		return "mock", nil
-	}
-
-	return "", fmt.Errorf("Invalid storage type")
-}
-
-func storageStringToType(sName string) (storageType, error) {
-	switch sName {
-	case "ceph":
-		return storageTypeCeph, nil
-	case "mock":
-		return storageTypeMock, nil
-	}
-
-	return -1, fmt.Errorf("Invalid storage type name")
-}
-
-// The storage interface defines the functions needed to implement a storage
-// backend for a given storage driver.
-type storage interface {
-	// Functions dealing with basic driver properties only.
-	StorageCoreInit() error
-	GetStorageType() storageType
-	GetStorageTypeName() string
-	GetStorageTypeVersion() string
-	GetState() *state.State
-
-	// Functions dealing with storage pools.
-	StoragePoolInit() error
-	StoragePoolCheck() error
-	StoragePoolCreate() error
-	StoragePoolDelete() error
-	StoragePoolMount() (bool, error)
-	StoragePoolUmount() (bool, error)
-	StoragePoolResources() (*api.ResourcesStoragePool, error)
-	StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error
-	GetStoragePoolWritable() api.StoragePoolPut
-	SetStoragePoolWritable(writable *api.StoragePoolPut)
-	GetStoragePool() *api.StoragePool
-
-	// Functions dealing with custom storage volumes.
-	StoragePoolVolumeCreate() error
-	StoragePoolVolumeDelete() error
-	StoragePoolVolumeMount() (bool, error)
-	StoragePoolVolumeUmount() (bool, error)
-	StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error
-	StoragePoolVolumeRename(newName string) error
-	StoragePoolVolumeCopy(source *api.StorageVolumeSource) error
-	GetStoragePoolVolumeWritable() api.StorageVolumePut
-	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
-	GetStoragePoolVolume() *api.StorageVolume
-
-	// Functions dealing with custom storage volume snapshots.
-	StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error
-	StoragePoolVolumeSnapshotDelete() error
-	StoragePoolVolumeSnapshotRename(newName string) error
-
-	// Functions dealing with container storage volumes.
-	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
-	ContainerCreate(container instance.Instance) error
-
-	// ContainerCreateFromImage creates a container from a image.
-	ContainerCreateFromImage(c instance.Instance, fingerprint string, tracker *ioprogress.ProgressTracker) error
-	ContainerDelete(c instance.Instance) error
-	ContainerCopy(target instance.Instance, source instance.Instance, containerOnly bool) error
-	ContainerRefresh(target instance.Instance, source instance.Instance, snapshots []instance.Instance) error
-	ContainerMount(c instance.Instance) (bool, error)
-	ContainerUmount(c instance.Instance, path string) (bool, error)
-	ContainerRename(container instance.Instance, newName string) error
-	ContainerRestore(container instance.Instance, sourceContainer instance.Instance) error
-	ContainerGetUsage(container instance.Instance) (int64, error)
-	GetContainerPoolInfo() (int64, string, string)
-	ContainerStorageReady(container instance.Instance) bool
-
-	ContainerSnapshotCreate(target instance.Instance, source instance.Instance) error
-	ContainerSnapshotDelete(c instance.Instance) error
-	ContainerSnapshotRename(c instance.Instance, newName string) error
-	ContainerSnapshotStart(c instance.Instance) (bool, error)
-	ContainerSnapshotStop(c instance.Instance) (bool, error)
-
-	ContainerBackupCreate(path string, backup backup.Backup, sourceContainer instance.Instance) error
-	ContainerBackupLoad(info backup.Info, data io.ReadSeeker, tarArgs []string) error
-
-	// For use in migrating snapshots.
-	ContainerSnapshotCreateEmpty(c instance.Instance) error
-
-	// Functions dealing with image storage volumes.
-	ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error
-	ImageDelete(fingerprint string) error
-
-	// Storage type agnostic functions.
-	StorageEntitySetQuota(volumeType int, size int64, data interface{}) error
-
-	// Functions dealing with migration.
-	MigrationType() migration.MigrationFSType
-	// Does this storage backend preserve inodes when it is moved across LXD
-	// hosts?
-	PreservesInodes() bool
-
-	// Get the pieces required to migrate the source. This contains a list
-	// of the "object" (i.e. container or snapshot, depending on whether or
-	// not it is a snapshot name) to be migrated in order, and a channel
-	// for arguments of the specific migration command. We use a channel
-	// here so we don't have to invoke `zfs send` or `rsync` or whatever
-	// and keep its stdin/stdout open for each snapshot during the course
-	// of migration, we can do it lazily.
-	//
-	// N.B. that the order here important: e.g. in btrfs/zfs, snapshots
-	// which are parents of other snapshots should be sent first, to save
-	// as much transfer as possible. However, the base container is always
-	// sent as the first object, since that is the grandparent of every
-	// snapshot.
-	//
-	// We leave sending containers which are snapshots of other containers
-	// already present on the target instance as an exercise for the
-	// enterprising developer.
-	MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
-	MigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
-
-	StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
-	StorageMigrationSink(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
-}
-
-func storageInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
-	// Load the storage pool.
-	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Load storage pool %q", poolName)
-	}
-
-	driver := pool.Driver
-	if driver == "" {
-		// This shouldn't actually be possible but better safe than
-		// sorry.
-		return nil, fmt.Errorf("no storage driver was provided")
-	}
-
-	// Load the storage volume.
-	volume := &api.StorageVolume{}
-	if volumeName != "" {
-		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	sType, err := storageStringToType(driver)
-	if err != nil {
-		return nil, err
-	}
-
-	switch sType {
-	case storageTypeCeph:
-		ceph := storageCeph{}
-		ceph.poolID = poolID
-		ceph.pool = pool
-		ceph.volume = volume
-		ceph.s = s
-		err = ceph.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &ceph, nil
-	case storageTypeMock:
-		mock := storageMock{}
-		mock.poolID = poolID
-		mock.pool = pool
-		mock.volume = volume
-		mock.s = s
-		err = mock.StoragePoolInit()
-		if err != nil {
-			return nil, err
-		}
-		return &mock, nil
-	}
-
-	return nil, fmt.Errorf("invalid storage type")
 }
 
 func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) error {
@@ -437,21 +236,6 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 	}
 
 	return nil
-}
-
-func storagePoolVolumeInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
-	// No need to detect storage here, its a new container.
-	return storageInit(s, project, poolName, volumeName, volumeType)
-}
-
-func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName string) (storage, error) {
-	// Get the storage pool of a given container.
-	poolName, err := s.Cluster.InstancePool(project, containerName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Load storage pool for container %q in project %q", containerName, project)
-	}
-
-	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
 func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, storageTypeName string) error {
