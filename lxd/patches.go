@@ -3320,17 +3320,17 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 				// Disable the read-only properties
 				if hasBtrfs {
 					path := snapshotsDir.Name()
-					subvols, _ := btrfsSubVolumesGet(path)
+					subvols, _ := storageDrivers.BTRFSSubVolumesGet(path)
 					for _, subvol := range subvols {
 						subvol = filepath.Join(path, subvol)
 						newSubvol := filepath.Join(shared.VarPath("storage-pools", poolName, "containers-snapshots", entry), subvol)
 
-						if !btrfsSubVolumeIsRo(subvol) {
+						if !storageDrivers.BTRFSSubVolumeIsRo(subvol) {
 							continue
 						}
 
-						btrfsSubVolumeMakeRw(subvol)
-						defer btrfsSubVolumeMakeRo(newSubvol)
+						storageDrivers.BTRFSSubVolumeMakeRw(subvol)
+						defer storageDrivers.BTRFSSubVolumeMakeRo(newSubvol)
 					}
 				}
 
