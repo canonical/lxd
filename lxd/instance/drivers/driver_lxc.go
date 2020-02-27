@@ -233,7 +233,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", storagePoolVolumeTypeContainer, c.IsSnapshot(), poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeContainer, c.IsSnapshot(), poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -243,7 +243,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error) 
 	pool, err := storagePools.GetPoolByInstance(c.state, c)
 	if err != nil {
 		c.Delete()
-		s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, storagePoolVolumeTypeContainer, poolID)
+		s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, db.StoragePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
