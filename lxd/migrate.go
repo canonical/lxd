@@ -278,19 +278,6 @@ type MigrationSinkArgs struct {
 	RsyncFeatures []string
 }
 
-type MigrationSourceArgs struct {
-	// Instance specific fields
-	Instance     instance.Instance
-	InstanceOnly bool
-
-	// Transport specific fields
-	RsyncFeatures []string
-	ZfsFeatures   []string
-
-	// Volume specific fields
-	VolumeOnly bool
-}
-
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 
