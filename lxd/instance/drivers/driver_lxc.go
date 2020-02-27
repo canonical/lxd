@@ -1857,56 +1857,6 @@ func (c *lxc) expandDevices(profiles []api.Profile) error {
 	return nil
 }
 
-func shiftZfsSkipper(dir string, absPath string, fi os.FileInfo) bool {
-	strippedPath := absPath
-	if dir != "" {
-		strippedPath = absPath[len(dir):]
-	}
-
-	if fi.IsDir() && strippedPath == "/.zfs/snapshot" {
-		return true
-	}
-
-	return false
-}
-
-func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
-	var err error
-	roSubvols := []string{}
-	subvols, _ := btrfsSubVolumesGet(path)
-	sort.Sort(sort.StringSlice(subvols))
-	for _, subvol := range subvols {
-		subvol = filepath.Join(path, subvol)
-
-		if !btrfsSubVolumeIsRo(subvol) {
-			continue
-		}
-
-		roSubvols = append(roSubvols, subvol)
-		btrfsSubVolumeMakeRw(subvol)
-	}
-
-	if shift {
-		err = diskIdmap.ShiftRootfs(path, nil)
-	} else {
-		err = diskIdmap.UnshiftRootfs(path, nil)
-	}
-
-	for _, subvol := range roSubvols {
-		btrfsSubVolumeMakeRo(subvol)
-	}
-
-	return err
-}
-
-func ShiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
-	return shiftBtrfsRootfs(path, diskIdmap, true)
-}
-
-func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
-	return shiftBtrfsRootfs(path, diskIdmap, false)
-}
-
 // Start functions
 func (c *lxc) startCommon() (string, []func() error, error) {
 	var ourStart bool
@@ -1966,9 +1916,9 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 
 		if diskIdmap != nil {
 			if storageType == "zfs" {
-				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), shiftZfsSkipper)
+				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), storageDrivers.ShiftZFSSkipper)
 			} else if storageType == "btrfs" {
-				err = UnshiftBtrfsRootfs(c.RootfsPath(), diskIdmap)
+				err = storageDrivers.UnshiftBtrfsRootfs(c.RootfsPath(), diskIdmap)
 			} else {
 				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), nil)
 			}
@@ -1982,9 +1932,9 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 
 		if nextIdmap != nil && !c.state.OS.Shiftfs {
 			if storageType == "zfs" {
-				err = nextIdmap.ShiftRootfs(c.RootfsPath(), shiftZfsSkipper)
+				err = nextIdmap.ShiftRootfs(c.RootfsPath(), storageDrivers.ShiftZFSSkipper)
 			} else if storageType == "btrfs" {
-				err = ShiftBtrfsRootfs(c.RootfsPath(), nextIdmap)
+				err = storageDrivers.ShiftBtrfsRootfs(c.RootfsPath(), nextIdmap)
 			} else {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), nil)
 			}
