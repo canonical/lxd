@@ -381,9 +381,12 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 	}
 
 	volDevPath := d.lvmDevPath(vgName, vol.volType, vol.contentType, vol.name)
-	_, err = makeFSType(volDevPath, d.volumeFilesystem(vol), nil)
-	if err != nil {
-		return errors.Wrapf(err, "Error making filesystem on LVM logical volume")
+
+	if vol.contentType == ContentTypeFS {
+		_, err = makeFSType(volDevPath, d.volumeFilesystem(vol), nil)
+		if err != nil {
+			return errors.Wrapf(err, "Error making filesystem on LVM logical volume")
+		}
 	}
 
 	d.logger.Debug("Logical volume created", log.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": d.volumeFilesystem(vol)})
