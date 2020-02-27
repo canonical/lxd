@@ -3272,22 +3272,12 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 		}
 
 		// Ensure that storage is mounted for state path checks and for backup.yaml updates.
-		if pool != nil {
-			ourStart, err := pool.MountInstance(c, nil)
-			if err != nil {
-				return err
-			}
-			if ourStart {
-				defer pool.UnmountInstance(c, nil)
-			}
-		} else {
-			ourStart, err := c.mount()
-			if err != nil {
-				return err
-			}
-			if ourStart {
-				defer c.unmount()
-			}
+		ourStart, err := pool.MountInstance(c, nil)
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer pool.UnmountInstance(c, nil)
 		}
 	}
 
@@ -3302,17 +3292,9 @@ func (c *containerLXC) Restore(sourceContainer instance.Instance, stateful bool)
 	logger.Info("Restoring container", ctxMap)
 
 	// Restore the rootfs.
-	if pool != nil {
-		err = pool.RestoreInstanceSnapshot(c, sourceContainer, nil)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = c.storage.ContainerRestore(c, sourceContainer)
-		if err != nil {
-			logger.Error("Failed restoring container filesystem", ctxMap)
-			return err
-		}
+	err = pool.RestoreInstanceSnapshot(c, sourceContainer, nil)
+	if err != nil {
+		return err
 	}
 
 	// Restore the configuration.
@@ -4803,12 +4785,6 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 	logger.Info("Migrating container", ctxMap)
 
-	// Initialize storage interface for the container.
-	err = c.initStorage()
-	if err != nil {
-		return err
-	}
-
 	prettyCmd := ""
 	switch args.cmd {
 	case lxc.MIGRATE_PRE_DUMP:
@@ -5666,12 +5642,6 @@ func (c *containerLXC) cpuState() api.InstanceStateCPU {
 
 func (c *containerLXC) diskState() map[string]api.InstanceStateDisk {
 	disk := map[string]api.InstanceStateDisk{}
-
-	// Initialize storage interface for the container.
-	err := c.initStorage()
-	if err != nil {
-		return disk
-	}
 
 	for _, dev := range c.expandedDevices.Sorted() {
 		if dev.Config["type"] != "disk" {

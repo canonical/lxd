@@ -1210,14 +1210,6 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				// means that this was a mixed-storage LXD
 				// instance.
 
-				// Initialize storage interface for the new
-				// container.
-				ctStorage, err := storagePoolVolumeContainerLoadInit(d.State(), "default", ct)
-				if err != nil {
-					logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s", ct, err)
-					return err
-				}
-
 				// Load the container from the database.
 				ctStruct, err := instance.LoadByProjectAndName(d.State(), "default", ct)
 				if err != nil {
@@ -1225,29 +1217,43 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					return err
 				}
 
-				// Create an empty LVM logical volume for the
-				// container.
-				err = ctStorage.ContainerCreate(ctStruct)
+				pool, err := storagePools.GetPoolByInstance(d.State(), ctStruct)
+				if err != nil {
+					return err
+				}
+
+				// Create an empty LVM logical volume for the container.
+				err = pool.CreateInstance(ctStruct, nil)
 				if err != nil {
 					logger.Errorf("Failed to create empty LVM logical volume for container %s: %s", ct, err)
 					return err
 				}
 
-				// In case the new LVM logical volume for the
-				// container is not mounted mount it.
-				if !shared.IsMountPoint(newContainerMntPoint) {
-					_, err = ctStorage.ContainerMount(ctStruct)
-					if err != nil {
-						logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
-						return err
-					}
-				}
+				err = func() error {
+					// In case the new LVM logical volume for the container is not mounted mount it.
+					if !shared.IsMountPoint(newContainerMntPoint) {
+						ourMount, err := pool.MountInstance(ctStruct, nil)
+						if err != nil {
+							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
+							return err
+						}
 
-				// Use rsync to fill the empty volume.
-				output, err := rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+						if ourMount {
+							defer pool.UnmountInstance(ctStruct, nil)
+						}
+					}
+
+					// Use rsync to fill the empty volume.
+					output, err := rsync.LocalCopy(oldContainerMntPoint, newContainerMntPoint, "", true)
+					if err != nil {
+						pool.DeleteInstance(ctStruct, nil)
+						return fmt.Errorf("rsync failed: %s", string(output))
+					}
+
+					return nil
+				}()
 				if err != nil {
-					ctStorage.ContainerDelete(ctStruct)
-					return fmt.Errorf("rsync failed: %s", string(output))
+					return err
 				}
 
 				// Remove the old container.
@@ -1363,14 +1369,6 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					// and it means that this was a
 					// mixed-storage LXD instance.
 
-					// Initialize storage interface for the new
-					// snapshot.
-					csStorage, err := storagePoolVolumeContainerLoadInit(d.State(), "default", cs)
-					if err != nil {
-						logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s", cs, err)
-						return err
-					}
-
 					// Load the snapshot from the database.
 					csStruct, err := instance.LoadByProjectAndName(d.State(), "default", cs)
 					if err != nil {
@@ -1378,36 +1376,56 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 						return err
 					}
 
-					// Create an empty LVM logical volume
-					// for the snapshot.
-					err = csStorage.ContainerSnapshotCreateEmpty(csStruct)
+					pool, err := storagePools.GetPoolByInstance(d.State(), csStruct)
 					if err != nil {
-						logger.Errorf("Failed to create empty LVM logical volume for container %s: %s", cs, err)
 						return err
 					}
 
-					// In case the new LVM logical volume
-					// for the snapshot is not mounted mount
-					// it.
-					if !shared.IsMountPoint(newSnapshotMntPoint) {
-						_, err = csStorage.ContainerMount(csStruct)
+					parent, _, _ := shared.InstanceGetParentAndSnapshotName(csStruct.Name())
+					parentInst, err := instance.LoadByProjectAndName(d.State(), csStruct.Project(), parent)
+					if err != nil {
+						logger.Errorf("Failed to load parent LVM container %s: %s", cs, err)
+						return err
+					}
+
+					// Create an empty LVM logical volume for the snapshot.
+					err = pool.CreateInstanceSnapshot(csStruct, parentInst, nil)
+					if err != nil {
+						logger.Errorf("Failed to create LVM logical volume snapshot for container %s: %s", cs, err)
+						return err
+					}
+
+					err = func() error {
+						// In case the new LVM logical volume for the snapshot is not mounted mount it.
+						if !shared.IsMountPoint(newSnapshotMntPoint) {
+							ourMount, err := pool.MountInstanceSnapshot(csStruct, nil)
+							if err != nil {
+								logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", cs, err)
+								return err
+							}
+
+							if ourMount {
+								defer pool.UnmountInstanceSnapshot(csStruct, nil)
+							}
+						}
+
+						// Use rsync to fill the snapshot volume.
+						output, err := rsync.LocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
 						if err != nil {
-							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", cs, err)
+							pool.DeleteInstanceSnapshot(csStruct, nil)
+							return fmt.Errorf("rsync failed: %s", string(output))
+						}
+
+						// Remove the old snapshot.
+						err = os.RemoveAll(oldSnapshotMntPoint)
+						if err != nil {
+							logger.Errorf("Failed to remove old container %s: %s", oldSnapshotMntPoint, err)
 							return err
 						}
-					}
 
-					// Use rsync to fill the empty volume.
-					output, err := rsync.LocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "", true)
+						return nil
+					}()
 					if err != nil {
-						csStorage.ContainerDelete(csStruct)
-						return fmt.Errorf("rsync failed: %s", string(output))
-					}
-
-					// Remove the old snapshot.
-					err = os.RemoveAll(oldSnapshotMntPoint)
-					if err != nil {
-						logger.Errorf("Failed to remove old container %s: %s", oldSnapshotMntPoint, err)
 						return err
 					}
 				}
@@ -3023,22 +3041,31 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 
 		for _, vol := range volumes {
-			volStruct, err := storagePoolVolumeInit(d.State(), "default", poolName, vol, storagePoolVolumeTypeCustom)
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
 			if err != nil {
 				return err
 			}
 
-			ourMount, err := volStruct.StoragePoolVolumeMount()
-			if err != nil {
-				return err
-			}
-			if ourMount {
-				defer volStruct.StoragePoolVolumeUmount()
-			}
+			// Run task in anonymous function so as not to stack up defers.
+			err = func() error {
+				ourMount, err := pool.MountCustomVolume(vol, nil)
+				if err != nil {
+					return err
+				}
 
-			cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
-			err = os.Chmod(cuMntPoint, 0711)
-			if err != nil && !os.IsNotExist(err) {
+				if ourMount {
+					defer pool.UnmountCustomVolume(vol, nil)
+				}
+
+				cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
+				err = os.Chmod(cuMntPoint, 0711)
+				if err != nil && !os.IsNotExist(err) {
+					return err
+				}
+
+				return nil
+			}()
+			if err != nil {
 				return err
 			}
 		}
