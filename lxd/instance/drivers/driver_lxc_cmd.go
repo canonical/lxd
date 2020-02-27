@@ -1,4 +1,4 @@
-package main
+package drivers
 
 import (
 	"os/exec"
@@ -10,19 +10,19 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// ContainerLXCCmd represents a running command for an LXC container.
-type ContainerLXCCmd struct {
+// lxcCmd represents a running command for an LXC container.
+type lxcCmd struct {
 	attachedChildPid int
 	cmd              *exec.Cmd
 }
 
 // PID returns the attached child's process ID.
-func (c *ContainerLXCCmd) PID() int {
+func (c *lxcCmd) PID() int {
 	return c.attachedChildPid
 }
 
 // Signal sends a signal to the command.
-func (c *ContainerLXCCmd) Signal(sig unix.Signal) error {
+func (c *lxcCmd) Signal(sig unix.Signal) error {
 	err := unix.Kill(c.attachedChildPid, sig)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (c *ContainerLXCCmd) Signal(sig unix.Signal) error {
 }
 
 // Wait for the command to end and returns its exit code and any error.
-func (c *ContainerLXCCmd) Wait() (int, error) {
+func (c *lxcCmd) Wait() (int, error) {
 	err := c.cmd.Wait()
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
@@ -56,7 +56,7 @@ func (c *ContainerLXCCmd) Wait() (int, error) {
 }
 
 // WindowResize resizes the running command's window.
-func (c *ContainerLXCCmd) WindowResize(fd, winchWidth, winchHeight int) error {
+func (c *lxcCmd) WindowResize(fd, winchWidth, winchHeight int) error {
 	err := shared.SetSize(fd, winchWidth, winchHeight)
 	if err != nil {
 		return err
