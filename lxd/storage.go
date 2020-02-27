@@ -644,18 +644,6 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 		}
 	}
 
-	// Handle legacy backends.
-	for _, driver := range drivers {
-		// Initialize a core storage interface for the given driver.
-		sCore, err := storageCoreInit(driver)
-		if err != nil {
-			continue
-		}
-
-		// Grab the version.
-		data[driver] = sCore.GetStorageTypeVersion()
-	}
-
 	// Prepare the cache entries.
 	backends := []string{}
 	for k, v := range data {
