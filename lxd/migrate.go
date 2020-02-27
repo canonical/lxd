@@ -43,7 +43,6 @@ type migrationFields struct {
 	instance     instance.Instance
 
 	// storage specific fields
-	storage    storage
 	volumeOnly bool
 }
 
@@ -273,7 +272,6 @@ type MigrationSinkArgs struct {
 	Snapshots    []*migration.Snapshot
 
 	// Storage specific fields
-	Storage    storage
 	VolumeOnly bool
 
 	// Transport specific fields
