@@ -12,41 +12,6 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-func updateStoragePoolError(unchangeable []string, driverName string) error {
-	return fmt.Errorf(`The %v properties cannot be changed for "%s" `+
-		`storage pools`, unchangeable, driverName)
-}
-
-var changeableStoragePoolProperties = map[string][]string{
-	"btrfs": {
-		"rsync.bwlimit",
-		"btrfs.mount_options"},
-
-	"ceph": {
-		"volume.block.filesystem",
-		"volume.block.mount_options",
-		"volume.size"},
-
-	"cephfs": {
-		"rsync.bwlimit"},
-
-	"dir": {
-		"rsync.bwlimit"},
-
-	"lvm": {
-		"lvm.thinpool_name",
-		"lvm.vg_name",
-		"volume.block.filesystem",
-		"volume.block.mount_options",
-		"volume.size"},
-
-	"zfs": {
-		"rsync_bwlimit",
-		"volume.zfs.remove_snapshots",
-		"volume.zfs.use_refquota",
-		"zfs.clone_copy"},
-}
-
 var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: btrfs
 	// (Note, that we can't be smart in detecting mount options since a lot
