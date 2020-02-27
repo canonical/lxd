@@ -144,8 +144,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		return false, 0
 	}
 
-	c := s.instance.(*containerLXC)
-	err := c.Migrate(&criuMigrationArgs)
+	err := s.instance.Migrate(&criuMigrationArgs)
 
 	if err != nil {
 		// CRIU says it does not know about dirty memory tracking.
@@ -259,8 +258,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 		return false, fmt.Errorf("Instance is not container type")
 	}
 
-	c := s.instance.(*containerLXC)
-	err := c.Migrate(&criuMigrationArgs)
+	err := s.instance.Migrate(&criuMigrationArgs)
 	if err != nil {
 		return final, err
 	}
@@ -621,7 +619,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 				// Do the final CRIU dump. This is needs no special handling if
 				// pre-dumps are used or not.
-				dumpSuccess <- ct.Migrate(&criuMigrationArgs)
+				dumpSuccess <- s.instance.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
@@ -646,7 +644,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 				preDumpDir:   "",
 			}
 
-			err = ct.Migrate(&criuMigrationArgs)
+			err = s.instance.Migrate(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
@@ -1135,8 +1133,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			// Currently we only do a single CRIU pre-dump so we can hardcode "final"
 			// here since we know that "final" is the folder for CRIU's final dump.
 			if c.src.instance.Type() == instancetype.Container {
-				ct := c.src.instance.(*containerLXC)
-				err = ct.Migrate(&criuMigrationArgs)
+				err = c.src.instance.Migrate(&criuMigrationArgs)
 				if err != nil {
 					restore <- err
 					return
