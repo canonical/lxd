@@ -330,12 +330,14 @@ _have lxc && {
                 COMPREPLY=( $(compgen -W "$project_keys" -- $cur) )
                 ;;
             esac
+            ;;
           5)
             case ${no_dashargs[2]} in
               "rename")
                 _lxd_projects
                 ;;
             esac
+            ;;
         esac
         ;;
       "publish")
