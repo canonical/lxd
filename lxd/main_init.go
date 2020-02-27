@@ -159,50 +159,42 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdInit) availableStorageDrivers(poolType string) []string {
-	drivers := []string{}
-
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
 	if err != nil {
 		backingFs = "dir"
 	}
 
-	// Get info for new drivers.
+	// Get info for supported drivers.
 	s := state.NewState(nil, nil, nil, sys.DefaultOS(), nil, nil, nil, nil, nil)
-	info := storageDrivers.SupportedDrivers(s)
-	availableDrivers := []string{}
-	for _, entry := range info {
-		availableDrivers = append(availableDrivers, entry.Name)
-	}
+	supportedDrivers := storageDrivers.SupportedDrivers(s)
 
-	// Check available backends
-	for _, driver := range supportedStoragePoolDrivers {
-		if poolType == "remote" && !shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
+	drivers := make([]string, 0, len(supportedDrivers))
+
+	// Check available backends.
+	for _, driver := range supportedDrivers {
+		if poolType == "remote" && !shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
 			continue
 		}
 
-		if poolType == "local" && shared.StringInSlice(driver, []string{"ceph", "cephfs"}) {
+		if poolType == "local" && shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
 			continue
 		}
 
-		if poolType == "all" && driver == "cephfs" {
+		if poolType == "all" && driver.Name == "cephfs" {
 			continue
 		}
 
-		if driver == "dir" {
-			drivers = append(drivers, driver)
+		if driver.Name == "dir" {
+			drivers = append(drivers, driver.Name)
 			continue
 		}
 
 		// btrfs can work in user namespaces too. (If source=/some/path/on/btrfs is used.)
-		if shared.RunningInUserNS() && (backingFs != "btrfs" || driver != "btrfs") {
+		if shared.RunningInUserNS() && (backingFs != "btrfs" || driver.Name != "btrfs") {
 			continue
 		}
 
-		// Check if available as a driver.
-		if shared.StringInSlice(driver, availableDrivers) {
-			drivers = append(drivers, driver)
-			continue
-		}
+		drivers = append(drivers, driver.Name)
 	}
 
 	return drivers
