@@ -997,7 +997,7 @@ func (c *lxc) initLXC(config bool) error {
 
 		// Setup notification socket
 		// System requirement errors are handled during policy generation instead of here
-		ok, err := seccomp.InstanceNeedsIntercept(c)
+		ok, err := seccomp.InstanceNeedsIntercept(c.state, c)
 		if err == nil && ok {
 			err = lxcSetConfigItem(cc, "lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 			if err != nil {
@@ -1982,7 +1982,7 @@ func (c *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	// Generate the Seccomp profile
-	if err := seccomp.CreateProfile(c); err != nil {
+	if err := seccomp.CreateProfile(c.state, c); err != nil {
 		return "", postStartHooks, err
 	}
 
@@ -2407,7 +2407,7 @@ func (c *lxc) OnStart() error {
 	}
 
 	// Load the container AppArmor profile
-	err = apparmor.LoadProfile(c)
+	err = apparmor.LoadProfile(c.state, c)
 	if err != nil {
 		if ourStart {
 			c.unmount()
@@ -2421,7 +2421,7 @@ func (c *lxc) OnStart() error {
 		// Run any template that needs running
 		err = c.templateApplyNow(c.localConfig[key])
 		if err != nil {
-			apparmor.Destroy(c)
+			apparmor.Destroy(c.state, c)
 			if ourStart {
 				c.unmount()
 			}
@@ -2431,7 +2431,7 @@ func (c *lxc) OnStart() error {
 		// Remove the volatile key from the DB
 		err := c.state.Cluster.ContainerConfigRemove(c.id, key)
 		if err != nil {
-			apparmor.Destroy(c)
+			apparmor.Destroy(c.state, c)
 			if ourStart {
 				c.unmount()
 			}
@@ -2441,7 +2441,7 @@ func (c *lxc) OnStart() error {
 
 	err = c.templateApplyNow("start")
 	if err != nil {
-		apparmor.Destroy(c)
+		apparmor.Destroy(c.state, c)
 		if ourStart {
 			c.unmount()
 		}
@@ -2784,7 +2784,7 @@ func (c *lxc) OnStop(target string) error {
 		c.IsRunning()
 
 		// Unload the apparmor profile
-		err = apparmor.Destroy(c)
+		err = apparmor.Destroy(c.state, c)
 		if err != nil {
 			logger.Error("Failed to destroy apparmor namespace", log.Ctx{"container": c.Name(), "err": err})
 		}
@@ -3346,7 +3346,7 @@ func (c *lxc) cleanup() {
 	c.removeDiskDevices()
 
 	// Remove the security profiles
-	apparmor.DeleteProfile(c)
+	apparmor.DeleteProfile(c.state, c)
 	seccomp.DeleteProfile(c)
 
 	// Remove the devices path
@@ -3939,7 +3939,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// If apparmor changed, re-validate the apparmor profile
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
-		err = apparmor.ParseProfile(c)
+		err = apparmor.ParseProfile(c.state, c)
 		if err != nil {
 			return errors.Wrap(err, "Parse AppArmor profile")
 		}
@@ -4011,7 +4011,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 			if key == "raw.apparmor" || key == "security.nesting" {
 				// Update the AppArmor profile
-				err = apparmor.LoadProfile(c)
+				err = apparmor.LoadProfile(c.state, c)
 				if err != nil {
 					return err
 				}
