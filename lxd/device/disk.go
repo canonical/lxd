@@ -494,7 +494,17 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 }
 
 func (d *disk) applyQuota(newSize string) error {
-	return StorageRootFSApplyQuota(d.state, d.inst, newSize)
+	pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+	if err != nil {
+		return err
+	}
+
+	err = pool.SetInstanceQuota(d.inst, newSize, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // generateLimits adds a set of cgroup rules to apply specified limits to the supplied RunConfig.
@@ -991,11 +1001,17 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 func (d *disk) postStop() error {
 	// Check if pool-specific action should be taken.
 	if d.config["pool"] != "" {
-		err := StorageVolumeUmount(d.state, d.config["pool"], d.config["source"], db.StoragePoolVolumeTypeCustom)
+		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
 		if err != nil {
 			return err
 		}
 
+		_, err = pool.UnmountCustomVolume(d.config["source"], nil)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	devPath := d.getDevicePath(d.name, d.config)
