@@ -3444,17 +3444,6 @@ func (vm *qemu) DeferTemplateApply(trigger string) error {
 	return nil
 }
 
-// DaemonState returns the state of the daemon. Deprecated.
-func (vm *qemu) DaemonState() *state.State {
-	// FIXME: This function should go away, since the abstract instance
-	//        interface should not be coupled with internal state details.
-	//        However this is not currently possible, because many
-	//        higher-level APIs use instance variables as "implicit
-	//        handles" to database/OS state and then need a way to get a
-	//        reference to it.
-	return vm.state
-}
-
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
 // generated name and hwaddr properties if these are missing from the device.
 func (vm *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfig.Device, error) {
