@@ -19,9 +19,12 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
@@ -579,6 +582,9 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 
 // createDevice creates a disk device mount on host.
 func (d *disk) createDevice() (string, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 	srcPath := shared.HostPath(d.config["source"])
@@ -701,17 +707,43 @@ func (d *disk) createDevice() (string, error) {
 		case db.StoragePoolVolumeTypeNameImage:
 			return "", fmt.Errorf("Using image storage volumes is not supported")
 		default:
-			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found", volumeTypeName)
+			return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
 		}
 
-		err := StorageVolumeMount(d.state, d.config["pool"], volumeName, volumeTypeName, d.inst)
+		volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
 		if err != nil {
-			msg := fmt.Sprintf("Could not mount storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.", volumeName, volumeTypeName, d.config["pool"], err)
+			return "", err
+		}
+
+		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+		if err != nil {
+			return "", err
+		}
+
+		// Mount and prepare the volume to be attached.
+		err = func() error {
+			ourMount, err := pool.MountCustomVolume(volumeName, nil)
+			if err != nil {
+				return errors.Wrapf(err, "Could not mount storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, d.config["pool"])
+			}
+
+			if ourMount {
+				revert.Add(func() { pool.UnmountCustomVolume(volumeName, nil) })
+			}
+
+			err = d.storagePoolVolumeAttachPrepare(pool.Name(), volumeName, volumeType)
+			if err != nil {
+				return errors.Wrapf(err, "Could not attach storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, d.config["pool"])
+			}
+
+			return nil
+		}()
+		if err != nil {
 			if !isRequired {
 				// Will fail the PathExists test below.
-				logger.Warn(msg)
+				logger.Warn(err.Error())
 			} else {
-				return "", fmt.Errorf(msg)
+				return "", err
 			}
 		}
 	}
@@ -761,7 +793,171 @@ func (d *disk) createDevice() (string, error) {
 		return "", err
 	}
 
+	revert.Success()
 	return devPath, nil
+}
+
+func (d *disk) storagePoolVolumeAttachPrepare(poolName string, volumeName string, volumeType int) error {
+	// Load the DB records.
+	poolID, pool, err := d.state.Cluster.StoragePoolGet(poolName)
+	if err != nil {
+		return err
+	}
+
+	// Custom storage volumes do not currently support projects, so hardcode "default" project.
+	_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volumeName, volumeType, poolID)
+	if err != nil {
+		return err
+	}
+
+	poolVolumePut := volume.Writable()
+
+	// Check if unmapped.
+	if shared.IsTrue(poolVolumePut.Config["security.unmapped"]) {
+		// No need to look at containers and maps for unmapped volumes.
+		return nil
+	}
+
+	// Get the on-disk idmap for the volume.
+	var lastIdmap *idmap.IdmapSet
+	if poolVolumePut.Config["volatile.idmap.last"] != "" {
+		lastIdmap, err = idmap.JSONUnmarshal(poolVolumePut.Config["volatile.idmap.last"])
+		if err != nil {
+			logger.Errorf("Failed to unmarshal last idmapping: %q", poolVolumePut.Config["volatile.idmap.last"])
+			return err
+		}
+	}
+
+	var nextIdmap *idmap.IdmapSet
+	nextJSONMap := "[]"
+	if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
+		c := d.inst.(instance.Container)
+		// Get the container's idmap.
+		if c.IsRunning() {
+			nextIdmap, err = c.CurrentIdmap()
+		} else {
+			nextIdmap, err = c.NextIdmap()
+		}
+		if err != nil {
+			return err
+		}
+
+		if nextIdmap != nil {
+			nextJSONMap, err = idmap.JSONMarshal(nextIdmap)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	poolVolumePut.Config["volatile.idmap.next"] = nextJSONMap
+
+	// Get mountpoint of storage volume.
+	remapPath := storagePools.GetStoragePoolVolumeMountPoint(poolName, volumeName)
+
+	if !nextIdmap.Equals(lastIdmap) {
+		logger.Debugf("Shifting storage volume")
+
+		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
+			// Custom storage volumes do not currently support projects, so hardcode "default" project.
+			volumeUsedBy, err := storagePools.VolumeUsedByInstancesGet(d.state, "default", poolName, volumeName)
+			if err != nil {
+				return err
+			}
+
+			if len(volumeUsedBy) > 1 {
+				for _, ctName := range volumeUsedBy {
+					instt, err := instance.LoadByProjectAndName(d.state, d.inst.Project(), ctName)
+					if err != nil {
+						continue
+					}
+
+					if instt.Type() != instancetype.Container {
+						continue
+					}
+
+					ct := instt.(instance.Container)
+
+					var ctNextIdmap *idmap.IdmapSet
+					if ct.IsRunning() {
+						ctNextIdmap, err = ct.CurrentIdmap()
+					} else {
+						ctNextIdmap, err = ct.NextIdmap()
+					}
+					if err != nil {
+						return fmt.Errorf("Failed to retrieve idmap of container")
+					}
+
+					if !nextIdmap.Equals(ctNextIdmap) {
+						return fmt.Errorf("Idmaps of container %q and storage volume %q are not identical", ctName, volumeName)
+					}
+				}
+			} else if len(volumeUsedBy) == 1 {
+				// If we're the only one who's attached that container
+				// we can shift the storage volume.
+				// I'm not sure if we want some locking here.
+				if volumeUsedBy[0] != d.inst.Name() {
+					return fmt.Errorf("idmaps of container and storage volume are not identical")
+				}
+			}
+		}
+
+		// Unshift rootfs.
+		if lastIdmap != nil {
+			var err error
+
+			if pool.Driver == "zfs" {
+				err = lastIdmap.UnshiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
+			} else {
+				err = lastIdmap.UnshiftRootfs(remapPath, nil)
+			}
+
+			if err != nil {
+				logger.Errorf("Failed to unshift %q", remapPath)
+				return err
+			}
+
+			logger.Debugf("Unshifted %q", remapPath)
+		}
+
+		// Shift rootfs.
+		if nextIdmap != nil {
+			var err error
+
+			if pool.Driver == "zfs" {
+				err = nextIdmap.ShiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
+			} else {
+				err = nextIdmap.ShiftRootfs(remapPath, nil)
+			}
+
+			if err != nil {
+				logger.Errorf("Failed to shift %q", remapPath)
+				return err
+			}
+
+			logger.Debugf("Shifted %q", remapPath)
+		}
+		logger.Debugf("Shifted storage volume")
+	}
+
+	jsonIdmap := "[]"
+	if nextIdmap != nil {
+		var err error
+		jsonIdmap, err = idmap.JSONMarshal(nextIdmap)
+		if err != nil {
+			logger.Errorf("Failed to marshal idmap")
+			return err
+		}
+	}
+
+	// Update last idmap.
+	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
+
+	err = d.state.Cluster.StoragePoolVolumeUpdateByProject("default", volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Stop is run when the device is removed from the instance.
