@@ -35,7 +35,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		Config:   req.Config,
 	})
 
-	err = checkAggregateInstanceLimits(tx, project, instances, profiles)
+	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
 	if err != nil {
 		return err
 	}
@@ -71,9 +71,9 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 	return nil
 }
 
-// Check that we would not violate the project limits if we were to commit the
-// given instances and profiles.
-func checkAggregateInstanceLimits(tx *db.ClusterTx, project *api.Project, instances []db.Instance, profiles []db.Profile) error {
+// Check that we would not violate the project limits or restrictions if we
+// were to commit the given instances and profiles.
+func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project, instances []db.Instance, profiles []db.Profile) error {
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
@@ -129,7 +129,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		instances[i].Config = req.Config
 	}
 
-	err = checkAggregateInstanceLimits(tx, project, instances, profiles)
+	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 		profiles[i].Config = req.Config
 	}
 
-	err = checkAggregateInstanceLimits(tx, project, instances, profiles)
+	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
 	if err != nil {
 		return err
 	}
