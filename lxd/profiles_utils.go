@@ -208,30 +208,33 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 	if err != nil {
 		return err
 	}
+
 	for i, profileName := range args.Profiles {
 		if profileName == name {
-			// Use the old config and devices.
+			// Overwrite the new config from the database with the old config and devices.
 			profiles[i].Config = old.Config
 			profiles[i].Devices = old.Devices
 			break
 		}
 	}
 
-	c := containerLXCInstantiate(d.State(), args, nil)
+	// Load the instance using the old profile config.
+	inst, err := instance.Load(d.State(), args, profiles)
+	if err != nil {
+		return err
+	}
 
-	c.(*containerLXC).expandConfig(profiles)
-	c.(*containerLXC).expandDevices(profiles)
-
-	return c.Update(db.InstanceArgs{
-		Architecture: c.Architecture(),
-		Config:       c.LocalConfig(),
-		Description:  c.Description(),
-		Devices:      c.LocalDevices(),
-		Ephemeral:    c.IsEphemeral(),
-		Profiles:     c.Profiles(),
-		Project:      c.Project(),
-		Type:         c.Type(),
-		Snapshot:     c.IsSnapshot(),
+	// Update will internally load the new profile configs and detect the changes to apply.
+	return inst.Update(db.InstanceArgs{
+		Architecture: inst.Architecture(),
+		Config:       inst.LocalConfig(),
+		Description:  inst.Description(),
+		Devices:      inst.LocalDevices(),
+		Ephemeral:    inst.IsEphemeral(),
+		Profiles:     inst.Profiles(),
+		Project:      inst.Project(),
+		Type:         inst.Type(),
+		Snapshot:     inst.IsSnapshot(),
 	}, true)
 }
 
