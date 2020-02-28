@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -74,29 +73,6 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid storage volume type")
-}
-
-func storagePoolVolumeUsedByInstancesGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
-	insts, err := instance.LoadByProject(s, project)
-	if err != nil {
-		return []string{}, err
-	}
-
-	instUsingVolume := []string{}
-	for _, inst := range insts {
-		for _, dev := range inst.LocalDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
-
-			if dev["pool"] == poolName && dev["source"] == volumeName {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-				break
-			}
-		}
-	}
-
-	return instUsingVolume, nil
 }
 
 func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
@@ -311,7 +287,7 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 	}
 
 	// Look for containers using this volume
-	ctsUsingVolume, err := storagePoolVolumeUsedByInstancesGet(s, project, poolName, volumeName)
+	ctsUsingVolume, err := storagePools.VolumeUsedByInstancesGet(s, project, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
 	}
