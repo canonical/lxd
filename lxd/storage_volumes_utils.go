@@ -12,15 +12,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// XXX: backward compatible declarations, introduced when the db code was
-//      extracted to its own package. We should eventually clean this up.
-const (
-	storagePoolVolumeTypeContainer = db.StoragePoolVolumeTypeContainer
-	storagePoolVolumeTypeVM        = db.StoragePoolVolumeTypeVM
-	storagePoolVolumeTypeImage     = db.StoragePoolVolumeTypeImage
-	storagePoolVolumeTypeCustom    = db.StoragePoolVolumeTypeCustom
-)
-
 const (
 	storagePoolVolumeTypeNameContainer = db.StoragePoolVolumeTypeNameContainer
 	storagePoolVolumeTypeNameVM        = db.StoragePoolVolumeTypeNameVM
@@ -38,8 +29,8 @@ const (
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeVM, storagePoolVolumeTypeCustom}
-var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
+var supportedVolumeTypesExceptImages = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom}
+var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, db.StoragePoolVolumeTypeImage)
 
 func init() {
 	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningInstancesWithProfilesGet
@@ -62,13 +53,13 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 
 func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	switch volumeType {
-	case storagePoolVolumeTypeContainer:
+	case db.StoragePoolVolumeTypeContainer:
 		return storagePoolVolumeAPIEndpointContainers, nil
-	case storagePoolVolumeTypeVM:
+	case db.StoragePoolVolumeTypeVM:
 		return storagePoolVolumeAPIEndpointVMs, nil
-	case storagePoolVolumeTypeImage:
+	case db.StoragePoolVolumeTypeImage:
 		return storagePoolVolumeAPIEndpointImages, nil
-	case storagePoolVolumeTypeCustom:
+	case db.StoragePoolVolumeTypeCustom:
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 

@@ -213,7 +213,7 @@ func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
 			continue
 		}
 
-		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(storagePoolVolumeTypeCustom, poolID)
+		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(db.StoragePoolVolumeTypeCustom, poolID)
 		if err != nil {
 			return err
 		}
@@ -540,16 +540,16 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, db.StoragePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, db.StoragePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", db.StoragePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -628,16 +628,16 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 				return err
 			}
 
-			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, db.StoragePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				logger.Warnf("Storage volumes database already contains an entry for the snapshot")
-				err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
+				err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, db.StoragePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
 				if err != nil {
 					return err
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -709,16 +709,16 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, db.StoragePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, db.StoragePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", db.StoragePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -830,16 +830,16 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, db.StoragePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, db.StoragePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", db.StoragePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -947,16 +947,16 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, db.StoragePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the snapshot")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, db.StoragePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 				return err
@@ -977,16 +977,16 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, db.StoragePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, db.StoragePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", db.StoragePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -1139,16 +1139,16 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, db.StoragePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, db.StoragePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", db.StoragePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1300,16 +1300,16 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				return err
 			}
 
-			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, db.StoragePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				logger.Warnf("Storage volumes database already contains an entry for the snapshot")
-				err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
+				err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, db.StoragePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
 				if err != nil {
 					return err
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", db.StoragePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -1483,16 +1483,16 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, db.StoragePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, db.StoragePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", db.StoragePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -1544,7 +1544,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// This image didn't exist as a logical volume on the
 			// old LXD instance so we need to kick it from the
 			// storage volumes database for this pool.
-			err := d.cluster.StoragePoolVolumeDelete("default", img, storagePoolVolumeTypeImage, poolID)
+			err := d.cluster.StoragePoolVolumeDelete("default", img, db.StoragePoolVolumeTypeImage, poolID)
 			if err != nil {
 				return err
 			}
@@ -1675,16 +1675,16 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, db.StoragePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", ct, db.StoragePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", db.StoragePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1761,16 +1761,16 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 				return err
 			}
 
-			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, db.StoragePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				logger.Warnf("Storage volumes database already contains an entry for the snapshot")
-				err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
+				err := d.cluster.StoragePoolVolumeUpdateByProject("default", cs, db.StoragePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
 				if err != nil {
 					return err
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", db.StoragePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -1817,16 +1817,16 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, db.StoragePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image")
-			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
+			err := d.cluster.StoragePoolVolumeUpdateByProject("default", img, db.StoragePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
 			if err != nil {
 				return err
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", db.StoragePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -3025,7 +3025,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 			return err
 		}
 
-		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(storagePoolVolumeTypeCustom, poolID)
+		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(db.StoragePoolVolumeTypeCustom, poolID)
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}

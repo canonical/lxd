@@ -517,7 +517,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, storagePoolVolumeTypeContainer, pool.ID())
+	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, req.Name, db.StoragePoolVolumeTypeContainer, pool.ID())
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
 			return response.SmartError(ctVolErr)
@@ -556,7 +556,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Remove the storage volume db entry for the container since force was specified.
-		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, storagePoolVolumeTypeContainer, pool.ID())
+		err := d.cluster.StoragePoolVolumeDelete(projectName, req.Name, db.StoragePoolVolumeTypeContainer, pool.ID())
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -657,7 +657,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, storagePoolVolumeTypeContainer, pool.ID())
+		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, db.StoragePoolVolumeTypeContainer, pool.ID())
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
 				return response.SmartError(csVolErr)
@@ -677,7 +677,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, storagePoolVolumeTypeContainer, pool.ID())
+			err := d.cluster.StoragePoolVolumeDelete(projectName, snap.Name, db.StoragePoolVolumeTypeContainer, pool.ID())
 			if err != nil {
 				return response.SmartError(err)
 			}
