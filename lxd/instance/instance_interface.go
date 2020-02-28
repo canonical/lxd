@@ -130,3 +130,15 @@ type Container interface {
 	ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error)
 	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
+
+// CriuMigrationArgs arguments for CRIU migration.
+type CriuMigrationArgs struct {
+	Cmd          uint
+	StateDir     string
+	Function     string
+	Stop         bool
+	ActionScript bool
+	DumpDir      string
+	PreDumpDir   string
+	Features     liblxc.CriuFeatures
+}
