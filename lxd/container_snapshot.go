@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -220,7 +221,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	case "POST":
 		return snapshotPost(d, r, inst, containerName)
 	case "DELETE":
-		return snapshotDelete(inst, snapshotName)
+		return snapshotDelete(d.State(), inst, snapshotName)
 	case "PUT":
 		return snapshotPut(d, r, inst, snapshotName)
 	default:
@@ -425,7 +426,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 	return operations.OperationResponse(op)
 }
 
-func snapshotDelete(sc instance.Instance, name string) response.Response {
+func snapshotDelete(s *state.State, sc instance.Instance, name string) response.Response {
 	remove := func(op *operations.Operation) error {
 		return sc.Delete()
 	}
@@ -433,7 +434,7 @@ func snapshotDelete(sc instance.Instance, name string) response.Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operations.OperationCreate(sc.DaemonState(), sc.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
+	op, err := operations.OperationCreate(s, sc.Project(), operations.OperationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
 	if err != nil {
 		return response.InternalError(err)
 	}
