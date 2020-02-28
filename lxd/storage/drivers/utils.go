@@ -584,10 +584,12 @@ func loopFilePath(poolName string) string {
 	return filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", poolName))
 }
 
+// ShiftBtrfsRootfs shifts the BTRFS root filesystem.
 func ShiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 	return shiftBtrfsRootfs(path, diskIdmap, true)
 }
 
+// UnshiftBtrfsRootfs unshifts the BTRFS root filesystem.
 func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 	return shiftBtrfsRootfs(path, diskIdmap, false)
 }
@@ -694,6 +696,7 @@ func BTRFSSubVolumeMakeRw(path string) error {
 	return err
 }
 
+// ShiftZFSSkipper indicates which files not to shift for ZFS.
 func ShiftZFSSkipper(dir string, absPath string, fi os.FileInfo) bool {
 	strippedPath := absPath
 	if dir != "" {
