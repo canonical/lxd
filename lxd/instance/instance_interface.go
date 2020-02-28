@@ -33,6 +33,7 @@ type Instance interface {
 	Stop(stateful bool) error
 	Unfreeze() error
 	RegisterDevices()
+	SaveConfigFile() error
 
 	IsPrivileged() bool
 
