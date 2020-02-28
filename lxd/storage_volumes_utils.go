@@ -12,13 +12,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-const (
-	storagePoolVolumeTypeNameContainer = db.StoragePoolVolumeTypeNameContainer
-	storagePoolVolumeTypeNameVM        = db.StoragePoolVolumeTypeNameVM
-	storagePoolVolumeTypeNameImage     = db.StoragePoolVolumeTypeNameImage
-	storagePoolVolumeTypeNameCustom    = db.StoragePoolVolumeTypeNameCustom
-)
-
 // Leave the string type in here! This guarantees that go treats this is as a
 // typed string constant. Removing it causes go to treat these as untyped string
 // constants which is not what we want.
@@ -38,13 +31,13 @@ func init() {
 
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
-	case storagePoolVolumeTypeNameContainer:
+	case db.StoragePoolVolumeTypeNameContainer:
 		return storagePoolVolumeAPIEndpointContainers, nil
-	case storagePoolVolumeTypeNameVM:
+	case db.StoragePoolVolumeTypeNameVM:
 		return storagePoolVolumeAPIEndpointVMs, nil
-	case storagePoolVolumeTypeNameImage:
+	case db.StoragePoolVolumeTypeNameImage:
 		return storagePoolVolumeAPIEndpointImages, nil
-	case storagePoolVolumeTypeNameCustom:
+	case db.StoragePoolVolumeTypeNameCustom:
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
@@ -95,7 +88,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 			dir, file := filepath.Split(devices[k]["source"])
 			dir = filepath.Clean(dir)
-			if dir != storagePoolVolumeTypeNameCustom {
+			if dir != db.StoragePoolVolumeTypeNameCustom {
 				continue
 			}
 
@@ -114,7 +107,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			if oldVolumeName != newVolumeName {
 				newSource := newVolumeName
 				if dir != "" {
-					newSource = fmt.Sprintf("%s/%s", storagePoolVolumeTypeNameCustom, newVolumeName)
+					newSource = fmt.Sprintf("%s/%s", db.StoragePoolVolumeTypeNameCustom, newVolumeName)
 				}
 				devices[k]["source"] = newSource
 			}
@@ -171,7 +164,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 			dir, file := filepath.Split(profile.Devices[k]["source"])
 			dir = filepath.Clean(dir)
-			if dir != storagePoolVolumeTypeNameCustom {
+			if dir != db.StoragePoolVolumeTypeNameCustom {
 				continue
 			}
 
@@ -190,7 +183,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			if oldVolumeName != newVolumeName {
 				newSource := newVolumeName
 				if dir != "" {
-					newSource = fmt.Sprintf("%s/%s", storagePoolVolumeTypeNameCustom, newVolumeName)
+					newSource = fmt.Sprintf("%s/%s", db.StoragePoolVolumeTypeNameCustom, newVolumeName)
 				}
 				profile.Devices[k]["source"] = newSource
 			}
