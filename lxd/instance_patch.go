@@ -123,7 +123,7 @@ func containerPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Check project limits.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.CheckLimitsUponInstanceUpdate(tx, project, name, req)
+		return projecthelpers.AllowInstanceUpdate(tx, project, name, req)
 	})
 	if err != nil {
 		return response.SmartError(err)
