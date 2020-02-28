@@ -78,16 +78,26 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 	// across all project instances.
 	aggregateKeys := []string{}
 	for key := range project.Config {
-		if shared.StringInSlice(key, []string{"limits.memory", "limits.processes", "limits.cpu"}) {
+		if shared.StringInSlice(key, allAggregateLimits) {
 			aggregateKeys = append(aggregateKeys, key)
 		}
 	}
+
 	if len(aggregateKeys) == 0 {
 		return nil
 	}
 
 	instances = expandInstancesConfig(instances, profiles)
 
+	err := checkAggregateLimits(project, instances, aggregateKeys)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkAggregateLimits(project *api.Project, instances []db.Instance, aggregateKeys []string) error {
 	totals, err := getTotalsAcrossInstances(instances, aggregateKeys)
 	if err != nil {
 		return err
@@ -105,8 +115,13 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 				project.Config[key], key, project.Name)
 		}
 	}
-
 	return nil
+}
+
+var allAggregateLimits = []string{
+	"limits.cpu",
+	"limits.memory",
+	"limits.processes",
 }
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
