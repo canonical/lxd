@@ -137,9 +137,9 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 	return nil
 }
 
-// CheckLimitsUponProfileUpdate checks that project limits are not violated
-// when changing a profile.
-func CheckLimitsUponProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
+// AllowProfileUpdate checks that project limits and restrictions are not
+// violated when changing a profile.
+func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req api.ProfilePut) error {
 	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
