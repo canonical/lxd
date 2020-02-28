@@ -794,6 +794,8 @@ func (c *containerLXC) initLXC(config bool) error {
 		} else {
 			mounts = append(mounts, "cgroup:mixed")
 		}
+	} else {
+		mounts = append(mounts, "cgroup:mixed")
 	}
 
 	err = lxcSetConfigItem(cc, "lxc.mount.auto", strings.Join(mounts, " "))
