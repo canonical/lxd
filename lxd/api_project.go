@@ -518,16 +518,39 @@ func projectIsEmpty(project *api.Project) bool {
 	return true
 }
 
-// Validate the project configuration.
+func isEitherAllowOrBlock(value string) error {
+	return shared.IsOneOf(value, []string{"block", "allow"})
+}
+
+func isEitherAllowOrBlockOrManaged(value string) error {
+	return shared.IsOneOf(value, []string{"block", "allow", "managed"})
+}
+
+// Validate the project configuration
 var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles":        shared.IsBool,
-	"features.images":          shared.IsBool,
-	"features.storage.volumes": shared.IsBool,
-	"limits.containers":        shared.IsUint32,
-	"limits.virtual-machines":  shared.IsUint32,
-	"limits.memory":            shared.IsSize,
-	"limits.processes":         shared.IsUint32,
-	"limits.cpu":               shared.IsUint32,
+	"features.profiles":              shared.IsBool,
+	"features.images":                shared.IsBool,
+	"features.storage.volumes":       shared.IsBool,
+	"limits.containers":              shared.IsUint32,
+	"limits.virtual-machines":        shared.IsUint32,
+	"limits.memory":                  shared.IsSize,
+	"limits.processes":               shared.IsUint32,
+	"limits.cpu":                     shared.IsUint32,
+	"restricted":                     shared.IsBool,
+	"restricted.containers.nesting":  isEitherAllowOrBlock,
+	"restricted.containers.lowlevel": isEitherAllowOrBlock,
+	"restricted.containers.privilege": func(value string) error {
+		return shared.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
+	},
+	"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
+	"restricted.devices.unix-char":         isEitherAllowOrBlock,
+	"restricted.devices.unix-block":        isEitherAllowOrBlock,
+	"restricted.devices.unix-hotplug":      isEitherAllowOrBlock,
+	"restricted.devices.infiniband":        isEitherAllowOrBlock,
+	"restricted.devices.gpu":               isEitherAllowOrBlock,
+	"restricted.devices.usb":               isEitherAllowOrBlock,
+	"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
+	"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
 }
 
 func projectValidateConfig(config map[string]string) error {
