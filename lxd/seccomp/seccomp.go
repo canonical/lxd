@@ -361,6 +361,7 @@ stub_x32_execveat errno 38
 `
 
 // Instance is a seccomp specific instance interface.
+// This is used rather than instance.Instance to avoid import loops.
 type Instance interface {
 	Name() string
 	Project() string
