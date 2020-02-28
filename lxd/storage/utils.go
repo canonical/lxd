@@ -628,3 +628,27 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 
 	return contentType
 }
+
+// VolumeUsedByInstancesGet gets a list of instance names using a volume.
+func VolumeUsedByInstancesGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
+	insts, err := instance.LoadByProject(s, project)
+	if err != nil {
+		return []string{}, err
+	}
+
+	instUsingVolume := []string{}
+	for _, inst := range insts {
+		for _, dev := range inst.LocalDevices() {
+			if dev["type"] != "disk" {
+				continue
+			}
+
+			if dev["pool"] == poolName && dev["source"] == volumeName {
+				instUsingVolume = append(instUsingVolume, inst.Name())
+				break
+			}
+		}
+	}
+
+	return instUsingVolume, nil
+}
