@@ -10,7 +10,6 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -115,5 +114,4 @@ type Instance interface {
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
 	DeferTemplateApply(trigger string) error
-	DaemonState() *state.State
 }
