@@ -366,7 +366,6 @@ type Instance interface {
 	Project() string
 	ExpandedConfig() map[string]string
 	IsPrivileged() bool
-	DaemonState() *state.State
 	Architecture() int
 	RootfsPath() string
 	CurrentIdmap() (*idmap.IdmapSet, error)
@@ -429,14 +428,14 @@ func InstanceNeedsPolicy(c Instance) bool {
 }
 
 // InstanceNeedsIntercept returns whether instance needs intercept.
-func InstanceNeedsIntercept(c Instance) (bool, error) {
+func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 	// No need if privileged
 	if c.IsPrivileged() {
 		return false, nil
 	}
 
 	// If nested, assume the host handles it
-	if c.DaemonState().OS.RunningInUserNS {
+	if s.OS.RunningInUserNS {
 		return false, nil
 	}
 
@@ -454,7 +453,7 @@ func InstanceNeedsIntercept(c Instance) (bool, error) {
 			continue
 		}
 
-		if !isSupported(c.DaemonState()) {
+		if !isSupported(s) {
 			return needed, fmt.Errorf("System doesn't support syscall interception")
 		}
 
@@ -464,7 +463,7 @@ func InstanceNeedsIntercept(c Instance) (bool, error) {
 	return needed, nil
 }
 
-func seccompGetPolicyContent(c Instance) (string, error) {
+func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	config := c.ExpandedConfig()
 
 	// Full policy override
@@ -489,7 +488,7 @@ func seccompGetPolicyContent(c Instance) (string, error) {
 	}
 
 	// Syscall interception
-	ok, err := InstanceNeedsIntercept(c)
+	ok, err := InstanceNeedsIntercept(s, c)
 	if err != nil {
 		return "", err
 	}
@@ -539,7 +538,7 @@ func seccompGetPolicyContent(c Instance) (string, error) {
 }
 
 // CreateProfile creates a seccomp profile.
-func CreateProfile(c Instance) error {
+func CreateProfile(s *state.State, c Instance) error {
 	/* Unlike apparmor, there is no way to "cache" profiles, and profiles
 	 * are automatically unloaded when a task dies. Thus, we don't need to
 	 * unload them when a container stops, and we don't have to worry about
@@ -550,7 +549,7 @@ func CreateProfile(c Instance) error {
 		return nil
 	}
 
-	profile, err := seccompGetPolicyContent(c)
+	profile, err := seccompGetPolicyContent(s, c)
 	if err != nil {
 		return err
 	}
@@ -1557,7 +1556,7 @@ func (s *Server) MountSyscallShift(c Instance) bool {
 			return false
 		}
 
-		if diskIdmap == nil && c.DaemonState().OS.Shiftfs {
+		if diskIdmap == nil && s.s.OS.Shiftfs {
 			return true
 		}
 	}
