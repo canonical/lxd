@@ -274,7 +274,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	// We currently only allow to create storage volumes of type
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
-	if req.Type != storagePoolVolumeTypeNameCustom {
+	if req.Type != db.StoragePoolVolumeTypeNameCustom {
 		return response.BadRequest(fmt.Errorf(`Currently not allowed to create `+
 			`storage volumes of type %s`, req.Type))
 	}
@@ -376,7 +376,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	// We currently only allow to create storage volumes of type
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
-	if req.Type != storagePoolVolumeTypeNameCustom {
+	if req.Type != db.StoragePoolVolumeTypeNameCustom {
 		return response.BadRequest(fmt.Errorf(`Currently not allowed to create `+
 			`storage volumes of type %s`, req.Type))
 	}
@@ -522,7 +522,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
 	// So check, that nothing else was requested.
-	if volumeTypeName != storagePoolVolumeTypeNameCustom {
+	if volumeTypeName != db.StoragePoolVolumeTypeNameCustom {
 		return response.BadRequest(fmt.Errorf("Renaming storage volumes of type %s is not allowed", volumeTypeName))
 	}
 
