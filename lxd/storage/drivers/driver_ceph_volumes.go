@@ -102,9 +102,12 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 
 	// Get filesystem.
 	RBDFilesystem := d.getRBDFilesystem(vol)
-	_, err = makeFSType(RBDDevPath, RBDFilesystem, nil)
-	if err != nil {
-		return err
+
+	if vol.contentType == ContentTypeFS {
+		_, err = makeFSType(RBDDevPath, RBDFilesystem, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// For VMs, also create the filesystem volume.
