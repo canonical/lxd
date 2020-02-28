@@ -975,6 +975,11 @@ func (vm *qemu) RegisterDevices() {
 	return
 }
 
+// SaveConfigFile is not used by VMs.
+func (vm *qemu) SaveConfigFile() error {
+	return instance.ErrNotImplemented
+}
+
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
 func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
