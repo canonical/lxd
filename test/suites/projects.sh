@@ -641,3 +641,130 @@ test_projects_limits() {
   lxc project switch default
   lxc project delete p1
 }
+
+# Set restrictions on projects.
+test_projects_restrictions() {
+  # Add a managed network.
+  lxc network create "n-proj$$"
+
+  # Create a project and switch to it
+  lxc project create p1 -c features.storage.volumes=false
+  lxc project switch p1
+
+  # Add a root device to the default profile of the project and import an image.
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${pool}"
+
+  deps/import-busybox --project p1 --alias testimage
+  fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
+
+  # Add a volume.
+  lxc storage volume create "${pool}" "v-proj$$"
+
+  # Enable all restrictions.
+  lxc project set p1 restricted=true
+
+  # It's not possible to create nested containers.
+  ! lxc profile set default security.nesting=true || false
+  ! lxc init testimage c1 -c security.nesting=true || false
+
+  # It's not possible to use forbidden low-level options
+  ! lxc profile set default "raw.idmap=both 0 0" || false
+  ! lxc init testimage c1 -c "raw.idmap=both 0 0" || false
+  ! lxc init testimage c1 -c volatile.apply_template="foo" || false
+
+  # It's not possible to create privileged containers.
+  ! lxc profile set default security.privileged=true || false
+  ! lxc init testimage c1 -c security.privileged=true || false
+
+  # It's possible to create non-isolated containers.
+  lxc init testimage c1 -c security.idmap.isolated=false
+
+  # It's not possible to change low-level options
+  ! lxc config set c1 "raw.idmap=both 0 0" || false
+  ! lxc config set c1 volatile.apply_template="foo" || false
+
+  # It's not possible to attach character devices.
+  ! lxc profile device add default tty unix-char path=/dev/ttyS0 || false
+  ! lxc config device add c1 tty unix-char path=/dev/ttyS0 || false
+
+  # It's not possible to attach raw network devices.
+  ! lxc profile device add default eth0 nic nictype=p2p || false
+
+  # It's not possible to attach non-managed disk devices.
+  ! lxc profile device add default testdir disk source="${TEST_DIR}" path=/mnt || false
+  ! lxc config device add c1 testdir disk source="${TEST_DIR}" path=/mnt || false
+
+  # It's possible to attach managed network devices.
+  lxc profile device add default eth0 nic network="n-proj$$"
+
+  # It's possible to attach disks backed by a pool.
+  lxc config device add c1 data disk pool="${pool}" path=/mnt source="v-proj$$"
+
+  # It's not possible to set restricted.containers.nic to 'block' because
+  # there's an instance using the managed network.
+  ! lxc project set p1 restricted.devices.nic=block || false
+
+  # Relaxing restricted.containers.nic to 'allow' makes it possible to attach
+  # raw network devices.
+  lxc project set p1 restricted.devices.nic=allow
+  lxc config device add c1 eth1 nic nictype=p2p
+
+  # Relaxing restricted.containers.disk to 'allow' makes it possible to attach
+  # non-managed disks.
+  lxc project set p1 restricted.devices.disk=allow
+  lxc config device add c1 testdir disk source="${TEST_DIR}" path=/foo
+
+  # Relaxing restricted.containers.lowlevel to 'allow' makes it possible set
+  # low-level keys.
+  lxc project set p1 restricted.containers.lowlevel=allow
+  lxc config set c1 "raw.idmap=both 0 0"
+
+  lxc delete c1
+
+  # Setting restricted.containers.disk to 'block' allows only the root disk
+  # device.
+  lxc project set p1 restricted.devices.disk=block
+  ! lxc profile device add default data disk pool="${pool}" path=/mnt source="v-proj$$" || false
+
+  # Setting restricted.containers.nesting to 'allow' makes it possible to create
+  # nested containers.
+  lxc project set p1 restricted.containers.nesting=allow
+  lxc init testimage c1 -c security.nesting=true
+
+  # It's not possible to set restricted.containers.nesting back to 'block',
+  # because there's an instance with security.nesting=true.
+  ! lxc project set p1 restricted.containers.nesting=block || false
+
+  lxc delete c1
+
+  # Setting restricted.containers.lowlevel to 'allow' makes it possible to set
+  # low-level options.
+  lxc project set p1 restricted.containers.lowlevel=allow
+  lxc init testimage c1 -c "raw.idmap=both 0 0" || false
+
+  # It's not possible to set restricted.containers.lowlevel back to 'block',
+  # because there's an instance with raw.idmap set.
+  ! lxc project set p1 restricted.containers.lowlevel=block || false
+
+  lxc delete c1
+
+  # Setting restricted.containers.privilege to 'allow' makes it possible to create
+  # privileged containers.
+  lxc project set p1 restricted.containers.privilege=allow
+  lxc init testimage c1 -c security.privileged=true
+
+  # It's not possible to set restricted.containers.privilege back to
+  # 'unprivileged', because there's an instance with security.privileged=true.
+  ! lxc project set p1 restricted.containers.privilege=unprivileged || false
+
+  lxc delete c1
+
+  lxc image delete testimage
+
+  lxc project switch default
+  lxc project delete p1
+
+  lxc network delete "n-proj$$"
+  lxc storage volume delete "${pool}" "v-proj$$"
+}
