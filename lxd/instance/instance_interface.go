@@ -5,12 +5,15 @@ import (
 	"os"
 	"time"
 
+	liblxc "gopkg.in/lxc/go-lxc.v2"
+
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 // ConfigReader is used to read instance config.
@@ -22,7 +25,7 @@ type ConfigReader interface {
 	LocalDevices() deviceConfig.Devices
 }
 
-// The Instance interface.
+// Instance interface.
 type Instance interface {
 	ConfigReader
 
@@ -115,4 +118,15 @@ type Instance interface {
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
 	DeferTemplateApply(trigger string) error
+}
+
+// Container interface is for container specific functions.
+type Container interface {
+	Instance
+
+	CurrentIdmap() (*idmap.IdmapSet, error)
+	DiskIdmap() (*idmap.IdmapSet, error)
+	NextIdmap() (*idmap.IdmapSet, error)
+	ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error)
+	InsertSeccompUnixDevice(prefix string, m deviceConfig.Device, pid int) error
 }
