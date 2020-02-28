@@ -364,7 +364,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 
 	// Update the database entry.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		err := projecthelpers.ValidateLimitsUponProjectUpdate(tx, project.Name, req.Config, configChanged)
+		err := projecthelpers.AllowProjectUpdate(tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err
 		}
