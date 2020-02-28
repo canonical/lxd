@@ -108,7 +108,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	imageVolumes, err := d.cluster.StoragePoolVolumesGet("default", poolID, []int{storagePoolVolumeTypeImage})
+	imageVolumes, err := d.cluster.StoragePoolVolumesGet("default", poolID, []int{db.StoragePoolVolumeTypeImage})
 	if err != nil && err != db.ErrNoSuchObject {
 		return response.SmartError(err)
 	}
@@ -1079,9 +1079,9 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	}
 
 	switch volumeType {
-	case storagePoolVolumeTypeCustom:
+	case db.StoragePoolVolumeTypeCustom:
 		// allowed
-	case storagePoolVolumeTypeImage:
+	case db.StoragePoolVolumeTypeImage:
 		// allowed
 	default:
 		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", volumeTypeName))
@@ -1093,7 +1093,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	}
 
 	if len(volumeUsedBy) > 0 {
-		if len(volumeUsedBy) != 1 || volumeType != storagePoolVolumeTypeImage || volumeUsedBy[0] != fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName) {
+		if len(volumeUsedBy) != 1 || volumeType != db.StoragePoolVolumeTypeImage || volumeUsedBy[0] != fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName) {
 			return response.BadRequest(fmt.Errorf("The storage volume is still in use"))
 		}
 	}
@@ -1104,9 +1104,9 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	}
 
 	switch volumeType {
-	case storagePoolVolumeTypeCustom:
+	case db.StoragePoolVolumeTypeCustom:
 		err = pool.DeleteCustomVolume(volumeName, nil)
-	case storagePoolVolumeTypeImage:
+	case db.StoragePoolVolumeTypeImage:
 		err = pool.DeleteImage(volumeName, nil)
 	default:
 		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage api`, volumeTypeName))

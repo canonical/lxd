@@ -6,6 +6,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
@@ -66,12 +67,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
 		var err error
-		snaps, err := storagePools.VolumeSnapshotsGet(state, poolName, volName, storagePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeSnapshotsGet(state, poolName, volName, db.StoragePoolVolumeTypeCustom)
 		if err == nil {
 			poolID, err := state.Cluster.StoragePoolGetID(poolName)
 			if err == nil {
 				for _, snap := range snaps {
-					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetType(snap.Name, storagePoolVolumeTypeCustom, poolID)
+					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetType(snap.Name, db.StoragePoolVolumeTypeCustom, poolID)
 					if err != nil {
 						continue
 					}
