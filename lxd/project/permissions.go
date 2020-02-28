@@ -31,6 +31,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 
 	// Add the instance being created.
 	instances = append(instances, db.Instance{
+		Name:     req.Name,
 		Profiles: req.Profiles,
 		Config:   req.Config,
 	})
@@ -77,13 +78,20 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 	// List of config keys for which we need to check aggregate values
 	// across all project instances.
 	aggregateKeys := []string{}
-	for key := range project.Config {
+	isRestricted := false
+	for key, value := range project.Config {
 		if shared.StringInSlice(key, allAggregateLimits) {
 			aggregateKeys = append(aggregateKeys, key)
+			continue
+		}
+
+		if key == "restricted" && shared.IsTrue(value) {
+			isRestricted = true
+			continue
 		}
 	}
 
-	if len(aggregateKeys) == 0 {
+	if len(aggregateKeys) == 0 && !isRestricted {
 		return nil
 	}
 
@@ -94,10 +102,21 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 		return err
 	}
 
+	if isRestricted {
+		err = checkRestrictions(project, instances)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func checkAggregateLimits(project *api.Project, instances []db.Instance, aggregateKeys []string) error {
+	if len(aggregateKeys) == 0 {
+		return nil
+	}
+
 	totals, err := getTotalsAcrossInstances(instances, aggregateKeys)
 	if err != nil {
 		return err
@@ -118,10 +137,63 @@ func checkAggregateLimits(project *api.Project, instances []db.Instance, aggrega
 	return nil
 }
 
+func checkRestrictions(project *api.Project, instances []db.Instance) error {
+	containerKeyChecks := map[string]func(value string) error{}
+
+	for _, key := range AllRestrictions {
+		// Check if this particularl restriction is defined explicitly
+		// in the project config. If not, use the default value.
+		restrictionValue, ok := project.Config[key]
+		if !ok {
+			restrictionValue = defaultRestrictionsValues[key]
+		}
+
+		switch key {
+		case "restricted.containers.nesting":
+			containerKeyChecks["security.nesting"] = func(instanceValue string) error {
+				if restrictionValue == "block" && shared.IsTrue(instanceValue) {
+					return fmt.Errorf("Container nesting is forbidden")
+				}
+
+				return nil
+			}
+		}
+	}
+
+	for _, instance := range instances {
+		if instance.Type == instancetype.Container {
+			for key, value := range instance.Config {
+				checker, ok := containerKeyChecks[key]
+				if !ok {
+					continue
+				}
+				err := checker(value)
+				if err != nil {
+					return errors.Wrapf(
+						err,
+						"Invalid value %q for config %q on instance %q of project %q",
+						value, key, instance.Name, project.Name)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 var allAggregateLimits = []string{
 	"limits.cpu",
 	"limits.memory",
 	"limits.processes",
+}
+
+// AllRestrictions lists all available 'restrict.*' config keys.
+var AllRestrictions = []string{
+	"restricted.containers.nesting",
+}
+
+var defaultRestrictionsValues = map[string]string{
+	"restricted.containers.nesting": "block",
 }
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
@@ -277,12 +349,17 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 	return nil
 }
 
-// Return true if the project has some limits.
-func projectHasLimits(project *api.Project) bool {
-	for k := range project.Config {
+// Return true if the project has some limits or restrictions set.
+func projectHasLimitsOrRestrictions(project *api.Project) bool {
+	for k, v := range project.Config {
 		if strings.HasPrefix(k, "limits.") {
 			return true
 		}
+
+		if k == "restricted" && shared.IsTrue(v) {
+			return true
+		}
+
 	}
 	return false
 }
@@ -297,7 +374,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*a
 		return nil, nil, nil, errors.Wrap(err, "Fetch project database object")
 	}
 
-	if skipIfNoLimits && !projectHasLimits(project) {
+	if skipIfNoLimits && !projectHasLimitsOrRestrictions(project) {
 		return nil, nil, nil, nil
 	}
 
