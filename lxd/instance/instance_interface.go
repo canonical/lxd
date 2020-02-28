@@ -63,7 +63,6 @@ type Instance interface {
 	Export(w io.Writer, properties map[string]string) error
 
 	// Live configuration.
-	CGroupGet(key string) (string, error)
 	CGroupSet(key string, value string) error
 	VolatileSet(changes map[string]string) error
 
