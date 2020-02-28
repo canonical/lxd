@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -19,14 +18,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
-
-func init() {
-	// Expose storageVolumeUmount to the device package as StorageVolumeUmount.
-	device.StorageVolumeUmount = storageVolumeUmount
-
-	// Expose storageRootFSApplyQuota to the device package as StorageRootFSApplyQuota.
-	device.StorageRootFSApplyQuota = storageRootFSApplyQuota
-}
 
 // Simply cache used to storage the activated drivers on this LXD instance. This
 // allows us to avoid querying the database everytime and API call is made.
@@ -163,35 +154,4 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	storagePoolDriversCacheLock.Unlock()
 
 	return
-}
-
-// storageVolumeUmount unmounts a storage volume on a pool.
-func storageVolumeUmount(state *state.State, poolName string, volumeName string, volumeType int) error {
-	pool, err := storagePools.GetPoolByName(state, poolName)
-	if err != nil {
-		return err
-	}
-
-	_, err = pool.UnmountCustomVolume(volumeName, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// storageRootFSApplyQuota applies a quota to an instance if it can, if it cannot then it will
-// return false indicating that the quota needs to be stored in volatile to be applied on next boot.
-func storageRootFSApplyQuota(state *state.State, inst instance.Instance, size string) error {
-	pool, err := storagePools.GetPoolByInstance(state, inst)
-	if err != nil {
-		return err
-	}
-
-	err = pool.SetInstanceQuota(inst, size, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
