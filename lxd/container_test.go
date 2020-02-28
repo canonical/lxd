@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -141,12 +142,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	_, err = c2.StorageStart()
 	suite.Req.Nil(err)
 
-	// When loading from DB, we won't have a full LXC config
-	c.(*instanceDrivers.LXC).c = nil
-	c.(*instanceDrivers.LXC).cConfig = false
-	c2.(*instanceDrivers.LXC).c = nil
-	c2.(*instanceDrivers.LXC).cConfig = false
-
+	instanceDrivers.PrepareEqualTest(c, c2)
 	suite.Exactly(
 		c,
 		c2,
