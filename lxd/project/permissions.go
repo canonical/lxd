@@ -13,9 +13,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CheckLimitsUponInstanceCreation returns an error if any project-specific
-// limit is violated when creating a new instance.
-func CheckLimitsUponInstanceCreation(tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
+// AllowInstanceCreation returns an error if any project-specific limit or
+// restriction is violated when creating a new instance.
+func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.InstancesPost) error {
 	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
