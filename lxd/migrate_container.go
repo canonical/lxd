@@ -238,7 +238,7 @@ type preDumpLoopArgs struct {
 // This function contains the actual pre-dump, the corresponding rsync
 // transfer and it tells the outer loop to abort if the threshold
 // of memory pages transferred by pre-dumping has been reached.
-func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
+func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArgs) (bool, error) {
 	// Do a CRIU pre-dump
 	criuMigrationArgs := instance.CriuMigrationArgs{
 		Cmd:          lxc.MIGRATE_PRE_DUMP,
@@ -265,7 +265,6 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 
 	// Send the pre-dump.
 	ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
-	state := s.instance.DaemonState()
 	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
@@ -588,7 +587,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 						final:         final,
 						rsyncFeatures: rsyncFeatures,
 					}
-					final, err = s.preDumpLoop(&loopArgs)
+					final, err = s.preDumpLoop(state, &loopArgs)
 					if err != nil {
 						os.RemoveAll(checkpointDir)
 						return abort(err)
@@ -898,7 +897,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				// Check if snapshot exists already and if not then create
 				// a new snapshot DB record so that the storage layer can
 				// populate the volume on the storage device.
-				_, err := instance.LoadByProjectAndName(args.Instance.DaemonState(), args.Instance.Project(), snapArgs.Name)
+				_, err := instance.LoadByProjectAndName(state, args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					// Create the snapshot as it doesn't seem to exist.
 					_, err := instanceCreateInternal(state, snapArgs)
