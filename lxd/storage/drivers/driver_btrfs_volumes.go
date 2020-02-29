@@ -122,7 +122,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	revert.Add(revertHook)
 
 	// Create a temporary directory to unpack the backup into.
-	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), vol.name)
+	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
 	}
@@ -298,7 +298,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
 	// Create a temporary directory which will act as the parent directory of the received ro snapshot.
-	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, vol.name)
+	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
 	}
@@ -579,7 +579,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
 
 	// Create a temporary directory which will act as the parent directory of the read-only snapshot.
-	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, vol.name)
+	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", instancesPath)
 	}
@@ -698,7 +698,7 @@ func (d *btrfs) BackupVolume(vol Volume, targetPath string, optimized bool, snap
 	sourceVolume := vol.MountPath()
 	containersPath := GetVolumeMountPath(d.name, vol.volType, "")
 
-	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, vol.name)
+	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, "backup.")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create temporary directory under '%s'", containersPath)
 	}
