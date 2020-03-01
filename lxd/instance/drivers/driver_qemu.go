@@ -17,10 +17,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v2"
 
 	lxdClient "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
@@ -41,6 +43,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	pongoTemplate "github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
@@ -1265,6 +1268,144 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	err = ioutil.WriteFile(filepath.Join(configDrivePath, "install.sh"), []byte(lxdConfigShareInstall), 0700)
 	if err != nil {
 		return err
+	}
+
+	// Templated files.
+	err = os.MkdirAll(filepath.Join(configDrivePath, "files"), 0500)
+	if err != nil {
+		return err
+	}
+
+	// Template anything that needs templating.
+	key := "volatile.apply_template"
+	if vm.localConfig[key] != "" {
+		// Run any template that needs running.
+		err = vm.templateApplyNow(vm.localConfig[key], filepath.Join(configDrivePath, "files"))
+		if err != nil {
+			return err
+		}
+
+		// Remove the volatile key from the DB.
+		err := vm.state.Cluster.ContainerConfigRemove(vm.id, key)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = vm.templateApplyNow("start", filepath.Join(configDrivePath, "files"))
+	if err != nil {
+		return err
+	}
+
+	// Copy the template metadata itself too.
+	metaPath := filepath.Join(vm.Path(), "metadata.yaml")
+	if shared.PathExists(metaPath) {
+		err = shared.FileCopy(metaPath, filepath.Join(configDrivePath, "files/metadata.yaml"))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (vm *qemu) templateApplyNow(trigger string, path string) error {
+	// If there's no metadata, just return.
+	fname := filepath.Join(vm.Path(), "metadata.yaml")
+	if !shared.PathExists(fname) {
+		return nil
+	}
+
+	// Parse the metadata.
+	content, err := ioutil.ReadFile(fname)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read metadata")
+	}
+
+	metadata := new(api.ImageMetadata)
+	err = yaml.Unmarshal(content, &metadata)
+	if err != nil {
+		return errors.Wrapf(err, "Could not parse %s", fname)
+	}
+
+	// Figure out the instance architecture.
+	arch, err := osarch.ArchitectureName(vm.architecture)
+	if err != nil {
+		arch, err = osarch.ArchitectureName(vm.state.OS.Architectures[0])
+		if err != nil {
+			return errors.Wrap(err, "Failed to detect system architecture")
+		}
+	}
+
+	// Generate the container metadata.
+	instanceMeta := make(map[string]string)
+	instanceMeta["name"] = vm.name
+	instanceMeta["architecture"] = arch
+
+	if vm.ephemeral {
+		instanceMeta["ephemeral"] = "true"
+	} else {
+		instanceMeta["ephemeral"] = "false"
+	}
+
+	// Go through the templates.
+	for tplPath, tpl := range metadata.Templates {
+		var w *os.File
+
+		// Check if the template should be applied now.
+		found := false
+		for _, tplTrigger := range tpl.When {
+			if tplTrigger == trigger {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
+
+		// Create the file itself.
+		w, err = os.Create(filepath.Join(path, fmt.Sprintf("%s.out", tpl.Template)))
+		if err != nil {
+			return err
+		}
+
+		// Fix ownership and mode.
+		w.Chmod(0644)
+		defer w.Close()
+
+		// Read the template.
+		tplString, err := ioutil.ReadFile(filepath.Join(vm.TemplatesPath(), tpl.Template))
+		if err != nil {
+			return errors.Wrap(err, "Failed to read template file")
+		}
+
+		// Restrict filesystem access to within the container's rootfs.
+		tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", vm.name, tpl.Template), pongoTemplate.ChrootLoader{Path: vm.TemplatesPath()})
+		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
+		if err != nil {
+			return errors.Wrap(err, "Failed to render template")
+		}
+
+		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
+			val, ok := vm.expandedConfig[confKey.String()]
+			if !ok {
+				return confDefault
+			}
+
+			return pongo2.AsValue(strings.TrimRight(val, "\r\n"))
+		}
+
+		// Render the template.
+		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+			"path":       tplPath,
+			"instance":   instanceMeta,
+			"container":  instanceMeta, // FIXME: remove once most images have moved away.
+			"config":     vm.expandedConfig,
+			"devices":    vm.expandedDevices,
+			"properties": tpl.Properties,
+			"config_get": configGet}, w)
 	}
 
 	return nil
@@ -3436,6 +3577,11 @@ func (vm *qemu) StorageStop() (bool, error) {
 
 // DeferTemplateApply not used currently.
 func (vm *qemu) DeferTemplateApply(trigger string) error {
+	err := vm.VolatileSet(map[string]string{"volatile.apply_template": trigger})
+	if err != nil {
+		return errors.Wrap(err, "Failed to set apply_template volatile key")
+	}
+
 	return nil
 }
 
