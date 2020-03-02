@@ -69,7 +69,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 	// Get the on-disk idmap for the volume
 	var lastIdmap *idmap.IdmapSet
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
-		lastIdmap, err = idmapsetFromString(poolVolumePut.Config["volatile.idmap.last"])
+		lastIdmap, err = idmap.JSONUnmarshal(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
 			logger.Errorf("Failed to unmarshal last idmapping: %s", poolVolumePut.Config["volatile.idmap.last"])
 			return err
