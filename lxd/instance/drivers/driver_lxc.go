@@ -3636,23 +3636,6 @@ func (c *lxc) Rename(newName string) error {
 	return nil
 }
 
-// CGroupGet gets a cgroup value for the instance.
-func (c *lxc) CGroupGet(key string) (string, error) {
-	// Load the go-lxc struct
-	err := c.initLXC(false)
-	if err != nil {
-		return "", err
-	}
-
-	// Make sure the container is running
-	if !c.IsRunning() {
-		return "", fmt.Errorf("Can't get cgroups on a stopped container")
-	}
-
-	value := c.c.CgroupItem(key)
-	return strings.Join(value, "\n"), nil
-}
-
 // CGroupSet sets a cgroup value for the instance.
 func (c *lxc) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct

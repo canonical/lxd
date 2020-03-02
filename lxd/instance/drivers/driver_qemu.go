@@ -2857,11 +2857,6 @@ func (vm *qemu) Migrate(args *instance.CriuMigrationArgs) error {
 	return instance.ErrNotImplemented
 }
 
-// CGroupGet is not implemented for VMs.
-func (vm *qemu) CGroupGet(key string) (string, error) {
-	return "", instance.ErrNotImplemented
-}
-
 // CGroupSet is not implemented for VMs.
 func (vm *qemu) CGroupSet(key string, value string) error {
 	return instance.ErrNotImplemented
