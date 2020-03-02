@@ -36,6 +36,8 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
+	// Import instance/drivers without name so init() runs.
+	_ "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
