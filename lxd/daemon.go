@@ -484,12 +484,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 }
 
 // have we setup shared mounts?
-var sharedMounted bool
 var sharedMountsLock sync.Mutex
 
+// setupSharedMounts will mount any shared mounts needed, and set daemon.SharedMountsSetup to true.
 func setupSharedMounts() error {
 	// Check if we already went through this
-	if sharedMounted {
+	if daemon.SharedMountsSetup {
 		return nil
 	}
 
@@ -500,7 +500,7 @@ func setupSharedMounts() error {
 	// Check if already setup
 	path := shared.VarPath("shmounts")
 	if shared.IsMountPoint(path) {
-		sharedMounted = true
+		daemon.SharedMountsSetup = true
 		return nil
 	}
 
@@ -515,7 +515,7 @@ func setupSharedMounts() error {
 		return err
 	}
 
-	sharedMounted = true
+	daemon.SharedMountsSetup = true
 	return nil
 }
 
@@ -687,7 +687,10 @@ func (d *Daemon) init() error {
 	/* Setup some mounts (nice to have) */
 	if !d.os.MockMode {
 		// Attempt to mount the shmounts tmpfs
-		setupSharedMounts()
+		err := setupSharedMounts()
+		if err != nil {
+			logger.Warnf("Failed settting up shared mounts: %v", err)
+		}
 
 		// Attempt to Mount the devlxd tmpfs
 		devlxd := filepath.Join(d.os.VarDir, "devlxd")
