@@ -16,7 +16,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
@@ -1466,7 +1466,7 @@ func lxcSupportSeccompNotify(state *state.State) bool {
 		return false
 	}
 
-	c, err := lxc.NewContainer("test-seccomp", state.OS.LxcPath)
+	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
 		return false
 	}

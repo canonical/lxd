@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -54,7 +54,7 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagDelete, "delete", false, i18n.G("Delete the source container"))
 	cmd.Flags().StringVar(&c.flagStorage, "storage", "",
 		i18n.G("Storage pool to use for the container")+"``")
-	cmd.Flags().StringVar(&c.flagLXCPath, "lxcpath", lxc.DefaultConfigPath(),
+	cmd.Flags().StringVar(&c.flagLXCPath, "lxcpath", liblxc.DefaultConfigPath(),
 		i18n.G("Alternate LXC path")+"``")
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "",
 		"Extra arguments to pass to rsync"+"``")
@@ -76,7 +76,7 @@ func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Retrieve LXC containers
-	for _, container := range lxc.Containers(c.flagLXCPath) {
+	for _, container := range liblxc.Containers(c.flagLXCPath) {
 		if !c.flagAll && !shared.StringInSlice(container.Name(), c.flagContainers) {
 			continue
 		}
@@ -104,7 +104,7 @@ func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateConfig(conf []string, container *lxc.Container) error {
+func validateConfig(conf []string, container *liblxc.Container) error {
 	// Checking whether container has already been migrated
 	fmt.Println("Checking whether container has already been migrated")
 	if len(getConfig(conf, "lxd.migrated")) > 0 {
@@ -165,7 +165,7 @@ func validateConfig(conf []string, container *lxc.Container) error {
 	return nil
 }
 
-func convertContainer(d lxd.ContainerServer, container *lxc.Container, storage string,
+func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storage string,
 	dryRun bool, rsyncArgs string, debug bool) error {
 	// Don't migrate running containers
 	if container.Running() {
@@ -448,7 +448,7 @@ func convertContainer(d lxd.ContainerServer, container *lxc.Container, storage s
 	return nil
 }
 
-func convertNetworkConfig(container *lxc.Container, devices map[string]map[string]string) error {
+func convertNetworkConfig(container *liblxc.Container, devices map[string]map[string]string) error {
 	networkDevice := func(network map[string]string) map[string]string {
 		if network == nil {
 			return nil

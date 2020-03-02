@@ -13,7 +13,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -130,14 +130,14 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	// Ask CRIU if this architecture/kernel/criu combination
 	// supports pre-copy (dirty memory tracking)
 	criuMigrationArgs := instance.CriuMigrationArgs{
-		Cmd:          lxc.MIGRATE_FEATURE_CHECK,
+		Cmd:          liblxc.MIGRATE_FEATURE_CHECK,
 		StateDir:     "",
 		Function:     "feature-check",
 		Stop:         false,
 		ActionScript: false,
 		DumpDir:      "",
 		PreDumpDir:   "",
-		Features:     lxc.FEATURE_MEM_TRACK,
+		Features:     liblxc.FEATURE_MEM_TRACK,
 	}
 
 	if s.instance.Type() != instancetype.Container {
@@ -241,7 +241,7 @@ type preDumpLoopArgs struct {
 func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArgs) (bool, error) {
 	// Do a CRIU pre-dump
 	criuMigrationArgs := instance.CriuMigrationArgs{
-		Cmd:          lxc.MIGRATE_PRE_DUMP,
+		Cmd:          liblxc.MIGRATE_PRE_DUMP,
 		Stop:         false,
 		ActionScript: false,
 		PreDumpDir:   args.preDumpDir,
@@ -607,7 +607,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 			go func() {
 				criuMigrationArgs := instance.CriuMigrationArgs{
-					Cmd:          lxc.MIGRATE_DUMP,
+					Cmd:          liblxc.MIGRATE_DUMP,
 					Stop:         true,
 					ActionScript: true,
 					PreDumpDir:   preDumpDir,
@@ -634,7 +634,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
 			defer os.RemoveAll(checkpointDir)
 			criuMigrationArgs := instance.CriuMigrationArgs{
-				Cmd:          lxc.MIGRATE_DUMP,
+				Cmd:          liblxc.MIGRATE_DUMP,
 				StateDir:     checkpointDir,
 				Function:     "migration",
 				Stop:         true,
@@ -1120,7 +1120,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 
 		if live {
 			criuMigrationArgs := instance.CriuMigrationArgs{
-				Cmd:          lxc.MIGRATE_RESTORE,
+				Cmd:          liblxc.MIGRATE_RESTORE,
 				StateDir:     imagesDir,
 				Function:     "migration",
 				Stop:         false,
