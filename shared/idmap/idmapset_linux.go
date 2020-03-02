@@ -951,3 +951,13 @@ func JSONUnmarshal(idmapJSON string) (*IdmapSet, error) {
 
 	return lastIdmap, nil
 }
+
+// JSONMarshal marshals an IDMAP to JSON string.
+func JSONMarshal(idmapSet *IdmapSet) (string, error) {
+	idmapBytes, err := json.Marshal(idmapSet.Idmap)
+	if err != nil {
+		return "", err
+	}
+
+	return string(idmapBytes), nil
+}
