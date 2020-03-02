@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -334,7 +334,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 
 func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
 	cname := project.Prefix(d.inst.Project(), d.inst.Name())
-	cc, err := lxc.NewContainer(cname, d.state.OS.LxcPath)
+	cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
@@ -385,7 +385,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		 */
 
 		criuMigrationArgs := instance.CriuMigrationArgs{
-			Cmd:          lxc.MIGRATE_DUMP,
+			Cmd:          liblxc.MIGRATE_DUMP,
 			StateDir:     stateDir,
 			Function:     "snapshot",
 			Stop:         false,

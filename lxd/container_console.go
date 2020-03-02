@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -365,7 +365,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Query the container's console ringbuffer.
-	console := lxc.ConsoleLogOptions{
+	console := liblxc.ConsoleLogOptions{
 		ClearLog:       false,
 		ReadLog:        true,
 		ReadMax:        0,
@@ -435,7 +435,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a ringbuffer request to the container.
-	console := lxc.ConsoleLogOptions{
+	console := liblxc.ConsoleLogOptions{
 		ClearLog:       true,
 		ReadLog:        false,
 		ReadMax:        0,

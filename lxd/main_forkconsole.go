@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 )
 
 type cmdForkconsole struct {
@@ -64,7 +64,7 @@ func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to retrieve escape character: %q", err)
 	}
 
-	d, err := lxc.NewContainer(name, lxcpath)
+	d, err := liblxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container: %q", err)
 	}
@@ -74,7 +74,7 @@ func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error opening config file: %q", err)
 	}
 
-	opts := lxc.ConsoleOptions{}
+	opts := liblxc.ConsoleOptions{}
 	opts.Tty = tty
 	opts.StdinFd = uintptr(os.Stdin.Fd())
 	opts.StdoutFd = uintptr(os.Stdout.Fd())

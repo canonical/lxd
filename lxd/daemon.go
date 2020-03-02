@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -654,7 +654,7 @@ func (d *Daemon) init() error {
 		"cgroup2",
 	}
 	for _, extension := range lxcExtensions {
-		d.os.LXCFeatures[extension] = lxc.HasApiExtension(extension)
+		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
 	}
 
 	/* Initialize the database */
