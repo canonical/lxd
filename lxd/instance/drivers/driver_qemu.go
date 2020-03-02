@@ -2698,22 +2698,22 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 
 // Export publishes the instance.
 func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
-	return fmt.Errorf("Export Not implemented")
+	return instance.ErrNotImplemented
 }
 
 // Migrate migrates the instance to another node.
 func (vm *qemu) Migrate(args *instance.CriuMigrationArgs) error {
-	return fmt.Errorf("Migrate Not implemented")
+	return instance.ErrNotImplemented
 }
 
 // CGroupGet is not implemented for VMs.
 func (vm *qemu) CGroupGet(key string) (string, error) {
-	return "", fmt.Errorf("CGroupGet Not implemented")
+	return "", instance.ErrNotImplemented
 }
 
 // CGroupSet is not implemented for VMs.
 func (vm *qemu) CGroupSet(key string, value string) error {
-	return fmt.Errorf("CGroupSet Not implemented")
+	return instance.ErrNotImplemented
 }
 
 // VolatileSet sets one or more volatile config keys.
@@ -2757,7 +2757,7 @@ func (vm *qemu) VolatileSet(changes map[string]string) error {
 
 // FileExists is not implemented for VMs.
 func (vm *qemu) FileExists(path string) error {
-	return fmt.Errorf("FileExists Not implemented")
+	return instance.ErrNotImplemented
 }
 
 // FilePull retrieves a file from the instance.
