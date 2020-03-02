@@ -1264,6 +1264,15 @@ func (c *lxc) initLXC(config bool) error {
 	return nil
 }
 
+func (c *LXC) devlxdEventSend(eventType string, eventMessage interface{}) error {
+	event := shared.Jmap{}
+	event["type"] = eventType
+	event["timestamp"] = time.Now()
+	event["metadata"] = eventMessage
+
+	return c.state.DevlxdEvents.Send(strconv.Itoa(c.ID()), eventType, eventMessage)
+}
+
 // runHooks executes the callback functions returned from a function.
 func (c *lxc) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
@@ -4359,7 +4368,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				"value":     c.expandedConfig[key],
 			}
 
-			err = devlxdEventSend(c, "config", msg)
+			err = c.devlxdEventSend("config", msg)
 			if err != nil {
 				return err
 			}
@@ -4373,7 +4382,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				"config": m,
 			}
 
-			err = devlxdEventSend(c, "device", msg)
+			err = c.devlxdEventSend("device", msg)
 			if err != nil {
 				return err
 			}
@@ -4386,7 +4395,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				"config": m,
 			}
 
-			err = devlxdEventSend(c, "device", msg)
+			err = c.devlxdEventSend("device", msg)
 			if err != nil {
 				return err
 			}
@@ -4399,7 +4408,7 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				"config": m,
 			}
 
-			err = devlxdEventSend(c, "device", msg)
+			err = c.devlxdEventSend("device", msg)
 			if err != nil {
 				return err
 			}
