@@ -2701,6 +2701,11 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 	return fmt.Errorf("Export Not implemented")
 }
 
+// Migrate migrates the instance to another node.
+func (vm *qemu) Migrate(args *instance.CriuMigrationArgs) error {
+	return fmt.Errorf("Migrate Not implemented")
+}
+
 // CGroupGet is not implemented for VMs.
 func (vm *qemu) CGroupGet(key string) (string, error) {
 	return "", fmt.Errorf("CGroupGet Not implemented")
