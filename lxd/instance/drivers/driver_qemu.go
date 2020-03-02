@@ -980,6 +980,11 @@ func (vm *qemu) SaveConfigFile() error {
 	return instance.ErrNotImplemented
 }
 
+// OnHook is the top-level hook handler.
+func (vm *qemu) OnHook(hookName string, args map[string]string) error {
+	return instance.ErrNotImplemented
+}
+
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
 func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
