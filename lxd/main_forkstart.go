@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -53,7 +53,7 @@ func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
 	lxcpath := args[1]
 	configPath := args[2]
 
-	d, err := lxc.NewContainer(name, lxcpath)
+	d, err := liblxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
 	}

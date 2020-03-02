@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 )
 
-func networkGet(container *lxc.Container, index int, configKey string) map[string]string {
+func networkGet(container *liblxc.Container, index int, configKey string) map[string]string {
 	keys := container.ConfigKeys(fmt.Sprintf("%s.%d", configKey, index))
 	if len(keys) == 0 {
 		return nil

@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -36,6 +36,8 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
+	// Import instance/drivers without name so init() runs.
+	_ "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
@@ -484,12 +486,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 }
 
 // have we setup shared mounts?
-var sharedMounted bool
 var sharedMountsLock sync.Mutex
 
+// setupSharedMounts will mount any shared mounts needed, and set daemon.SharedMountsSetup to true.
 func setupSharedMounts() error {
 	// Check if we already went through this
-	if sharedMounted {
+	if daemon.SharedMountsSetup {
 		return nil
 	}
 
@@ -500,7 +502,7 @@ func setupSharedMounts() error {
 	// Check if already setup
 	path := shared.VarPath("shmounts")
 	if shared.IsMountPoint(path) {
-		sharedMounted = true
+		daemon.SharedMountsSetup = true
 		return nil
 	}
 
@@ -515,7 +517,7 @@ func setupSharedMounts() error {
 		return err
 	}
 
-	sharedMounted = true
+	daemon.SharedMountsSetup = true
 	return nil
 }
 
@@ -654,7 +656,7 @@ func (d *Daemon) init() error {
 		"cgroup2",
 	}
 	for _, extension := range lxcExtensions {
-		d.os.LXCFeatures[extension] = lxc.HasApiExtension(extension)
+		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
 	}
 
 	/* Initialize the database */
@@ -687,7 +689,10 @@ func (d *Daemon) init() error {
 	/* Setup some mounts (nice to have) */
 	if !d.os.MockMode {
 		// Attempt to mount the shmounts tmpfs
-		setupSharedMounts()
+		err := setupSharedMounts()
+		if err != nil {
+			logger.Warnf("Failed settting up shared mounts: %v", err)
+		}
 
 		// Attempt to Mount the devlxd tmpfs
 		devlxd := filepath.Join(d.os.VarDir, "devlxd")

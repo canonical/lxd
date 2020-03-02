@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -193,7 +193,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Certificate:            certificate,
 		CertificateFingerprint: certificateFingerprint,
 		Driver:                 "lxc",
-		DriverVersion:          lxc.Version(),
+		DriverVersion:          liblxc.Version(),
 		Kernel:                 uname.Sysname,
 		KernelArchitecture:     uname.Machine,
 		KernelVersion:          uname.Release,

@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -354,7 +354,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 	ent := response.FileResponseEntry{}
 	if !c.IsRunning() {
 		// Hand back the contents of the console ringbuffer logfile.
@@ -365,7 +365,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Query the container's console ringbuffer.
-	console := lxc.ConsoleLogOptions{
+	console := liblxc.ConsoleLogOptions{
 		ClearLog:       false,
 		ReadLog:        true,
 		ReadMax:        0,
@@ -408,7 +408,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Instance is not container type"))
 	}
 
-	c := inst.(*containerLXC)
+	c := inst.(instance.Container)
 
 	truncateConsoleLogFile := func(path string) error {
 		// Check that this is a regular file. We don't want to try and unlink
@@ -435,7 +435,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Send a ringbuffer request to the container.
-	console := lxc.ConsoleLogOptions{
+	console := liblxc.ConsoleLogOptions{
 		ClearLog:       true,
 		ReadLog:        false,
 		ReadMax:        0,

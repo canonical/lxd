@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 )
 
 type cmdForkmigrate struct {
@@ -58,7 +58,7 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d, err := lxc.NewContainer(name, lxcpath)
+	d, err := liblxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
 	os.Stdout.Close()
 	os.Stderr.Close()
 
-	return d.Migrate(lxc.MIGRATE_RESTORE, lxc.MigrateOptions{
+	return d.Migrate(liblxc.MIGRATE_RESTORE, liblxc.MigrateOptions{
 		Directory:       imagesDir,
 		Verbose:         true,
 		PreservesInodes: preservesInodes,

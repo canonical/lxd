@@ -970,6 +970,21 @@ func (vm *qemu) deviceVolatileSetFunc(devName string) func(save map[string]strin
 	}
 }
 
+// RegisterDevices is not used by VMs.
+func (vm *qemu) RegisterDevices() {
+	return
+}
+
+// SaveConfigFile is not used by VMs.
+func (vm *qemu) SaveConfigFile() error {
+	return instance.ErrNotImplemented
+}
+
+// OnHook is the top-level hook handler.
+func (vm *qemu) OnHook(hookName string, args map[string]string) error {
+	return instance.ErrNotImplemented
+}
+
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
 func (vm *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
 	var configCopy deviceConfig.Device
@@ -2693,17 +2708,22 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 
 // Export publishes the instance.
 func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
-	return fmt.Errorf("Export Not implemented")
+	return instance.ErrNotImplemented
+}
+
+// Migrate migrates the instance to another node.
+func (vm *qemu) Migrate(args *instance.CriuMigrationArgs) error {
+	return instance.ErrNotImplemented
 }
 
 // CGroupGet is not implemented for VMs.
 func (vm *qemu) CGroupGet(key string) (string, error) {
-	return "", fmt.Errorf("CGroupGet Not implemented")
+	return "", instance.ErrNotImplemented
 }
 
 // CGroupSet is not implemented for VMs.
 func (vm *qemu) CGroupSet(key string, value string) error {
-	return fmt.Errorf("CGroupSet Not implemented")
+	return instance.ErrNotImplemented
 }
 
 // VolatileSet sets one or more volatile config keys.
@@ -2747,7 +2767,7 @@ func (vm *qemu) VolatileSet(changes map[string]string) error {
 
 // FileExists is not implemented for VMs.
 func (vm *qemu) FileExists(path string) error {
-	return fmt.Errorf("FileExists Not implemented")
+	return instance.ErrNotImplemented
 }
 
 // FilePull retrieves a file from the instance.
@@ -3437,17 +3457,6 @@ func (vm *qemu) StorageStop() (bool, error) {
 // DeferTemplateApply not used currently.
 func (vm *qemu) DeferTemplateApply(trigger string) error {
 	return nil
-}
-
-// DaemonState returns the state of the daemon. Deprecated.
-func (vm *qemu) DaemonState() *state.State {
-	// FIXME: This function should go away, since the abstract instance
-	//        interface should not be coupled with internal state details.
-	//        However this is not currently possible, because many
-	//        higher-level APIs use instance variables as "implicit
-	//        handles" to database/OS state and then need a way to get a
-	//        reference to it.
-	return vm.state
 }
 
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically

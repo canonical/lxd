@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	driver "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -141,12 +142,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	_, err = c2.StorageStart()
 	suite.Req.Nil(err)
 
-	// When loading from DB, we won't have a full LXC config
-	c.(*containerLXC).c = nil
-	c.(*containerLXC).cConfig = false
-	c2.(*containerLXC).c = nil
-	c2.(*containerLXC).cConfig = false
-
+	instanceDrivers.PrepareEqualTest(c, c2)
 	suite.Exactly(
 		c,
 		c2,
@@ -250,9 +246,9 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	suite.Req.Nil(err)
 	defer c2.Delete()
 
-	map1, err := c1.(*containerLXC).NextIdmap()
+	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
-	map2, err := c2.(*containerLXC).NextIdmap()
+	map2, err := c2.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
 
 	host := suite.d.os.IdmapSet.Idmap[0]
@@ -291,9 +287,9 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	suite.Req.Nil(err)
 	defer c2.Delete()
 
-	map1, err := c1.(*containerLXC).NextIdmap()
+	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
-	map2, err := c2.(*containerLXC).NextIdmap()
+	map2, err := c2.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
 
 	host := suite.d.os.IdmapSet.Idmap[0]
@@ -323,7 +319,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	suite.Req.Nil(err)
 	defer c1.Delete()
 
-	map1, err := c1.(*containerLXC).NextIdmap()
+	map1, err := c1.(instance.Container).NextIdmap()
 	suite.Req.Nil(err)
 
 	host := suite.d.os.IdmapSet.Idmap[0]
@@ -369,7 +365,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 
 		defer c.Delete()
 
-		m, err := c.(*containerLXC).NextIdmap()
+		m, err := c.(instance.Container).NextIdmap()
 		suite.Req.Nil(err)
 
 		maps = append(maps, m)

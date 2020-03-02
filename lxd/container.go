@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
@@ -384,18 +384,17 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 		 * after snapshotting will fail.
 		 */
 
-		criuMigrationArgs := CriuMigrationArgs{
-			cmd:          lxc.MIGRATE_DUMP,
-			stateDir:     stateDir,
-			function:     "snapshot",
-			stop:         false,
-			actionScript: false,
-			dumpDir:      "",
-			preDumpDir:   "",
+		criuMigrationArgs := instance.CriuMigrationArgs{
+			Cmd:          liblxc.MIGRATE_DUMP,
+			StateDir:     stateDir,
+			Function:     "snapshot",
+			Stop:         false,
+			ActionScript: false,
+			DumpDir:      "",
+			PreDumpDir:   "",
 		}
 
-		c := sourceInstance.(*containerLXC)
-		err = c.Migrate(&criuMigrationArgs)
+		err = sourceInstance.Migrate(&criuMigrationArgs)
 		if err != nil {
 			os.RemoveAll(sourceInstance.StatePath())
 			return nil, err
