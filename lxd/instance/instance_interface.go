@@ -110,6 +110,9 @@ type Instance interface {
 	// Storage.
 	StoragePool() (string, error)
 
+	// Migration.
+	Migrate(args *CriuMigrationArgs) error
+
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
 
