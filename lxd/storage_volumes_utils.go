@@ -5,28 +5,11 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
-)
-
-// XXX: backward compatible declarations, introduced when the db code was
-//      extracted to its own package. We should eventually clean this up.
-const (
-	storagePoolVolumeTypeContainer = db.StoragePoolVolumeTypeContainer
-	storagePoolVolumeTypeVM        = db.StoragePoolVolumeTypeVM
-	storagePoolVolumeTypeImage     = db.StoragePoolVolumeTypeImage
-	storagePoolVolumeTypeCustom    = db.StoragePoolVolumeTypeCustom
-)
-
-const (
-	storagePoolVolumeTypeNameContainer = db.StoragePoolVolumeTypeNameContainer
-	storagePoolVolumeTypeNameVM        = db.StoragePoolVolumeTypeNameVM
-	storagePoolVolumeTypeNameImage     = db.StoragePoolVolumeTypeNameImage
-	storagePoolVolumeTypeNameCustom    = db.StoragePoolVolumeTypeNameCustom
 )
 
 // Leave the string type in here! This guarantees that go treats this is as a
@@ -39,8 +22,8 @@ const (
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeVM, storagePoolVolumeTypeCustom}
-var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
+var supportedVolumeTypesExceptImages = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom}
+var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, db.StoragePoolVolumeTypeImage)
 
 func init() {
 	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningInstancesWithProfilesGet
@@ -48,13 +31,13 @@ func init() {
 
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
-	case storagePoolVolumeTypeNameContainer:
+	case db.StoragePoolVolumeTypeNameContainer:
 		return storagePoolVolumeAPIEndpointContainers, nil
-	case storagePoolVolumeTypeNameVM:
+	case db.StoragePoolVolumeTypeNameVM:
 		return storagePoolVolumeAPIEndpointVMs, nil
-	case storagePoolVolumeTypeNameImage:
+	case db.StoragePoolVolumeTypeNameImage:
 		return storagePoolVolumeAPIEndpointImages, nil
-	case storagePoolVolumeTypeNameCustom:
+	case db.StoragePoolVolumeTypeNameCustom:
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
@@ -63,40 +46,17 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 
 func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	switch volumeType {
-	case storagePoolVolumeTypeContainer:
+	case db.StoragePoolVolumeTypeContainer:
 		return storagePoolVolumeAPIEndpointContainers, nil
-	case storagePoolVolumeTypeVM:
+	case db.StoragePoolVolumeTypeVM:
 		return storagePoolVolumeAPIEndpointVMs, nil
-	case storagePoolVolumeTypeImage:
+	case db.StoragePoolVolumeTypeImage:
 		return storagePoolVolumeAPIEndpointImages, nil
-	case storagePoolVolumeTypeCustom:
+	case db.StoragePoolVolumeTypeCustom:
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
 	return "", fmt.Errorf("invalid storage volume type")
-}
-
-func storagePoolVolumeUsedByInstancesGet(s *state.State, project, poolName string, volumeName string) ([]string, error) {
-	insts, err := instance.LoadByProject(s, project)
-	if err != nil {
-		return []string{}, err
-	}
-
-	instUsingVolume := []string{}
-	for _, inst := range insts {
-		for _, dev := range inst.LocalDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
-
-			if dev["pool"] == poolName && dev["source"] == volumeName {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-				break
-			}
-		}
-	}
-
-	return instUsingVolume, nil
 }
 
 func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
@@ -128,7 +88,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 			dir, file := filepath.Split(devices[k]["source"])
 			dir = filepath.Clean(dir)
-			if dir != storagePoolVolumeTypeNameCustom {
+			if dir != db.StoragePoolVolumeTypeNameCustom {
 				continue
 			}
 
@@ -147,7 +107,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			if oldVolumeName != newVolumeName {
 				newSource := newVolumeName
 				if dir != "" {
-					newSource = fmt.Sprintf("%s/%s", storagePoolVolumeTypeNameCustom, newVolumeName)
+					newSource = fmt.Sprintf("%s/%s", db.StoragePoolVolumeTypeNameCustom, newVolumeName)
 				}
 				devices[k]["source"] = newSource
 			}
@@ -204,7 +164,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 			dir, file := filepath.Split(profile.Devices[k]["source"])
 			dir = filepath.Clean(dir)
-			if dir != storagePoolVolumeTypeNameCustom {
+			if dir != db.StoragePoolVolumeTypeNameCustom {
 				continue
 			}
 
@@ -223,7 +183,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 			if oldVolumeName != newVolumeName {
 				newSource := newVolumeName
 				if dir != "" {
-					newSource = fmt.Sprintf("%s/%s", storagePoolVolumeTypeNameCustom, newVolumeName)
+					newSource = fmt.Sprintf("%s/%s", db.StoragePoolVolumeTypeNameCustom, newVolumeName)
 				}
 				profile.Devices[k]["source"] = newSource
 			}
@@ -311,7 +271,7 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 	}
 
 	// Look for containers using this volume
-	ctsUsingVolume, err := storagePoolVolumeUsedByInstancesGet(s, project, poolName, volumeName)
+	ctsUsingVolume, err := storagePools.VolumeUsedByInstancesGet(s, project, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
 	}

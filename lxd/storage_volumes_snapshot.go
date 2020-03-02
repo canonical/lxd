@@ -243,7 +243,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != storagePoolVolumeTypeCustom {
+	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
@@ -304,7 +304,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != storagePoolVolumeTypeCustom {
+	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
@@ -361,7 +361,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != storagePoolVolumeTypeCustom {
+	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
 	}
 
@@ -441,7 +441,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Check that the storage volume type is valid.
-	if volumeType != storagePoolVolumeTypeCustom {
+	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
