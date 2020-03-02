@@ -4,6 +4,7 @@ package idmap
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/user"
@@ -934,4 +935,19 @@ func CurrentIdmapSet() (*IdmapSet, error) {
 	}
 
 	return idmapset, nil
+}
+
+// JSONUnmarshal unmarshals an IDMAP encoded as JSON.
+func JSONUnmarshal(idmapJSON string) (*IdmapSet, error) {
+	lastIdmap := new(IdmapSet)
+	err := json.Unmarshal([]byte(idmapJSON), &lastIdmap.Idmap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(lastIdmap.Idmap) == 0 {
+		return nil, nil
+	}
+
+	return lastIdmap, nil
 }
