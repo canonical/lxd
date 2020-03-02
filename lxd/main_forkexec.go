@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
-	"gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 )
 
 type cmdForkexec struct {
@@ -69,7 +69,7 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	defer fdStatus.Close()
 
 	// Load the container
-	d, err := lxc.NewContainer(name, lxcpath)
+	d, err := liblxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
 	}
@@ -80,7 +80,7 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Setup attach arguments
-	opts := lxc.DefaultAttachOptions
+	opts := liblxc.DefaultAttachOptions
 	opts.ClearEnv = true
 	opts.StdinFd = 3
 	opts.StdoutFd = 4

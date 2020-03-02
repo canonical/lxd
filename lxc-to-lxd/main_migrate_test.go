@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 )
 
 func TestValidateConfig(t *testing.T) {
@@ -97,7 +97,7 @@ func TestValidateConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(lxcPath)
 
-	c, err := lxc.NewContainer("c1", lxcPath)
+	c, err := liblxc.NewContainer("c1", lxcPath)
 	require.NoError(t, err)
 
 	for i, tt := range tests {
@@ -209,10 +209,10 @@ func TestConvertNetworkConfig(t *testing.T) {
 	for i, tt := range tests {
 		log.Printf("Running test #%d: %s", i, tt.name)
 
-		c, err := lxc.NewContainer("c1", lxcPath)
+		c, err := liblxc.NewContainer("c1", lxcPath)
 		require.NoError(t, err)
 
-		err = c.Create(lxc.TemplateOptions{Template: "busybox"})
+		err = c.Create(liblxc.TemplateOptions{Template: "busybox"})
 		require.NoError(t, err)
 
 		// In case the system uses a lxc.conf file

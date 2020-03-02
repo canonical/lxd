@@ -503,7 +503,6 @@ type instance interface {
 	Project() string
 	Name() string
 	IsNesting() bool
-	DaemonState() *state.State
 	IsPrivileged() bool
 	ExpandedConfig() map[string]string
 }
@@ -544,7 +543,7 @@ func profileShort(c instance) string {
 
 // getProfileContent generates the apparmor profile template from the given container.
 // This includes the stock lxc includes as well as stuff from raw.apparmor.
-func getAAProfileContent(c instance) string {
+func getAAProfileContent(state *state.State, c instance) string {
 	profile := strings.TrimLeft(profileBase, "\n")
 
 	// Apply new features
@@ -566,7 +565,6 @@ func getAAProfileContent(c instance) string {
 		profile += "  mount fstype=cgroup2 -> /sys/fs/cgroup/**,\n"
 	}
 
-	state := c.DaemonState()
 	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
 		profile += "\n  ### Feature: apparmor stacking\n"
 		profile += `  ### Configuration: apparmor profile loading (in namespace)
@@ -633,8 +631,7 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
 `, ProfileFull(c), strings.Trim(profile, "\n"))
 }
 
-func runApparmor(command string, c instance) error {
-	state := c.DaemonState()
+func runApparmor(state *state.State, command string, c instance) error {
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
@@ -674,8 +671,7 @@ func getCacheDir() string {
 	return strings.TrimSpace(output)
 }
 
-func mkApparmorNamespace(c instance, namespace string) error {
-	state := c.DaemonState()
+func mkApparmorNamespace(state *state.State, c instance, namespace string) error {
 	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
 		return nil
 	}
@@ -689,13 +685,12 @@ func mkApparmorNamespace(c instance, namespace string) error {
 }
 
 // LoadProfile ensures that the instances's policy is loaded into the kernel so the it can boot.
-func LoadProfile(c instance) error {
-	state := c.DaemonState()
+func LoadProfile(state *state.State, c instance) error {
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
-	if err := mkApparmorNamespace(c, Namespace(c)); err != nil {
+	if err := mkApparmorNamespace(state, c, Namespace(c)); err != nil {
 		return err
 	}
 
@@ -716,7 +711,7 @@ func LoadProfile(c instance) error {
 		return err
 	}
 
-	updated := getAAProfileContent(c)
+	updated := getAAProfileContent(state, c)
 
 	if string(content) != string(updated) {
 		if err := os.MkdirAll(path.Join(aaPath, "cache"), 0700); err != nil {
@@ -732,13 +727,12 @@ func LoadProfile(c instance) error {
 		}
 	}
 
-	return runApparmor(cmdLoad, c)
+	return runApparmor(state, cmdLoad, c)
 }
 
 // Destroy ensures that the instances's policy namespace is unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
-func Destroy(c instance) error {
-	state := c.DaemonState()
+func Destroy(state *state.State, c instance) error {
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
@@ -750,22 +744,20 @@ func Destroy(c instance) error {
 		}
 	}
 
-	return runApparmor(cmdUnload, c)
+	return runApparmor(state, cmdUnload, c)
 }
 
 // ParseProfile parses the profile without loading it into the kernel.
-func ParseProfile(c instance) error {
-	state := c.DaemonState()
+func ParseProfile(state *state.State, c instance) error {
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
-	return runApparmor(cmdParse, c)
+	return runApparmor(state, cmdParse, c)
 }
 
 // DeleteProfile removes the policy from cache/disk.
-func DeleteProfile(c instance) {
-	state := c.DaemonState()
+func DeleteProfile(state *state.State, c instance) {
 	if !state.OS.AppArmorAdmin {
 		return
 	}

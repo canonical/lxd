@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"unsafe"
 
 	"github.com/gorilla/mux"
@@ -151,15 +150,6 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
 
-func devlxdEventSend(c instance.Instance, eventType string, eventMessage interface{}) error {
-	event := shared.Jmap{}
-	event["type"] = eventType
-	event["timestamp"] = time.Now()
-	event["metadata"] = eventMessage
-
-	return c.DaemonState().DevlxdEvents.Send(strconv.Itoa(c.ID()), eventType, eventMessage)
-}
-
 var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
@@ -190,15 +180,15 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 		}
 
 		// Access control
-		rootUid := int64(0)
+		rootUID := int64(0)
 
 		idmapset, err := c.CurrentIdmap()
 		if err == nil && idmapset != nil {
 			uid, _ := idmapset.ShiftIntoNs(0, 0)
-			rootUid = int64(uid)
+			rootUID = int64(uid)
 		}
 
-		if rootUid != cred.UID {
+		if rootUID != cred.UID {
 			http.Error(w, "Access denied for non-root user", 401)
 			return
 		}
@@ -318,7 +308,7 @@ func extractUnderlyingConn(w http.ResponseWriter) *net.UnixConn {
 
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
 
-func findContainerForPid(pid int32, s *state.State) (*containerLXC, error) {
+func findContainerForPid(pid int32, s *state.State) (instance.Container, error) {
 	/*
 	 * Try and figure out which container a pid is in. There is probably a
 	 * better way to do this. Based on rharper's initial performance
@@ -365,8 +355,7 @@ func findContainerForPid(pid int32, s *state.State) (*containerLXC, error) {
 				return nil, fmt.Errorf("Instance is not container type")
 			}
 
-			c := inst.(*containerLXC)
-			return c, nil
+			return inst.(instance.Container), nil
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -415,7 +404,7 @@ func findContainerForPid(pid int32, s *state.State) (*containerLXC, error) {
 		}
 
 		if origPidNs == pidNs {
-			return inst.(*containerLXC), nil
+			return inst.(instance.Container), nil
 		}
 	}
 

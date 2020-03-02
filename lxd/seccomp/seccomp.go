@@ -16,7 +16,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
-	lxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
@@ -361,12 +361,12 @@ stub_x32_execveat errno 38
 `
 
 // Instance is a seccomp specific instance interface.
+// This is used rather than instance.Instance to avoid import loops.
 type Instance interface {
 	Name() string
 	Project() string
 	ExpandedConfig() map[string]string
 	IsPrivileged() bool
-	DaemonState() *state.State
 	Architecture() int
 	RootfsPath() string
 	CurrentIdmap() (*idmap.IdmapSet, error)
@@ -429,14 +429,14 @@ func InstanceNeedsPolicy(c Instance) bool {
 }
 
 // InstanceNeedsIntercept returns whether instance needs intercept.
-func InstanceNeedsIntercept(c Instance) (bool, error) {
+func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 	// No need if privileged
 	if c.IsPrivileged() {
 		return false, nil
 	}
 
 	// If nested, assume the host handles it
-	if c.DaemonState().OS.RunningInUserNS {
+	if s.OS.RunningInUserNS {
 		return false, nil
 	}
 
@@ -454,7 +454,7 @@ func InstanceNeedsIntercept(c Instance) (bool, error) {
 			continue
 		}
 
-		if !isSupported(c.DaemonState()) {
+		if !isSupported(s) {
 			return needed, fmt.Errorf("System doesn't support syscall interception")
 		}
 
@@ -464,7 +464,7 @@ func InstanceNeedsIntercept(c Instance) (bool, error) {
 	return needed, nil
 }
 
-func seccompGetPolicyContent(c Instance) (string, error) {
+func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 	config := c.ExpandedConfig()
 
 	// Full policy override
@@ -489,7 +489,7 @@ func seccompGetPolicyContent(c Instance) (string, error) {
 	}
 
 	// Syscall interception
-	ok, err := InstanceNeedsIntercept(c)
+	ok, err := InstanceNeedsIntercept(s, c)
 	if err != nil {
 		return "", err
 	}
@@ -539,7 +539,7 @@ func seccompGetPolicyContent(c Instance) (string, error) {
 }
 
 // CreateProfile creates a seccomp profile.
-func CreateProfile(c Instance) error {
+func CreateProfile(s *state.State, c Instance) error {
 	/* Unlike apparmor, there is no way to "cache" profiles, and profiles
 	 * are automatically unloaded when a task dies. Thus, we don't need to
 	 * unload them when a container stops, and we don't have to worry about
@@ -550,7 +550,7 @@ func CreateProfile(c Instance) error {
 		return nil
 	}
 
-	profile, err := seccompGetPolicyContent(c)
+	profile, err := seccompGetPolicyContent(s, c)
 	if err != nil {
 		return err
 	}
@@ -1466,7 +1466,7 @@ func lxcSupportSeccompNotify(state *state.State) bool {
 		return false
 	}
 
-	c, err := lxc.NewContainer("test-seccomp", state.OS.LxcPath)
+	c, err := liblxc.NewContainer("test-seccomp", state.OS.LxcPath)
 	if err != nil {
 		return false
 	}
@@ -1557,7 +1557,7 @@ func (s *Server) MountSyscallShift(c Instance) bool {
 			return false
 		}
 
-		if diskIdmap == nil && c.DaemonState().OS.Shiftfs {
+		if diskIdmap == nil && s.s.OS.Shiftfs {
 			return true
 		}
 	}

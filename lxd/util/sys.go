@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	log "github.com/lxc/lxd/shared/log15"
-	golxc "gopkg.in/lxc/go-lxc.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -89,7 +89,7 @@ func GetIdmapSet() *idmap.IdmapSet {
 // RuntimeLiblxcVersionAtLeast checks if the system's liblxc matches the
 // provided version requirement
 func RuntimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
-	version := golxc.Version()
+	version := liblxc.Version()
 	version = strings.Replace(version, " (devel)", "-devel", 1)
 	parts := strings.Split(version, ".")
 	partsLen := len(parts)

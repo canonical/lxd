@@ -46,7 +46,7 @@ func readStoragePoolDriversCache() map[string]string {
 	return drivers.(map[string]string)
 }
 
-func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName string, volumeType int, c *containerLXC) error {
+func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName string, volumeType int, c instance.Container) error {
 	// Load the DB records
 	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
@@ -69,7 +69,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 	// Get the on-disk idmap for the volume
 	var lastIdmap *idmap.IdmapSet
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
-		lastIdmap, err = idmapsetFromString(poolVolumePut.Config["volatile.idmap.last"])
+		lastIdmap, err = idmap.JSONUnmarshal(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
 			logger.Errorf("Failed to unmarshal last idmapping: %s", poolVolumePut.Config["volatile.idmap.last"])
 			return err
@@ -121,7 +121,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 						continue
 					}
 
-					ct := instt.(*containerLXC)
+					ct := instt.(instance.Container)
 
 					var ctNextIdmap *idmap.IdmapSet
 					if ct.IsRunning() {
@@ -152,7 +152,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = lastIdmap.UnshiftRootfs(remapPath, shiftZfsSkipper)
+				err = lastIdmap.UnshiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
 			} else {
 				err = lastIdmap.UnshiftRootfs(remapPath, nil)
 			}
@@ -170,7 +170,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 			var err error
 
 			if pool.Driver == "zfs" {
-				err = nextIdmap.ShiftRootfs(remapPath, shiftZfsSkipper)
+				err = nextIdmap.ShiftRootfs(remapPath, storageDrivers.ShiftZFSSkipper)
 			} else {
 				err = nextIdmap.ShiftRootfs(remapPath, nil)
 			}
@@ -206,7 +206,7 @@ func storagePoolVolumeAttachPrepare(s *state.State, poolName string, volumeName 
 	return nil
 }
 
-func resetContainerDiskIdmap(container *containerLXC, srcIdmap *idmap.IdmapSet) error {
+func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := container.DiskIdmap()
 	if err != nil {
 		return err
@@ -332,7 +332,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 // storageVolumeMount initialises a new storage interface and checks the pool and volume are
 // mounted. If they are not then they are mounted.
 func storageVolumeMount(state *state.State, poolName string, volumeName string, volumeTypeName string, inst instance.Instance) error {
-	c, ok := inst.(*containerLXC)
+	c, ok := inst.(instance.Container)
 	if !ok {
 		return fmt.Errorf("Received non-LXC container instance")
 	}
