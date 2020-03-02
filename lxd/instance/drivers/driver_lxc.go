@@ -4741,11 +4741,11 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		"created":      c.creationDate,
 		"ephemeral":    c.ephemeral,
 		"used":         c.lastUsedDate,
-		"statedir":     args.stateDir,
-		"actionscript": args.actionScript,
-		"predumpdir":   args.preDumpDir,
-		"features":     args.features,
-		"stop":         args.stop}
+		"statedir":     args.StateDir,
+		"actionscript": args.ActionScript,
+		"predumpdir":   args.PreDumpDir,
+		"features":     args.Features,
+		"stop":         args.Stop}
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
@@ -4755,7 +4755,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	logger.Info("Migrating container", ctxMap)
 
 	prettyCmd := ""
-	switch args.cmd {
+	switch args.Cmd {
 	case liblxc.MIGRATE_PRE_DUMP:
 		prettyCmd = "pre-dump"
 	case liblxc.MIGRATE_DUMP:
@@ -4766,7 +4766,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
-		logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.cmd})
+		logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.Cmd})
 	}
 
 	pool, err := c.getStoragePool()
@@ -4783,14 +4783,14 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		preservesInodes = false
 	}
 
-	finalStateDir := args.stateDir
+	finalStateDir := args.StateDir
 	var migrateErr error
 
 	/* For restore, we need an extra fork so that we daemonize monitor
 	 * instead of having it be a child of LXD, so let's hijack the command
 	 * here and do the extra fork.
 	 */
-	if args.cmd == liblxc.MIGRATE_RESTORE {
+	if args.Cmd == liblxc.MIGRATE_RESTORE {
 		// Run the shared start
 		_, postStartHooks, err := c.startCommon()
 		if err != nil {
@@ -4820,11 +4820,11 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 			}
 
 			if storageType == "zfs" {
-				err = idmapset.ShiftRootfs(args.stateDir, shiftZfsSkipper)
+				err = idmapset.ShiftRootfs(args.StateDir, storageDrivers.ShiftZFSSkipper)
 			} else if storageType == "btrfs" {
-				err = ShiftBtrfsRootfs(args.stateDir, idmapset)
+				err = storageDrivers.ShiftBtrfsRootfs(args.StateDir, idmapset)
 			} else {
-				err = idmapset.ShiftRootfs(args.stateDir, nil)
+				err = idmapset.ShiftRootfs(args.StateDir, nil)
 			}
 			if ourStart {
 				_, err2 := c.unmount()
@@ -4840,8 +4840,8 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 
-		if args.dumpDir != "" {
-			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
+		if args.DumpDir != "" {
+			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
 		}
 
 		_, migrateErr = shared.RunCommand(
@@ -4862,16 +4862,16 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 				return err
 			}
 		}
-	} else if args.cmd == liblxc.MIGRATE_FEATURE_CHECK {
+	} else if args.Cmd == liblxc.MIGRATE_FEATURE_CHECK {
 		err := c.initLXC(true)
 		if err != nil {
 			return err
 		}
 
 		opts := liblxc.MigrateOptions{
-			FeaturesToCheck: args.features,
+			FeaturesToCheck: args.Features,
 		}
-		migrateErr = c.c.Migrate(args.cmd, opts)
+		migrateErr = c.c.Migrate(args.Cmd, opts)
 		if migrateErr != nil {
 			logger.Info("CRIU feature check failed", ctxMap)
 			return migrateErr
@@ -4884,12 +4884,12 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		}
 
 		script := ""
-		if args.actionScript {
-			script = filepath.Join(args.stateDir, "action.sh")
+		if args.ActionScript {
+			script = filepath.Join(args.StateDir, "action.sh")
 		}
 
-		if args.dumpDir != "" {
-			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
+		if args.DumpDir != "" {
+			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
 		}
 
 		// TODO: make this configurable? Ultimately I think we don't
@@ -4901,26 +4901,26 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		ghostLimit := uint64(256 * 1024 * 1024)
 
 		opts := liblxc.MigrateOptions{
-			Stop:            args.stop,
+			Stop:            args.Stop,
 			Directory:       finalStateDir,
 			Verbose:         true,
 			PreservesInodes: preservesInodes,
 			ActionScript:    script,
 			GhostLimit:      ghostLimit,
 		}
-		if args.preDumpDir != "" {
-			opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
+		if args.PreDumpDir != "" {
+			opts.PredumpDir = fmt.Sprintf("../%s", args.PreDumpDir)
 		}
 
 		if !c.IsRunning() {
 			// otherwise the migration will needlessly fail
-			args.stop = false
+			args.Stop = false
 		}
 
-		migrateErr = c.c.Migrate(args.cmd, opts)
+		migrateErr = c.c.Migrate(args.Cmd, opts)
 	}
 
-	collectErr := collectCRIULogFile(c, finalStateDir, args.function, prettyCmd)
+	collectErr := collectCRIULogFile(c, finalStateDir, args.Function, prettyCmd)
 	if collectErr != nil {
 		logger.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
 	}
@@ -4929,7 +4929,7 @@ func (c *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 		log, err2 := getCRIULogErrors(finalStateDir, prettyCmd)
 		if err2 == nil {
 			logger.Info("Failed migrating container", ctxMap)
-			migrateErr = fmt.Errorf("%s %s failed\n%s", args.function, prettyCmd, log)
+			migrateErr = fmt.Errorf("%s %s failed\n%s", args.Function, prettyCmd, log)
 		}
 
 		return migrateErr
