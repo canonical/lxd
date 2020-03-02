@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -49,24 +49,38 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	logger.Info("lxd-agent starting")
 	defer logger.Info("lxd-agent stopped")
 
-	// Setup cloud-init.
-	if shared.PathExists("/etc/cloud") && !shared.PathExists("/var/lib/cloud/seed/nocloud-net") {
-		err := os.MkdirAll("/var/lib/cloud/seed/nocloud-net/", 0700)
+	// Apply the templated files.
+	files, err := templatesApply("files/")
+	if err != nil {
+		return err
+	}
+
+	// Sync the hostname.
+	if shared.PathExists("/proc/sys/kernel/hostname") && shared.StringInSlice("/etc/hostname", files) {
+		// Open the two files.
+		src, err := os.Open("/etc/hostname")
 		if err != nil {
 			return err
 		}
 
-		for _, fName := range []string{"meta-data", "user-data", "vendor-data", "network-config"} {
-			if !shared.PathExists(filepath.Join("cloud-init", fName)) {
-				continue
-			}
-
-			err := shared.FileCopy(filepath.Join("cloud-init", fName), filepath.Join("/var/lib/cloud/seed/nocloud-net", fName))
-			if err != nil {
-				return err
-			}
+		dst, err := os.Create("/proc/sys/kernel/hostname")
+		if err != nil {
+			return err
 		}
 
+		// Copy the data.
+		_, err = io.Copy(dst, src)
+		if err != nil {
+			return err
+		}
+
+		// Close the files.
+		src.Close()
+		dst.Close()
+	}
+
+	// Run cloud-init.
+	if shared.PathExists("/etc/cloud") && shared.StringInSlice("/var/lib/cloud/seed/nocloud-net/meta-data", files) {
 		if shared.PathExists("/run/cloud-init") {
 			err = os.RemoveAll("/run/cloud-init")
 			if err != nil {
