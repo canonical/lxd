@@ -16,6 +16,15 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 )
 
+// HookStart hook used when instance has started.
+const HookStart = "onstart"
+
+// HookStopNS hook used when instance has stopped but before namespaces have been destroyed.
+const HookStopNS = "onstopns"
+
+// HookStop hook used when instance has stopped.
+const HookStop = "onstop"
+
 // ConfigReader is used to read instance config.
 type ConfigReader interface {
 	Type() instancetype.Type
@@ -80,6 +89,7 @@ type Instance interface {
 
 	// Hooks.
 	DeviceEventHandler(*deviceConfig.RunConfig) error
+	OnHook(hookName string, args map[string]string) error
 
 	// Properties.
 	ID() int
