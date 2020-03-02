@@ -2253,9 +2253,8 @@ func (c *lxc) Start(stateful bool) error {
 	}
 	defer op.Done(nil)
 
-	err = setupSharedMounts()
-	if err != nil {
-		return fmt.Errorf("Daemon failed to setup shared mounts base: %s.\nDoes security.nesting need to be turned on?", err)
+	if !daemon.SharedMountsSetup {
+		return fmt.Errorf("Daemon failed to setup shared mounts base: %v. Does security.nesting need to be turned on?", err)
 	}
 
 	// Run the shared start code
