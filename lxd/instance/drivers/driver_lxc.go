@@ -2394,8 +2394,22 @@ func (c *lxc) Start(stateful bool) error {
 	return nil
 }
 
-// OnStart implements the start hook.
-func (c *lxc) OnStart() error {
+// OnHook is the top-level hook handler.
+func (c *lxc) OnHook(hookName string, args map[string]string) error {
+	switch hookName {
+	case instance.HookStart:
+		return c.onStart(args)
+	case instance.HookStopNS:
+		return c.onStopNS(args)
+	case instance.HookStop:
+		return c.onStop(args)
+	default:
+		return instance.ErrNotImplemented
+	}
+}
+
+// onStart implements the start hook.
+func (c *lxc) onStart(_ map[string]string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
@@ -2688,9 +2702,12 @@ func (c *lxc) Shutdown(timeout time.Duration) error {
 	return nil
 }
 
-// OnStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
+// onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
 // namespaces have been closed. The netns path of the stopped container is provided.
-func (c *lxc) OnStopNS(target string, netns string) error {
+func (c *lxc) onStopNS(args map[string]string) error {
+	target := args["target"]
+	netns := args["netns"]
+
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		logger.Error("Container sent invalid target to OnStopNS", log.Ctx{"container": c.Name(), "target": target})
@@ -2703,9 +2720,11 @@ func (c *lxc) OnStopNS(target string, netns string) error {
 	return nil
 }
 
-// OnStop is triggered by LXC's post-stop hook once a container is shutdown and after the
+// onStop is triggered by LXC's post-stop hook once a container is shutdown and after the
 // container's namespaces have been closed.
-func (c *lxc) OnStop(target string) error {
+func (c *lxc) onStop(args map[string]string) error {
+	target := args["target"]
+
 	// Validate target
 	if !shared.StringInSlice(target, []string{"stop", "reboot"}) {
 		logger.Error("Container sent invalid target to OnStop", log.Ctx{"container": c.Name(), "target": target})
