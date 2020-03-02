@@ -180,7 +180,7 @@ LXD will always provide the instance with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in instance or
 profile configuration and may not be overridden.
 
-Those includes:
+Those include:
 
  - `/dev/null` (character device)
  - `/dev/zero` (character device)
@@ -571,6 +571,7 @@ either be a bind-mount of an existing file or directory on the host, or
 if the source is a block device, a regular mount.
 
 LXD supports the following additional source types:
+
 - Ceph-rbd: Mount from existing ceph RBD device that is externally managed. LXD can use ceph to manage an internal file system for the instance, but in the event that a user has a previously existing ceph RBD that they would like use for this instance, they can use this command.
 Example command
 ```
