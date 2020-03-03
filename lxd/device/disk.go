@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -26,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -385,6 +387,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		}
 		return &runConf, nil
 	} else if d.config["source"] != "" {
+		revert := revert.New()
+		defer revert.Fail()
+
 		srcPath := shared.HostPath(d.config["source"])
 
 		// This is a normal disk device, image or injected 9p directory share.
@@ -401,9 +406,52 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		// the directory inside the VM, as such we need to indicate to the VM the target path to mount to.
 		if shared.IsDir(srcPath) {
 			mount.TargetPath = d.config["path"]
+			mount.FSType = "9p"
+
+			if shared.IsTrue(d.config["readonly"]) {
+				// Don't use proxy in readonly mode.
+				mount.Opts = append(mount.Opts, "ro")
+			} else {
+				sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
+				mount.DevPath = sockPath // Use socket path as dev path so qemu connects to proxy.
+
+				// Remove old socket if needed.
+				os.Remove(sockPath)
+
+				// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
+				// when the VM process is started as an unprivileged user, we can still share
+				// directories that process cannot access.
+				proc, err := subprocess.NewProcess("virtfs-proxy-helper", []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+				if err != nil {
+					return nil, err
+				}
+
+				err = proc.Start()
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper for device %q", d.name)
+				}
+
+				revert.Add(func() { proc.Stop() })
+
+				pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+				err = proc.Save(pidPath)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state for device %q", d.name)
+				}
+
+				// Wait for socket file to exist (as otherwise qemu can race the creation of this file).
+				for i := 0; i < 10; i++ {
+					if shared.PathExists(sockPath) {
+						break
+					}
+
+					time.Sleep(50 * time.Millisecond)
+				}
+			}
 		}
 
 		runConf.Mounts = []deviceConfig.MountEntryItem{mount}
+		revert.Success()
 		return &runConf, nil
 	}
 
@@ -969,7 +1017,7 @@ func (d *disk) storagePoolVolumeAttachPrepare(poolName string, volumeName string
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
-		return &deviceConfig.RunConfig{}, nil
+		return d.stopVM()
 	}
 
 	runConf := deviceConfig.RunConfig{
@@ -991,6 +1039,29 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	})
 
 	return &runConf, nil
+}
+
+func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+
+	// VM disk dir shares uses virtfs-proxy-helper, so we should stop that if it is running.
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		err = proc.Stop()
+		if err != nil {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		// Remove PID file and socket file.
+		os.Remove(pidPath)
+		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
+	}
+
+	return &deviceConfig.RunConfig{}, nil
 }
 
 // postStop is run after the device is removed from the instance.
