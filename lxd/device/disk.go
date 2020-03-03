@@ -88,15 +88,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"ceph.cluster_name": shared.IsAny,
 		"ceph.user_name":    shared.IsAny,
 		"boot.priority":     shared.IsUint32,
-	}
-
-	// VMs don't use the "path" property, but containers need it, so if we are validating a profile that can
-	// be used for all instance types, we must allow any value.
-	if instConf.Type() == instancetype.Any {
-		rules["path"] = shared.IsAny
-	} else if instConf.Type() == instancetype.Container || d.config["path"] == "/" {
-		// If we are validating a container or the root device is being validated, then require the value.
-		rules["path"] = shared.IsNotEmpty
+		"path":              shared.IsAny,
 	}
 
 	err := d.config.Validate(rules)
@@ -393,21 +385,25 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		}
 		return &runConf, nil
 	} else if d.config["source"] != "" {
-		// This is a normal disk device or image.
-		if !shared.PathExists(shared.HostPath(d.config["source"])) {
-			return nil, fmt.Errorf("Cannot find disk source")
+		srcPath := shared.HostPath(d.config["source"])
+
+		// This is a normal disk device, image or injected 9p directory share.
+		if !shared.PathExists(srcPath) {
+			return nil, fmt.Errorf("Cannot find disk source %q", srcPath)
 		}
 
-		if shared.IsDir(shared.HostPath(d.config["source"])) {
-			return nil, fmt.Errorf("Only block devices and disk images can be attached to VMs")
+		mount := deviceConfig.MountEntryItem{
+			DevPath: srcPath,
+			DevName: d.name,
 		}
 
-		runConf.Mounts = []deviceConfig.MountEntryItem{
-			{
-				DevPath: shared.HostPath(d.config["source"]),
-				DevName: d.name,
-			},
+		// If the source being added is a directory, then we will be using 9p directory sharing to mount
+		// the directory inside the VM, as such we need to indicate to the VM the target path to mount to.
+		if shared.IsDir(srcPath) {
+			mount.TargetPath = d.config["path"]
 		}
+
+		runConf.Mounts = []deviceConfig.MountEntryItem{mount}
 		return &runConf, nil
 	}
 
