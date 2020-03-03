@@ -91,6 +91,9 @@ const (
 	// Freezer resource control
 	Freezer
 
+	// Hugetlb resource control
+	Hugetlb
+
 	// Memory resource control
 	Memory
 
@@ -160,6 +163,9 @@ func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
 		return val, ok
 	case Freezer:
 		val, ok := cgControllers["freezer"]
+		return val, ok
+	case Hugetlb:
+		val, ok := cgControllers["hugetlb"]
 		return val, ok
 	case Memory:
 		val, ok := cgControllers["memory"]
@@ -264,6 +270,10 @@ func (info *Info) Log() {
 
 	if !info.Supports(Freezer, nil) {
 		logger.Warnf(" - Couldn't find the CGroup freezer controller, pausing/resuming containers won't work")
+	}
+
+	if !info.Supports(Hugetlb, nil) {
+		logger.Warnf(" - Couldn't find the CGroup hugetlb controller, hugepage limits will be ignored")
 	}
 
 	if !info.Supports(Memory, nil) {

@@ -190,6 +190,8 @@ var APIExtensions = []string{
 	"clustering_sizing",
 	"firewall_driver",
 	"projects_limits",
+	"container_syscall_intercept_hugetlbfs",
+	"limits_hugepages",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

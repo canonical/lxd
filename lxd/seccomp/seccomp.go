@@ -1249,6 +1249,74 @@ func mountFlagsToOpts(flags C.ulong) string {
 	return opts
 }
 
+// mountHandleHugetlbfsArgs adds user namespace root uid and gid to the
+// hugetlbfs mount options to make it useable in unprivileged containers.
+func (s *Server) mountHandleHugetlbfsArgs(c Instance, args *MountArgs, nsuid int64, nsgid int64) error {
+	if args.fstype != "hugetlbfs" {
+		return nil
+	}
+
+	if args.data == "" {
+		args.data = fmt.Sprintf("uid=%d,gid=%d", nsuid, nsgid)
+		return nil
+	}
+
+	uidOpt := int64(-1)
+	gidOpt := int64(-1)
+
+	idmapset, err := c.CurrentIdmap()
+	if err != nil {
+		return err
+	}
+
+	optStrings := strings.Split(args.data, ",")
+	for i, optString := range optStrings {
+		if strings.HasPrefix(optString, "uid=") {
+			uidFields := strings.Split(optString, "=")
+			if len(uidFields) > 1 {
+				n, err := strconv.ParseInt(uidFields[1], 10, 64)
+				if err != nil {
+					// If the user specified garbage, let the kernel tell em whats what.
+					return nil
+				}
+				uidOpt, _ = idmapset.ShiftIntoNs(n, 0)
+				if uidOpt < 0 {
+					// If the user specified garbage, let the kernel tell em whats what.
+					return nil
+				}
+				optStrings[i] = fmt.Sprintf("uid=%d", uidOpt)
+			}
+		} else if strings.HasPrefix(optString, "gid=") {
+			gidFields := strings.Split(optString, "=")
+			if len(gidFields) > 1 {
+				n, err := strconv.ParseInt(gidFields[1], 10, 64)
+				if err != nil {
+					// If the user specified garbage, let the kernel tell em whats what.
+					return nil
+				}
+				gidOpt, _ = idmapset.ShiftIntoNs(n, 0)
+				if gidOpt < 0 {
+					// If the user specified garbage, let the kernel tell em whats what.
+					return nil
+				}
+				optStrings[i] = fmt.Sprintf("gid=%d", gidOpt)
+			}
+		}
+	}
+
+	if uidOpt == -1 {
+		optStrings = append(optStrings, fmt.Sprintf("uid=%d", nsuid))
+	}
+
+	if gidOpt == -1 {
+		optStrings = append(optStrings, fmt.Sprintf("gid=%d", nsgid))
+	}
+
+	args.data = strings.Join(optStrings, ",")
+	args.shift = false
+	return nil
+}
+
 // HandleMountSyscall handles mount syscalls.
 func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
@@ -1333,6 +1401,13 @@ func (s *Server) HandleMountSyscall(c Instance, siov *Iovec) int {
 	}
 
 	nsuid, nsgid, nsfsuid, nsfsgid, err := TaskIDs(args.pid)
+	if err != nil {
+		ctx["syscall_continue"] = "true"
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+
+	err = s.mountHandleHugetlbfsArgs(c, &args, nsuid, nsgid)
 	if err != nil {
 		ctx["syscall_continue"] = "true"
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))

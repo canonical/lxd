@@ -305,3 +305,21 @@ func (cg *CGroup) SetNetIfPrio(value string) error {
 	}
 	return ErrUnknownVersion
 }
+
+// SetMaxHugepages applies a limit to the number of processes
+func (cg *CGroup) SetMaxHugepages(pageType string, value string) error {
+	// Confirm we have the controller
+	version := cgControllers["hugetlb"]
+	switch version {
+	case Unavailable:
+		return ErrControllerMissing
+	case V1:
+		return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.limit_in_bytes", pageType), value)
+	case V2:
+		if value == "" {
+			return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), "max")
+		}
+		return cg.rw.Set(version, "hugetlb", fmt.Sprintf("hugetlb.%s.max", pageType), value)
+	}
+	return ErrUnknownVersion
+}
