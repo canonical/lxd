@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -33,6 +34,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/network"
@@ -1558,12 +1560,17 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		return "", errors.Wrap(err, "Error calculating boot indexes")
 	}
 
+	// Record the mounts we are going to do inside the VM using the agent.
+	agentMounts := []instancetype.VMAgentMount{}
+
 	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
 				if drive.TargetPath == "/" {
 					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
+				} else if drive.FSType == "9p" {
+					err = vm.addDriveDirConfig(sb, fdFiles, &agentMounts, drive)
 				} else {
 					err = vm.addDriveConfig(sb, bootIndexes, drive)
 				}
@@ -1581,6 +1588,18 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 			}
 			nicIndex++
 		}
+	}
+
+	// Write the agent mount config.
+	agentMountJSON, err := json.Marshal(agentMounts)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed marshalling agent mounts to JSON")
+	}
+
+	agentMountFile := filepath.Join(vm.Path(), "config", "agent-mounts.json")
+	err = ioutil.WriteFile(agentMountFile, agentMountJSON, 0400)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed writing agent mounts file")
 	}
 
 	// Write the config file to disk.
@@ -1719,6 +1738,45 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 	}
 
 	return vm.addDriveConfig(sb, bootIndexes, driveConf)
+}
+
+// addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
+func (vm *qemu) addDriveDirConfig(sb *strings.Builder, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
+
+	agentMount := instancetype.VMAgentMount{
+		Source:     mountTag,
+		TargetPath: driveConf.TargetPath,
+		FSType:     driveConf.FSType,
+	}
+
+	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
+	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
+	if shared.StringInSlice("ro", driveConf.Opts) {
+		agentMount.Opts = append(agentMount.Opts, "ro")
+	}
+
+	// Record the 9p mount for the agent.
+	*agentMounts = append(*agentMounts, agentMount)
+
+	// For read only shares, do not use proxy.
+	if shared.StringInSlice("ro", driveConf.Opts) {
+		return qemuDriveDir.Execute(sb, map[string]interface{}{
+			"devName":  driveConf.DevName,
+			"mountTag": mountTag,
+			"path":     driveConf.DevPath,
+			"readonly": true,
+		})
+	}
+
+	// Only use proxy for writable shares.
+	proxyFD := vm.addFileDescriptor(fdFiles, driveConf.DevPath)
+	return qemuDriveDir.Execute(sb, map[string]interface{}{
+		"devName":  driveConf.DevName,
+		"mountTag": mountTag,
+		"proxyFD":  proxyFD,
+		"readonly": false,
+	})
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
