@@ -200,6 +200,27 @@ fsdev = "qemu_config"
 mount_tag = "config"
 `))
 
+// Devices use "lxd_" prefix indicating that this is a internally named device.
+var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
+# {{.devName}} drive
+[fsdev "lxd_{{.devName}}"]
+{{- if .readonly}}
+readonly = "on"
+fsdriver = "local"
+security_model = "none"
+path = "{{.path}}"
+{{- else}}
+readonly = "off"
+fsdriver = "proxy"
+sock_fd = "{{.proxyFD}}"
+{{- end}}
+
+[device "dev-lxd_{{.devName}}"]
+driver = "virtio-9p-pci"
+fsdev = "lxd_{{.devName}}"
+mount_tag = "{{.mountTag}}"
+`))
+
 // Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuDrive = template.Must(template.New("qemuDrive").Parse(`
 # {{.devName}} drive
