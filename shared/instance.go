@@ -184,6 +184,12 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	return "", nil, fmt.Errorf("No root device could be found")
 }
 
+// HugePageSizeKeys is a list of known hugepage size configuration keys.
+var HugePageSizeKeys = [...]string{"limits.hugepages.64KB", "limits.hugepages.1MB", "limits.hugepages.2MB", "limits.hugepages.1GB"}
+
+// HugePageSizeSuffix contains the list of known hugepage size suffixes.
+var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
+
 // KnownInstanceConfigKeys maps all fully defined, well-known config keys
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
@@ -253,6 +259,11 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"limits.cpu.priority": IsPriority,
 
 	"limits.disk.priority": IsPriority,
+
+	"limits.hugepages.64KB": IsSize,
+	"limits.hugepages.1MB":  IsSize,
+	"limits.hugepages.2MB":  IsSize,
+	"limits.hugepages.1GB":  IsSize,
 
 	"limits.memory": func(value string) error {
 		if value == "" {

@@ -1215,6 +1215,25 @@ func (c *lxc) initLXC(config bool) error {
 		}
 	}
 
+	// Hugepages
+	if c.state.OS.CGInfo.Supports(cgroup.Hugetlb, cg) {
+		for i, key := range shared.HugePageSizeKeys {
+			value := c.expandedConfig[key]
+			if value != "" {
+				valueInt, err := units.ParseByteSizeString(value)
+				if err != nil {
+					return err
+				}
+				value = fmt.Sprintf("%d", valueInt)
+
+				err = cg.SetMaxHugepages(shared.HugePageSizeSuffix[i], value)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	// Setup process limits
 	for k, v := range c.expandedConfig {
 		if strings.HasPrefix(k, "limits.kernel.") {
@@ -4273,6 +4292,36 @@ func (c *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					if err != nil {
 						return err
 					}
+				}
+			} else if strings.HasPrefix(key, "limits.hugepages.") {
+				if !c.state.OS.CGInfo.Supports(cgroup.Hugetlb, cg) {
+					continue
+				}
+
+				pageType := ""
+
+				switch key {
+				case "limits.hugepages.64KB":
+					pageType = "64KB"
+				case "limits.hugepages.1MB":
+					pageType = "1MB"
+				case "limits.hugepages.2MB":
+					pageType = "2MB"
+				case "limits.hugepages.1GB":
+					pageType = "1GB"
+				}
+
+				if value != "" {
+					valueInt, err := units.ParseByteSizeString(value)
+					if err != nil {
+						return err
+					}
+					value = fmt.Sprintf("%d", valueInt)
+				}
+
+				err = cg.SetMaxHugepages(pageType, value)
+				if err != nil {
+					return err
 				}
 			}
 		}
