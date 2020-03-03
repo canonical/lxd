@@ -932,3 +932,10 @@ When mount syscall interception is enabled and hugetlbfs is specified as an
 allowed filesystem type LXD will mount a separate hugetlbfs instance for the
 container with the uid and gid mount options set to the container's root uid
 and gid. This ensures that processes in the container can use hugepages.
+
+## limits\_hugepages
+This allows to limit the number of hugepages a container can use through the
+hugetlb cgroup. This means the hugetlb cgroup needs to be available. Note, that
+limiting hugepages is recommended when intercepting the mount syscall for the
+hugetlbfs filesystem to avoid allowing the container to exhaust the host's
+hugepages resources.
