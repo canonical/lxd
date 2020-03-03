@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -33,6 +34,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/network"
@@ -781,13 +783,41 @@ func (vm *qemu) Start(stateful bool) error {
 
 	// Open any extra files and pass their file handles to qemu command.
 	for _, file := range fdFiles {
-		f, err := os.OpenFile(file, os.O_RDWR, 0)
+		info, err := os.Stat(file)
 		if err != nil {
-			err = errors.Wrapf(err, "Error opening exta file %q", file)
+			err = errors.Wrapf(err, "Error detecting file type %q", file)
 			op.Done(err)
 			return err
 		}
-		defer f.Close() // Close file after qemu has started.
+
+		var f *os.File
+		mode := info.Mode()
+		if mode&os.ModeSocket != 0 {
+			c, err := vm.openUnixSocket(file)
+			if err != nil {
+				err = errors.Wrapf(err, "Error opening socket file %q", file)
+				op.Done(err)
+				return err
+			}
+
+			f, err = c.File()
+			if err != nil {
+				err = errors.Wrapf(err, "Error getting socket file descriptor %q", file)
+				op.Done(err)
+				return err
+			}
+			defer c.Close()
+			defer f.Close() // Close file after qemu has started.
+		} else {
+			f, err = os.OpenFile(file, os.O_RDWR, 0)
+			if err != nil {
+				err = errors.Wrapf(err, "Error opening exta file %q", file)
+				op.Done(err)
+				return err
+			}
+			defer f.Close() // Close file after qemu has started.
+		}
+
 		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
 	}
 
@@ -897,6 +927,21 @@ func (vm *qemu) Start(stateful bool) error {
 	revert.Success()
 	vm.state.Events.SendLifecycle(vm.project, "virtual-machine-started", fmt.Sprintf("/1.0/virtual-machines/%s", vm.name), nil)
 	return nil
+}
+
+// openUnixSocket connects to a UNIX socket and returns the connection.
+func (vm *qemu) openUnixSocket(sockPath string) (*net.UnixConn, error) {
+	addr, err := net.ResolveUnixAddr("unix", sockPath)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := net.DialUnix("unix", nil, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func (vm *qemu) setupNvram() error {
@@ -1515,12 +1560,17 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 		return "", errors.Wrap(err, "Error calculating boot indexes")
 	}
 
+	// Record the mounts we are going to do inside the VM using the agent.
+	agentMounts := []instancetype.VMAgentMount{}
+
 	for _, runConf := range devConfs {
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
 				if drive.TargetPath == "/" {
 					err = vm.addRootDriveConfig(sb, bootIndexes, drive)
+				} else if drive.FSType == "9p" {
+					err = vm.addDriveDirConfig(sb, fdFiles, &agentMounts, drive)
 				} else {
 					err = vm.addDriveConfig(sb, bootIndexes, drive)
 				}
@@ -1538,6 +1588,18 @@ func (vm *qemu) generateQemuConfigFile(devConfs []*deviceConfig.RunConfig, fdFil
 			}
 			nicIndex++
 		}
+	}
+
+	// Write the agent mount config.
+	agentMountJSON, err := json.Marshal(agentMounts)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed marshalling agent mounts to JSON")
+	}
+
+	agentMountFile := filepath.Join(vm.Path(), "config", "agent-mounts.json")
+	err = ioutil.WriteFile(agentMountFile, agentMountJSON, 0400)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed writing agent mounts file")
 	}
 
 	// Write the config file to disk.
@@ -1637,6 +1699,14 @@ func (vm *qemu) addConfDriveConfig(sb *strings.Builder) error {
 	})
 }
 
+// addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
+// Returns the file descriptor number that qemu will receive.
+func (vm *qemu) addFileDescriptor(fdFiles *[]string, filePath string) int {
+	// Append the tap device file path to the list of files to be opened and passed to qemu.
+	*fdFiles = append(*fdFiles, filePath)
+	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+}
+
 // addRootDriveConfig adds the qemu config required for adding the root drive.
 func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
 	if rootDriveConf.TargetPath != "/" {
@@ -1670,6 +1740,45 @@ func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]i
 	return vm.addDriveConfig(sb, bootIndexes, driveConf)
 }
 
+// addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
+func (vm *qemu) addDriveDirConfig(sb *strings.Builder, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
+
+	agentMount := instancetype.VMAgentMount{
+		Source:     mountTag,
+		TargetPath: driveConf.TargetPath,
+		FSType:     driveConf.FSType,
+	}
+
+	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
+	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
+	if shared.StringInSlice("ro", driveConf.Opts) {
+		agentMount.Opts = append(agentMount.Opts, "ro")
+	}
+
+	// Record the 9p mount for the agent.
+	*agentMounts = append(*agentMounts, agentMount)
+
+	// For read only shares, do not use proxy.
+	if shared.StringInSlice("ro", driveConf.Opts) {
+		return qemuDriveDir.Execute(sb, map[string]interface{}{
+			"devName":  driveConf.DevName,
+			"mountTag": mountTag,
+			"path":     driveConf.DevPath,
+			"readonly": true,
+		})
+	}
+
+	// Only use proxy for writable shares.
+	proxyFD := vm.addFileDescriptor(fdFiles, driveConf.DevPath)
+	return qemuDriveDir.Execute(sb, map[string]interface{}{
+		"devName":  driveConf.DevName,
+		"mountTag": mountTag,
+		"proxyFD":  proxyFD,
+		"readonly": false,
+	})
+}
+
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
 func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
 	// Use native kernel async IO and O_DIRECT by default.
@@ -1699,12 +1808,11 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"devName":      driveConf.DevName,
-		"devPath":      driveConf.DevPath,
-		"bootIndex":    bootIndexes[driveConf.DevName],
-		"cacheMode":    cacheMode,
-		"aioMode":      aioMode,
+		"devName":   driveConf.DevName,
+		"devPath":   driveConf.DevPath,
+		"bootIndex": bootIndexes[driveConf.DevName],
+		"cacheMode": cacheMode,
+		"aioMode":   aioMode,
 	})
 }
 
@@ -1748,8 +1856,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 		}
 
 		// Append the tap device file path to the list of files to be opened and passed to qemu.
-		*fdFiles = append(*fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
-		tplFields["tapFD"] = 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+		tplFields["tapFD"] = vm.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
 		tpl = qemuNetdevTapFD
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.

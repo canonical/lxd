@@ -52,7 +52,7 @@ backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
 
 # SCSI controller
-{{if ne .architecture "ppc64le" -}}
+{{- if ne .architecture "ppc64le"}}
 [device "qemu_pcie1"]
 driver = "pcie-root-port"
 port = "0x10"
@@ -64,15 +64,15 @@ addr = "0x2"
 
 [device "qemu_scsi"]
 driver = "virtio-scsi-pci"
-{{if eq .architecture "ppc64le" -}}
+{{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
-{{else -}}
+{{- else}}
 bus = "qemu_pcie1"
 addr = "0x0"
-{{end -}}
+{{- end}}
 
 # Balloon driver
-{{if ne .architecture "ppc64le" -}}
+{{- if ne .architecture "ppc64le"}}
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
 port = "0x11"
@@ -83,12 +83,12 @@ addr = "0x2.0x1"
 
 [device "qemu_ballon"]
 driver = "virtio-balloon-pci"
-{{if eq .architecture "ppc64le" -}}
+{{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
-{{else -}}
+{{- else}}
 bus = "qemu_pcie2"
 addr = "0x0"
-{{end -}}
+{{- end}}
 
 # Random number generator
 [object "qemu_rng"]
@@ -107,12 +107,12 @@ addr = "0x2.0x2"
 [device "dev-qemu_rng"]
 driver = "virtio-rng-pci"
 rng = "qemu_rng"
-{{if eq .architecture "ppc64le" -}}
+{{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
-{{else -}}
+{{- else}}
 bus = "qemu_pcie3"
 addr = "0x0"
-{{end -}}
+{{- end}}
 
 # Console
 [chardev "console"]
@@ -199,6 +199,27 @@ path = "{{.path}}"
 driver = "virtio-9p-pci"
 fsdev = "qemu_config"
 mount_tag = "config"
+`))
+
+// Devices use "lxd_" prefix indicating that this is a internally named device.
+var qemuDriveDir = template.Must(template.New("qemuDriveDir").Parse(`
+# {{.devName}} drive
+[fsdev "lxd_{{.devName}}"]
+{{- if .readonly}}
+readonly = "on"
+fsdriver = "local"
+security_model = "none"
+path = "{{.path}}"
+{{- else}}
+readonly = "off"
+fsdriver = "proxy"
+sock_fd = "{{.proxyFD}}"
+{{- end}}
+
+[device "dev-lxd_{{.devName}}"]
+driver = "virtio-9p-pci"
+fsdev = "lxd_{{.devName}}"
+mount_tag = "{{.mountTag}}"
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.

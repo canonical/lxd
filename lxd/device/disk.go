@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -26,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -88,15 +90,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		"ceph.cluster_name": shared.IsAny,
 		"ceph.user_name":    shared.IsAny,
 		"boot.priority":     shared.IsUint32,
-	}
-
-	// VMs don't use the "path" property, but containers need it, so if we are validating a profile that can
-	// be used for all instance types, we must allow any value.
-	if instConf.Type() == instancetype.Any {
-		rules["path"] = shared.IsAny
-	} else if instConf.Type() == instancetype.Container || d.config["path"] == "/" {
-		// If we are validating a container or the root device is being validated, then require the value.
-		rules["path"] = shared.IsNotEmpty
+		"path":              shared.IsAny,
 	}
 
 	err := d.config.Validate(rules)
@@ -105,19 +99,19 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["required"] != "" && d.config["optional"] != "" {
-		return fmt.Errorf("Cannot use both \"required\" and deprecated \"optional\" properties at the same time")
+		return fmt.Errorf(`Cannot use both "required" and deprecated "optional" properties at the same time`)
 	}
 
 	if d.config["source"] == "" && d.config["path"] != "/" {
-		return fmt.Errorf("Disk entry is missing the required \"source\" property")
+		return fmt.Errorf(`Disk entry is missing the required "source" property`)
 	}
 
 	if d.config["path"] == "/" && d.config["source"] != "" {
-		return fmt.Errorf("Root disk entry may not have a \"source\" property set")
+		return fmt.Errorf(`Root disk entry may not have a "source" property set`)
 	}
 
 	if d.config["path"] == "/" && d.config["pool"] == "" {
-		return fmt.Errorf("Root disk entry must have a \"pool\" property set")
+		return fmt.Errorf(`Root disk entry must have a "pool" property set`)
 	}
 
 	if d.config["size"] != "" && d.config["path"] != "/" {
@@ -129,7 +123,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
-		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source: %s", d.config["source"])
+		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
 
 	// Check no other devices also have the same path as us. Use LocalDevices for this check so
@@ -153,12 +147,12 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// for the existence of "source" when "pool" is empty.
 	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) &&
 		!strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
-		return fmt.Errorf("Missing source '%s' for disk '%s'", d.config["source"], d.name)
+		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
 	}
 
 	if d.config["pool"] != "" {
 		if d.config["shift"] != "" {
-			return fmt.Errorf("The \"shift\" property cannot be used with custom storage volumes")
+			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes`)
 		}
 
 		if filepath.IsAbs(d.config["source"]) {
@@ -167,7 +161,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 		_, err := d.state.Cluster.StoragePoolGetID(d.config["pool"])
 		if err != nil {
-			return fmt.Errorf("The \"%s\" storage pool doesn't exist", d.config["pool"])
+			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}
 
 		// Only check storate volume is available if we are validating an instance device and not a profile
@@ -393,21 +387,71 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		}
 		return &runConf, nil
 	} else if d.config["source"] != "" {
-		// This is a normal disk device or image.
-		if !shared.PathExists(shared.HostPath(d.config["source"])) {
-			return nil, fmt.Errorf("Cannot find disk source")
+		revert := revert.New()
+		defer revert.Fail()
+
+		srcPath := shared.HostPath(d.config["source"])
+
+		// This is a normal disk device, image or injected 9p directory share.
+		if !shared.PathExists(srcPath) {
+			return nil, fmt.Errorf("Cannot find disk source %q", srcPath)
 		}
 
-		if shared.IsDir(shared.HostPath(d.config["source"])) {
-			return nil, fmt.Errorf("Only block devices and disk images can be attached to VMs")
+		mount := deviceConfig.MountEntryItem{
+			DevPath: srcPath,
+			DevName: d.name,
 		}
 
-		runConf.Mounts = []deviceConfig.MountEntryItem{
-			{
-				DevPath: shared.HostPath(d.config["source"]),
-				DevName: d.name,
-			},
+		// If the source being added is a directory, then we will be using 9p directory sharing to mount
+		// the directory inside the VM, as such we need to indicate to the VM the target path to mount to.
+		if shared.IsDir(srcPath) {
+			mount.TargetPath = d.config["path"]
+			mount.FSType = "9p"
+
+			if shared.IsTrue(d.config["readonly"]) {
+				// Don't use proxy in readonly mode.
+				mount.Opts = append(mount.Opts, "ro")
+			} else {
+				sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
+				mount.DevPath = sockPath // Use socket path as dev path so qemu connects to proxy.
+
+				// Remove old socket if needed.
+				os.Remove(sockPath)
+
+				// Start the virtfs-proxy-helper process in non-daemon mode and as root so that
+				// when the VM process is started as an unprivileged user, we can still share
+				// directories that process cannot access.
+				proc, err := subprocess.NewProcess("virtfs-proxy-helper", []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+				if err != nil {
+					return nil, err
+				}
+
+				err = proc.Start()
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper for device %q", d.name)
+				}
+
+				revert.Add(func() { proc.Stop() })
+
+				pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+				err = proc.Save(pidPath)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state for device %q", d.name)
+				}
+
+				// Wait for socket file to exist (as otherwise qemu can race the creation of this file).
+				for i := 0; i < 10; i++ {
+					if shared.PathExists(sockPath) {
+						break
+					}
+
+					time.Sleep(50 * time.Millisecond)
+				}
+			}
 		}
+
+		runConf.Mounts = []deviceConfig.MountEntryItem{mount}
+		revert.Success()
 		return &runConf, nil
 	}
 
@@ -973,7 +1017,7 @@ func (d *disk) storagePoolVolumeAttachPrepare(poolName string, volumeName string
 // Stop is run when the device is removed from the instance.
 func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
-		return &deviceConfig.RunConfig{}, nil
+		return d.stopVM()
 	}
 
 	runConf := deviceConfig.RunConfig{
@@ -995,6 +1039,29 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 	})
 
 	return &runConf, nil
+}
+
+func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
+	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
+
+	// VM disk dir shares uses virtfs-proxy-helper, so we should stop that if it is running.
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		err = proc.Stop()
+		if err != nil {
+			return &deviceConfig.RunConfig{}, err
+		}
+
+		// Remove PID file and socket file.
+		os.Remove(pidPath)
+		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
+	}
+
+	return &deviceConfig.RunConfig{}, nil
 }
 
 // postStop is run after the device is removed from the instance.
