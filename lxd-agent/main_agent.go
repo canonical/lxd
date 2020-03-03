@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -92,6 +95,9 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		shared.RunCommand("systemctl", "start", "cloud-init.target")
 	}
 
+	// Mount shares from host.
+	c.mountHostShares()
+
 	// Setup the listener.
 	l, err := vsock.Listen(8443)
 	if err != nil {
@@ -166,4 +172,40 @@ func (c *cmdAgent) writeStatus(status string) error {
 	}
 
 	return nil
+}
+
+// mountHostShares reads the agent-mounts.json file from config share and mounts the shares requested.
+func (c *cmdAgent) mountHostShares() {
+	agentMountsFile := "./agent-mounts.json"
+	if !shared.PathExists(agentMountsFile) {
+		return
+	}
+
+	b, err := ioutil.ReadFile(agentMountsFile)
+	if err != nil {
+		logger.Errorf("Failed to load agent mounts file %q: %v", agentMountsFile, err)
+	}
+
+	var agentMounts []instancetype.VMAgentMount
+	err = json.Unmarshal(b, &agentMounts)
+	if err != nil {
+		logger.Errorf("Failed to parse agent mounts file %q: %v", agentMountsFile, err)
+		return
+	}
+
+	for _, mount := range agentMounts {
+		args := []string{"-t", mount.FSType, mount.Source, mount.TargetPath}
+
+		for _, opt := range mount.Opts {
+			args = append(args, "-o", opt)
+		}
+
+		_, err = shared.RunCommand("mount", args...)
+		if err != nil {
+			logger.Errorf("Failed mount %q (Type: %q, Opts: %v) to %q: %v", mount.Source, mount.FSType, mount.Opts, mount.TargetPath, err)
+			continue
+		}
+
+		logger.Infof("Mounted %q (Type: %q, Opts: %v) to %q", mount.Source, mount.FSType, mount.Opts, mount.TargetPath)
+	}
 }
