@@ -1680,6 +1680,14 @@ func (vm *qemu) addConfDriveConfig(sb *strings.Builder) error {
 	})
 }
 
+// addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
+// Returns the file descriptor number that qemu will receive.
+func (vm *qemu) addFileDescriptor(fdFiles *[]string, filePath string) int {
+	// Append the tap device file path to the list of files to be opened and passed to qemu.
+	*fdFiles = append(*fdFiles, filePath)
+	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+}
+
 // addRootDriveConfig adds the qemu config required for adding the root drive.
 func (vm *qemu) addRootDriveConfig(sb *strings.Builder, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
 	if rootDriveConf.TargetPath != "/" {
@@ -1790,8 +1798,7 @@ func (vm *qemu) addNetDevConfig(sb *strings.Builder, nicIndex int, bootIndexes m
 		}
 
 		// Append the tap device file path to the list of files to be opened and passed to qemu.
-		*fdFiles = append(*fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
-		tplFields["tapFD"] = 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
+		tplFields["tapFD"] = vm.addFileDescriptor(fdFiles, fmt.Sprintf("/dev/tap%d", ifindex))
 		tpl = qemuNetdevTapFD
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
