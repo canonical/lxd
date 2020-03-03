@@ -51,7 +51,7 @@ backend = "ringbuf"
 size = "{{.ringbufSizeBytes}}B"
 
 # SCSI controller
-{{if ne .architecture "ppc64le" -}}
+{{- if ne .architecture "ppc64le"}}
 [device "qemu_pcie1"]
 driver = "pcie-root-port"
 port = "0x10"
@@ -63,15 +63,15 @@ addr = "0x2"
 
 [device "qemu_scsi"]
 driver = "virtio-scsi-pci"
-{{if eq .architecture "ppc64le" -}}
+{{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
-{{else -}}
+{{- else}}
 bus = "qemu_pcie1"
 addr = "0x0"
-{{end -}}
+{{- end}}
 
 # Balloon driver
-{{if ne .architecture "ppc64le" -}}
+{{- if ne .architecture "ppc64le"}}
 [device "qemu_pcie2"]
 driver = "pcie-root-port"
 port = "0x11"
@@ -82,12 +82,12 @@ addr = "0x2.0x1"
 
 [device "qemu_ballon"]
 driver = "virtio-balloon-pci"
-{{if eq .architecture "ppc64le" -}}
+{{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
-{{else -}}
+{{- else}}
 bus = "qemu_pcie2"
 addr = "0x0"
-{{end -}}
+{{- end}}
 
 # Random number generator
 [object "qemu_rng"]
@@ -106,12 +106,12 @@ addr = "0x2.0x2"
 [device "dev-qemu_rng"]
 driver = "virtio-rng-pci"
 rng = "qemu_rng"
-{{if eq .architecture "ppc64le" -}}
+{{- if eq .architecture "ppc64le"}}
 bus = "pci.0"
-{{else -}}
+{{- else}}
 bus = "qemu_pcie3"
 addr = "0x0"
-{{end -}}
+{{- end}}
 
 # Console
 [chardev "console"]
