@@ -926,3 +926,16 @@ Introduces the ability to create a storage pool from an existing non-empty volum
 This option should be used with care, as LXD can then not guarantee that volume name conflicts won't occur
 with non-LXD created volumes in the same volume group.
 This could also potentially lead to LXD deleting a non-LXD volume should name conflicts occur.
+
+## container\_syscall\_intercept\_hugetlbfs
+When mount syscall interception is enabled and hugetlbfs is specified as an
+allowed filesystem type LXD will mount a separate hugetlbfs instance for the
+container with the uid and gid mount options set to the container's root uid
+and gid. This ensures that processes in the container can use hugepages.
+
+## limits\_hugepages
+This allows to limit the number of hugepages a container can use through the
+hugetlb cgroup. This means the hugetlb cgroup needs to be available. Note, that
+limiting hugepages is recommended when intercepting the mount syscall for the
+hugetlbfs filesystem to avoid allowing the container to exhaust the host's
+hugepages resources.

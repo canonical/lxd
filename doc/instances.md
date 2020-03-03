@@ -46,6 +46,10 @@ limits.cpu                                  | string    | - (all)           | ye
 limits.cpu.allowance                        | string    | 100%              | yes           | -                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
 limits.cpu.priority                         | integer   | 10 (maximum)      | yes           | -                 | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
 limits.disk.priority                        | integer   | 5 (medium)        | yes           | -                 | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
+limits.hugepages.64KB                       | string    | -                 | yes           | container         | Fixed value in bytes (various suffixes supported, see below) to limit number of 64 KB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.1MB                        | string    | -                 | yes           | container         | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 MB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.2MB                        | string    | -                 | yes           | container         | Fixed value in bytes (various suffixes supported, see below) to limit number of 2 MB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.1GB                        | string    | -                 | yes           | container         | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 GB hugepages (Available hugepage sizes are architecture dependent.)
 limits.kernel.\*                            | string    | -                 | no            | container         | This limits kernel resources per instance (e.g. number of open files)
 limits.memory                               | string    | - (all)           | yes           | -                 | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below)
 limits.memory.enforce                       | string    | hard              | yes           | container         | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
@@ -805,6 +809,24 @@ lxc launch ubuntu:18.04 my-instance -t t2.micro
 The list of supported clouds and instance types can be found here:
 
   https://github.com/dustinkirkland/instance-type
+
+## Hugepage limits via `limits.hugepages.[size]`
+LXD allows to limit the number of hugepages available to a container through
+the `limits.hugepage.[size]` key. Limiting hugepages is done through the
+hugetlb cgroup controller. This means the host system needs to expose the
+hugetlb controller in the legacy or unified cgroup hierarchy for these limits
+to apply.
+Note that architectures often expose multiple hugepage sizes. In addition,
+architectures may expose different hugepage sizes than other architectures.
+
+Limiting hugepages is especially useful when LXD is configured to intercept the
+mount syscall for the `hugetlbfs` filesystem in unprivileged containers. When
+LXD intercepts a `hugetlbfs` mount  syscall, it will mount the `hugetlbfs`
+filesystem for a container with correct `uid` and `gid` values as mount
+options. This makes it possible to use hugepages from unprivileged containers.
+However, it is recommended to limit the number of hugepages available to the
+container through `limits.hugepages.[size]` to stop the container from being
+able to exhaust the hugepages available to the host.
 
 ## Resource limits via `limits.kernel.[limit name]`
 LXD exposes a generic namespaced key `limits.kernel.*` which can be used to set
