@@ -105,19 +105,19 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["required"] != "" && d.config["optional"] != "" {
-		return fmt.Errorf("Cannot use both \"required\" and deprecated \"optional\" properties at the same time")
+		return fmt.Errorf(`Cannot use both "required" and deprecated "optional" properties at the same time`)
 	}
 
 	if d.config["source"] == "" && d.config["path"] != "/" {
-		return fmt.Errorf("Disk entry is missing the required \"source\" property")
+		return fmt.Errorf(`Disk entry is missing the required "source" property`)
 	}
 
 	if d.config["path"] == "/" && d.config["source"] != "" {
-		return fmt.Errorf("Root disk entry may not have a \"source\" property set")
+		return fmt.Errorf(`Root disk entry may not have a "source" property set`)
 	}
 
 	if d.config["path"] == "/" && d.config["pool"] == "" {
-		return fmt.Errorf("Root disk entry must have a \"pool\" property set")
+		return fmt.Errorf(`Root disk entry must have a "pool" property set`)
 	}
 
 	if d.config["size"] != "" && d.config["path"] != "/" {
@@ -129,7 +129,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if !(strings.HasPrefix(d.config["source"], "ceph:") || strings.HasPrefix(d.config["source"], "cephfs:")) && (d.config["ceph.cluster_name"] != "" || d.config["ceph.user_name"] != "") {
-		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source: %s", d.config["source"])
+		return fmt.Errorf("Invalid options ceph.cluster_name/ceph.user_name for source %q", d.config["source"])
 	}
 
 	// Check no other devices also have the same path as us. Use LocalDevices for this check so
@@ -153,12 +153,12 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	// for the existence of "source" when "pool" is empty.
 	if d.config["pool"] == "" && d.config["source"] != "" && d.config["source"] != diskSourceCloudInit && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) &&
 		!strings.HasPrefix(d.config["source"], "ceph:") && !strings.HasPrefix(d.config["source"], "cephfs:") {
-		return fmt.Errorf("Missing source '%s' for disk '%s'", d.config["source"], d.name)
+		return fmt.Errorf("Missing source %q for disk %q", d.config["source"], d.name)
 	}
 
 	if d.config["pool"] != "" {
 		if d.config["shift"] != "" {
-			return fmt.Errorf("The \"shift\" property cannot be used with custom storage volumes")
+			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes`)
 		}
 
 		if filepath.IsAbs(d.config["source"]) {
@@ -167,7 +167,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 
 		_, err := d.state.Cluster.StoragePoolGetID(d.config["pool"])
 		if err != nil {
-			return fmt.Errorf("The \"%s\" storage pool doesn't exist", d.config["pool"])
+			return fmt.Errorf("The %q storage pool doesn't exist", d.config["pool"])
 		}
 
 		// Only check storate volume is available if we are validating an instance device and not a profile
