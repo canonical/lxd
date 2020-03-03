@@ -927,6 +927,21 @@ func (vm *qemu) Start(stateful bool) error {
 	return nil
 }
 
+// openUnixSocket connects to a UNIX socket and returns the connection.
+func (vm *qemu) openUnixSocket(sockPath string) (*net.UnixConn, error) {
+	addr, err := net.ResolveUnixAddr("unix", sockPath)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := net.DialUnix("unix", nil, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
 func (vm *qemu) setupNvram() error {
 	// No UEFI nvram for ppc64le.
 	if vm.architecture == osarch.ARCH_64BIT_POWERPC_LITTLE_ENDIAN {
