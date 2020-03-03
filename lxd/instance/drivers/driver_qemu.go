@@ -1699,12 +1699,11 @@ func (vm *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, 
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
-		"architecture": vm.architectureName,
-		"devName":      driveConf.DevName,
-		"devPath":      driveConf.DevPath,
-		"bootIndex":    bootIndexes[driveConf.DevName],
-		"cacheMode":    cacheMode,
-		"aioMode":      aioMode,
+		"devName":   driveConf.DevName,
+		"devPath":   driveConf.DevPath,
+		"bootIndex": bootIndexes[driveConf.DevName],
+		"cacheMode": cacheMode,
+		"aioMode":   aioMode,
 	})
 }
 
