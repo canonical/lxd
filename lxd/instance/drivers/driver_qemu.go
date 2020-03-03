@@ -781,13 +781,41 @@ func (vm *qemu) Start(stateful bool) error {
 
 	// Open any extra files and pass their file handles to qemu command.
 	for _, file := range fdFiles {
-		f, err := os.OpenFile(file, os.O_RDWR, 0)
+		info, err := os.Stat(file)
 		if err != nil {
-			err = errors.Wrapf(err, "Error opening exta file %q", file)
+			err = errors.Wrapf(err, "Error detecting file type %q", file)
 			op.Done(err)
 			return err
 		}
-		defer f.Close() // Close file after qemu has started.
+
+		var f *os.File
+		mode := info.Mode()
+		if mode&os.ModeSocket != 0 {
+			c, err := vm.openUnixSocket(file)
+			if err != nil {
+				err = errors.Wrapf(err, "Error opening socket file %q", file)
+				op.Done(err)
+				return err
+			}
+
+			f, err = c.File()
+			if err != nil {
+				err = errors.Wrapf(err, "Error getting socket file descriptor %q", file)
+				op.Done(err)
+				return err
+			}
+			defer c.Close()
+			defer f.Close() // Close file after qemu has started.
+		} else {
+			f, err = os.OpenFile(file, os.O_RDWR, 0)
+			if err != nil {
+				err = errors.Wrapf(err, "Error opening exta file %q", file)
+				op.Done(err)
+				return err
+			}
+			defer f.Close() // Close file after qemu has started.
+		}
+
 		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
 	}
 
