@@ -573,7 +573,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 
 	var role db.RaftRole
 
-	if len(voters) < int(maxVoters) && len(voters) > 1 {
+	if len(voters) < int(maxVoters) && len(currentRaftNodes) >= 3 {
 		role = db.RaftVoter
 		// Include stand-by nodes among the ones that can be promoted,
 		// preferring them over spare ones.
