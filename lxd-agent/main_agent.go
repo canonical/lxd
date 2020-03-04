@@ -201,6 +201,13 @@ func (c *cmdAgent) mountHostShares() {
 	}
 
 	for _, mount := range agentMounts {
+		if !shared.PathExists(mount.Target) {
+			err := os.MkdirAll(mount.Target, 0755)
+			if err != nil {
+				logger.Errorf("Failed to create mount target %q", mount.Target)
+			}
+		}
+
 		args := []string{"-t", mount.FSType, mount.Source, mount.Target}
 
 		for _, opt := range mount.Options {
