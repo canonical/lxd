@@ -3048,7 +3048,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 					defer pool.UnmountCustomVolume(project.Default, vol, nil)
 				}
 
-				cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
+				cuMntPoint := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, vol)
 				err = os.Chmod(cuMntPoint, 0711)
 				if err != nil && !os.IsNotExist(err) {
 					return err
