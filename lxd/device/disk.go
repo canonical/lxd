@@ -1106,7 +1106,7 @@ func (d *disk) postStop() error {
 		go func() {
 			err := diskCephRbdUnmap(v["ceph_rbd"])
 			if err != nil {
-				logger.Errorf("Failed to unmap RBD volume '%s' for '%s': %v", v["ceph_rbd"], project.Prefix(d.inst.Project(), d.inst.Name()), err)
+				logger.Errorf("Failed to unmap RBD volume '%s' for '%s': %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
 			}
 		}()
 	}

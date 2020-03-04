@@ -48,7 +48,7 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 		return nil
 	}
 
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)), []byte(line+"\n"), 0644)
+	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", project.Instance(projectName, instanceName)), []byte(line+"\n"), 0644)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 
 // RemoveStaticEntry removes a single dhcp-host line for a network/instance combination.
 func RemoveStaticEntry(network string, projectName string, instanceName string) error {
-	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)))
+	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", project.Instance(projectName, instanceName)))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -115,7 +115,7 @@ func GetVersion() (*version.DottedVersion, error) {
 func DHCPStaticIPs(network, projectName, instanceName string) (DHCPAllocation, DHCPAllocation, error) {
 	var IPv4, IPv6 DHCPAllocation
 
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", project.Prefix(projectName, instanceName)))
+	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", project.Instance(projectName, instanceName)))
 	if err != nil {
 		return IPv4, IPv6, err
 	}

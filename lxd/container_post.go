@@ -429,7 +429,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 		}
 
 		args := migration.VolumeSourceArgs{
-			Data: project.Prefix(projectName, newName),
+			Data: project.Instance(projectName, newName),
 		}
 
 		// Trigger a rename in the Ceph driver.

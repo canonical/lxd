@@ -332,7 +332,7 @@ func (b *lxdBackend) ensureInstanceSnapshotSymlink(instanceType instancetype.Typ
 
 	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
 	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
-	volStorageName := project.Prefix(projectName, parentName)
+	volStorageName := project.Instance(projectName, parentName)
 
 	snapshotTargetPath := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 
@@ -365,7 +365,7 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 
 	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
 	snapshotSymlink := InstancePath(instanceType, projectName, parentName, true)
-	volStorageName := project.Prefix(projectName, parentName)
+	volStorageName := project.Instance(projectName, parentName)
 
 	snapshotTargetPath := drivers.GetVolumeSnapshotDir(b.name, volType, volStorageName)
 
@@ -446,7 +446,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 	err = b.driver.CreateVolume(vol, nil, op)
@@ -479,7 +479,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	defer logger.Debug("CreateInstanceFromBackup finished")
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(srcBackup.Project, srcBackup.Name)
+	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
 
 	// Currently there is no concept of instance type in backups, so we assume container.
 	// We don't know the volume's config yet as tarball hasn't been unpacked.
@@ -543,7 +543,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		}
 
 		// Get the volume name on storage.
-		volStorageName := project.Prefix(inst.Project(), inst.Name())
+		volStorageName := project.Instance(inst.Project(), inst.Name())
 
 		volType, err := InstanceTypeToVolumeType(inst.Type())
 		if err != nil {
@@ -608,7 +608,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Initialise a new volume containing the root disk config supplied in the new instance.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
@@ -618,7 +618,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	// Get the src volume name on storage.
-	srcVolStorageName := project.Prefix(src.Project(), src.Name())
+	srcVolStorageName := project.Instance(src.Project(), src.Name())
 
 	// We don't need to use the source instance's root disk config, so set to nil.
 	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
@@ -754,13 +754,13 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Initialise a new volume containing the root disk config supplied in the new instance.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
 	// Get the src volume name on storage.
-	srcVolStorageName := project.Prefix(src.Project(), src.Name())
+	srcVolStorageName := project.Instance(src.Project(), src.Name())
 
 	// We don't need to use the source instance's root disk config, so set to nil.
 	srcVol := b.newVolume(volType, contentType, srcVolStorageName, nil)
@@ -774,7 +774,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		// the data from the snapshot is incorrect.
 
 		// Get the snap volume name on storage.
-		snapVolStorageName := project.Prefix(snapInst.Project(), snapInst.Name())
+		snapVolStorageName := project.Instance(snapInst.Project(), snapInst.Name())
 		srcSnapVol := b.newVolume(volType, contentType, snapVolStorageName, nil)
 		srcSnapVols = append(srcSnapVols, srcSnapVol)
 	}
@@ -916,7 +916,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
@@ -988,7 +988,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	args.Name = inst.Name()
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), args.Name)
+	volStorageName := project.Instance(inst.Project(), args.Name)
 
 	vol := b.newVolume(volType, contentType, volStorageName, args.Config)
 
@@ -1131,8 +1131,8 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 	})
 
 	// Rename the volume and its snapshots on the storage device.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
-	newVolStorageName := project.Prefix(inst.Project(), newName)
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+	newVolStorageName := project.Instance(inst.Project(), newName)
 	contentType := InstanceContentType(inst)
 
 	// There's no need to pass config as it's not needed when renaming a volume.
@@ -1218,7 +1218,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 	contentType := InstanceContentType(inst)
 
 	// There's no need to pass config as it's not needed when deleting a volume.
@@ -1273,7 +1273,7 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 		return err
 	}
 
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 	contentType := InstanceContentType(inst)
 
 	// Validate config.
@@ -1384,7 +1384,7 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	args.Name = inst.Name() // Override args.Name to ensure instance volume is sent.
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), args.Name)
+	volStorageName := project.Instance(inst.Project(), args.Name)
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 	err = b.driver.MigrateVolume(vol, conn, args, op)
@@ -1415,7 +1415,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, o
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Ensure the backup file reflects current config.
 	err = b.UpdateInstanceBackupFile(inst, op)
@@ -1446,7 +1446,7 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 	contentType := InstanceContentType(inst)
 
 	// There's no need to pass config as it's not needed when retrieving the volume usage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 	vol := b.newVolume(volType, contentType, volStorageName, nil)
 
 	return b.driver.GetVolumeUsage(vol)
@@ -1471,7 +1471,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, op *o
 	}
 
 	contentVolume := InstanceContentType(inst)
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	// There's no need to pass config as it's not needed when setting quotas.
@@ -1499,7 +1499,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	}
 
 	contentType := InstanceContentType(inst)
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
@@ -1526,7 +1526,7 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	}
 
 	contentType := InstanceContentType(inst)
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
@@ -1547,7 +1547,7 @@ func (b *lxdBackend) GetInstanceDisk(inst instance.Instance) (string, error) {
 	}
 
 	contentType := InstanceContentType(inst)
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	// There's no need to pass config as it's not needed when getting the
@@ -1603,7 +1603,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	}
 
 	contentType := InstanceContentType(inst)
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	// There's no need to pass config as it's not needed when creating volume
@@ -1657,7 +1657,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 	}
 
 	contentType := InstanceContentType(inst)
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Rename storage volume snapshot. No need to pass config as it's not needed when renaming a volume.
 	snapVol := b.newVolume(volType, contentType, volStorageName, nil)
@@ -1670,7 +1670,7 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 
 	revert.Add(func() {
 		// Revert rename. No need to pass config as it's not needed when renaming a volume.
-		newSnapVol := b.newVolume(volType, contentType, project.Prefix(inst.Project(), newVolName), nil)
+		newSnapVol := b.newVolume(volType, contentType, project.Instance(inst.Project(), newVolName), nil)
 		b.driver.RenameVolumeSnapshot(newSnapVol, oldSnapshotName, op)
 	})
 
@@ -1720,7 +1720,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	contentType := InstanceContentType(inst)
 
 	// Get the parent volume name on storage.
-	parentStorageName := project.Prefix(inst.Project(), parentName)
+	parentStorageName := project.Instance(inst.Project(), parentName)
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB StoragePoolVolumeDelete so that the volume ID is still available.
@@ -1790,7 +1790,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	_, snapshotName, isSnap := shared.InstanceGetParentAndSnapshotName(src.Name())
 	if !isSnap {
@@ -1862,7 +1862,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	}
 
 	// Get the parent and snapshot name.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
@@ -1895,7 +1895,7 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 	contentType := InstanceContentType(inst)
 
 	// Get the parent and snapshot name.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
@@ -2905,7 +2905,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(inst.Project(), inst.Name())
+	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// We don't need to use the volume's config for mounting so set to nil.
 	vol := b.newVolume(volType, contentType, volStorageName, nil)
@@ -2958,7 +2958,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Instanc
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Prefix(projectName, backupConf.Container.Name)
+	volStorageName := project.Instance(projectName, backupConf.Container.Name)
 
 	// We don't need to use the volume's config for mounting so set to nil.
 	vol := b.newVolume(volType, drivers.ContentTypeFS, volStorageName, nil)

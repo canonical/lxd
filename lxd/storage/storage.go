@@ -10,7 +10,7 @@ import (
 
 // InstancePath returns the directory of an instance or snapshot.
 func InstancePath(instanceType instancetype.Type, projectName, instanceName string, isSnapshot bool) string {
-	fullName := project.Prefix(projectName, instanceName)
+	fullName := project.Instance(projectName, instanceName)
 	if instanceType == instancetype.VM {
 		if isSnapshot {
 			return shared.VarPath("virtual-machines-snapshots", fullName)
@@ -31,7 +31,7 @@ func InstancePath(instanceType instancetype.Type, projectName, instanceName stri
 // but does not exist in the LXD database. The presence of this file causes the instance not to be removed from
 // the storage device if the import should fail for some reason.
 func InstanceImportingFilePath(instanceType instancetype.Type, poolName, projectName, instanceName string) string {
-	fullName := project.Prefix(projectName, instanceName)
+	fullName := project.Instance(projectName, instanceName)
 
 	typeDir := "containers"
 	if instanceType == instancetype.VM {
@@ -51,13 +51,13 @@ func GetStoragePoolMountPoint(poolName string) string {
 // GetContainerMountPoint returns the mountpoint of the given container.
 // ${LXD_DIR}/storage-pools/<pool>/containers/[<project_name>_]<container_name>
 func GetContainerMountPoint(projectName string, poolName string, containerName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers", project.Prefix(projectName, containerName))
+	return shared.VarPath("storage-pools", poolName, "containers", project.Instance(projectName, containerName))
 }
 
 // GetSnapshotMountPoint returns the mountpoint of the given container snapshot.
 // ${LXD_DIR}/storage-pools/<pool>/containers-snapshots/<snapshot_name>
 func GetSnapshotMountPoint(projectName, poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Prefix(projectName, snapshotName))
+	return shared.VarPath("storage-pools", poolName, "containers-snapshots", project.Instance(projectName, snapshotName))
 }
 
 // GetImageMountPoint returns the mountpoint of the given image.
