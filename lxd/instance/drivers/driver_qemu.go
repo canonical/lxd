@@ -1745,15 +1745,15 @@ func (vm *qemu) addDriveDirConfig(sb *strings.Builder, fdFiles *[]string, agentM
 	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
-		Source:     mountTag,
-		TargetPath: driveConf.TargetPath,
-		FSType:     driveConf.FSType,
+		Source: mountTag,
+		Target: driveConf.TargetPath,
+		FSType: driveConf.FSType,
 	}
 
 	// Indicate to agent to mount this readonly. Note: This is purely to indicate to VM guest that this is
 	// readonly, it should *not* be used as a security measure, as the VM guest could remount it R/W.
 	if shared.StringInSlice("ro", driveConf.Opts) {
-		agentMount.Opts = append(agentMount.Opts, "ro")
+		agentMount.Options = append(agentMount.Options, "ro")
 	}
 
 	// Record the 9p mount for the agent.
