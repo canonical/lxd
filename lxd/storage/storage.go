@@ -66,12 +66,6 @@ func GetImageMountPoint(poolName string, fingerprint string) string {
 	return shared.VarPath("storage-pools", poolName, "images", fingerprint)
 }
 
-// GetStoragePoolVolumeMountPoint returns the mountpoint of the given pool volume.
-// ${LXD_DIR}/storage-pools/<pool>/custom/<storage_volume>
-func GetStoragePoolVolumeMountPoint(poolName string, volumeName string) string {
-	return shared.VarPath("storage-pools", poolName, "custom", volumeName)
-}
-
 // GetStoragePoolVolumeSnapshotMountPoint returns the mountpoint of the given pool volume snapshot.
 // ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>
 func GetStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
