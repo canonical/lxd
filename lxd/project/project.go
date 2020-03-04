@@ -36,3 +36,8 @@ func InstanceParts(projectInstanceName string) (string, string) {
 	// Instance names are not allowed to container the separator value.
 	return projectInstanceName[0:i], projectInstanceName[i+1:]
 }
+
+// StorageVolume adds the "<project>_prefix" to the storage volume name. Even if the project name is "default".
+func StorageVolume(projectName string, storageVolumeName string) string {
+	return fmt.Sprintf("%s%s%s", projectName, separator, storageVolumeName)
+}
