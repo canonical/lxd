@@ -20,6 +20,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -3038,13 +3039,13 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 
 			// Run task in anonymous function so as not to stack up defers.
 			err = func() error {
-				ourMount, err := pool.MountCustomVolume(vol, nil)
+				ourMount, err := pool.MountCustomVolume(project.Default, vol, nil)
 				if err != nil {
 					return err
 				}
 
 				if ourMount {
-					defer pool.UnmountCustomVolume(vol, nil)
+					defer pool.UnmountCustomVolume(project.Default, vol, nil)
 				}
 
 				cuMntPoint := driver.GetStoragePoolVolumeMountPoint(poolName, vol)
