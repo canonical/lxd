@@ -163,11 +163,11 @@ func (b *Backup) OptimizedStorage() bool {
 
 // Rename renames a container backup
 func (b *Backup) Rename(newName string) error {
-	oldBackupPath := shared.VarPath("backups", project.Prefix(b.instance.Project(), b.name))
-	newBackupPath := shared.VarPath("backups", project.Prefix(b.instance.Project(), newName))
+	oldBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.name))
+	newBackupPath := shared.VarPath("backups", project.Instance(b.instance.Project(), newName))
 
 	// Create the new backup path
-	backupsPath := shared.VarPath("backups", project.Prefix(b.instance.Project(), b.instance.Name()))
+	backupsPath := shared.VarPath("backups", project.Instance(b.instance.Project(), b.instance.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -218,7 +218,7 @@ func (b *Backup) Render() *api.InstanceBackup {
 
 // DoBackupDelete deletes a backup.
 func DoBackupDelete(s *state.State, projectName, backupName, containerName string) error {
-	backupPath := shared.VarPath("backups", project.Prefix(projectName, backupName))
+	backupPath := shared.VarPath("backups", project.Instance(projectName, backupName))
 
 	// Delete the on-disk data
 	if shared.PathExists(backupPath) {
@@ -229,7 +229,7 @@ func DoBackupDelete(s *state.State, projectName, backupName, containerName strin
 	}
 
 	// Check if we can remove the container directory
-	backupsPath := shared.VarPath("backups", project.Prefix(projectName, containerName))
+	backupsPath := shared.VarPath("backups", project.Instance(projectName, containerName))
 	empty, _ := shared.PathIsEmpty(backupsPath)
 	if empty {
 		err := os.Remove(backupsPath)

@@ -122,7 +122,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	logger.Debugf("New container event listener for '%s': %s", project.Prefix(c.Project(), c.Name()), listener.ID())
+	logger.Debugf("New container event listener for '%s': %s", project.Instance(c.Project(), c.Name()), listener.ID())
 
 	// Create a cancellable context from the request context. Once the request has been upgraded
 	// to a websocket the request's context doesn't appear to be cancelled when the client
