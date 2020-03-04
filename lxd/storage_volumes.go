@@ -957,9 +957,9 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		return response.BadRequest(err)
 	}
 
-	// Check that the storage volume type is valid.
-	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
+	// Check that the storage volume type is custom.
+	if volumeType != db.StoragePoolVolumeTypeCustom {
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -1071,12 +1071,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		return resp
 	}
 
-	switch volumeType {
-	case db.StoragePoolVolumeTypeCustom:
-		// allowed
-	case db.StoragePoolVolumeTypeImage:
-		// allowed
-	default:
+	if volumeType != db.StoragePoolVolumeTypeCustom && volumeType != db.StoragePoolVolumeTypeImage {
 		return response.BadRequest(fmt.Errorf("Storage volumes of type %q cannot be deleted with the storage API", volumeTypeName))
 	}
 
