@@ -6,7 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 )
 
-func ExamplePrefix() {
+func ExampleInstance() {
 	prefixed := project.Instance(project.Default, "test")
 	fmt.Println(prefixed)
 
