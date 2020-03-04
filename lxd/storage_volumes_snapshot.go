@@ -58,8 +58,8 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Check that the storage volume type is valid.
-	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type \"%d\"", volumeType))
+	if volumeType != db.StoragePoolVolumeTypeCustom {
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	// Get a snapshot name.
