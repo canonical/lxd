@@ -435,13 +435,18 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 			profiles = i18n.G("YES")
 		}
 
+		storageVolumes := i18n.G("NO")
+		if shared.IsTrue(project.Config["features.storage.volumes"]) {
+			storageVolumes = i18n.G("YES")
+		}
+
 		name := project.Name
 		if name == currentProject {
 			name = fmt.Sprintf("%s (%s)", name, i18n.G("current"))
 		}
 
 		strUsedBy := fmt.Sprintf("%d", len(project.UsedBy))
-		data = append(data, []string{name, images, profiles, strUsedBy})
+		data = append(data, []string{name, images, profiles, storageVolumes, strUsedBy})
 	}
 	sort.Sort(byName(data))
 
@@ -449,6 +454,7 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("NAME"),
 		i18n.G("IMAGES"),
 		i18n.G("PROFILES"),
+		i18n.G("STORAGE VOLUMES"),
 		i18n.G("USED BY"),
 	}
 
