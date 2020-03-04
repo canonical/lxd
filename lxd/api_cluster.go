@@ -234,7 +234,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
-	d.db.Transaction(func(tx *db.NodeTx) error {
+	err := d.db.Transaction(func(tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch member configuration")
@@ -256,6 +256,9 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) response.Response {
 
 		return nil
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
