@@ -11,7 +11,7 @@ const Default = "default"
 // separator is used to delimit the project name from the suffix.
 const separator = "_"
 
-// Instance Adds the "<project>_" prefix to instance name when the given project name is not "default".
+// Instance adds the "<project>_" prefix to instance name when the given project name is not "default".
 func Instance(projectName string, instanceName string) string {
 	if projectName != Default {
 		return fmt.Sprintf("%s%s%s", projectName, separator, instanceName)
