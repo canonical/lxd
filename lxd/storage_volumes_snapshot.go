@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -62,6 +63,11 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get a snapshot name.
 	if req.Name == "" {
 		i := d.cluster.StorageVolumeNextSnapshot(volumeName, volumeType)
@@ -101,7 +107,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Ensure that the snapshot doesn't already exist.
-	_, _, err = d.cluster.StoragePoolNodeVolumeGetType(fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
+	_, _, err = d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.SmartError(err)
@@ -116,7 +122,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		}
 
-		return pool.CreateCustomVolumeSnapshot(volumeName, req.Name, op)
+		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, op)
 	}
 
 	resources := map[string][]string{}
@@ -131,8 +137,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 }
 
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Response {
-	// Get the name of the pool the storage volume is supposed to be
-	// attached to.
+	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	recursion := util.IsRecursionRequest(r)
@@ -148,9 +153,15 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
+	}
+
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -160,7 +171,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the names of all storage volume snapshots of a given volume.
-	volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
+	volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -177,12 +188,12 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			}
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, apiEndpoint, volumeName, snapshotName))
 		} else {
-			_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volume.Name, volumeType, poolID)
+			_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volume.Name, volumeType, poolID)
 			if err != nil {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), "default", poolName, vol.Name, vol.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), projectName, poolName, vol.Name, vol.Type)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -205,8 +216,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 }
 
 func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Response {
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	// Get the name of the volume type.
@@ -246,6 +256,11 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
@@ -268,7 +283,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 			return err
 		}
 
-		return pool.RenameCustomVolumeSnapshot(fullSnapshotName, req.Name, op)
+		return pool.RenameCustomVolumeSnapshot(projectName, fullSnapshotName, req.Name, op)
 	}
 
 	resources := map[string][]string{}
@@ -307,6 +322,11 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
@@ -323,7 +343,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(fullSnapshotName, volumeType, poolID)
+	_, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -364,6 +384,11 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
@@ -380,7 +405,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(fullSnapshotName, volumeType, poolID)
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -405,7 +430,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		}
 
 		// Handle custom volume update requests.
-		return pool.UpdateCustomVolumeSnapshot(vol.Name, req.Description, nil, op)
+		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, op)
 	}
 
 	resources := map[string][]string{}
@@ -420,8 +445,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 }
 
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Response {
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	// Get the name of the volume type.
@@ -442,6 +466,11 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	// Check that the storage volume type is valid.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
+	}
+
+	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
@@ -466,7 +495,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 			return err
 		}
 
-		return pool.DeleteCustomVolumeSnapshot(fullSnapshotName, op)
+		return pool.DeleteCustomVolumeSnapshot(projectName, fullSnapshotName, op)
 	}
 
 	resources := map[string][]string{}
