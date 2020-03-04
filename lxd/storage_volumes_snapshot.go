@@ -150,17 +150,16 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	// Retrieve ID of the storage pool (and check if the storage pool
-	// exists).
+	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Get the names of all storage volume snapshots of a given volume
+	// Get the names of all storage volume snapshots of a given volume.
 	volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
@@ -244,7 +243,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 
 	// Check that the storage volume type is valid.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
@@ -305,7 +304,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 
 	// Check that the storage volume type is valid.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
@@ -362,7 +361,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 
 	// Check that the storage volume type is valid.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
@@ -442,7 +441,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 
 	// Check that the storage volume type is valid.
 	if volumeType != db.StoragePoolVolumeTypeCustom {
-		return response.BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
