@@ -762,8 +762,12 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
-	if size == "" {
-		size = "0"
+	if size == "" || size == "0" {
+		if vol.contentType == ContentTypeBlock {
+			size = defaultBlockSize
+		} else {
+			size = "0"
+		}
 	}
 
 	// Convert to bytes.
