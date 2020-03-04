@@ -201,18 +201,25 @@ func (c *cmdAgent) mountHostShares() {
 	}
 
 	for _, mount := range agentMounts {
-		args := []string{"-t", mount.FSType, mount.Source, mount.TargetPath}
+		if !shared.PathExists(mount.Target) {
+			err := os.MkdirAll(mount.Target, 0755)
+			if err != nil {
+				logger.Errorf("Failed to create mount target %q", mount.Target)
+			}
+		}
 
-		for _, opt := range mount.Opts {
+		args := []string{"-t", mount.FSType, mount.Source, mount.Target}
+
+		for _, opt := range mount.Options {
 			args = append(args, "-o", opt)
 		}
 
 		_, err = shared.RunCommand("mount", args...)
 		if err != nil {
-			logger.Errorf("Failed mount %q (Type: %q, Opts: %v) to %q: %v", mount.Source, mount.FSType, mount.Opts, mount.TargetPath, err)
+			logger.Errorf("Failed mount %q (Type: %q, Options: %v) to %q: %v", mount.Source, mount.FSType, mount.Options, mount.Target, err)
 			continue
 		}
 
-		logger.Infof("Mounted %q (Type: %q, Opts: %v) to %q", mount.Source, mount.FSType, mount.Opts, mount.TargetPath)
+		logger.Infof("Mounted %q (Type: %q, Options: %v) to %q", mount.Source, mount.FSType, mount.Options, mount.Target)
 	}
 }
