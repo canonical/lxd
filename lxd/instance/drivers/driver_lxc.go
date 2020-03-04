@@ -684,7 +684,7 @@ func (c *lxc) initLXC(config bool) error {
 	}
 
 	// Load the go-lxc struct
-	cname := project.Prefix(c.Project(), c.Name())
+	cname := project.Instance(c.Project(), c.Name())
 	cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
@@ -1612,7 +1612,7 @@ func (c *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 	// If container is running, perform live detach of interface back to host.
 	if stopHookNetnsPath == "" {
 		// For some reason, having network config confuses detach, so get our own go-lxc struct.
-		cname := project.Prefix(c.Project(), c.Name())
+		cname := project.Instance(c.Project(), c.Name())
 		cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err != nil {
 			return err
@@ -2354,7 +2354,7 @@ func (c *lxc) Start(stateful bool) error {
 		}
 	}
 
-	name := project.Prefix(c.Project(), c.name)
+	name := project.Instance(c.Project(), c.name)
 
 	// Start the LXC container
 	_, err = shared.RunCommand(
@@ -5477,7 +5477,7 @@ func (c *lxc) Console() (*os.File, chan error, error) {
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkconsole",
-		project.Prefix(c.Project(), c.Name()),
+		project.Instance(c.Project(), c.Name()),
 		c.state.OS.LxcPath,
 		filepath.Join(c.LogPath(), "lxc.conf"),
 		"tty=0",
@@ -5551,7 +5551,7 @@ func (c *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	}
 
 	// Prepare the subcommand
-	cname := project.Prefix(c.Project(), c.Name())
+	cname := project.Instance(c.Project(), c.Name())
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkexec",
@@ -5990,7 +5990,7 @@ func (c *lxc) insertMountLXD(source, target, fstype string, flags int, mntnsPID 
 }
 
 func (c *lxc) insertMountLXC(source, target, fstype string, flags int) error {
-	cname := project.Prefix(c.Project(), c.Name())
+	cname := project.Instance(c.Project(), c.Name())
 	configPath := filepath.Join(c.LogPath(), "lxc.conf")
 	if fstype == "" {
 		fstype = "none"
@@ -6026,7 +6026,7 @@ func (c *lxc) removeMount(mount string) error {
 
 	if c.state.OS.LXCFeatures["mount_injection_file"] {
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
-		cname := project.Prefix(c.Project(), c.Name())
+		cname := project.Instance(c.Project(), c.Name())
 
 		if !strings.HasPrefix(mount, "/") {
 			mount = "/" + mount
@@ -6170,7 +6170,7 @@ func (c *lxc) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConfi
 		}
 
 		// Attempt to include all existing interfaces
-		cname := project.Prefix(c.Project(), c.Name())
+		cname := project.Instance(c.Project(), c.Name())
 		cc, err := liblxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err == nil {
 			defer cc.Release()
@@ -6552,19 +6552,19 @@ func (c *lxc) Path() string {
 
 // DevicesPath devices path.
 func (c *lxc) DevicesPath() string {
-	name := project.Prefix(c.Project(), c.Name())
+	name := project.Instance(c.Project(), c.Name())
 	return shared.VarPath("devices", name)
 }
 
 // ShmountsPath shared mounts path.
 func (c *lxc) ShmountsPath() string {
-	name := project.Prefix(c.Project(), c.Name())
+	name := project.Instance(c.Project(), c.Name())
 	return shared.VarPath("shmounts", name)
 }
 
 // LogPath log path.
 func (c *lxc) LogPath() string {
-	name := project.Prefix(c.Project(), c.Name())
+	name := project.Instance(c.Project(), c.Name())
 	return shared.LogPath(name)
 }
 
@@ -6727,20 +6727,20 @@ func (c *lxc) maasUpdate(oldDevices map[string]map[string]string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(project.Prefix(c.project, c.name))
+	exists, err := c.state.MAAS.DefinedContainer(project.Instance(c.project, c.name))
 	if err != nil {
 		return err
 	}
 
 	if exists {
 		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
-			return c.state.MAAS.DeleteContainer(project.Prefix(c.project, c.name))
+			return c.state.MAAS.DeleteContainer(project.Instance(c.project, c.name))
 		}
 
-		return c.state.MAAS.UpdateContainer(project.Prefix(c.project, c.name), interfaces)
+		return c.state.MAAS.UpdateContainer(project.Instance(c.project, c.name), interfaces)
 	}
 
-	return c.state.MAAS.CreateContainer(project.Prefix(c.project, c.name), interfaces)
+	return c.state.MAAS.CreateContainer(project.Instance(c.project, c.name), interfaces)
 }
 
 func (c *lxc) maasRename(newName string) error {
@@ -6766,7 +6766,7 @@ func (c *lxc) maasRename(newName string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(project.Prefix(c.project, c.name))
+	exists, err := c.state.MAAS.DefinedContainer(project.Instance(c.project, c.name))
 	if err != nil {
 		return err
 	}
@@ -6775,7 +6775,7 @@ func (c *lxc) maasRename(newName string) error {
 		return c.maasUpdate(nil)
 	}
 
-	return c.state.MAAS.RenameContainer(project.Prefix(c.project, c.name), project.Prefix(c.project, newName))
+	return c.state.MAAS.RenameContainer(project.Instance(c.project, c.name), project.Instance(c.project, newName))
 }
 
 func (c *lxc) maasDelete() error {
@@ -6801,7 +6801,7 @@ func (c *lxc) maasDelete() error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := c.state.MAAS.DefinedContainer(project.Prefix(c.project, c.name))
+	exists, err := c.state.MAAS.DefinedContainer(project.Instance(c.project, c.name))
 	if err != nil {
 		return err
 	}
@@ -6810,7 +6810,7 @@ func (c *lxc) maasDelete() error {
 		return nil
 	}
 
-	return c.state.MAAS.DeleteContainer(project.Prefix(c.project, c.name))
+	return c.state.MAAS.DeleteContainer(project.Instance(c.project, c.name))
 }
 
 func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {

@@ -130,7 +130,7 @@ func containerLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{
-		Path:     shared.LogPath(project.Prefix(projectName, name), file),
+		Path:     shared.LogPath(project.Instance(projectName, name), file),
 		Filename: file,
 	}
 

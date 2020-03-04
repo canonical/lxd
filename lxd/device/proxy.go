@@ -333,7 +333,7 @@ func (d *proxy) rewriteHostAddr(addr string) string {
 }
 
 func (d *proxy) setupProxyProcInfo() (*proxyProcInfo, error) {
-	cname := project.Prefix(d.inst.Project(), d.inst.Name())
+	cname := project.Instance(d.inst.Project(), d.inst.Name())
 	cc, err := liblxc.NewContainer(cname, d.state.OS.LxcPath)
 	if err != nil {
 		return nil, err

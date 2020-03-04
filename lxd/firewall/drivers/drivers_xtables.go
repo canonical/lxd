@@ -250,7 +250,7 @@ func (d Xtables) NetworkClear(networkName string, ipVersion uint) error {
 
 //instanceDeviceIPTablesComment returns the iptables comment that is added to each instance device related rule.
 func (d Xtables) instanceDeviceIPTablesComment(projectName, instanceName, deviceName string) string {
-	return fmt.Sprintf("LXD container %s (%s)", project.Prefix(projectName, instanceName), deviceName)
+	return fmt.Sprintf("LXD container %s (%s)", project.Instance(projectName, instanceName), deviceName)
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.

@@ -731,7 +731,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		// Recreate missing mountpoints and symlinks.
 		snapshotMountPoint := storagePools.GetSnapshotMountPoint(projectName, backupConf.Pool.Name, snap.Name)
 		sourceName, _, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
-		sourceName = project.Prefix(projectName, sourceName)
+		sourceName = project.Instance(projectName, sourceName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backupConf.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = storagePools.CreateSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)

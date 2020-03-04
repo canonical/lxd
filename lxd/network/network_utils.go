@@ -315,14 +315,14 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			// Look for duplicates
 			duplicate := false
 			for iIdx, i := range entries {
-				if project.Prefix(entry[1], entry[2]) == project.Prefix(i[1], i[2]) {
+				if project.Instance(entry[1], entry[2]) == project.Instance(i[1], i[2]) {
 					// Skip ourselves
 					continue
 				}
 
 				if entry[0] == i[0] {
 					// Find broken configurations
-					logger.Errorf("Duplicate MAC detected: %s and %s", project.Prefix(entry[1], entry[2]), project.Prefix(i[1], i[2]))
+					logger.Errorf("Duplicate MAC detected: %s and %s", project.Instance(entry[1], entry[2]), project.Instance(i[1], i[2]))
 				}
 
 				if i[3] == "" && i[4] == "" {
@@ -336,7 +336,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 						duplicate = true
 					} else {
 						line = fmt.Sprintf("%s,%s", line, i[0])
-						logger.Debugf("Found containers with duplicate IPv4/IPv6: %s and %s", project.Prefix(entry[1], entry[2]), project.Prefix(i[1], i[2]))
+						logger.Debugf("Found containers with duplicate IPv4/IPv6: %s and %s", project.Instance(entry[1], entry[2]), project.Instance(i[1], i[2]))
 					}
 				}
 			}

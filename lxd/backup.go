@@ -137,7 +137,7 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 	}
 
 	// Create the target path if needed
-	backupsPath := shared.VarPath("backups", project.Prefix(c.Project(), c.Name()))
+	backupsPath := shared.VarPath("backups", project.Instance(c.Project(), c.Name()))
 	if !shared.PathExists(backupsPath) {
 		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
@@ -146,7 +146,7 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 	}
 
 	// Create the tarball
-	backupPath := shared.VarPath("backups", project.Prefix(c.Project(), b.Name()))
+	backupPath := shared.VarPath("backups", project.Instance(c.Project(), b.Name()))
 	success := false
 	defer func() {
 		if success {
