@@ -1292,7 +1292,7 @@ RemainAfterExit=yes
 ExecStartPre=-/sbin/modprobe 9pnet_virtio
 ExecStartPre=/bin/mkdir -p /run/lxd_config/9p
 ExecStartPre=/bin/chmod 0700 /run/lxd_config/
-ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0
+ExecStart=/bin/mount -t 9p config /run/lxd_config/9p -o access=0,trans=virtio
 
 [Install]
 WantedBy=multi-user.target
