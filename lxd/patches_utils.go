@@ -200,7 +200,7 @@ func lvmNameToLVName(containerName string) string {
 }
 
 func lvmDevPath(projectName, lvmPool string, volumeType string, lvmVolume string) string {
-	lvmVolume = project.Prefix(projectName, lvmVolume)
+	lvmVolume = project.Instance(projectName, lvmVolume)
 	if volumeType == "" {
 		return fmt.Sprintf("/dev/%s/%s", lvmPool, lvmVolume)
 	}

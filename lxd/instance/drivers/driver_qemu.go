@@ -366,7 +366,7 @@ func (vm *qemu) getMonitorEventHandler() func(event string, data map[string]inte
 
 			err = inst.(*qemu).OnStop(target)
 			if err != nil {
-				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Prefix(inst.Project(), inst.Name()), err)
+				logger.Errorf("Failed to cleanly stop instance '%s': %v", project.Instance(inst.Project(), inst.Name()), err)
 				return
 			}
 		}
@@ -3631,19 +3631,19 @@ func (vm *qemu) Path() string {
 
 // DevicesPath returns the instance's devices path.
 func (vm *qemu) DevicesPath() string {
-	name := project.Prefix(vm.Project(), vm.Name())
+	name := project.Instance(vm.Project(), vm.Name())
 	return shared.VarPath("devices", name)
 }
 
 // ShmountsPath returns the instance's shared mounts path.
 func (vm *qemu) ShmountsPath() string {
-	name := project.Prefix(vm.Project(), vm.Name())
+	name := project.Instance(vm.Project(), vm.Name())
 	return shared.VarPath("shmounts", name)
 }
 
 // LogPath returns the instance's log path.
 func (vm *qemu) LogPath() string {
-	name := project.Prefix(vm.Project(), vm.Name())
+	name := project.Instance(vm.Project(), vm.Name())
 	return shared.LogPath(name)
 }
 
@@ -3847,7 +3847,7 @@ func (vm *qemu) maasRename(newName string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := vm.state.MAAS.DefinedContainer(project.Prefix(vm.project, vm.name))
+	exists, err := vm.state.MAAS.DefinedContainer(project.Instance(vm.project, vm.name))
 	if err != nil {
 		return err
 	}
@@ -3856,7 +3856,7 @@ func (vm *qemu) maasRename(newName string) error {
 		return vm.maasUpdate(nil)
 	}
 
-	return vm.state.MAAS.RenameContainer(project.Prefix(vm.project, vm.name), project.Prefix(vm.project, newName))
+	return vm.state.MAAS.RenameContainer(project.Instance(vm.project, vm.name), project.Instance(vm.project, newName))
 }
 
 func (vm *qemu) maasDelete() error {
@@ -3882,7 +3882,7 @@ func (vm *qemu) maasDelete() error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := vm.state.MAAS.DefinedContainer(project.Prefix(vm.project, vm.name))
+	exists, err := vm.state.MAAS.DefinedContainer(project.Instance(vm.project, vm.name))
 	if err != nil {
 		return err
 	}
@@ -3891,7 +3891,7 @@ func (vm *qemu) maasDelete() error {
 		return nil
 	}
 
-	return vm.state.MAAS.DeleteContainer(project.Prefix(vm.project, vm.name))
+	return vm.state.MAAS.DeleteContainer(project.Instance(vm.project, vm.name))
 }
 
 func (vm *qemu) maasUpdate(oldDevices map[string]map[string]string) error {
@@ -3928,20 +3928,20 @@ func (vm *qemu) maasUpdate(oldDevices map[string]map[string]string) error {
 		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
-	exists, err := vm.state.MAAS.DefinedContainer(project.Prefix(vm.project, vm.name))
+	exists, err := vm.state.MAAS.DefinedContainer(project.Instance(vm.project, vm.name))
 	if err != nil {
 		return err
 	}
 
 	if exists {
 		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
-			return vm.state.MAAS.DeleteContainer(project.Prefix(vm.project, vm.name))
+			return vm.state.MAAS.DeleteContainer(project.Instance(vm.project, vm.name))
 		}
 
-		return vm.state.MAAS.UpdateContainer(project.Prefix(vm.project, vm.name), interfaces)
+		return vm.state.MAAS.UpdateContainer(project.Instance(vm.project, vm.name), interfaces)
 	}
 
-	return vm.state.MAAS.CreateContainer(project.Prefix(vm.project, vm.name), interfaces)
+	return vm.state.MAAS.CreateContainer(project.Instance(vm.project, vm.name), interfaces)
 }
 
 // UpdateBackupFile writes the instance's backup.yaml file to storage.
@@ -4050,7 +4050,7 @@ func (vm *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, err
 		nrCores = countCores
 		nrThreads = countThreads
 	} else {
-		logger.Warnf("Instance '%s' uses a CPU pinning profile which doesn't match hardware layout", project.Prefix(vm.Project(), vm.Name()))
+		logger.Warnf("Instance '%s' uses a CPU pinning profile which doesn't match hardware layout", project.Instance(vm.Project(), vm.Name()))
 
 		// Fallback on pretending everything are cores.
 		nrSockets = 1

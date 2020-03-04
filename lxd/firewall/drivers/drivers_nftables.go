@@ -242,7 +242,7 @@ func (d Nftables) NetworkClear(networkName string, ipVersion uint) error {
 
 //instanceDeviceLabel returns the unique label used for instance device chains.
 func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName string) string {
-	return fmt.Sprintf("%s%s%s", project.Prefix(projectName, instanceName), nftablesChainSeparator, deviceName)
+	return fmt.Sprintf("%s%s%s", project.Instance(projectName, instanceName), nftablesChainSeparator, deviceName)
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.

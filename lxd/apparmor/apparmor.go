@@ -524,7 +524,7 @@ func Namespace(c instance) string {
 	 */
 	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	lxddir = mkApparmorName(lxddir)
-	name := project.Prefix(c.Project(), c.Name())
+	name := project.Instance(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
@@ -532,12 +532,12 @@ func Namespace(c instance) string {
 func ProfileFull(c instance) string {
 	lxddir := shared.VarPath("")
 	lxddir = mkApparmorName(lxddir)
-	name := project.Prefix(c.Project(), c.Name())
+	name := project.Instance(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func profileShort(c instance) string {
-	name := project.Prefix(c.Project(), c.Name())
+	name := project.Instance(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s", name)
 }
 
