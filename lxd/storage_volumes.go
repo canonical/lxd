@@ -170,8 +170,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 
-	// Get the name of the pool the storage volume is supposed to be
-	// attached to.
+	// Get the name of the pool the storage volume is supposed to be attached to.
 	poolName := mux.Vars(r)["name"]
 
 	// Get the name of the volume type.
@@ -184,20 +183,19 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	// Retrieve ID of the storage pool (and check if the storage pool
-	// exists).
+	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Get the names of all storage volumes of a given volume type currently
-	// attached to the storage pool.
+	// Get the names of all storage volumes of a given volume type currently attached to the storage pool.
 	volumes, err := d.cluster.StoragePoolNodeVolumesGetType(volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
@@ -275,8 +273,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
 	if req.Type != db.StoragePoolVolumeTypeNameCustom {
-		return response.BadRequest(fmt.Errorf(`Currently not allowed to create `+
-			`storage volumes of type %s`, req.Type))
+		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
 	}
 
 	poolName := mux.Vars(r)["name"]
@@ -377,8 +374,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
 	if req.Type != db.StoragePoolVolumeTypeNameCustom {
-		return response.BadRequest(fmt.Errorf(`Currently not allowed to create `+
-			`storage volumes of type %s`, req.Type))
+		return response.BadRequest(fmt.Errorf(`Currently not allowed to create storage volumes of type %q`, req.Type))
 	}
 
 	poolName := mux.Vars(r)["name"]
@@ -405,7 +401,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	case "migration":
 		return doVolumeMigration(d, poolName, &req)
 	default:
-		return response.BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
+		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
 }
 
@@ -523,7 +519,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
 	// So check, that nothing else was requested.
 	if volumeTypeName != db.StoragePoolVolumeTypeNameCustom {
-		return response.BadRequest(fmt.Errorf("Renaming storage volumes of type %s is not allowed", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Renaming storage volumes of type %q is not allowed", volumeTypeName))
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
@@ -752,8 +748,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.BadRequest(err)
 	}
 
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
@@ -761,13 +756,13 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 	if err != nil {
 		return response.BadRequest(err)
 	}
+
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	// Get the ID of the storage pool the storage volume is supposed to be
-	// attached to.
+	// Get the ID of the storage pool the storage volume is supposed to be attached to.
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -828,8 +823,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.BadRequest(err)
 	}
 
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
@@ -840,7 +834,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
@@ -1046,11 +1040,10 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	volumeName := mux.Vars(r)["name"]
 
 	if shared.IsSnapshot(volumeName) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume %s", volumeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume %q", volumeName))
 	}
 
-	// Get the name of the storage pool the volume is supposed to be
-	// attached to.
+	// Get the name of the storage pool the volume is supposed to be attached to.
 	poolName := mux.Vars(r)["pool"]
 
 	// Convert the volume type name to our internal integer representation.
@@ -1060,7 +1053,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return response.BadRequest(fmt.Errorf("Invalid storage volume type %s", volumeTypeName))
+		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
 	resp := ForwardedResponseIfTargetIsRemote(d, r)
@@ -1109,7 +1102,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 	case db.StoragePoolVolumeTypeImage:
 		err = pool.DeleteImage(volumeName, nil)
 	default:
-		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage api`, volumeTypeName))
+		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, volumeTypeName))
 	}
 	if err != nil {
 		return response.SmartError(err)
