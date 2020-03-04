@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -97,6 +98,12 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 
 	// Mount shares from host.
 	c.mountHostShares()
+
+	// Load the kernel driver.
+	err = util.LoadModule("vsock")
+	if err != nil {
+		return errors.Wrap(err, "Unable to load the vsock kernel module")
+	}
 
 	// Setup the listener.
 	l, err := vsock.Listen(8443)
