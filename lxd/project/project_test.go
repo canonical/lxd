@@ -34,3 +34,13 @@ func ExampleInstanceParts() {
 	// project_name test
 	// proj test1
 }
+
+func ExampleStorageVolume() {
+	prefixed := project.StorageVolume(project.Default, "test")
+	fmt.Println(prefixed)
+
+	prefixed = project.StorageVolume("project_name", "test1")
+	fmt.Println(prefixed)
+	// Output: default_test
+	// project_name_test1
+}
