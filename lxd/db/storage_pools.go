@@ -867,12 +867,6 @@ func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([
 // Return a single storage volume attached to a given storage pool of a given
 // type, on the node with the given ID.
 func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
-	// Custom volumes are "global", i.e. they are associated with the
-	// default project.
-	if volumeType == StoragePoolVolumeTypeCustom {
-		project = "default"
-	}
-
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
 
 	volumeID, err := c.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
