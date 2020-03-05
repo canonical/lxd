@@ -37,7 +37,7 @@ func NewStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 	return &ret, nil
 }
 
-func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volName string, migrateOp *operations.Operation) error {
+func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
 	<-s.allConnected
 	defer s.disconnect()
 
@@ -67,12 +67,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
 		var err error
-		snaps, err := storagePools.VolumeSnapshotsGet(state, poolName, volName, db.StoragePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeSnapshotsGet(state, projectName, poolName, volName, db.StoragePoolVolumeTypeCustom)
 		if err == nil {
 			poolID, err := state.Cluster.StoragePoolGetID(poolName)
 			if err == nil {
 				for _, snap := range snaps {
-					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetType(snap.Name, db.StoragePoolVolumeTypeCustom, poolID)
+					_, snapVolume, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, poolID)
 					if err != nil {
 						continue
 					}
@@ -123,7 +123,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, poolName string, volNa
 		TrackProgress: true,
 	}
 
-	err = pool.MigrateCustomVolume(&shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
 		go s.sendControl(err)
 		return err
@@ -189,7 +189,7 @@ func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
+func (c *migrationSink) DoStorage(state *state.State, projectName string, poolName string, req *api.StorageVolumesPost, op *operations.Operation) error {
 	var err error
 
 	if c.push {
@@ -285,7 +285,7 @@ func (c *migrationSink) DoStorage(state *state.State, poolName string, req *api.
 			}
 		}
 
-		return pool.CreateCustomVolumeFromMigration(&shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		return pool.CreateCustomVolumeFromMigration(projectName, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
 	}
 
 	err = sender(&respHeader)
