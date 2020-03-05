@@ -361,6 +361,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
+	isRequired := d.isRequired(d.config)
 
 	if shared.IsRootDiskDevice(d.config) {
 		runConf.Mounts = []deviceConfig.MountEntryItem{
@@ -392,11 +393,29 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 		srcPath := shared.HostPath(d.config["source"])
 
-		// This is a normal disk device, image or injected 9p directory share.
-		if !shared.PathExists(srcPath) {
-			return nil, fmt.Errorf("Cannot find disk source %q", srcPath)
+		// Mount the pool volume and update srcPath to mount path.
+		if d.config["pool"] != "" {
+			var err error
+			srcPath, err = d.mountPoolVolume(revert)
+			if err != nil {
+				if !isRequired {
+					// Leave to the pathExists check below.
+					logger.Warn(err.Error())
+				} else {
+					return nil, err
+				}
+			}
 		}
 
+		if !shared.PathExists(srcPath) {
+			if isRequired {
+				return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
+			}
+
+			return &runConf, nil
+		}
+
+		// Default to block device or image file passthrough first.
 		mount := deviceConfig.MountEntryItem{
 			DevPath: srcPath,
 			DevName: d.name,
@@ -634,6 +653,76 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
+// mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
+// and return the mount path. If the instance type is container volume will be shifted if needed.
+func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
+	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
+	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
+	// storage volume are:
+	// - <volume_name>
+	// - <type>/<volume_name>
+	// Currently, <type> must either be empty or "custom".
+	// We do not yet support instance mounts.
+	if filepath.IsAbs(d.config["source"]) {
+		return "", fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+	}
+
+	volumeTypeName := ""
+	volumeName := filepath.Clean(d.config["source"])
+	slash := strings.Index(volumeName, "/")
+	if (slash > 0) && (len(volumeName) > slash) {
+		// Extract volume name.
+		volumeName = d.config["source"][(slash + 1):]
+		// Extract volume type.
+		volumeTypeName = d.config["source"][:slash]
+	}
+
+	var srcPath string
+
+	switch volumeTypeName {
+	case db.StoragePoolVolumeTypeNameContainer:
+		return "", fmt.Errorf("Using instance storage volumes is not supported")
+	case "":
+		// We simply received the name of a storage volume.
+		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
+		fallthrough
+	case db.StoragePoolVolumeTypeNameCustom:
+		srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
+	case db.StoragePoolVolumeTypeNameImage:
+		return "", fmt.Errorf("Using image storage volumes is not supported")
+	default:
+		return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
+	}
+
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return "", err
+	}
+
+	pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+	if err != nil {
+		return "", err
+	}
+
+	ourMount, err := pool.MountCustomVolume(volumeName, nil)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+	}
+
+	if ourMount {
+		reverter.Add(func() { pool.UnmountCustomVolume(volumeName, nil) })
+	}
+
+	if d.inst.Type() == instancetype.Container {
+		err = d.storagePoolVolumeAttachShift(pool.Name(), volumeName, volumeType)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+		}
+	}
+
+	return srcPath, nil
+}
+
 // createDevice creates a disk device mount on host.
 func (d *disk) createDevice() (string, error) {
 	revert := revert.New()
@@ -708,7 +797,7 @@ func (d *disk) createDevice() (string, error) {
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
-				msg := fmt.Sprintf("Could not mount map Ceph RBD: %s.", err)
+				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
 				if !isRequired {
 					// Will fail the PathExists test below.
 					logger.Warn(msg)
@@ -727,74 +816,12 @@ func (d *disk) createDevice() (string, error) {
 			isFile = false
 		}
 	} else {
-		// Deal with mounting storage volumes created via the storage api. Extract the name
-		// of the storage volume that we are supposed to attach. We assume that the only
-		// syntactically valid ways of specifying a storage volume are:
-		// - <volume_name>
-		// - <type>/<volume_name>
-		// Currently, <type> must either be empty or "custom".
-		// We do not yet support container mounts.
-
-		if filepath.IsAbs(d.config["source"]) {
-			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path")
-		}
-
-		volumeTypeName := ""
-		volumeName := filepath.Clean(d.config["source"])
-		slash := strings.Index(volumeName, "/")
-		if (slash > 0) && (len(volumeName) > slash) {
-			// Extract volume name.
-			volumeName = d.config["source"][(slash + 1):]
-			// Extract volume type.
-			volumeTypeName = d.config["source"][:slash]
-		}
-
-		switch volumeTypeName {
-		case db.StoragePoolVolumeTypeNameContainer:
-			return "", fmt.Errorf("Using container storage volumes is not supported")
-		case "":
-			// We simply received the name of a storage volume.
-			volumeTypeName = db.StoragePoolVolumeTypeNameCustom
-			fallthrough
-		case db.StoragePoolVolumeTypeNameCustom:
-			srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
-		case db.StoragePoolVolumeTypeNameImage:
-			return "", fmt.Errorf("Using image storage volumes is not supported")
-		default:
-			return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
-		}
-
-		volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
-		if err != nil {
-			return "", err
-		}
-
-		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
-		if err != nil {
-			return "", err
-		}
-
-		// Mount and prepare the volume to be attached.
-		err = func() error {
-			ourMount, err := pool.MountCustomVolume(volumeName, nil)
-			if err != nil {
-				return errors.Wrapf(err, "Could not mount storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, d.config["pool"])
-			}
-
-			if ourMount {
-				revert.Add(func() { pool.UnmountCustomVolume(volumeName, nil) })
-			}
-
-			err = d.storagePoolVolumeAttachPrepare(pool.Name(), volumeName, volumeType)
-			if err != nil {
-				return errors.Wrapf(err, "Could not attach storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, d.config["pool"])
-			}
-
-			return nil
-		}()
+		// Mount the pool volume.
+		var err error
+		srcPath, err = d.mountPoolVolume(revert)
 		if err != nil {
 			if !isRequired {
-				// Will fail the PathExists test below.
+				// Leave to the pathExists check below.
 				logger.Warn(err.Error())
 			} else {
 				return "", err
@@ -807,7 +834,7 @@ func (d *disk) createDevice() (string, error) {
 		if !isRequired {
 			return "", nil
 		}
-		return "", fmt.Errorf("Source path %s doesn't exist for device %s", srcPath, d.name)
+		return "", fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
 	}
 
 	// Create the devices directory if missing.
@@ -851,7 +878,7 @@ func (d *disk) createDevice() (string, error) {
 	return devPath, nil
 }
 
-func (d *disk) storagePoolVolumeAttachPrepare(poolName string, volumeName string, volumeType int) error {
+func (d *disk) storagePoolVolumeAttachShift(poolName string, volumeName string, volumeType int) error {
 	// Load the DB records.
 	poolID, pool, err := d.state.Cluster.StoragePoolGet(poolName)
 	if err != nil {
@@ -1061,12 +1088,16 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
 	}
 
-	return &deviceConfig.RunConfig{}, nil
+	runConf := deviceConfig.RunConfig{
+		PostHooks: []func() error{d.postStop},
+	}
+
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
 func (d *disk) postStop() error {
-	// Check if pool-specific action should be taken.
+	// Check if pool-specific action should be taken to unmount custom volume.
 	if d.config["pool"] != "" {
 		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
 		if err != nil {
@@ -1106,7 +1137,7 @@ func (d *disk) postStop() error {
 		go func() {
 			err := diskCephRbdUnmap(v["ceph_rbd"])
 			if err != nil {
-				logger.Errorf("Failed to unmap RBD volume '%s' for '%s': %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
+				logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
 			}
 		}()
 	}
@@ -1172,7 +1203,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		if !shared.PathExists(source) {
 			// Require that device is mounted before resolving block device if required.
 			if d.isRequired(dev) {
-				return nil, fmt.Errorf("Block device path doesn't exist: %s", source)
+				return nil, fmt.Errorf("Block device path doesn't exist %q", source)
 			}
 
 			continue // Do not resolve block device if device isn't mounted.
@@ -1206,7 +1237,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 			}
 
 			if blockStr == "" {
-				return nil, fmt.Errorf("Block device doesn't support quotas: %s", block)
+				return nil, fmt.Errorf("Block device doesn't support quotas %q", block)
 			}
 
 			if blockLimits[blockStr] == nil {
@@ -1366,7 +1397,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %v", dev[1], err)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %q: %v", dev[1], err)
 		}
 
 		header := true
@@ -1414,13 +1445,13 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		}
 
 		if len(devices) == 0 {
-			return nil, fmt.Errorf("Unable to find backing block for zfs pool: %s", poolName)
+			return nil, fmt.Errorf("Unable to find backing block for zfs pool %q", poolName)
 		}
 	} else if fs == "btrfs" && shared.PathExists(dev[1]) {
 		// Accessible btrfs filesystems
 		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %v", dev[1], err)
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %v", dev[1], err)
 		}
 
 		for _, line := range strings.Split(output, "\n") {
@@ -1445,7 +1476,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 	} else {
-		return nil, fmt.Errorf("Invalid block device: %s", dev[1])
+		return nil, fmt.Errorf("Invalid block device %q", dev[1])
 	}
 
 	return devices, nil
