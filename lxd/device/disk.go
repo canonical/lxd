@@ -778,7 +778,7 @@ func (d *disk) createDevice() (string, error) {
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
-				msg := fmt.Sprintf("Could not mount map Ceph RBD: %s.", err)
+				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
 				if !isRequired {
 					// Will fail the PathExists test below.
 					logger.Warn(msg)
@@ -877,7 +877,7 @@ func (d *disk) createDevice() (string, error) {
 		if !isRequired {
 			return "", nil
 		}
-		return "", fmt.Errorf("Source path %s doesn't exist for device %s", srcPath, d.name)
+		return "", fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
 	}
 
 	// Create the devices directory if missing.
@@ -1176,7 +1176,7 @@ func (d *disk) postStop() error {
 		go func() {
 			err := diskCephRbdUnmap(v["ceph_rbd"])
 			if err != nil {
-				logger.Errorf("Failed to unmap RBD volume '%s' for '%s': %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
+				logger.Errorf("Failed to unmap RBD volume %q for %q: %v", v["ceph_rbd"], project.Instance(d.inst.Project(), d.inst.Name()), err)
 			}
 		}()
 	}
@@ -1242,7 +1242,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 		if !shared.PathExists(source) {
 			// Require that device is mounted before resolving block device if required.
 			if d.isRequired(dev) {
-				return nil, fmt.Errorf("Block device path doesn't exist: %s", source)
+				return nil, fmt.Errorf("Block device path doesn't exist %q", source)
 			}
 
 			continue // Do not resolve block device if device isn't mounted.
@@ -1276,7 +1276,7 @@ func (d *disk) getDiskLimits() (map[string]diskBlockLimit, error) {
 			}
 
 			if blockStr == "" {
-				return nil, fmt.Errorf("Block device doesn't support quotas: %s", block)
+				return nil, fmt.Errorf("Block device doesn't support quotas %q", block)
 			}
 
 			if blockLimits[blockStr] == nil {
@@ -1436,7 +1436,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %s: %v", dev[1], err)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %q: %v", dev[1], err)
 		}
 
 		header := true
@@ -1484,13 +1484,13 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 		}
 
 		if len(devices) == 0 {
-			return nil, fmt.Errorf("Unable to find backing block for zfs pool: %s", poolName)
+			return nil, fmt.Errorf("Unable to find backing block for zfs pool %q", poolName)
 		}
 	} else if fs == "btrfs" && shared.PathExists(dev[1]) {
 		// Accessible btrfs filesystems
 		output, err := shared.RunCommand("btrfs", "filesystem", "show", dev[1])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %s: %v", dev[1], err)
+			return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %v", dev[1], err)
 		}
 
 		for _, line := range strings.Split(output, "\n") {
@@ -1515,7 +1515,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		devices = append(devices, fmt.Sprintf("%d:%d", major, minor))
 	} else {
-		return nil, fmt.Errorf("Invalid block device: %s", dev[1])
+		return nil, fmt.Errorf("Invalid block device %q", dev[1])
 	}
 
 	return devices, nil
