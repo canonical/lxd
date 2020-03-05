@@ -878,7 +878,7 @@ func (d *disk) createDevice() (string, error) {
 	return devPath, nil
 }
 
-func (d *disk) storagePoolVolumeAttachPrepare(poolName string, volumeName string, volumeType int) error {
+func (d *disk) storagePoolVolumeAttachShift(poolName string, volumeName string, volumeType int) error {
 	// Load the DB records.
 	poolID, pool, err := d.state.Cluster.StoragePoolGet(poolName)
 	if err != nil {
