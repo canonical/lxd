@@ -87,6 +87,7 @@ var patches = []patch{
 	{name: "network_pid_files", run: patchNetworkPIDFiles},
 	{name: "storage_create_vm_again", run: patchGenericStorage},
 	{name: "storage_zfs_volmode", run: patchGenericStorage},
+	{name: "storage_rename_custom_volume_add_project", run: patchGenericStorage},
 }
 
 type patch struct {
