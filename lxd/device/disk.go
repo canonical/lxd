@@ -816,74 +816,12 @@ func (d *disk) createDevice() (string, error) {
 			isFile = false
 		}
 	} else {
-		// Deal with mounting storage volumes created via the storage api. Extract the name
-		// of the storage volume that we are supposed to attach. We assume that the only
-		// syntactically valid ways of specifying a storage volume are:
-		// - <volume_name>
-		// - <type>/<volume_name>
-		// Currently, <type> must either be empty or "custom".
-		// We do not yet support container mounts.
-
-		if filepath.IsAbs(d.config["source"]) {
-			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path")
-		}
-
-		volumeTypeName := ""
-		volumeName := filepath.Clean(d.config["source"])
-		slash := strings.Index(volumeName, "/")
-		if (slash > 0) && (len(volumeName) > slash) {
-			// Extract volume name.
-			volumeName = d.config["source"][(slash + 1):]
-			// Extract volume type.
-			volumeTypeName = d.config["source"][:slash]
-		}
-
-		switch volumeTypeName {
-		case db.StoragePoolVolumeTypeNameContainer:
-			return "", fmt.Errorf("Using container storage volumes is not supported")
-		case "":
-			// We simply received the name of a storage volume.
-			volumeTypeName = db.StoragePoolVolumeTypeNameCustom
-			fallthrough
-		case db.StoragePoolVolumeTypeNameCustom:
-			srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
-		case db.StoragePoolVolumeTypeNameImage:
-			return "", fmt.Errorf("Using image storage volumes is not supported")
-		default:
-			return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
-		}
-
-		volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
-		if err != nil {
-			return "", err
-		}
-
-		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
-		if err != nil {
-			return "", err
-		}
-
-		// Mount and prepare the volume to be attached.
-		err = func() error {
-			ourMount, err := pool.MountCustomVolume(volumeName, nil)
-			if err != nil {
-				return errors.Wrapf(err, "Could not mount storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, d.config["pool"])
-			}
-
-			if ourMount {
-				revert.Add(func() { pool.UnmountCustomVolume(volumeName, nil) })
-			}
-
-			err = d.storagePoolVolumeAttachPrepare(pool.Name(), volumeName, volumeType)
-			if err != nil {
-				return errors.Wrapf(err, "Could not attach storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, d.config["pool"])
-			}
-
-			return nil
-		}()
+		// Mount the pool volume.
+		var err error
+		srcPath, err = d.mountPoolVolume(revert)
 		if err != nil {
 			if !isRequired {
-				// Will fail the PathExists test below.
+				// Leave to the pathExists check below.
 				logger.Warn(err.Error())
 			} else {
 				return "", err
