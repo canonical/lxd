@@ -907,12 +907,6 @@ func (c *Cluster) storagePoolVolumeGetType(project string, volumeName string, vo
 	return volumeID, &storageVolume, nil
 }
 
-// StoragePoolNodeVolumeGetType gets a single storage volume attached to a
-// given storage pool of a given type, on the current node.
-func (c *Cluster) StoragePoolNodeVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	return c.StoragePoolNodeVolumeGetTypeByProject("default", volumeName, volumeType, poolID)
-}
-
 // StoragePoolNodeVolumeGetTypeByProject gets a single storage volume attached to a
 // given storage pool of a given type, on the current node in the given project.
 func (c *Cluster) StoragePoolNodeVolumeGetTypeByProject(project, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
