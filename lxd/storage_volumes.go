@@ -28,55 +28,55 @@ import (
 var storagePoolVolumesCmd = APIEndpoint{
 	Path: "storage-pools/{name}/volumes",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: AllowAuthenticated},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
 	Path: "storage-pools/{name}/volumes/{type}",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet, AccessHandler: AllowAuthenticated},
-	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
+	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeContainerCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/container/{name:.*}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet, AccessHandler: AllowAuthenticated},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeContainerPatch},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeContainerPost},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeContainerPatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeContainerPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeVMCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/virtual-machine/{name:.*}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeVMDelete},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeVMGet, AccessHandler: AllowAuthenticated},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeVMPatch},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeVMPost},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeVMPut},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeVMDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeVMGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeVMPatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeVMPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeVMPut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeCustomCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/custom/{name}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet, AccessHandler: AllowAuthenticated},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomPatch},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomPost},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomPut},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomPatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomPut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeImageCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/image/{name}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet, AccessHandler: AllowAuthenticated},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeImagePatch},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeImagePost},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeImagePut},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeImagePatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeImagePost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeImagePut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 // /1.0/storage-pools/{name}/volumes
