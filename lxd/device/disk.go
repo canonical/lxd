@@ -1088,12 +1088,16 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 		os.Remove(filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name)))
 	}
 
-	return &deviceConfig.RunConfig{}, nil
+	runConf := deviceConfig.RunConfig{
+		PostHooks: []func() error{d.postStop},
+	}
+
+	return &runConf, nil
 }
 
 // postStop is run after the device is removed from the instance.
 func (d *disk) postStop() error {
-	// Check if pool-specific action should be taken.
+	// Check if pool-specific action should be taken to unmount custom volume.
 	if d.config["pool"] != "" {
 		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
 		if err != nil {
