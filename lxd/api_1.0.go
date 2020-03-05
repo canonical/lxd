@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -182,9 +183,9 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		architectures = append(architectures, architectureName)
 	}
 
-	project := r.FormValue("project")
-	if project == "" {
-		project = "default"
+	projectName := r.FormValue("project")
+	if projectName == "" {
+		projectName = project.Default
 	}
 
 	env := api.ServerEnvironment{
@@ -197,7 +198,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		Kernel:                 uname.Sysname,
 		KernelArchitecture:     uname.Machine,
 		KernelVersion:          uname.Release,
-		Project:                project,
+		Project:                projectName,
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,

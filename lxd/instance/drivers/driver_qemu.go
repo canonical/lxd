@@ -2288,7 +2288,7 @@ func (vm *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Set sane defaults for unset keys.
 	if args.Project == "" {
-		args.Project = "default"
+		args.Project = project.Default
 	}
 
 	if args.Architecture == 0 {
