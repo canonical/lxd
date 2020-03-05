@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
@@ -460,7 +461,7 @@ func instanceCreateAsSnapshot(s *state.State, args db.InstanceArgs, sourceInstan
 func instanceCreateInternal(s *state.State, args db.InstanceArgs) (instance.Instance, error) {
 	// Set default values.
 	if args.Project == "" {
-		args.Project = "default"
+		args.Project = project.Default
 	}
 
 	if args.Profiles == nil {
@@ -702,7 +703,7 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 
 // Legacy interface.
 func instanceLoadAll(s *state.State) ([]instance.Instance, error) {
-	return instance.LoadByProject(s, "default")
+	return instance.LoadByProject(s, project.Default)
 }
 
 // Load all instances of this nodes under the given project.

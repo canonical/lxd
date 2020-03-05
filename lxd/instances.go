@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -296,17 +297,17 @@ func containersOnDisk() (map[string][]string, error) {
 
 	for _, file := range files {
 		name := file.Name()
-		project := "default"
+		projectName := project.Default
 		if strings.Contains(name, "_") {
 			fields := strings.Split(file.Name(), "_")
-			project = fields[0]
+			projectName = fields[0]
 			name = fields[1]
 		}
-		names, ok := containers[project]
+		names, ok := containers[projectName]
 		if !ok {
 			names = []string{}
 		}
-		containers[project] = append(names, name)
+		containers[projectName] = append(names, name)
 	}
 
 	return containers, nil

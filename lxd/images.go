@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -1352,7 +1353,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 			}
 		}
 
-		imgID, _, err := d.cluster.ImageGet("default", fp, false, false)
+		imgID, _, err := d.cluster.ImageGet(project.Default, fp, false, false)
 		if err != nil {
 			return errors.Wrapf(err, "Error retrieving image info %s", fp)
 		}

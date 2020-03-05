@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -136,13 +137,13 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 	}
 
 	// update all profiles
-	profiles, err := s.Cluster.Profiles("default")
+	profiles, err := s.Cluster.Profiles(project.Default)
 	if err != nil {
 		return err
 	}
 
 	for _, pName := range profiles {
-		id, profile, err := s.Cluster.ProfileGet("default", pName)
+		id, profile, err := s.Cluster.ProfileGet(project.Default, pName)
 		if err != nil {
 			return err
 		}
@@ -197,7 +198,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 		pUpdate.Config = profile.Config
 		pUpdate.Description = profile.Description
 		pUpdate.Devices = profile.Devices
-		err = doProfileUpdate(d, "default", pName, id, profile, pUpdate)
+		err = doProfileUpdate(d, project.Default, pName, id, profile, pUpdate)
 		if err != nil {
 			return err
 		}
@@ -301,13 +302,13 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeType string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles("default")
+	profiles, err := db.Profiles(project.Default)
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet("default", pName)
+		_, profile, err := db.ProfileGet(project.Default, pName)
 		if err != nil {
 			return usedBy, err
 		}

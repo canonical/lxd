@@ -176,7 +176,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	// Create a default profile
 	profile := db.Profile{}
 	profile.Project = project
-	profile.Name = "default"
+	profile.Name = projecthelpers.Default
 	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
 
 	_, err := tx.ProfileCreate(profile)
@@ -348,7 +348,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	}
 
 	// Sanity checks.
-	if project.Name == "default" && featuresChanged {
+	if project.Name == projecthelpers.Default && featuresChanged {
 		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
@@ -382,7 +382,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 				}
 			} else {
 				// Delete the project-specific default profile.
-				err = tx.ProfileDelete(project.Name, "default")
+				err = tx.ProfileDelete(project.Name, projecthelpers.Default)
 				if err != nil {
 					return errors.Wrap(err, "Delete project default profile")
 				}
@@ -411,7 +411,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Sanity checks
-	if name == "default" {
+	if name == projecthelpers.Default {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
 
@@ -470,7 +470,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Sanity checks
-	if name == "default" {
+	if name == projecthelpers.Default {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
