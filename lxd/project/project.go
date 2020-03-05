@@ -41,3 +41,10 @@ func InstanceParts(projectInstanceName string) (string, string) {
 func StorageVolume(projectName string, storageVolumeName string) string {
 	return fmt.Sprintf("%s%s%s", projectName, separator, storageVolumeName)
 }
+
+// StorageVolumeParts takes a project prefixed storage volume name and returns the project and storage volume
+// name as separate variables.
+func StorageVolumeParts(projectStorageVolumeName string) (string, string) {
+	parts := strings.SplitN(projectStorageVolumeName, "_", 2)
+	return parts[0], parts[1]
+}
