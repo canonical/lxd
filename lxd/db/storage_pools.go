@@ -799,12 +799,12 @@ func (c *Cluster) storagePoolVolumesGetType(project string, volumeType int, pool
 SELECT storage_volumes_all.name
   FROM storage_volumes_all
   JOIN projects ON projects.id=storage_volumes_all.project_id
- WHERE (projects.name=? OR storage_volumes_all.type=?)
+ WHERE projects.name=?
    AND storage_volumes_all.storage_pool_id=?
    AND storage_volumes_all.node_id=?
    AND storage_volumes_all.type=?
 `
-	inargs := []interface{}{project, StoragePoolVolumeTypeCustom, poolID, nodeID, volumeType}
+	inargs := []interface{}{project, poolID, nodeID, volumeType}
 	outargs := []interface{}{poolName}
 
 	result, err := queryScan(c.db, query, inargs, outargs)
