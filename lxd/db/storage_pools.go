@@ -833,7 +833,7 @@ func (c *Cluster) StoragePoolVolumeSnapshotsGetType(projectName string, volumeNa
 	query := `
 SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
-  JOIN projects ON projects.id=storage_volumes_all.project_id
+  JOIN projects ON projects.id=storage_volumes.project_id
   WHERE storage_volumes.storage_pool_id=?
     AND storage_volumes.node_id=?
     AND storage_volumes.type=?
