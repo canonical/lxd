@@ -650,7 +650,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// If we are copying snapshots, retrieve a list of snapshots from source volume.
 		snapshotNames := []string{}
 		if snapshots {
-			snapshots, err := VolumeSnapshotsGet(b.state, srcPool.Name(), src.Name(), volDBType)
+			snapshots, err := VolumeSnapshotsGet(b.state, src.Project(), srcPool.Name(), src.Name(), volDBType)
 			if err != nil {
 				return err
 			}
@@ -2165,8 +2165,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	snapshotNames := []string{}
 	if !srcVolOnly {
-		// tomp TODO shouldnt this use projectName?
-		snapshots, err := VolumeSnapshotsGet(b.state, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
+		snapshots, err := VolumeSnapshotsGet(b.state, projectName, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -2395,8 +2394,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	defer revert.Fail()
 
 	// Rename each snapshot to have the new parent volume prefix.
-	// tomp TODO shouldnt this use projectName?
-	snapshots, err := VolumeSnapshotsGet(b.state, b.name, volName, db.StoragePoolVolumeTypeCustom)
+	snapshots, err := VolumeSnapshotsGet(b.state, projectName, b.name, volName, db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}
@@ -2523,7 +2521,7 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 	// Confirm that no instances are running when changing shifted state.
 	if newConfig["security.shifted"] != curVol.Config["security.shifted"] {
-		usingVolume, err := VolumeUsedByInstancesWithProfiles(b.state, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
+		usingVolume, err := VolumeUsedByRunningInstancesWithProfilesGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
 		if err != nil {
 			return err
 		}
@@ -2576,8 +2574,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Retrieve a list of snapshots.
-	// tomp TODO shouldnt this be using projectName?
-	snapshots, err := VolumeSnapshotsGet(b.state, b.name, volName, db.StoragePoolVolumeTypeCustom)
+	snapshots, err := VolumeSnapshotsGet(b.state, projectName, b.name, volName, db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}
@@ -2812,8 +2809,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	}
 
 	// Check that the volume isn't in use.
-	// tomp TODO shouldnt this use project?
-	usingVolume, err := VolumeUsedByInstancesWithProfiles(b.state, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
+	usingVolume, err := VolumeUsedByRunningInstancesWithProfilesGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeNameCustom, true)
 	if err != nil {
 		return err
 	}
