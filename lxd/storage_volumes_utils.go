@@ -27,10 +27,6 @@ const (
 var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
 var supportedVolumeTypesInstances = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM}
 
-func init() {
-	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningInstancesWithProfilesGet
-}
-
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
@@ -204,42 +200,6 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 	}
 
 	return nil
-}
-
-func storagePoolVolumeUsedByRunningInstancesWithProfilesGet(s *state.State,
-	poolName string, volumeName string, volumeTypeName string,
-	runningOnly bool) ([]string, error) {
-	insts, err := instanceLoadAll(s)
-	if err != nil {
-		return []string{}, err
-	}
-
-	instUsingVolume := []string{}
-	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, inst := range insts {
-		if runningOnly && !inst.IsRunning() {
-			continue
-		}
-
-		for _, dev := range inst.ExpandedDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
-
-			if dev["pool"] != poolName {
-				continue
-			}
-
-			// Make sure that we don't compare against stuff like
-			// "container////bla" but only against "container/bla".
-			cleanSource := filepath.Clean(dev["source"])
-			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-			}
-		}
-	}
-
-	return instUsingVolume, nil
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
