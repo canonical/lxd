@@ -197,11 +197,11 @@ func (b *mockBackend) DeleteCustomVolume(projectName string, volName string, op 
 	return nil
 }
 
-func (b *mockBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *mockBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	return nil
 }
 
