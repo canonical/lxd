@@ -2253,7 +2253,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	aEndErrCh := make(chan error, 1)
 	bEndErrCh := make(chan error, 1)
 	go func() {
-		err := srcPool.MigrateCustomVolume(aEnd, &migration.VolumeSourceArgs{
+		err := srcPool.MigrateCustomVolume(projectName, aEnd, &migration.VolumeSourceArgs{
 			Name:          srcVolName,
 			Snapshots:     snapshotNames,
 			MigrationType: migrationTypes[0],
@@ -2264,7 +2264,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	}()
 
 	go func() {
-		err := b.CreateCustomVolumeFromMigration(bEnd, migration.VolumeTargetArgs{
+		err := b.CreateCustomVolumeFromMigration(projectName, bEnd, migration.VolumeTargetArgs{
 			Name:          volName,
 			Description:   desc,
 			Config:        config,
@@ -2298,14 +2298,13 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 }
 
 // MigrateCustomVolume sends a volume for migration.
-func (b *lxdBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"volName": args.Name, "args": args})
+func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": args.Name, "args": args})
 	logger.Debug("MigrateCustomVolume started")
 	defer logger.Debug("MigrateCustomVolume finished")
 
 	// Get the volume name on storage.
-	// tomp TODO add support for projects in migration.
-	volStorageName := project.StorageVolume(project.Default, args.Name)
+	volStorageName := project.StorageVolume(projectName, args.Name)
 
 	// Volume config not needed to send a volume so set to nil.
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, nil)
@@ -2318,8 +2317,8 @@ func (b *lxdBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args *migratio
 }
 
 // CreateCustomVolumeFromMigration receives a volume being migrated.
-func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"volName": args.Name, "args": args})
+func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": args.Name, "args": args})
 	logger.Debug("CreateCustomVolumeFromMigration started")
 	defer logger.Debug("CreateCustomVolumeFromMigration finished")
 
@@ -2328,13 +2327,12 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	defer func() {
 		// Remove any DB volume rows created if we are reverting.
 		for _, volName := range revertDBVolumes {
-			b.state.Cluster.StoragePoolVolumeDelete(project.Default, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+			b.state.Cluster.StoragePoolVolumeDelete(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
 		}
 	}()
 
 	// Get the volume name on storage.
-	// tomp TODO add support for projects in migrations.
-	volStorageName := project.StorageVolume(project.Default, args.Name)
+	volStorageName := project.StorageVolume(projectName, args.Name)
 
 	// Check the supplied config and remove any fields not relevant for destination pool type.
 	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, args.Config)
@@ -2344,7 +2342,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, project.Default, b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
+	err = VolumeDBCreate(b.state, projectName, b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
 	if err != nil {
 		return err
 	}
@@ -2356,7 +2354,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, ar
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, project.Default, b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
+			err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
 			if err != nil {
 				return err
 			}
