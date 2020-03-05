@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -604,7 +605,58 @@ func (d *ceph) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 // GetVolumeUsage returns the disk space used by the volume.
 func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
-	return -1, ErrNotSupported
+	if vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
+		var stat unix.Statfs_t
+
+		err := unix.Statfs(vol.MountPath(), &stat)
+		if err != nil {
+			return -1, err
+		}
+
+		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
+	}
+
+	type cephDuLine struct {
+		Name            string `json:"name"`
+		Snapshot        string `json:"snapshot"`
+		ProvisionedSize int64  `json:"provisioned_size"`
+		UsedSize        int64  `json:"used_size"`
+	}
+
+	type cephDuInfo struct {
+		Images []cephDuLine `json:"images"`
+	}
+
+	jsonInfo, err := shared.TryRunCommand(
+		"rbd",
+		"du",
+		"--format", "json",
+		"--id", d.config["ceph.user.name"],
+		"--cluster", d.config["ceph.cluster_name"],
+		"--pool", d.config["ceph.osd.pool_name"],
+		d.getRBDVolumeName(vol, "", false, false))
+
+	if err != nil {
+		return -1, err
+	}
+
+	var usedSize int64
+	var result cephDuInfo
+
+	err = json.Unmarshal([]byte(jsonInfo), &result)
+	if err != nil {
+		return -1, err
+	}
+
+	// rbd du gives the output of all related rbd images, snapshots included
+	// to get the total size of the image we use the result that does not include
+	// a snapshot name, this is the total image size.
+	for _, image := range result.Images {
+		if image.Snapshot == "" {
+			usedSize = image.UsedSize
+		}
+	}
+	return usedSize, nil
 }
 
 // SetVolumeQuota applies a size limit on volume.
