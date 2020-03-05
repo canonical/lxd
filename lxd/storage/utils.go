@@ -20,9 +20,6 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
-// VolumeUsedByInstancesWithProfiles returns a slice containing the names of instances using a volume.
-var VolumeUsedByInstancesWithProfiles func(s *state.State, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error)
-
 // ValidName validates the provided name, and returns an error if it's not a valid storage name.
 func ValidName(value string) error {
 	if strings.Contains(value, "/") {
@@ -646,6 +643,41 @@ func VolumeUsedByInstancesGet(s *state.State, project, poolName string, volumeNa
 			if dev["pool"] == poolName && dev["source"] == volumeName {
 				instUsingVolume = append(instUsingVolume, inst.Name())
 				break
+			}
+		}
+	}
+
+	return instUsingVolume, nil
+}
+
+// VolumeUsedByRunningInstancesWithProfilesGet gets list of running instances using a volume.
+func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName string, poolName string, volumeName string, volumeTypeName string, runningOnly bool) ([]string, error) {
+	insts, err := instance.LoadByProject(s, projectName)
+	if err != nil {
+		return []string{}, err
+	}
+
+	instUsingVolume := []string{}
+	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
+	for _, inst := range insts {
+		if runningOnly && !inst.IsRunning() {
+			continue
+		}
+
+		for _, dev := range inst.ExpandedDevices() {
+			if dev["type"] != "disk" {
+				continue
+			}
+
+			if dev["pool"] != poolName {
+				continue
+			}
+
+			// Make sure that we don't compare against stuff like
+			// "container////bla" but only against "container/bla".
+			cleanSource := filepath.Clean(dev["source"])
+			if cleanSource == volumeName || cleanSource == volumeNameWithType {
+				instUsingVolume = append(instUsingVolume, inst.Name())
 			}
 		}
 	}
