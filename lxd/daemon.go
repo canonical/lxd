@@ -201,7 +201,10 @@ type APIEndpointAction struct {
 	AllowUntrusted bool
 }
 
-// AllowAuthenticated is a AccessHandler which allows all requests
+// AllowAuthenticated is a AccessHandler which allows all requests.
+// This function doesn't do anything itself, except return the EmptySyncResponse that allows the request to
+// proceed. However in order to access any API route you must be authenticated, unless the handler's AllowUntrusted
+// property is set to true or you are an admin.
 func AllowAuthenticated(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
