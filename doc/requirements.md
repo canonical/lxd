@@ -33,6 +33,7 @@ LXD uses `dqlite` for its database, to build and setup the custom
 `sqlite3` and `dqlite` needed for it, you can run `make deps`.
 
 LXD itself also uses a number of (usually packaged) C libraries:
+
  - libacl1
  - libcap2
  - libuv1 (for `dqlite`)

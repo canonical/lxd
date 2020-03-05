@@ -770,6 +770,7 @@ The full list of bit suffixes currently supported is:
  - Eibit (1024^6)
 
 The full list of byte suffixes currently supported is:
+
  - B or bytes (1)
  - kB (1000)
  - MB (1000^2)
