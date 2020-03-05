@@ -2013,9 +2013,8 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		contentType = drivers.ContentTypeBlock
 	}
 
-	// Load the storage volume in order to get the volume config which is needed
-	// for some drivers.
-	_, storageVol, err := b.state.Cluster.StoragePoolNodeVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	// Load the storage volume in order to get the volume config which is needed for some drivers.
+	_, storageVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
 	if err != nil {
 		return err
 	}
