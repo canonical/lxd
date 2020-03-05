@@ -42,7 +42,7 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
-	return "", fmt.Errorf("invalid storage volume type name")
+	return "", fmt.Errorf("Invalid storage volume type name")
 }
 
 func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
@@ -57,7 +57,7 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
-	return "", fmt.Errorf("invalid storage volume type")
+	return "", fmt.Errorf("Invalid storage volume type")
 }
 
 func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
