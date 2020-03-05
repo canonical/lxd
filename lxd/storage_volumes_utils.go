@@ -23,8 +23,8 @@ const (
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-var supportedVolumeTypesExceptImages = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom}
-var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, db.StoragePoolVolumeTypeImage)
+var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
+var supportedVolumeTypesInstances = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM}
 
 func init() {
 	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningInstancesWithProfilesGet
