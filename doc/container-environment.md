@@ -9,6 +9,7 @@ LXD spawns whatever is located at `/sbin/init` as the initial process of the con
 This binary should act as a proper init system, including handling re-parented processes.
 
 LXD's communication with PID1 in the container is limited to two signals:
+
  - `SIGINT` to trigger a reboot of the container
  - `SIGPWR` (or alternatively `SIGRTMIN`+3) to trigger a clean shutdown of the container
 

@@ -716,6 +716,7 @@ This introduces a new internal `volatile.idmap.current` key which is
 used to track the current mapping for the container.
 
 This effectively gives us:
+
  - `volatile.last\_state.idmap` => On-disk idmap
  - `volatile.idmap.current` => Current kernel map
  - `volatile.idmap.next` => Next on-disk idmap
@@ -779,6 +780,7 @@ This introduces container IP filtering (`security.ipv4\_filtering` and `security
 
 ## resources\_v2
 Rework the resources API at /1.0/resources, especially:
+
  - CPU
    - Fix reporting to track sockets, cores and threads
    - Track NUMA node per core
@@ -832,6 +834,7 @@ This introduces support for a new Type field on images, indicating what type of 
 
 ## resources\_disk\_sata
 Extends the disk resource API struct to include:
+
  - Proper detection of sata devices (type)
  - Device path
  - Drive RPM
