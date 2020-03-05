@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -60,12 +61,10 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	return "", fmt.Errorf("Invalid storage volume type")
 }
 
-func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
-	oldVolumeName string, newPoolName string, newVolumeName string) error {
-
+func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName string, oldVolumeName string, newPoolName string, newVolumeName string) error {
 	s := d.State()
 	// update all instances
-	insts, err := instanceLoadAll(s)
+	insts, err := instance.LoadByProject(s, projectName)
 	if err != nil {
 		return err
 	}
