@@ -1579,7 +1579,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		info.ExpiresAt = req.ExpiresAt
 	}
 
-	// Get profile ids
+	// Get profile IDs
 	if req.Profiles == nil {
 		req.Profiles = []string{"default"}
 	}
