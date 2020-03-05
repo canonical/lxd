@@ -823,7 +823,7 @@ SELECT storage_volumes_all.name
 // StoragePoolVolumeSnapshotsGetType get all snapshots of a storage volume
 // attached to a given storage pool of a given volume type, on the given node.
 // Returns snapshots slice ordered by when they were created, oldest first.
-func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
+func (c *Cluster) StoragePoolVolumeSnapshotsGetType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	result := []StorageVolumeArgs{}
 
 	// ORDER BY id is important here as the users of this function can expect that the results
@@ -833,13 +833,15 @@ func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeTyp
 	query := `
 SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
+  JOIN projects ON projects.id=storage_volumes_all.project_id
   WHERE storage_volumes.storage_pool_id=?
     AND storage_volumes.node_id=?
     AND storage_volumes.type=?
     AND storage_volumes.name=?
+    AND projects.name=?
   ORDER BY storage_volumes_snapshots.id
 `
-	inargs := []interface{}{poolID, c.nodeID, volumeType, volumeName}
+	inargs := []interface{}{poolID, c.nodeID, volumeType, volumeName, projectName}
 	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
 	outfmt := []interface{}{typeGuide.Name, typeGuide.Description}
 	dbResults, err := queryScan(c.db, query, inargs, outfmt)
