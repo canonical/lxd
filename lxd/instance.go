@@ -701,11 +701,6 @@ func instanceConfigureInternal(state *state.State, c instance.Instance) error {
 	return nil
 }
 
-// Legacy interface.
-func instanceLoadAll(s *state.State) ([]instance.Instance, error) {
-	return instance.LoadByProject(s, project.Default)
-}
-
 // Load all instances of this nodes under the given project.
 func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
