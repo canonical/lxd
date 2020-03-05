@@ -634,6 +634,76 @@ func (d *disk) generateLimits(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
+// mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
+// and return the mount path. If the instance type is container volume will be shifted if needed.
+func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
+	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
+	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
+	// storage volume are:
+	// - <volume_name>
+	// - <type>/<volume_name>
+	// Currently, <type> must either be empty or "custom".
+	// We do not yet support instance mounts.
+	if filepath.IsAbs(d.config["source"]) {
+		return "", fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+	}
+
+	volumeTypeName := ""
+	volumeName := filepath.Clean(d.config["source"])
+	slash := strings.Index(volumeName, "/")
+	if (slash > 0) && (len(volumeName) > slash) {
+		// Extract volume name.
+		volumeName = d.config["source"][(slash + 1):]
+		// Extract volume type.
+		volumeTypeName = d.config["source"][:slash]
+	}
+
+	var srcPath string
+
+	switch volumeTypeName {
+	case db.StoragePoolVolumeTypeNameContainer:
+		return "", fmt.Errorf("Using instance storage volumes is not supported")
+	case "":
+		// We simply received the name of a storage volume.
+		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
+		fallthrough
+	case db.StoragePoolVolumeTypeNameCustom:
+		srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
+	case db.StoragePoolVolumeTypeNameImage:
+		return "", fmt.Errorf("Using image storage volumes is not supported")
+	default:
+		return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
+	}
+
+	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return "", err
+	}
+
+	pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+	if err != nil {
+		return "", err
+	}
+
+	ourMount, err := pool.MountCustomVolume(volumeName, nil)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+	}
+
+	if ourMount {
+		reverter.Add(func() { pool.UnmountCustomVolume(volumeName, nil) })
+	}
+
+	if d.inst.Type() == instancetype.Container {
+		err = d.storagePoolVolumeAttachShift(pool.Name(), volumeName, volumeType)
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+		}
+	}
+
+	return srcPath, nil
+}
+
 // createDevice creates a disk device mount on host.
 func (d *disk) createDevice() (string, error) {
 	revert := revert.New()
