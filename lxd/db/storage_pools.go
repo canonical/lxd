@@ -767,18 +767,18 @@ func (c *Cluster) StoragePoolNodeVolumesGet(project string, poolID int64, volume
 // Returns all storage volumes attached to a given storage pool on the given
 // node.
 func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
-	// Get all storage volumes of all types attached to a given storage
-	// pool.
+	// Get all storage volumes of all types attached to a given storage pool.
 	result := []*api.StorageVolume{}
 	for _, volumeType := range volumeTypes {
 		volumeNames, err := c.storagePoolVolumesGetType(project, volumeType, poolID, nodeID)
 		if err != nil && err != sql.ErrNoRows {
-			return nil, errors.Wrap(err, "failed to fetch volume types")
+			return nil, errors.Wrap(err, "Failed to fetch volume types")
 		}
+
 		for _, volumeName := range volumeNames {
 			_, volume, err := c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, nodeID)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to fetch volume type")
+				return nil, errors.Wrap(err, "Failed to fetch volume type")
 			}
 			result = append(result, volume)
 		}
@@ -1211,7 +1211,7 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 		return StoragePoolVolumeTypeNameCustom, nil
 	}
 
-	return "", fmt.Errorf("invalid storage volume type")
+	return "", fmt.Errorf("Invalid storage volume type")
 }
 
 // StoragePoolInsertZfsDriver replaces the driver of all storage pools without
