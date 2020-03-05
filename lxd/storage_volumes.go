@@ -319,7 +319,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	case "copy":
 		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
 	case "migration":
-		return doVolumeMigration(d, poolName, &req)
+		return doVolumeMigration(d, projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
@@ -424,13 +424,13 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 	case "copy":
 		return doVolumeCreateOrCopy(d, projectName, poolName, &req)
 	case "migration":
-		return doVolumeMigration(d, poolName, &req)
+		return doVolumeMigration(d, projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
 }
 
-func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) response.Response {
+func doVolumeMigration(d *Daemon, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -484,7 +484,7 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 	run := func(op *operations.Operation) error {
 		// And finally run the migration.
-		err = sink.DoStorage(d.State(), poolName, req, op)
+		err = sink.DoStorage(d.State(), projectName, poolName, req, op)
 		if err != nil {
 			logger.Error("Error during migration sink", log.Ctx{"err": err})
 			return fmt.Errorf("Error transferring storage volume: %s", err)
