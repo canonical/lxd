@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -129,12 +130,12 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Confirm volume exists.
-	_, _, err = s.Cluster.StoragePoolNodeVolumeGetType(volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage volume %q", target)
 	}
 
-	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load storage volume snapshots %q", target)
 	}
@@ -158,7 +159,8 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Validate volume is empty (ignore lost+found).
-	mountpoint := shared.VarPath("storage-pools", poolName, "custom", volumeName)
+	volStorageName := project.StorageVolume(project.Default, volumeName)
+	mountpoint := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
 
 	entries, err := ioutil.ReadDir(mountpoint)
 	if err != nil {
@@ -248,9 +250,10 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		}
 
 		// Unmount old volume.
-		_, err = pool.UnmountCustomVolume(project.Default, sourceVolume, nil)
+		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
+		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, `Failed to umount storage volume "%s/%s"`, sourcePool, sourceVolume)
+			return errors.Wrapf(err, `Failed to umount storage volume "%s/%s"`, sourcePool, sourceVolumeName)
 		}
 
 		return nil
@@ -277,7 +280,8 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	}
 
 	// Set ownership & mode.
-	mountpoint := shared.VarPath("storage-pools", poolName, "custom", volumeName)
+	volStorageName := project.StorageVolume(project.Default, volumeName)
+	mountpoint := storageDrivers.GetVolumeMountPath(poolName, storageDrivers.VolumeTypeCustom, volStorageName)
 	destPath = mountpoint
 
 	err = os.Chmod(mountpoint, 0700)
