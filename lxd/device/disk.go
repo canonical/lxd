@@ -361,6 +361,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
+	isRequired := d.isRequired(d.config)
 
 	if shared.IsRootDiskDevice(d.config) {
 		runConf.Mounts = []deviceConfig.MountEntryItem{
@@ -392,11 +393,29 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 		srcPath := shared.HostPath(d.config["source"])
 
-		// This is a normal disk device, image or injected 9p directory share.
-		if !shared.PathExists(srcPath) {
-			return nil, fmt.Errorf("Cannot find disk source %q", srcPath)
+		// Mount the pool volume and update srcPath to mount path.
+		if d.config["pool"] != "" {
+			var err error
+			srcPath, err = d.mountPoolVolume(revert)
+			if err != nil {
+				if !isRequired {
+					// Leave to the pathExists check below.
+					logger.Warn(err.Error())
+				} else {
+					return nil, err
+				}
+			}
 		}
 
+		if !shared.PathExists(srcPath) {
+			if isRequired {
+				return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
+			}
+
+			return &runConf, nil
+		}
+
+		// Default to block device or image file passthrough first.
 		mount := deviceConfig.MountEntryItem{
 			DevPath: srcPath,
 			DevName: d.name,
