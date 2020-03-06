@@ -7,17 +7,17 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-02-26 08:16-0500\n"
-"PO-Revision-Date: 2019-11-05 18:27+0000\n"
-"Last-Translator: Hiroaki Nakamura <hnakamur@gmail.com>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
-"containers/lxd/ja/>\n"
+"POT-Creation-Date: 2020-02-13 16:28-0500\n"
+"PO-Revision-Date: 2020-03-05 09:37+0000\n"
+"Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/"
+"linux-containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 3.10-dev\n"
+"X-Generator: Weblate 4.0-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -35,6 +35,19 @@ msgid ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 msgstr ""
+"### This is a YAML representation of a storage pool.\n"
+"### Any line starting with a '#' will be ignored.\n"
+"###\n"
+"### A storage pool consists of a set of configuration items.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: default\n"
+"### driver: zfs\n"
+"### used_by: []\n"
+"### config:\n"
+"###   size: \"61203283968\"\n"
+"###   source: /home/chb/mnt/lxd_test/default.img\n"
+"###   zfs.pool_name: default"
 
 #: lxc/storage_volume.go:791
 msgid ""
@@ -49,6 +62,16 @@ msgid ""
 "### config:\n"
 "###   size: \"61203283968\""
 msgstr ""
+"### This is a YAML representation of a storage volume.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A storage volume consists of a set of configuration items.\n"
+"###\n"
+"### name: vol1\n"
+"### type: custom\n"
+"### used_by: []\n"
+"### config:\n"
+"###   size: \"61203283968\""
 
 #: lxc/config.go:103
 msgid ""
@@ -70,6 +93,23 @@ msgid ""
 "###\n"
 "### Note that the name is shown but cannot be changed"
 msgstr ""
+"### This is a YAML representation of the configuration.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A sample configuration looks like:\n"
+"### name: instance1\n"
+"### profiles:\n"
+"### - default\n"
+"### config:\n"
+"###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
+"### devices:\n"
+"###   homedir:\n"
+"###     path: /extra\n"
+"###     source: /home/user\n"
+"###     type: disk\n"
+"### ephemeral: false\n"
+"###\n"
+"### Note that the name is shown but cannot be changed"
 
 #: lxc/image.go:336
 msgid ""
@@ -80,6 +120,12 @@ msgid ""
 "### An example would be:\n"
 "###  description: My custom image"
 msgstr ""
+"### This is a YAML representation of the image properties.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### Each property is represented by a single line:\n"
+"### An example would be:\n"
+"###  description: My custom image"
 
 #: lxc/config_metadata.go:62
 msgid ""
@@ -104,6 +150,26 @@ msgid ""
 "###     template: template.tpl\n"
 "###     properties: {}"
 msgstr ""
+"### This is a YAML representation of the instance metadata.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A sample configuration looks like:\n"
+"###\n"
+"### architecture: x86_64\n"
+"### creation_date: 1477146654\n"
+"### expiry_date: 0\n"
+"### properties:\n"
+"###   architecture: x86_64\n"
+"###   description: BusyBox x86_64\n"
+"###   name: busybox-x86_64\n"
+"###   os: BusyBox\n"
+"### templates:\n"
+"###   /template:\n"
+"###     when:\n"
+"###     - \"\"\n"
+"###     create_only: false\n"
+"###     template: template.tpl\n"
+"###     properties: {}"
 
 #: lxc/network.go:555
 msgid ""
@@ -124,6 +190,22 @@ msgid ""
 "###\n"
 "### Note that only the configuration can be changed."
 msgstr ""
+"### This is a YAML representation of the network.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A network consists of a set of configuration items.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: lxdbr0\n"
+"### config:\n"
+"###   ipv4.address: 10.62.42.1/24\n"
+"###   ipv4.nat: true\n"
+"###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
+"###   ipv6.nat: true\n"
+"### managed: true\n"
+"### type: bridge\n"
+"###\n"
+"### Note that only the configuration can be changed."
 
 #: lxc/profile.go:416
 msgid ""
@@ -145,6 +227,23 @@ msgid ""
 "###\n"
 "### Note that the name is shown but cannot be changed"
 msgstr ""
+"### This is a YAML representation of the profile.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A profile consists of a set of configuration items followed by a set of\n"
+"### devices.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: onenic\n"
+"### config:\n"
+"###   raw.lxc: lxc.aa_profile=unconfined\n"
+"### devices:\n"
+"###   eth0:\n"
+"###     nictype: bridged\n"
+"###     parent: lxdbr0\n"
+"###     type: nic\n"
+"###\n"
+"### Note that the name is shown but cannot be changed"
 
 #: lxc/project.go:226
 msgid ""
@@ -162,6 +261,19 @@ msgid ""
 "###\n"
 "### Note that the name is shown but cannot be changed"
 msgstr ""
+"### This is a YAML representation of the project.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### A project consists of a set of features and a description.\n"
+"###\n"
+"### An example would look like:\n"
+"### name: my-project\n"
+"### features:\n"
+"###   images: True\n"
+"###   profiles: True\n"
+"### description: My own project\n"
+"###\n"
+"### Note that the name is shown but cannot be changed"
 
 #: lxc/info.go:293
 #, c-format
@@ -191,7 +303,7 @@ msgstr "'%s' はサポートされないタイプのファイルです"
 
 #: lxc/profile.go:223
 msgid "(none)"
-msgstr ""
+msgstr "(none)"
 
 #: lxc/info.go:282
 #, c-format
@@ -213,14 +325,12 @@ msgid "--empty cannot be combined with an image name"
 msgstr "--empty はイメージ名と同時に指定できません"
 
 #: lxc/copy.go:153
-#, fuzzy
 msgid "--instance-only can't be passed when the source is a snapshot"
-msgstr "--container-only はコピー元がスナップショットの場合は指定できません"
+msgstr "--instance-only はコピー元がスナップショットの場合は指定できません"
 
 #: lxc/copy.go:164
-#, fuzzy
 msgid "--refresh can only be used with instances"
-msgstr "--refresh はコンテナの場合のみ使えます"
+msgstr "--refresh はインスタンスの場合のみ使えます"
 
 #: lxc/config.go:150 lxc/config.go:406 lxc/config.go:531 lxc/config.go:669
 #: lxc/info.go:424
@@ -229,19 +339,19 @@ msgstr "--target はインスタンスでは使えません"
 
 #: lxc/alias.go:126 lxc/image.go:1002 lxc/image_alias.go:231
 msgid "ALIAS"
-msgstr ""
+msgstr "ALIAS"
 
 #: lxc/image.go:1003
 msgid "ALIASES"
-msgstr ""
+msgstr "ALIASES"
 
 #: lxc/cluster.go:131 lxc/image.go:1008 lxc/list.go:423
 msgid "ARCHITECTURE"
-msgstr ""
+msgstr "ARCHITECTURE"
 
 #: lxc/remote.go:516
 msgid "AUTH TYPE"
-msgstr ""
+msgstr "AUTH TYPE"
 
 #: lxc/remote.go:95
 msgid "Accept certificate"
@@ -252,9 +362,8 @@ msgid "Action (defaults to GET)"
 msgstr "使用するHTTPのメソッド (デフォルト: GET)"
 
 #: lxc/config_device.go:75 lxc/config_device.go:76
-#, fuzzy
 msgid "Add devices to instances or profiles"
-msgstr "コンテナもしくはプロファイルにデバイスを追加します"
+msgstr "インスタンスもしくはプロファイルにデバイスを追加します"
 
 #: lxc/alias.go:53 lxc/alias.go:54
 msgid "Add new aliases"
@@ -288,9 +397,8 @@ msgid "Add new trusted clients"
 msgstr "新たに信頼済みのクライアントを追加します"
 
 #: lxc/profile.go:100 lxc/profile.go:101
-#, fuzzy
 msgid "Add profiles to instances"
-msgstr "コンテナにプロファイルを追加します"
+msgstr "インスタンスにプロファイルを追加します"
 
 #: lxc/info.go:175
 #, c-format
@@ -298,9 +406,9 @@ msgid "Address: %s"
 msgstr "アドレス: %s"
 
 #: lxc/remote.go:364
-#, fuzzy, c-format
+#, c-format
 msgid "Admin password for %s:"
-msgstr "%s の管理者パスワード: "
+msgstr "%s の管理者パスワード:"
 
 #: lxc/alias.go:77 lxc/alias.go:173
 #, c-format
@@ -332,52 +440,46 @@ msgstr "アーキテクチャ: %v"
 
 #: lxc/init.go:277
 msgid "Asked for a VM but image is of type container"
-msgstr ""
+msgstr "VMを要求しましたが、イメージタイプがコンテナです"
 
 #: lxc/profile.go:163 lxc/profile.go:164
-#, fuzzy
 msgid "Assign sets of profiles to instances"
-msgstr "コンテナにプロファイルを割り当てます"
+msgstr "インスタンスにプロファイルを割り当てます"
 
 #: lxc/network.go:107
-#, fuzzy
 msgid "Attach network interfaces to instances"
-msgstr "コンテナにネットワークインターフェースを追加します"
+msgstr "インスタンスにネットワークインターフェースを追加します"
 
 #: lxc/network.go:180 lxc/network.go:181
 msgid "Attach network interfaces to profiles"
 msgstr "プロファイルにネットワークインターフェースを追加します"
 
 #: lxc/network.go:108
-#, fuzzy
 msgid "Attach new network interfaces to instances"
-msgstr "新たなネットワークインターフェースをコンテナに追加します"
+msgstr "新たなネットワークインターフェースをインスタンスに追加します"
 
 #: lxc/storage_volume.go:138 lxc/storage_volume.go:139
-#, fuzzy
 msgid "Attach new storage volumes to instances"
-msgstr "新たにストレージボリュームをコンテナに追加します"
+msgstr "新たにストレージボリュームをインスタンスに追加します"
 
 #: lxc/storage_volume.go:217 lxc/storage_volume.go:218
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
 #: lxc/console.go:30
-#, fuzzy
 msgid "Attach to instance consoles"
-msgstr "コンテナのコンソールに接続します"
+msgstr "インスタンスのコンソールに接続します"
 
 #: lxc/console.go:31
-#, fuzzy
 msgid ""
 "Attach to instance consoles\n"
 "\n"
 "This command allows you to interact with the boot console of an instance\n"
 "as well as retrieve past log entries from it."
 msgstr ""
-"コンテナのコンソールに接続します\n"
+"インスタンスのコンソールに接続します\n"
 "\n"
-"このコマンドはコンテナのブートコンソールに接続できます。\n"
+"このコマンドはインスタンスのブートコンソールに接続できます。\n"
 "そしてそこから過去のログエントリを取り出すことができます。"
 
 #: lxc/remote.go:347
@@ -397,7 +499,7 @@ msgstr "自動更新: %s"
 
 #: lxc/list.go:435 lxc/list.go:436
 msgid "BASE IMAGE"
-msgstr ""
+msgstr "BASE IMAGE"
 
 #: lxc/export.go:136
 msgid "Backup exported successfully!"
@@ -426,9 +528,8 @@ msgstr ""
 "書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
 #: lxc/action.go:239
-#, fuzzy
 msgid "Both --all and instance name given"
-msgstr "--all とコンテナ名を両方同時に指定することはできません"
+msgstr "--all とインスタンス名を両方同時に指定することはできません"
 
 #: lxc/info.go:126
 #, c-format
@@ -445,11 +546,11 @@ msgstr "送信バイト数"
 
 #: lxc/operation.go:162
 msgid "CANCELABLE"
-msgstr ""
+msgstr "CANCELABLE"
 
 #: lxc/config_trust.go:174
 msgid "COMMON NAME"
-msgstr ""
+msgstr "COMMON NAME"
 
 #: lxc/info.go:328
 #, c-format
@@ -467,15 +568,15 @@ msgstr "CPU使用量:"
 #: lxc/info.go:331
 #, c-format
 msgid "CPUs (%s):"
-msgstr ""
+msgstr "CPUs (%s):"
 
 #: lxc/operation.go:163
 msgid "CREATED"
-msgstr ""
+msgstr "CREATED"
 
 #: lxc/list.go:424
 msgid "CREATED AT"
-msgstr ""
+msgstr "CREATED AT"
 
 #: lxc/info.go:128
 #, c-format
@@ -554,9 +655,8 @@ msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/remote.go:403
-#, fuzzy
 msgid "Client certificate stored at server:"
-msgstr "クライアント証明書がサーバに格納されました: "
+msgstr "クライアント証明書がサーバに格納されました:"
 
 #: lxc/version.go:37
 #, c-format
@@ -602,18 +702,16 @@ msgstr ""
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
 #: lxc/copy.go:45 lxc/init.go:48
-#, fuzzy
 msgid "Config key/value to apply to the new instance"
-msgstr "新しいコンテナに適用するキー/値の設定"
+msgstr "新しいインスタンスに適用するキー/値の設定"
 
 #: lxc/project.go:88
 msgid "Config key/value to apply to the new project"
 msgstr "新しいプロジェクトに適用するキー/値の設定"
 
 #: lxc/move.go:50
-#, fuzzy
 msgid "Config key/value to apply to the target instance"
-msgstr "移動先のコンテナに適用するキー/値の設定"
+msgstr "移動先のインスタンスに適用するキー/値の設定"
 
 #: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:143
 #: lxc/image.go:414 lxc/network.go:640 lxc/profile.go:498 lxc/project.go:304
@@ -632,9 +730,8 @@ msgid "Control: %s (%s)"
 msgstr "コントロール: %s (%s)"
 
 #: lxc/copy.go:52 lxc/move.go:57
-#, fuzzy
 msgid "Copy a stateful instance stateless"
-msgstr "ステートフルなコンテナをステートレスにコピーします"
+msgstr "ステートフルなインスタンスをステートレスにコピーします"
 
 #: lxc/image.go:135
 msgid "Copy aliases from source"
@@ -657,9 +754,8 @@ msgstr ""
 "ソースはエイリアスで、かつパブリックである必要があります。"
 
 #: lxc/copy.go:40 lxc/copy.go:41
-#, fuzzy
 msgid "Copy instances within or in between LXD servers"
-msgstr "LXD インスタンス内に、またはインスタンス間でコンテナをコピーします"
+msgstr "LXD サーバ内で、またはサーバ間でインスタンスをコピーします"
 
 #: lxc/config_device.go:326 lxc/config_device.go:327
 msgid "Copy profile inherited devices and override configuration keys"
@@ -678,11 +774,8 @@ msgid "Copy the instance without its snapshots"
 msgstr "インスタンスをコピーします。スナップショットはコピーしません"
 
 #: lxc/copy.go:51
-#, fuzzy
 msgid "Copy the instance without its snapshots (deprecated, use instance-only)"
-msgstr ""
-"コンテナをコピーします。スナップショットはコピーしません (廃止予定、instance-"
-"only を使ってください)"
+msgstr "インスタンスをコピーします。スナップショットはコピーしません (廃止予定、instance-only を使ってください)"
 
 #: lxc/storage_volume.go:306
 msgid "Copy the volume without its snapshots"
@@ -720,59 +813,51 @@ msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
 #: lxc/init.go:57
-#, fuzzy
 msgid "Create a virtual machine"
-msgstr "仮想マシンイメージをコピーします"
+msgstr "仮想マシンを作成します"
 
 #: lxc/image_alias.go:57 lxc/image_alias.go:58
 msgid "Create aliases for existing images"
 msgstr "既存のイメージに対するエイリアスを作成します"
 
 #: lxc/init.go:56
-#, fuzzy
 msgid "Create an empty instance"
-msgstr "空のコンテナを作成"
+msgstr "空のインスタンスを作成"
 
 #: lxc/launch.go:22 lxc/launch.go:23
-#, fuzzy
 msgid "Create and start instances from images"
-msgstr "イメージからコンテナを作成し、起動します"
+msgstr "イメージからインスタンスを作成し、起動します"
 
 #: lxc/file.go:223 lxc/file.go:414
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
 #: lxc/snapshot.go:23
-#, fuzzy
 msgid "Create instance snapshots"
-msgstr "コンテナのスナップショットを作成します"
+msgstr "インスタンスのスナップショットを作成します"
 
 #: lxc/snapshot.go:24
-#, fuzzy
 msgid ""
 "Create instance snapshots\n"
 "\n"
 "When --stateful is used, LXD attempts to checkpoint the instance's\n"
 "running state, including process memory state, TCP connections, ..."
 msgstr ""
-"コンテナのスナップショットを作成します\n"
+"インスタンスのスナップショットを作成します\n"
 "\n"
-"--stateful を指定すると、LXD はコンテナの実行状態（プロセスのメモリ状態、TCP"
-"コネクション、など…を含む）を保存しようとします。"
+"--stateful を指定すると、LXD はインスタンスの実行状態（プロセスのメモリ状態、TCPコネクション、など…を含む）を保存しようとします。"
 
 #: lxc/init.go:39 lxc/init.go:40
-#, fuzzy
 msgid "Create instances from images"
-msgstr "イメージからコンテナを作成します"
+msgstr "イメージからインスタンスを作成します"
 
 #: lxc/storage_volume.go:461 lxc/storage_volume.go:462
 msgid "Create new custom storage volumes"
 msgstr "新たにカスタムストレージボリュームを作成します"
 
 #: lxc/config_template.go:65 lxc/config_template.go:66
-#, fuzzy
 msgid "Create new instance file templates"
-msgstr "新たにコンテナのファイルテンプレートを作成します"
+msgstr "新たにインスタンスのファイルテンプレートを作成します"
 
 #: lxc/network.go:253 lxc/network.go:254
 msgid "Create new networks"
@@ -791,9 +876,8 @@ msgid "Create storage pools"
 msgstr "ストレージプールを作成します"
 
 #: lxc/copy.go:56 lxc/init.go:55
-#, fuzzy
 msgid "Create the instance with no profiles applied"
-msgstr "プロファイルを適用しないコンテナを作成します"
+msgstr "プロファイルを適用しないインスタンスを作成します"
 
 #: lxc/image.go:901 lxc/info.go:449
 #, c-format
@@ -806,9 +890,8 @@ msgid "Creating %s"
 msgstr "%s を作成中"
 
 #: lxc/init.go:155
-#, fuzzy
 msgid "Creating the instance"
-msgstr "コンテナを作成中"
+msgstr "インスタンスを作成中"
 
 #: lxc/info.go:135 lxc/info.go:220
 #, c-format
@@ -817,20 +900,20 @@ msgstr "現在の VF 数: %d"
 
 #: lxc/cluster.go:128
 msgid "DATABASE"
-msgstr ""
+msgstr "DATABASE"
 
 #: lxc/image.go:1007 lxc/image_alias.go:234 lxc/list.go:425 lxc/network.go:870
 #: lxc/operation.go:160 lxc/storage.go:559 lxc/storage_volume.go:1119
 msgid "DESCRIPTION"
-msgstr ""
+msgstr "DESCRIPTION"
 
 #: lxc/storage.go:560
 msgid "DRIVER"
-msgstr ""
+msgstr "DRIVER"
 
 #: lxc/info.go:107
 msgid "DRM:"
-msgstr ""
+msgstr "DRM:"
 
 #: lxc/export.go:46
 msgid "Define a compression algorithm: for backup or none"
@@ -845,9 +928,8 @@ msgid "Delete a background operation (will attempt to cancel)"
 msgstr "バックグラウンドの操作を削除します（キャンセルを試みます）"
 
 #: lxc/file.go:104 lxc/file.go:105
-#, fuzzy
 msgid "Delete files in instances"
-msgstr "コンテナ内のファイルを削除します"
+msgstr "インスタンス内のファイルを削除します"
 
 #: lxc/image_alias.go:104 lxc/image_alias.go:105
 msgid "Delete image aliases"
@@ -858,14 +940,12 @@ msgid "Delete images"
 msgstr "イメージを削除します"
 
 #: lxc/config_template.go:108 lxc/config_template.go:109
-#, fuzzy
 msgid "Delete instance file templates"
-msgstr "コンテナのファイルテンプレートを削除します"
+msgstr "インスタンスのファイルテンプレートを削除します"
 
 #: lxc/delete.go:29 lxc/delete.go:30
-#, fuzzy
 msgid "Delete instances and snapshots"
-msgstr "コンテナとスナップショットを削除します"
+msgstr "インスタンスとスナップショットを削除します"
 
 #: lxc/network.go:325 lxc/network.go:326
 msgid "Delete networks"
@@ -940,18 +1020,16 @@ msgid "Description"
 msgstr "説明"
 
 #: lxc/network.go:375 lxc/network.go:376
-#, fuzzy
 msgid "Detach network interfaces from instances"
-msgstr "コンテナからネットワークインターフェースを取り外します"
+msgstr "インスタンスからネットワークインターフェースを取り外します"
 
 #: lxc/network.go:460 lxc/network.go:461
 msgid "Detach network interfaces from profiles"
 msgstr "プロファイルからネットワークインターフェースを取り外します"
 
 #: lxc/storage_volume.go:614 lxc/storage_volume.go:615
-#, fuzzy
 msgid "Detach storage volumes from instances"
-msgstr "コンテナからストレージボリュームを取り外します"
+msgstr "インスタンスからストレージボリュームを取り外します"
 
 #: lxc/storage_volume.go:696 lxc/storage_volume.go:697
 msgid "Detach storage volumes from profiles"
@@ -983,11 +1061,8 @@ msgid "Device: %s"
 msgstr "デバイス: %s"
 
 #: lxc/init.go:336
-#, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
-msgstr ""
-"サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんでし"
-"た"
+msgstr "サーバから変更されたイメージ、インスタンス、スナップショットを取得できませんでした"
 
 #: lxc/image.go:620
 msgid "Directory import is not available on this platform"
@@ -1037,11 +1112,11 @@ msgstr "ドライバ: %v (%v)"
 
 #: lxc/list.go:659
 msgid "EPHEMERAL"
-msgstr ""
+msgstr "EPHEMERAL"
 
 #: lxc/config_trust.go:176
 msgid "EXPIRY DATE"
-msgstr ""
+msgstr "EXPIRY DATE"
 
 #: lxc/file.go:63
 msgid ""
@@ -1052,28 +1127,24 @@ msgstr ""
 "あと2回行ってください）"
 
 #: lxc/file.go:153 lxc/file.go:154
-#, fuzzy
 msgid "Edit files in instances"
-msgstr "コンテナ内のファイルを編集します"
+msgstr "インスタンス内のファイルを編集します"
 
 #: lxc/image.go:320 lxc/image.go:321
 msgid "Edit image properties"
 msgstr "イメージのプロパティを編集します"
 
 #: lxc/config_template.go:150 lxc/config_template.go:151
-#, fuzzy
 msgid "Edit instance file templates"
-msgstr "コンテナのファイルテンプレートを編集します"
+msgstr "インスタンスのファイルテンプレートを編集します"
 
 #: lxc/config_metadata.go:52 lxc/config_metadata.go:53
-#, fuzzy
 msgid "Edit instance metadata files"
-msgstr "コンテナのメタデータファイルを編集します"
+msgstr "インスタンスのメタデータファイルを編集します"
 
 #: lxc/config.go:89 lxc/config.go:90
-#, fuzzy
 msgid "Edit instance or server configurations as YAML"
-msgstr "コンテナもしくはサーバの設定をYAMLファイルで編集します"
+msgstr "インスタンスもしくはサーバの設定をYAMLファイルで編集します"
 
 #: lxc/network.go:545 lxc/network.go:546
 msgid "Edit network configurations as YAML"
@@ -1102,13 +1173,10 @@ msgstr ""
 "'%s' 中のカラムエントリが空です (カラムの指定に空文字列が指定されています)"
 
 #: lxc/cluster.go:331
-#, fuzzy
 msgid "Enable clustering on a single non-clustered LXD server"
-msgstr ""
-"クラスタリングで動作していないLXDインスタンス上でクラスタリングを有効にします"
+msgstr "クラスタリングで動作していないLXDサーバ上でクラスタリングを有効にします"
 
 #: lxc/cluster.go:332
-#, fuzzy
 msgid ""
 "Enable clustering on a single non-clustered LXD server\n"
 "\n"
@@ -1122,8 +1190,7 @@ msgid ""
 "value\n"
 "  for the address if not yet set."
 msgstr ""
-"クラスタリングで動作していないLXDインスタンス上でクラスタリングを有効にしま"
-"す\n"
+"クラスタリングで動作していない単一動作のLXDインスタンス上でクラスタリングを有効にします\n"
 "\n"
 "  このコマンドはクラスタリングで動作していない LXD インスタンスを、\n"
 "  指定した名前の新しい LXD クラスタの最初のメンバーにします。\n"
@@ -1137,9 +1204,8 @@ msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
 #: lxc/copy.go:48 lxc/init.go:50
-#, fuzzy
 msgid "Ephemeral instance"
-msgstr "Ephemeral コンテナ"
+msgstr "Ephemeral インスタンス"
 
 #: lxc/config_template.go:203
 #, c-format
@@ -1151,12 +1217,10 @@ msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
 #: lxc/exec.go:39
-#, fuzzy
 msgid "Execute commands in instances"
-msgstr "コンテナ内でコマンドを実行します"
+msgstr "インスタンス内でコマンドを実行します"
 
 #: lxc/exec.go:40
-#, fuzzy
 msgid ""
 "Execute commands in instances\n"
 "\n"
@@ -1170,17 +1234,16 @@ msgid ""
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
-"コンテナ内でコマンドを実行します\n"
+"インスタンス内でコマンドを実行します\n"
 "\n"
-"このコマンドは exec を使って直接コマンドを実行します。したがって、シェルはな"
-"くシェルパターン（変数、ファイルのリダイレクトなど）は理解されません。\n"
-"シェル環境が必要なら、シェルを実行し、引数でシェルコマンドを渡す必要がありま"
-"す。例えば:\n"
+"このコマンドは exec を使って直接コマンドを実行します。したがって、シェルはなくシェルパターン（変数、ファイルのリダイレクトなど）は理解されません。"
 "\n"
-"  lxc exec <container> -- sh -c \"cd /tmp && pwd\"\n"
+"シェル環境が必要なら、シェルを実行し、引数でシェルコマンドを渡す必要があります。例えば:\n"
 "\n"
-"デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
-"の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
+"  lxc exec <instance> -- sh -c \"cd /tmp && pwd\"\n"
+"\n"
+"デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナルの場合は interactive モードが選択されます "
+"(標準エラー出力は無視されます)。"
 
 #: lxc/image.go:907
 #, c-format
@@ -1206,14 +1269,12 @@ msgstr ""
 "出力先はオプショナルで、デフォルトは現在のディレクトリです。"
 
 #: lxc/export.go:32
-#, fuzzy
 msgid "Export instance backups"
-msgstr "コンテナのバックアップをエクスポートします"
+msgstr "インスタンスのバックアップをエクスポートします"
 
 #: lxc/export.go:33
-#, fuzzy
 msgid "Export instances as backup tarballs."
-msgstr "コンテナを tarball 形式のバックアップとしてエクスポートします。"
+msgstr "インスタンスを tarball 形式のバックアップとしてエクスポートします。"
 
 #: lxc/export.go:120
 #, c-format
@@ -1227,12 +1288,12 @@ msgstr "イメージのエクスポート中: %s"
 
 #: lxc/config_template.go:279
 msgid "FILENAME"
-msgstr ""
+msgstr "FILENAME"
 
 #: lxc/config_trust.go:173 lxc/image.go:1004 lxc/image.go:1005
 #: lxc/image_alias.go:232
 msgid "FINGERPRINT"
-msgstr ""
+msgstr "FINGERPRINT"
 
 #: lxc/move.go:231
 msgid "Failed to connect to cluster member"
@@ -1244,9 +1305,8 @@ msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
 #: lxc/copy.go:421
-#, fuzzy
 msgid "Failed to get the new instance name"
-msgstr "新しいコンテナ名が取得できません"
+msgstr "新しいインスタンス名が取得できません"
 
 #: lxc/utils.go:190
 #, c-format
@@ -1280,21 +1340,19 @@ msgid "Force removing a member, even if degraded"
 msgstr "degraded 状態であっても強制的にメンバを削除します"
 
 #: lxc/action.go:120
-#, fuzzy
 msgid "Force the instance to shutdown"
-msgstr "コンテナを強制シャットダウンします"
+msgstr "インスタンスを強制シャットダウンします"
 
 #: lxc/delete.go:34
-#, fuzzy
 msgid "Force the removal of running instances"
-msgstr "稼働中のコンテナを強制的に削除します"
+msgstr "稼働中のインスタンスを強制的に削除します"
 
 #: lxc/main.go:62
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
 #: lxc/cluster.go:259
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "Forcefully removing a server from the cluster should only be done as a last\n"
 "resort.\n"
@@ -1316,19 +1374,15 @@ msgid ""
 "\n"
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
-"クラスタからサーバを強制的に削除するのは最後の手段としてのみ実行してくださ"
-"い。\n"
+"クラスタからサーバを強制的に削除するのは最後の手段としてのみ実行してください。\n"
 "\n"
-"削除されたサーバはこの操作のあとは機能せず、LXD のフルリセットが必要になりま"
-"す。サーバに存在していた可能性のある残りのコンテナ、イメージ、ストレージボ"
-"リュームは失われます。\n"
+"削除されたサーバはこの操作のあとは機能せず、LXD "
+"のフルリセットが必要になります。サーバに存在していた可能性のある残りのインスタンス、イメージ、ストレージボリュームは失われます。\n"
 "\n"
-"可能なら、適切な手順で削除することをおすすめします。適切な手順で行うには、ク"
-"ラスタから完全にサーバを削除する前に、影響を受けるコンテナ、イメージ、スト"
+"可能なら、適切な手順で削除することをおすすめします。適切な手順で行うには、クラスタから完全にサーバを削除する前に、影響を受けるインスタンス、イメージ、スト"
 "レージボリュームを他のサーバに移動する必要があります。\n"
 "\n"
-"--force オプションは、サーバが死んだ場合、サーバの再インストール後、他に復旧"
-"の見込みがまったくない場合にのみ使用してください。\n"
+"--force オプションは、サーバが死んだ場合、サーバの再インストール後、他に復旧の見込みがまったくない場合にのみ使用してください。\n"
 "\n"
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
@@ -1357,11 +1411,11 @@ msgstr "クロック数: %vMhz (最小: %vMhz, 最大: %vMhz)"
 
 #: lxc/info.go:369
 msgid "GPU:"
-msgstr ""
+msgstr "GPU:"
 
 #: lxc/info.go:372
 msgid "GPUs:"
-msgstr ""
+msgstr "GPUs:"
 
 #: lxc/manpage.go:18 lxc/manpage.go:19
 msgid "Generate manpages for all commands"
@@ -1376,14 +1430,12 @@ msgid "Get runtime information on networks"
 msgstr "ネットワークのランタイム情報を取得します"
 
 #: lxc/config_device.go:187 lxc/config_device.go:188
-#, fuzzy
 msgid "Get values for instance device configuration keys"
-msgstr "コンテナのデバイスの設定値を取得します"
+msgstr "インスタンスのデバイスの設定値を取得します"
 
 #: lxc/config.go:372 lxc/config.go:373
-#, fuzzy
 msgid "Get values for instance or server configuration keys"
-msgstr "コンテナもしくはサーバの設定値を取得します"
+msgstr "インスタンスもしくはサーバの設定値を取得します"
 
 #: lxc/network.go:668 lxc/network.go:669
 msgid "Get values for network configuration keys"
@@ -1411,11 +1463,11 @@ msgstr "コマンドを実行する際のグループ ID (GID) (デフォルト 
 
 #: lxc/network.go:938
 msgid "HOSTNAME"
-msgstr ""
+msgstr "HOSTNAME"
 
 #: lxc/info.go:341 lxc/info.go:352
 msgid "Hugepages:\n"
-msgstr ""
+msgstr "Hugepages:\n"
 
 #: lxc/operation.go:158
 msgid "ID"
@@ -1429,15 +1481,15 @@ msgstr "ID: %d"
 #: lxc/info.go:172 lxc/info.go:238 lxc/info.go:262
 #, c-format
 msgid "ID: %s"
-msgstr ""
+msgstr "ID: %s"
 
 #: lxc/project.go:450
 msgid "IMAGES"
-msgstr ""
+msgstr "IMAGES"
 
 #: lxc/network.go:940
 msgid "IP ADDRESS"
-msgstr ""
+msgstr "IP ADDRESS"
 
 #: lxc/list.go:421
 msgid "IPV4"
@@ -1449,7 +1501,7 @@ msgstr "IPV6"
 
 #: lxc/config_trust.go:175
 msgid "ISSUE DATE"
-msgstr ""
+msgstr "ISSUE DATE"
 
 #: lxc/main.go:340
 msgid ""
@@ -1458,14 +1510,12 @@ msgid ""
 msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
 #: lxc/snapshot.go:35
-#, fuzzy
 msgid "Ignore any configured auto-expiry for the instance"
-msgstr "設定されている自動でのコンテナの有効期限設定を無視します"
+msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
 #: lxc/action.go:116
-#, fuzzy
 msgid "Ignore the instance state"
-msgstr "コンテナの状態を無視します"
+msgstr "インスタンスの状態を無視します"
 
 #: lxc/image.go:1326
 msgid "Image already up to date."
@@ -1498,10 +1548,8 @@ msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
 #: lxc/import.go:28
-#, fuzzy
 msgid "Import backups of instances including their snapshots."
-msgstr ""
-"コンテナのバックアップをスナップショットを含んだ状態でインポートします。"
+msgstr "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
 #: lxc/image.go:605
 msgid ""
@@ -1519,37 +1567,35 @@ msgid "Import images into the image store"
 msgstr "イメージをイメージストアにインポートします"
 
 #: lxc/import.go:27
-#, fuzzy
 msgid "Import instance backups"
-msgstr "コンテナのバックアップをインポートします"
+msgstr "インスタンスのバックアップをインポートします"
 
 #: lxc/import.go:72
-#, fuzzy, c-format
+#, c-format
 msgid "Importing instance: %s"
-msgstr "コンテナのインポート中: %s"
+msgstr "インスタンスのインポート中: %s"
 
 #: lxc/info.go:201
 msgid "Infiniband:"
-msgstr ""
+msgstr "Infiniband:"
 
 #: lxc/query.go:42
 msgid "Input data"
 msgstr "入力するデータ"
 
 #: lxc/publish.go:80
-#, fuzzy
 msgid "Instance name is mandatory"
-msgstr "コンテナ名を指定する必要があります"
+msgstr "インスタンス名を指定する必要があります"
 
 #: lxc/copy.go:427 lxc/init.go:343
-#, fuzzy, c-format
+#, c-format
 msgid "Instance name is: %s"
-msgstr "コンテナ名: %s"
+msgstr "インスタンス名: %s"
 
 #: lxc/publish.go:276
-#, fuzzy, c-format
+#, c-format
 msgid "Instance published with fingerprint: %s"
-msgstr "コンテナは以下のフィンガープリントで publish されます: %s"
+msgstr "インスタンスは以下のフィンガープリントで publish されます: %s"
 
 #: lxc/init.go:53
 msgid "Instance type"
@@ -1638,12 +1684,12 @@ msgstr "最初にコピーした後も常にイメージを最新の状態に保
 
 #: lxc/list.go:426
 msgid "LAST USED AT"
-msgstr ""
+msgstr "LAST USED AT"
 
 #: lxc/list.go:450 lxc/network.go:944 lxc/operation.go:165
 #: lxc/storage_volume.go:1123
 msgid "LOCATION"
-msgstr ""
+msgstr "LOCATION"
 
 #: lxc/manpage.go:37
 msgid "LXD - Command line client"
@@ -1767,22 +1813,18 @@ msgstr ""
 "    t - タイプ"
 
 #: lxc/config_device.go:260 lxc/config_device.go:261
-#, fuzzy
 msgid "List instance devices"
-msgstr "コンテナのデバイスを一覧表示します"
+msgstr "インスタンスのデバイスを一覧表示します"
 
 #: lxc/config_template.go:236 lxc/config_template.go:237
-#, fuzzy
 msgid "List instance file templates"
-msgstr "コンテナのファイルテンプレートを一覧表示します"
+msgstr "インスタンスのファイルテンプレートを一覧表示します"
 
 #: lxc/list.go:43
-#, fuzzy
 msgid "List instances"
-msgstr "コンテナを一覧表示します"
+msgstr "インスタンスを一覧表示します"
 
 #: lxc/list.go:44
-#, fuzzy
 msgid ""
 "List instances\n"
 "\n"
@@ -1848,33 +1890,29 @@ msgid ""
 "  MAXWIDTH: Max width of the column (longer results are truncated).\n"
 "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
 msgstr ""
-"コンテナを一覧表示します。\n"
+"インスタンスを一覧表示します。\n"
 "\n"
 "デフォルトのカラムレイアウト: ns46tS\n"
 "Fast モードのカラムレイアウト: nsacPt\n"
 "\n"
 "== フィルタ ==\n"
-"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコン"
-"テナが一覧表示されます。\n"
-"コンテナ名の正規表現 (例: .*web.*01$)。\n"
-"設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することができ"
-"ます。\n"
+"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるインスタンスが一覧表示されます。\n"
+"インスタンス名の正規表現 (例: .*web.*01$)。\n"
+"設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することができます。\n"
 "\n"
 "例:\n"
-"  - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定され"
-"ているコンテナをすべて一覧表示します。\n"
+"  - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" "
+"に設定されているインスタンスをすべて一覧表示します。\n"
 "  - \"u.blah=abc\" は上記と同じ意味になります。\n"
-"  - \"security.privileged=true\" は特権コンテナをすべて一覧表示します。\n"
+"  - \"security.privileged=true\" は特権インスタンスをすべて一覧表示します。\n"
 "  - \"s.privileged=true\" は上記と同じ意味になります。\n"
 "\n"
-"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:."
-"*)。\n"
+"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:.*)。\n"
 "\n"
-"複数のフィルタを指定した場合は、指定したフィルタが順に追加され、すべてのフィ"
-"ルタを満たすコンテナが選択されます。\n"
+"複数のフィルタを指定した場合は、指定したフィルタが順に追加され、すべてのフィルタを満たすインスタンスが選択されます。\n"
 "\n"
 "== カラム ==\n"
-"-c オプションには、表形式もしくは csv 形式で表示する際にどのコンテナの\n"
+"-c オプションには、表形式もしくは csv 形式で表示する際にどのインスタンスの\n"
 "属性を表示するかを指定するコンマ区切りのリストを指定します。\n"
 "\n"
 "カラムの指定は、定義済みの短縮形 (以下を参照) もしくは (拡張された)\n"
@@ -1892,20 +1930,19 @@ msgstr ""
 "  l - 最終使用日\n"
 "  n - 名前\n"
 "  N - プロセス数\n"
-"  p - コンテナの init プロセスの pid\n"
+"  p - インスタンスの init プロセスの pid\n"
 "  P - プロファイル\n"
 "  s - 状態\n"
 "  S - スナップショットの数\n"
 "  t - タイプ (persistent か ephemeral)\n"
-"  L - コンテナのロケーション (クラスタメンバー名)\n"
+"  L - インスタンスのロケーション (クラスタメンバー名)\n"
 "  f - ベースとなるイメージのフィンガープリント (短い形式)\n"
 "  F - ベースとなるイメージのフィンガープリント (長い形式)\n"
 "\n"
 "\"[config:|devices:]key[:name][:maxWidth]\" のように指定するカスタムカラム:\n"
-"     KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合"
-"は config が指定されたものとします\n"
-"    NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデ"
-"フォルトはキー。\n"
+"     KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合は config "
+"が指定されたものとします\n"
+"    NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデフォルトはキー。\n"
 "\n"
 "MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
 "          デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
@@ -1945,7 +1982,7 @@ msgstr "ログ:"
 
 #: lxc/network.go:939
 msgid "MAC ADDRESS"
-msgstr ""
+msgstr "MAC ADDRESS"
 
 #: lxc/network.go:772
 #, c-format
@@ -1959,16 +1996,16 @@ msgstr "MAD: %s (%s)"
 
 #: lxc/network.go:869
 msgid "MANAGED"
-msgstr ""
+msgstr "MANAGED"
 
 #: lxc/cluster.go:130
 msgid "MESSAGE"
-msgstr ""
+msgstr "MESSAGE"
 
 #: lxc/network.go:773
 #, c-format
 msgid "MTU: %d"
-msgstr ""
+msgstr "MTU: %d"
 
 #: lxc/image.go:134 lxc/image.go:610
 msgid "Make image public"
@@ -1979,9 +2016,8 @@ msgid "Make the image public"
 msgstr "イメージを public にする"
 
 #: lxc/network.go:31 lxc/network.go:32
-#, fuzzy
 msgid "Manage and attach instances to networks"
-msgstr "ネットワークを管理し、コンテナをネットワークに接続します"
+msgstr "ネットワークを管理し、インスタンスをネットワークに接続します"
 
 #: lxc/cluster.go:28 lxc/cluster.go:29
 msgid "Manage cluster members"
@@ -1992,9 +2028,8 @@ msgid "Manage command aliases"
 msgstr "コマンドのエイリアスを管理します"
 
 #: lxc/file.go:71 lxc/file.go:72
-#, fuzzy
 msgid "Manage files in instances"
-msgstr "コンテナ内のファイルを管理します"
+msgstr "インスタンス内のファイルを管理します"
 
 #: lxc/image_alias.go:24 lxc/image_alias.go:25
 msgid "Manage image aliases"
@@ -2005,7 +2040,6 @@ msgid "Manage images"
 msgstr "イメージを管理します"
 
 #: lxc/image.go:38
-#, fuzzy
 msgid ""
 "Manage images\n"
 "\n"
@@ -2025,7 +2059,7 @@ msgid ""
 msgstr ""
 "イメージを管理します\n"
 "\n"
-"LXD では、コンテナはイメージから作られます。このイメージは、既存のコン\n"
+"LXD では、インスタンスはイメージから作られます。このイメージは、既存のコン\n"
 "テナから作られるかイメージサーバからダウンロードされます。\n"
 "\n"
 "リモートのイメージを使う場合、LXD は自動的にイメージをキャッシュします。\n"
@@ -2038,24 +2072,20 @@ msgstr ""
 "ている場合は) エイリアスで参照できます。"
 
 #: lxc/config.go:30 lxc/config.go:31
-#, fuzzy
 msgid "Manage instance and server configuration options"
-msgstr "コンテナやサーバの設定を管理します"
+msgstr "インスタンスやサーバの設定を管理します"
 
 #: lxc/config_device.go:23 lxc/config_device.go:24
-#, fuzzy
 msgid "Manage instance devices"
-msgstr "コンテナのデバイスを管理します"
+msgstr "インスタンスのデバイスを管理します"
 
 #: lxc/config_template.go:28 lxc/config_template.go:29
-#, fuzzy
 msgid "Manage instance file templates"
-msgstr "コンテナのファイルテンプレートを管理します"
+msgstr "インスタンスのファイルテンプレートを管理します"
 
 #: lxc/config_metadata.go:27 lxc/config_metadata.go:28
-#, fuzzy
 msgid "Manage instance metadata files"
-msgstr "コンテナのメタデータファイルを管理します"
+msgstr "インスタンスのメタデータファイルを管理します"
 
 #: lxc/profile.go:28 lxc/profile.go:29
 msgid "Manage profiles"
@@ -2141,9 +2171,8 @@ msgstr "表示するログメッセージの最小レベル"
 #: lxc/config_template.go:175 lxc/config_template.go:262
 #: lxc/config_template.go:320 lxc/profile.go:125 lxc/profile.go:198
 #: lxc/profile.go:660
-#, fuzzy
 msgid "Missing instance name"
-msgstr "コンテナ名を指定する必要があります"
+msgstr "インスタンス名を指定する必要があります"
 
 #: lxc/config_device.go:109 lxc/config_device.go:212 lxc/config_device.go:285
 #: lxc/config_device.go:351 lxc/config_device.go:440 lxc/config_device.go:541
@@ -2228,9 +2257,8 @@ msgstr ""
 "せん"
 
 #: lxc/move.go:36 lxc/move.go:37
-#, fuzzy
 msgid "Move instances within or in between LXD servers"
-msgstr "LXD サーバ内もしくはサーバ間でコンテナを移動します"
+msgstr "LXD サーバ内もしくはサーバ間でインスタンスを移動します"
 
 #: lxc/storage_volume.go:1141 lxc/storage_volume.go:1142
 msgid "Move storage volumes between pools"
@@ -2241,11 +2269,8 @@ msgid "Move the instance without its snapshots"
 msgstr "インスタンスを移動します。スナップショットは移動しません"
 
 #: lxc/move.go:54
-#, fuzzy
 msgid "Move the instance without its snapshots (deprecated, use instance-only)"
-msgstr ""
-"コンテナを移動します。スナップショットは移動しません (廃止予定、instance-"
-"only を使ってください)"
+msgstr "インスタンスを移動します。スナップショットは移動しません (廃止予定、instance-only を使ってください)"
 
 #: lxc/storage_volume.go:365
 #, c-format
@@ -2257,28 +2282,27 @@ msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
 #: lxc/action.go:151
-#, fuzzy
 msgid "Must supply instance name for: "
-msgstr "コンテナ名を指定する必要があります: "
+msgstr "インスタンス名を指定する必要があります: "
 
 #: lxc/cluster.go:126 lxc/list.go:427 lxc/network.go:867 lxc/profile.go:620
 #: lxc/project.go:449 lxc/remote.go:513 lxc/storage.go:558
 #: lxc/storage_volume.go:1118
 msgid "NAME"
-msgstr ""
+msgstr "NAME"
 
 #: lxc/info.go:381
 msgid "NIC:"
-msgstr ""
+msgstr "NIC:"
 
 #: lxc/info.go:384
 msgid "NICs:"
-msgstr ""
+msgstr "NICs:"
 
 #: lxc/network.go:852 lxc/operation.go:143 lxc/project.go:428
 #: lxc/project.go:433 lxc/remote.go:476 lxc/remote.go:481
 msgid "NO"
-msgstr ""
+msgstr "NO"
 
 #: lxc/info.go:89 lxc/info.go:151 lxc/info.go:236 lxc/info.go:290
 #, c-format
@@ -2375,9 +2399,8 @@ msgid "Node %d:\n"
 msgstr "ノード %d:\n"
 
 #: lxc/storage_volume.go:181 lxc/storage_volume.go:260
-#, fuzzy
 msgid "Only \"custom\" volumes can be attached to instances"
-msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます"
+msgstr "\"カスタム\" のボリュームのみがインスタンスにアタッチできます"
 
 #: lxc/storage_volume.go:1523
 msgid "Only \"custom\" volumes can be snapshotted"
@@ -2419,19 +2442,19 @@ msgstr "PID"
 
 #: lxc/list.go:428
 msgid "PROCESSES"
-msgstr ""
+msgstr "PROCESSES"
 
 #: lxc/list.go:430 lxc/project.go:451
 msgid "PROFILES"
-msgstr ""
+msgstr "PROFILES"
 
 #: lxc/remote.go:515
 msgid "PROTOCOL"
-msgstr ""
+msgstr "PROTOCOL"
 
 #: lxc/image.go:1006 lxc/remote.go:517
 msgid "PUBLIC"
-msgstr ""
+msgstr "PUBLIC"
 
 #: lxc/info.go:548 lxc/network.go:788
 msgid "Packets received"
@@ -2451,9 +2474,8 @@ msgid "Password for %s: "
 msgstr "%s のパスワード: "
 
 #: lxc/action.go:49 lxc/action.go:50
-#, fuzzy
 msgid "Pause instances"
-msgstr "コンテナを一時停止します"
+msgstr "インスタンスを一時停止します"
 
 #: lxc/copy.go:57
 msgid "Perform an incremental copy"
@@ -2545,14 +2567,12 @@ msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
 
 #: lxc/copy.go:47 lxc/init.go:49
-#, fuzzy
 msgid "Profile to apply to the new instance"
-msgstr "新しいコンテナに適用するプロファイル"
+msgstr "新しいインスタンスに適用するプロファイル"
 
 #: lxc/move.go:52
-#, fuzzy
 msgid "Profile to apply to the target instance"
-msgstr "移動先のコンテナに適用するプロファイル"
+msgstr "移動先のインスタンスに適用するプロファイル"
 
 #: lxc/profile.go:227
 #, c-format
@@ -2560,14 +2580,12 @@ msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
 #: lxc/image.go:945
-#, fuzzy
 msgid "Profiles:"
-msgstr "プロファイル: %s"
+msgstr "プロファイル:"
 
 #: lxc/image.go:943
-#, fuzzy
 msgid "Profiles: "
-msgstr "プロファイル: %s"
+msgstr "プロファイル: "
 
 #: lxc/info.go:464
 #, c-format
@@ -2603,19 +2621,17 @@ msgid "Public: %s"
 msgstr "パブリック: %s"
 
 #: lxc/publish.go:34 lxc/publish.go:35
-#, fuzzy
 msgid "Publish instances as images"
-msgstr "コンテナをイメージとして出力します"
+msgstr "インスタンスをイメージとして出力します"
 
 #: lxc/publish.go:222
-#, fuzzy, c-format
+#, c-format
 msgid "Publishing instance: %s"
-msgstr "コンテナの出力中: %s"
+msgstr "インスタンスの出力中: %s"
 
 #: lxc/file.go:216 lxc/file.go:217
-#, fuzzy
 msgid "Pull files from instances"
-msgstr "コンテナからファイルを取得します"
+msgstr "インスタンスからファイルを取得します"
 
 #: lxc/file.go:364 lxc/file.go:687
 #, c-format
@@ -2623,9 +2639,8 @@ msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
 
 #: lxc/file.go:406 lxc/file.go:407
-#, fuzzy
 msgid "Push files into instances"
-msgstr "コンテナ内にファイルをコピーします"
+msgstr "インスタンス内にファイルをコピーします"
 
 #: lxc/file.go:623 lxc/file.go:779
 #, c-format
@@ -2650,9 +2665,9 @@ msgid "Refresh images"
 msgstr "イメージを更新します"
 
 #: lxc/copy.go:388
-#, fuzzy, c-format
+#, c-format
 msgid "Refreshing instance: %s"
-msgstr "コンテナの更新中: %s"
+msgstr "インスタンスの更新中: %s"
 
 #: lxc/image.go:1294
 #, c-format
@@ -2712,14 +2727,12 @@ msgid "Remove aliases"
 msgstr "エイリアスを削除します"
 
 #: lxc/config_device.go:415 lxc/config_device.go:416
-#, fuzzy
 msgid "Remove instance devices"
-msgstr "コンテナのデバイスを削除します"
+msgstr "インスタンスのデバイスを削除します"
 
 #: lxc/profile.go:635 lxc/profile.go:636
-#, fuzzy
 msgid "Remove profiles from instances"
-msgstr "コンテナからプロファイルを削除します"
+msgstr "インスタンスからプロファイルを削除します"
 
 #: lxc/remote.go:596 lxc/remote.go:597
 msgid "Remove remotes"
@@ -2739,9 +2752,8 @@ msgid "Rename aliases"
 msgstr "エイリアスの名前を変更します"
 
 #: lxc/rename.go:20 lxc/rename.go:21
-#, fuzzy
 msgid "Rename instances and snapshots"
-msgstr "コンテナまたはコンテナのスナップショットの名前を変更します"
+msgstr "インスタンスまたはインスタンスのスナップショットの名前を変更します"
 
 #: lxc/network.go:960 lxc/network.go:961
 msgid "Rename networks"
@@ -2787,45 +2799,40 @@ msgid "Resources:"
 msgstr "リソース:"
 
 #: lxc/action.go:69
-#, fuzzy
 msgid "Restart insances"
-msgstr "コンテナを再起動します"
+msgstr "インスタンスを再起動します"
 
 #: lxc/action.go:70
-#, fuzzy
 msgid ""
 "Restart instances\n"
 "\n"
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
-"コンテナを再起動します\n"
+"インスタンスを再起動します\n"
 "\n"
 "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
 #: lxc/restore.go:24
-#, fuzzy
 msgid ""
 "Restore instaces from snapshots\n"
 "\n"
 "If --stateful is passed, then the running state will be restored too."
 msgstr ""
-"スナップショットからコンテナをリストアします\n"
+"スナップショットからインスタンスをリストアします\n"
 "\n"
-"--stateful オプションを指定すると、コンテナの実行状態もリストアします。"
+"--stateful オプションを指定すると、インスタンスの実行状態もリストアします。"
 
 #: lxc/restore.go:23
-#, fuzzy
 msgid "Restore instances from snapshots"
-msgstr "スナップショットからコンテナをリストアします"
+msgstr "スナップショットからインスタンスをリストアします"
 
 #: lxc/storage_volume.go:1562 lxc/storage_volume.go:1563
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
 #: lxc/console.go:38
-#, fuzzy
 msgid "Retrieve the instance's console log"
-msgstr "コンテナのコンソールログを取得します"
+msgstr "インスタンスのコンソールログを取得します"
 
 #: lxc/init.go:291
 #, c-format
@@ -2833,21 +2840,20 @@ msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
 #: lxc/action.go:111
-#, fuzzy
 msgid "Run against all instances"
-msgstr "すべてのコンテナに対してコマンドを実行します"
+msgstr "すべてのインスタンスに対してコマンドを実行します"
 
 #: lxc/image.go:1009
 msgid "SIZE"
-msgstr ""
+msgstr "SIZE"
 
 #: lxc/list.go:431
 msgid "SNAPSHOTS"
-msgstr ""
+msgstr "SNAPSHOTS"
 
 #: lxc/storage.go:565
 msgid "SOURCE"
-msgstr ""
+msgstr "SOURCE"
 
 #: lxc/info.go:134 lxc/info.go:219
 msgid "SR-IOV information:"
@@ -2855,19 +2861,19 @@ msgstr "SR-IOV 情報:"
 
 #: lxc/cluster.go:129 lxc/list.go:432 lxc/network.go:874 lxc/storage.go:563
 msgid "STATE"
-msgstr ""
+msgstr "STATE"
 
 #: lxc/remote.go:518
 msgid "STATIC"
-msgstr ""
+msgstr "STATIC"
 
 #: lxc/operation.go:161
 msgid "STATUS"
-msgstr ""
+msgstr "STATUS"
 
 #: lxc/list.go:434
 msgid "STORAGE POOL"
-msgstr ""
+msgstr "STORAGE POOL"
 
 #: lxc/query.go:30 lxc/query.go:31
 msgid "Send a raw query to LXD"
@@ -2895,12 +2901,10 @@ msgid "Server version: %s\n"
 msgstr "サーバのバージョン: %s\n"
 
 #: lxc/config_device.go:505
-#, fuzzy
 msgid "Set instance device configuration keys"
-msgstr "コンテナデバイスの設定項目を設定します"
+msgstr "インスタンスデバイスの設定項目を設定します"
 
 #: lxc/config_device.go:507
-#, fuzzy
 msgid ""
 "Set instance device configuration keys\n"
 "\n"
@@ -2908,13 +2912,12 @@ msgid ""
 "with:\n"
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 msgstr ""
-"コンテナのデバイス設定を行います\n"
+"インスタンスのデバイス設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc config device set [<remote>:]<container> <device> <key> <value>"
+"    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 
 #: lxc/config_device.go:513
-#, fuzzy
 msgid ""
 "Set instance device configuration keys\n"
 "\n"
@@ -2922,18 +2925,16 @@ msgid ""
 "with:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
-"コンテナのデバイス設定を行います\n"
+"インスタンスのデバイス設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 
 #: lxc/config.go:453
-#, fuzzy
 msgid "Set instance or server configuration keys"
-msgstr "コンテナもしくはサーバの設定項目を設定します"
+msgstr "インスタンスもしくはサーバの設定項目を設定します"
 
 #: lxc/config.go:454
-#, fuzzy
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -2941,10 +2942,10 @@ msgid ""
 "with:\n"
 "    lxc config set [<remote>:][<instance>] <key> <value>"
 msgstr ""
-"コンテナもしくはサーバの設定を行います\n"
+"インスタンスもしくはサーバの設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc config set [<remote>:][<container>] <key> <value>"
+"    lxc config set [<remote>:][<instance>] <key> <value>"
 
 #: lxc/network.go:1010
 msgid "Set network configuration keys"
@@ -3056,9 +3057,8 @@ msgid "Show all information messages"
 msgstr "詳細な情報を出力します"
 
 #: lxc/config_template.go:295 lxc/config_template.go:296
-#, fuzzy
 msgid "Show content of instance file templates"
-msgstr "コンテナのファイルテンプレートの内容を表示します"
+msgstr "インスタンスのファイルテンプレートの内容を表示します"
 
 #: lxc/cluster.go:146 lxc/cluster.go:147
 msgid "Show details of a cluster member"
@@ -3069,28 +3069,24 @@ msgid "Show details on a background operation"
 msgstr "バックグラウンド操作の詳細を表示します"
 
 #: lxc/config_device.go:612 lxc/config_device.go:613
-#, fuzzy
 msgid "Show full device configuration for instances or profiles"
-msgstr "コンテナもしくはプロファイルのデバイス設定をすべて表示します"
+msgstr "インスタンスもしくはプロファイルのデバイス設定をすべて表示します"
 
 #: lxc/image.go:1344 lxc/image.go:1345
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
 #: lxc/config_metadata.go:174 lxc/config_metadata.go:175
-#, fuzzy
 msgid "Show instance metadata files"
-msgstr "コンテナのメタデータファイルを表示します"
+msgstr "インスタンスのメタデータファイルを表示します"
 
 #: lxc/config.go:611 lxc/config.go:612
-#, fuzzy
 msgid "Show instance or server configurations"
-msgstr "コンテナもしくはサーバの設定を表示します"
+msgstr "インスタンスもしくはサーバの設定を表示します"
 
 #: lxc/info.go:32 lxc/info.go:33
-#, fuzzy
 msgid "Show instance or server information"
-msgstr "コンテナもしくはサーバの情報を表示します"
+msgstr "インスタンスもしくはサーバの情報を表示します"
 
 #: lxc/main.go:223 lxc/main.go:224
 msgid "Show less common commands"
@@ -3133,9 +3129,8 @@ msgid "Show the expanded configuration"
 msgstr "拡張した設定を表示する"
 
 #: lxc/info.go:43
-#, fuzzy
 msgid "Show the instance's last 100 log lines?"
-msgstr "コンテナログの最後の 100 行を表示しますか?"
+msgstr "インスタンスログの最後の 100 行を表示しますか?"
 
 #: lxc/info.go:44
 msgid "Show the resources available to the server"
@@ -3181,18 +3176,17 @@ msgid "Socket %d:"
 msgstr "ソケット %d:"
 
 #: lxc/action.go:269
-#, fuzzy, c-format
+#, c-format
 msgid "Some instances failed to %s"
-msgstr "一部のコンテナで %s が失敗しました"
+msgstr "一部のインスタンスで %s が失敗しました"
 
 #: lxc/image.go:936
 msgid "Source:"
 msgstr "取得元:"
 
 #: lxc/action.go:30 lxc/action.go:31
-#, fuzzy
 msgid "Start instances"
-msgstr "コンテナを起動します"
+msgstr "インスタンスを起動します"
 
 #: lxc/launch.go:68
 #, c-format
@@ -3210,24 +3204,21 @@ msgid "Status: %s"
 msgstr "状態: %s"
 
 #: lxc/action.go:90 lxc/action.go:91
-#, fuzzy
 msgid "Stop instances"
-msgstr "コンテナを停止します"
+msgstr "インスタンスを停止します"
 
 #: lxc/publish.go:41
-#, fuzzy
 msgid "Stop the instance if currently running"
-msgstr "実行中の場合、コンテナを停止します"
+msgstr "実行中の場合、インスタンスを停止します"
 
 #: lxc/publish.go:145
-#, fuzzy
 msgid "Stopping instance failed!"
-msgstr "コンテナの停止に失敗しました！"
+msgstr "インスタンスの停止に失敗しました！"
 
 #: lxc/delete.go:120
-#, fuzzy, c-format
+#, c-format
 msgid "Stopping the instance failed: %s"
-msgstr "コンテナの停止に失敗しました: %s"
+msgstr "インスタンスの停止に失敗しました: %s"
 
 #: lxc/storage.go:145
 #, c-format
@@ -3267,9 +3258,8 @@ msgid "Storage volume moved successfully!"
 msgstr "ストレージボリュームの移動が成功しました!"
 
 #: lxc/action.go:114
-#, fuzzy
 msgid "Store the instance state"
-msgstr "コンテナの状態を保存します"
+msgstr "インスタンスの状態を保存します"
 
 #: lxc/info.go:179
 #, c-format
@@ -3299,12 +3289,12 @@ msgstr "デフォルトのリモートを切り替えます"
 
 #: lxc/alias.go:127
 msgid "TARGET"
-msgstr ""
+msgstr "TARGET"
 
 #: lxc/image.go:1011 lxc/image_alias.go:233 lxc/list.go:433 lxc/network.go:868
 #: lxc/network.go:941 lxc/operation.go:159 lxc/storage_volume.go:1117
 msgid "TYPE"
-msgstr ""
+msgstr "TYPE"
 
 #: lxc/move.go:161 lxc/move.go:165
 msgid "The --instance-only flag can't be used with --target"
@@ -3328,23 +3318,18 @@ msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
 #: lxc/delete.go:104
-#, fuzzy
 msgid "The instance is currently running, stop it first or pass --force"
-msgstr "コンテナは実行中です。先に停止させるか、--force を指定してください"
+msgstr "インスタンスは実行中です。先に停止させるか、--force を指定してください"
 
 #: lxc/publish.go:110
-#, fuzzy
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
-msgstr ""
-"コンテナは現在実行中です。停止して、再起動するために --force を使用してくださ"
-"い"
+msgstr "インスタンスは現在実行中です。停止して、再起動するために --force を使用してください"
 
 #: lxc/init.go:394
-#, fuzzy
 msgid "The instance you are starting doesn't have any network attached to it."
-msgstr "起動しようとしたコンテナに接続されているネットワークがありません。"
+msgstr "起動しようとしたインスタンスに接続されているネットワークがありません。"
 
 #: lxc/init.go:378
 #, c-format
@@ -3364,9 +3349,8 @@ msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
 #: lxc/move.go:236
-#, fuzzy
 msgid "The source LXD server is not clustered"
-msgstr "移動元の LXD インスタンスはクラスタに属していません"
+msgstr "移動元の LXD サーバはクラスタに属していません"
 
 #: lxc/network.go:434 lxc/network.go:519 lxc/storage_volume.go:673
 #: lxc/storage_volume.go:754
@@ -3384,7 +3368,6 @@ msgstr ""
 "さい。"
 
 #: lxc/main.go:242
-#, fuzzy
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -3395,34 +3378,27 @@ msgid ""
 "To easily setup a local LXD server in a virtual machine, consider using: "
 "https://multipass.run"
 msgstr ""
-"このクライアントは、まだリモートの LXD サーバを使うようには設定されていませ"
-"ん。\n"
-"お使いのプラットフォームでは、ネイティブな Linux コンテナは実行できませんの"
-"で、リモートの LXD サーバに接続しなければなりません。\n"
+"このクライアントは、まだリモートの LXD サーバを使うようには設定されていません。\n"
+"お使いのプラットフォームでは、ネイティブな Linux インスタンスは実行できませんので、リモートの LXD サーバに接続しなければなりません。\n"
 "\n"
-"すでにリモートサーバを追加しているのであれば、\"lxc remote switch NAME\" のよ"
-"うにデフォルトを設定してください。\n"
-"仮想マシン上にローカルな LXD サーバを簡単にセットアップするには、https://"
-"multipass.run の使用を検討してください。"
+"すでにリモートサーバを追加しているのであれば、\"lxc remote switch NAME\" のようにデフォルトを設定してください。\n"
+"仮想マシン上にローカルな LXD サーバを簡単にセットアップするには、https://multipass.run の使用を検討してください。"
 
 #: lxc/info.go:291
 msgid "Threads:"
 msgstr "スレッド:"
 
 #: lxc/action.go:121
-#, fuzzy
 msgid "Time to wait for the instance before killing it"
-msgstr "コンテナを強制停止するまでの時間"
+msgstr "インスタンスを強制停止するまで待つ時間"
 
 #: lxc/image.go:897
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
 #: lxc/init.go:396
-#, fuzzy
 msgid "To attach a network to an instance, use: lxc network attach"
-msgstr ""
-"コンテナにネットワークを接続するには、lxc network attach を使用してください"
+msgstr "インスタンスにネットワークを接続するには、lxc network attach を使用してください"
 
 #: lxc/init.go:395
 msgid "To create a new network, use: lxc network create"
@@ -3434,11 +3410,8 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
 #: lxc/main.go:345
-#, fuzzy
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
-msgstr ""
-"初めてコンテナを起動するには、\"lxc launch ubuntu:18.04\" と実行してみてくだ"
-"さい"
+msgstr "初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみてください"
 
 #: lxc/config.go:293 lxc/config.go:418 lxc/config.go:568 lxc/config.go:649
 #: lxc/copy.go:116 lxc/info.go:310 lxc/network.go:759 lxc/storage.go:420
@@ -3475,9 +3448,9 @@ msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
 #: lxc/copy.go:354
-#, fuzzy, c-format
+#, c-format
 msgid "Transferring instance: %s"
-msgstr "コンテナを転送中: %s"
+msgstr "インスタンスを転送中: %s"
 
 #: lxc/action.go:196 lxc/launch.go:99
 #, c-format
@@ -3496,21 +3469,21 @@ msgstr "タイプ: %s (ephemeral)"
 
 #: lxc/image.go:1010
 msgid "UPLOAD DATE"
-msgstr ""
+msgstr "UPLOAD DATE"
 
 #: lxc/cluster.go:127 lxc/remote.go:514
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 #: lxc/network.go:871 lxc/profile.go:621 lxc/project.go:452 lxc/storage.go:567
 #: lxc/storage_volume.go:1120
 msgid "USED BY"
-msgstr ""
+msgstr "USED BY"
 
 #: lxc/info.go:130
 #, c-format
 msgid "UUID: %v"
-msgstr ""
+msgstr "UUID: %v"
 
 #: lxc/file.go:179
 #, c-format
@@ -3528,19 +3501,16 @@ msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
 
 #: lxc/move.go:53
-#, fuzzy
 msgid "Unset all profiles on the target instance"
-msgstr "移動先のコンテナのすべてのプロファイルを削除します"
+msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
 
 #: lxc/config_device.go:680 lxc/config_device.go:681
-#, fuzzy
 msgid "Unset instance device configuration keys"
-msgstr "コンテナデバイスの設定を削除します"
+msgstr "インスタンスデバイスの設定を削除します"
 
 #: lxc/config.go:730 lxc/config.go:731
-#, fuzzy
 msgid "Unset instance or server configuration keys"
-msgstr "コンテナもしくはサーバの設定を削除します"
+msgstr "インスタンスもしくはサーバの設定を削除します"
 
 #: lxc/network.go:1142 lxc/network.go:1143
 msgid "Unset network configuration keys"
@@ -3565,7 +3535,7 @@ msgstr "ストレージボリュームの設定を削除します"
 #: lxc/info.go:605
 #, c-format
 msgid "Unsupported instance type: %s"
-msgstr ""
+msgstr "サポートされていないインスタンスタイプです: %s"
 
 #: lxc/image.go:904
 #, c-format
@@ -3602,7 +3572,7 @@ msgstr ""
 #: lxc/info.go:138 lxc/info.go:223
 #, c-format
 msgid "VFs: %d"
-msgstr ""
+msgstr "VFs: %d"
 
 #: lxc/info.go:272
 #, c-format
@@ -3641,22 +3611,19 @@ msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr "スナップショットを含めずにインスタンスのみをバックアップするかどうか"
 
 #: lxc/restore.go:36
-#, fuzzy
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
-msgstr ""
-"スナップショットからコンテナの稼動状態をリストアするかどうか (取得可能な場合)"
+msgstr "スナップショットからインスタンスの稼動状態をリストアするかどうか (取得可能な場合)"
 
 #: lxc/snapshot.go:34
-#, fuzzy
 msgid "Whether or not to snapshot the instance's running state"
-msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
+msgstr "インスタンスの稼動状態のスナップショットを取得するかどうか"
 
 #: lxc/network.go:854 lxc/operation.go:145 lxc/project.go:430
 #: lxc/project.go:435 lxc/remote.go:478 lxc/remote.go:483
 msgid "YES"
-msgstr ""
+msgstr "YES"
 
 #: lxc/exec.go:92
 msgid "You can't pass -t and -T at the same time"
@@ -3667,120 +3634,116 @@ msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
 #: lxc/copy.go:82
-#, fuzzy
 msgid "You must specify a destination instance name when using --target"
-msgstr "--target オプションを使うときはコピー先のコンテナ名を指定してください"
+msgstr "--target オプションを使うときはコピー先のインスタンス名を指定してください"
 
 #: lxc/copy.go:77 lxc/move.go:220
-#, fuzzy
 msgid "You must specify a source instance name"
-msgstr "コピー元のコンテナ名を指定してください"
+msgstr "コピー元のインスタンス名を指定してください"
 
 #: lxc/alias.go:52
 msgid "add <alias> <target>"
-msgstr ""
+msgstr "add <alias> <target>"
 
 #: lxc/config_trust.go:56
 msgid "add [<remote>:] <cert>"
-msgstr ""
+msgstr "add [<remote>:] <cert>"
 
 #: lxc/profile.go:99
-#, fuzzy
 msgid "add [<remote>:]<instance> <profile>"
-msgstr "restore [<remote>:]<container> <snapshot>"
+msgstr "add [<remote>:]<instance> <profile>"
 
 #: lxc/config_device.go:74
-#, fuzzy
 msgid "add [<remote>:]<instance|profile> <device> <type> [key=value...]"
-msgstr "set [<remote>:]<container|profile> <device> <key>=<value>..."
+msgstr "add [<remote>:]<instance|profile> <device> <type> [key=value...]"
 
 #: lxc/remote.go:83
 msgid "add [<remote>] <IP|FQDN|URL>"
-msgstr ""
+msgstr "add [<remote>] <IP|FQDN|URL>"
 
 #: lxc/alias.go:20 lxc/image_alias.go:23
 msgid "alias"
 msgstr "alias"
 
 #: lxc/profile.go:161
-#, fuzzy
 msgid "assign [<remote>:]<instance> <profiles>"
-msgstr "switch [<remote>:] <project>"
+msgstr "assign [<remote>:]<instance> <profiles>"
 
 #: lxc/network.go:106
 msgid ""
 "attach [<remote>:]<network> <instance> [<device name>] [<interface name>]"
 msgstr ""
+"attach [<remote>:]<network> <instance> [<device name>] [<interface name>]"
 
 #: lxc/storage_volume.go:137
-#, fuzzy
 msgid "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
-msgstr "set [<remote>:]<pool> <volume> <key>=<value>..."
+msgstr "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
 
 #: lxc/storage_volume.go:216
 msgid ""
 "attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
+"attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 
 #: lxc/network.go:179
 msgid ""
 "attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
 "name>]"
 msgstr ""
+"attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
+"name>]"
 
 #: lxc/cluster.go:27
 msgid "cluster"
-msgstr ""
+msgstr "cluster"
 
 #: lxc/config.go:29
 msgid "config"
-msgstr ""
+msgstr "config"
 
 #: lxc/console.go:29
-#, fuzzy
 msgid "console [<remote>:]<instance>"
-msgstr "restore [<remote>:]<container> <snapshot>"
+msgstr "console [<remote>:]<instance>"
 
 #: lxc/storage_volume.go:298
 msgid "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
-msgstr ""
+msgstr "copy <pool>/<volume>[/<snapshot>] <pool>/<volume>"
 
 #: lxc/image.go:125
 msgid "copy [<remote>:]<image> <remote>:"
-msgstr ""
+msgstr "copy [<remote>:]<image> <remote>:"
 
 #: lxc/profile.go:241
 msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
-msgstr ""
+msgstr "copy [<remote>:]<profile> [<remote>:]<profile>"
 
 #: lxc/copy.go:38
 msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
-msgstr ""
+msgstr "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 
 #: lxc/image_alias.go:56
 msgid "create [<remote>:]<alias> <fingerprint>"
-msgstr ""
+msgstr "create [<remote>:]<alias> <fingerprint>"
 
 #: lxc/config_template.go:64
-#, fuzzy
 msgid "create [<remote>:]<instance> <template>"
-msgstr "restore [<remote>:]<container> <snapshot>"
+msgstr "create [<remote>:]<instance> <template>"
 
 #: lxc/network.go:252
 msgid "create [<remote>:]<network> [key=value...]"
-msgstr ""
+msgstr "create [<remote>:]<network> [key=value...]"
 
 #: lxc/storage.go:87
 msgid "create [<remote>:]<pool> <driver> [key=value...]"
-msgstr ""
+msgstr "create [<remote>:]<pool> <driver> [key=value...]"
 
 #: lxc/storage_volume.go:460
 msgid "create [<remote>:]<pool> <volume> [key=value...]"
-msgstr ""
+msgstr "create [<remote>:]<pool> <volume> [key=value...]"
 
 #: lxc/profile.go:298
 msgid "create [<remote>:]<profile>"
-msgstr ""
+msgstr "create [<remote>:]<profile>"
 
 #: lxc/project.go:84
 msgid "create [<remote>:]<project>"
@@ -3792,47 +3755,43 @@ msgstr "現在値"
 
 #: lxc/remote.go:506
 msgid "default"
-msgstr ""
+msgstr "default"
 
 #: lxc/image_alias.go:102
 msgid "delete [<remote>:]<alias>"
-msgstr ""
+msgstr "delete [<remote>:]<alias>"
 
 #: lxc/image.go:267
 msgid "delete [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
 
 #: lxc/config_template.go:106
-#, fuzzy
 msgid "delete [<remote>:]<instance> <template>"
-msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
+msgstr "delete [<remote>:]<instance> <template>"
 
 #: lxc/file.go:102
-#, fuzzy
 msgid "delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
-msgstr ""
-"delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]"
+msgstr "delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 
 #: lxc/delete.go:27
-#, fuzzy
 msgid ""
 "delete [<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/"
 "<snapshot>]...]"
 msgstr ""
-"delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/"
-"<snapshot>]...]"
+"delete [<remote>:]<instance>[/<snapshot>] "
+"[[<remote>:]<instance>[/<snapshot>]...]"
 
 #: lxc/network.go:323
 msgid "delete [<remote>:]<network>"
-msgstr ""
+msgstr "delete [<remote>:]<network>"
 
 #: lxc/operation.go:50
 msgid "delete [<remote>:]<operation>"
-msgstr ""
+msgstr "delete [<remote>:]<operation>"
 
 #: lxc/storage.go:160
 msgid "delete [<remote>:]<pool>"
-msgstr ""
+msgstr "delete [<remote>:]<pool>"
 
 #: lxc/storage_volume.go:536
 msgid "delete [<remote>:]<pool> <volume>[/<snapshot>]"
@@ -3840,7 +3799,7 @@ msgstr "delete [<remote>:]<pool> <volume>[/<snapshot>]"
 
 #: lxc/profile.go:351
 msgid "delete [<remote>:]<profile>"
-msgstr ""
+msgstr "delete [<remote>:]<profile>"
 
 #: lxc/project.go:148
 msgid "delete [<remote>:]<project>"
@@ -3851,27 +3810,24 @@ msgid "description"
 msgstr "説明"
 
 #: lxc/network.go:374
-#, fuzzy
 msgid "detach [<remote>:]<network> <instance> [<device name>]"
-msgstr "set [<remote>:]<network> <key>=<value>..."
+msgstr "detach [<remote>:]<network> <instance> [<device name>]"
 
 #: lxc/storage_volume.go:613
-#, fuzzy
 msgid "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
-msgstr "set [<remote>:]<pool> <volume> <key>=<value>..."
+msgstr "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
 
 #: lxc/storage_volume.go:695
 msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
-msgstr ""
+msgstr "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 
 #: lxc/network.go:459
-#, fuzzy
 msgid "detach-profile [<remote>:]<network> <instance> [<device name>]"
-msgstr "set [<remote>:]<network> <key>=<value>..."
+msgstr "detach-profile [<remote>:]<network> <instance> [<device name>]"
 
 #: lxc/config_device.go:22
 msgid "device"
-msgstr ""
+msgstr "device"
 
 #: lxc/image.go:882
 msgid "disabled"
@@ -3883,30 +3839,27 @@ msgstr "ドライバ"
 
 #: lxc/image.go:319
 msgid "edit [<remote>:]<image>"
-msgstr ""
+msgstr "edit [<remote>:]<image>"
 
 #: lxc/config_metadata.go:51
-#, fuzzy
 msgid "edit [<remote>:]<instance>"
-msgstr "edit [<remote>:][<container>[/<snapshot>]]"
+msgstr "edit [<remote>:]<instance>"
 
 #: lxc/config_template.go:149
-#, fuzzy
 msgid "edit [<remote>:]<instance> <template>"
-msgstr "edit [<remote>:][<container>[/<snapshot>]]"
+msgstr "edit [<remote>:]<instance> <template>"
 
 #: lxc/file.go:152
-#, fuzzy
 msgid "edit [<remote>:]<instance>/<path>"
-msgstr "edit [<remote>:][<container>[/<snapshot>]]"
+msgstr "edit [<remote>:]<instance>/<path>"
 
 #: lxc/network.go:544
 msgid "edit [<remote>:]<network>"
-msgstr ""
+msgstr "edit [<remote>:]<network>"
 
 #: lxc/storage.go:211
 msgid "edit [<remote>:]<pool>"
-msgstr ""
+msgstr "edit [<remote>:]<pool>"
 
 #: lxc/storage_volume.go:776
 msgid "edit [<remote>:]<pool> <volume>[/<snapshot>]"
@@ -3914,20 +3867,19 @@ msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
 
 #: lxc/profile.go:402
 msgid "edit [<remote>:]<profile>"
-msgstr ""
+msgstr "edit [<remote>:]<profile>"
 
 #: lxc/project.go:212
 msgid "edit [<remote>:]<project>"
-msgstr ""
+msgstr "edit [<remote>:]<project>"
 
 #: lxc/config.go:88
-#, fuzzy
 msgid "edit [<remote>:][<instance>[/<snapshot>]]"
-msgstr "edit [<remote>:][<container>[/<snapshot>]]"
+msgstr "edit [<remote>:][<instance>[/<snapshot>]]"
 
 #: lxc/cluster.go:330
 msgid "enable [<remote>:] <name>"
-msgstr ""
+msgstr "enable [<remote>:] <name>"
 
 #: lxc/image.go:884
 msgid "enabled"
@@ -3940,7 +3892,7 @@ msgstr "エラー: %v"
 
 #: lxc/exec.go:38
 msgid "exec [<remote>:]<instance> [flags] [--] <command line>"
-msgstr ""
+msgstr "exec [<remote>:]<instance> [flags] [--] <command line>"
 
 #: lxc/info.go:579
 #, c-format
@@ -3949,32 +3901,29 @@ msgstr "%s に失効"
 
 #: lxc/image.go:444
 msgid "export [<remote>:]<image> [<target>]"
-msgstr ""
+msgstr "export [<remote>:]<image> [<target>]"
 
 #: lxc/export.go:31
-#, fuzzy
 msgid ""
 "export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 msgstr ""
-"export [<remote>:]<container> [target] [--container-only] [--optimized-"
-"storage]"
+"export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 
 #: lxc/file.go:70
 msgid "file"
-msgstr ""
+msgstr "file"
 
 #: lxc/config_device.go:186
-#, fuzzy
 msgid "get [<remote>:]<instance|profile> <device> <key>"
-msgstr "set [<remote>:]<container|profile> <device> <key>=<value>..."
+msgstr "get [<remote>:]<instance|profile> <device> <key>"
 
 #: lxc/network.go:667
 msgid "get [<remote>:]<network> <key>"
-msgstr ""
+msgstr "get [<remote>:]<network> <key>"
 
 #: lxc/storage.go:331
 msgid "get [<remote>:]<pool> <key>"
-msgstr ""
+msgstr "get [<remote>:]<pool> <key>"
 
 #: lxc/storage_volume.go:976
 msgid "get [<remote>:]<pool> <volume>[/<snapshot>] <key>"
@@ -3982,34 +3931,35 @@ msgstr "get [<remote>:]<pool> <volume>[/<snapshot>] <key>"
 
 #: lxc/profile.go:526
 msgid "get [<remote>:]<profile> <key>"
-msgstr ""
+msgstr "get [<remote>:]<profile> <key>"
 
 #: lxc/project.go:332
 msgid "get [<remote>:]<project> <key>"
 msgstr "get [<remote>:]<project> <key>"
 
 #: lxc/config.go:371
-#, fuzzy
 msgid "get [<remote>:][<instance>] <key>"
-msgstr "get [<remote>:]<project> <key>"
+msgstr "get [<remote>:][<instance>] <key>"
 
 #: lxc/remote.go:417
 msgid "get-default"
-msgstr ""
+msgstr "get-default"
 
 #: lxc/image.go:36
 msgid "image"
-msgstr ""
+msgstr "image"
 
 #: lxc/image.go:603
 msgid ""
 "import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] "
 "[key=value...]"
 msgstr ""
+"import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] "
+"[key=value...]"
 
 #: lxc/import.go:26
 msgid "import [<remote>:] <backup file>"
-msgstr ""
+msgstr "import [<remote>:] <backup file>"
 
 #: lxc/storage.go:443
 msgid "info"
@@ -4017,20 +3967,19 @@ msgstr "ストレージ情報"
 
 #: lxc/image.go:831
 msgid "info [<remote>:]<image>"
-msgstr ""
+msgstr "info [<remote>:]<image>"
 
 #: lxc/network.go:725
 msgid "info [<remote>:]<network>"
-msgstr ""
+msgstr "info [<remote>:]<network>"
 
 #: lxc/storage.go:386
 msgid "info [<remote>:]<pool>"
-msgstr ""
+msgstr "info [<remote>:]<pool>"
 
 #: lxc/info.go:31
-#, fuzzy
 msgid "info [<remote>:][<instance>]"
-msgstr "edit [<remote>:][<container>[/<snapshot>]]"
+msgstr "info [<remote>:][<instance>]"
 
 #: lxc/init.go:38
 msgid "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
@@ -4038,42 +3987,40 @@ msgstr "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 
 #: lxc/launch.go:21
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
-msgstr ""
+msgstr "launch [<remote>:]<image> [<remote>:][<name>]"
 
 #: lxc/alias.go:97 lxc/remote.go:452
 msgid "list"
-msgstr ""
+msgstr "list"
 
 #: lxc/cluster.go:65 lxc/config_trust.go:113 lxc/network.go:804
 #: lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:505
 msgid "list [<remote>:]"
-msgstr ""
+msgstr "list [<remote>:]"
 
 #: lxc/image.go:965 lxc/list.go:41
 msgid "list [<remote>:] [<filter>...]"
-msgstr ""
+msgstr "list [<remote>:] [<filter>...]"
 
 #: lxc/image_alias.go:147
 msgid "list [<remote>:] [<filters>...]"
-msgstr ""
+msgstr "list [<remote>:] [<filters>...]"
 
 #: lxc/config_template.go:235
-#, fuzzy
 msgid "list [<remote>:]<instance>"
-msgstr "delete [<remote>:]<project>"
+msgstr "list [<remote>:]<instance>"
 
 #: lxc/config_device.go:258
-#, fuzzy
 msgid "list [<remote>:]<instance|profile>"
-msgstr "delete [<remote>:]<project>"
+msgstr "list [<remote>:]<instance|profile>"
 
 #: lxc/storage_volume.go:1066
 msgid "list [<remote>:]<pool>"
-msgstr ""
+msgstr "list [<remote>:]<pool>"
 
 #: lxc/network.go:890
 msgid "list-leases [<remote>:]<network>"
-msgstr ""
+msgstr "list-leases [<remote>:]<network>"
 
 #: lxc/alias.go:56
 msgid ""
@@ -4100,27 +4047,24 @@ msgstr ""
 "    エイリアス名 \"list\" を \"my-list\" に変更します。"
 
 #: lxc/config_device.go:79
-#, fuzzy
 msgid ""
 "lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=opt\n"
 "    Will mount the host's /share/c1 onto /opt in the instance."
 msgstr ""
-"lxc config device add [<remote>:]container1 <device-name> disk source=/share/"
+"lxc config device add [<remote>:]instance1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    ホストの /share/c1 をコンテナ内の /opt にマウントします。"
+"    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
 
 #: lxc/config.go:92
-#, fuzzy
 msgid ""
 "lxc config edit <instance> < instance.yaml\n"
 "    Update the instance configuration from config.yaml."
 msgstr ""
-"lxc config edit <container> < container.yaml\n"
-"    コンテナの設定を config.yaml を使って更新します。"
+"lxc config edit <instance> < instance.yaml\n"
+"    インスタンスの設定を config.yaml を使って更新します。"
 
 #: lxc/config.go:459
-#, fuzzy
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
@@ -4131,8 +4075,8 @@ msgid ""
 "lxc config set core.trust_password=blah\n"
 "    Will set the server's trust password to blah."
 msgstr ""
-"lxc config set [<remote>:]<container> limits.cpu=2\n"
-"    コンテナの設定値 limits.cpu を \"2\" に設定します。\n"
+"lxc config set [<remote>:]<instance> limits.cpu=2\n"
+"    インスタンスの設定値 limits.cpu を \"2\" に設定します。\n"
 "\n"
 "lxc config set core.https_address=[::]:8443\n"
 "    LXD が IPv4、IPv6 の両方の 8843 番ポートで listen するようになります。\n"
@@ -4141,34 +4085,29 @@ msgstr ""
 "    サーバの認証パスワードを blah に設定します。"
 
 #: lxc/export.go:35
-#, fuzzy
 msgid ""
 "lxc export u1 backup0.tar.gz\n"
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 "lxc export u1 backup0.tar.gz\n"
-"    u1 コンテナのバックアップ tarball をダウンロードします。"
+"    u1 インスタンスのバックアップ tarball をダウンロードします。"
 
 #: lxc/file.go:219
-#, fuzzy
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
 "directory."
 msgstr ""
 "lxc file pull foo/etc/hosts .\n"
-"   コンテナの /etc/hosts ファイルを取得し、カレントディレクトリにコピーしま"
-"す。"
+"   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーします。"
 
 #: lxc/file.go:409
-#, fuzzy
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
 msgstr ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
-"   /etc/hosts ファイルを、コンテナ \"foo\" 内 (の /etc/hosts) にコピーしま"
-"す。"
+"   /etc/hosts ファイルを、インスタンス \"foo\" 内 (の /etc/hosts) にコピーします。"
 
 #: lxc/image.go:323
 msgid ""
@@ -4185,16 +4124,14 @@ msgstr ""
 "    YAML ファイルからイメージプロパティをロードします"
 
 #: lxc/import.go:30
-#, fuzzy
 msgid ""
 "lxc import backup0.tar.gz\n"
 "    Create a new instance using backup0.tar.gz as the source."
 msgstr ""
 "lxc import backup0.tar.gz\n"
-"    backup0.tar.gz を使って新しいコンテナを作成します。"
+"    backup0.tar.gz を使って新しいインスタンスを作成します。"
 
 #: lxc/info.go:35
-#, fuzzy
 msgid ""
 "lxc info [<remote>:]<instance> [--show-log]\n"
 "    For instance information.\n"
@@ -4202,40 +4139,37 @@ msgid ""
 "lxc info [<remote>:] [--resources]\n"
 "    For LXD server information."
 msgstr ""
-"lxc info [<remote>:]<container> [--show-log]\n"
-"    コンテナの情報を表示します。\n"
+"lxc info [<remote>:]<instance> [--show-log]\n"
+"    インスタンスの情報を表示します。\n"
 "\n"
 "lxc info [<remote>:] [--resources]\n"
 "    LXD サーバの情報を表示します。"
 
 #: lxc/init.go:41
-#, fuzzy
 msgid ""
 "lxc init ubuntu:18.04 u1\n"
 "\n"
 "lxc init ubuntu:18.04 u1 < config.yaml\n"
 "    Create the instance with configuration from config.yaml"
 msgstr ""
-"lxc init ubuntu:16.04 u1\n"
+"lxc init ubuntu:18.04 u1\n"
 "\n"
-"lxc init ubuntu:16.04 u1 < config.yaml\n"
-"    config.yaml の設定を使ってコンテナを作成します"
+"lxc init ubuntu:18.04 u1 < config.yaml\n"
+"    config.yaml の設定を使ってインスタンスを作成します"
 
 #: lxc/launch.go:25
-#, fuzzy
 msgid ""
 "lxc launch ubuntu:18.04 u1\n"
 "\n"
 "lxc launch ubuntu:18.04 u1 < config.yaml\n"
 "    Create and start the instance with configuration from config.yaml"
 msgstr ""
-"lxc launch ubuntu:16.04 u1\n"
+"lxc launch ubuntu:18.04 u1\n"
 "\n"
-"lxc launch ubuntu:16.04 u1 < config.yaml\n"
-"    config.yaml の設定を使ってコンテナを作成し、起動します"
+"lxc launch ubuntu:18.04 u1 < config.yaml\n"
+"    config.yaml の設定を使ってインスタンスを作成し、起動します"
 
 #: lxc/list.go:104
-#, fuzzy
 msgid ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
 "parent:ETHP\n"
@@ -4248,16 +4182,15 @@ msgid ""
 "lxc list -c ns,user.comment:comment\n"
 "  List images with their running state and user comment."
 msgstr ""
-"lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
-"parent:ETHP\n"
-"  \"NAME\"、\"BASE IMAGE\"、\"STATE\"、\"IPV4\"、\"IPV6\"、\"MAC\" カラムを"
-"使ってコンテナを一覧表示します。\n"
-"  \"BASE IMAGE\" と \"MAC\" と \"IMAGE OS\" はコンテナの設定から生成したカス"
-"タムカラムです。\n"
+"lxc list -c "
+"nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0.parent:ETHP\n"
+"  \"NAME\"、\"BASE IMAGE\"、\"STATE\"、\"IPV4\"、\"IPV6\"、\"MAC\" "
+"カラムを使ってインスタンスを一覧表示します。\n"
+"  \"BASE IMAGE\" と \"MAC\" と \"IMAGE OS\" はインスタンスの設定から生成したカスタムカラムです。\n"
 "  \"ETHP\" はデバイスの設定から生成したカスタムカラムです。\n"
 "\n"
 "lxc list -c ns,user.comment:comment\n"
-"  実行状態とユーザコメントとともにコンテナを一覧表示します。"
+"  実行状態とユーザコメントとともにインスタンスを一覧表示します。"
 
 #: lxc/monitor.go:34
 msgid ""
@@ -4280,7 +4213,6 @@ msgstr ""
 "    lifecycle イベントのみを表示します。"
 
 #: lxc/move.go:39
-#, fuzzy
 msgid ""
 "lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
 "instance-only]\n"
@@ -4293,15 +4225,15 @@ msgid ""
 "lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>\n"
 "    Rename a snapshot."
 msgstr ""
-"lxc move [<remote>:]<source container> [<remote>:][<destination container>] "
-"[--container-only]\n"
-"    2 つのホスト間でコンテナを移動します。コピー先の名前が元と違う場合は\n"
+"lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] "
+"[--instance-only]\n"
+"    2 つのホスト間でインスタンスを移動します。コピー先の名前が元と違う場合は\n"
 "    同時にリネームされます。\n"
 "\n"
-"lxc move <old name> <new name> [--container-only]\n"
-"    ローカルのコンテナをリネームします。\n"
+"lxc move <old name> <new name> [--instance-only]\n"
+"    ローカルのインスタンスをリネームします。\n"
 "\n"
-"lxc move <container>/<old snapshot name> <container>/<new snapshot name>\n"
+"lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>\n"
 "    スナップショットをリネームします。"
 
 #: lxc/operation.go:183
@@ -4334,7 +4266,6 @@ msgstr ""
 "    \"foo\" からすべてのプロファイルを削除します。"
 
 #: lxc/config_device.go:83
-#, fuzzy
 msgid ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
@@ -4342,7 +4273,7 @@ msgid ""
 msgstr ""
 "lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/"
 "c1 path=opt\n"
-"    ホストの /share/c1 をコンテナ内の /opt にマウントします。"
+"    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
 
 #: lxc/profile.go:406
 msgid ""
@@ -4361,13 +4292,12 @@ msgstr ""
 "    profile.yaml の内容でプロファイルを更新します"
 
 #: lxc/query.go:33
-#, fuzzy
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
 msgstr ""
-"lxc query -X DELETE --wait /1.0/containers/c1\n"
-"    ローカルのコンテナ \"c1\" を削除します。"
+"lxc query -X DELETE --wait /1.0/instances/c1\n"
+"    ローカルのインスタンス \"c1\" を削除します。"
 
 #: lxc/snapshot.go:29
 msgid ""
@@ -4427,27 +4357,25 @@ msgstr ""
 
 #: lxc/manpage.go:17
 msgid "manpage <target>"
-msgstr ""
+msgstr "manpage <target>"
 
 #: lxc/config_metadata.go:26
 msgid "metadata"
-msgstr ""
+msgstr "metadata"
 
 #: lxc/monitor.go:28
 msgid "monitor [<remote>:]"
-msgstr ""
+msgstr "monitor [<remote>:]"
 
 #: lxc/storage_volume.go:1139
 msgid "move [<pool>/]<volume> [<pool>/]<volume>"
-msgstr ""
+msgstr "move [<pool>/]<volume> [<pool>/]<volume>"
 
 #: lxc/move.go:34
-#, fuzzy
 msgid ""
 "move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
-"move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
-"<snapshot>]]"
+"move [<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 
 #: lxc/storage.go:444
 msgid "name"
@@ -4459,7 +4387,7 @@ msgstr "network"
 
 #: lxc/image.go:872 lxc/image.go:877 lxc/image.go:1064
 msgid "no"
-msgstr ""
+msgstr "no"
 
 #: lxc/remote.go:260
 msgid "ok (y/n)?"
@@ -4470,14 +4398,12 @@ msgid "operation"
 msgstr "operation"
 
 #: lxc/config_device.go:325
-#, fuzzy
 msgid "override [<remote>:]<instance> <device> [key=value...]"
-msgstr "set [<remote>:]<container|profile> <device> <key>=<value>..."
+msgstr "override [<remote>:]<instance> <device> [key=value...]"
 
 #: lxc/action.go:48
-#, fuzzy
 msgid "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr "pause [<remote>:]<container> [[<remote>:]<container>...]"
+msgstr "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
 
 #: lxc/config.go:54
 msgid "please use `lxc profile`"
@@ -4489,37 +4415,33 @@ msgstr "profile"
 
 #: lxc/project.go:27
 msgid "project"
-msgstr ""
+msgstr "project"
 
 #: lxc/publish.go:33
-#, fuzzy
 msgid ""
 "publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr ""
-"publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] "
-"[key=value...]"
+"publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 
 #: lxc/file.go:215
-#, fuzzy
 msgid ""
 "pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target "
 "path>"
 msgstr ""
-"pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] "
-"<target path>"
+"pull [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target "
+"path>"
 
 #: lxc/file.go:405
-#, fuzzy
 msgid ""
 "push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
 "<path>...]"
 msgstr ""
-"push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/"
-"<path>...]"
+"push <source path> [<remote>:]<instance>/<path> "
+"[[<remote>:]<instance>/<path>...]"
 
 #: lxc/query.go:29
 msgid "query [<remote>:]<API path>"
-msgstr ""
+msgstr "query [<remote>:]<API path>"
 
 #: lxc/image.go:1264
 msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
@@ -4535,50 +4457,47 @@ msgstr "remove <alias>"
 
 #: lxc/remote.go:594
 msgid "remove <remote>"
-msgstr ""
+msgstr "remove <remote>"
 
 #: lxc/config_trust.go:191
 msgid "remove [<remote>:] <hostname|fingerprint>"
-msgstr ""
+msgstr "remove [<remote>:] <hostname|fingerprint>"
 
 #: lxc/profile.go:634
-#, fuzzy
 msgid "remove [<remote>:]<instance> <profile>"
-msgstr "restore [<remote>:]<container> <snapshot>"
+msgstr "remove [<remote>:]<instance> <profile>"
 
 #: lxc/config_device.go:413
-#, fuzzy
 msgid "remove [<remote>:]<instance|profile> <name>..."
-msgstr "set [<remote>:]<profile> <key><value>..."
+msgstr "remove [<remote>:]<instance|profile> <name>..."
 
 #: lxc/cluster.go:244
 msgid "remove [<remote>:]<member>"
-msgstr ""
+msgstr "remove [<remote>:]<member>"
 
 #: lxc/alias.go:141
 msgid "rename <old alias> <new alias>"
-msgstr ""
+msgstr "rename <old alias> <new alias>"
 
 #: lxc/remote.go:532
 msgid "rename <remote> <new-name>"
-msgstr ""
+msgstr "rename <remote> <new-name>"
 
 #: lxc/image_alias.go:249
 msgid "rename [<remote>:]<alias> <new-name>"
-msgstr ""
+msgstr "rename [<remote>:]<alias> <new-name>"
 
 #: lxc/rename.go:19
-#, fuzzy
 msgid "rename [<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
-msgstr "rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]"
+msgstr "rename [<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
 
 #: lxc/cluster.go:194
 msgid "rename [<remote>:]<member> <new-name>"
-msgstr ""
+msgstr "rename [<remote>:]<member> <new-name>"
 
 #: lxc/network.go:958
 msgid "rename [<remote>:]<network> <new-name>"
-msgstr ""
+msgstr "rename [<remote>:]<network> <new-name>"
 
 #: lxc/storage_volume.go:1171
 msgid ""
@@ -4590,30 +4509,27 @@ msgstr ""
 
 #: lxc/profile.go:709
 msgid "rename [<remote>:]<profile> <new-name>"
-msgstr ""
+msgstr "rename [<remote>:]<profile> <new-name>"
 
 #: lxc/project.go:466
 msgid "rename [<remote>:]<project> <new-name>"
 msgstr "rename [<remote>:]<project> <new-name>"
 
 #: lxc/action.go:68
-#, fuzzy
 msgid "restart [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr "restart [<remote>:]<container> [[<remote>:]<container>...]"
+msgstr "restart [<remote>:]<instance> [[<remote>:]<instance>...]"
 
 #: lxc/restore.go:22
-#, fuzzy
 msgid "restore [<remote>:]<instance> <snapshot>"
-msgstr "restore [<remote>:]<container> <snapshot>"
+msgstr "restore [<remote>:]<instance> <snapshot>"
 
 #: lxc/storage_volume.go:1561
 msgid "restore [<remote>:]<pool> <volume> <snapshot>"
 msgstr "restore [<remote>:]<pool> <volume> <snapshot>"
 
 #: lxc/config_device.go:504
-#, fuzzy
 msgid "set [<remote>:]<instance|profile> <device> <key>=<value>..."
-msgstr "set [<remote>:]<container|profile> <device> <key>=<value>..."
+msgstr "set [<remote>:]<instance|profile> <device> <key>=<value>..."
 
 #: lxc/network.go:1009
 msgid "set [<remote>:]<network> <key>=<value>..."
@@ -4621,7 +4537,7 @@ msgstr "set [<remote>:]<network> <key>=<value>..."
 
 #: lxc/storage.go:580
 msgid "set [<remote>:]<pool> <key> <value>"
-msgstr ""
+msgstr "set [<remote>:]<pool> <key> <value>"
 
 #: lxc/storage_volume.go:1284
 msgid "set [<remote>:]<pool> <volume> <key>=<value>..."
@@ -4636,48 +4552,44 @@ msgid "set [<remote>:]<project> <key>=<value>..."
 msgstr "set [<remote>:]<project> <key>=<value>..."
 
 #: lxc/config.go:452
-#, fuzzy
 msgid "set [<remote>:][<instance>] <key>=<value>..."
-msgstr "set [<remote>:][<container>] <key>=<value>..."
+msgstr "set [<remote>:][<instance>] <key>=<value>..."
 
 #: lxc/remote.go:683
 msgid "set-url <remote> <URL>"
-msgstr ""
+msgstr "set-url <remote> <URL>"
 
 #: lxc/image.go:1343
 msgid "show [<remote>:]<image>"
-msgstr ""
+msgstr "show [<remote>:]<image>"
 
 #: lxc/config_metadata.go:173
-#, fuzzy
 msgid "show [<remote>:]<instance>"
-msgstr "show [<remote>:][<container>[/<snapshot>]]"
+msgstr "show [<remote>:]<instance>"
 
 #: lxc/config_template.go:294
-#, fuzzy
 msgid "show [<remote>:]<instance> <template>"
-msgstr "show [<remote>:][<container>[/<snapshot>]]"
+msgstr "show [<remote>:]<instance> <template>"
 
 #: lxc/config_device.go:611
-#, fuzzy
 msgid "show [<remote>:]<instance|profile>"
-msgstr "show [<remote>:][<container>[/<snapshot>]]"
+msgstr "show [<remote>:]<instance|profile>"
 
 #: lxc/cluster.go:145
 msgid "show [<remote>:]<member>"
-msgstr ""
+msgstr "show [<remote>:]<member>"
 
 #: lxc/network.go:1079
 msgid "show [<remote>:]<network>"
-msgstr ""
+msgstr "show [<remote>:]<network>"
 
 #: lxc/operation.go:179
 msgid "show [<remote>:]<operation>"
-msgstr ""
+msgstr "show [<remote>:]<operation>"
 
 #: lxc/storage.go:649
 msgid "show [<remote>:]<pool>"
-msgstr ""
+msgstr "show [<remote>:]<pool>"
 
 #: lxc/storage_volume.go:1360
 msgid "show [<remote>:]<pool> <volume>[/<snapshot>]"
@@ -4685,21 +4597,19 @@ msgstr "show [<remote>:]<pool> <volume>[/<snapshot>]"
 
 #: lxc/profile.go:819
 msgid "show [<remote>:]<profile>"
-msgstr ""
+msgstr "show [<remote>:]<profile>"
 
 #: lxc/project.go:611
 msgid "show [<remote>:]<project>"
-msgstr ""
+msgstr "show [<remote>:]<project>"
 
 #: lxc/config.go:610
-#, fuzzy
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
-msgstr "show [<remote>:][<container>[/<snapshot>]]"
+msgstr "show [<remote>:][<instance>[/<snapshot>]]"
 
 #: lxc/snapshot.go:22
-#, fuzzy
 msgid "snapshot [<remote>:]<instance> [<snapshot name>]"
-msgstr "show [<remote>:][<container>[/<snapshot>]]"
+msgstr "snapshot [<remote>:]<instance> [<snapshot name>]"
 
 #: lxc/storage_volume.go:1490
 msgid "snapshot [<remote>:]<pool> <volume> [<snapshot>]"
@@ -4710,9 +4620,8 @@ msgid "space used"
 msgstr "使用量"
 
 #: lxc/action.go:29
-#, fuzzy
 msgid "start [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr "start [<remote>:]<container> [[<remote>:]<container>...]"
+msgstr "start [<remote>:]<instance> [[<remote>:]<instance>...]"
 
 #: lxc/info.go:583
 msgid "stateful"
@@ -4723,20 +4632,18 @@ msgid "stateless"
 msgstr "ステートレス"
 
 #: lxc/action.go:89
-#, fuzzy
 msgid "stop [<remote>:]<instance> [[<remote>:]<instance>...]"
-msgstr "stop [<remote>:]<container> [[<remote>:]<container>...]"
+msgstr "stop [<remote>:]<instance> [[<remote>:]<instance>...]"
 
 #: lxc/storage.go:31
 msgid "storage"
-msgstr ""
+msgstr "storage"
 
 #: lxc/remote.go:645
 msgid "switch <remote>"
 msgstr "switch <remote>"
 
 #: lxc/project.go:664
-#, fuzzy
 msgid "switch [<remote>:]<project>"
 msgstr "switch [<remote>:] <project>"
 
@@ -4747,7 +4654,7 @@ msgstr "%s に取得しました"
 
 #: lxc/config_template.go:27
 msgid "template"
-msgstr ""
+msgstr "template"
 
 #: lxc/storage.go:447
 msgid "total space"
@@ -4755,41 +4662,39 @@ msgstr "総容量"
 
 #: lxc/config_trust.go:27
 msgid "trust"
-msgstr ""
+msgstr "trust"
 
 #: lxc/version.go:48
 msgid "unreachable"
 msgstr "サーバに接続できません"
 
 #: lxc/config_device.go:679
-#, fuzzy
 msgid "unset [<remote>:]<instance|profile> <device> <key>"
-msgstr "set [<remote>:]<container|profile> <device> <key>=<value>..."
+msgstr "unset [<remote>:]<instance|profile> <device> <key>"
 
 #: lxc/network.go:1141
 msgid "unset [<remote>:]<network> <key>"
-msgstr ""
+msgstr "unset [<remote>:]<network> <key>"
 
 #: lxc/storage.go:733
 msgid "unset [<remote>:]<pool> <key>"
-msgstr ""
+msgstr "unset [<remote>:]<pool> <key>"
 
 #: lxc/storage_volume.go:1459
 msgid "unset [<remote>:]<pool> <volume> <key>"
-msgstr ""
+msgstr "unset [<remote>:]<pool> <volume> <key>"
 
 #: lxc/profile.go:873
 msgid "unset [<remote>:]<profile> <key>"
-msgstr ""
+msgstr "unset [<remote>:]<profile> <key>"
 
 #: lxc/project.go:582
 msgid "unset [<remote>:]<project> <key>"
 msgstr "unset [<remote>:]<project> <key>"
 
 #: lxc/config.go:729
-#, fuzzy
 msgid "unset [<remote>:][<instance>] <key>"
-msgstr "unset [<remote>:]<project> <key>"
+msgstr "unset [<remote>:][<instance>] <key>"
 
 #: lxc/storage.go:442
 msgid "used by"
@@ -4797,7 +4702,7 @@ msgstr "ストレージを使用中の"
 
 #: lxc/version.go:20
 msgid "version [<remote>:]"
-msgstr ""
+msgstr "version [<remote>:]"
 
 #: lxc/storage_volume.go:30
 msgid "volume"
@@ -4805,12 +4710,12 @@ msgstr "volume"
 
 #: lxc/remote.go:266
 msgid "y"
-msgstr ""
+msgstr "y"
 
 #: lxc/cluster.go:277 lxc/delete.go:46 lxc/image.go:874 lxc/image.go:879
 #: lxc/image.go:1062
 msgid "yes"
-msgstr ""
+msgstr "yes"
 
 #~ msgid "--target cannot be used with containers"
 #~ msgstr "--target はコンテナでは使えません"
