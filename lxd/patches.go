@@ -95,16 +95,16 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	logger.Infof("Applying patch: %s", p.name)
+	logger.Infof("Applying patch %q", p.name)
 
 	err := p.run(p.name, d)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed applying patch %q", p.name)
 	}
 
 	err = d.db.PatchesMarkApplied(p.name)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed marking patch applied %q", p.name)
 	}
 
 	return nil
