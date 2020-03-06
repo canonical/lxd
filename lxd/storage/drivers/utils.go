@@ -445,13 +445,13 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 		return fmt.Errorf(`Shrinking not supported for filesystem type "%s". A dump, mkfs, and restore are required`, fsType)
 	case "ext4":
 		return vol.UnmountTask(func(op *operations.Operation) error {
-			output, err := shared.TryRunCommand("e2fsck", "-f", "-y", devPath)
+			output, err := shared.RunCommand("e2fsck", "-f", "-y", devPath)
 			if err != nil {
 				// e2fsck provides some context to errors on stdout.
 				return errors.Wrapf(err, "%s", strings.TrimSpace(output))
 			}
 
-			_, err = shared.TryRunCommand("resize2fs", devPath, strSize)
+			_, err = shared.RunCommand("resize2fs", devPath, strSize)
 			if err != nil {
 				return err
 			}
@@ -460,7 +460,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 		}, nil)
 	case "btrfs":
 		return vol.MountTask(func(mountPath string, op *operations.Operation) error {
-			_, err := shared.TryRunCommand("btrfs", "filesystem", "resize", strSize, mountPath)
+			_, err := shared.RunCommand("btrfs", "filesystem", "resize", strSize, mountPath)
 			if err != nil {
 				return err
 			}
