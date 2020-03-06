@@ -398,12 +398,12 @@ func (d *zfs) Unmount() (bool, error) {
 
 func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	// Get the total amount of space.
-	totalStr, err := d.getDatasetProperty(d.config["zfs.pool_name"], "available")
+	availableStr, err := d.getDatasetProperty(d.config["zfs.pool_name"], "available")
 	if err != nil {
 		return nil, err
 	}
 
-	total, err := strconv.ParseUint(strings.TrimSpace(totalStr), 10, 64)
+	available, err := strconv.ParseUint(strings.TrimSpace(availableStr), 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +422,7 @@ func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 	// Build the struct.
 	// Inode allocation is dynamic so no use in reporting them.
 	res := api.ResourcesStoragePool{}
-	res.Space.Total = total
+	res.Space.Total = used + available
 	res.Space.Used = used
 
 	return &res, nil
