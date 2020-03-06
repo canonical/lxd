@@ -1152,16 +1152,10 @@ SELECT storage_volumes_all.id
 	return int64(result[0]), nil
 }
 
-// StoragePoolNodeVolumeGetTypeID get the ID of a storage volume on a given
-// storage pool of a given storage volume type, on the current node.
-func (c *Cluster) StoragePoolNodeVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
-	return c.storagePoolVolumeGetTypeID("default", volumeName, volumeType, poolID, c.nodeID)
-}
-
 // StoragePoolNodeVolumeGetTypeIDByProject gets the ID of a storage volume on a given storage pool
 // of a given storage volume type and project, on the current node.
-func (c *Cluster) StoragePoolNodeVolumeGetTypeIDByProject(project, volumeName string, volumeType int, poolID int64) (int64, error) {
-	return c.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, c.nodeID)
+func (c *Cluster) StoragePoolNodeVolumeGetTypeIDByProject(projectName string, volumeName string, volumeType int, poolID int64) (int64, error) {
+	return c.storagePoolVolumeGetTypeID(projectName, volumeName, volumeType, poolID, c.nodeID)
 }
 
 // XXX: this was extracted from lxd/storage_volume_utils.go, we find a way to
