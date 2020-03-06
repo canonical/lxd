@@ -227,17 +227,17 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 
 			// unix hotplug device events rely on information added by udev
 			if udevEvent {
+				action := props["ACTION"]
+				if action != "add" && action != "remove" {
+					continue
+				}
+
 				subsystem, ok := props["SUBSYSTEM"]
 				if !ok {
 					continue
 				}
 
 				devname, ok := props["DEVNAME"]
-				if !ok {
-					continue
-				}
-
-				vendor, product, ok := ueventParseVendorProduct(props, subsystem, devname)
 				if !ok {
 					continue
 				}
@@ -252,18 +252,36 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					continue
 				}
 
+				vendor := ""
+				product := ""
+				if action == "add" {
+					vendor, product, ok = ueventParseVendorProduct(props, subsystem, devname)
+					if !ok {
+						continue
+					}
+				}
+
 				zeroPad := func(s string, l int) string {
 					return strings.Repeat("0", l-len(s)) + s
 				}
 
+				// zeropad
+				if len(vendor) < 4 {
+					vendor = zeroPad(vendor, 4)
+				}
+
+				if len(product) < 4 {
+					product = zeroPad(product, 4)
+				}
+
 				unix, err := device.UnixHotplugNewEvent(
-					props["ACTION"],
+					action,
 					/* udev doesn't zero pad these, while
 					 * everything else does, so let's zero pad them
 					 * for consistency
 					 */
-					zeroPad(vendor, 4),
-					zeroPad(product, 4),
+					vendor,
+					product,
 					major,
 					minor,
 					subsystem,
@@ -584,14 +602,14 @@ func getHidrawDevInfo(fd int) (string, string, error) {
 }
 
 func ueventParseVendorProduct(props map[string]string, subsystem string, devname string) (string, string, bool) {
+	vendor, vendorOk := props["ID_VENDOR_ID"]
+	product, productOk := props["ID_MODEL_ID"]
+
+	if vendorOk && productOk {
+		return vendor, product, true
+	}
+
 	if subsystem != "hidraw" {
-		vendor, vendorOk := props["ID_VENDOR_ID"]
-		product, productOk := props["ID_MODEL_ID"]
-
-		if vendorOk && productOk {
-			return vendor, product, true
-		}
-
 		return "", "", false
 	}
 
@@ -606,7 +624,7 @@ func ueventParseVendorProduct(props map[string]string, subsystem string, devname
 
 	defer file.Close()
 
-	vendor, product, err := getHidrawDevInfo(int(file.Fd()))
+	vendor, product, err = getHidrawDevInfo(int(file.Fd()))
 	if err != nil {
 		logger.Debugf("Failed to retrieve device info from hidraw device \"%s\"", devname)
 		return "", "", false
