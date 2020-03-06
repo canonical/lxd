@@ -78,13 +78,13 @@ func (d *unixHotplug) Register() error {
 
 	// Handler for when a UnixHotplug event occurs.
 	f := func(e UnixHotplugEvent) (*deviceConfig.RunConfig, error) {
-		if !unixHotplugIsOurDevice(devConfig, &e) {
-			return nil, nil
-		}
-
 		runConf := deviceConfig.RunConfig{}
 
 		if e.Action == "add" {
+			if !unixHotplugIsOurDevice(devConfig, &e) {
+				return nil, nil
+			}
+
 			if e.Subsystem == "block" {
 				err := unixDeviceSetupBlockNum(state, devicesPath, "unix", deviceName, devConfig, e.Major, e.Minor, e.Path, false, &runConf)
 				if err != nil {
