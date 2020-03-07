@@ -38,7 +38,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 
 	containers, err := getProfileContainersInfo(d.cluster, project, name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to query containers associated with profile '%s'", name)
+		return errors.Wrapf(err, "failed to query instances associated with profile '%s'", name)
 	}
 
 	// Check if the root device is supposed to be changed or removed.
@@ -67,7 +67,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 					// Found the profile
 					if profiles[i] == name {
 						// If it's the current profile, then we can't modify that root device
-						return fmt.Errorf("At least one container relies on this profile's root disk device")
+						return fmt.Errorf("At least one instance relies on this profile's root disk device")
 					} else {
 						// If it's not, then move on to the next container
 						break
@@ -170,12 +170,12 @@ func doProfileUpdateCluster(d *Daemon, project, name string, old api.ProfilePut)
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to query local node name")
+		return errors.Wrap(err, "Failed to query local node name")
 	}
 
 	containers, err := getProfileContainersInfo(d.cluster, project, name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to query containers associated with profile '%s'", name)
+		return errors.Wrapf(err, "Failed to query instances associated with profile '%s'", name)
 	}
 
 	failures := map[string]error{}
@@ -245,7 +245,7 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 	// given profile.
 	names, err := cluster.ProfileContainersGet(project, profile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to query containers with profile '%s'", profile)
+		return nil, errors.Wrapf(err, "Failed to query instances with profile '%s'", profile)
 	}
 
 	containers := []db.InstanceArgs{}
@@ -264,7 +264,7 @@ func getProfileContainersInfo(cluster *db.Cluster, project, profile string) ([]d
 		return nil
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to fetch containers")
+		return nil, errors.Wrapf(err, "Failed to fetch instances")
 	}
 
 	return containers, nil

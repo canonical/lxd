@@ -369,11 +369,11 @@ func containerExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !inst.IsRunning() {
-		return response.BadRequest(fmt.Errorf("Container is not running"))
+		return response.BadRequest(fmt.Errorf("Instance is not running"))
 	}
 
 	if inst.IsFrozen() {
-		return response.BadRequest(fmt.Errorf("Container is frozen"))
+		return response.BadRequest(fmt.Errorf("Instance is frozen"))
 	}
 
 	// Process environment.

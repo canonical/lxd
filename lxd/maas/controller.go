@@ -109,7 +109,7 @@ func (c *Controller) getDevice(name string) (gomaasapi.Device, error) {
 	}
 
 	if len(devs) != 1 {
-		return nil, fmt.Errorf("Couldn't find the specified container: %s", name)
+		return nil, fmt.Errorf("Couldn't find the specified instance: %s", name)
 	}
 
 	return devs[0], nil
