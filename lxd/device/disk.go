@@ -977,7 +977,7 @@ func (d *disk) storagePoolVolumeAttachShift(poolName string, volumeName string, 
 				// we can shift the storage volume.
 				// I'm not sure if we want some locking here.
 				if volumeUsedBy[0] != d.inst.Name() {
-					return fmt.Errorf("idmaps of container and storage volume are not identical")
+					return fmt.Errorf("Idmaps of container and storage volume are not identical")
 				}
 			}
 		}

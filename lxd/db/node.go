@@ -615,7 +615,7 @@ func (c *ClusterTx) NodeWithLeastContainers(archs []int) (string, error) {
 		pending, err := query.Count(
 			c.tx, "operations", "node_id=? AND type=?", node.ID, OperationContainerCreate)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get pending containers count")
+			return "", errors.Wrap(err, "Failed to get pending instances count")
 		}
 
 		count := created + pending

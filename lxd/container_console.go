@@ -282,12 +282,12 @@ func containerConsolePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = fmt.Errorf("Container is not running")
+	err = fmt.Errorf("Instance is not running")
 	if !inst.IsRunning() {
 		return response.BadRequest(err)
 	}
 
-	err = fmt.Errorf("Container is frozen")
+	err = fmt.Errorf("Instance is frozen")
 	if inst.IsFrozen() {
 		return response.BadRequest(err)
 	}

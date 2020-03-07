@@ -250,7 +250,7 @@ SELECT nodes.id, nodes.address
 	}
 
 	if rows.Next() {
-		return "", fmt.Errorf("more than one node associated with container")
+		return "", fmt.Errorf("More than one node associated with instance")
 	}
 
 	err = rows.Err()
@@ -337,7 +337,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 	instances, err := c.InstanceList(InstanceFilter{})
 	if err != nil {
-		return nil, errors.Wrap(err, "Load containers")
+		return nil, errors.Wrap(err, "Load instances")
 	}
 
 	projects, err := c.ProjectList(ProjectFilter{})
@@ -467,41 +467,48 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	// volume.
 	poolName, err := c.InstancePool(project, oldName)
 	if err != nil {
-		return errors.Wrap(err, "failed to get container's storage pool name")
+		return errors.Wrap(err, "Failed to get instance's storage pool name")
 	}
+
 	poolID, err := c.StoragePoolID(poolName)
 	if err != nil {
-		return errors.Wrap(err, "failed to get container's storage pool ID")
+		return errors.Wrap(err, "Failed to get instance's storage pool ID")
 	}
+
 	poolDriver, err := c.StoragePoolDriver(poolID)
 	if err != nil {
-		return errors.Wrap(err, "failed to get container's storage pool driver")
+		return errors.Wrap(err, "Failed to get instance's storage pool driver")
 	}
+
 	if poolDriver != "ceph" {
-		return fmt.Errorf("container's storage pool is not of type ceph")
+		return fmt.Errorf("Instance's storage pool is not of type ceph")
 	}
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
 	containerID, err := c.InstanceID(project, oldName)
 	if err != nil {
-		return errors.Wrap(err, "failed to get container's ID")
+		return errors.Wrap(err, "Failed to get instance's ID")
 	}
+
 	node, err := c.NodeByName(newNode)
 	if err != nil {
-		return errors.Wrap(err, "failed to get new node's info")
+		return errors.Wrap(err, "Failed to get new node's info")
 	}
+
 	stmt := "UPDATE instances SET node_id=?, name=? WHERE id=?"
 	result, err := c.tx.Exec(stmt, node.ID, newName, containerID)
 	if err != nil {
-		return errors.Wrap(err, "failed to update container's name and node ID")
+		return errors.Wrap(err, "Failed to update instance's name and node ID")
 	}
+
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "failed to get rows affected by container update")
+		return errors.Wrap(err, "Failed to get rows affected by instance update")
 	}
+
 	if n != 1 {
-		return fmt.Errorf("unexpected number of updated rows in instances table: %d", n)
+		return fmt.Errorf("Unexpected number of updated rows in instances table: %d", n)
 	}
 
 	// No need to update storage_volumes if the name is identical
@@ -513,19 +520,22 @@ func (c *ClusterTx) ContainerNodeMove(project, oldName, newName, newNode string)
 	// there's a clone of the volume for each node).
 	count, err := c.NodesCount()
 	if err != nil {
-		return errors.Wrap(err, "failed to get node's count")
+		return errors.Wrap(err, "Failed to get node's count")
 	}
+
 	stmt = "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
 	result, err = c.tx.Exec(stmt, newName, oldName, poolID, StoragePoolVolumeTypeContainer)
 	if err != nil {
-		return errors.Wrap(err, "failed to update container's volume name")
+		return errors.Wrap(err, "Failed to update instance's volume name")
 	}
+
 	n, err = result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "failed to get rows affected by container volume update")
+		return errors.Wrap(err, "Failed to get rows affected by instance volume update")
 	}
+
 	if n != int64(count) {
-		return fmt.Errorf("unexpected number of updated rows in volumes table: %d", n)
+		return fmt.Errorf("Unexpected number of updated rows in volumes table: %d", n)
 	}
 
 	return nil
@@ -537,6 +547,7 @@ func (c *ClusterTx) ContainerNodeProjectList(project string, instanceType instan
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
 	}
+
 	filter := InstanceFilter{
 		Project: project,
 		Node:    node,
