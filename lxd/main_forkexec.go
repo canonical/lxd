@@ -71,7 +71,7 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 	// Load the container
 	d, err := liblxc.NewContainer(name, lxcpath)
 	if err != nil {
-		return fmt.Errorf("Error initializing container for start: %q", err)
+		return fmt.Errorf("Error initializing instance for start: %q", err)
 	}
 
 	err = d.LoadConfigFile(configPath)

@@ -112,11 +112,11 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded
 
 	for k, v := range config {
 		if profile && strings.HasPrefix(k, "volatile.") {
-			return fmt.Errorf("Volatile keys can only be set on containers")
+			return fmt.Errorf("Volatile keys can only be set on instances")
 		}
 
 		if profile && strings.HasPrefix(k, "image.") {
-			return fmt.Errorf("Image keys can only be set on containers")
+			return fmt.Errorf("Image keys can only be set on instances")
 		}
 
 		err := validConfigKey(sysOS, k, v)
@@ -442,7 +442,7 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 	} else {
 		container, err = tx.InstanceGet(project, name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
+			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
 		}
 	}
 
@@ -460,7 +460,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 	args := db.InstanceToArgs(container)
 	inst, err := Load(s, args, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to load container")
+		return nil, errors.Wrap(err, "Failed to load instance")
 	}
 
 	return inst, nil
@@ -728,7 +728,7 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.Backup, err
 	// Load the instance it belongs to
 	instance, err := LoadByID(s, args.InstanceID)
 	if err != nil {
-		return nil, errors.Wrap(err, "Load container from database")
+		return nil, errors.Wrap(err, "Load instance from database")
 	}
 
 	return backup.New(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil

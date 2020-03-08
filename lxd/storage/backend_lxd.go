@@ -2518,7 +2518,7 @@ func (b *lxdBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[s
 		}
 
 		if len(usingVolume) != 0 {
-			return fmt.Errorf("Cannot modify shifting with running containers using the volume")
+			return fmt.Errorf("Cannot modify shifting with running instances using the volume")
 		}
 	}
 

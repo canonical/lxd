@@ -230,7 +230,7 @@ func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
 
 		containers, err := tx.instanceListExpanded()
 		if err != nil {
-			return errors.Wrapf(err, "Fetch containers")
+			return errors.Wrapf(err, "Fetch instances")
 		}
 
 		for _, container := range containers {
