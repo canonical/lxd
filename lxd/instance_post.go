@@ -83,7 +83,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			// Load source node.
 			address, err := tx.ContainerNodeAddress(project, name, instanceType)
 			if err != nil {
-				return errors.Wrap(err, "Failed to get address of container's node")
+				return errors.Wrap(err, "Failed to get address of instance's node")
 			}
 			if address == "" {
 				// Local node.
@@ -181,12 +181,12 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			// Check if we are migrating a ceph-based container.
 			poolName, err := d.cluster.InstancePool(project, name)
 			if err != nil {
-				err = errors.Wrap(err, "Failed to fetch container's pool name")
+				err = errors.Wrap(err, "Failed to fetch instance's pool name")
 				return response.SmartError(err)
 			}
 			_, pool, err := d.cluster.StoragePoolGet(poolName)
 			if err != nil {
-				err = errors.Wrap(err, "Failed to fetch container's pool info")
+				err = errors.Wrap(err, "Failed to fetch instance's pool info")
 				return response.SmartError(err)
 			}
 			if pool.Driver == "ceph" {
@@ -198,7 +198,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 			// here only to handle the case where the container is
 			// ceph-based.
 			if sourceNodeOffline {
-				err := fmt.Errorf("The cluster member hosting the container is offline")
+				err := fmt.Errorf("The cluster member hosting the instance is offline")
 				return response.SmartError(err)
 			}
 
@@ -324,7 +324,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 		// First make a copy on the new node of the container to be moved.
 		entry, _, err := source.GetContainer(oldName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get container info")
+			return errors.Wrap(err, "Failed to get instance info")
 		}
 
 		args := lxd.ContainerCopyArgs{
@@ -334,23 +334,23 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 
 		copyOp, err := dest.CopyContainer(source, *entry, &args)
 		if err != nil {
-			return errors.Wrap(err, "Failed to issue copy container API request")
+			return errors.Wrap(err, "Failed to issue copy instance API request")
 		}
 
 		err = copyOp.Wait()
 		if err != nil {
-			return errors.Wrap(err, "Copy container operation failed")
+			return errors.Wrap(err, "Copy instance operation failed")
 		}
 
 		// Delete the container on the original node.
 		deleteOp, err := source.DeleteContainer(oldName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to issue delete container API request")
+			return errors.Wrap(err, "Failed to issue delete instance API request")
 		}
 
 		err = deleteOp.Wait()
 		if err != nil {
-			return errors.Wrap(err, "Delete container operation failed")
+			return errors.Wrap(err, "Delete instance operation failed")
 		}
 
 		// If the destination name is not set, we have generated a random name for
@@ -362,12 +362,12 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 
 			op, err := dest.RenameInstance(destName, instancePost)
 			if err != nil {
-				return errors.Wrap(err, "Failed to issue rename container API request")
+				return errors.Wrap(err, "Failed to issue rename instance API request")
 			}
 
 			err = op.Wait()
 			if err != nil {
-				return errors.Wrap(err, "Rename container operation failed")
+				return errors.Wrap(err, "Rename instance operation failed")
 			}
 			destName = oldName
 		}
@@ -375,7 +375,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 		// Restore the original value of "volatile.apply_template"
 		id, err := d.cluster.ContainerID(c.Project(), destName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get ID of moved container")
+			return errors.Wrap(err, "Failed to get ID of moved instance")
 		}
 
 		err = d.cluster.ContainerConfigRemove(id, "volatile.apply_template")
@@ -416,16 +416,16 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, c.Name(), c.Name(), newName)
 		poolName, err := c.StoragePool()
 		if err != nil {
-			return errors.Wrap(err, "Failed to get source container's storage pool name")
+			return errors.Wrap(err, "Failed to get source instance's storage pool name")
 		}
 
 		pool, err := driver.GetPoolByName(d.State(), poolName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get source container's storage pool")
+			return errors.Wrap(err, "Failed to get source instance's storage pool")
 		}
 
 		if pool.Driver().Info().Name != "ceph" {
-			return fmt.Errorf("Source container's storage pool is not of type ceph")
+			return fmt.Errorf("Source instance's storage pool is not of type ceph")
 		}
 
 		args := migration.VolumeSourceArgs{
@@ -449,7 +449,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 			return nil
 		})
 		if err != nil {
-			return errors.Wrap(err, "Failed to relink container database data")
+			return errors.Wrap(err, "Failed to relink instance database data")
 		}
 
 		// Create the container mount point on the target node
@@ -506,21 +506,21 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Resp
 func containerPostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
 	c, err := instance.LoadByProjectAndName(d.State(), project, containerName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to load moved container on target node")
+		return errors.Wrap(err, "Failed to load moved instance on target node")
 	}
 	poolName, err := c.StoragePool()
 	if err != nil {
-		return errors.Wrap(err, "Failed get pool name of moved container on target node")
+		return errors.Wrap(err, "Failed get pool name of moved instance on target node")
 	}
 	snapshotNames, err := d.cluster.ContainerGetSnapshots(project, containerName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create container snapshot names")
+		return errors.Wrap(err, "Failed to create instance snapshot names")
 	}
 
 	containerMntPoint := driver.GetContainerMountPoint(c.Project(), poolName, containerName)
 	err = driver.CreateContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
 	if err != nil {
-		return errors.Wrap(err, "Failed to create container mount point on target node")
+		return errors.Wrap(err, "Failed to create instance mount point on target node")
 	}
 
 	for _, snapshotName := range snapshotNames {

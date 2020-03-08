@@ -248,7 +248,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		if err != nil {
 			req.Source.Refresh = false
 		} else if inst.IsRunning() {
-			return response.BadRequest(fmt.Errorf("Cannot refresh a running container"))
+			return response.BadRequest(fmt.Errorf("Cannot refresh a running instance"))
 		}
 	}
 
@@ -329,7 +329,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		// And finally run the migration.
 		err = sink.Do(d.State(), op)
 		if err != nil {
-			return fmt.Errorf("Error transferring container data: %s", err)
+			return fmt.Errorf("Error transferring instance data: %s", err)
 		}
 
 		err = inst.DeferTemplateApply("copy")
@@ -364,7 +364,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 
 func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.Response {
 	if req.Source.Source == "" {
-		return response.BadRequest(fmt.Errorf("must specify a source container"))
+		return response.BadRequest(fmt.Errorf("Must specify a source instance"))
 	}
 
 	sourceProject := req.Source.Project
@@ -412,7 +412,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 
 			_, pool, err := d.cluster.StoragePoolGet(sourcePoolName)
 			if err != nil {
-				err = errors.Wrap(err, "Failed to fetch container's pool info")
+				err = errors.Wrap(err, "Failed to fetch instance's pool info")
 				return response.SmartError(err)
 			}
 
@@ -482,7 +482,7 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 		if err != nil {
 			req.Source.Refresh = false
 		} else if c.IsRunning() {
-			return response.BadRequest(fmt.Errorf("Cannot refresh a running container"))
+			return response.BadRequest(fmt.Errorf("Cannot refresh a running instance"))
 		}
 	}
 
@@ -798,7 +798,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
-		return response.BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
+		return response.BadRequest(fmt.Errorf("Invalid instance name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
 	// Check that the project's limits are not violated. Also, possibly
@@ -939,7 +939,7 @@ func clusterCopyContainerInternal(d *Daemon, source instance.Instance, project s
 		// Load source node.
 		nodeAddress, err = tx.ContainerNodeAddress(project, name, source.Type())
 		if err != nil {
-			return errors.Wrap(err, "Failed to get address of container's node")
+			return errors.Wrap(err, "Failed to get address of instance's node")
 		}
 
 		return nil
@@ -949,7 +949,7 @@ func clusterCopyContainerInternal(d *Daemon, source instance.Instance, project s
 	}
 
 	if nodeAddress == "" {
-		return response.BadRequest(fmt.Errorf("The container source is currently offline"))
+		return response.BadRequest(fmt.Errorf("The source instance is currently offline"))
 	}
 
 	// Connect to the container source

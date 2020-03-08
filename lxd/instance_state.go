@@ -174,7 +174,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 				}
 			} else {
 				if c.IsFrozen() {
-					return fmt.Errorf("container is not running")
+					return fmt.Errorf("Instance is not running")
 				}
 
 				err = c.Shutdown(time.Duration(raw.Timeout) * time.Second)
@@ -192,7 +192,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 		}
 	case shared.Freeze:
 		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
-			return response.BadRequest(fmt.Errorf("This system doesn't support freezing containers"))
+			return response.BadRequest(fmt.Errorf("This system doesn't support freezing instances"))
 		}
 
 		opType = db.OperationContainerFreeze
@@ -202,7 +202,7 @@ func containerStatePut(d *Daemon, r *http.Request) response.Response {
 		}
 	case shared.Unfreeze:
 		if !d.os.CGInfo.Supports(cgroup.Freezer, nil) {
-			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing containers"))
+			return response.BadRequest(fmt.Errorf("This system doesn't support unfreezing instances"))
 		}
 
 		opType = db.OperationContainerUnfreeze

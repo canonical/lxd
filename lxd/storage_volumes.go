@@ -594,7 +594,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	if len(ctsUsingVolume) > 0 {
-		return response.SmartError(fmt.Errorf("Volume is still in use by running containers"))
+		return response.SmartError(fmt.Errorf("Volume is still in use by running instances"))
 	}
 
 	// Detect a rename request.

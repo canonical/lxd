@@ -626,7 +626,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 		Stateful:     backupConf.Container.Stateful,
 	})
 	if err != nil {
-		err = errors.Wrap(err, "Create container")
+		err = errors.Wrap(err, "Create instance")
 		return response.SmartError(err)
 	}
 

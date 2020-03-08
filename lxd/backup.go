@@ -261,18 +261,18 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	// Get the list of expired backups.
 	backups, err := d.cluster.ContainerBackupsGetExpired()
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve the list of expired container backups")
+		return errors.Wrap(err, "Unable to retrieve the list of expired instance backups")
 	}
 
 	for _, b := range backups {
 		inst, err := instance.LoadByID(d.State(), b.InstanceID)
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting container backup %s", b.Name)
+			return errors.Wrapf(err, "Error deleting instance backup %s", b.Name)
 		}
 
 		err = backup.DoBackupDelete(d.State(), inst.Project(), b.Name, inst.Name())
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting container backup %s", b.Name)
+			return errors.Wrapf(err, "Error deleting instance backup %s", b.Name)
 		}
 	}
 
