@@ -49,6 +49,8 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 		"ipv4.routes":             NetworkValidNetworkV4List,
 		"ipv6.routes":             NetworkValidNetworkV6List,
 		"boot.priority":           shared.IsUint32,
+		"ipv4.gateway":            NetworkValidGateway,
+		"ipv6.gateway":            NetworkValidGateway,
 	}
 
 	validators := map[string]func(value string) error{}
@@ -93,4 +95,14 @@ func nicValidationRules(requiredFields []string, optionalFields []string) map[st
 	}
 
 	return validators
+}
+
+// nicHasAutoGateway takes the value of the "ipv4.gateway" or "ipv6.gateway" config keys and returns whether they
+// specify whether the gateway mode is automatic or not
+func nicHasAutoGateway(value string) bool {
+	if value == "" || value == "auto" {
+		return true
+	}
+
+	return false
 }
