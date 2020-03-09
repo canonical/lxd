@@ -683,6 +683,15 @@ func NetworkValidNetworkV6List(value string) error {
 	return nil
 }
 
+// NetworkValidGateway validates the gateway value.
+func NetworkValidGateway(value string) error {
+	if shared.StringInSlice(value, []string{"none", "auto"}) {
+		return nil
+	}
+
+	return fmt.Errorf("Invalid gateway: %s", value)
+}
+
 // networkParsePortRange validates a port range in the form n-n.
 func networkParsePortRange(r string) (int64, int64, error) {
 	entries := strings.Split(r, "-")
