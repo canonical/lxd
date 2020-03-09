@@ -462,6 +462,7 @@ Key                     | Type      | Default           | Required  | Descriptio
 :--                     | :--       | :--               | :--       | :--
 parent                  | string    | -                 | no        | The name of the host device to join the instance to
 name                    | string    | kernel assigned   | no        | The name of the interface inside the instance
+host\_name              | string    | randomly assigned | no        | The name of the interface inside the host
 mtu                     | integer   | parent MTU        | no        | The MTU of the new interface
 hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
 ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
