@@ -37,6 +37,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"hwaddr",
 		"host_name",
 		"vlan",
+		"ipv4.gateway",
+		"ipv6.gateway",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
@@ -214,8 +216,10 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
 		}
 
-		// Use a fixed link-local address as the next-hop default gateway.
-		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: nicRoutedIPv4GW})
+		if nicHasAutoGateway(d.config["ipv4.gateway"]) {
+			// Use a fixed link-local address as the next-hop default gateway.
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: nicRoutedIPv4GW})
+		}
 	}
 
 	if d.config["ipv6.address"] != "" {
@@ -224,8 +228,10 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
 		}
 
-		// Use a fixed link-local address as the next-hop default gateway.
-		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: nicRoutedIPv6GW})
+		if nicHasAutoGateway(d.config["ipv6.gateway"]) {
+			// Use a fixed link-local address as the next-hop default gateway.
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: nicRoutedIPv6GW})
+		}
 	}
 
 	runConf.NetworkInterface = nic
@@ -273,14 +279,14 @@ func (d *nicRouted) postStart() error {
 	// inside the instance work and ensure that traffic doesn't periodically halt whilst ARP/NDP
 	// is re-detected.
 	if v["host_name"] != "" {
-		if d.config["ipv4.address"] != "" {
+		if d.config["ipv4.address"] != "" && nicHasAutoGateway(d.config["ipv4.gateway"]) {
 			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", nicRoutedIPv4GW), "dev", v["host_name"])
 			if err != nil {
 				return err
 			}
 		}
 
-		if d.config["ipv6.address"] != "" {
+		if d.config["ipv6.address"] != "" && nicHasAutoGateway(d.config["ipv6.gateway"]) {
 			_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", nicRoutedIPv6GW), "dev", v["host_name"])
 			if err != nil {
 				return err
