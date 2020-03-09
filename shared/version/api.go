@@ -192,6 +192,7 @@ var APIExtensions = []string{
 	"projects_limits",
 	"container_syscall_intercept_hugetlbfs",
 	"limits_hugepages",
+	"container_nic_routed_gateway",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
