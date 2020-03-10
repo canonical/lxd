@@ -22,6 +22,10 @@ func (d *dir) withoutGetVolID() Driver {
 // setupInitialQuota enables quota on a new volume and sets with an initial quota from config.
 // Returns a revert function that can be used to remove the quota if there is a subsequent error.
 func (d *dir) setupInitialQuota(vol Volume) (func(), error) {
+	if vol.IsVMBlock() {
+		return nil, nil
+	}
+
 	volPath := vol.MountPath()
 
 	// Get the volume ID for the new volume, which is used to set project quota.
@@ -143,7 +147,7 @@ func (d *dir) setQuota(path string, volID int64, size string) error {
 	if err != nil || !ok {
 		if sizeBytes > 0 {
 			// Skipping quota as underlying filesystem doesn't suppport project quotas.
-			d.logger.Warn("The backing filesystem doesn't support quotas, skipping quota", log.Ctx{"path": path})
+			d.logger.Warn("The backing filesystem doesn't support quotas, skipping set quota", log.Ctx{"path": path, "size": size, "volID": volID})
 		}
 		return nil
 	}
