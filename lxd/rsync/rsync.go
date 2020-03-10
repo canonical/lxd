@@ -74,7 +74,7 @@ func LocalCopy(source string, dest string, bwlimit string, xattrs bool) (string,
 	return msg, nil
 }
 
-func sendSetup(name string, path string, bwlimit string, execPath string, features []string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+func sendSetup(name string, path string, bwlimit string, execPath string, features []string, rsyncArgs ...string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -127,6 +127,10 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 
 	if features != nil && len(features) > 0 {
 		args = append(args, rsyncFeatureArgs(features)...)
+	}
+
+	if len(rsyncArgs) > 0 {
+		args = append(args, rsyncArgs...)
 	}
 
 	args = append(args, []string{
@@ -182,8 +186,8 @@ func sendSetup(name string, path string, bwlimit string, execPath string, featur
 
 // Send sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string) error {
-	cmd, netcatConn, stderr, err := sendSetup(name, path, bwlimit, execPath, features)
+func Send(name string, path string, conn io.ReadWriteCloser, tracker *ioprogress.ProgressTracker, features []string, bwlimit string, execPath string, rsyncArgs ...string) error {
+	cmd, netcatConn, stderr, err := sendSetup(name, path, bwlimit, execPath, features, rsyncArgs...)
 	if err != nil {
 		return err
 	}
