@@ -318,7 +318,7 @@ func (d *cephfs) SetVolumeQuota(vol Volume, size string, op *operations.Operatio
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
-	return "", ErrNotImplemented
+	return "", ErrNotSupported
 }
 
 // MountVolume sets up the volume for use.
