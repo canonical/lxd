@@ -330,11 +330,6 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	<-s.allConnected
-	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance is not container type")
-	}
-
-	ct := s.instance.(instance.Container)
 
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
@@ -367,26 +362,29 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	}
 	offerHeader.Criu = criuType
 
-	// Add idmap info to source header.
-	idmaps := make([]*migration.IDMapType, 0)
-	idmapset, err := ct.DiskIdmap()
-	if err != nil {
-		return err
-	} else if idmapset != nil {
-		for _, ctnIdmap := range idmapset.Idmap {
-			idmap := migration.IDMapType{
-				Isuid:    proto.Bool(ctnIdmap.Isuid),
-				Isgid:    proto.Bool(ctnIdmap.Isgid),
-				Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
-				Nsid:     proto.Int32(int32(ctnIdmap.Nsid)),
-				Maprange: proto.Int32(int32(ctnIdmap.Maprange)),
+	// Add idmap info to source header for containers.
+	if s.instance.Type() == instancetype.Container {
+		ct := s.instance.(instance.Container)
+		idmaps := make([]*migration.IDMapType, 0)
+		idmapset, err := ct.DiskIdmap()
+		if err != nil {
+			return err
+		} else if idmapset != nil {
+			for _, ctnIdmap := range idmapset.Idmap {
+				idmap := migration.IDMapType{
+					Isuid:    proto.Bool(ctnIdmap.Isuid),
+					Isgid:    proto.Bool(ctnIdmap.Isgid),
+					Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
+					Nsid:     proto.Int32(int32(ctnIdmap.Nsid)),
+					Maprange: proto.Int32(int32(ctnIdmap.Maprange)),
+				}
+
+				idmaps = append(idmaps, &idmap)
 			}
-
-			idmaps = append(idmaps, &idmap)
 		}
-	}
 
-	offerHeader.Idmap = idmaps
+		offerHeader.Idmap = idmaps
+	}
 
 	// Add snapshot info to source header if needed.
 	snapshots := []*migration.Snapshot{}
