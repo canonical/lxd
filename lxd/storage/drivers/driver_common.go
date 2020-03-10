@@ -131,9 +131,17 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools
 // in preference order.
 func (d *common) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
+	var transportType migration.MigrationFSType
+
+	if contentType == ContentTypeBlock {
+		transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
+	} else {
+		transportType = migration.MigrationFSType_RSYNC
+	}
+
 	return []migration.Type{
 		{
-			FSType:   migration.MigrationFSType_RSYNC,
+			FSType:   transportType,
 			Features: []string{"xattrs", "delete", "compress", "bidirectional"},
 		},
 	}
