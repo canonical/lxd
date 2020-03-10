@@ -180,7 +180,7 @@ func genericVFSHasVolume(vol Volume) bool {
 // genericVFSGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.
 func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 	if vol.contentType != ContentTypeBlock {
-		return "", fmt.Errorf("No disk paths for filesystems")
+		return "", ErrNotSupported
 	}
 
 	return filepath.Join(vol.MountPath(), "root.img"), nil

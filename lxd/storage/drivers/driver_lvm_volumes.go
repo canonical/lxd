@@ -409,7 +409,7 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 		return volDevPath, nil
 	}
 
-	return "", ErrNotImplemented
+	return "", ErrNotSupported
 }
 
 // MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns

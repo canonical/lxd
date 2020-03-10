@@ -732,7 +732,7 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 		return d.getRBDMappedDevPath(vol)
 	}
 
-	return "", ErrNotImplemented
+	return "", ErrNotSupported
 }
 
 // MountVolume simulates mounting a volume.
