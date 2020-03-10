@@ -1097,8 +1097,8 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 
 // postStop is run after the device is removed from the instance.
 func (d *disk) postStop() error {
-	// Check if pool-specific action should be taken to unmount custom volume.
-	if d.config["pool"] != "" {
+	// Check if pool-specific action should be taken to unmount custom volume disks.
+	if d.config["pool"] != "" && d.config["path"] != "/" {
 		pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
 		if err != nil {
 			return err
