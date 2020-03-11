@@ -91,6 +91,7 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 		if err != nil {
 			return false
 		}
+		defer cmd.Wait()
 
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
@@ -101,7 +102,6 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 				return true
 			}
 		}
-		cmd.Wait()
 	}
 
 	return false
@@ -118,6 +118,7 @@ func (d Xtables) ebtablesInUse() bool {
 	if err != nil {
 		return false
 	}
+	defer cmd.Wait()
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
