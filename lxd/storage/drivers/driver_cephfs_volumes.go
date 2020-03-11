@@ -429,10 +429,6 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 
 // MigrateVolume streams the volume (with or without snapshots)
 func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
