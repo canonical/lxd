@@ -292,7 +292,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*a
 	// If the project has the profiles feature enabled, we use its own
 	// profiles to expand the instances configs, otherwise we use the
 	// profiles from the default project.
-	if projectName == Default || project.Config["features.profiles"] == "true" {
+	if projectName == Default || shared.IsTrue(project.Config["features.profiles"]) {
 		profilesFilter.Project = projectName
 	} else {
 		profilesFilter.Project = Default

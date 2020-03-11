@@ -348,7 +348,7 @@ func (c *ClusterTx) instanceListExpanded() ([]Instance, error) {
 	// Map to check which projects have the profiles features on.
 	projectHasProfiles := map[string]bool{}
 	for _, project := range projects {
-		projectHasProfiles[project.Name] = project.Config["features.profiles"] == "true"
+		projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
 	}
 
 	profiles, err := c.ProfileList(ProfileFilter{})
