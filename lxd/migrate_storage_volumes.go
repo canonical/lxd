@@ -82,7 +82,6 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 					snapshotNames = append(snapshotNames, snapName)
 				}
 			}
-
 		}
 	}
 
