@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
@@ -754,4 +755,13 @@ func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (boo
 	}
 
 	return false, nil
+}
+
+// FallbackMigrationType returns the fallback migration transport to use based on volume content type.
+func FallbackMigrationType(contentType drivers.ContentType) migration.MigrationFSType {
+	if contentType == drivers.ContentTypeBlock {
+		return migration.MigrationFSType_BLOCK_AND_RSYNC
+	}
+
+	return migration.MigrationFSType_RSYNC
 }
