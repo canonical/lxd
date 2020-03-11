@@ -426,12 +426,12 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	data := [][]string{}
 	for _, project := range projects {
 		images := i18n.G("NO")
-		if project.Config["features.images"] == "true" {
+		if shared.IsTrue(project.Config["features.images"]) {
 			images = i18n.G("YES")
 		}
 
 		profiles := i18n.G("NO")
-		if project.Config["features.profiles"] == "true" {
+		if shared.IsTrue(project.Config["features.profiles"]) {
 			profiles = i18n.G("YES")
 		}
 
