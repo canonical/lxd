@@ -368,16 +368,34 @@ func (d *btrfs) GetResources() (*api.ResourcesStoragePool, error) {
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
-	if contentType != ContentTypeFS {
-		return nil
-	}
+	rsyncFeatures := []string{"xattrs", "delete", "compress", "bidirectional"}
 
-	// Only use rsync for refreshes and if running in an unprivileged container.
+	// Only offer rsync for refreshes or if running in an unprivileged container.
 	if refresh || d.state.OS.RunningInUserNS {
+		var transportType migration.MigrationFSType
+
+		if contentType == ContentTypeBlock {
+			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
+		} else {
+			transportType = migration.MigrationFSType_RSYNC
+		}
+
 		return []migration.Type{
 			{
-				FSType:   migration.MigrationFSType_RSYNC,
-				Features: []string{"xattrs", "delete", "compress", "bidirectional"},
+				FSType:   transportType,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
+	if contentType == ContentTypeBlock {
+		return []migration.Type{
+			{
+				FSType: migration.MigrationFSType_BTRFS,
+			},
+			{
+				FSType:   migration.MigrationFSType_BLOCK_AND_RSYNC,
+				Features: rsyncFeatures,
 			},
 		}
 	}
@@ -388,7 +406,7 @@ func (d *btrfs) MigrationTypes(contentType ContentType, refresh bool) []migratio
 		},
 		{
 			FSType:   migration.MigrationFSType_RSYNC,
-			Features: []string{"xattrs", "delete", "compress", "bidirectional"},
+			Features: rsyncFeatures,
 		},
 	}
 }
