@@ -142,14 +142,6 @@ func (d *lvm) CreateVolumeFromCopy(vol, srcVol Volume, copySnapshots bool, op *o
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *lvm) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 }
 
