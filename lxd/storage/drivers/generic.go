@@ -150,6 +150,15 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 // genericCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	// Check migration transport type matches volume type.
+	if vol.IsVMBlock() {
+		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
+			return ErrNotSupported
+		}
+	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
+		return ErrNotSupported
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
