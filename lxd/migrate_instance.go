@@ -838,7 +838,8 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
-	respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
+	contentType := storagePools.InstanceContentType(c.src.instance)
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh))
 	if err != nil {
 		return err
 	}

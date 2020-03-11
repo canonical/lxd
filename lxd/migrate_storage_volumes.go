@@ -107,8 +107,8 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	// Use new storage layer for migration if supported.
-	migrationTypes, err := migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
+	contentType := storageDrivers.ContentTypeFS
+	migrationTypes, err := migration.MatchTypes(respHeader, storagePools.FallbackMigrationType(contentType), poolMigrationTypes)
 	if err != nil {
 		logger.Errorf("Failed to negotiate migration type: %v", err)
 		s.sendControl(err)
@@ -254,7 +254,8 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
-	respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storageDrivers.ContentTypeFS, c.refresh))
+	contentType := storageDrivers.ContentTypeFS
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh))
 	if err != nil {
 		return err
 	}

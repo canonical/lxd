@@ -667,7 +667,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, false)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, false))
+		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
@@ -808,7 +808,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, true)
 		offerHeader := migration.TypesToHeader(offeredTypes...)
-		migrationTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(contentType, true))
+		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true))
 		if err != nil {
 			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 		}
@@ -2244,7 +2244,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	// Negotiate the migration type to use.
 	offeredTypes := srcPool.MigrationTypes(drivers.ContentTypeFS, false)
 	offerHeader := migration.TypesToHeader(offeredTypes...)
-	migrationTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, b.MigrationTypes(drivers.ContentTypeFS, false))
+	migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(drivers.ContentTypeFS), b.MigrationTypes(drivers.ContentTypeFS, false))
 	if err != nil {
 		return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
 	}

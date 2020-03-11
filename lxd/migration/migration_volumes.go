@@ -73,7 +73,7 @@ func TypesToHeader(types ...Type) MigrationHeader {
 
 	// Check all the types for an Rsync method, if found add its features to the header's RsyncFeatures list.
 	for _, t := range types {
-		if t.FSType != MigrationFSType_RSYNC {
+		if t.FSType != MigrationFSType_RSYNC && t.FSType != MigrationFSType_BLOCK_AND_RSYNC {
 			continue
 		}
 
