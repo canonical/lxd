@@ -303,7 +303,13 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 				return nil, err
 			}
 
-			_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(d.inst.Project(), d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
+			// Only custom volumes can be attached currently.
+			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			if err != nil {
+				return nil, err
+			}
+
+			_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return nil, err
 			}
@@ -679,6 +685,7 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 
 	var srcPath string
 
+	// Check volume type name is custom.
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
 		return "", fmt.Errorf("Using instance storage volumes is not supported")
@@ -687,34 +694,38 @@ func (d *disk) mountPoolVolume(reverter *revert.Reverter) (string, error) {
 		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
 		fallthrough
 	case db.StoragePoolVolumeTypeNameCustom:
-		srcPath = shared.VarPath("storage-pools", d.config["pool"], volumeTypeName, volumeName)
+		break
 	case db.StoragePoolVolumeTypeNameImage:
 		return "", fmt.Errorf("Using image storage volumes is not supported")
 	default:
 		return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
 	}
 
-	volumeType, err := storagePools.VolumeTypeNameToType(volumeTypeName)
+	// Only custom volumes can be attached currently.
+	storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return "", err
 	}
+
+	volStorageName := project.StorageVolume(storageProjectName, volumeName)
+	srcPath = storageDrivers.GetVolumeMountPath(d.config["pool"], storageDrivers.VolumeTypeCustom, volStorageName)
 
 	pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
 	if err != nil {
 		return "", err
 	}
 
-	ourMount, err := pool.MountCustomVolume(volumeName, nil)
+	ourMount, err := pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
 
 	if ourMount {
-		reverter.Add(func() { pool.UnmountCustomVolume(volumeName, nil) })
+		reverter.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 	}
 
 	if d.inst.Type() == instancetype.Container {
-		err = d.storagePoolVolumeAttachShift(pool.Name(), volumeName, volumeType)
+		err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 		}
@@ -878,15 +889,14 @@ func (d *disk) createDevice() (string, error) {
 	return devPath, nil
 }
 
-func (d *disk) storagePoolVolumeAttachShift(poolName string, volumeName string, volumeType int) error {
+func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	// Load the DB records.
 	poolID, pool, err := d.state.Cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
-	// Custom storage volumes do not currently support projects, so hardcode "default" project.
-	_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject("default", volumeName, volumeType, poolID)
+	_, volume, err := d.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -932,15 +942,11 @@ func (d *disk) storagePoolVolumeAttachShift(poolName string, volumeName string, 
 	}
 	poolVolumePut.Config["volatile.idmap.next"] = nextJSONMap
 
-	// Get mountpoint of storage volume.
-	remapPath := storagePools.GetStoragePoolVolumeMountPoint(poolName, volumeName)
-
 	if !nextIdmap.Equals(lastIdmap) {
 		logger.Debugf("Shifting storage volume")
 
 		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
-			// Custom storage volumes do not currently support projects, so hardcode "default" project.
-			volumeUsedBy, err := storagePools.VolumeUsedByInstancesGet(d.state, "default", poolName, volumeName)
+			volumeUsedBy, err := storagePools.VolumeUsedByInstancesGet(d.state, projectName, poolName, volumeName)
 			if err != nil {
 				return err
 			}
@@ -1033,7 +1039,7 @@ func (d *disk) storagePoolVolumeAttachShift(poolName string, volumeName string, 
 	// Update last idmap.
 	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
 
-	err = d.state.Cluster.StoragePoolVolumeUpdateByProject("default", volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = d.state.Cluster.StoragePoolVolumeUpdateByProject(projectName, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return err
 	}
@@ -1104,7 +1110,13 @@ func (d *disk) postStop() error {
 			return err
 		}
 
-		_, err = pool.UnmountCustomVolume(d.config["source"], nil)
+		// Only custom volumes can be attached currently.
+		storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		_, err = pool.UnmountCustomVolume(storageProjectName, d.config["source"], nil)
 		if err != nil {
 			return err
 		}

@@ -177,62 +177,62 @@ func (b *mockBackend) UpdateImage(fingerprint, newDesc string, newConfig map[str
 	return nil
 }
 
-func (b *mockBackend) CreateCustomVolume(volName, desc string, config map[string]string, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateCustomVolumeFromCopy(volName, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeFromCopy(projectName string, volName string, desc string, config map[string]string, srcPoolName string, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) RenameCustomVolume(volName string, newName string, op *operations.Operation) error {
+func (b *mockBackend) RenameCustomVolume(projectName string, volName string, newName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+func (b *mockBackend) UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	return ErrNotImplemented
 }
 
-func (b *mockBackend) DeleteCustomVolume(volName string, op *operations.Operation) error {
+func (b *mockBackend) DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
+func (b *mockBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) GetCustomVolumeUsage(volName string) (int64, error) {
+func (b *mockBackend) GetCustomVolumeUsage(projectName string, volName string) (int64, error) {
 	return 0, nil
 }
 
-func (b *mockBackend) MountCustomVolume(volName string, op *operations.Operation) (bool, error) {
+func (b *mockBackend) MountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) UnmountCustomVolume(volName string, op *operations.Operation) (bool, error) {
+func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error) {
 	return true, nil
 }
 
-func (b *mockBackend) CreateCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) RenameCustomVolumeSnapshot(volName string, newName string, op *operations.Operation) error {
+func (b *mockBackend) RenameCustomVolumeSnapshot(projectName string, volName string, newName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) DeleteCustomVolumeSnapshot(volName string, op *operations.Operation) error {
+func (b *mockBackend) DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) UpdateCustomVolumeSnapshot(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+func (b *mockBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	return nil
 }
 
-func (b *mockBackend) RestoreCustomVolume(volName string, snapshotName string, op *operations.Operation) error {
+func (b *mockBackend) RestoreCustomVolume(projectName string, volName string, snapshotName string, op *operations.Operation) error {
 	return nil
 }

@@ -21,6 +21,8 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+var projectFeatures = []string{"features.images", "features.profiles", "features.storage.volumes"}
+
 var projectsCmd = APIEndpoint{
 	Path: "projects",
 
@@ -97,7 +99,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	if project.Config == nil {
 		project.Config = map[string]string{}
 	}
-	for _, feature := range []string{"features.images", "features.profiles"} {
+	for _, feature := range projectFeatures {
 		_, ok := project.Config[feature]
 		if !ok {
 			project.Config[feature] = "true"
@@ -139,7 +141,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrap(err, "Add project to database")
 		}
 
-		if project.Config["features.profiles"] == "true" {
+		if shared.IsTrue(project.Config["features.profiles"]) {
 			err = projectCreateDefaultProfile(tx, project.Name)
 			if err != nil {
 				return err
@@ -174,7 +176,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 	// Create a default profile
 	profile := db.Profile{}
 	profile.Project = project
-	profile.Name = "default"
+	profile.Name = projecthelpers.Default
 	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
 
 	_, err := tx.ProfileCreate(profile)
@@ -336,13 +338,17 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		}
 	}
 
-	keyHasChanged := func(key string) bool { return shared.StringInSlice(key, configChanged) }
-
 	// Flag indicating if any feature has changed.
-	featuresChanged := keyHasChanged("features.images") || keyHasChanged("features.profiles")
+	featuresChanged := false
+	for _, featureKey := range projectFeatures {
+		if shared.StringInSlice(featureKey, configChanged) {
+			featuresChanged = true
+			break
+		}
+	}
 
-	// Sanity checks
-	if project.Name == "default" && featuresChanged {
+	// Sanity checks.
+	if project.Name == projecthelpers.Default && featuresChanged {
 		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
@@ -350,13 +356,13 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
-	// Validate the configuration
+	// Validate the configuration.
 	err := projectValidateConfig(req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
 
-	// Update the database entry
+	// Update the database entry.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		err := projecthelpers.ValidateLimitsUponProjectUpdate(tx, project.Name, req.Config, configChanged)
 		if err != nil {
@@ -368,15 +374,15 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 			return errors.Wrap(err, "Persist profile changes")
 		}
 
-		if keyHasChanged("features.profiles") {
-			if req.Config["features.profiles"] == "true" {
+		if shared.StringInSlice("features.profiles", configChanged) {
+			if shared.IsTrue(req.Config["features.profiles"]) {
 				err = projectCreateDefaultProfile(tx, project.Name)
 				if err != nil {
 					return err
 				}
 			} else {
 				// Delete the project-specific default profile.
-				err = tx.ProfileDelete(project.Name, "default")
+				err = tx.ProfileDelete(project.Name, projecthelpers.Default)
 				if err != nil {
 					return errors.Wrap(err, "Delete project default profile")
 				}
@@ -384,7 +390,6 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		}
 
 		return nil
-
 	})
 
 	if err != nil {
@@ -406,7 +411,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Sanity checks
-	if name == "default" {
+	if name == projecthelpers.Default {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
 
@@ -465,7 +470,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Sanity checks
-	if name == "default" {
+	if name == projecthelpers.Default {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
@@ -513,15 +518,16 @@ func projectIsEmpty(project *api.Project) bool {
 	return true
 }
 
-// Validate the project configuration
+// Validate the project configuration.
 var projectConfigKeys = map[string]func(value string) error{
-	"features.profiles":       shared.IsBool,
-	"features.images":         shared.IsBool,
-	"limits.containers":       shared.IsUint32,
-	"limits.virtual-machines": shared.IsUint32,
-	"limits.memory":           shared.IsSize,
-	"limits.processes":        shared.IsUint32,
-	"limits.cpu":              shared.IsUint32,
+	"features.profiles":        shared.IsBool,
+	"features.images":          shared.IsBool,
+	"features.storage.volumes": shared.IsBool,
+	"limits.containers":        shared.IsUint32,
+	"limits.virtual-machines":  shared.IsUint32,
+	"limits.memory":            shared.IsSize,
+	"limits.processes":         shared.IsUint32,
+	"limits.cpu":               shared.IsUint32,
 }
 
 func projectValidateConfig(config map[string]string) error {

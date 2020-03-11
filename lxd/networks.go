@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -414,7 +415,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 		for _, inst := range insts {
 			if network.IsInUse(inst, n.Name) {
 				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name())
-				if inst.Project() != "default" {
+				if inst.Project() != project.Default {
 					uri += fmt.Sprintf("?project=%s", inst.Project())
 				}
 				n.UsedBy = append(n.UsedBy, uri)

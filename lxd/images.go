@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -1352,7 +1353,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 			}
 		}
 
-		imgID, _, err := d.cluster.ImageGet("default", fp, false, false)
+		imgID, _, err := d.cluster.ImageGet(project.Default, fp, false, false)
 		if err != nil {
 			return errors.Wrapf(err, "Error retrieving image info %s", fp)
 		}
@@ -1578,19 +1579,19 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		info.ExpiresAt = req.ExpiresAt
 	}
 
-	// Get profile ids
+	// Get profile IDs
 	if req.Profiles == nil {
 		req.Profiles = []string{"default"}
 	}
 	profileIds := make([]int64, len(req.Profiles))
 	for i, profile := range req.Profiles {
-		profileId, _, err := d.cluster.ProfileGet(project, profile)
+		profileID, _, err := d.cluster.ProfileGet(project, profile)
 		if err == db.ErrNoSuchObject {
 			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
 		} else if err != nil {
 			return response.SmartError(err)
 		}
-		profileIds[i] = profileId
+		profileIds[i] = profileID
 	}
 
 	err = d.cluster.ImageUpdate(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties, project, profileIds)

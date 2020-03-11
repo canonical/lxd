@@ -62,27 +62,27 @@ type Pool interface {
 	// Images.
 	EnsureImage(fingerprint string, op *operations.Operation) error
 	DeleteImage(fingerprint string, op *operations.Operation) error
-	UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	UpdateImage(fingerprint string, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	// Custom volumes.
-	CreateCustomVolume(volName, desc string, config map[string]string, op *operations.Operation) error
-	CreateCustomVolumeFromCopy(volName, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error
-	UpdateCustomVolume(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error
-	RenameCustomVolume(volName string, newVolName string, op *operations.Operation) error
-	DeleteCustomVolume(volName string, op *operations.Operation) error
-	GetCustomVolumeUsage(volName string) (int64, error)
-	MountCustomVolume(volName string, op *operations.Operation) (bool, error)
-	UnmountCustomVolume(volName string, op *operations.Operation) (bool, error)
+	CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, op *operations.Operation) error
+	CreateCustomVolumeFromCopy(projectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error
+	UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error
+	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
+	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
+	MountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
+	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 
 	// Custom volume snapshots.
-	CreateCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error
-	RenameCustomVolumeSnapshot(volName string, newSnapshotName string, op *operations.Operation) error
-	DeleteCustomVolumeSnapshot(volName string, op *operations.Operation) error
-	UpdateCustomVolumeSnapshot(volName, newDesc string, newConfig map[string]string, op *operations.Operation) error
-	RestoreCustomVolume(volName string, snapshotName string, op *operations.Operation) error
+	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
+	RenameCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
+	DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error
+	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	RestoreCustomVolume(projectName string, volName string, snapshotName string, op *operations.Operation) error
 
 	// Custom volume migration.
 	MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type
-	CreateCustomVolumeFromMigration(conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
-	MigrateCustomVolume(conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
+	CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
+	MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 }

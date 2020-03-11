@@ -33,17 +33,19 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 		// the project is default.
 		projectName := project.Default
 
-		// Currently only Containers and VMs support project level volumes.
+		// Currently only Containers, VMs and custom volumes support project level volumes.
 		// This means that other volume types may have underscores in their names that don't
 		// indicate the project name.
 		if volType == drivers.VolumeTypeContainer || volType == drivers.VolumeTypeVM {
 			projectName, volName = project.InstanceParts(volName)
+		} else if volType == drivers.VolumeTypeCustom {
+			projectName, volName = project.StorageVolumeParts(volName)
 		}
 
 		volID, _, err := state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, volTypeID, poolID)
 		if err != nil {
 			if err == db.ErrNoSuchObject {
-				return -1, fmt.Errorf("Failed to get volume ID for project '%s', volume '%s', type '%s': Volume doesn't exist", projectName, volName, volType)
+				return -1, fmt.Errorf("Failed to get volume ID for project %q, volume %q, type %q: Volume doesn't exist", projectName, volName, volType)
 			}
 
 			return -1, err

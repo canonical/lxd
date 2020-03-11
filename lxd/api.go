@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -122,11 +123,11 @@ func isClusterNotification(r *http.Request) bool {
 
 // projectParam returns the project query parameter from the given request or "default" if parameter is not set.
 func projectParam(request *http.Request) string {
-	project := queryParam(request, "project")
-	if project == "" {
-		project = "default"
+	projectParam := queryParam(request, "project")
+	if projectParam == "" {
+		projectParam = project.Default
 	}
-	return project
+	return projectParam
 }
 
 // Extract the given query parameter directly from the URL, never from an
