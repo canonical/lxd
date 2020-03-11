@@ -163,6 +163,21 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 			if restrictionValue == "allow" {
 				allowContainerLowLevel = true
 			}
+		case "restricted.containers.privilege":
+			containerKeyChecks["security.privileged"] = func(instanceValue string) error {
+				if restrictionValue != "allow" && shared.IsTrue(instanceValue) {
+					return fmt.Errorf("Privileged containers are forbidden")
+				}
+
+				return nil
+			}
+			containerKeyChecks["security.idmap.isolated"] = func(instanceValue string) error {
+				if restrictionValue == "isolated" && !shared.IsTrue(instanceValue) {
+					return fmt.Errorf("Non-isolated containers are forbidden")
+				}
+
+				return nil
+			}
 		}
 	}
 
@@ -202,11 +217,13 @@ var allAggregateLimits = []string{
 var AllRestrictions = []string{
 	"restricted.containers.nesting",
 	"restricted.containers.lowlevel",
+	"restricted.containers.privilege",
 }
 
 var defaultRestrictionsValues = map[string]string{
-	"restricted.containers.nesting":  "block",
-	"restricted.containers.lowlevel": "block",
+	"restricted.containers.nesting":   "block",
+	"restricted.containers.lowlevel":  "block",
+	"restricted.containers.privilege": "unprivileged",
 }
 
 // Return true if a low-level container option is forbidden.
