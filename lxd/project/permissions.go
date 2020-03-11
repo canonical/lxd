@@ -163,6 +163,11 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 	for _, instance := range instances {
 		if instance.Type == instancetype.Container {
 			for key, value := range instance.Config {
+				// First check if the key is a forbidden low-level one.
+				if isContainerLowLevelOptionForbidden(key) {
+					return fmt.Errorf("Use of low-level config %q on instance %q of project %q is forbidden",
+						key, instance.Name, project.Name)
+				}
 				checker, ok := containerKeyChecks[key]
 				if !ok {
 					continue
@@ -194,6 +199,33 @@ var AllRestrictions = []string{
 
 var defaultRestrictionsValues = map[string]string{
 	"restricted.containers.nesting": "block",
+}
+
+// Return true if a low-level container option is forbidden.
+func isContainerLowLevelOptionForbidden(key string) bool {
+	if strings.HasPrefix(key, "volatile.") {
+		return true
+	}
+
+	if strings.HasPrefix(key, "security.syscalls") {
+		return true
+	}
+
+	if shared.StringInSlice(key, []string{
+		"boot.host_shutdown_timeout",
+		"linux.kernel_modules",
+		"raw.apparmor",
+		"raw.idmap",
+		"raw.lxc",
+		"raw.seccomp",
+		"security.devlxd.images",
+		"security.idmap.base",
+		"security.idmap.size",
+	}) {
+		return true
+	}
+
+	return false
 }
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
