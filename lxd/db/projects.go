@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
@@ -112,7 +113,7 @@ SELECT projects_config.value
 		return false, nil
 	}
 
-	return values[0] == "true", nil
+	return shared.IsTrue(values[0]), nil
 }
 
 // ProjectHasImages is a helper to check if a project has the images
@@ -123,7 +124,7 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 		return false, errors.Wrap(err, "fetch project")
 	}
 
-	enabled := project.Config["features.images"] == "true"
+	enabled := shared.IsTrue(project.Config["features.images"])
 
 	return enabled, nil
 }

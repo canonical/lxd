@@ -141,7 +141,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrap(err, "Add project to database")
 		}
 
-		if project.Config["features.profiles"] == "true" {
+		if shared.IsTrue(project.Config["features.profiles"]) {
 			err = projectCreateDefaultProfile(tx, project.Name)
 			if err != nil {
 				return err
@@ -375,7 +375,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		}
 
 		if shared.StringInSlice("features.profiles", configChanged) {
-			if req.Config["features.profiles"] == "true" {
+			if shared.IsTrue(req.Config["features.profiles"]) {
 				err = projectCreateDefaultProfile(tx, project.Name)
 				if err != nil {
 					return err
