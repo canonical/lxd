@@ -1229,7 +1229,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
 	err = b.driver.DeleteVolume(vol, op)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error deleting storage volume")
 	}
 
 	// Remove symlinks.
@@ -1246,7 +1246,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	// Remove the volume record from the database.
 	err = b.state.Cluster.StoragePoolVolumeDelete(inst.Project(), inst.Name(), volDBType, b.ID())
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Error deleting storage volume from database")
 	}
 
 	return nil
