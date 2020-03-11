@@ -297,13 +297,28 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 	aggregateKeys := []string{}
 
 	for _, key := range changed {
+		if strings.HasPrefix(key, "restricted.") {
+			project := &api.Project{
+				Name: projectName,
+				ProjectPut: api.ProjectPut{
+					Config: config,
+				},
+			}
+			err := checkRestrictions(project, instances)
+			if err != nil {
+				return errors.Wrapf(err, "Conflict detected when changing %q in project %q", key, projectName)
+			}
+
+			continue
+		}
+
 		switch key {
 		case "limits.containers":
 			fallthrough
 		case "limits.virtual-machines":
 			err := validateInstanceCountLimit(instances, key, config[key], projectName)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Can't change %q in project %q", key, projectName)
 			}
 		case "limits.processes":
 			fallthrough
