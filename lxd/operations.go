@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -91,12 +92,12 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
 		if op.Permission() != "" {
-			project := op.Project()
-			if project == "" {
-				project = "default"
+			projectName := op.Project()
+			if projectName == "" {
+				projectName = project.Default
 			}
 
-			if !d.userHasPermission(r, project, op.Permission()) {
+			if !d.userHasPermission(r, projectName, op.Permission()) {
 				return response.Forbidden(nil)
 			}
 		}

@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -29,11 +30,11 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	project := projectParam(r)
+	projectName := projectParam(r)
 	cname := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, cname, instanceType)
+	resp, err := ForwardedResponseIfContainerIsRemote(d, r, projectName, cname, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -46,23 +47,23 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []*api.InstanceSnapshot{}
 
 	if !recursion {
-		snaps, err := d.cluster.ContainerGetSnapshots(project, cname)
+		snaps, err := d.cluster.ContainerGetSnapshots(projectName, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
 		for _, snap := range snaps {
 			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap)
-			if project == "default" {
+			if projectName == project.Default {
 				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s", version.APIVersion, cname, snapName)
 				resultString = append(resultString, url)
 			} else {
-				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, project)
+				url := fmt.Sprintf("/%s/instances/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, projectName)
 				resultString = append(resultString, url)
 			}
 		}
 	} else {
-		c, err := instance.LoadByProjectAndName(d.State(), project, cname)
+		c, err := instance.LoadByProjectAndName(d.State(), projectName, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}

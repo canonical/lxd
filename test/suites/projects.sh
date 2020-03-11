@@ -428,7 +428,7 @@ test_projects_storage() {
 
   lxc storage volume create "${pool}" vol
 
-  lxc project create foo
+  lxc project create foo -c features.storage.volumes=false
   lxc project switch foo
 
   lxc storage volume list "${pool}" | grep custom | grep -q vol
@@ -439,6 +439,22 @@ test_projects_storage() {
 
   ! lxc storage volume list "${pool}" | grep custom | grep -q vol || false
 
+  lxc project set foo features.storage.volumes=true
+  lxc storage volume create "${pool}" vol
+  lxc project switch foo
+  ! lxc storage volume list "${pool}" | grep custom | grep -q vol
+
+  lxc storage volume create "${pool}" vol
+  lxc storage volume delete "${pool}" vol
+
+  lxc storage volume create "${pool}" vol2
+  lxc project switch default
+  ! lxc storage volume list "${pool}" | grep custom | grep -q vol2
+
+  lxc project switch foo
+  lxc storage volume delete "${pool}" vol2
+
+  lxc project switch default
   lxc project delete foo
 }
 

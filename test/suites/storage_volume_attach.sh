@@ -47,7 +47,7 @@ test_storage_volume_attach() {
 
   # Attach to a single privileged container
   lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")" testvolume c1 testvolume
-  PATH_TO_CHECK="${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/custom/testvolume"
+  PATH_TO_CHECK="${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/custom/default_testvolume"
   [ "$(stat -c %u:%g "${PATH_TO_CHECK}")" = "0:0" ]
 
   # make container unprivileged

@@ -339,14 +339,14 @@ func findContainerForPid(pid int32, s *state.State) (instance.Container, error) 
 			parts := strings.Split(string(cmdline), " ")
 			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
-			project := "default"
+			projectName := project.Default
 			if strings.Contains(name, "_") {
 				fields := strings.SplitN(name, "_", 2)
-				project = fields[0]
+				projectName = fields[0]
 				name = fields[1]
 			}
 
-			inst, err := instance.LoadByProjectAndName(s, project, name)
+			inst, err := instance.LoadByProjectAndName(s, projectName, name)
 			if err != nil {
 				return nil, err
 			}

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -22,12 +24,8 @@ const (
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-var supportedVolumeTypesExceptImages = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom}
-var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, db.StoragePoolVolumeTypeImage)
-
-func init() {
-	storagePools.VolumeUsedByInstancesWithProfiles = storagePoolVolumeUsedByRunningInstancesWithProfilesGet
-}
+var supportedVolumeTypes = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM, db.StoragePoolVolumeTypeCustom, db.StoragePoolVolumeTypeImage}
+var supportedVolumeTypesInstances = []int{db.StoragePoolVolumeTypeContainer, db.StoragePoolVolumeTypeVM}
 
 func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
@@ -41,7 +39,7 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
-	return "", fmt.Errorf("invalid storage volume type name")
+	return "", fmt.Errorf("Invalid storage volume type name")
 }
 
 func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
@@ -56,15 +54,13 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
-	return "", fmt.Errorf("invalid storage volume type")
+	return "", fmt.Errorf("Invalid storage volume type")
 }
 
-func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
-	oldVolumeName string, newPoolName string, newVolumeName string) error {
-
+func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName string, oldVolumeName string, newPoolName string, newVolumeName string) error {
 	s := d.State()
 	// update all instances
-	insts, err := instanceLoadAll(s)
+	insts, err := instance.LoadByProject(s, projectName)
 	if err != nil {
 		return err
 	}
@@ -136,13 +132,13 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 	}
 
 	// update all profiles
-	profiles, err := s.Cluster.Profiles("default")
+	profiles, err := s.Cluster.Profiles(project.Default)
 	if err != nil {
 		return err
 	}
 
 	for _, pName := range profiles {
-		id, profile, err := s.Cluster.ProfileGet("default", pName)
+		id, profile, err := s.Cluster.ProfileGet(project.Default, pName)
 		if err != nil {
 			return err
 		}
@@ -197,49 +193,13 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 		pUpdate.Config = profile.Config
 		pUpdate.Description = profile.Description
 		pUpdate.Devices = profile.Devices
-		err = doProfileUpdate(d, "default", pName, id, profile, pUpdate)
+		err = doProfileUpdate(d, project.Default, pName, id, profile, pUpdate)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func storagePoolVolumeUsedByRunningInstancesWithProfilesGet(s *state.State,
-	poolName string, volumeName string, volumeTypeName string,
-	runningOnly bool) ([]string, error) {
-	insts, err := instanceLoadAll(s)
-	if err != nil {
-		return []string{}, err
-	}
-
-	instUsingVolume := []string{}
-	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, inst := range insts {
-		if runningOnly && !inst.IsRunning() {
-			continue
-		}
-
-		for _, dev := range inst.ExpandedDevices() {
-			if dev["type"] != "disk" {
-				continue
-			}
-
-			if dev["pool"] != poolName {
-				continue
-			}
-
-			// Make sure that we don't compare against stuff like
-			// "container////bla" but only against "container/bla".
-			cleanSource := filepath.Clean(dev["source"])
-			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				instUsingVolume = append(instUsingVolume, inst.Name())
-			}
-		}
-	}
-
-	return instUsingVolume, nil
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
@@ -301,13 +261,13 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeType string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles("default")
+	profiles, err := db.Profiles(project.Default)
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet("default", pName)
+		_, profile, err := db.ProfileGet(project.Default, pName)
 		if err != nil {
 			return usedBy, err
 		}
