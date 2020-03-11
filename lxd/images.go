@@ -173,7 +173,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		if !shared.IsSnapshot(name) {
 			return nil, fmt.Errorf("Not a snapshot")
 		}
-	case "container":
+	case "container", "virtual-machine", "instance":
 		if shared.IsSnapshot(name) {
 			return nil, fmt.Errorf("This is a snapshot")
 		}
