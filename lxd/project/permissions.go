@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -95,7 +96,7 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 		return nil
 	}
 
-	instances = expandInstancesConfig(instances, profiles)
+	instances = expandInstancesConfigAndDevices(instances, profiles)
 
 	err := checkAggregateLimits(project, instances, aggregateKeys)
 	if err != nil {
@@ -315,7 +316,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		return err
 	}
 
-	instances = expandInstancesConfig(instances, profiles)
+	instances = expandInstancesConfigAndDevices(instances, profiles)
 
 	// List of keys that need to check aggregate values across all project
 	// instances.
@@ -474,9 +475,9 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*a
 	return project, profiles, instances, nil
 }
 
-// Expand the configuration of the given instances, taking the give project
-// profiles into account.
-func expandInstancesConfig(instances []db.Instance, profiles []db.Profile) []db.Instance {
+// Expand the configuration and devices of the given instances, taking the give
+// project profiles into account.
+func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Profile) []db.Instance {
 	expandedInstances := make([]db.Instance, len(instances))
 
 	// Index of all profiles by name.
@@ -495,6 +496,8 @@ func expandInstancesConfig(instances []db.Instance, profiles []db.Profile) []db.
 
 		expandedInstances[i] = instance
 		expandedInstances[i].Config = db.ProfilesExpandConfig(instance.Config, profiles)
+		expandedInstances[i].Devices = db.ProfilesExpandDevices(
+			deviceconfig.NewDevices(instance.Devices), profiles).CloneNative()
 	}
 
 	return expandedInstances
