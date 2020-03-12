@@ -88,23 +88,37 @@ SELECT fingerprint
 	return results, nil
 }
 
-// ImagesGetExpired returns the names of all images that have expired since the
-// given time.
-func (c *Cluster) ImagesGetExpired(expiry int64) ([]string, error) {
-	q := `SELECT fingerprint, last_use_date, upload_date FROM images WHERE cached=1`
+// ExpiredImage used to store expired image info.
+type ExpiredImage struct {
+	Fingerprint string
+	ProjectName string
+}
+
+// ImagesGetExpired returns the names and project name of all images that have expired since the given time.
+func (c *Cluster) ImagesGetExpired(expiry int64) ([]ExpiredImage, error) {
+	q := `
+	SELECT
+		fingerprint,
+		last_use_date,
+		upload_date,
+		projects.name as projectName
+	FROM images
+	JOIN projects ON projects.id = images.project_id
+	WHERE images.cached = 1`
 
 	var fpStr string
 	var useStr string
 	var uploadStr string
+	var projectName string
 
 	inargs := []interface{}{}
-	outfmt := []interface{}{fpStr, useStr, uploadStr}
+	outfmt := []interface{}{fpStr, useStr, uploadStr, projectName}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
-		return []string{}, err
+		return []ExpiredImage{}, err
 	}
 
-	results := []string{}
+	results := []ExpiredImage{}
 	for _, r := range dbResults {
 		// Figure out the expiry
 		timestamp := r[2]
@@ -115,7 +129,7 @@ func (c *Cluster) ImagesGetExpired(expiry int64) ([]string, error) {
 		var imageExpiry time.Time
 		err = imageExpiry.UnmarshalText([]byte(timestamp.(string)))
 		if err != nil {
-			return []string{}, err
+			return []ExpiredImage{}, err
 		}
 		imageExpiry = imageExpiry.Add(time.Duration(expiry*24) * time.Hour)
 
@@ -124,7 +138,12 @@ func (c *Cluster) ImagesGetExpired(expiry int64) ([]string, error) {
 			continue
 		}
 
-		results = append(results, r[0].(string))
+		result := ExpiredImage{
+			Fingerprint: r[0].(string),
+			ProjectName: r[3].(string),
+		}
+
+		results = append(results, result)
 	}
 
 	return results, nil
