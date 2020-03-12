@@ -63,7 +63,7 @@ func (d Nftables) Compat() (bool, bool) {
 	ruleset, err := d.nftParseRuleset()
 	if err != nil {
 		logger.Errorf("Firewall nftables unable to parse existing ruleset: %v", err)
-		return true, false
+		return false, false
 	}
 
 	for _, item := range ruleset {
@@ -120,6 +120,11 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 			table.Type = "table"
 			items = append(items, table)
 		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	return items, nil
