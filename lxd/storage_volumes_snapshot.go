@@ -81,7 +81,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Check that this isn't a restricted volume
-	used, err := daemonStorageUsed(d.State(), poolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(d.State(), poolName, volumeName)
 	if err != nil {
 		return response.InternalError(err)
 	}
