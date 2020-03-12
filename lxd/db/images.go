@@ -532,7 +532,7 @@ func (c *Cluster) imageFillProfiles(id int, image *api.Image, project string) er
 
 	// Get the profiles
 	q := `
-SELECT profiles.name FROM profiles 
+SELECT profiles.name FROM profiles
 	JOIN images_profiles ON images_profiles.profile_id = profiles.id
 	JOIN projects ON profiles.project_id = projects.id
 WHERE images_profiles.image_id = ? AND projects.name = ?
@@ -886,7 +886,7 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 			if !enabled {
 				project = "default"
 			}
-			q := `DELETE FROM images_profiles 
+			q := `DELETE FROM images_profiles
 				WHERE image_id = ? AND profile_id IN (
 					SELECT profiles.id FROM profiles
 					JOIN projects ON profiles.project_id = projects.id
