@@ -532,6 +532,12 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 		// Note: size should not be modifiable for non-custom volumes and should be checked
 		// in the relevant volume update functions.
 		"size": shared.IsSize,
+
+		"snapshots.expiry": func(value string) error {
+			// Validate expression
+			_, err := shared.GetSnapshotExpiry(time.Time{}, value)
+			return err
+		},
 	}
 
 	// block.mount_options is only relevant for drivers that are block backed and when there
