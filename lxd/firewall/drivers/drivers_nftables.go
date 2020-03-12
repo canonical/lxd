@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -39,8 +40,26 @@ func (d Nftables) String() string {
 
 // Compat returns whether the host is compatible with this driver and whether the driver backend is in use.
 func (d Nftables) Compat() (bool, bool) {
+	// Get the kernel version.
+	uname, err := shared.Uname()
+	if err != nil {
+		return false, false
+	}
+
+	// We require a 5.x kernel to avoid weird conflicts with xtables.
+	if len(uname.Release) > 1 {
+		verInt, err := strconv.Atoi(uname.Release[0:1])
+		if err != nil {
+			return false, false
+		}
+
+		if verInt < 5 {
+			return false, false
+		}
+	}
+
 	// Check if nftables nft command exists, if not use xtables.
-	_, err := exec.LookPath("nft")
+	_, err = exec.LookPath("nft")
 	if err != nil {
 		return false, false
 	}
@@ -63,7 +82,7 @@ func (d Nftables) Compat() (bool, bool) {
 	ruleset, err := d.nftParseRuleset()
 	if err != nil {
 		logger.Errorf("Firewall nftables unable to parse existing ruleset: %v", err)
-		return true, false
+		return false, false
 	}
 
 	for _, item := range ruleset {
@@ -120,6 +139,11 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 			table.Type = "table"
 			items = append(items, table)
 		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	return items, nil
@@ -429,7 +453,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 	for _, family := range families {
 		for _, item := range ruleset {
 			if item.Type == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.StringInSlice(item.Name, fullChains) {
-				_, err = shared.RunCommand("nft", "delete", "chain", family, nftablesNamespace, item.Name)
+				_, err = shared.RunCommand("nft", "flush", "chain", family, nftablesNamespace, item.Name, ";", "delete", "chain", family, nftablesNamespace, item.Name)
 				if err != nil {
 					return errors.Wrapf(err, "Failed deleting nftables chain %q (%s)", item.Name, family)
 				}
