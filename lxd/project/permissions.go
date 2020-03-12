@@ -139,7 +139,8 @@ func checkAggregateLimits(project *api.Project, instances []db.Instance, aggrega
 }
 
 func checkRestrictions(project *api.Project, instances []db.Instance) error {
-	containerKeyChecks := map[string]func(value string) error{}
+	containerConfigChecks := map[string]func(value string) error{}
+	devicesChecks := map[string]func(value map[string]string) error{}
 
 	allowContainerLowLevel := false
 
@@ -153,7 +154,7 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 
 		switch key {
 		case "restricted.containers.nesting":
-			containerKeyChecks["security.nesting"] = func(instanceValue string) error {
+			containerConfigChecks["security.nesting"] = func(instanceValue string) error {
 				if restrictionValue == "block" && shared.IsTrue(instanceValue) {
 					return fmt.Errorf("Container nesting is forbidden")
 				}
@@ -165,14 +166,14 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 				allowContainerLowLevel = true
 			}
 		case "restricted.containers.privilege":
-			containerKeyChecks["security.privileged"] = func(instanceValue string) error {
+			containerConfigChecks["security.privileged"] = func(instanceValue string) error {
 				if restrictionValue != "allow" && shared.IsTrue(instanceValue) {
 					return fmt.Errorf("Privileged containers are forbidden")
 				}
 
 				return nil
 			}
-			containerKeyChecks["security.idmap.isolated"] = func(instanceValue string) error {
+			containerConfigChecks["security.idmap.isolated"] = func(instanceValue string) error {
 				if restrictionValue == "isolated" && !shared.IsTrue(instanceValue) {
 					return fmt.Errorf("Non-isolated containers are forbidden")
 				}
@@ -190,7 +191,7 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 					return fmt.Errorf("Use of low-level config %q on instance %q of project %q is forbidden",
 						key, instance.Name, project.Name)
 				}
-				checker, ok := containerKeyChecks[key]
+				checker, ok := containerConfigChecks[key]
 				if !ok {
 					continue
 				}
@@ -201,6 +202,21 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 						"Invalid value %q for config %q on instance %q of project %q",
 						value, key, instance.Name, project.Name)
 				}
+			}
+		}
+		for name, device := range instance.Devices {
+			for typ, check := range devicesChecks {
+				if device["type"] != typ {
+					continue
+				}
+				err := check(device)
+				if err != nil {
+					return errors.Wrapf(
+						err,
+						"Invalid device %q on instance %q of project %q",
+						name, instance.Name, project.Name)
+				}
+				break
 			}
 		}
 	}
