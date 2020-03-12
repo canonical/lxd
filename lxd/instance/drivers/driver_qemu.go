@@ -3161,7 +3161,7 @@ func (vm *qemu) Console() (*os.File, chan error, error) {
 		<-chDisconnect
 
 		vmConsoleLock.Lock()
-		vmConsole[vm.id] = false
+		delete(vmConsole, vm.id)
 		vmConsoleLock.Unlock()
 	}()
 
