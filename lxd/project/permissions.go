@@ -140,6 +140,8 @@ func checkAggregateLimits(project *api.Project, instances []db.Instance, aggrega
 func checkRestrictions(project *api.Project, instances []db.Instance) error {
 	containerKeyChecks := map[string]func(value string) error{}
 
+	allowContainerLowLevel := false
+
 	for _, key := range AllRestrictions {
 		// Check if this particularl restriction is defined explicitly
 		// in the project config. If not, use the default value.
@@ -157,6 +159,10 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 
 				return nil
 			}
+		case "restricted.containers.lowlevel":
+			if restrictionValue == "allow" {
+				allowContainerLowLevel = true
+			}
 		}
 	}
 
@@ -164,7 +170,7 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 		if instance.Type == instancetype.Container {
 			for key, value := range instance.Config {
 				// First check if the key is a forbidden low-level one.
-				if isContainerLowLevelOptionForbidden(key) {
+				if !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
 					return fmt.Errorf("Use of low-level config %q on instance %q of project %q is forbidden",
 						key, instance.Name, project.Name)
 				}
@@ -195,10 +201,12 @@ var allAggregateLimits = []string{
 // AllRestrictions lists all available 'restrict.*' config keys.
 var AllRestrictions = []string{
 	"restricted.containers.nesting",
+	"restricted.containers.lowlevel",
 }
 
 var defaultRestrictionsValues = map[string]string{
-	"restricted.containers.nesting": "block",
+	"restricted.containers.nesting":  "block",
+	"restricted.containers.lowlevel": "block",
 }
 
 // Return true if a low-level container option is forbidden.
