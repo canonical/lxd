@@ -25,7 +25,17 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		return nil
 	}
 
-	err = checkInstanceCountLimit(project, len(instances), req.Type)
+	var instanceType instancetype.Type
+	switch req.Type {
+	case api.InstanceTypeContainer:
+		instanceType = instancetype.Container
+	case api.InstanceTypeVM:
+		instanceType = instancetype.VM
+	default:
+		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
+	}
+
+	err = checkInstanceCountLimit(project, len(instances), instanceType)
 	if err != nil {
 		return err
 	}
@@ -37,6 +47,13 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 		Config:   req.Config,
 	})
 
+	// Special case restriction checks on volatile.* keys.
+	err = checkRestrictionsOnVolatileConfig(
+		project, instanceType, req.Name, req.Config, map[string]string{})
+	if err != nil {
+		return err
+	}
+
 	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
 	if err != nil {
 		return err
@@ -47,12 +64,12 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 
 // Check that we have not reached the maximum number of instances for
 // this type.
-func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceType api.InstanceType) error {
+func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceType instancetype.Type) error {
 	var key string
 	switch instanceType {
-	case api.InstanceTypeContainer:
+	case instancetype.Container:
 		key = "limits.containers"
-	case api.InstanceTypeVM:
+	case instancetype.VM:
 		key = "limits.virtual-machines"
 	default:
 		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
@@ -67,6 +84,46 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 			return fmt.Errorf(
 				"Reached maximum number of instances of type %s in project %s",
 				instanceType, project.Name)
+		}
+	}
+
+	return nil
+}
+
+// Check restrictions on setting volatile.* keys.
+func checkRestrictionsOnVolatileConfig(project *api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string) error {
+	if project.Config["restrict"] == "false" {
+		return nil
+	}
+
+	var restrictedLowLevel string
+	switch instanceType {
+	case instancetype.Container:
+		restrictedLowLevel = "restricted.containers.lowlevel"
+	case instancetype.VM:
+		restrictedLowLevel = "restricted.virtual-machines.lowlevel"
+	}
+
+	if project.Config[restrictedLowLevel] == "allow" {
+		return nil
+	}
+
+	for key, value := range config {
+		if !strings.HasPrefix(key, "volatile.") {
+			continue
+		}
+
+		currentValue, ok := currentConfig[key]
+		if !ok {
+			return fmt.Errorf(
+				"Setting %q on %s %q in project %q is forbidden",
+				key, instanceType, instanceName, project.Name)
+		}
+
+		if currentValue != value {
+			return fmt.Errorf(
+				"Changing %q on %s %q in project %q is forbidden",
+				key, instanceType, instanceName, project.Name)
 		}
 	}
 
@@ -429,6 +486,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
 func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
+	var updatedInstance *db.Instance
 	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
@@ -445,6 +503,15 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		instances[i].Profiles = req.Profiles
 		instances[i].Config = req.Config
 		instances[i].Devices = req.Devices
+		updatedInstance = &instances[i]
+	}
+
+	// Special case restriction checks on volatile.* keys, since we want to
+	// detect if they were changed or added.
+	err = checkRestrictionsOnVolatileConfig(
+		project, updatedInstance.Type, updatedInstance.Name, req.Config, currentConfig)
+	if err != nil {
+		return err
 	}
 
 	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
