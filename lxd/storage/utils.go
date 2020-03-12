@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
@@ -683,4 +684,31 @@ func VolumeUsedByRunningInstancesWithProfilesGet(s *state.State, projectName str
 	}
 
 	return instUsingVolume, nil
+}
+
+// VolumeUsedByDaemon indicates whether the volume is used by daemon storage.
+func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
+	var storageBackups string
+	var storageImages string
+	err := s.Node.Transaction(func(tx *db.NodeTx) error {
+		nodeConfig, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+
+		storageBackups = nodeConfig.StorageBackupsVolume()
+		storageImages = nodeConfig.StorageImagesVolume()
+
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	fullName := fmt.Sprintf("%s/%s", poolName, volumeName)
+	if storageBackups == fullName || storageImages == fullName {
+		return true, nil
+	}
+
+	return false, nil
 }
