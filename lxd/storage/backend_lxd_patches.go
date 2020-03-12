@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"github.com/pkg/errors"
+	"os"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -83,6 +84,44 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 				logger.Infof("Reverting rename of custom volume %q in pool %q to %q", newVol.Name(), b.Name(), curVol.Name)
 				b.driver.RenameVolume(newVol, curVol.Name, nil)
 			})
+
+			// Check if volume is being used by daemon storage and needs its symlink updating.
+			used, err := VolumeUsedByDaemon(b.state, b.Name(), curVol.Name)
+			if err != nil {
+				return err
+			}
+
+			if used {
+				logger.Infof("Updating daemon storage symlinks for volume %q in pool %q", curVol.Name, b.Name())
+				for _, storageType := range []string{"images", "backups"} {
+					err = func(storageType string) error {
+						symlinkPath := shared.VarPath(storageType)
+						destPath, err := os.Readlink(symlinkPath)
+
+						// Check if storage type path is a symlink and points to volume.
+						if err == nil && destPath == oldVol.MountPath() {
+							newDestPath := newVol.MountPath()
+							logger.Infof("Updating daemon storage symlink at %q to %q", symlinkPath, newDestPath)
+							os.Remove(symlinkPath)
+							err = os.Symlink(newDestPath, symlinkPath)
+							if err != nil {
+								return errors.Wrapf(err, "Failed to create the new symlink at %q to %q", symlinkPath, newDestPath)
+							}
+
+							revert.Add(func() {
+								logger.Infof("Reverting daemon storage symlink at %q to %q", symlinkPath, destPath)
+								os.Remove(symlinkPath)
+								os.Symlink(destPath, symlinkPath)
+							})
+						}
+
+						return nil
+					}(storageType)
+					if err != nil {
+						return err
+					}
+				}
+			}
 
 			if ourUnmount {
 				logger.Infof("Mount custom volume %q in pool %q", newVolStorageName, b.Name())
