@@ -221,7 +221,7 @@ func storagePoolVolumeUsedByGet(s *state.State, project, poolName string, volume
 	}
 
 	// Check if the daemon itself is using it
-	used, err := daemonStorageUsed(s, poolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(s, poolName, volumeName)
 	if err != nil {
 		return []string{}, err
 	}
