@@ -104,7 +104,7 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, project *api.Project,
 	}
 
 	if isRestricted {
-		err = checkRestrictions(project, instances)
+		err = checkRestrictions(project, instances, profiles)
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,9 @@ func checkAggregateLimits(project *api.Project, instances []db.Instance, aggrega
 	return nil
 }
 
-func checkRestrictions(project *api.Project, instances []db.Instance) error {
+// Check that the project's restrictions are not violated across the given
+// instances and profiles.
+func checkRestrictions(project *api.Project, instances []db.Instance, profiles []db.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -190,41 +192,70 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 		}
 	}
 
-	for _, instance := range instances {
-		if instance.Type == instancetype.Container {
-			for key, value := range instance.Config {
-				// First check if the key is a forbidden low-level one.
-				if !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
-					return fmt.Errorf("Use of low-level config %q on instance %q of project %q is forbidden",
-						key, instance.Name, project.Name)
-				}
-				checker, ok := containerConfigChecks[key]
-				if !ok {
-					continue
-				}
-				err := checker(value)
-				if err != nil {
-					return errors.Wrapf(
-						err,
-						"Invalid value %q for config %q on instance %q of project %q",
-						value, key, instance.Name, project.Name)
-				}
+	// Common config check logic between instances and profiles.
+	entityConfigChecker := func(entityType, entityName string, config map[string]string) error {
+		for key, value := range config {
+			// First check if the key is a forbidden low-level one.
+			if !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
+				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden",
+					key, entityType, entityName, project.Name)
+			}
+			checker, ok := containerConfigChecks[key]
+			if !ok {
+				continue
+			}
+			err := checker(value)
+			if err != nil {
+				return errors.Wrapf(
+					err,
+					"Invalid value %q for config %q on %s %q of project %q",
+					value, key, entityType, entityName, project.Name)
 			}
 		}
-		for name, device := range instance.Devices {
-			for typ, check := range devicesChecks {
-				if device["type"] != typ {
-					continue
-				}
-				err := check(device)
-				if err != nil {
-					return errors.Wrapf(
-						err,
-						"Invalid device %q on instance %q of project %q",
-						name, instance.Name, project.Name)
-				}
-				break
+		return nil
+	}
+
+	// Common devices check logic between instances and profiles.
+	entityDevicesChecker := func(entityType, entityName string, devices map[string]map[string]string) error {
+		for name, device := range devices {
+			check, ok := devicesChecks[device["type"]]
+			if !ok {
+				continue
 			}
+
+			err := check(device)
+			if err != nil {
+				return errors.Wrapf(
+					err,
+					"Invalid device %q on %s %q of project %q",
+					name, entityType, entityName, project.Name)
+			}
+		}
+		return nil
+	}
+
+	for _, instance := range instances {
+		if instance.Type == instancetype.Container {
+			err := entityConfigChecker("container", instance.Name, instance.Config)
+			if err != nil {
+				return err
+			}
+		}
+		err := entityDevicesChecker("instance", instance.Name, instance.Devices)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, profile := range profiles {
+		err := entityConfigChecker("profile", profile.Name, profile.Config)
+		if err != nil {
+			return err
+		}
+
+		err = entityDevicesChecker("profile", profile.Name, profile.Devices)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -254,10 +285,6 @@ var defaultRestrictionsValues = map[string]string{
 
 // Return true if a low-level container option is forbidden.
 func isContainerLowLevelOptionForbidden(key string) bool {
-	if strings.HasPrefix(key, "volatile.") {
-		return true
-	}
-
 	if strings.HasPrefix(key, "security.syscalls") {
 		return true
 	}
@@ -297,6 +324,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		}
 		instances[i].Profiles = req.Profiles
 		instances[i].Config = req.Config
+		instances[i].Devices = req.Devices
 	}
 
 	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
@@ -324,6 +352,7 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 			continue
 		}
 		profiles[i].Config = req.Config
+		profiles[i].Devices = req.Devices
 	}
 
 	err = checkRestrictionsAndAggregateLimits(tx, project, instances, profiles)
@@ -355,7 +384,8 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 					Config: config,
 				},
 			}
-			err := checkRestrictions(project, instances)
+
+			err := checkRestrictions(project, instances, profiles)
 			if err != nil {
 				return errors.Wrapf(err, "Conflict detected when changing %q in project %q", key, projectName)
 			}
