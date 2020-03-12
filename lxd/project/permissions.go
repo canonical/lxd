@@ -428,7 +428,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 
 // AllowInstanceUpdate returns an error if any project-specific limit or
 // restriction is violated when updating an existing instance.
-func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut) error {
+func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req api.InstancePut, currentConfig map[string]string) error {
 	project, profiles, instances, err := fetchProject(tx, projectName, true)
 	if err != nil {
 		return err
