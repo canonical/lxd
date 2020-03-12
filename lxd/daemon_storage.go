@@ -78,32 +78,6 @@ func daemonStorageMount(s *state.State) error {
 	return nil
 }
 
-func daemonStorageUsed(s *state.State, poolName string, volumeName string) (bool, error) {
-	var storageBackups string
-	var storageImages string
-	err := s.Node.Transaction(func(tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(tx)
-		if err != nil {
-			return err
-		}
-
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
-
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	fullName := fmt.Sprintf("%s/%s", poolName, volumeName)
-	if storageBackups == fullName || storageImages == fullName {
-		return true, nil
-	}
-
-	return false, nil
-}
-
 func daemonStorageValidate(s *state.State, target string) error {
 	// Check syntax.
 	if target == "" {
