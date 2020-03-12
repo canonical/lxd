@@ -532,6 +532,7 @@ CREATE TABLE storage_volumes_snapshots (
     storage_volume_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
+    expiry_date DATETIME,
     UNIQUE (id),
     UNIQUE (storage_volume_id, name),
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
@@ -552,5 +553,5 @@ CREATE TABLE storage_volumes_snapshots_config (
     UNIQUE (storage_volume_snapshot_id, key)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (27, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (28, strftime("%s"))
 `
