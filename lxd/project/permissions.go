@@ -180,6 +180,13 @@ func checkRestrictions(project *api.Project, instances []db.Instance) error {
 
 				return nil
 			}
+		case "restricted.devices.unix-char":
+			devicesChecks["unix-char"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("Character devices are forbidden")
+				}
+				return nil
+			}
 		}
 	}
 
@@ -235,12 +242,14 @@ var AllRestrictions = []string{
 	"restricted.containers.nesting",
 	"restricted.containers.lowlevel",
 	"restricted.containers.privilege",
+	"restricted.devices.unix-char",
 }
 
 var defaultRestrictionsValues = map[string]string{
 	"restricted.containers.nesting":   "block",
 	"restricted.containers.lowlevel":  "block",
 	"restricted.containers.privilege": "unprivileged",
+	"restricted.devices.unix-char":    "block",
 }
 
 // Return true if a low-level container option is forbidden.
