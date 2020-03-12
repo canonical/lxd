@@ -33,7 +33,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -1305,7 +1304,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 	}
 
 	// Delete them
-	for _, fp := range images {
+	for _, img := range images {
 		// At each iteration we check if we got cancelled in the
 		// meantime. It is safe to abort here since anything not
 		// expired now will be expired at the next run.
@@ -1317,7 +1316,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 
 		// Get the IDs of all storage pools on which a storage volume
 		// for the requested image currently exists.
-		poolIDs, err := d.cluster.ImageGetPools(fp)
+		poolIDs, err := d.cluster.ImageGetPools(img.Fingerprint)
 		if err != nil {
 			continue
 		}
@@ -1329,38 +1328,38 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 		}
 
 		for _, pool := range poolNames {
-			err := doDeleteImageFromPool(d.State(), fp, pool)
+			err := doDeleteImageFromPool(d.State(), img.Fingerprint, pool)
 			if err != nil {
-				return errors.Wrapf(err, "Error deleting image %s from storage pool %s", fp, pool)
+				return errors.Wrapf(err, "Error deleting image %q from storage pool %q", img.Fingerprint, pool)
 			}
 		}
 
 		// Remove main image file.
-		fname := filepath.Join(d.os.VarDir, "images", fp)
+		fname := filepath.Join(d.os.VarDir, "images", img.Fingerprint)
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Error deleting image file %s", fname)
+				return errors.Wrapf(err, "Error deleting image file %q", fname)
 			}
 		}
 
 		// Remove the rootfs file for the image.
-		fname = filepath.Join(d.os.VarDir, "images", fp) + ".rootfs"
+		fname = filepath.Join(d.os.VarDir, "images", img.Fingerprint) + ".rootfs"
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Error deleting image file %s", fname)
+				return errors.Wrapf(err, "Error deleting image file %q", fname)
 			}
 		}
 
-		imgID, _, err := d.cluster.ImageGet(project.Default, fp, false, false)
+		imgID, _, err := d.cluster.ImageGet(img.ProjectName, img.Fingerprint, false, false)
 		if err != nil {
-			return errors.Wrapf(err, "Error retrieving image info %s", fp)
+			return errors.Wrapf(err, "Error retrieving image info for fingerprint %q and project %q", img.Fingerprint, img.ProjectName)
 		}
 
 		// Remove the database entry for the image.
 		if err = d.cluster.ImageDelete(imgID); err != nil {
-			return errors.Wrapf(err, "Error deleting image %s from database", fp)
+			return errors.Wrapf(err, "Error deleting image %q from database", img.Fingerprint)
 		}
 	}
 
