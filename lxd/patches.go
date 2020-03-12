@@ -31,6 +31,15 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+type patchStage int
+
+// Define the stages that patches can run at.
+const (
+	patchNoStageSet patchStage = iota
+	patchPreDaemonStorage
+	patchPostDaemonStorage
+)
+
 /* Patches are one-time actions that are sometimes needed to update
    existing container configuration or move things around on the
    filesystem.
@@ -47,52 +56,52 @@ import (
 
    Only append to the patches list, never remove entries and never re-order them.
 */
-
 var patches = []patch{
-	{name: "shrink_logs_db_file", run: patchShrinkLogsDBFile},
-	{name: "invalid_profile_names", run: patchInvalidProfileNames},
-	{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
-	{name: "network_permissions", run: patchNetworkPermissions},
-	{name: "storage_api", run: patchStorageApi},
-	{name: "storage_api_v1", run: patchStorageApiV1},
-	{name: "storage_api_dir_cleanup", run: patchStorageApiDirCleanup},
-	{name: "storage_api_lvm_keys", run: patchStorageApiLvmKeys},
-	{name: "storage_api_keys", run: patchStorageApiKeys},
-	{name: "storage_api_update_storage_configs", run: patchStorageApiUpdateStorageConfigs},
-	{name: "storage_api_lxd_on_btrfs", run: patchStorageApiLxdOnBtrfs},
-	{name: "storage_api_lvm_detect_lv_size", run: patchStorageApiDetectLVSize},
-	{name: "storage_api_insert_zfs_driver", run: patchStorageApiInsertZfsDriver},
-	{name: "storage_zfs_noauto", run: patchStorageZFSnoauto},
-	{name: "storage_zfs_volume_size", run: patchStorageZFSVolumeSize},
-	{name: "network_dnsmasq_hosts", run: patchNetworkDnsmasqHosts},
-	{name: "storage_api_dir_bind_mount", run: patchStorageApiDirBindMount},
-	{name: "fix_uploaded_at", run: patchFixUploadedAt},
-	{name: "storage_api_ceph_size_remove", run: patchStorageApiCephSizeRemove},
-	{name: "devices_new_naming_scheme", run: patchDevicesNewNamingScheme},
-	{name: "storage_api_permissions", run: patchStorageApiPermissions},
-	{name: "container_config_regen", run: patchContainerConfigRegen},
-	{name: "lvm_node_specific_config_keys", run: patchLvmNodeSpecificConfigKeys},
-	{name: "candid_rename_config_key", run: patchCandidConfigKey},
-	{name: "move_backups", run: patchMoveBackups},
-	{name: "storage_api_rename_container_snapshots_dir", run: patchStorageApiRenameContainerSnapshotsDir},
-	{name: "storage_api_rename_container_snapshots_links", run: patchStorageApiUpdateContainerSnapshots},
-	{name: "fix_lvm_pool_volume_names", run: patchRenameCustomVolumeLVs},
-	{name: "storage_api_rename_container_snapshots_dir_again", run: patchStorageApiRenameContainerSnapshotsDir},
-	{name: "storage_api_rename_container_snapshots_links_again", run: patchStorageApiUpdateContainerSnapshots},
-	{name: "storage_api_rename_container_snapshots_dir_again_again", run: patchStorageApiRenameContainerSnapshotsDir},
-	{name: "clustering_add_roles", run: patchClusteringAddRoles},
-	{name: "clustering_add_roles_again", run: patchClusteringAddRoles},
-	{name: "storage_create_vm", run: patchGenericStorage},
-	{name: "storage_zfs_mount", run: patchGenericStorage},
-	{name: "network_pid_files", run: patchNetworkPIDFiles},
-	{name: "storage_create_vm_again", run: patchGenericStorage},
-	{name: "storage_zfs_volmode", run: patchGenericStorage},
-	{name: "storage_rename_custom_volume_add_project", run: patchGenericStorage},
+	{name: "shrink_logs_db_file", stage: patchPostDaemonStorage, run: patchShrinkLogsDBFile},
+	{name: "invalid_profile_names", stage: patchPostDaemonStorage, run: patchInvalidProfileNames},
+	{name: "leftover_profile_config", stage: patchPostDaemonStorage, run: patchLeftoverProfileConfig},
+	{name: "network_permissions", stage: patchPostDaemonStorage, run: patchNetworkPermissions},
+	{name: "storage_api", stage: patchPostDaemonStorage, run: patchStorageApi},
+	{name: "storage_api_v1", stage: patchPostDaemonStorage, run: patchStorageApiV1},
+	{name: "storage_api_dir_cleanup", stage: patchPostDaemonStorage, run: patchStorageApiDirCleanup},
+	{name: "storage_api_lvm_keys", stage: patchPostDaemonStorage, run: patchStorageApiLvmKeys},
+	{name: "storage_api_keys", stage: patchPostDaemonStorage, run: patchStorageApiKeys},
+	{name: "storage_api_update_storage_configs", stage: patchPostDaemonStorage, run: patchStorageApiUpdateStorageConfigs},
+	{name: "storage_api_lxd_on_btrfs", stage: patchPostDaemonStorage, run: patchStorageApiLxdOnBtrfs},
+	{name: "storage_api_lvm_detect_lv_size", stage: patchPostDaemonStorage, run: patchStorageApiDetectLVSize},
+	{name: "storage_api_insert_zfs_driver", stage: patchPostDaemonStorage, run: patchStorageApiInsertZfsDriver},
+	{name: "storage_zfs_noauto", stage: patchPostDaemonStorage, run: patchStorageZFSnoauto},
+	{name: "storage_zfs_volume_size", stage: patchPostDaemonStorage, run: patchStorageZFSVolumeSize},
+	{name: "network_dnsmasq_hosts", stage: patchPostDaemonStorage, run: patchNetworkDnsmasqHosts},
+	{name: "storage_api_dir_bind_mount", stage: patchPostDaemonStorage, run: patchStorageApiDirBindMount},
+	{name: "fix_uploaded_at", stage: patchPostDaemonStorage, run: patchFixUploadedAt},
+	{name: "storage_api_ceph_size_remove", stage: patchPostDaemonStorage, run: patchStorageApiCephSizeRemove},
+	{name: "devices_new_naming_scheme", stage: patchPostDaemonStorage, run: patchDevicesNewNamingScheme},
+	{name: "storage_api_permissions", stage: patchPostDaemonStorage, run: patchStorageApiPermissions},
+	{name: "container_config_regen", stage: patchPostDaemonStorage, run: patchContainerConfigRegen},
+	{name: "lvm_node_specific_config_keys", stage: patchPostDaemonStorage, run: patchLvmNodeSpecificConfigKeys},
+	{name: "candid_rename_config_key", stage: patchPostDaemonStorage, run: patchCandidConfigKey},
+	{name: "move_backups", stage: patchPostDaemonStorage, run: patchMoveBackups},
+	{name: "storage_api_rename_container_snapshots_dir", stage: patchPostDaemonStorage, run: patchStorageApiRenameContainerSnapshotsDir},
+	{name: "storage_api_rename_container_snapshots_links", stage: patchPostDaemonStorage, run: patchStorageApiUpdateContainerSnapshots},
+	{name: "fix_lvm_pool_volume_names", stage: patchPostDaemonStorage, run: patchRenameCustomVolumeLVs},
+	{name: "storage_api_rename_container_snapshots_dir_again", stage: patchPostDaemonStorage, run: patchStorageApiRenameContainerSnapshotsDir},
+	{name: "storage_api_rename_container_snapshots_links_again", stage: patchPostDaemonStorage, run: patchStorageApiUpdateContainerSnapshots},
+	{name: "storage_api_rename_container_snapshots_dir_again_again", stage: patchPostDaemonStorage, run: patchStorageApiRenameContainerSnapshotsDir},
+	{name: "clustering_add_roles", stage: patchPostDaemonStorage, run: patchClusteringAddRoles},
+	{name: "clustering_add_roles_again", stage: patchPostDaemonStorage, run: patchClusteringAddRoles},
+	{name: "storage_create_vm", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "storage_zfs_mount", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "network_pid_files", stage: patchPostDaemonStorage, run: patchNetworkPIDFiles},
+	{name: "storage_create_vm_again", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "storage_zfs_volmode", stage: patchPostDaemonStorage, run: patchGenericStorage},
+	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 }
 
 type patch struct {
-	name string
-	run  func(name string, d *Daemon) error
+	name  string
+	stage patchStage
+	run   func(name string, d *Daemon) error
 }
 
 func (p *patch) apply(d *Daemon) error {
@@ -115,18 +124,27 @@ func (p *patch) apply(d *Daemon) error {
 func patchesGetNames() []string {
 	names := make([]string, len(patches))
 	for i, patch := range patches {
+		if patch.stage == patchNoStageSet {
+			continue // Ignore any patch without explicitly set stage (it is defined incorrectly).
+		}
+
 		names[i] = patch.name
 	}
 	return names
 }
 
-func patchesApplyAll(d *Daemon) error {
+// patchesApplyPostDaemonStorage applies the patches that need to run after the daemon storage is initialised.
+func patchesApply(d *Daemon, stage patchStage) error {
 	appliedPatches, err := d.db.Patches()
 	if err != nil {
 		return err
 	}
 
 	for _, patch := range patches {
+		if patch.stage == patchNoStageSet {
+			return fmt.Errorf("Patch %q has no stage set: %d", patch.name, patch.stage)
+		}
+
 		if shared.StringInSlice(patch.name, appliedPatches) {
 			continue
 		}
