@@ -206,6 +206,14 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 
 				return nil
 			}
+		case "restricted.devices.infiniband":
+			devicesChecks["infiniband"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("Infiniband devices are forbidden")
+				}
+
+				return nil
+			}
 		}
 	}
 
@@ -293,6 +301,7 @@ var AllRestrictions = []string{
 	"restricted.devices.unix-char",
 	"restricted.devices.unix-block",
 	"restricted.devices.unix-hotplug",
+	"restricted.devices.infiniband",
 }
 
 var defaultRestrictionsValues = map[string]string{
@@ -302,6 +311,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.devices.unix-char":    "block",
 	"restricted.devices.unix-block":   "block",
 	"restricted.devices.unix-hotplug": "block",
+	"restricted.devices.infiniband":   "block",
 }
 
 // Return true if a low-level container option is forbidden.
