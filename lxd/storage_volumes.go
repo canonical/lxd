@@ -604,7 +604,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 
 	// Check if the daemon itself is using it.
-	used, err := daemonStorageUsed(d.State(), poolName, volumeName)
+	used, err := storagePools.VolumeUsedByDaemon(d.State(), poolName, volumeName)
 	if err != nil {
 		return response.SmartError(err)
 	}
