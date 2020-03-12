@@ -214,6 +214,14 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 
 				return nil
 			}
+		case "restricted.devices.gpu":
+			devicesChecks["gpu"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("GPU devices are forbidden")
+				}
+
+				return nil
+			}
 		case "restricted.devices.nic":
 			devicesChecks["nic"] = func(device map[string]string) error {
 				switch restrictionValue {
@@ -331,6 +339,7 @@ var AllRestrictions = []string{
 	"restricted.devices.unix-block",
 	"restricted.devices.unix-hotplug",
 	"restricted.devices.infiniband",
+	"restricted.devices.gpu",
 	"restricted.devices.nic",
 	"restricted.devices.disk",
 }
@@ -343,6 +352,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.devices.unix-block":   "block",
 	"restricted.devices.unix-hotplug": "block",
 	"restricted.devices.infiniband":   "block",
+	"restricted.devices.gpu":          "block",
 	"restricted.devices.nic":          "managed",
 	"restricted.devices.disk":         "managed",
 }
