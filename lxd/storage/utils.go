@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -283,7 +284,7 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 }
 
 // VolumeDBCreate creates a volume in the database.
-func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string) error {
+func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescription, volumeTypeName string, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToType(volumeTypeName)
 	if err != nil {
@@ -320,7 +321,11 @@ func VolumeDBCreate(s *state.State, project, poolName, volumeName, volumeDescrip
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = s.Cluster.StoragePoolVolumeCreate(project, volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
+	if snapshot {
+		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(project, volumeName, volumeDescription, volumeType, poolID, volumeConfig, expiryDate)
+	} else {
+		_, err = s.Cluster.StoragePoolVolumeCreate(project, volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
+	}
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
