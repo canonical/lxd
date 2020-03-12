@@ -822,21 +822,28 @@ func (d *Daemon) init() error {
 		version.UserAgentFeatures([]string{"cluster"})
 	}
 
-	// Read the storage pools.
+	// Mount the storage pools.
 	logger.Infof("Initializing storage pools")
 	err = setupStorageDriver(d.State(), false)
 	if err != nil {
 		return err
 	}
 
-	// Mount any daemon storage.
+	// Apply all patches that need to be run before daemon storage is initialised.
+	err = patchesApply(d, patchPreDaemonStorage)
+	if err != nil {
+		return err
+	}
+
+	// Mount any daemon storage volumes.
+	logger.Infof("Initializing daemon storage mounts")
 	err = daemonStorageMount(d.State())
 	if err != nil {
 		return err
 	}
 
-	// Apply all patches.
-	err = patchesApplyAll(d)
+	// Apply all patches that need to be run after daemon storage is initialised.
+	err = patchesApply(d, patchPostDaemonStorage)
 	if err != nil {
 		return err
 	}
