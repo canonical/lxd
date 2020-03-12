@@ -2557,7 +2557,37 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		return fmt.Errorf("Volume must be a snapshot")
 	}
 
-	return b.updateVolumeDescriptionOnly(projectName, volName, db.StoragePoolVolumeTypeCustom, newDesc, newConfig)
+	// Get current config to compare what has changed.
+	volID, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	curExpiryDate, err := b.state.Cluster.StorageVolumeSnapshotExpiryGet(volID)
+	if err != nil {
+		return err
+	}
+
+	if newConfig != nil {
+		changedConfig, _ := b.detectChangedConfig(curVol.Config, newConfig)
+		if len(changedConfig) != 0 {
+			return fmt.Errorf("Volume config is not editable")
+		}
+	}
+
+	// Update the database if description changed. Use current config.
+	if newDesc != curVol.Description || newExpiryDate != curExpiryDate {
+		err = b.state.Cluster.StoragePoolVolumeSnapshotUpdateByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, curVol.Config, newExpiryDate)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // DeleteCustomVolume removes a custom volume and its snapshots.
