@@ -325,16 +325,24 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 		ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP | POLLNVAL))
 		if ret < 0 {
 			logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) on file descriptor: %s.", err)
+			// Something went wrong so let's exited otherwise we
+			// end up in an endless loop.
+			once.Do(closeChannel)
 		} else if ret > 0 {
 			if (revents & POLLERR) > 0 {
 				logger.Warnf("Detected poll(POLLERR) event.")
+				// Read end has likely been closed so again,
+				// avoid an endless loop.
+				once.Do(closeChannel)
 			} else if (revents & POLLNVAL) > 0 {
 				logger.Warnf("Detected poll(POLLNVAL) event.")
+				// Well, someone closed the fd havent they? So
+				// let's go home.
+				once.Do(closeChannel)
 			}
 		} else if ret == 0 {
 			logger.Debugf("No data in stdout: exiting.")
 			once.Do(closeChannel)
-			return
 		}
 	}()
 
