@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -39,8 +40,26 @@ func (d Nftables) String() string {
 
 // Compat returns whether the host is compatible with this driver and whether the driver backend is in use.
 func (d Nftables) Compat() (bool, bool) {
+	// Get the kernel version.
+	uname, err := shared.Uname()
+	if err != nil {
+		return false, false
+	}
+
+	// We require a 5.x kernel to avoid weird conflicts with xtables.
+	if len(uname.Release) > 1 {
+		verInt, err := strconv.Atoi(uname.Release[0:1])
+		if err != nil {
+			return false, false
+		}
+
+		if verInt < 5 {
+			return false, false
+		}
+	}
+
 	// Check if nftables nft command exists, if not use xtables.
-	_, err := exec.LookPath("nft")
+	_, err = exec.LookPath("nft")
 	if err != nil {
 		return false, false
 	}
