@@ -214,6 +214,18 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 
 				return nil
 			}
+		case "restricted.devices.nic":
+			devicesChecks["nic"] = func(device map[string]string) error {
+				switch restrictionValue {
+				case "block":
+					return fmt.Errorf("Network devices are forbidden")
+				case "managed":
+					if device["network"] == "" {
+						return fmt.Errorf("Only managed network devices are allowed")
+					}
+				}
+				return nil
+			}
 		}
 	}
 
@@ -302,6 +314,7 @@ var AllRestrictions = []string{
 	"restricted.devices.unix-block",
 	"restricted.devices.unix-hotplug",
 	"restricted.devices.infiniband",
+	"restricted.devices.nic",
 }
 
 var defaultRestrictionsValues = map[string]string{
@@ -312,6 +325,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.devices.unix-block":   "block",
 	"restricted.devices.unix-hotplug": "block",
 	"restricted.devices.infiniband":   "block",
+	"restricted.devices.nic":          "managed",
 }
 
 // Return true if a low-level container option is forbidden.
