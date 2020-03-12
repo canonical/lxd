@@ -185,8 +185,17 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 		case "restricted.devices.unix-char":
 			devicesChecks["unix-char"] = func(device map[string]string) error {
 				if restrictionValue != "allow" {
-					return fmt.Errorf("Character devices are forbidden")
+					return fmt.Errorf("Unix character devices are forbidden")
 				}
+
+				return nil
+			}
+		case "restricted.devices.unix-block":
+			devicesChecks["unix-block"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("Unix block devices are forbidden")
+				}
+
 				return nil
 			}
 		}
@@ -274,6 +283,7 @@ var AllRestrictions = []string{
 	"restricted.containers.lowlevel",
 	"restricted.containers.privilege",
 	"restricted.devices.unix-char",
+	"restricted.devices.unix-block",
 }
 
 var defaultRestrictionsValues = map[string]string{
@@ -281,6 +291,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.containers.lowlevel":  "block",
 	"restricted.containers.privilege": "unprivileged",
 	"restricted.devices.unix-char":    "block",
+	"restricted.devices.unix-block":   "block",
 }
 
 // Return true if a low-level container option is forbidden.
