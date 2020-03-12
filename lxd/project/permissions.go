@@ -226,6 +226,23 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 				}
 				return nil
 			}
+		case "restricted.devices.disk":
+			devicesChecks["disk"] = func(device map[string]string) error {
+				// The root device is always allowed.
+				if device["path"] == "/" && device["pool"] != "" {
+					return nil
+				}
+
+				switch restrictionValue {
+				case "block":
+					return fmt.Errorf("Disk devices are forbidden")
+				case "managed":
+					if device["pool"] == "" {
+						return fmt.Errorf("Attaching disks not backed by a pool is forbidden")
+					}
+				}
+				return nil
+			}
 		}
 	}
 
@@ -315,6 +332,7 @@ var AllRestrictions = []string{
 	"restricted.devices.unix-hotplug",
 	"restricted.devices.infiniband",
 	"restricted.devices.nic",
+	"restricted.devices.disk",
 }
 
 var defaultRestrictionsValues = map[string]string{
@@ -326,6 +344,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.devices.unix-hotplug": "block",
 	"restricted.devices.infiniband":   "block",
 	"restricted.devices.nic":          "managed",
+	"restricted.devices.disk":         "managed",
 }
 
 // Return true if a low-level container option is forbidden.
