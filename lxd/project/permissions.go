@@ -145,6 +145,7 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 	devicesChecks := map[string]func(value map[string]string) error{}
 
 	allowContainerLowLevel := false
+	allowVMLowLevel := false
 
 	for _, key := range AllRestrictions {
 		// Check if this particularl restriction is defined explicitly
@@ -181,6 +182,10 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 				}
 
 				return nil
+			}
+		case "restricted.virtual-machines.lowlevel":
+			if restrictionValue == "allow" {
+				allowVMLowLevel = true
 			}
 		case "restricted.devices.unix-char":
 			devicesChecks["unix-char"] = func(device map[string]string) error {
@@ -264,14 +269,26 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 
 	// Common config check logic between instances and profiles.
 	entityConfigChecker := func(entityType, entityName string, config map[string]string) error {
+		isContainerOrProfile := shared.StringInSlice(entityType, []string{"container", "profile"})
+		isVMOrProfile := shared.StringInSlice(entityType, []string{"virtual machine", "profile"})
 		for key, value := range config {
 			// First check if the key is a forbidden low-level one.
-			if !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
+			if isContainerOrProfile && !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
 				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden",
 					key, entityType, entityName, project.Name)
 			}
-			checker, ok := containerConfigChecks[key]
-			if !ok {
+
+			if isVMOrProfile && !allowVMLowLevel && isVMLowLevelOptionForbidden(key) {
+				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden",
+					key, entityType, entityName, project.Name)
+			}
+
+			var checker func(value string) error
+			if isContainerOrProfile {
+				checker = containerConfigChecks[key]
+			}
+
+			if checker == nil {
 				continue
 			}
 			err := checker(value)
@@ -305,13 +322,18 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 	}
 
 	for _, instance := range instances {
-		if instance.Type == instancetype.Container {
-			err := entityConfigChecker("container", instance.Name, instance.Config)
-			if err != nil {
-				return err
-			}
+		var err error
+		switch instance.Type {
+		case instancetype.Container:
+			err = entityConfigChecker("container", instance.Name, instance.Config)
+		case instancetype.VM:
+			err = entityConfigChecker("virtual machine", instance.Name, instance.Config)
 		}
-		err := entityDevicesChecker("instance", instance.Name, instance.Devices)
+		if err != nil {
+			return err
+		}
+
+		err = entityDevicesChecker("instance", instance.Name, instance.Devices)
 		if err != nil {
 			return err
 		}
@@ -343,6 +365,7 @@ var AllRestrictions = []string{
 	"restricted.containers.nesting",
 	"restricted.containers.lowlevel",
 	"restricted.containers.privilege",
+	"restricted.virtual-machines.lowlevel",
 	"restricted.devices.unix-char",
 	"restricted.devices.unix-block",
 	"restricted.devices.unix-hotplug",
@@ -354,17 +377,18 @@ var AllRestrictions = []string{
 }
 
 var defaultRestrictionsValues = map[string]string{
-	"restricted.containers.nesting":   "block",
-	"restricted.containers.lowlevel":  "block",
-	"restricted.containers.privilege": "unprivileged",
-	"restricted.devices.unix-char":    "block",
-	"restricted.devices.unix-block":   "block",
-	"restricted.devices.unix-hotplug": "block",
-	"restricted.devices.infiniband":   "block",
-	"restricted.devices.gpu":          "block",
-	"restricted.devices.usb":          "block",
-	"restricted.devices.nic":          "managed",
-	"restricted.devices.disk":         "managed",
+	"restricted.containers.nesting":        "block",
+	"restricted.containers.lowlevel":       "block",
+	"restricted.containers.privilege":      "unprivileged",
+	"restricted.virtual-machines.lowlevel": "block",
+	"restricted.devices.unix-char":         "block",
+	"restricted.devices.unix-block":        "block",
+	"restricted.devices.unix-hotplug":      "block",
+	"restricted.devices.infiniband":        "block",
+	"restricted.devices.gpu":               "block",
+	"restricted.devices.usb":               "block",
+	"restricted.devices.nic":               "managed",
+	"restricted.devices.disk":              "managed",
 }
 
 // Return true if a low-level container option is forbidden.
@@ -387,6 +411,18 @@ func isContainerLowLevelOptionForbidden(key string) bool {
 		return true
 	}
 
+	return false
+}
+
+// Return true if a low-level VM option is forbidden.
+func isVMLowLevelOptionForbidden(key string) bool {
+	if shared.StringInSlice(key, []string{
+		"boot.host_shutdown_timeout",
+		"limits.memory.hugepages",
+		"raw.qemu",
+	}) {
+		return true
+	}
 	return false
 }
 
