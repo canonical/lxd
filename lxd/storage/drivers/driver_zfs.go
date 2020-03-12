@@ -431,18 +431,24 @@ func (d *zfs) GetResources() (*api.ResourcesStoragePool, error) {
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
-	if contentType != ContentTypeFS {
-		return nil
-	}
+	rsyncFeatures := []string{"xattrs", "delete", "compress", "bidirectional"}
 
 	// When performing a refresh, always use rsync. Using zfs send/receive
 	// here doesn't make sense since it would need to send everything again
 	// which defeats the purpose of a refresh.
 	if refresh {
+		var transportType migration.MigrationFSType
+
+		if contentType == ContentTypeBlock {
+			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
+		} else {
+			transportType = migration.MigrationFSType_RSYNC
+		}
+
 		return []migration.Type{
 			{
-				FSType:   migration.MigrationFSType_RSYNC,
-				Features: []string{"xattrs", "delete", "compress", "bidirectional"},
+				FSType:   transportType,
+				Features: rsyncFeatures,
 			},
 		}
 	}
@@ -453,6 +459,19 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.
 		features = append(features, "compress")
 	}
 
+	if contentType == ContentTypeBlock {
+		return []migration.Type{
+			{
+				FSType:   migration.MigrationFSType_ZFS,
+				Features: features,
+			},
+			{
+				FSType:   migration.MigrationFSType_BLOCK_AND_RSYNC,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
 	return []migration.Type{
 		{
 			FSType:   migration.MigrationFSType_ZFS,
@@ -460,7 +479,7 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.
 		},
 		{
 			FSType:   migration.MigrationFSType_RSYNC,
-			Features: []string{"xattrs", "delete", "compress", "bidirectional"},
+			Features: rsyncFeatures,
 		},
 	}
 }
