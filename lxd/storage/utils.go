@@ -2,14 +2,18 @@ package storage
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
@@ -560,16 +564,17 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
 func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
-	err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
-	if err != nil {
-		return err
-	}
-
 	imageRootfsFile := imageFile + ".rootfs"
 
 	// If no destBlockFile supplied then this is a container image unpack.
 	if destBlockFile == "" {
 		rootfsPath := filepath.Join(destPath, "rootfs")
+
+		// Unpack the main image file.
+		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
+		if err != nil {
+			return err
+		}
 
 		// Check for separate root file.
 		if shared.PathExists(imageRootfsFile) {
@@ -588,29 +593,67 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 		if !shared.PathExists(rootfsPath) {
 			return fmt.Errorf("Image is missing a rootfs: %s", imageFile)
 		}
-	} else {
-		// If a rootBlockPath is supplied then this is a VM image unpack.
 
-		// VM images require a separate rootfs file.
-		if !shared.PathExists(imageRootfsFile) {
-			return fmt.Errorf("Image is missing a rootfs file: %s", imageRootfsFile)
-		}
+		// Done with this.
+		return nil
+	}
 
-		// Check that the rootBlockPath exists and is a file.
-		fileInfo, err := os.Stat(destBlockFile)
-		if err != nil && !os.IsNotExist(err) {
+	// If a rootBlockPath is supplied then this is a VM image unpack.
+
+	// Validate the target.
+	fileInfo, err := os.Stat(destBlockFile)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if fileInfo.IsDir() {
+		// If the dest block file exists, and it is a directory, fail.
+		return fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
+	}
+
+	if shared.PathExists(imageRootfsFile) {
+		// Unpack the main image file.
+		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
+		if err != nil {
 			return err
 		}
 
-		if os.IsNotExist(err) || !fileInfo.IsDir() {
-			// Convert the qcow2 format to a raw block device.
-			_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imageRootfsFile, destBlockFile)
-			if err != nil {
-				return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
-			}
-		} else {
-			// If the dest block file exists, and it is a directory, fail.
-			return fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
+		// Convert the qcow2 format to a raw block device.
+		_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imageRootfsFile, destBlockFile)
+		if err != nil {
+			return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
+		}
+	} else {
+		// Dealing with unified tarballs require an initial unpack to a temporary directory.
+		tempDir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_image_unpack_")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tempDir)
+
+		// Unpack the whole image.
+		err = shared.Unpack(imageFile, tempDir, blockBackend, runningInUserns, tracker)
+		if err != nil {
+			return err
+		}
+
+		// Convert the qcow2 format to a raw block device.
+		imgPath := filepath.Join(tempDir, "rootfs.img")
+		_, err = shared.RunCommand("qemu-img", "convert", "-O", "raw", imgPath, destBlockFile)
+		if err != nil {
+			return fmt.Errorf("Failed converting image to raw at %s: %v", destBlockFile, err)
+		}
+
+		// Delete the qcow2.
+		err = os.Remove(imgPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to remove %q", imgPath)
+		}
+
+		// Transfer the content.
+		_, err = rsync.LocalCopy(tempDir, destPath, "", true)
+		if err != nil {
+			return err
 		}
 	}
 
