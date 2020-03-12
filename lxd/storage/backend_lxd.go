@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -2547,8 +2548,8 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 
 // UpdateCustomVolumeSnapshot updates the description of a custom volume snapshot.
 // Volume config is not allowd to be updated and will return an error.
-func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig})
+func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig, "newExpiryDate": newExpiryDate})
 	logger.Debug("UpdateCustomVolumeSnapshot started")
 	defer logger.Debug("UpdateCustomVolumeSnapshot finished")
 
@@ -2653,8 +2654,8 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
-func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName})
+func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newExpiryDate": newExpiryDate})
 	logger.Debug("CreateCustomVolumeSnapshot started")
 	defer logger.Debug("CreateCustomVolumeSnapshot finished")
 

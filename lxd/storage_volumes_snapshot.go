@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -122,7 +123,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		}
 
-		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, op)
+		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, time.Time{}, op)
 	}
 
 	resources := map[string][]string{}
@@ -430,7 +431,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		}
 
 		// Handle custom volume update requests.
-		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, op)
+		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, time.Time{}, op)
 	}
 
 	resources := map[string][]string{}
