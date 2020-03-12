@@ -198,6 +198,14 @@ func checkRestrictions(project *api.Project, instances []db.Instance, profiles [
 
 				return nil
 			}
+		case "restricted.devices.unix-hotplug":
+			devicesChecks["unix-hotplug"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("Unix hotplug devices are forbidden")
+				}
+
+				return nil
+			}
 		}
 	}
 
@@ -284,6 +292,7 @@ var AllRestrictions = []string{
 	"restricted.containers.privilege",
 	"restricted.devices.unix-char",
 	"restricted.devices.unix-block",
+	"restricted.devices.unix-hotplug",
 }
 
 var defaultRestrictionsValues = map[string]string{
@@ -292,6 +301,7 @@ var defaultRestrictionsValues = map[string]string{
 	"restricted.containers.privilege": "unprivileged",
 	"restricted.devices.unix-char":    "block",
 	"restricted.devices.unix-block":   "block",
+	"restricted.devices.unix-hotplug": "block",
 }
 
 // Return true if a low-level container option is forbidden.
