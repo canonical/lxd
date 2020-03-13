@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,15 +9,19 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -543,4 +548,63 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	return operations.OperationResponse(op)
+}
+
+func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		opRun := func(op *operations.Operation) error {
+			return pruneExpiredCustomVolumeSnapshots(ctx, d)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationCustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start expired custom volume snapshots operation", log.Ctx{"err": err})
+			return
+		}
+
+		logger.Info("Pruning expired custom volume snapshots")
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to expire backups", log.Ctx{"err": err})
+		}
+		logger.Info("Done pruning expired custom volume snapshots")
+	}
+
+	f(context.Background())
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Minute
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
+}
+
+func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon) error {
+	// Get the list of expired custom volume snapshots.
+	snapshots, err := d.cluster.StorageVolumeSnapshotsGetExpired()
+	if err != nil {
+		return errors.Wrap(err, "Unable to retrieve the list of expired custom volume snapshots")
+	}
+
+	for _, s := range snapshots {
+		pool, err := storagePools.GetPoolByName(d.State(), s.PoolName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get pool %q", s.PoolName)
+		}
+
+		err = pool.DeleteCustomVolumeSnapshot(s.ProjectName, s.Name, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Error deleting custom volume snapshot %s", s.Name)
+		}
+	}
+
+	return nil
 }
