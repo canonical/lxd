@@ -318,7 +318,7 @@ func (d *cephfs) SetVolumeQuota(vol Volume, size string, op *operations.Operatio
 
 // GetVolumeDiskPath returns the location of a root disk block device.
 func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
-	return "", ErrNotImplemented
+	return "", ErrNotSupported
 }
 
 // MountVolume sets up the volume for use.
@@ -429,10 +429,6 @@ func (d *cephfs) RenameVolume(vol Volume, newName string, op *operations.Operati
 
 // MigrateVolume streams the volume (with or without snapshots)
 func (d *cephfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 

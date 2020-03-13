@@ -173,8 +173,8 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		return response.BadRequest(err)
 	}
 
-	if dbType != instancetype.Container {
-		return response.BadRequest(fmt.Errorf("Instance type not container"))
+	if dbType != instancetype.Container && dbType != instancetype.VM {
+		return response.BadRequest(fmt.Errorf("Instance type not supported %q", req.Type))
 	}
 
 	// Prepare the instance creation request.

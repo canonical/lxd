@@ -129,14 +129,6 @@ func (d *dir) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *dir) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericCreateVolumeFromMigration(d, d.setupInitialQuota, vol, conn, volTargetArgs, preFiller, op)
 }
 
@@ -306,14 +298,6 @@ func (d *dir) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 

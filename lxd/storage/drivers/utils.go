@@ -562,19 +562,19 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 func copyDevice(inputPath, outputPath string) error {
 	from, err := os.Open(inputPath)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening file for reading: %s", inputPath)
+		return errors.Wrapf(err, "Error opening file for reading %q", inputPath)
 	}
 	defer from.Close()
 
 	to, err := os.OpenFile(outputPath, os.O_WRONLY, 0)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening file writing: %s", outputPath)
+		return errors.Wrapf(err, "Error opening file writing %q", outputPath)
 	}
 	defer to.Close()
 
 	_, err = io.Copy(to, from)
 	if err != nil {
-		return errors.Wrapf(err, "Error copying file '%s' to '%s'", inputPath, outputPath)
+		return errors.Wrapf(err, "Error copying file %q to %q", inputPath, outputPath)
 	}
 
 	return nil

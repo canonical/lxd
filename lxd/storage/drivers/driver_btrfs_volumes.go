@@ -261,12 +261,8 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	// Handle simple rsync through generic.
-	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+	// Handle simple rsync and block_and_rsync through generic.
+	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
 		return ErrNotSupported
@@ -535,12 +531,8 @@ func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Opera
 
 // MigrateVolume sends a volume for migration.
 func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	// Handle simple rsync through generic.
-	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+	// Handle simple rsync and block_and_rsync through generic.
+	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
 		return ErrNotSupported

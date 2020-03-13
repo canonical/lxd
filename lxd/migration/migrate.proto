@@ -8,6 +8,7 @@ enum MigrationFSType {
 	BTRFS		= 1;
 	ZFS		= 2;
 	RBD		= 3;
+	BLOCK_AND_RSYNC	= 4;
 }
 
 enum CRIUType {

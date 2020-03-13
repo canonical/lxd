@@ -370,15 +370,19 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	// Handle simple rsync through generic.
-	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+	// Handle simple rsync and block_and_rsync through generic.
+	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RBD {
 		return ErrNotSupported
+	}
+
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	recvName := d.getRBDVolumeName(vol, "", false, true)
@@ -732,7 +736,7 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 		return d.getRBDMappedDevPath(vol)
 	}
 
-	return "", ErrNotImplemented
+	return "", ErrNotSupported
 }
 
 // MountVolume simulates mounting a volume.
@@ -842,10 +846,6 @@ func (d *ceph) RenameVolume(vol Volume, newName string, op *operations.Operation
 
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
 	// If data is set, this request is coming from the clustering code.
 	// In this case, we only need to unmap and rename the rbd image.
 	if volSrcArgs.Data != nil {
@@ -868,11 +868,19 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		}
 	}
 
-	// Handle simple rsync through generic.
-	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+	// Handle simple rsync and block_and_rsync through generic.
+	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RBD {
 		return ErrNotSupported
+	}
+
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.MigrateVolume(fsVol, conn, volSrcArgs, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	if vol.IsSnapshot() {

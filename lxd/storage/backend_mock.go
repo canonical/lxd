@@ -35,7 +35,7 @@ func (b *mockBackend) Driver() drivers.Driver {
 func (b *mockBackend) MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type {
 	return []migration.Type{
 		{
-			FSType:   migration.MigrationFSType_RSYNC,
+			FSType:   FallbackMigrationType(contentType),
 			Features: []string{"xattrs", "delete", "compress", "bidirectional"},
 		},
 	}

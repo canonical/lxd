@@ -3,6 +3,9 @@ package drivers
 import (
 	"fmt"
 	"io"
+	"os"
+
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -147,6 +150,15 @@ func genericCopyVolume(d Driver, initVolume func(vol Volume) (func(), error), vo
 // genericCreateVolumeFromMigration receives a volume and its snapshots over a non-optimized method.
 // initVolume is run against the main volume (not the snapshots) and is often used for quota initialization.
 func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (func(), error), vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	// Check migration transport type matches volume type.
+	if vol.IsVMBlock() {
+		if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
+			return ErrNotSupported
+		}
+	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
+		return ErrNotSupported
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -160,28 +172,82 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 		revert.Add(func() { d.DeleteVolume(vol, op) })
 	}
 
+	recvFSVol := func(volName string, conn io.ReadWriteCloser, path string) error {
+		var wrapper *ioprogress.ProgressTracker
+		if volTargetArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "fs_progress", volName)
+		}
+
+		d.Logger().Debug("Receiving filesystem volume", log.Ctx{"volName": volName, "path": path})
+		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+	}
+
+	recvBlockVol := func(volName string, conn io.ReadWriteCloser, path string) error {
+		var wrapper *ioprogress.ProgressTracker
+		if volTargetArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "block_progress", volName)
+		}
+
+		to, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0)
+		if err != nil {
+			return errors.Wrapf(err, "Error opening file writing %q", path)
+		}
+		defer to.Close()
+
+		// Setup progress tracker.
+		fromPipe := io.ReadCloser(conn)
+		if wrapper != nil {
+			fromPipe = &ioprogress.ProgressReader{
+				ReadCloser: fromPipe,
+				Tracker:    wrapper,
+			}
+		}
+
+		d.Logger().Debug("Receiving block volume", log.Ctx{"volName": volName, "path": path})
+		_, err = io.Copy(to, fromPipe)
+		if err != nil {
+			return errors.Wrapf(err, "Error copying from migration connection to %q", path)
+		}
+
+		return nil
+	}
+
 	// Ensure the volume is mounted.
 	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		var err error
+
+		// Setup paths to the main volume. We will receive each snapshot to these paths and then create
+		// a snapshot of the main volume for each one.
 		path := shared.AddSlash(mountPath)
+		pathBlock := ""
+
+		if vol.IsVMBlock() {
+			pathBlock, err = d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return errors.Wrapf(err, "Error getting VM block volume disk path")
+			}
+		}
 
 		// Snapshots are sent first by the sender, so create these first.
 		for _, snapName := range volTargetArgs.Snapshots {
-			// Receive the snapshot
-			var wrapper *ioprogress.ProgressTracker
-			if volTargetArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapName)
-			}
+			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
+			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
 
-			d.Logger().Debug("Receiving volume", log.Ctx{"volume": vol.name, "snapshot": snapName, "path": path})
-			err := rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			// Receive the filesystem snapshot first (as it is sent first).
+			err = recvFSVol(snapVol.name, conn, path)
 			if err != nil {
 				return err
 			}
 
-			// Create the snapshot itself.
-			fullSnapshotName := GetSnapshotVolumeName(vol.name, snapName)
-			snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapshotName, vol.config, vol.poolConfig)
+			// Receive the block snapshot next (if needed).
+			if vol.IsVMBlock() {
+				err = recvBlockVol(snapVol.name, conn, pathBlock)
+				if err != nil {
+					return err
+				}
+			}
 
+			// Create the snapshot itself.
 			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
 				return err
@@ -201,26 +267,16 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 			}
 		}
 
-		// Receive the main volume from sender.
-		var wrapper *ioprogress.ProgressTracker
-		if volTargetArgs.TrackProgress {
-			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
-		}
-
-		d.Logger().Debug("Receiving volume", log.Ctx{"volume": vol.name, "path": path})
-		err := rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+		// Receive main volume.
+		err = recvFSVol(vol.name, conn, path)
 		if err != nil {
 			return err
 		}
 
 		// Receive the final main volume sync if needed.
 		if volTargetArgs.Live {
-			if volTargetArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
-			}
-
-			d.Logger().Debug("Receiving volume (final stage)", log.Ctx{"vol": vol.name, "path": path})
-			err = rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
+			d.Logger().Debug("Starting main volume final sync", log.Ctx{"volName": vol.name, "path": path})
+			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
 				return err
 			}
@@ -231,6 +287,14 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 		err = vol.EnsureMountPath()
 		if err != nil {
 			return err
+		}
+
+		// Receive the block volume next (if needed).
+		if vol.IsVMBlock() {
+			err = recvBlockVol(vol.name, conn, pathBlock)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil

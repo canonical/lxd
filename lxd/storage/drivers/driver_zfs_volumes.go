@@ -498,16 +498,20 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
-func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, filler *VolumeFiller, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
+func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
+	// Handle simple rsync and block_and_rsync through generic.
+	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
 	}
 
-	// Handle simple rsync through generic.
-	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
-		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, filler, op)
-	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
-		return ErrNotSupported
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.CreateVolumeFromMigration(fsVol, conn, volTargetArgs, preFiller, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Handle zfs send/receive migration.
@@ -1057,15 +1061,19 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	// Handle simple rsync through generic.
-	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC {
+	// Handle simple rsync and block_and_rsync through generic.
+	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
+	}
+
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.MigrateVolume(fsVol, conn, volSrcArgs, op)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Handle zfs send/receive migration.
