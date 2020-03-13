@@ -253,7 +253,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	controlExit := make(chan bool, 1)
 	attachedChildIsBorn := make(chan int)
-	attachedChildIsDead := make(chan bool, 1)
+	attachedChildIsDead := make(chan struct{})
 	var wgEOF sync.WaitGroup
 
 	if s.interactive {
@@ -400,7 +400,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn.Close()
 		}
 
-		attachedChildIsDead <- true
+		close(attachedChildIsDead)
 
 		wgEOF.Wait()
 

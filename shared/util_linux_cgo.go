@@ -289,7 +289,7 @@ again:
 // Extensively commented directly in the code. Please leave the comments!
 // Looking at this in a couple of months noone will know why and how this works
 // anymore.
-func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int) <-chan []byte {
+func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd int) <-chan []byte {
 	if bufferSize <= (128 * 1024) {
 		bufferSize = (128 * 1024)
 	}
