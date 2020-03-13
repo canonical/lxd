@@ -147,9 +147,9 @@ func (t OperationType) Description() string {
 	case OperationInstanceTypesUpdate:
 		return "Updating instance types"
 	case OperationBackupsExpire:
-		return "Cleaning up expired backups"
+		return "Cleaning up expired instance backups"
 	case OperationSnapshotsExpire:
-		return "Cleaning up expired snapshots"
+		return "Cleaning up expired instance snapshots"
 	default:
 		return "Executing operation"
 	}
