@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -46,6 +47,10 @@ func NewMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	}
 
 	if stateful && inst.IsRunning() {
+		if inst.Type() == instancetype.VM {
+			return nil, errors.Wrap(storagePools.ErrNotImplemented, "Unable to perform VM live migration")
+		}
+
 		_, err := exec.LookPath("criu")
 		if err != nil {
 			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
