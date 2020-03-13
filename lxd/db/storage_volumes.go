@@ -31,6 +31,7 @@ type StorageVolumeArgs struct {
 	Description  string
 	CreationDate time.Time
 	ExpiryDate   time.Time
+	ProjectName  string
 }
 
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
