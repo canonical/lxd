@@ -18,7 +18,7 @@ import (
 func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.CheckLimitsUponProfileUpdate(tx, project, name, req)
+		return projecthelpers.AllowProfileUpdate(tx, project, name, req)
 	})
 	if err != nil {
 		return err

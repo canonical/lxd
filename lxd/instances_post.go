@@ -825,7 +825,7 @@ func containersPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err := projecthelpers.CheckLimitsUponInstanceCreation(tx, project, req)
+		err := projecthelpers.AllowInstanceCreation(tx, project, req)
 		if err != nil {
 			return err
 		}

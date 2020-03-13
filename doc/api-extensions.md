@@ -949,3 +949,7 @@ This introduces the `ipv4.gateway` and `ipv6.gateway` NIC config keys that can t
 gateway being added inside the container and the same gateway address being added to the host-side interface.
 If the value is set to "none" then no default gateway nor will the address be added to the host-side interface.
 This allows multiple routed NIC devices to be added to a container.
+
+## projects\_restrictions
+This introduces support for the `restricted` configuration key on project, which
+can prevent the use of security-sensitive features in a project.
