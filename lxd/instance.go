@@ -883,7 +883,9 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			}
 
 			for _, snapshot := range snapshots {
-				if snapshot.ExpiryDate().IsZero() {
+				// Since zero time causes some issues due to timezones, we check the
+				// unix timestamp instead of IsZero().
+				if snapshot.ExpiryDate().Unix() <= 0 {
 					// Snapshot doesn't expire
 					continue
 				}
