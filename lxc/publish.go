@@ -197,7 +197,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	// Create the image
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
-			Type: "container",
+			Type: "instance",
 			Name: cName,
 		},
 		CompressionAlgorithm: c.flagCompressionAlgorithm,
@@ -206,6 +206,8 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 
 	if shared.IsSnapshot(cName) {
 		req.Source.Type = "snapshot"
+	} else if !s.HasExtension("instances") {
+		req.Source.Type = "container"
 	}
 
 	if cRemote == iRemote {
