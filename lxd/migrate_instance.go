@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -46,6 +47,10 @@ func NewMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	}
 
 	if stateful && inst.IsRunning() {
+		if inst.Type() == instancetype.VM {
+			return nil, errors.Wrap(storagePools.ErrNotImplemented, "Unable to perform VM live migration")
+		}
+
 		_, err := exec.LookPath("criu")
 		if err != nil {
 			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
@@ -330,11 +335,6 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
 	<-s.allConnected
-	if s.instance.Type() != instancetype.Container {
-		return fmt.Errorf("Instance is not container type")
-	}
-
-	ct := s.instance.(instance.Container)
 
 	var offerHeader migration.MigrationHeader
 	var poolMigrationTypes []migration.Type
@@ -367,26 +367,29 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	}
 	offerHeader.Criu = criuType
 
-	// Add idmap info to source header.
-	idmaps := make([]*migration.IDMapType, 0)
-	idmapset, err := ct.DiskIdmap()
-	if err != nil {
-		return err
-	} else if idmapset != nil {
-		for _, ctnIdmap := range idmapset.Idmap {
-			idmap := migration.IDMapType{
-				Isuid:    proto.Bool(ctnIdmap.Isuid),
-				Isgid:    proto.Bool(ctnIdmap.Isgid),
-				Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
-				Nsid:     proto.Int32(int32(ctnIdmap.Nsid)),
-				Maprange: proto.Int32(int32(ctnIdmap.Maprange)),
+	// Add idmap info to source header for containers.
+	if s.instance.Type() == instancetype.Container {
+		ct := s.instance.(instance.Container)
+		idmaps := make([]*migration.IDMapType, 0)
+		idmapset, err := ct.DiskIdmap()
+		if err != nil {
+			return err
+		} else if idmapset != nil {
+			for _, ctnIdmap := range idmapset.Idmap {
+				idmap := migration.IDMapType{
+					Isuid:    proto.Bool(ctnIdmap.Isuid),
+					Isgid:    proto.Bool(ctnIdmap.Isgid),
+					Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
+					Nsid:     proto.Int32(int32(ctnIdmap.Nsid)),
+					Maprange: proto.Int32(int32(ctnIdmap.Maprange)),
+				}
+
+				idmaps = append(idmaps, &idmap)
 			}
-
-			idmaps = append(idmaps, &idmap)
 		}
-	}
 
-	offerHeader.Idmap = idmaps
+		offerHeader.Idmap = idmaps
+	}
 
 	// Add snapshot info to source header if needed.
 	snapshots := []*migration.Snapshot{}
@@ -840,7 +843,8 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 	// Extract the source's migration type and then match it against our pool's
 	// supported types and features. If a match is found the combined features list
 	// will be sent back to requester.
-	respTypes, err := migration.MatchTypes(offerHeader, migration.MigrationFSType_RSYNC, pool.MigrationTypes(storagePools.InstanceContentType(c.src.instance), c.refresh))
+	contentType := storagePools.InstanceContentType(c.src.instance)
+	respTypes, err := migration.MatchTypes(offerHeader, storagePools.FallbackMigrationType(contentType), pool.MigrationTypes(contentType, c.refresh))
 	if err != nil {
 		return err
 	}

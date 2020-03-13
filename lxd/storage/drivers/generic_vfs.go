@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
@@ -135,36 +136,122 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	bwlimit := d.Config()["rsync.bwlimit"]
 
-	for _, snapName := range volSrcArgs.Snapshots {
-		snapshot, err := vol.NewSnapshot(snapName)
-		if err != nil {
-			return err
+	var rsyncArgs []string
+
+	// For VM volumes, if the root volume disk path is a file image then exclude it from being transferred via
+	// rsync, it will be transferred later using a different method.
+	if vol.IsVMBlock() {
+		if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BLOCK_AND_RSYNC {
+			return ErrNotSupported
 		}
 
-		// Send snapshot to recipient (ensure local snapshot volume is mounted if needed).
-		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-			var wrapper *ioprogress.ProgressTracker
-			if volSrcArgs.TrackProgress {
-				wrapper = migration.ProgressTracker(op, "fs_progress", snapshot.name)
-			}
-
-			path := shared.AddSlash(mountPath)
-			return rsync.Send(snapshot.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath)
-		}, op)
+		path, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "Error getting VM block volume disk path")
 		}
+
+		if !shared.IsBlockdevPath(path) {
+			rsyncArgs = []string{"--exclude", filepath.Base(path)}
+		}
+	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
+		return ErrNotSupported
 	}
 
-	// Send volume to recipient (ensure local volume is mounted if needed).
-	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	// Define function to send a filesystem volume.
+	sendFSVol := func(vol Volume, conn io.ReadWriteCloser, mountPath string) error {
 		var wrapper *ioprogress.ProgressTracker
 		if volSrcArgs.TrackProgress {
 			wrapper = migration.ProgressTracker(op, "fs_progress", vol.name)
 		}
 
 		path := shared.AddSlash(mountPath)
-		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath)
+
+		d.Logger().Debug("Sending filesystem volume", log.Ctx{"volName": vol.name, "path": path})
+		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath, rsyncArgs...)
+	}
+
+	// Define function to send a block volume.
+	sendBlockVol := func(vol Volume, conn io.ReadWriteCloser) error {
+		// Close when done to indicate to target side we are finished sending this volume.
+		defer conn.Close()
+
+		var wrapper *ioprogress.ProgressTracker
+		if volSrcArgs.TrackProgress {
+			wrapper = migration.ProgressTracker(op, "block_progress", vol.name)
+		}
+
+		path, err := d.GetVolumeDiskPath(vol)
+		if err != nil {
+			return errors.Wrapf(err, "Error getting VM block volume disk path")
+		}
+
+		from, err := os.Open(path)
+		if err != nil {
+			return errors.Wrapf(err, "Error opening file for reading %q", path)
+		}
+		defer from.Close()
+
+		// Setup progress tracker.
+		fromPipe := io.ReadCloser(from)
+		if wrapper != nil {
+			fromPipe = &ioprogress.ProgressReader{
+				ReadCloser: fromPipe,
+				Tracker:    wrapper,
+			}
+		}
+
+		d.Logger().Debug("Sending block volume", log.Ctx{"volName": vol.name, "path": path})
+		_, err = io.Copy(conn, fromPipe)
+		if err != nil {
+			return errors.Wrapf(err, "Error copying %q to migration connection", path)
+		}
+
+		return nil
+	}
+
+	// Send all snapshots to target.
+	for _, snapName := range volSrcArgs.Snapshots {
+		snapshot, err := vol.NewSnapshot(snapName)
+		if err != nil {
+			return err
+		}
+
+		// Send snapshot to target (ensure local snapshot volume is mounted if needed).
+		err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
+			err := sendFSVol(snapshot, conn, mountPath)
+			if err != nil {
+				return err
+			}
+
+			if vol.IsVMBlock() {
+				err = sendBlockVol(snapshot, conn)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Send volume to target (ensure local volume is mounted if needed).
+	return vol.MountTask(func(mountPath string, op *operations.Operation) error {
+		err := sendFSVol(vol, conn, mountPath)
+		if err != nil {
+			return err
+		}
+
+		if vol.IsVMBlock() {
+			err = sendBlockVol(vol, conn)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}, op)
 }
 
@@ -180,7 +267,7 @@ func genericVFSHasVolume(vol Volume) bool {
 // genericVFSGetVolumeDiskPath is a generic GetVolumeDiskPath implementation for VFS-only drivers.
 func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 	if vol.contentType != ContentTypeBlock {
-		return "", fmt.Errorf("No disk paths for filesystems")
+		return "", ErrNotSupported
 	}
 
 	return filepath.Join(vol.MountPath(), "root.img"), nil

@@ -333,15 +333,33 @@ func (d *ceph) GetResources() (*api.ResourcesStoragePool, error) {
 
 // MigrationType returns the type of transfer methods to be used when doing migrations between pools in preference order.
 func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration.Type {
-	if contentType != ContentTypeFS {
-		return nil
-	}
+	rsyncFeatures := []string{"delete", "compress", "bidirectional"}
 
 	if refresh {
+		var transportType migration.MigrationFSType
+
+		if contentType == ContentTypeBlock {
+			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
+		} else {
+			transportType = migration.MigrationFSType_RSYNC
+		}
+
 		return []migration.Type{
 			{
-				FSType:   migration.MigrationFSType_RSYNC,
-				Features: []string{"delete", "compress", "bidirectional"},
+				FSType:   transportType,
+				Features: rsyncFeatures,
+			},
+		}
+	}
+
+	if contentType == ContentTypeBlock {
+		return []migration.Type{
+			{
+				FSType: migration.MigrationFSType_RBD,
+			},
+			{
+				FSType:   migration.MigrationFSType_BLOCK_AND_RSYNC,
+				Features: rsyncFeatures,
 			},
 		}
 	}
@@ -352,7 +370,7 @@ func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration
 		},
 		{
 			FSType:   migration.MigrationFSType_RSYNC,
-			Features: []string{"delete", "compress", "bidirectional"},
+			Features: rsyncFeatures,
 		},
 	}
 }

@@ -142,14 +142,6 @@ func (d *lvm) CreateVolumeFromCopy(vol, srcVol Volume, copySnapshots bool, op *o
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *lvm) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 }
 
@@ -409,7 +401,7 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 		return volDevPath, nil
 	}
 
-	return "", ErrNotImplemented
+	return "", ErrNotSupported
 }
 
 // MountVolume simulates mounting a volume. As dir driver doesn't have volumes to mount it returns
@@ -532,14 +524,6 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *lvm) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	if vol.contentType != ContentTypeFS {
-		return ErrNotSupported
-	}
-
-	if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_RSYNC {
-		return ErrNotSupported
-	}
-
 	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
