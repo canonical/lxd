@@ -22,6 +22,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	if err != nil {
 		return err
 	}
+
 	if project == nil {
 		return nil
 	}
@@ -75,12 +76,14 @@ func checkInstanceCountLimit(project *api.Project, instanceCount int, instanceTy
 	default:
 		return fmt.Errorf("Unexpected instance type '%s'", instanceType)
 	}
+
 	value, ok := project.Config[key]
 	if ok {
 		limit, err := strconv.Atoi(value)
 		if err != nil || limit < 0 {
 			return fmt.Errorf("Unexpected '%s' value: '%s'", key, value)
 		}
+
 		if instanceCount >= limit {
 			return fmt.Errorf(
 				"Reached maximum number of instances of type %s in project %s",
@@ -187,6 +190,7 @@ func checkAggregateLimits(project *api.Project, instances []db.Instance, aggrega
 		if err != nil {
 			return err
 		}
+
 		if totals[key] > max {
 			return fmt.Errorf(
 				"Reached maximum aggregate value %s for %q in project %s",
@@ -492,6 +496,7 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 	if err != nil {
 		return err
 	}
+
 	if project == nil {
 		return nil
 	}
@@ -624,21 +629,25 @@ func validateInstanceCountLimit(instances []db.Instance, key, value, project str
 	if err != nil {
 		return err
 	}
+
 	dbType, err := instancetype.New(string(instanceType))
 	if err != nil {
 		return err
 	}
+
 	count := 0
 	for _, instance := range instances {
 		if instance.Type == dbType {
 			count++
 		}
 	}
+
 	if limit < count {
 		return fmt.Errorf(
 			"'%s' is too low: there currently are %d instances of type %s in project %s",
 			key, count, instanceType, project)
 	}
+
 	return nil
 }
 
@@ -761,6 +770,7 @@ func getTotalsAcrossInstances(instances []db.Instance, keys []string) (map[strin
 		if err != nil {
 			return nil, err
 		}
+
 		for _, key := range keys {
 			totals[key] += limits[key]
 		}
@@ -781,6 +791,7 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 				"Instance %s in project %s has no '%s' config, either directly or via a profile",
 				instance.Name, instance.Project, key)
 		}
+
 		parser := aggregateLimitConfigValueParsers[key]
 		limit, err := parser(value)
 		if err != nil {
@@ -788,6 +799,7 @@ func getInstanceLimits(instance db.Instance, keys []string) (map[string]int64, e
 				err, "Parse '%s' for instance %s in project %s",
 				key, instance.Name, instance.Project)
 		}
+
 		limits[key] = limit
 	}
 
