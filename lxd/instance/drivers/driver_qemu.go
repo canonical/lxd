@@ -50,6 +50,7 @@ import (
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/containerwriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -2956,7 +2957,241 @@ func (vm *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device) e
 
 // Export publishes the instance.
 func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
-	return instance.ErrNotImplemented
+	ctxMap := log.Ctx{
+		"project":   vm.project,
+		"name":      vm.name,
+		"created":   vm.creationDate,
+		"ephemeral": vm.ephemeral,
+		"used":      vm.lastUsedDate}
+
+	if vm.IsRunning() {
+		return fmt.Errorf("Cannot export a running instance as an image")
+	}
+
+	logger.Info("Exporting instance", ctxMap)
+
+	// Start the storage.
+	ourStart, err := vm.mount()
+	if err != nil {
+		logger.Error("Failed exporting instance", ctxMap)
+		return err
+	}
+	if ourStart {
+		defer vm.unmount()
+	}
+
+	// Create the tarball.
+	ctw := containerwriter.NewContainerTarWriter(w, nil)
+
+	// Path inside the tar image is the pathname starting after cDir.
+	cDir := vm.Path()
+	offset := len(cDir) + 1
+
+	writeToTar := func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		err = ctw.WriteFile(offset, path, fi)
+		if err != nil {
+			logger.Debugf("Error tarring up %s: %s", path, err)
+			return err
+		}
+
+		return nil
+	}
+
+	// Look for metadata.yaml.
+	fnam := filepath.Join(cDir, "metadata.yaml")
+	if !shared.PathExists(fnam) {
+		// Generate a new metadata.yaml.
+		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+		if err != nil {
+			ctw.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+		defer os.RemoveAll(tempDir)
+
+		// Get the instance's architecture.
+		var arch string
+		if vm.IsSnapshot() {
+			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vm.name)
+			parent, err := instance.LoadByProjectAndName(vm.state, vm.project, parentName)
+			if err != nil {
+				ctw.Close()
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+
+			arch, _ = osarch.ArchitectureName(parent.Architecture())
+		} else {
+			arch, _ = osarch.ArchitectureName(vm.architecture)
+		}
+
+		if arch == "" {
+			arch, err = osarch.ArchitectureName(vm.state.OS.Architectures[0])
+			if err != nil {
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+		}
+
+		// Fill in the metadata.
+		meta := api.ImageMetadata{}
+		meta.Architecture = arch
+		meta.CreationDate = time.Now().UTC().Unix()
+		meta.Properties = properties
+
+		data, err := yaml.Marshal(&meta)
+		if err != nil {
+			ctw.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+
+		// Write the actual file.
+		fnam = filepath.Join(tempDir, "metadata.yaml")
+		err = ioutil.WriteFile(fnam, data, 0644)
+		if err != nil {
+			ctw.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+
+		fi, err := os.Lstat(fnam)
+		if err != nil {
+			ctw.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+
+		tmpOffset := len(filepath.Dir(fnam)) + 1
+		if err := ctw.WriteFile(tmpOffset, fnam, fi); err != nil {
+			ctw.Close()
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+	} else {
+		if properties != nil {
+			// Parse the metadata.
+			content, err := ioutil.ReadFile(fnam)
+			if err != nil {
+				ctw.Close()
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+
+			metadata := new(api.ImageMetadata)
+			err = yaml.Unmarshal(content, &metadata)
+			if err != nil {
+				ctw.Close()
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+			metadata.Properties = properties
+
+			// Generate a new metadata.yaml.
+			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
+			if err != nil {
+				ctw.Close()
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+			defer os.RemoveAll(tempDir)
+
+			data, err := yaml.Marshal(&metadata)
+			if err != nil {
+				ctw.Close()
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+
+			// Write the actual file.
+			fnam = filepath.Join(tempDir, "metadata.yaml")
+			err = ioutil.WriteFile(fnam, data, 0644)
+			if err != nil {
+				ctw.Close()
+				logger.Error("Failed exporting instance", ctxMap)
+				return err
+			}
+		}
+
+		// Include metadata.yaml in the tarball.
+		fi, err := os.Lstat(fnam)
+		if err != nil {
+			ctw.Close()
+			logger.Debugf("Error statting %s during export", fnam)
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+
+		if properties != nil {
+			tmpOffset := len(filepath.Dir(fnam)) + 1
+			err = ctw.WriteFile(tmpOffset, fnam, fi)
+		} else {
+			err = ctw.WriteFile(offset, fnam, fi)
+		}
+		if err != nil {
+			ctw.Close()
+			logger.Debugf("Error writing to tarfile: %s", err)
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+	}
+
+	// Convert and include the root image.
+	pool, err := vm.getStoragePool()
+	if err != nil {
+		return err
+	}
+
+	rootDrivePath, err := pool.GetInstanceDisk(vm)
+	if err != nil {
+		return err
+	}
+
+	// Convert from raw to qcow2 and add to tarball.
+	tmpPath, err := ioutil.TempDir("", "lxd_export_")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpPath)
+
+	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
+	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", rootDrivePath, fPath)
+	if err != nil {
+		return fmt.Errorf("Failed converting image to qcow2: %v", err)
+	}
+
+	fi, err := os.Lstat(fPath)
+	if err != nil {
+		return err
+	}
+
+	err = ctw.WriteFile(len(tmpPath)+1, fPath, fi)
+	if err != nil {
+		return err
+	}
+
+	// Include all the templates.
+	fnam = vm.TemplatesPath()
+	if shared.PathExists(fnam) {
+		err = filepath.Walk(fnam, writeToTar)
+		if err != nil {
+			logger.Error("Failed exporting instance", ctxMap)
+			return err
+		}
+	}
+
+	err = ctw.Close()
+	if err != nil {
+		logger.Error("Failed exporting instance", ctxMap)
+		return err
+	}
+
+	logger.Info("Exported instance", ctxMap)
+	return nil
 }
 
 // Migrate migrates the instance to another node.

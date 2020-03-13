@@ -159,7 +159,6 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  */
 func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operations.Operation, builddir string) (*api.Image, error) {
 	info := api.Image{}
-	info.Type = "container"
 	info.Properties = map[string]string{}
 	project := projectParam(r)
 	name := req.Source.Name
@@ -173,7 +172,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		if !shared.IsSnapshot(name) {
 			return nil, fmt.Errorf("Not a snapshot")
 		}
-	case "container":
+	case "container", "virtual-machine", "instance":
 		if shared.IsSnapshot(name) {
 			return nil, fmt.Errorf("This is a snapshot")
 		}
@@ -193,6 +192,8 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	if err != nil {
 		return nil, err
 	}
+
+	info.Type = c.Type().String()
 
 	// Build the actual image file
 	imageFile, err := ioutil.TempFile(builddir, "lxd_build_image_")
