@@ -695,13 +695,13 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		imageUpload = true
 	}
 
-	if !imageUpload && !shared.StringInSlice(req.Source.Type, []string{"container", "snapshot", "image", "url"}) {
+	if !imageUpload && !shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot", "image", "url"}) {
 		cleanup(builddir, post)
 		return response.InternalError(fmt.Errorf("Invalid images JSON"))
 	}
 
 	/* Forward requests for containers on other nodes */
-	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "snapshot"}) {
+	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "instance", "virtual-machine", "snapshot"}) {
 		name := req.Source.Name
 		if name != "" {
 			post.Seek(0, 0)
