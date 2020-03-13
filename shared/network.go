@@ -211,7 +211,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 			}
 
 			if err != nil {
-				logger.Debugf("Got error getting next reader %s, %s", err, w)
+				logger.Debugf("Got error getting next reader %s", err)
 				break
 			}
 
