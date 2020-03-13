@@ -5,13 +5,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/lxd/db"
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
-	"github.com/pkg/errors"
 )
 
 // AllowInstanceCreation returns an error if any project-specific limit or
