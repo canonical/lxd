@@ -878,7 +878,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		for _, c := range allInstances {
 			snapshots, err := c.Snapshots()
 			if err != nil {
-				logger.Error("Failed to list snapshots", log.Ctx{"err": err, "container": c.Name(), "project": c.Project()})
+				logger.Error("Failed to list instance snapshots", log.Ctx{"err": err, "instance": c.Name(), "project": c.Project()})
 				continue
 			}
 
@@ -906,7 +906,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired snapshots operation", log.Ctx{"err": err})
+			logger.Error("Failed to start expired instance snapshots operation", log.Ctx{"err": err})
 			return
 		}
 
@@ -940,7 +940,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	for _, snapshot := range snapshots {
 		err := snapshot.Delete()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to delete expired snapshot '%s' in project '%s'", snapshot.Name(), snapshot.Project())
+			return errors.Wrapf(err, "Failed to delete expired instance snapshot '%s' in project '%s'", snapshot.Name(), snapshot.Project())
 		}
 	}
 
