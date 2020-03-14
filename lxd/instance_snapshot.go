@@ -144,7 +144,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
 	} else {
-		expiry, err = shared.GetSnapshotExpiry(time.Now(), inst.LocalConfig()["snapshots.expiry"])
+		expiry, err = shared.GetSnapshotExpiry(time.Now(), inst.ExpandedConfig()["snapshots.expiry"])
 		if err != nil {
 			return response.BadRequest(err)
 		}
