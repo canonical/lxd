@@ -154,7 +154,7 @@ static int get_unused_loop_dev_legacy(char *loop_name)
 
 static int get_unused_loop_dev(char *name_loop)
 {
-	__do_close int fd_ctl = -1;
+	__do_close int fd_ctl = -EBADF;
 	int loop_nr, ret;
 
 	fd_ctl = open("/dev/loop-control", O_RDWR | O_CLOEXEC);
@@ -174,7 +174,7 @@ static int get_unused_loop_dev(char *name_loop)
 
 static int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 {
-	__do_close int fd_img = -1, fd_loop = -1;
+	__do_close int fd_img = -EBADF, fd_loop = -EBADF;
 	int ret;
 	struct loop_info64 lo64;
 

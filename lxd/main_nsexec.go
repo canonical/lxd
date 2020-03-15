@@ -167,7 +167,7 @@ static int preserve_ns(const int pid, const char *ns)
 // in the same namespace returns -EINVAL, -1 if an error occurred.
 static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 {
-	__do_close int ns_fd1 = -1, ns_fd2 = -1;
+	__do_close int ns_fd1 = -EBADF, ns_fd2 = -EBADF;
 	int ret = -1;
 	struct stat ns_st1, ns_st2;
 
