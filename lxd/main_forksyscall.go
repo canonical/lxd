@@ -60,7 +60,7 @@ static bool chdirchroot_in_mntns(int cwd_fd, int root_fd)
 
 static bool acquire_basic_creds(pid_t pid)
 {
-	__do_close_prot_errno int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF;
+	__do_close int cwd_fd = -EBADF, mnt_fd = -EBADF, root_fd = -EBADF;
 	char buf[256];
 
 	snprintf(buf, sizeof(buf), "/proc/%d/ns/mnt", pid);
@@ -139,7 +139,7 @@ static bool acquire_final_creds(pid_t pid, uid_t uid, gid_t gid, uid_t fsuid, gi
 // <PID> <root-uid> <root-gid> <path> <mode> <dev>
 static void mknod_emulate(void)
 {
-	__do_close_prot_errno int target_dir_fd = -EBADF;
+	__do_close int target_dir_fd = -EBADF;
 	char *target = NULL, *target_dir = NULL;
 	int ret;
 	char path[PATH_MAX];
@@ -209,7 +209,7 @@ const char *ns_names[] = { "user", "pid", "uts", "ipc", "net", "cgroup", NULL };
 
 static bool setnsat(int ns_fd, const char *ns)
 {
-	__do_close_prot_errno int fd = -EBADF;
+	__do_close int fd = -EBADF;
 
 	fd = openat(ns_fd, ns, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
@@ -220,7 +220,7 @@ static bool setnsat(int ns_fd, const char *ns)
 
 static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t nsfsuid, gid_t nsfsgid)
 {
-	__do_close_prot_errno int fd = -EBADF;
+	__do_close int fd = -EBADF;
 
 	if (prctl(PR_SET_KEEPCAPS, 1))
 		return false;
@@ -248,7 +248,7 @@ static bool change_creds(int ns_fd, cap_t caps, uid_t nsuid, gid_t nsgid, uid_t 
 
 static void setxattr_emulate(void)
 {
-	__do_close_prot_errno int ns_fd = -EBADF, target_fd = -EBADF;
+	__do_close int ns_fd = -EBADF, target_fd = -EBADF;
 	int flags = 0;
 	char *name, *target;
 	char path[PATH_MAX];
@@ -341,7 +341,7 @@ static bool is_dir(const char *path)
 
 static int make_tmpfile(char *template, bool dir)
 {
-	__do_close_prot_errno int fd = -EBADF;
+	__do_close int fd = -EBADF;
 
 	if (dir) {
 		if (!mkdtemp(template))
@@ -380,7 +380,7 @@ static int preserve_ns(const int pid, const char *ns)
 
 static void mount_emulate(void)
 {
-	__do_close_prot_errno int mnt_fd = -EBADF;
+	__do_close int mnt_fd = -EBADF;
 	char *source = NULL, *shiftfs = NULL, *target = NULL, *fstype = NULL;
 	bool use_fuse;
 	uid_t uid = -1, fsuid = -1;

@@ -53,7 +53,7 @@ static int find_associated_loop_device(const char *loop_file,
 		return -1;
 
 	while ((dp = readdir(dir))) {
-		__do_close_prot_errno int loop_path_fd = -EBADF;
+		__do_close int loop_path_fd = -EBADF;
 		int ret;
 		size_t totlen;
 		struct stat fstatbuf;
@@ -120,7 +120,7 @@ static int get_unused_loop_dev_legacy(char *loop_name)
 		return -1;
 
 	while ((dp = readdir(dir))) {
-		__do_close_prot_errno int dfd = -EBADF, fd = -EBADF;
+		__do_close int dfd = -EBADF, fd = -EBADF;
 		int ret;
 
 		if (!dp)
@@ -154,7 +154,7 @@ static int get_unused_loop_dev_legacy(char *loop_name)
 
 static int get_unused_loop_dev(char *name_loop)
 {
-	__do_close_prot_errno int fd_ctl = -1;
+	__do_close int fd_ctl = -1;
 	int loop_nr, ret;
 
 	fd_ctl = open("/dev/loop-control", O_RDWR | O_CLOEXEC);
@@ -174,7 +174,7 @@ static int get_unused_loop_dev(char *name_loop)
 
 static int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 {
-	__do_close_prot_errno int fd_img = -1, fd_loop = -1;
+	__do_close int fd_img = -1, fd_loop = -1;
 	int ret;
 	struct loop_info64 lo64;
 

@@ -101,7 +101,7 @@ void error(char *msg)
 }
 
 int dosetns(int pid, char *nstype) {
-	__do_close_prot_errno int ns_fd = -EBADF;
+	__do_close int ns_fd = -EBADF;
 	char buf[PATH_MAX];
 
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
@@ -120,7 +120,7 @@ int dosetns(int pid, char *nstype) {
 }
 
 int dosetns_file(char *file, char *nstype) {
-	__do_close_prot_errno int ns_fd = -EBADF;
+	__do_close int ns_fd = -EBADF;
 
 	ns_fd = open(file, O_RDONLY);
 	if (ns_fd < 0) {
@@ -167,7 +167,7 @@ static int preserve_ns(const int pid, const char *ns)
 // in the same namespace returns -EINVAL, -1 if an error occurred.
 static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 {
-	__do_close_prot_errno int ns_fd1 = -1, ns_fd2 = -1;
+	__do_close int ns_fd1 = -1, ns_fd2 = -1;
 	int ret = -1;
 	struct stat ns_st1, ns_st2;
 
@@ -202,7 +202,7 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 }
 
 void attach_userns(int pid) {
-	__do_close_prot_errno int userns_fd = -EBADF;
+	__do_close int userns_fd = -EBADF;
 	int ret;
 
 	userns_fd = in_same_namespace(getpid(), pid, "user");
@@ -251,7 +251,7 @@ again:
 
 static char *file_to_buf(char *path, ssize_t *length)
 {
-	__do_close_prot_errno int fd = -EBADF;
+	__do_close int fd = -EBADF;
 	__do_free char *copy = NULL;
 	char buf[PATH_MAX];
 

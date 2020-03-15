@@ -82,7 +82,7 @@ static void *nlmsg_reserve_unaligned(struct nlmsg *nlmsg, size_t len)
 
 int can_inject_uevent(const char *uevent, size_t len)
 {
-	__do_close_prot_errno int sock_fd = -EBADF;
+	__do_close int sock_fd = -EBADF;
 	__do_free struct nlmsg *nlmsg = NULL;
 	int ret;
 	char *umsg = NULL;
@@ -115,7 +115,7 @@ int can_inject_uevent(const char *uevent, size_t len)
 
 static int inject_uevent(const char *uevent, size_t len)
 {
-	__do_close_prot_errno int sock_fd = -EBADF;
+	__do_close int sock_fd = -EBADF;
 	__do_free struct nlmsg *nlmsg = NULL;
 	int ret;
 	char *umsg = NULL;
