@@ -17,7 +17,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
+func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{}, make(chan bool, 1)}
 	ret.volumeOnly = volumeOnly
 
@@ -144,7 +144,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	return nil
 }
 
-func NewStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
+func newStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:    migrationFields{volumeOnly: args.VolumeOnly},
 		dest:   migrationFields{volumeOnly: args.VolumeOnly},

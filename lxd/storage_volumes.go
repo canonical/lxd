@@ -474,7 +474,7 @@ func doVolumeMigration(d *Daemon, projectName string, poolName string, req *api.
 		VolumeOnly: req.Source.VolumeOnly,
 	}
 
-	sink, err := NewStorageMigrationSink(&migrationArgs)
+	sink, err := newStorageMigrationSink(&migrationArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -634,7 +634,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
 func storagePoolVolumeTypePostMigration(state *state.State, projectName, poolName, volumeName string, req api.StorageVolumePost) response.Response {
-	ws, err := NewStorageMigrationSource(req.VolumeOnly)
+	ws, err := newStorageMigrationSource(req.VolumeOnly)
 	if err != nil {
 		return response.InternalError(err)
 	}
