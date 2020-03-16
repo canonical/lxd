@@ -27,7 +27,7 @@ var storagePoolResourcesCmd = APIEndpoint{
 // Get system resources
 func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -45,7 +45,7 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 // Get resources for a specific storage pool
 func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}

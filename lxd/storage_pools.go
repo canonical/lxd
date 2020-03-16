@@ -287,7 +287,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 // Get a single storage pool.
 func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}

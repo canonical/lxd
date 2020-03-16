@@ -262,7 +262,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume in a given storage pool.
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -363,7 +363,7 @@ func doVolumeCreateOrCopy(d *Daemon, projectName, poolName string, req *api.Stor
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume of a given volume type in a given storage pool.
 func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -572,7 +572,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 	}
 	r.Body = shared.BytesReadCloser{Buf: &buf}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -583,7 +583,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		return response.BadRequest(err)
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -801,12 +801,12 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -880,12 +880,12 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1010,12 +1010,12 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName strin
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, pool.ID(), volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -1103,7 +1103,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -1113,7 +1113,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		return response.SmartError(err)
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
