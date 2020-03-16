@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
@@ -170,18 +171,15 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int) int {
-	base := "snap"
-	length := len(base)
+func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int, pattern string) int {
 	q := fmt.Sprintf(`
 SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id=storage_volumes.id
  WHERE storage_volumes.type=?
    AND storage_volumes.name=?
-   AND SUBSTR(storage_volumes_snapshots.name,1,?)=?
 `)
 	var numstr string
-	inargs := []interface{}{typ, name, length, base}
+	inargs := []interface{}{typ, name}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -191,8 +189,10 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
 
 	for _, r := range results {
 		substr := r[0].(string)
+		fields := strings.SplitN(pattern, "%d", 2)
+
 		var num int
-		count, err := fmt.Sscanf(substr, base+"%d", &num)
+		count, err := fmt.Sscanf(substr, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
 		if err != nil || count != 1 {
 			continue
 		}
