@@ -590,28 +590,28 @@ func (d *Daemon) init() error {
 
 	// Look for kernel features
 	logger.Infof("Kernel features:")
-	d.os.NetnsGetifaddrs = CanUseNetnsGetifaddrs()
+	d.os.NetnsGetifaddrs = canUseNetnsGetifaddrs()
 	if d.os.NetnsGetifaddrs {
 		logger.Infof(" - netnsid-based network retrieval: yes")
 	} else {
 		logger.Infof(" - netnsid-based network retrieval: no")
 	}
 
-	d.os.UeventInjection = CanUseUeventInjection()
+	d.os.UeventInjection = canUseUeventInjection()
 	if d.os.UeventInjection {
 		logger.Infof(" - uevent injection: yes")
 	} else {
 		logger.Infof(" - uevent injection: no")
 	}
 
-	d.os.SeccompListener = CanUseSeccompListener()
+	d.os.SeccompListener = canUseSeccompListener()
 	if d.os.SeccompListener {
 		logger.Infof(" - seccomp listener: yes")
 	} else {
 		logger.Infof(" - seccomp listener: no")
 	}
 
-	d.os.SeccompListenerContinue = CanUseSeccompListenerContinue()
+	d.os.SeccompListenerContinue = canUseSeccompListenerContinue()
 	if d.os.SeccompListenerContinue {
 		logger.Infof(" - seccomp listener continue syscalls: yes")
 	} else {
