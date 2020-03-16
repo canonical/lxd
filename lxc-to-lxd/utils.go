@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
@@ -69,32 +66,6 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 
 	if !*msg.Success {
 		return fmt.Errorf(*msg.Message)
-	}
-
-	return nil
-}
-
-func setupSource(path string, mounts []string) error {
-	prefix := "/"
-	if len(mounts) > 0 {
-		prefix = mounts[0]
-	}
-
-	// Mount everything
-	for _, mount := range mounts {
-		target := fmt.Sprintf("%s/%s", path, strings.TrimPrefix(mount, prefix))
-
-		// Mount the path
-		err := unix.Mount(mount, target, "none", unix.MS_BIND, "")
-		if err != nil {
-			return fmt.Errorf("Failed to mount %s: %v", mount, err)
-		}
-
-		// Make it read-only
-		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
-		if err != nil {
-			return fmt.Errorf("Failed to make %s read-only: %v", mount, err)
-		}
 	}
 
 	return nil
