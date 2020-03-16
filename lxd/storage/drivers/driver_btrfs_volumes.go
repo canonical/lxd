@@ -443,6 +443,11 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 	if err != nil && !d.state.OS.RunningInUserNS {
 		// If quotas are disabled, attempt to enable them.
 		if err == errBtrfsNoQuota {
+			if sizeBytes <= 0 {
+				// Nothing to do if the quota is being removed and we don't currently have quota.
+				return nil
+			}
+
 			path := GetPoolMountPath(d.name)
 
 			_, err = shared.RunCommand("btrfs", "quota", "enable", path)
