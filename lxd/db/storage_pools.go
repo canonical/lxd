@@ -728,6 +728,52 @@ func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) ([]string, error) {
 	return out, nil
 }
 
+// StoragePoolVolumesGetAllByType return a list of volumes by type.
+func (c *Cluster) StoragePoolVolumesGetAllByType(volumeType int) ([]StorageVolumeArgs, error) {
+	var id int64
+	var name string
+	var description string
+	var poolName string
+	var projectName string
+
+	stmt := `
+SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name
+FROM storage_volumes
+JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
+JOIN projects ON projects.id = storage_volumes.project_id
+WHERE storage_volumes.type = ?
+`
+
+	inargs := []interface{}{volumeType}
+	outargs := []interface{}{id, name, description, poolName, projectName}
+
+	result, err := queryScan(c.db, stmt, inargs, outargs)
+	if err != nil {
+		return nil, err
+	}
+
+	var response []StorageVolumeArgs
+
+	for _, r := range result {
+		args := StorageVolumeArgs{
+			ID:          r[0].(int64),
+			Name:        r[1].(string),
+			Description: r[2].(string),
+			PoolName:    r[3].(string),
+			ProjectName: r[4].(string),
+		}
+
+		args.Config, err = c.storageVolumeConfigGet(args.ID, false)
+		if err != nil {
+			return nil, err
+		}
+
+		response = append(response, args)
+	}
+
+	return response, nil
+}
+
 // StoragePoolVolumesGet returns all storage volumes attached to a given
 // storage pool on any node.
 func (c *Cluster) StoragePoolVolumesGet(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
