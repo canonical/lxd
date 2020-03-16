@@ -606,7 +606,7 @@ func ImageUnpack(imageFile, destPath, destBlockFile string, blockBackend, runnin
 		return err
 	}
 
-	if fileInfo.IsDir() {
+	if fileInfo != nil && fileInfo.IsDir() {
 		// If the dest block file exists, and it is a directory, fail.
 		return fmt.Errorf("Root block path isn't a file: %s", destBlockFile)
 	}
