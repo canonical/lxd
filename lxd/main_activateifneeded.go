@@ -52,7 +52,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Don't start a full daemon, we just need DB access
-	d := DefaultDaemon()
+	d := defaultDaemon()
 
 	// Check if either the local database or the legacy local database
 	// files exists.

@@ -161,17 +161,17 @@ func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	}
 }
 
-// DefaultDaemonConfig returns a DaemonConfig object with default values/
-func DefaultDaemonConfig() *DaemonConfig {
+// defaultDaemonConfig returns a DaemonConfig object with default values.
+func defaultDaemonConfig() *DaemonConfig {
 	return &DaemonConfig{
 		RaftLatency:        3.0,
 		DqliteSetupTimeout: 36 * time.Hour, // Account for snap refresh lag
 	}
 }
 
-// DefaultDaemon returns a new, un-initialized Daemon object with default values.
-func DefaultDaemon() *Daemon {
-	config := DefaultDaemonConfig()
+// defaultDaemon returns a new, un-initialized Daemon object with default values.
+func defaultDaemon() *Daemon {
+	config := defaultDaemonConfig()
 	os := sys.DefaultOS()
 	return newDaemon(config, os)
 }
