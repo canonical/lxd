@@ -1,23 +1,3 @@
-/* liblxcapi
- *
- * Copyright © 2019 Christian Brauner <christian.brauner@ubuntu.com>.
- * Copyright © 2019 Canonical Ltd.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
-
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
-
- * You should have received a copy of the GNU Lesser General Public License
- * along with this library; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- */
-
 #ifndef __LXC_MEMORY_UTILS_H
 #define __LXC_MEMORY_UTILS_H
 
@@ -30,22 +10,14 @@
 
 #include "macro.h"
 
-static inline void __auto_free__(void *p)
-{
-	free(*(void **)p);
-}
+#define define_cleanup_function(type, cleaner)           \
+	static inline void cleaner##_function(type *ptr) \
+	{                                                \
+		if (*ptr)                                \
+			cleaner(*ptr);                   \
+	}
 
-static inline void __auto_fclose__(FILE **f)
-{
-	if (*f)
-		fclose(*f);
-}
-
-static inline void __auto_closedir__(DIR **d)
-{
-	if (*d)
-		closedir(*d);
-}
+#define call_cleaner(cleaner) __attribute__((__cleanup__(cleaner##_function)))
 
 #define close_prot_errno_disarm(fd) \
 	if (fd >= 0) {              \
@@ -55,14 +27,28 @@ static inline void __auto_closedir__(DIR **d)
 		fd = -EBADF;        \
 	}
 
-static inline void __auto_close__(int *fd)
+static inline void close_prot_errno_disarm_function(int *fd)
 {
-	close_prot_errno_disarm(*fd);
+       close_prot_errno_disarm(*fd);
 }
+#define __do_close call_cleaner(close_prot_errno_disarm)
 
-#define __do_close_prot_errno __attribute__((__cleanup__(__auto_close__)))
-#define __do_free __attribute__((__cleanup__(__auto_free__)))
-#define __do_fclose __attribute__((__cleanup__(__auto_fclose__)))
-#define __do_closedir __attribute__((__cleanup__(__auto_closedir__)))
+define_cleanup_function(FILE *, fclose);
+#define __do_fclose call_cleaner(fclose)
+
+define_cleanup_function(DIR *, closedir);
+#define __do_closedir call_cleaner(closedir)
+
+#define free_disarm(ptr)       \
+	({                     \
+		free(ptr);     \
+		move_ptr(ptr); \
+	})
+
+static inline void free_disarm_function(void *ptr)
+{
+	free_disarm(*(void **)ptr);
+}
+#define __do_free call_cleaner(free_disarm)
 
 #endif /* __LXC_MEMORY_UTILS_H */

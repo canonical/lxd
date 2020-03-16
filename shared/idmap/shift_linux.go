@@ -95,7 +95,7 @@ int set_dummy_fs_ns_caps(const char *path)
 
 int shiftowner(char *basepath, char *path, int uid, int gid)
 {
-	__do_close_prot_errno int fd = -EBADF;
+	__do_close int fd = -EBADF;
 	int ret;
 	char fdpath[PATH_MAX], realpath[PATH_MAX];
 	struct stat sb;

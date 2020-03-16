@@ -78,7 +78,7 @@ void ensure_dir(char *dest) {
 
 void ensure_file(char *dest)
 {
-	__do_close_prot_errno int fd = -EBADF;
+	__do_close int fd = -EBADF;
 	struct stat sb;
 
 	if (stat(dest, &sb) == 0) {

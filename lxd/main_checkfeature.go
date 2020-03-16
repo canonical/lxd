@@ -42,7 +42,7 @@ extern int wait_for_pid(pid_t pid);
 
 static int netns_set_nsid(int fd)
 {
-	__do_close_prot_errno int sockfd = -EBADF;
+	__do_close int sockfd = -EBADF;
 	int ret;
 	char buf[NLMSG_ALIGN(sizeof(struct nlmsghdr)) +
 		 NLMSG_ALIGN(sizeof(struct rtgenmsg)) +
@@ -79,7 +79,7 @@ static int netns_set_nsid(int fd)
 
 void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
-	__do_close_prot_errno int sock_fd = -EBADF;
+	__do_close int sock_fd = -EBADF;
 	int netnsid, ret;
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
@@ -172,7 +172,7 @@ static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
 
 __noreturn static void __do_user_notification_continue(void)
 {
-	__do_close_prot_errno int listener = -EBADF;
+	__do_close int listener = -EBADF;
 	pid_t pid;
 	int ret;
 	struct seccomp_notif req = {};
@@ -293,7 +293,7 @@ static void is_seccomp_notify_aware(void)
 
 void checkfeature(void)
 {
-	__do_close_prot_errno int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
+	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
 
 	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
 	is_uevent_aware();
