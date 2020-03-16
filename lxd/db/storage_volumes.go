@@ -15,6 +15,7 @@ import (
 // StorageVolumeArgs is a value object holding all db-related details about a
 // storage volume.
 type StorageVolumeArgs struct {
+	ID   int64
 	Name string
 
 	// At least one of Type or TypeName must be set.
@@ -31,7 +32,10 @@ type StorageVolumeArgs struct {
 	Description  string
 	CreationDate time.Time
 	ExpiryDate   time.Time
-	ProjectName  string
+
+	// At least on of ProjectID or ProjectName must be set.
+	ProjectID   int64
+	ProjectName string
 }
 
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
