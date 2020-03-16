@@ -1,19 +1,13 @@
 package main
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"strings"
 
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
-	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
@@ -78,88 +72,6 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 	}
 
 	return nil
-}
-
-func connectTarget(url string) (lxd.ContainerServer, error) {
-	// Generate a new client certificate for this
-	fmt.Println("Generating a temporary client certificate. This may take a minute...")
-	clientCrt, clientKey, err := shared.GenerateMemCert(true, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Attempt to connect using the system CA
-	args := lxd.ConnectionArgs{}
-	args.TLSClientCert = string(clientCrt)
-	args.TLSClientKey = string(clientKey)
-	args.UserAgent = fmt.Sprintf("LXC-TO-LXD %s", version.Version)
-	c, err := lxd.ConnectLXD(url, &args)
-
-	var certificate *x509.Certificate
-	if err != nil {
-		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Handle certificate prompt
-	if certificate != nil {
-		digest := shared.CertFingerprint(certificate)
-
-		fmt.Printf("Certificate fingerprint: %s\n", digest)
-		fmt.Printf("ok (y/n)? ")
-		line, err := shared.ReadStdin()
-		if err != nil {
-			return nil, err
-		}
-
-		if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-			return nil, fmt.Errorf("Server certificate rejected by user")
-		}
-
-		serverCrt := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-		args.TLSServerCert = string(serverCrt)
-
-		// Setup a new connection, this time with the remote certificate
-		c, err = lxd.ConnectLXD(url, &args)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Get server information
-	srv, _, err := c.GetServer()
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if our cert is already trusted
-	if srv.Auth == "trusted" {
-		return c, nil
-	}
-
-	// Prompt for trust password
-	fmt.Printf("Admin password for %s: ", url)
-	pwd, err := terminal.ReadPassword(0)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("")
-
-	// Add client certificate to trust store
-	req := api.CertificatesPost{
-		Password: string(pwd),
-	}
-	req.Type = "client"
-
-	err = c.CreateCertificate(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
 }
 
 func setupSource(path string, mounts []string) error {
