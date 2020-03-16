@@ -24,10 +24,6 @@ type cmdPublish struct {
 	flagForce                bool
 }
 
-func (c *cmdPublish) showByDefault() bool {
-	return true
-}
-
 func (c *cmdPublish) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]")
