@@ -14,7 +14,7 @@ import (
 
 // The daemon is started and a client can connect to it via unix socket.
 func TestIntegration_UnixSocket(t *testing.T) {
-	daemon, cleanup := newDaemon(t)
+	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
 	client, err := lxd.ConnectLXDUnix(daemon.UnixSocket(), nil)
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestIntegration_UnixSocket(t *testing.T) {
 // Create a new daemon for testing.
 //
 // Return a function that can be used to cleanup every associated state.
-func newDaemon(t *testing.T) (*Daemon, func()) {
+func newTestDaemon(t *testing.T) (*Daemon, func()) {
 	// Logging
 	resetLogger := logging.Testing(t)
 
@@ -37,7 +37,7 @@ func newDaemon(t *testing.T) (*Daemon, func()) {
 	os, osCleanup := sys.NewTestOS(t)
 
 	// Daemon
-	daemon := NewDaemon(newConfig(), os)
+	daemon := newDaemon(newConfig(), os)
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {
@@ -57,7 +57,7 @@ func newDaemons(t *testing.T, n int) ([]*Daemon, func()) {
 	cleanups := make([]func(), n)
 
 	for i := 0; i < n; i++ {
-		daemons[i], cleanups[i] = newDaemon(t)
+		daemons[i], cleanups[i] = newTestDaemon(t)
 		if i > 0 {
 			// Use a different server certificate
 			cert := shared.TestingAltKeyPair()
