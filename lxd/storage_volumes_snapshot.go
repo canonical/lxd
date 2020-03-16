@@ -76,7 +76,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Get a snapshot name.
 	if req.Name == "" {
-		i := d.cluster.StorageVolumeNextSnapshot(volumeName, volumeType)
+		i := d.cluster.StorageVolumeNextSnapshot(volumeName, volumeType, "snap%d")
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
