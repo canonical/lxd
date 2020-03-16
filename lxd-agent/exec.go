@@ -133,11 +133,8 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 }
 
 type execWs struct {
-	command []string
-	env     map[string]string
-
-	rootUID          int64
-	rootGID          int64
+	command          []string
+	env              map[string]string
 	conns            map[int]*websocket.Conn
 	connsLock        sync.Mutex
 	allConnected     chan bool
