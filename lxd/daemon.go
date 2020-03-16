@@ -1045,6 +1045,8 @@ func (d *Daemon) Ready() error {
 		// Remove expired custom volume snapshots (minutely)
 		d.tasks.Add(pruneExpireCustomVolumeSnapshotsTask(d))
 
+		// Take snapshot of custom volumes (minutely check of configurable cron expression)
+		d.tasks.Add(autoCreateCustomVolumeSnapshotsTask(d))
 	}
 
 	// Start all background tasks
