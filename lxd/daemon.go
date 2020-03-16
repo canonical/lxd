@@ -725,7 +725,7 @@ func (d *Daemon) init() error {
 		UnixSocket:           d.UnixSocket(),
 		Cert:                 certInfo,
 		RestServer:           restServer(d),
-		DevLxdServer:         DevLxdServer(d),
+		DevLxdServer:         devLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       address,
 		ClusterAddress:       clusterAddress,
