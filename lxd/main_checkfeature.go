@@ -311,7 +311,7 @@ static bool is_empty_string(char *s)
 */
 import "C"
 
-func CanUseNetnsGetifaddrs() bool {
+func canUseNetnsGetifaddrs() bool {
 	if !bool(C.is_empty_string(&C.errbuf[0])) {
 		logger.Debugf("%s", C.GoString(&C.errbuf[0]))
 	}
@@ -319,14 +319,14 @@ func CanUseNetnsGetifaddrs() bool {
 	return bool(C.netnsid_aware)
 }
 
-func CanUseUeventInjection() bool {
+func canUseUeventInjection() bool {
 	return bool(C.uevent_aware)
 }
 
-func CanUseSeccompListener() bool {
+func canUseSeccompListener() bool {
 	return bool(C.seccomp_notify_aware > 0)
 }
 
-func CanUseSeccompListenerContinue() bool {
+func canUseSeccompListenerContinue() bool {
 	return bool(C.seccomp_notify_aware == 2)
 }
