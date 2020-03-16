@@ -10,8 +10,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-var cgCgroup2SuperMagic int64 = 0x63677270
-
 var cgControllers = map[string]Backend{}
 var cgNamespace bool
 
