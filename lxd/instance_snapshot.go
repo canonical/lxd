@@ -34,7 +34,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	cname := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, projectName, cname, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, projectName, cname, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -100,7 +100,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -195,7 +195,7 @@ func containerSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
 
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, containerName, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, containerName, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -358,7 +358,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc instance.Instance, containerNam
 			}
 		}
 
-		ws, err := NewMigrationSource(sc, reqNew.Live, true)
+		ws, err := newMigrationSource(sc, reqNew.Live, true)
 		if err != nil {
 			return response.SmartError(err)
 		}

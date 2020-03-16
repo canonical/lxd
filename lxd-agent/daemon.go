@@ -10,8 +10,8 @@ type Daemon struct {
 	events *events.Server
 }
 
-// NewDaemon returns a new Daemon object with the given configuration.
-func NewDaemon(debug, verbose bool) *Daemon {
+// newDaemon returns a new Daemon object with the given configuration.
+func newDaemon(debug, verbose bool) *Daemon {
 	lxdEvents := events.NewServer(debug, verbose)
 
 	return &Daemon{

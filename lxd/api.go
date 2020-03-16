@@ -15,9 +15,8 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// RestServer creates an http.Server capable of handling requests against the LXD REST
-// API endpoint.
-func RestServer(d *Daemon) *http.Server {
+// RestServer creates an http.Server capable of handling requests against the LXD REST API endpoint.
+func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	mux := mux.NewRouter()
 	mux.StrictSlash(false)

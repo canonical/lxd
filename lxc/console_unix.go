@@ -3,7 +3,6 @@
 package main
 
 import (
-	"io"
 	"os"
 	"os/signal"
 
@@ -12,10 +11,6 @@ import (
 
 	"github.com/lxc/lxd/shared/logger"
 )
-
-func (c *cmdConsole) getStdout() io.WriteCloser {
-	return os.Stdout
-}
 
 func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)

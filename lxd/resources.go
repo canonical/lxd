@@ -14,20 +14,20 @@ import (
 var api10ResourcesCmd = APIEndpoint{
 	Path: "resources",
 
-	Get: APIEndpointAction{Handler: api10ResourcesGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: api10ResourcesGet, AccessHandler: allowAuthenticated},
 }
 
 var storagePoolResourcesCmd = APIEndpoint{
 	Path: "storage-pools/{name}/resources",
 
-	Get: APIEndpointAction{Handler: storagePoolResourcesGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: storagePoolResourcesGet, AccessHandler: allowAuthenticated},
 }
 
 // /1.0/resources
 // Get system resources
 func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -45,7 +45,7 @@ func api10ResourcesGet(d *Daemon, r *http.Request) response.Response {
 // Get resources for a specific storage pool
 func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}

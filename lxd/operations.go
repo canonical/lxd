@@ -22,20 +22,20 @@ import (
 var operationCmd = APIEndpoint{
 	Path: "operations/{id}",
 
-	Delete: APIEndpointAction{Handler: operationDelete, AccessHandler: AllowAuthenticated},
-	Get:    APIEndpointAction{Handler: operationGet, AccessHandler: AllowAuthenticated},
+	Delete: APIEndpointAction{Handler: operationDelete, AccessHandler: allowAuthenticated},
+	Get:    APIEndpointAction{Handler: operationGet, AccessHandler: allowAuthenticated},
 }
 
 var operationsCmd = APIEndpoint{
 	Path: "operations",
 
-	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: allowAuthenticated},
 }
 
 var operationWait = APIEndpoint{
 	Path: "operations/{id}/wait",
 
-	Get: APIEndpointAction{Handler: operationWaitGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: operationWaitGet, AccessHandler: allowAuthenticated},
 }
 
 var operationWebsocket = APIEndpoint{

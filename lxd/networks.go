@@ -35,7 +35,7 @@ var networkCreateLock sync.Mutex
 var networksCmd = APIEndpoint{
 	Path: "networks",
 
-	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: AllowAuthenticated},
+	Get:  APIEndpointAction{Handler: networksGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: networksPost},
 }
 
@@ -43,7 +43,7 @@ var networkCmd = APIEndpoint{
 	Path: "networks/{name}",
 
 	Delete: APIEndpointAction{Handler: networkDelete},
-	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: AllowAuthenticated},
+	Get:    APIEndpointAction{Handler: networkGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: networkPatch},
 	Post:   APIEndpointAction{Handler: networkPost},
 	Put:    APIEndpointAction{Handler: networkPut},
@@ -52,13 +52,13 @@ var networkCmd = APIEndpoint{
 var networkLeasesCmd = APIEndpoint{
 	Path: "networks/{name}/leases",
 
-	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: networkLeasesGet, AccessHandler: allowAuthenticated},
 }
 
 var networkStateCmd = APIEndpoint{
 	Path: "networks/{name}/state",
 
-	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: networkStateGet, AccessHandler: allowAuthenticated},
 }
 
 // API endpoints
@@ -327,7 +327,7 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 
 func networkGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -883,7 +883,7 @@ func networkShutdown(s *state.State) error {
 
 func networkStateGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}

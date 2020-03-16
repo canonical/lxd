@@ -26,7 +26,7 @@ var storagePoolCreateLock sync.Mutex
 var storagePoolsCmd = APIEndpoint{
 	Path: "storage-pools",
 
-	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: AllowAuthenticated},
+	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolsPost},
 }
 
@@ -34,7 +34,7 @@ var storagePoolCmd = APIEndpoint{
 	Path: "storage-pools/{name}",
 
 	Delete: APIEndpointAction{Handler: storagePoolDelete},
-	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: AllowAuthenticated},
+	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: storagePoolPatch},
 	Put:    APIEndpointAction{Handler: storagePoolPut},
 }
@@ -287,7 +287,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 // Get a single storage pool.
 func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
