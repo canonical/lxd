@@ -16,7 +16,7 @@ import (
 )
 
 func mockStartDaemon() (*Daemon, error) {
-	d := DefaultDaemon()
+	d := defaultDaemon()
 	d.os.MockMode = true
 
 	// Setup test certificates. We re-use the ones already on disk under
