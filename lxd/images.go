@@ -706,7 +706,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		if name != "" {
 			post.Seek(0, 0)
 			r.Body = post
-			resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+			resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 			if err != nil {
 				cleanup(builddir, post)
 				return response.SmartError(err)

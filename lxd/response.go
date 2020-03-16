@@ -9,9 +9,9 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 )
 
-// ForwardedResponseIfTargetIsRemote redirects a request to the request has a
+// forwardedResponseIfTargetIsRemote redirects a request to the request has a
 // targetNode parameter pointing to a node which is not the local one.
-func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) response.Response {
+func forwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) response.Response {
 	targetNode := queryParam(request, "target")
 	if targetNode == "" {
 		return nil
@@ -37,10 +37,10 @@ func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) respons
 	return nil
 }
 
-// ForwardedResponseIfContainerIsRemote redirects a request to the node running
+// forwardedResponseIfContainerIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
-func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
+func forwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert, instanceType)
 	if err != nil {
@@ -52,14 +52,14 @@ func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, n
 	return response.ForwardedResponse(client, r), nil
 }
 
-// ForwardedResponseIfVolumeIsRemote redirects a request to the node hosting
+// forwardedResponseIfVolumeIsRemote redirects a request to the node hosting
 // the volume with the given pool ID, name and type. If the container is local,
 // nothing gets done and nil is returned. If more than one node has a matching
 // volume, an error is returned.
 //
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
-func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) response.Response {
+func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) response.Response {
 	if queryParam(r, "target") != "" {
 		return nil
 	}

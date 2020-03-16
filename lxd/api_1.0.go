@@ -120,7 +120,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -251,7 +251,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 
 func api10Put(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -299,7 +299,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 
 func api10Patch(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}

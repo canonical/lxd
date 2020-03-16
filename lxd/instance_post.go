@@ -130,7 +130,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
 		// Handle requests targeted to a container on a different node.
-		resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+		resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
 		}

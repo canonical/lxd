@@ -96,12 +96,12 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
 
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -261,7 +261,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -272,7 +272,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -327,7 +327,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -338,7 +338,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -389,7 +389,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -400,7 +400,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
@@ -473,7 +473,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 		return response.SmartError(err)
 	}
 
-	resp := ForwardedResponseIfTargetIsRemote(d, r)
+	resp := forwardedResponseIfTargetIsRemote(d, r)
 	if resp != nil {
 		return resp
 	}
@@ -484,7 +484,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	fullSnapshotName := fmt.Sprintf("%s/%s", volumeName, snapshotName)
-	resp = ForwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
+	resp = forwardedResponseIfVolumeIsRemote(d, r, poolID, fullSnapshotName, volumeType)
 	if resp != nil {
 		return resp
 	}
