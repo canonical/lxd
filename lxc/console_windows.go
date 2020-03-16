@@ -4,17 +4,9 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/gorilla/websocket"
-	"github.com/mattn/go-colorable"
 )
-
-func (c *cmdConsole) getStdout() io.WriteCloser {
-	// Defined in exec_windows.go
-	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
-}
 
 func (c *cmdConsole) getTERM() (string, bool) {
 	return "dumb", true
