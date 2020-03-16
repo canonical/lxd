@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -1483,6 +1484,8 @@ type cmdStorageVolumeSnapshot struct {
 	global        *cmdGlobal
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
+
+	flagNoExpiry bool
 }
 
 func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
@@ -1493,6 +1496,7 @@ func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
 		`Snapshot storage volumes`))
 
 	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the storage volume"))
 
 	return cmd
 }
@@ -1538,6 +1542,10 @@ func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error 
 
 	req := api.StorageVolumeSnapshotsPost{
 		Name: snapname,
+	}
+
+	if c.flagNoExpiry {
+		req.ExpiresAt = &time.Time{}
 	}
 
 	op, err := client.CreateStoragePoolVolumeSnapshot(resource.name, volType, volName, req)
