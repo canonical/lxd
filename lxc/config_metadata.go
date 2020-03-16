@@ -16,9 +16,8 @@ import (
 )
 
 type cmdConfigMetadata struct {
-	global  *cmdGlobal
-	config  *cmdConfig
-	profile *cmdProfile
+	global *cmdGlobal
+	config *cmdConfig
 }
 
 func (c *cmdConfigMetadata) Command() *cobra.Command {
