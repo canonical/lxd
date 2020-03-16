@@ -724,7 +724,7 @@ func (d *Daemon) init() error {
 		Dir:                  d.os.VarDir,
 		UnixSocket:           d.UnixSocket(),
 		Cert:                 certInfo,
-		RestServer:           RestServer(d),
+		RestServer:           restServer(d),
 		DevLxdServer:         DevLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       address,
