@@ -29,55 +29,55 @@ import (
 var storagePoolVolumesCmd = APIEndpoint{
 	Path: "storage-pools/{name}/volumes",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Post: APIEndpointAction{Handler: storagePoolVolumesPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumesTypeCmd = APIEndpoint{
 	Path: "storage-pools/{name}/volumes/{type}",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumesTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Post: APIEndpointAction{Handler: storagePoolVolumesTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeContainerCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/container/{name:.*}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeContainerPatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeContainerPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeContainerDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeContainerPatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeContainerPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeContainerPut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeVMCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/virtual-machine/{name:.*}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeVMDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeVMGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeVMPatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeVMPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeVMPut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeVMDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeVMGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeVMPatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeVMPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeVMPut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeCustomCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/custom/{name}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomPatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomPost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomPut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeCustomDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeCustomPatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeCustomPost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeCustomPut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeTypeImageCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/image/{name}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeImagePatch, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeImagePost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeImagePut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeTypeImageDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeTypeImageGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Patch:  APIEndpointAction{Handler: storagePoolVolumeTypeImagePatch, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeTypeImagePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeTypeImagePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 // /1.0/storage-pools/{name}/volumes

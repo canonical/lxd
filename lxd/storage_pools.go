@@ -26,7 +26,7 @@ var storagePoolCreateLock sync.Mutex
 var storagePoolsCmd = APIEndpoint{
 	Path: "storage-pools",
 
-	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: AllowAuthenticated},
+	Get:  APIEndpointAction{Handler: storagePoolsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: storagePoolsPost},
 }
 
@@ -34,7 +34,7 @@ var storagePoolCmd = APIEndpoint{
 	Path: "storage-pools/{name}",
 
 	Delete: APIEndpointAction{Handler: storagePoolDelete},
-	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: AllowAuthenticated},
+	Get:    APIEndpointAction{Handler: storagePoolGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: storagePoolPatch},
 	Put:    APIEndpointAction{Handler: storagePoolPut},
 }
