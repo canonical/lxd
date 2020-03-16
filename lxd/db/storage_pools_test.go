@@ -4,6 +4,7 @@ package db_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/stretchr/testify/assert"
@@ -167,7 +168,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	volumeID, err := cluster.StoragePoolVolumeCreate("default", "v1", "", 1, false, poolID, config)
+	volumeID, err := cluster.StoragePoolVolumeCreate("default", "v1", "", 1, poolID, config)
 	require.NoError(t, err)
 
 	// The returned volume ID is the one of the volume created on the local
@@ -220,11 +221,11 @@ func TestStoragePoolVolumeCreate_Snapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	_, err = cluster.StoragePoolVolumeCreate("default", "v1", "", 1, false, poolID, config)
+	_, err = cluster.StoragePoolVolumeCreate("default", "v1", "", 1, poolID, config)
 	require.NoError(t, err)
 
 	config = map[string]string{"k": "v"}
-	_, err = cluster.StoragePoolVolumeCreate("default", "v1/snap0", "", 1, true, poolID, config)
+	_, err = cluster.StoragePoolVolumeSnapshotCreate("default", "v1/snap0", "", 1, poolID, config, time.Time{})
 	require.NoError(t, err)
 
 	n := cluster.StorageVolumeNextSnapshot("v1", 1)
