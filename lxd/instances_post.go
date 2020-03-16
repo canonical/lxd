@@ -313,7 +313,7 @@ func createFromMigration(d *Daemon, project string, req *api.InstancesPost) resp
 		Refresh:      req.Source.Refresh,
 	}
 
-	sink, err := NewMigrationSink(&migrationArgs)
+	sink, err := newMigrationSink(&migrationArgs)
 	if err != nil {
 		return response.InternalError(err)
 	}

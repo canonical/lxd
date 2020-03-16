@@ -145,8 +145,8 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 	return m.client.DeclaredIdentity(ctx, declared)
 }
 
-// NewDaemon returns a new Daemon object with the given configuration.
-func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
+// newDaemon returns a new Daemon object with the given configuration.
+func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 
@@ -161,19 +161,19 @@ func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	}
 }
 
-// DefaultDaemonConfig returns a DaemonConfig object with default values/
-func DefaultDaemonConfig() *DaemonConfig {
+// defaultDaemonConfig returns a DaemonConfig object with default values.
+func defaultDaemonConfig() *DaemonConfig {
 	return &DaemonConfig{
 		RaftLatency:        3.0,
 		DqliteSetupTimeout: 36 * time.Hour, // Account for snap refresh lag
 	}
 }
 
-// DefaultDaemon returns a new, un-initialized Daemon object with default values.
-func DefaultDaemon() *Daemon {
-	config := DefaultDaemonConfig()
+// defaultDaemon returns a new, un-initialized Daemon object with default values.
+func defaultDaemon() *Daemon {
+	config := defaultDaemonConfig()
 	os := sys.DefaultOS()
-	return NewDaemon(config, os)
+	return newDaemon(config, os)
 }
 
 // APIEndpoint represents a URL in our API.
@@ -201,16 +201,16 @@ type APIEndpointAction struct {
 	AllowUntrusted bool
 }
 
-// AllowAuthenticated is a AccessHandler which allows all requests.
+// allowAuthenticated is an AccessHandler which allows all requests.
 // This function doesn't do anything itself, except return the EmptySyncResponse that allows the request to
 // proceed. However in order to access any API route you must be authenticated, unless the handler's AllowUntrusted
 // property is set to true or you are an admin.
-func AllowAuthenticated(d *Daemon, r *http.Request) response.Response {
+func allowAuthenticated(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// AllowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
-func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
+// allowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
+func allowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) response.Response {
 	return func(d *Daemon, r *http.Request) response.Response {
 		// Shortcut for speed
 		if d.userIsAdmin(r) {
@@ -590,28 +590,28 @@ func (d *Daemon) init() error {
 
 	// Look for kernel features
 	logger.Infof("Kernel features:")
-	d.os.NetnsGetifaddrs = CanUseNetnsGetifaddrs()
+	d.os.NetnsGetifaddrs = canUseNetnsGetifaddrs()
 	if d.os.NetnsGetifaddrs {
 		logger.Infof(" - netnsid-based network retrieval: yes")
 	} else {
 		logger.Infof(" - netnsid-based network retrieval: no")
 	}
 
-	d.os.UeventInjection = CanUseUeventInjection()
+	d.os.UeventInjection = canUseUeventInjection()
 	if d.os.UeventInjection {
 		logger.Infof(" - uevent injection: yes")
 	} else {
 		logger.Infof(" - uevent injection: no")
 	}
 
-	d.os.SeccompListener = CanUseSeccompListener()
+	d.os.SeccompListener = canUseSeccompListener()
 	if d.os.SeccompListener {
 		logger.Infof(" - seccomp listener: yes")
 	} else {
 		logger.Infof(" - seccomp listener: no")
 	}
 
-	d.os.SeccompListenerContinue = CanUseSeccompListenerContinue()
+	d.os.SeccompListenerContinue = canUseSeccompListenerContinue()
 	if d.os.SeccompListenerContinue {
 		logger.Infof(" - seccomp listener continue syscalls: yes")
 	} else {
@@ -724,8 +724,8 @@ func (d *Daemon) init() error {
 		Dir:                  d.os.VarDir,
 		UnixSocket:           d.UnixSocket(),
 		Cert:                 certInfo,
-		RestServer:           RestServer(d),
-		DevLxdServer:         DevLxdServer(d),
+		RestServer:           restServer(d),
+		DevLxdServer:         devLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       address,
 		ClusterAddress:       clusterAddress,

@@ -24,8 +24,8 @@ var instanceLogCmd = APIEndpoint{
 		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
 	},
 
-	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
-	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
+	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
 var instanceLogsCmd = APIEndpoint{
@@ -36,7 +36,7 @@ var instanceLogsCmd = APIEndpoint{
 		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
 	},
 
-	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: AllowProjectPermission("containers", "view")},
+	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
 func containerLogsGet(d *Daemon, r *http.Request) response.Response {
@@ -57,7 +57,7 @@ func containerLogsGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -110,7 +110,7 @@ func containerLogGet(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, projectName, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -147,7 +147,7 @@ func containerLogDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

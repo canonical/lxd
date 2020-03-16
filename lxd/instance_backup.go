@@ -31,7 +31,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) response.Response {
 	cname := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, cname, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, cname, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -82,7 +82,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node.
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -203,7 +203,7 @@ func containerBackupGet(d *Daemon, r *http.Request) response.Response {
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -231,7 +231,7 @@ func containerBackupPost(d *Daemon, r *http.Request) response.Response {
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -290,7 +290,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) response.Response {
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -336,7 +336,7 @@ func containerBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, proj, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, proj, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

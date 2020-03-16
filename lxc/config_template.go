@@ -17,9 +17,8 @@ import (
 )
 
 type cmdConfigTemplate struct {
-	global  *cmdGlobal
-	config  *cmdConfig
-	profile *cmdProfile
+	global *cmdGlobal
+	config *cmdConfig
 }
 
 func (c *cmdConfigTemplate) Command() *cobra.Command {

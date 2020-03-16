@@ -21,7 +21,7 @@ import (
 // single-node LXD cluster.
 func TestCluster_Bootstrap(t *testing.T) {
 	t.Skip("issue #6122")
-	daemon, cleanup := newDaemon(t)
+	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
 
 	// Simulate what happens when running "lxd init", where a PUT /1.0
@@ -47,7 +47,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 
 func TestCluster_Get(t *testing.T) {
 	t.Skip("issue #6122")
-	daemon, cleanup := newDaemon(t)
+	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
 
 	client, err := lxd.ConnectLXDUnix(daemon.UnixSocket(), nil)
@@ -61,7 +61,7 @@ func TestCluster_Get(t *testing.T) {
 
 func TestCluster_GetMemberConfig(t *testing.T) {
 	t.Skip("issue #6122")
-	daemon, cleanup := newDaemon(t)
+	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
 
 	client, err := lxd.ConnectLXDUnix(daemon.UnixSocket(), nil)
@@ -570,7 +570,7 @@ func FLAKY_TestCluster_LeaveAndPromote(t *testing.T) {
 // A LXD node can be renamed.
 func TestCluster_NodeRename(t *testing.T) {
 	t.Skip("issue #6122")
-	daemon, cleanup := newDaemon(t)
+	daemon, cleanup := newTestDaemon(t)
 	defer cleanup()
 
 	f := clusterFixture{t: t}

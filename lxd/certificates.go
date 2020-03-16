@@ -28,7 +28,7 @@ import (
 var certificatesCmd = APIEndpoint{
 	Path: "certificates",
 
-	Get:  APIEndpointAction{Handler: certificatesGet, AccessHandler: AllowAuthenticated},
+	Get:  APIEndpointAction{Handler: certificatesGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: certificatesPost, AllowUntrusted: true},
 }
 
@@ -36,7 +36,7 @@ var certificateCmd = APIEndpoint{
 	Path: "certificates/{fingerprint}",
 
 	Delete: APIEndpointAction{Handler: certificateDelete},
-	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: AllowAuthenticated},
+	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: allowAuthenticated},
 	Patch:  APIEndpointAction{Handler: certificatePatch},
 	Put:    APIEndpointAction{Handler: certificatePut},
 }

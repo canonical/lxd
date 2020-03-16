@@ -3,7 +3,6 @@ package lxd
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -136,12 +135,6 @@ func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 
 	return client, nil
 }
-
-type nullReadWriteCloser int
-
-func (nullReadWriteCloser) Close() error                { return nil }
-func (nullReadWriteCloser) Write(p []byte) (int, error) { return len(p), nil }
-func (nullReadWriteCloser) Read(p []byte) (int, error)  { return 0, io.EOF }
 
 func remoteOperationError(msg string, errors map[string]error) error {
 	// Check if empty

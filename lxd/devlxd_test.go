@@ -135,7 +135,7 @@ func TestHttpRequest(t *testing.T) {
 	setupDir()
 	defer os.RemoveAll(testDir)
 
-	d := DefaultDaemon()
+	d := defaultDaemon()
 	d.os.MockMode = true
 	err := d.Init()
 	if err != nil {

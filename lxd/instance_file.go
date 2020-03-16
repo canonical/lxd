@@ -24,7 +24,7 @@ func containerFileHandler(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	resp, err := ForwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+	resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

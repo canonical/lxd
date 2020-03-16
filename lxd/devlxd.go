@@ -30,7 +30,7 @@ import (
 
 // DevLxdServer creates an http.Server capable of handling requests against the
 // /dev/lxd Unix socket endpoint created inside containers.
-func DevLxdServer(d *Daemon) *http.Server {
+func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
 		Handler:   devLxdAPI(d),
 		ConnState: pidMapper.ConnStateHandler,
