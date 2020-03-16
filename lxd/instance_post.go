@@ -206,7 +206,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-		ws, err := NewMigrationSource(inst, stateful, instanceOnly)
+		ws, err := newMigrationSource(inst, stateful, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
