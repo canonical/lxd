@@ -24,8 +24,8 @@ var instanceLogCmd = APIEndpoint{
 		{Name: "vmLog", Path: "virtual-machines/{name}/logs/{file}"},
 	},
 
-	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: AllowProjectPermission("containers", "operate-containers")},
-	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: AllowProjectPermission("containers", "view")},
+	Delete: APIEndpointAction{Handler: containerLogDelete, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+	Get:    APIEndpointAction{Handler: containerLogGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
 var instanceLogsCmd = APIEndpoint{
@@ -36,7 +36,7 @@ var instanceLogsCmd = APIEndpoint{
 		{Name: "vmLogs", Path: "virtual-machines/{name}/logs"},
 	},
 
-	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: AllowProjectPermission("containers", "view")},
+	Get: APIEndpointAction{Handler: containerLogsGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
 func containerLogsGet(d *Daemon, r *http.Request) response.Response {

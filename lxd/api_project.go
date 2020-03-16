@@ -26,7 +26,7 @@ var projectFeatures = []string{"features.images", "features.profiles", "features
 var projectsCmd = APIEndpoint{
 	Path: "projects",
 
-	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: AllowAuthenticated},
+	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: allowAuthenticated},
 	Post: APIEndpointAction{Handler: projectsPost},
 }
 
@@ -34,10 +34,10 @@ var projectCmd = APIEndpoint{
 	Path: "projects/{name}",
 
 	Delete: APIEndpointAction{Handler: projectDelete},
-	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: AllowAuthenticated},
-	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: AllowAuthenticated},
+	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: allowAuthenticated},
+	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: allowAuthenticated},
 	Post:   APIEndpointAction{Handler: projectPost},
-	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: AllowAuthenticated},
+	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: allowAuthenticated},
 }
 
 func projectsGet(d *Daemon, r *http.Request) response.Response {

@@ -22,17 +22,17 @@ import (
 var storagePoolVolumeSnapshotsTypeCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/{type}/{name}/snapshots",
 
-	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:  APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Post: APIEndpointAction{Handler: storagePoolVolumeSnapshotsTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 	Path: "storage-pools/{pool}/volumes/{type}/{name}/snapshots/{snapshotName}",
 
-	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: AllowProjectPermission("storage-volumes", "view")},
-	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
-	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: AllowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Delete: APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeDelete, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Get:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypeGet, AccessHandler: allowProjectPermission("storage-volumes", "view")},
+	Post:   APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePost, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
+	Put:    APIEndpointAction{Handler: storagePoolVolumeSnapshotTypePut, AccessHandler: allowProjectPermission("storage-volumes", "manage-storage-volumes")},
 }
 
 func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Response {

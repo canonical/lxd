@@ -14,13 +14,13 @@ import (
 var api10ResourcesCmd = APIEndpoint{
 	Path: "resources",
 
-	Get: APIEndpointAction{Handler: api10ResourcesGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: api10ResourcesGet, AccessHandler: allowAuthenticated},
 }
 
 var storagePoolResourcesCmd = APIEndpoint{
 	Path: "storage-pools/{name}/resources",
 
-	Get: APIEndpointAction{Handler: storagePoolResourcesGet, AccessHandler: AllowAuthenticated},
+	Get: APIEndpointAction{Handler: storagePoolResourcesGet, AccessHandler: allowAuthenticated},
 }
 
 // /1.0/resources
