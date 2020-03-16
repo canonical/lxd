@@ -12,7 +12,6 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -22,10 +21,6 @@ import (
 
 type cmdMigrate struct {
 	global *cmdGlobal
-
-	conf     *config.Config
-	confPath string
-	cmd      *cobra.Command
 
 	// Flags
 	flagDryRun     bool
