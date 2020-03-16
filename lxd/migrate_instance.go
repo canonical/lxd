@@ -31,7 +31,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func NewMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
+func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
 	ret := migrationSourceWs{migrationFields{instance: inst}, make(chan bool, 1)}
 	ret.instanceOnly = instanceOnly
 
