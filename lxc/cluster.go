@@ -321,8 +321,6 @@ func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 type cmdClusterEnable struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
-
-	flagForce bool
 }
 
 func (c *cmdClusterEnable) Command() *cobra.Command {
