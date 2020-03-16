@@ -122,7 +122,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to get TLS config")
 	}
 
-	d := NewDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
+	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)
 
 	// Prepare the HTTP server.
 	httpServer := restServer(tlsConfig, cert, c.global.flagLogDebug, d)
