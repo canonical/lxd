@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pborman/uuid"
@@ -672,41 +675,74 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return err
 	}
 
-	oldSize, err := units.ParseByteSizeString(vol.config["size"])
+	RBDSize, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/block/%s/size", filepath.Base(RBDDevPath)))
+	if err != nil {
+		return errors.Wrapf(err, "Error getting current size")
+	}
+
+	RBDSizeBlocks, err := strconv.Atoi(strings.TrimSpace(string(RBDSize)))
+	if err != nil {
+		return errors.Wrapf(err, "Error getting converting current size to integer")
+	}
+
+	oldSizeBytes := int64(RBDSizeBlocks * 512)
+
+	newSizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
 		return err
 	}
 
-	newSize, err := units.ParseByteSizeString(size)
-	if err != nil {
-		return err
-	}
-
-	// The right disjunct just means that someone unset the size property in
-	// the container's config. We obviously cannot resize to 0.
-	if oldSize == newSize || newSize == 0 {
+	// The right disjunct just means that someone unset the size property in the instance's config.
+	// We obviously cannot resize to 0.
+	if oldSizeBytes == newSizeBytes || newSizeBytes == 0 {
 		return nil
 	}
 
-	if newSize < oldSize {
-		err = shrinkFileSystem(fsType, RBDDevPath, vol, newSize)
-		if err != nil {
-			return err
-		}
+	// Resize filesystem if needed.
+	if vol.contentType == ContentTypeFS {
+		if newSizeBytes < oldSizeBytes {
+			err = shrinkFileSystem(fsType, RBDDevPath, vol, newSizeBytes)
+			if err != nil {
+				return err
+			}
 
-		_, err = shared.TryRunCommand(
-			"rbd",
-			"resize",
-			"--allow-shrink",
-			"--id", d.config["ceph.user.name"],
-			"--cluster", d.config["ceph.cluster_name"],
-			"--pool", d.config["ceph.osd.pool_name"],
-			"--size", fmt.Sprintf("%dM", (newSize/1024/1024)),
-			d.getRBDVolumeName(vol, "", false, false))
-		if err != nil {
-			return err
+			_, err = shared.TryRunCommand(
+				"rbd",
+				"resize",
+				"--allow-shrink",
+				"--id", d.config["ceph.user.name"],
+				"--cluster", d.config["ceph.cluster_name"],
+				"--pool", d.config["ceph.osd.pool_name"],
+				"--size", fmt.Sprintf("%dB", newSizeBytes),
+				d.getRBDVolumeName(vol, "", false, false))
+			if err != nil {
+				return err
+			}
+		} else {
+			// Grow the block device.
+			_, err = shared.TryRunCommand(
+				"rbd",
+				"resize",
+				"--id", d.config["ceph.user.name"],
+				"--cluster", d.config["ceph.cluster_name"],
+				"--pool", d.config["ceph.osd.pool_name"],
+				"--size", fmt.Sprintf("%dB", newSizeBytes),
+				d.getRBDVolumeName(vol, "", false, false))
+			if err != nil {
+				return err
+			}
+
+			// Grow the filesystem.
+			err = growFileSystem(fsType, RBDDevPath, vol)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
+		if newSizeBytes < oldSizeBytes {
+			return fmt.Errorf("You cannot shrink block volumes")
+		}
+
 		// Grow the block device.
 		_, err = shared.TryRunCommand(
 			"rbd",
@@ -714,16 +750,18 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 			"--id", d.config["ceph.user.name"],
 			"--cluster", d.config["ceph.cluster_name"],
 			"--pool", d.config["ceph.osd.pool_name"],
-			"--size", fmt.Sprintf("%dM", (newSize/1024/1024)),
+			"--size", fmt.Sprintf("%dB", newSizeBytes),
 			d.getRBDVolumeName(vol, "", false, false))
 		if err != nil {
 			return err
 		}
 
-		// Grow the filesystem.
-		err = growFileSystem(fsType, RBDDevPath, vol)
-		if err != nil {
-			return err
+		// Move the GPT alt header to end of disk if needed.
+		if vol.IsVMBlock() {
+			err = d.moveGPTAltHeader(RBDDevPath)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
