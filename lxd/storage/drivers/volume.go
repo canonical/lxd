@@ -68,6 +68,7 @@ type Volume struct {
 	contentType ContentType
 	config      map[string]string
 	driver      Driver
+	keepDevice  bool
 }
 
 // NewVolume instantiates a new Volume struct.
