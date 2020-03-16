@@ -201,3 +201,53 @@ Furthermore, `core.https_address` should be set to the single address where the
 server should be available (rather than any address on the host), and firewall
 rules should be set to only allow access to the LXD port from authorized
 hosts/subnets.
+
+## Network security
+
+The default networking mode in LXD is to provide a 'managed' private network bridge that each instance connects to.
+In this mode, there is an interface on the host called `lxdbr0` that acts as the bridge for the instances.
+
+The host runs an instance of `dnsmasq` for each managed bridge, which is responsible for allocating IP addresses
+and providing both authoritative and recursive DNS services.
+
+Instances using DHCPv4 will be allocated an IPv4 address and a DNS record will be created for their instance name.
+This prevents instances from being able to spoof DNS records by providing false hostname info in the DHCP request.
+
+The `dnsmasq` service also provides IPv6 router advertisement capabilities. This means that instances will auto
+configure their own IPv6 address using SLAAC, so no allocation is made by `dnsmasq`. However instances that are
+also using DHCPv4 will also get an AAAA DNS record created for the equivalent SLAAC IPv6 address.
+This assumes that the instances are not using any IPv6 privacy extensions when generating IPv6 addresses.
+
+In this default configuration, whilst DNS names cannot not be spoofed, the instance is connected to an Ethernet
+bridge and can transmit any layer 2 traffic that it wishes, which means an untrusted instance can effectively do
+MAC or IP spoofing on the bridge.
+
+However LXD offers several `bridged` NIC security features that can be used to control the type of traffic that
+an instance is allowed to send onto the network. These NIC settings should be added to the profile that the
+instance is using, or can be added to individual instances, as shown below.
+
+The following security features are available for `bridged` NICs:
+
+Key                      | Type      | Default           | Required  | Description
+:--                      | :--       | :--               | :--       | :--
+security.mac\_filtering  | boolean   | false             | no        | Prevent the instance from spoofing another's MAC address
+security.ipv4\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv4 address (enables mac\_filtering)
+security.ipv6\_filtering | boolean   | false             | no        | Prevent the instance from spoofing another's IPv6 address (enables mac\_filtering)
+
+One can override the default `bridged` NIC settings from the profile on a per-instance basis using:
+
+```
+lxc config device override <instance> <NIC> security.mac_filtering=true
+```
+
+Used together these features can prevent an instance connected to a bridge from spoofing MAC and IP addresses.
+These are implemented using either `xtables` (iptables, ip6tables and ebtables) or `nftables`, depending on what is
+available on the host.
+
+It's worth noting that those options effectively prevent nested containers, at least nested containers on the
+same network as their parent.
+
+The IP filtering features block ARP and NDP advertisements that contain a spoofed IP, as well as blocking any
+packets that contain a spoofed source address.
+
+
