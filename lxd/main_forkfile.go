@@ -59,7 +59,7 @@ int copy(int target, int source, bool append)
 }
 
 int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
-	__do_close_prot_errno int host_fd = -1, container_fd = -1;
+	__do_close int host_fd = -EBADF, container_fd = -EBADF;
 	int ret = -1;
 	int container_open_flags;
 	struct stat st;
