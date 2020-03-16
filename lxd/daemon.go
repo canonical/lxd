@@ -145,8 +145,8 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 	return m.client.DeclaredIdentity(ctx, declared)
 }
 
-// NewDaemon returns a new Daemon object with the given configuration.
-func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
+// newDaemon returns a new Daemon object with the given configuration.
+func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 
@@ -173,7 +173,7 @@ func DefaultDaemonConfig() *DaemonConfig {
 func DefaultDaemon() *Daemon {
 	config := DefaultDaemonConfig()
 	os := sys.DefaultOS()
-	return NewDaemon(config, os)
+	return newDaemon(config, os)
 }
 
 // APIEndpoint represents a URL in our API.
