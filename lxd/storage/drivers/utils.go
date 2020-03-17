@@ -43,6 +43,20 @@ func wipeDirectory(path string) error {
 	return nil
 }
 
+// forceRemoveAll wipes a path including any immutable/non-append files.
+func forceRemoveAll(path string) error {
+	err := os.RemoveAll(path)
+	if err != nil {
+		shared.RunCommand("chattr", "-ai", "-R", path)
+		err = os.RemoveAll(path)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // forceUnmount unmounts stacked mounts until no mountpoint remains.
 func forceUnmount(path string) (bool, error) {
 	unmounted := false
