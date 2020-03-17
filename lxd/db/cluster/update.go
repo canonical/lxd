@@ -63,6 +63,18 @@ var updates = map[int]schema.Update{
 	24: updateFromV23,
 	25: updateFromV24,
 	26: updateFromV25,
+	27: updateFromV26,
+}
+
+// Bump the sqlite_sequence value for storage volumes, to avoid unique
+// constraint violations when inserting new snapshots.
+func updateFromV26(tx *sql.Tx) error {
+	ids, err := query.SelectIntegers(tx, "SELECT coalesce(max(id), 0) FROM storage_volumes_all")
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("UPDATE sqlite_sequence SET seq = ? WHERE name = 'storage_volumes'", ids[0])
+	return err
 }
 
 // Create new storage snapshot tables and migrate data to them.
