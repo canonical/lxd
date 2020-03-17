@@ -672,3 +672,48 @@ func TestUpdateFromV25(t *testing.T) {
 	assert.Len(t, config, 1)
 	assert.Equal(t, config["k"], "v-old")
 }
+
+func TestUpdateFromV26_WithoutVolumes(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {})
+	require.NoError(t, err)
+	defer db.Close()
+}
+
+func TestUpdateFromV26_WithVolumes(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(27, func(db *sql.DB) {
+		// Insert a node.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0, 1)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Insert a pool
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a volume v1 on pool p1
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (1, 'v1', 1, 1, 1, '', 1)")
+		require.NoError(t, err)
+
+		// Create a snapshot snap0.
+		_, err = db.Exec("INSERT INTO storage_volumes_snapshots VALUES (2, 1, 'snap0', '')")
+		require.NoError(t, err)
+
+		// Mess up the sqlite_sequence value.
+		_, err = db.Exec("UPDATE sqlite_sequence SET seq = 1 WHERE name = 'storage_volumes'")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+	defer db.Close()
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	defer tx.Rollback()
+	ids, err := query.SelectIntegers(tx, "SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes'")
+	require.NoError(t, err)
+
+	assert.Equal(t, ids[0], 2)
+}
