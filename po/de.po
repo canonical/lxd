@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-06 14:23+0000\n"
+"POT-Creation-Date: 2020-03-16 20:24-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -136,7 +136,7 @@ msgstr ""
 "### Zum Beispiel:\n"
 "###  description: Mein eigenes Abbild\n"
 
-#: lxc/config_metadata.go:62
+#: lxc/config_metadata.go:61
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the instance metadata.\n"
@@ -365,11 +365,11 @@ msgstr "ALIASES"
 msgid "ARCHITECTURE"
 msgstr "ARCHITEKTUR"
 
-#: lxc/remote.go:516
+#: lxc/remote.go:520
 msgid "AUTH TYPE"
 msgstr ""
 
-#: lxc/remote.go:95
+#: lxc/remote.go:94
 msgid "Accept certificate"
 msgstr "Akzeptiere Zertifikat"
 
@@ -387,11 +387,11 @@ msgstr "Geräte zu Containern oder Profilen hinzufügen"
 msgid "Add new aliases"
 msgstr "Aliasse:\n"
 
-#: lxc/remote.go:84
+#: lxc/remote.go:83
 msgid "Add new remote servers"
 msgstr "Neue entfernte Server hinzufügen"
 
-#: lxc/remote.go:85
+#: lxc/remote.go:84
 msgid ""
 "Add new remote servers\n"
 "\n"
@@ -403,7 +403,7 @@ msgid ""
 "protocol=simplestreams\n"
 msgstr ""
 
-#: lxc/config_trust.go:57 lxc/config_trust.go:58
+#: lxc/config_trust.go:56 lxc/config_trust.go:57
 msgid "Add new trusted clients"
 msgstr ""
 
@@ -417,7 +417,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Address: %s"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/remote.go:364
+#: lxc/remote.go:368
 #, fuzzy, c-format
 msgid "Admin password for %s:"
 msgstr "Administrator Passwort für %s: "
@@ -496,7 +496,7 @@ msgid ""
 "as well as retrieve past log entries from it."
 msgstr ""
 
-#: lxc/remote.go:347
+#: lxc/remote.go:351
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr ""
@@ -525,7 +525,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:123 lxc/init.go:187 lxc/project.go:121 lxc/publish.go:176
+#: lxc/copy.go:123 lxc/init.go:187 lxc/project.go:121 lxc/publish.go:172
 #: lxc/storage.go:123 lxc/storage_volume.go:504
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -562,7 +562,7 @@ msgstr "Bytes gesendet"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:174
+#: lxc/config_trust.go:173
 msgid "COMMON NAME"
 msgstr ""
 
@@ -634,7 +634,7 @@ msgstr ""
 msgid "Can't read from stdin: %s"
 msgstr ""
 
-#: lxc/remote.go:625
+#: lxc/remote.go:629
 msgid "Can't remove the default remote"
 msgstr ""
 
@@ -659,7 +659,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 
-#: lxc/remote.go:100
+#: lxc/remote.go:99
 msgid "Candid domain to use"
 msgstr ""
 
@@ -677,12 +677,12 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/remote.go:259
+#: lxc/remote.go:263
 #, fuzzy, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/remote.go:403
+#: lxc/remote.go:407
 #, fuzzy
 msgid "Client certificate stored at server:"
 msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
@@ -706,7 +706,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr ""
 
-#: lxc/cluster.go:403
+#: lxc/cluster.go:401
 msgid "Clustering enabled"
 msgstr ""
 
@@ -741,7 +741,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Config key/value to apply to the target instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:143
+#: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:142
 #: lxc/image.go:414 lxc/network.go:640 lxc/profile.go:498 lxc/project.go:304
 #: lxc/storage.go:303 lxc/storage_volume.go:917 lxc/storage_volume.go:947
 #, fuzzy, c-format
@@ -838,7 +838,7 @@ msgstr "Fehler: %v\n"
 msgid "Cores:"
 msgstr "Fehler: %v\n"
 
-#: lxc/remote.go:274
+#: lxc/remote.go:278
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 
@@ -888,7 +888,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Create new custom storage volumes"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/config_template.go:65 lxc/config_template.go:66
+#: lxc/config_template.go:64 lxc/config_template.go:65
 #, fuzzy
 msgid "Create new instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -958,7 +958,7 @@ msgstr ""
 msgid "Define a compression algorithm: for backup or none"
 msgstr ""
 
-#: lxc/publish.go:42
+#: lxc/publish.go:38
 msgid "Define a compression algorithm: for image or none"
 msgstr ""
 
@@ -979,7 +979,7 @@ msgstr ""
 msgid "Delete images"
 msgstr ""
 
-#: lxc/config_template.go:108 lxc/config_template.go:109
+#: lxc/config_template.go:107 lxc/config_template.go:108
 #, fuzzy
 msgid "Delete instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1014,17 +1014,17 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:29 lxc/cluster.go:68 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:332 lxc/config.go:31
+#: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:330 lxc/config.go:31
 #: lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:612
 #: lxc/config.go:731 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327
 #: lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513
-#: lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:28
-#: lxc/config_metadata.go:53 lxc/config_metadata.go:175
-#: lxc/config_template.go:29 lxc/config_template.go:66
-#: lxc/config_template.go:109 lxc/config_template.go:151
-#: lxc/config_template.go:237 lxc/config_template.go:296 lxc/config_trust.go:29
-#: lxc/config_trust.go:58 lxc/config_trust.go:116 lxc/config_trust.go:194
+#: lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27
+#: lxc/config_metadata.go:52 lxc/config_metadata.go:174
+#: lxc/config_template.go:28 lxc/config_template.go:65
+#: lxc/config_template.go:108 lxc/config_template.go:150
+#: lxc/config_template.go:236 lxc/config_template.go:295 lxc/config_trust.go:28
+#: lxc/config_trust.go:57 lxc/config_trust.go:115 lxc/config_trust.go:193
 #: lxc/console.go:31 lxc/copy.go:41 lxc/delete.go:30 lxc/exec.go:40
 #: lxc/export.go:33 lxc/file.go:72 lxc/file.go:105 lxc/file.go:154
 #: lxc/file.go:217 lxc/file.go:407 lxc/image.go:38 lxc/image.go:128
@@ -1045,9 +1045,9 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/profile.go:762 lxc/profile.go:821 lxc/profile.go:875 lxc/project.go:29
 #: lxc/project.go:86 lxc/project.go:151 lxc/project.go:214 lxc/project.go:334
 #: lxc/project.go:384 lxc/project.go:475 lxc/project.go:530 lxc/project.go:590
-#: lxc/project.go:619 lxc/project.go:672 lxc/publish.go:35 lxc/query.go:31
-#: lxc/remote.go:34 lxc/remote.go:85 lxc/remote.go:419 lxc/remote.go:455
-#: lxc/remote.go:535 lxc/remote.go:597 lxc/remote.go:647 lxc/remote.go:685
+#: lxc/project.go:619 lxc/project.go:672 lxc/publish.go:31 lxc/query.go:31
+#: lxc/remote.go:33 lxc/remote.go:84 lxc/remote.go:423 lxc/remote.go:459
+#: lxc/remote.go:539 lxc/remote.go:601 lxc/remote.go:651 lxc/remote.go:689
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33
 #: lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333
 #: lxc/storage.go:388 lxc/storage.go:508 lxc/storage.go:582 lxc/storage.go:651
@@ -1169,7 +1169,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config_trust.go:176
+#: lxc/config_trust.go:175
 msgid "EXPIRY DATE"
 msgstr "ABLAUFDATUM"
 
@@ -1188,12 +1188,12 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Edit image properties"
 msgstr ""
 
-#: lxc/config_template.go:150 lxc/config_template.go:151
+#: lxc/config_template.go:149 lxc/config_template.go:150
 #, fuzzy
 msgid "Edit instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/config_metadata.go:52 lxc/config_metadata.go:53
+#: lxc/config_metadata.go:51 lxc/config_metadata.go:52
 #, fuzzy
 msgid "Edit instance metadata files"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1228,11 +1228,11 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
-#: lxc/cluster.go:331
+#: lxc/cluster.go:329
 msgid "Enable clustering on a single non-clustered LXD server"
 msgstr ""
 
-#: lxc/cluster.go:332
+#: lxc/cluster.go:330
 msgid ""
 "Enable clustering on a single non-clustered LXD server\n"
 "\n"
@@ -1256,7 +1256,7 @@ msgstr ""
 msgid "Ephemeral instance"
 msgstr "Flüchtiger Container"
 
-#: lxc/config_template.go:203
+#: lxc/config_template.go:202
 #, fuzzy, c-format
 msgid "Error updating template file: %s"
 msgstr "Fehler beim hinzufügen des Alias %s\n"
@@ -1328,11 +1328,11 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Exporting the image: %s"
 msgstr ""
 
-#: lxc/config_template.go:279
+#: lxc/config_template.go:278
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:173 lxc/image.go:1004 lxc/image.go:1005
+#: lxc/config_trust.go:172 lxc/image.go:1004 lxc/image.go:1005
 #: lxc/image_alias.go:232
 msgid "FINGERPRINT"
 msgstr "FINGERABDRUCK"
@@ -1423,10 +1423,10 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:102 lxc/cluster.go:70 lxc/config_template.go:239
-#: lxc/config_trust.go:118 lxc/image.go:994 lxc/image_alias.go:155
+#: lxc/alias.go:102 lxc/cluster.go:70 lxc/config_template.go:238
+#: lxc/config_trust.go:117 lxc/image.go:994 lxc/image_alias.go:155
 #: lxc/list.go:115 lxc/network.go:811 lxc/network.go:894 lxc/operation.go:104
-#: lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:459 lxc/storage.go:510
+#: lxc/profile.go:581 lxc/project.go:386 lxc/remote.go:463 lxc/storage.go:510
 #: lxc/storage_volume.go:1071
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
@@ -1458,7 +1458,7 @@ msgstr ""
 msgid "Generate manpages for all commands"
 msgstr ""
 
-#: lxc/remote.go:215
+#: lxc/remote.go:219
 #, fuzzy
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
@@ -1540,7 +1540,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config_trust.go:175
+#: lxc/config_trust.go:174
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -1622,7 +1622,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/publish.go:80
+#: lxc/publish.go:76
 msgid "Instance name is mandatory"
 msgstr ""
 
@@ -1631,7 +1631,7 @@ msgstr ""
 msgid "Instance name is: %s"
 msgstr ""
 
-#: lxc/publish.go:276
+#: lxc/publish.go:274
 #, fuzzy, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
@@ -1640,12 +1640,12 @@ msgstr "Abbild mit Fingerabdruck %s importiert\n"
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:167
+#: lxc/remote.go:171
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
 
-#: lxc/config_trust.go:157
+#: lxc/config_trust.go:156
 #, fuzzy
 msgid "Invalid certificate"
 msgstr "Akzeptiere Zertifikat"
@@ -1691,7 +1691,7 @@ msgstr "ungültiges Argument %s"
 msgid "Invalid path %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/remote.go:156
+#: lxc/remote.go:160
 #, fuzzy, c-format
 msgid "Invalid protocol: %s"
 msgstr "Ungültiges Ziel %s"
@@ -1831,7 +1831,7 @@ msgstr ""
 msgid "List instance devices"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config_template.go:236 lxc/config_template.go:237
+#: lxc/config_template.go:235 lxc/config_template.go:236
 #, fuzzy
 msgid "List instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1936,11 +1936,11 @@ msgstr ""
 msgid "List storage volumes"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/remote.go:454 lxc/remote.go:455
+#: lxc/remote.go:458 lxc/remote.go:459
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:115 lxc/config_trust.go:116
+#: lxc/config_trust.go:114 lxc/config_trust.go:115
 msgid "List trusted clients"
 msgstr ""
 
@@ -1992,7 +1992,7 @@ msgstr ""
 msgid "Make image public"
 msgstr "Veröffentliche Abbild"
 
-#: lxc/publish.go:39
+#: lxc/publish.go:35
 #, fuzzy
 msgid "Make the image public"
 msgstr "Veröffentliche Abbild"
@@ -2054,12 +2054,12 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Manage instance devices"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config_template.go:28 lxc/config_template.go:29
+#: lxc/config_template.go:27 lxc/config_template.go:28
 #, fuzzy
 msgid "Manage instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/config_metadata.go:27 lxc/config_metadata.go:28
+#: lxc/config_metadata.go:26 lxc/config_metadata.go:27
 #, fuzzy
 msgid "Manage instance metadata files"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -2092,11 +2092,11 @@ msgid ""
 "\" (user created) volumes."
 msgstr ""
 
-#: lxc/remote.go:33 lxc/remote.go:34
+#: lxc/remote.go:32 lxc/remote.go:33
 msgid "Manage the list of remote servers"
 msgstr ""
 
-#: lxc/config_trust.go:28 lxc/config_trust.go:29
+#: lxc/config_trust.go:27 lxc/config_trust.go:28
 msgid "Manage trusted clients"
 msgstr ""
 
@@ -2143,10 +2143,10 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_metadata.go:101 lxc/config_metadata.go:199
-#: lxc/config_template.go:90 lxc/config_template.go:133
-#: lxc/config_template.go:175 lxc/config_template.go:262
-#: lxc/config_template.go:320 lxc/profile.go:125 lxc/profile.go:198
+#: lxc/config_metadata.go:100 lxc/config_metadata.go:198
+#: lxc/config_template.go:89 lxc/config_template.go:132
+#: lxc/config_template.go:174 lxc/config_template.go:261
+#: lxc/config_template.go:319 lxc/profile.go:125 lxc/profile.go:198
 #: lxc/profile.go:660
 #, fuzzy
 msgid "Missing instance name"
@@ -2269,7 +2269,7 @@ msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
 #: lxc/cluster.go:126 lxc/list.go:427 lxc/network.go:867 lxc/profile.go:620
-#: lxc/project.go:454 lxc/remote.go:513 lxc/storage.go:558
+#: lxc/project.go:454 lxc/remote.go:517 lxc/storage.go:558
 #: lxc/storage_volume.go:1118
 msgid "NAME"
 msgstr ""
@@ -2283,7 +2283,7 @@ msgid "NICs:"
 msgstr ""
 
 #: lxc/network.go:852 lxc/operation.go:143 lxc/project.go:428
-#: lxc/project.go:433 lxc/project.go:438 lxc/remote.go:476 lxc/remote.go:481
+#: lxc/project.go:433 lxc/project.go:438 lxc/remote.go:480 lxc/remote.go:485
 msgid "NO"
 msgstr ""
 
@@ -2344,7 +2344,7 @@ msgstr ""
 msgid "Network usage:"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/publish.go:40
+#: lxc/publish.go:36
 msgid "New alias to define at target"
 msgstr ""
 
@@ -2393,7 +2393,7 @@ msgstr ""
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr ""
 
-#: lxc/remote.go:150
+#: lxc/remote.go:154
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
@@ -2435,11 +2435,11 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/remote.go:515
+#: lxc/remote.go:519
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:1006 lxc/remote.go:517
+#: lxc/image.go:1006 lxc/remote.go:521
 msgid "PUBLIC"
 msgstr ""
 
@@ -2488,8 +2488,8 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:271 lxc/config.go:344 lxc/config_metadata.go:144
-#: lxc/config_template.go:204 lxc/image.go:415
+#: lxc/config.go:271 lxc/config.go:344 lxc/config_metadata.go:143
+#: lxc/config_template.go:203 lxc/image.go:415
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -2604,7 +2604,7 @@ msgstr "Profil %s wurde auf %s angewandt\n"
 msgid "Properties:"
 msgstr "Eigenschaften:\n"
 
-#: lxc/remote.go:99
+#: lxc/remote.go:98
 msgid "Public image server"
 msgstr ""
 
@@ -2613,12 +2613,12 @@ msgstr ""
 msgid "Public: %s"
 msgstr "Öffentlich: %s\n"
 
-#: lxc/publish.go:34 lxc/publish.go:35
+#: lxc/publish.go:30 lxc/publish.go:31
 #, fuzzy
 msgid "Publish instances as images"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/publish.go:222
+#: lxc/publish.go:220
 #, fuzzy, c-format
 msgid "Publishing instance: %s"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -2670,30 +2670,34 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Refreshing the image: %s"
 msgstr ""
 
-#: lxc/remote.go:563
+#: lxc/remote.go:567
 #, fuzzy, c-format
 msgid "Remote %s already exists"
 msgstr "entfernte Instanz %s existiert bereits"
 
-#: lxc/project.go:699 lxc/remote.go:555 lxc/remote.go:617 lxc/remote.go:667
-#: lxc/remote.go:705
+#: lxc/project.go:699 lxc/remote.go:559 lxc/remote.go:621 lxc/remote.go:671
+#: lxc/remote.go:709
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/remote.go:124
+#: lxc/remote.go:128
 #, fuzzy, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "entfernte Instanz %s existiert als <%s>"
 
-#: lxc/remote.go:559 lxc/remote.go:621 lxc/remote.go:709
+#: lxc/remote.go:563 lxc/remote.go:625 lxc/remote.go:713
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
 
-#: lxc/remote.go:96
+#: lxc/remote.go:95
 msgid "Remote admin password"
 msgstr "Entferntes Administrator Passwort"
+
+#: lxc/remote.go:122
+msgid "Remote names may not contain colons"
+msgstr ""
 
 #: lxc/utils/cancel.go:57
 #, fuzzy
@@ -2734,11 +2738,11 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Remove profiles from instances"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/remote.go:596 lxc/remote.go:597
+#: lxc/remote.go:600 lxc/remote.go:601
 msgid "Remove remotes"
 msgstr ""
 
-#: lxc/config_trust.go:193 lxc/config_trust.go:194
+#: lxc/config_trust.go:192 lxc/config_trust.go:193
 msgid "Remove trusted clients"
 msgstr ""
 
@@ -2770,7 +2774,7 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "Rename projects"
 msgstr "Fehlerhafte Profil URL %s"
 
-#: lxc/remote.go:534 lxc/remote.go:535
+#: lxc/remote.go:538 lxc/remote.go:539
 msgid "Rename remotes"
 msgstr ""
 
@@ -2865,7 +2869,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:518
+#: lxc/remote.go:522
 msgid "STATIC"
 msgstr ""
 
@@ -2885,21 +2889,21 @@ msgstr ""
 msgid "Send a raw query to LXD"
 msgstr ""
 
-#: lxc/remote.go:98
+#: lxc/remote.go:97
 msgid "Server authentication type (tls or candid)"
 msgstr ""
 
-#: lxc/remote.go:267
+#: lxc/remote.go:271
 msgid "Server certificate NACKed by user"
 msgstr "Server Zertifikat vom Benutzer nicht akzeptiert"
 
-#: lxc/remote.go:399
+#: lxc/remote.go:403
 #, fuzzy
 msgid "Server doesn't trust us after authentication"
 msgstr ""
 "Der Server vertraut uns nicht nachdem er unser Zertifikat hinzugefügt hat"
 
-#: lxc/remote.go:97
+#: lxc/remote.go:96
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
@@ -3013,7 +3017,7 @@ msgid ""
 "    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:684 lxc/remote.go:685
+#: lxc/remote.go:688 lxc/remote.go:689
 msgid "Set the URL for the remote"
 msgstr ""
 
@@ -3037,7 +3041,7 @@ msgstr ""
 msgid "Show all information messages"
 msgstr ""
 
-#: lxc/config_template.go:295 lxc/config_template.go:296
+#: lxc/config_template.go:294 lxc/config_template.go:295
 #, fuzzy
 msgid "Show content of instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3059,7 +3063,7 @@ msgstr "Geräte zu Containern oder Profilen hinzufügen"
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/config_metadata.go:174 lxc/config_metadata.go:175
+#: lxc/config_metadata.go:173 lxc/config_metadata.go:174
 #, fuzzy
 msgid "Show instance metadata files"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3108,7 +3112,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Show storage volume configurations"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/remote.go:418 lxc/remote.go:419
+#: lxc/remote.go:422 lxc/remote.go:423
 msgid "Show the default remote"
 msgstr ""
 
@@ -3199,11 +3203,11 @@ msgstr ""
 msgid "Stop instances"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/publish.go:41
+#: lxc/publish.go:37
 msgid "Stop the instance if currently running"
 msgstr ""
 
-#: lxc/publish.go:145
+#: lxc/publish.go:141
 #, fuzzy
 msgid "Stopping instance failed!"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -3280,7 +3284,7 @@ msgstr ""
 msgid "Switch the current project"
 msgstr ""
 
-#: lxc/remote.go:646 lxc/remote.go:647
+#: lxc/remote.go:650 lxc/remote.go:651
 msgid "Switch the default remote"
 msgstr ""
 
@@ -3320,7 +3324,7 @@ msgstr "entfernte Instanz %s existiert nicht"
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
-#: lxc/publish.go:110
+#: lxc/publish.go:106
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
@@ -3360,7 +3364,7 @@ msgstr "entfernte Instanz %s existiert nicht"
 msgid "The specified device doesn't match the network"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/publish.go:83
+#: lxc/publish.go:79
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -3462,7 +3466,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/remote.go:514
+#: lxc/cluster.go:127 lxc/remote.go:518
 msgid "URL"
 msgstr ""
 
@@ -3621,7 +3625,7 @@ msgid "Whether or not to snapshot the instance's running state"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
 
 #: lxc/network.go:854 lxc/operation.go:145 lxc/project.go:430
-#: lxc/project.go:435 lxc/project.go:440 lxc/remote.go:478 lxc/remote.go:483
+#: lxc/project.go:435 lxc/project.go:440 lxc/remote.go:482 lxc/remote.go:487
 msgid "YES"
 msgstr ""
 
@@ -3648,7 +3652,7 @@ msgstr "der Name des Ursprung Containers muss angegeben werden"
 msgid "add <alias> <target>"
 msgstr ""
 
-#: lxc/config_trust.go:56
+#: lxc/config_trust.go:55
 msgid "add [<remote>:] <cert>"
 msgstr ""
 
@@ -3669,7 +3673,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/remote.go:83
+#: lxc/remote.go:82
 msgid "add [<remote>] <IP|FQDN|URL>"
 msgstr ""
 
@@ -3742,7 +3746,7 @@ msgstr ""
 msgid "create [<remote>:]<alias> <fingerprint>"
 msgstr ""
 
-#: lxc/config_template.go:64
+#: lxc/config_template.go:63
 #, fuzzy
 msgid "create [<remote>:]<instance> <template>"
 msgstr ""
@@ -3774,7 +3778,7 @@ msgstr ""
 msgid "current"
 msgstr ""
 
-#: lxc/remote.go:506
+#: lxc/remote.go:510
 msgid "default"
 msgstr ""
 
@@ -3790,7 +3794,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/config_template.go:106
+#: lxc/config_template.go:105
 #, fuzzy
 msgid "delete [<remote>:]<instance> <template>"
 msgstr ""
@@ -3897,7 +3901,7 @@ msgstr ""
 msgid "edit [<remote>:]<image>"
 msgstr ""
 
-#: lxc/config_metadata.go:51
+#: lxc/config_metadata.go:50
 #, fuzzy
 msgid "edit [<remote>:]<instance>"
 msgstr ""
@@ -3906,7 +3910,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/config_template.go:149
+#: lxc/config_template.go:148
 #, fuzzy
 msgid "edit [<remote>:]<instance> <template>"
 msgstr ""
@@ -3958,7 +3962,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:330
+#: lxc/cluster.go:328
 msgid "enable [<remote>:] <name>"
 msgstr ""
 
@@ -4042,7 +4046,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/remote.go:417
+#: lxc/remote.go:421
 msgid "get-default"
 msgstr ""
 
@@ -4097,11 +4101,11 @@ msgstr ""
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/alias.go:97 lxc/remote.go:452
+#: lxc/alias.go:97 lxc/remote.go:456
 msgid "list"
 msgstr ""
 
-#: lxc/cluster.go:65 lxc/config_trust.go:113 lxc/network.go:804
+#: lxc/cluster.go:65 lxc/config_trust.go:112 lxc/network.go:804
 #: lxc/operation.go:99 lxc/profile.go:574 lxc/project.go:381 lxc/storage.go:505
 msgid "list [<remote>:]"
 msgstr ""
@@ -4114,7 +4118,7 @@ msgstr ""
 msgid "list [<remote>:] [<filters>...]"
 msgstr ""
 
-#: lxc/config_template.go:235
+#: lxc/config_template.go:234
 #, fuzzy
 msgid "list [<remote>:]<instance>"
 msgstr ""
@@ -4369,7 +4373,7 @@ msgstr ""
 msgid "manpage <target>"
 msgstr ""
 
-#: lxc/config_metadata.go:26
+#: lxc/config_metadata.go:25
 msgid "metadata"
 msgstr ""
 
@@ -4403,7 +4407,7 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: lxc/remote.go:260
+#: lxc/remote.go:264
 #, fuzzy
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
@@ -4442,7 +4446,7 @@ msgstr "Profil %s erstellt\n"
 msgid "project"
 msgstr ""
 
-#: lxc/publish.go:33
+#: lxc/publish.go:29
 #, fuzzy
 msgid ""
 "publish [<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
@@ -4485,7 +4489,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/remote.go:32
+#: lxc/remote.go:31
 msgid "remote"
 msgstr ""
 
@@ -4493,11 +4497,11 @@ msgstr ""
 msgid "remove <alias>"
 msgstr ""
 
-#: lxc/remote.go:594
+#: lxc/remote.go:598
 msgid "remove <remote>"
 msgstr ""
 
-#: lxc/config_trust.go:191
+#: lxc/config_trust.go:190
 msgid "remove [<remote>:] <hostname|fingerprint>"
 msgstr ""
 
@@ -4525,7 +4529,7 @@ msgstr ""
 msgid "rename <old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:532
+#: lxc/remote.go:536
 msgid "rename <remote> <new-name>"
 msgstr ""
 
@@ -4647,7 +4651,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/remote.go:683
+#: lxc/remote.go:687
 msgid "set-url <remote> <URL>"
 msgstr ""
 
@@ -4655,7 +4659,7 @@ msgstr ""
 msgid "show [<remote>:]<image>"
 msgstr ""
 
-#: lxc/config_metadata.go:173
+#: lxc/config_metadata.go:172
 #, fuzzy
 msgid "show [<remote>:]<instance>"
 msgstr ""
@@ -4664,7 +4668,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/config_template.go:294
+#: lxc/config_template.go:293
 #, fuzzy
 msgid "show [<remote>:]<instance> <template>"
 msgstr ""
@@ -4774,7 +4778,7 @@ msgstr ""
 msgid "storage"
 msgstr ""
 
-#: lxc/remote.go:645
+#: lxc/remote.go:649
 msgid "switch <remote>"
 msgstr ""
 
@@ -4791,7 +4795,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/config_template.go:27
+#: lxc/config_template.go:26
 msgid "template"
 msgstr ""
 
@@ -4799,7 +4803,7 @@ msgstr ""
 msgid "total space"
 msgstr ""
 
-#: lxc/config_trust.go:27
+#: lxc/config_trust.go:26
 msgid "trust"
 msgstr ""
 
@@ -4859,7 +4863,7 @@ msgstr ""
 msgid "volume"
 msgstr ""
 
-#: lxc/remote.go:266
+#: lxc/remote.go:270
 msgid "y"
 msgstr ""
 
