@@ -957,3 +957,8 @@ can prevent the use of security-sensitive features in a project.
 ## custom\_volume\_snapshot\_expiry
 This allows custom volume snapshots to expiry.
 Expiry dates can be set individually, or by setting the `snapshots.expiry` config key on the parent custom volume which then automatically applies to all created snapshots.
+
+## volume\_snapshot\_scheduling
+This adds support for custom volume snapshot scheduling. It introduces two new
+configuration keys: `snapshots.schedule` and
+`snapshots.pattern`. Snapshots can be created automatically up to every minute.

@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pkg/errors"
+	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
@@ -21,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -76,7 +79,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Get a snapshot name.
 	if req.Name == "" {
-		i := d.cluster.StorageVolumeNextSnapshot(volumeName, volumeType)
+		i := d.cluster.StorageVolumeNextSnapshot(volumeName, volumeType, "snap%d")
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -612,4 +615,208 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 	}
 
 	return nil
+}
+
+func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		allVolumes, err := d.cluster.StoragePoolVolumesGetAllByType(db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return
+		}
+
+		var volumes []db.StorageVolumeArgs
+
+		// Figure out which need snapshotting (if any)
+		for _, v := range allVolumes {
+			schedule, ok := v.Config["snapshots.schedule"]
+			if !ok {
+				continue
+			}
+
+			// Extend our schedule to one that is accepted by the used cron parser
+			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
+			if err != nil {
+				continue
+			}
+
+			// Check if it's time to snapshot
+			now := time.Now()
+
+			// Truncate the time now back to the start of the minute, before passing to
+			// the cron scheduler, as it will add 1s to the scheduled time and we don't
+			// want the next scheduled time to roll over to the next minute and break
+			// the time comparison below.
+			now = now.Truncate(time.Minute)
+
+			// Calculate the next scheduled time based on the snapshots.schedule
+			// pattern and the time now.
+			next := sched.Next(now)
+
+			// Ignore everything that is more precise than minutes.
+			next = next.Truncate(time.Minute)
+
+			if !now.Equal(next) {
+				continue
+			}
+
+			volumes = append(volumes, v)
+		}
+
+		if len(volumes) == 0 {
+			return
+		}
+
+		opRun := func(op *operations.Operation) error {
+			return autoCreateCustomVolumeSnapshots(ctx, d, volumes)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotCreate, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start create volume snapshot operation", log.Ctx{"err": err})
+			return
+		}
+
+		logger.Info("Creating scheduled volume snapshots")
+
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to create scheduled volume snapshots", log.Ctx{"err": err})
+		}
+
+		logger.Info("Done creating scheduled volume snapshots")
+	}
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Minute
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
+}
+
+func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []db.StorageVolumeArgs) error {
+	// Make the snapshots
+	for _, v := range volumes {
+		ch := make(chan error)
+		go func() {
+			snapshotName, err := volumeDetermineNextSnapshotName(d, v, "snap%d")
+			if err != nil {
+				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "volume": v})
+				ch <- nil
+				return
+			}
+
+			snapshotName = fmt.Sprintf("%s%s%s", v.Name, shared.SnapshotDelimiter, snapshotName)
+
+			expiry, err := shared.GetSnapshotExpiry(time.Now(), v.Config["snapshots.expiry"])
+			if err != nil {
+				logger.Error("Error getting expiry date", log.Ctx{"err": err, "volume": v})
+				ch <- nil
+				return
+			}
+
+			// Get pool ID
+			poolID, err := d.cluster.StoragePoolGetID(v.PoolName)
+			if err != nil {
+				logger.Error("Error retrieving pool ID", log.Ctx{"err": err, "pool": v.PoolName})
+				ch <- nil
+				return
+			}
+
+			_, err = d.cluster.StoragePoolVolumeSnapshotCreate(v.ProjectName, snapshotName, v.Description, db.StoragePoolVolumeTypeCustom, poolID, v.Config, expiry)
+			if err != nil {
+				logger.Error("Error creating volume snaphost", log.Ctx{"err": err, "volume": v})
+			}
+
+			ch <- nil
+		}()
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ch:
+		}
+	}
+
+	return nil
+}
+
+func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, defaultPattern string) (string, error) {
+	var err error
+
+	pattern, ok := volume.Config["snapshots.pattern"]
+	if !ok {
+		pattern = defaultPattern
+	}
+
+	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
+		"creation_date": time.Now(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	count := strings.Count(pattern, "%d")
+	if count > 1 {
+		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
+	} else if count == 1 {
+		i := d.cluster.StorageVolumeNextSnapshot(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	snapshotExists := false
+
+	var snapshots []db.StorageVolumeArgs
+	var projects []string
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projects, err = tx.ProjectNames()
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	pools, err := d.cluster.StoragePools()
+	if err != nil {
+		return "", err
+	}
+
+	for _, pool := range pools {
+		poolID, err := d.cluster.StoragePoolGetID(pool)
+		if err != nil {
+			return "", err
+		}
+
+		for _, project := range projects {
+			snaps, err := d.cluster.StoragePoolVolumeSnapshotsGetType(project, volume.Name, db.StoragePoolVolumeTypeCustom, poolID)
+			if err != nil {
+				return "", err
+			}
+
+			snapshots = append(snapshots, snaps...)
+		}
+	}
+
+	for _, snap := range snapshots {
+		_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
+
+		if snapOnlyName == pattern {
+			snapshotExists = true
+			break
+		}
+	}
+
+	if snapshotExists {
+		i := d.cluster.StorageVolumeNextSnapshot(volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	return pattern, nil
 }
