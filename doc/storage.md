@@ -53,7 +53,9 @@ security.shifted        | bool      | custom volume             | false         
 security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped                | Disable id mapping for the volume
 lvm.stripes             | string    | lvm driver                | -                                     | storage\_lvm\_stripes            | Number of stripes to use for new volumes (or thin pool volume).
 lvm.stripes.size        | string    | lvm driver                | -                                     | storage\_lvm\_stripes            | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
-snapshots.expiry        | string    |                           | -                                     | custom\_volume\_snapshot\_expiry | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.expiry        | string    | custom volume             | -                                     | custom\_volume\_snapshot\_expiry | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.schedule      | string    | custom volume             | -                                     | volume\_snapshot\_scheduling     | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | volume\_snapshot\_scheduling     | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage                          | Remove snapshots as needed
 zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage                          | Use refquota instead of quota for space
 
