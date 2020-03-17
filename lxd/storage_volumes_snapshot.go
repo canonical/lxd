@@ -552,8 +552,19 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 
 func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		// Get the list of expired custom volume snapshots.
+		expiredSnapshots, err := d.cluster.StorageVolumeSnapshotsGetExpired()
+		if err != nil {
+			logger.Error("Unable to retrieve the list of expired custom volume snapshots", log.Ctx{"err": err})
+			return
+		}
+
+		if len(expiredSnapshots) == 0 {
+			return
+		}
+
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredCustomVolumeSnapshots(ctx, d)
+			return pruneExpiredCustomVolumeSnapshots(ctx, d, expiredSnapshots)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationCustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil)
@@ -587,14 +598,8 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 	return f, schedule
 }
 
-func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon) error {
-	// Get the list of expired custom volume snapshots.
-	snapshots, err := d.cluster.StorageVolumeSnapshotsGetExpired()
-	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve the list of expired custom volume snapshots")
-	}
-
-	for _, s := range snapshots {
+func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSnapshots []db.StorageVolumeArgs) error {
+	for _, s := range expiredSnapshots {
 		pool, err := storagePools.GetPoolByName(d.State(), s.PoolName)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to get pool %q", s.PoolName)
