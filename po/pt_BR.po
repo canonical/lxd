@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-16 20:24-0400\n"
+"POT-Creation-Date: 2020-03-17 10:06+0000\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -77,7 +77,7 @@ msgstr ""
 "### config:\n"
 "###   size: \"61203283968\""
 
-#: lxc/config.go:103
+#: lxc/config.go:102
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the configuration.\n"
@@ -345,7 +345,7 @@ msgstr "--container-only não pode ser passado quando a fonte é um snapshot"
 msgid "--refresh can only be used with instances"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/config.go:150 lxc/config.go:406 lxc/config.go:531 lxc/config.go:669
+#: lxc/config.go:149 lxc/config.go:391 lxc/config.go:516 lxc/config.go:654
 #: lxc/info.go:424
 #, fuzzy
 msgid "--target cannot be used with instances"
@@ -639,7 +639,7 @@ msgstr "Não pode especificar a coluna L, quando não em cluster"
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "Não é possível fornecer o uid/gid/modo no modo recursivo"
 
-#: lxc/config.go:548
+#: lxc/config.go:533
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr "Não é possível remover chave '%s', não está atualmente definido"
@@ -673,8 +673,8 @@ msgstr "Certificado do cliente armazenado no servidor: "
 msgid "Client version: %s\n"
 msgstr "Versão do cliente: %s\n"
 
-#: lxc/config.go:96 lxc/config.go:376 lxc/config.go:469 lxc/config.go:616
-#: lxc/config.go:734 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
+#: lxc/config.go:95 lxc/config.go:361 lxc/config.go:454 lxc/config.go:601
+#: lxc/config.go:719 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
 #: lxc/move.go:59 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
@@ -726,7 +726,7 @@ msgstr ""
 msgid "Config key/value to apply to the target instance"
 msgstr "Configuração chave/valor para aplicar ao novo contêiner"
 
-#: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:142
+#: lxc/config.go:255 lxc/config.go:328 lxc/config_metadata.go:142
 #: lxc/image.go:414 lxc/network.go:640 lxc/profile.go:498 lxc/project.go:304
 #: lxc/storage.go:303 lxc/storage_volume.go:917 lxc/storage_volume.go:947
 #, c-format
@@ -990,9 +990,9 @@ msgstr ""
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:29 lxc/cluster.go:68 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:330 lxc/config.go:31
-#: lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:612
-#: lxc/config.go:731 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:330 lxc/config.go:30
+#: lxc/config.go:89 lxc/config.go:358 lxc/config.go:439 lxc/config.go:597
+#: lxc/config.go:716 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327
 #: lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513
 #: lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27
@@ -1167,7 +1167,7 @@ msgstr "Editar templates de arquivo do container"
 msgid "Edit instance metadata files"
 msgstr "Editar arquivos de metadados do container"
 
-#: lxc/config.go:89 lxc/config.go:90
+#: lxc/config.go:88 lxc/config.go:89
 #, fuzzy
 msgid "Edit instance or server configurations as YAML"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -1428,7 +1428,7 @@ msgstr ""
 msgid "Get values for instance device configuration keys"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/config.go:372 lxc/config.go:373
+#: lxc/config.go:357 lxc/config.go:358
 #, fuzzy
 msgid "Get values for instance or server configuration keys"
 msgstr "Editar configurações de perfil como YAML"
@@ -1966,7 +1966,7 @@ msgid ""
 "hash or alias name (if one is set)."
 msgstr ""
 
-#: lxc/config.go:30 lxc/config.go:31
+#: lxc/config.go:29 lxc/config.go:30
 #, fuzzy
 msgid "Manage instance and server configuration options"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -2389,7 +2389,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:271 lxc/config.go:344 lxc/config_metadata.go:143
+#: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
 #: lxc/config_template.go:203 lxc/image.go:415
 msgid "Press enter to start the editor again"
 msgstr ""
@@ -2819,12 +2819,12 @@ msgid ""
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/config.go:453
+#: lxc/config.go:438
 #, fuzzy
 msgid "Set instance or server configuration keys"
 msgstr "Editar configurações do container ou do servidor como YAML"
 
-#: lxc/config.go:454
+#: lxc/config.go:439
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -2950,7 +2950,7 @@ msgstr ""
 msgid "Show instance metadata files"
 msgstr "Editar arquivos de metadados do container"
 
-#: lxc/config.go:611 lxc/config.go:612
+#: lxc/config.go:596 lxc/config.go:597
 #, fuzzy
 msgid "Show instance or server configurations"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -2996,7 +2996,7 @@ msgstr ""
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:615
+#: lxc/config.go:600
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -3275,7 +3275,7 @@ msgstr ""
 msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
-#: lxc/config.go:293 lxc/config.go:418 lxc/config.go:568 lxc/config.go:649
+#: lxc/config.go:278 lxc/config.go:403 lxc/config.go:553 lxc/config.go:634
 #: lxc/copy.go:116 lxc/info.go:310 lxc/network.go:759 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -3370,7 +3370,7 @@ msgstr "Não pode fornecer um nome para a imagem de destino"
 msgid "Unset instance device configuration keys"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/config.go:730 lxc/config.go:731
+#: lxc/config.go:715 lxc/config.go:716
 #, fuzzy
 msgid "Unset instance or server configuration keys"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -3551,7 +3551,7 @@ msgstr ""
 msgid "cluster"
 msgstr ""
 
-#: lxc/config.go:29
+#: lxc/config.go:28
 msgid "config"
 msgstr ""
 
@@ -3725,7 +3725,7 @@ msgstr ""
 msgid "edit [<remote>:]<project>"
 msgstr ""
 
-#: lxc/config.go:88
+#: lxc/config.go:87
 msgid "edit [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 
@@ -3788,7 +3788,7 @@ msgstr ""
 msgid "get [<remote>:]<project> <key>"
 msgstr ""
 
-#: lxc/config.go:371
+#: lxc/config.go:356
 msgid "get [<remote>:][<instance>] <key>"
 msgstr ""
 
@@ -3896,13 +3896,13 @@ msgid ""
 "    Will mount the host's /share/c1 onto /opt in the instance."
 msgstr ""
 
-#: lxc/config.go:92
+#: lxc/config.go:91
 msgid ""
 "lxc config edit <instance> < instance.yaml\n"
 "    Update the instance configuration from config.yaml."
 msgstr ""
 
-#: lxc/config.go:459
+#: lxc/config.go:444
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
@@ -4143,7 +4143,7 @@ msgstr ""
 msgid "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
 msgstr ""
 
-#: lxc/config.go:54
+#: lxc/config.go:53
 msgid "please use `lxc profile`"
 msgstr ""
 
@@ -4282,7 +4282,7 @@ msgstr ""
 msgid "set [<remote>:]<project> <key>=<value>..."
 msgstr ""
 
-#: lxc/config.go:452
+#: lxc/config.go:437
 msgid "set [<remote>:][<instance>] <key>=<value>..."
 msgstr ""
 
@@ -4334,7 +4334,7 @@ msgstr ""
 msgid "show [<remote>:]<project>"
 msgstr ""
 
-#: lxc/config.go:610
+#: lxc/config.go:595
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 
@@ -4423,7 +4423,7 @@ msgstr ""
 msgid "unset [<remote>:]<project> <key>"
 msgstr ""
 
-#: lxc/config.go:729
+#: lxc/config.go:714
 msgid "unset [<remote>:][<instance>] <key>"
 msgstr ""
 
