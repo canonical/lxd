@@ -475,8 +475,13 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 
 		// Storage backend
 		if len(availableBackends) > 1 {
+			defaultBackend := defaultStorage
+			if poolType == "remote" {
+				defaultBackend = "ceph"
+			}
+
 			pool.Driver = cli.AskChoice(
-				fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), availableBackends, defaultStorage)
+				fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultBackend), availableBackends, defaultBackend)
 		} else {
 			pool.Driver = availableBackends[0]
 		}
