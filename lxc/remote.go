@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -274,7 +273,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Could not create server cert dir"))
 		}
 
-		certf := fmt.Sprintf("%s/%s.crt", dnam, server)
+		certf := conf.ServerCertPath(server)
 		certOut, err := os.Create(certf)
 		if err != nil {
 			return err
@@ -564,8 +563,8 @@ func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rename the certificate file
-	oldPath := filepath.Join(conf.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[0]))
-	newPath := filepath.Join(conf.ConfigPath("servercerts"), fmt.Sprintf("%s.crt", args[1]))
+	oldPath := conf.ServerCertPath(args[0])
+	newPath := conf.ServerCertPath(args[1])
 	if shared.PathExists(oldPath) {
 		err := os.Rename(oldPath, newPath)
 		if err != nil {
