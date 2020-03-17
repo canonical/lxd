@@ -64,6 +64,13 @@ var updates = map[int]schema.Update{
 	25: updateFromV24,
 	26: updateFromV25,
 	27: updateFromV26,
+	28: updateFromV27,
+}
+
+// Add expiry date to storage volume snapshots
+func updateFromV27(tx *sql.Tx) error {
+	_, err := tx.Exec("ALTER TABLE storage_volumes_snapshots ADD COLUMN expiry_date DATETIME;")
+	return err
 }
 
 // Bump the sqlite_sequence value for storage volumes, to avoid unique

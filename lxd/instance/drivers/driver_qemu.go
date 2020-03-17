@@ -245,7 +245,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs) (instance.Instance, error)
 	}
 
 	// Create a new database entry for the instance's storage volume.
-	_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, vm.IsSnapshot(), poolID, volumeConfig)
+	if vm.IsSnapshot() {
+		_, err = s.Cluster.StoragePoolVolumeSnapshotCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig, time.Time{})
+
+	} else {
+		_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, poolID, volumeConfig)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -1030,14 +1030,11 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volum
 
 // StoragePoolVolumeCreate creates a new storage volume attached to a given
 // storage pool.
-func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription string, volumeType int, snapshot bool, poolID int64, volumeConfig map[string]string) (int64, error) {
+func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
 	var thisVolumeID int64
 
-	var snapshotName string
-	if snapshot {
-		parts := strings.Split(volumeName, shared.SnapshotDelimiter)
-		volumeName = parts[0]
-		snapshotName = parts[1]
+	if shared.IsSnapshot(volumeName) {
+		return -1, fmt.Errorf("Volume name may not be a snapshot")
 	}
 
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -1056,43 +1053,18 @@ func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription
 
 		for _, nodeID := range nodeIDs {
 			var volumeID int64
-			// If we are creating a snapshot, figure out the volume
-			// ID of the parent.
-			if snapshot {
-				parentID, err := tx.storagePoolVolumeGetTypeID(
-					project, volumeName, volumeType, poolID, int64(nodeID))
-				if err != nil {
-					return errors.Wrap(err, "Find parent volume")
-				}
-				_, err = tx.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
-				if err != nil {
-					return errors.Wrap(err, "Increment storage volumes sequence")
-				}
-				row := tx.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
-				err = row.Scan(&volumeID)
-				if err != nil {
-					return err
-				}
-				_, err = tx.tx.Exec(
-					"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description) VALUES (?, ?, ?, ?)",
-					volumeID, parentID, snapshotName, volumeDescription)
-				if err != nil {
-					return errors.Wrap(err, "Insert volume snapshot")
-				}
-			} else {
 
-				result, err := tx.tx.Exec(`
+			result, err := tx.tx.Exec(`
 INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, project_id)
  VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `,
-					poolID, nodeID, volumeType, volumeName, volumeDescription, project)
-				if err != nil {
-					return err
-				}
-				volumeID, err = result.LastInsertId()
-				if err != nil {
-					return err
-				}
+				poolID, nodeID, volumeType, volumeName, volumeDescription, project)
+			if err != nil {
+				return err
+			}
+			volumeID, err = result.LastInsertId()
+			if err != nil {
+				return err
 			}
 
 			if int64(nodeID) == c.nodeID {
@@ -1100,7 +1072,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 				thisVolumeID = volumeID
 			}
 
-			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, snapshot)
+			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, false)
 			if err != nil {
 				return errors.Wrap(err, "Insert storage volume configuration")
 			}

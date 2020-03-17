@@ -9,7 +9,6 @@ test_storage_volume_snapshots() {
   chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
 
-  # edit storage and pool description
   # shellcheck disable=2039
   local storage_pool storage_volume
   storage_pool="lxdtest-$(basename "${LXD_STORAGE_DIR}")-pool"
@@ -32,6 +31,30 @@ test_storage_volume_snapshots() {
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
   lxc storage volume list "${storage_pool}" |  grep "${storage_volume}/snap0"
   lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'name: snap0'
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep 'expires_at: 0001-01-01T00:00:00Z'
+
+  # edit volume snapshot description
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^description:.*/description: foo/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q 'description: foo'
+
+  # edit volume snapshot expiry date
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^expires_at:.*/expires_at: 2006-01-02T15:04:05Z/' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
+  # Depending on the timezone of the runner, some values will be different.
+  # Both the year (2006) and the month (01) will be constant though.
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 2006-01'
+  # Reset/remove expiry date
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | sed 's/^expires_at:/d' | lxc storage volume edit "${storage_pool}" "${storage_volume}/snap0"
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap0" | grep -q '^expires_at: 0001-01-01T00:00:00Z'
+
+  lxc storage volume set "${storage_pool}" "${storage_volume}" snapshots.expiry '1d'
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}"
+  ! lxc storage volume show "${storage_pool}" "${storage_volume}/snap1" | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+
+  lxc storage volume snapshot "${storage_pool}" "${storage_volume}" --no-expiry
+  lxc storage volume show "${storage_pool}" "${storage_volume}/snap2" | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
+
+  lxc storage volume rm "${storage_pool}" "${storage_volume}/snap2"
+  lxc storage volume rm "${storage_pool}" "${storage_volume}/snap1"
 
   # Test snapshot renaming
   lxc storage volume snapshot "${storage_pool}" "${storage_volume}"

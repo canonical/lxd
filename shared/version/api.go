@@ -194,6 +194,7 @@ var APIExtensions = []string{
 	"limits_hugepages",
 	"container_nic_routed_gateway",
 	"projects_restrictions",
+	"custom_volume_snapshot_expiry",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

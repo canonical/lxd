@@ -44,17 +44,18 @@ lxc storage set [<remote>:]<pool> <key> <value>
 ```
 
 ## Storage volume configuration
-Key                     | Type      | Condition                 | Default                               | API Extension         | Description
-:--                     | :---      | :--------                 | :------                               | :------------         | :----------
-size                    | string    | appropriate driver        | same as volume.size                   | storage               | Size of the storage volume
-block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | storage               | Filesystem of the storage volume
-block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | storage               | Mount options for block devices
-security.shifted        | bool      | custom volume             | false                                 | storage\_shifted      | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped     | Disable id mapping for the volume
-lvm.stripes             | string    | lvm driver                | -                                     | storage\_lvm\_stripes | Number of stripes to use for new volumes (or thin pool volume).
-lvm.stripes.size        | string    | lvm driver                | -                                     | storage\_lvm\_stripes | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
-zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage               | Remove snapshots as needed
-zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage               | Use refquota instead of quota for space
+Key                     | Type      | Condition                 | Default                               | API Extension                    | Description
+:--                     | :---      | :--------                 | :------                               | :------------                    | :----------
+size                    | string    | appropriate driver        | same as volume.size                   | storage                          | Size of the storage volume
+block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | storage                          | Filesystem of the storage volume
+block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | storage                          | Mount options for block devices
+security.shifted        | bool      | custom volume             | false                                 | storage\_shifted                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | storage\_unmapped                | Disable id mapping for the volume
+lvm.stripes             | string    | lvm driver                | -                                     | storage\_lvm\_stripes            | Number of stripes to use for new volumes (or thin pool volume).
+lvm.stripes.size        | string    | lvm driver                | -                                     | storage\_lvm\_stripes            | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
+snapshots.expiry        | string    |                           | -                                     | custom\_volume\_snapshot\_expiry | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | storage                          | Remove snapshots as needed
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | storage                          | Use refquota instead of quota for space
 
 Storage volume configuration keys can be set using the lxc tool with:
 

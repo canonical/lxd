@@ -55,6 +55,7 @@ const (
 	OperationInstanceTypesUpdate
 	OperationBackupsExpire
 	OperationSnapshotsExpire
+	OperationCustomVolumeSnapshotsExpire
 )
 
 // Description return a human-readable description of the operation type.
@@ -150,6 +151,8 @@ func (t OperationType) Description() string {
 		return "Cleaning up expired instance backups"
 	case OperationSnapshotsExpire:
 		return "Cleaning up expired instance snapshots"
+	case OperationCustomVolumeSnapshotsExpire:
+		return "Cleaning up expired volume snapshots"
 	default:
 		return "Executing operation"
 	}
@@ -218,6 +221,9 @@ func (t OperationType) Permission() string {
 		return "manage-images"
 	case OperationImagesSynchronize:
 		return "manage-images"
+
+	case OperationCustomVolumeSnapshotsExpire:
+		return "operate-volumes"
 	}
 
 	return ""

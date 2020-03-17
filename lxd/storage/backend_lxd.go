@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -1981,7 +1982,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		return err
 	}
 
-	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil)
+	err = VolumeDBCreate(b.state, project.Default, b.name, fingerprint, "", db.StoragePoolVolumeTypeNameImage, false, nil, time.Time{})
 	if err != nil {
 		return err
 	}
@@ -2092,7 +2093,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, projectName, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
+	err = VolumeDBCreate(b.state, projectName, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{})
 	if err != nil {
 		return err
 	}
@@ -2204,7 +2205,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, projectName, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
+		err = VolumeDBCreate(b.state, projectName, b.name, volName, desc, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{})
 		if err != nil {
 			return err
 		}
@@ -2216,7 +2217,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
+				err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, desc, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{})
 				if err != nil {
 					return err
 				}
@@ -2342,7 +2343,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, projectName, b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config())
+	err = VolumeDBCreate(b.state, projectName, b.name, args.Name, args.Description, db.StoragePoolVolumeTypeNameCustom, false, vol.Config(), time.Time{})
 	if err != nil {
 		return err
 	}
@@ -2354,7 +2355,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config())
+			err = VolumeDBCreate(b.state, projectName, b.name, newSnapshotName, args.Description, db.StoragePoolVolumeTypeNameCustom, true, vol.Config(), time.Time{})
 			if err != nil {
 				return err
 			}
@@ -2546,9 +2547,9 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 }
 
 // UpdateCustomVolumeSnapshot updates the description of a custom volume snapshot.
-// Volume config is not allowd to be updated and will return an error.
-func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig})
+// Volume config is not allowed to be updated and will return an error.
+func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig, "newExpiryDate": newExpiryDate})
 	logger.Debug("UpdateCustomVolumeSnapshot started")
 	defer logger.Debug("UpdateCustomVolumeSnapshot finished")
 
@@ -2556,7 +2557,37 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 		return fmt.Errorf("Volume must be a snapshot")
 	}
 
-	return b.updateVolumeDescriptionOnly(projectName, volName, db.StoragePoolVolumeTypeCustom, newDesc, newConfig)
+	// Get current config to compare what has changed.
+	volID, curVol, err := b.state.Cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Volume doesn't exist")
+		}
+
+		return err
+	}
+
+	curExpiryDate, err := b.state.Cluster.StorageVolumeSnapshotExpiryGet(volID)
+	if err != nil {
+		return err
+	}
+
+	if newConfig != nil {
+		changedConfig, _ := b.detectChangedConfig(curVol.Config, newConfig)
+		if len(changedConfig) != 0 {
+			return fmt.Errorf("Volume config is not editable")
+		}
+	}
+
+	// Update the database if description changed. Use current config.
+	if newDesc != curVol.Description || newExpiryDate != curExpiryDate {
+		err = b.state.Cluster.StoragePoolVolumeSnapshotUpdateByProject(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID(), newDesc, curVol.Config, newExpiryDate)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // DeleteCustomVolume removes a custom volume and its snapshots.
@@ -2653,8 +2684,8 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 }
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
-func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName})
+func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newExpiryDate": newExpiryDate})
 	logger.Debug("CreateCustomVolumeSnapshot started")
 	defer logger.Debug("CreateCustomVolumeSnapshot finished")
 
@@ -2689,7 +2720,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	}
 
 	// Create database entry for new storage volume snapshot.
-	err = VolumeDBCreate(b.state, projectName, b.name, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config)
+	err = VolumeDBCreate(b.state, projectName, b.name, fullSnapshotName, parentVol.Description, db.StoragePoolVolumeTypeNameCustom, true, parentVol.Config, newExpiryDate)
 	if err != nil {
 		return err
 	}
