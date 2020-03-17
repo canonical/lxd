@@ -43,6 +43,7 @@ func wipeDirectory(path string) error {
 	return nil
 }
 
+// forceUnmount unmounts stacked mounts until no mountpoint remains.
 func forceUnmount(path string) (bool, error) {
 	unmounted := false
 
@@ -66,6 +67,7 @@ func forceUnmount(path string) (bool, error) {
 	}
 }
 
+// mountReadOnly performs a read-only bind-mount.
 func mountReadOnly(srcPath string, dstPath string) (bool, error) {
 	// Check if already mounted.
 	if shared.IsMountPoint(dstPath) {
@@ -88,6 +90,7 @@ func mountReadOnly(srcPath string, dstPath string) (bool, error) {
 	return true, nil
 }
 
+// sameMount checks if two paths are on the same mountpoint.
 func sameMount(srcPath string, dstPath string) bool {
 	// Get the source vfs path information
 	var srcFsStat unix.Statfs_t
@@ -171,6 +174,7 @@ func TryUnmount(path string, flags int) error {
 	return nil
 }
 
+// tryExists waits up to 10s for a file to exist.
 func tryExists(path string) bool {
 	// Attempt 20 checks over 10s
 	for i := 0; i < 20; i++ {
@@ -184,10 +188,12 @@ func tryExists(path string) bool {
 	return false
 }
 
+// fsUUID returns the filesystem UUID for the given block path.
 func fsUUID(path string) (string, error) {
 	return shared.RunCommand("blkid", "-s", "UUID", "-o", "value", path)
 }
 
+// hasFilesystem checks if a given path is backed by a specified filesystem.
 func hasFilesystem(path string, fsType int64) bool {
 	fs := unix.Statfs_t{}
 
@@ -595,6 +601,7 @@ func UnshiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet) error {
 	return shiftBtrfsRootfs(path, diskIdmap, false)
 }
 
+// shiftBtrfsRootfs shiftfs a filesystem that main include read-only subvolumes.
 func shiftBtrfsRootfs(path string, diskIdmap *idmap.IdmapSet, shift bool) error {
 	var err error
 	roSubvols := []string{}
@@ -660,6 +667,7 @@ func BTRFSSubVolumesGet(path string) ([]string, error) {
 	return result, nil
 }
 
+// btrfsIsSubvolume checks if a given path is a subvolume.
 func btrfsIsSubVolume(subvolPath string) bool {
 	fs := unix.Stat_t{}
 	err := unix.Lstat(subvolPath, &fs)
