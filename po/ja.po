@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-16 20:24-0400\n"
+"POT-Creation-Date: 2020-03-17 10:06+0000\n"
 "PO-Revision-Date: 2020-03-05 09:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -73,7 +73,7 @@ msgstr ""
 "### config:\n"
 "###   size: \"61203283968\""
 
-#: lxc/config.go:103
+#: lxc/config.go:102
 msgid ""
 "### This is a YAML representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -332,7 +332,7 @@ msgstr "--instance-only はコピー元がスナップショットの場合は�
 msgid "--refresh can only be used with instances"
 msgstr "--refresh はインスタンスの場合のみ使えます"
 
-#: lxc/config.go:150 lxc/config.go:406 lxc/config.go:531 lxc/config.go:669
+#: lxc/config.go:149 lxc/config.go:391 lxc/config.go:516 lxc/config.go:654
 #: lxc/info.go:424
 msgid "--target cannot be used with instances"
 msgstr "--target はインスタンスでは使えません"
@@ -630,7 +630,7 @@ msgstr "クラスタでない場合はカラムとして L は指定できませ
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
-#: lxc/config.go:548
+#: lxc/config.go:533
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr "キー '%s' が設定されていないので削除できません"
@@ -663,8 +663,8 @@ msgstr "クライアント証明書がサーバに格納されました:"
 msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
-#: lxc/config.go:96 lxc/config.go:376 lxc/config.go:469 lxc/config.go:616
-#: lxc/config.go:734 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
+#: lxc/config.go:95 lxc/config.go:361 lxc/config.go:454 lxc/config.go:601
+#: lxc/config.go:719 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
 #: lxc/move.go:59 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
@@ -713,7 +713,7 @@ msgstr "新しいプロジェクトに適用するキー/値の設定"
 msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
-#: lxc/config.go:270 lxc/config.go:343 lxc/config_metadata.go:142
+#: lxc/config.go:255 lxc/config.go:328 lxc/config_metadata.go:142
 #: lxc/image.go:414 lxc/network.go:640 lxc/profile.go:498 lxc/project.go:304
 #: lxc/storage.go:303 lxc/storage_volume.go:917 lxc/storage_volume.go:947
 #, c-format
@@ -973,9 +973,9 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:54 lxc/alias.go:100 lxc/alias.go:144
 #: lxc/alias.go:195 lxc/cluster.go:29 lxc/cluster.go:68 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:330 lxc/config.go:31
-#: lxc/config.go:90 lxc/config.go:373 lxc/config.go:454 lxc/config.go:612
-#: lxc/config.go:731 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/cluster.go:197 lxc/cluster.go:247 lxc/cluster.go:330 lxc/config.go:30
+#: lxc/config.go:89 lxc/config.go:358 lxc/config.go:439 lxc/config.go:597
+#: lxc/config.go:716 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:188 lxc/config_device.go:261 lxc/config_device.go:327
 #: lxc/config_device.go:416 lxc/config_device.go:507 lxc/config_device.go:513
 #: lxc/config_device.go:613 lxc/config_device.go:681 lxc/config_metadata.go:27
@@ -1147,7 +1147,7 @@ msgstr "インスタンスのファイルテンプレートを編集します"
 msgid "Edit instance metadata files"
 msgstr "インスタンスのメタデータファイルを編集します"
 
-#: lxc/config.go:89 lxc/config.go:90
+#: lxc/config.go:88 lxc/config.go:89
 msgid "Edit instance or server configurations as YAML"
 msgstr "インスタンスもしくはサーバの設定をYAMLファイルで編集します"
 
@@ -1445,7 +1445,7 @@ msgstr "ネットワークのランタイム情報を取得します"
 msgid "Get values for instance device configuration keys"
 msgstr "インスタンスのデバイスの設定値を取得します"
 
-#: lxc/config.go:372 lxc/config.go:373
+#: lxc/config.go:357 lxc/config.go:358
 msgid "Get values for instance or server configuration keys"
 msgstr "インスタンスもしくはサーバの設定値を取得します"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 "イメージは全ハッシュ文字列、一意に定まるハッシュの短縮表現、(設定され\n"
 "ている場合は) エイリアスで参照できます。"
 
-#: lxc/config.go:30 lxc/config.go:31
+#: lxc/config.go:29 lxc/config.go:30
 msgid "Manage instance and server configuration options"
 msgstr "インスタンスやサーバの設定を管理します"
 
@@ -2520,7 +2520,7 @@ msgstr "ポート:"
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
-#: lxc/config.go:271 lxc/config.go:344 lxc/config_metadata.go:143
+#: lxc/config.go:256 lxc/config.go:329 lxc/config_metadata.go:143
 #: lxc/config_template.go:203 lxc/image.go:415
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
@@ -2959,11 +2959,11 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc profile device set [<remote>:]<profile> <device> <key> <value>"
 
-#: lxc/config.go:453
+#: lxc/config.go:438
 msgid "Set instance or server configuration keys"
 msgstr "インスタンスもしくはサーバの設定項目を設定します"
 
-#: lxc/config.go:454
+#: lxc/config.go:439
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -3109,7 +3109,7 @@ msgstr "イメージのプロパティを表示します"
 msgid "Show instance metadata files"
 msgstr "インスタンスのメタデータファイルを表示します"
 
-#: lxc/config.go:611 lxc/config.go:612
+#: lxc/config.go:596 lxc/config.go:597
 msgid "Show instance or server configurations"
 msgstr "インスタンスもしくはサーバの設定を表示します"
 
@@ -3153,7 +3153,7 @@ msgstr "ストレージボリュームの設定を表示する"
 msgid "Show the default remote"
 msgstr "デフォルトのリモートを表示します"
 
-#: lxc/config.go:615
+#: lxc/config.go:600
 msgid "Show the expanded configuration"
 msgstr "拡張した設定を表示する"
 
@@ -3452,7 +3452,7 @@ msgstr ""
 "初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみて"
 "ください"
 
-#: lxc/config.go:293 lxc/config.go:418 lxc/config.go:568 lxc/config.go:649
+#: lxc/config.go:278 lxc/config.go:403 lxc/config.go:553 lxc/config.go:634
 #: lxc/copy.go:116 lxc/info.go:310 lxc/network.go:759 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -3547,7 +3547,7 @@ msgstr "移動先のインスタンスのすべてのプロファイルを削除
 msgid "Unset instance device configuration keys"
 msgstr "インスタンスデバイスの設定を削除します"
 
-#: lxc/config.go:730 lxc/config.go:731
+#: lxc/config.go:715 lxc/config.go:716
 msgid "Unset instance or server configuration keys"
 msgstr "インスタンスもしくはサーバの設定を削除します"
 
@@ -3739,7 +3739,7 @@ msgstr ""
 msgid "cluster"
 msgstr "cluster"
 
-#: lxc/config.go:29
+#: lxc/config.go:28
 msgid "config"
 msgstr "config"
 
@@ -3915,7 +3915,7 @@ msgstr "edit [<remote>:]<profile>"
 msgid "edit [<remote>:]<project>"
 msgstr "edit [<remote>:]<project>"
 
-#: lxc/config.go:88
+#: lxc/config.go:87
 msgid "edit [<remote>:][<instance>[/<snapshot>]]"
 msgstr "edit [<remote>:][<instance>[/<snapshot>]]"
 
@@ -3979,7 +3979,7 @@ msgstr "get [<remote>:]<profile> <key>"
 msgid "get [<remote>:]<project> <key>"
 msgstr "get [<remote>:]<project> <key>"
 
-#: lxc/config.go:371
+#: lxc/config.go:356
 msgid "get [<remote>:][<instance>] <key>"
 msgstr "get [<remote>:][<instance>] <key>"
 
@@ -4098,7 +4098,7 @@ msgstr ""
 "c1 path=opt\n"
 "    ホストの /share/c1 をインスタンス内の /opt にマウントします。"
 
-#: lxc/config.go:92
+#: lxc/config.go:91
 msgid ""
 "lxc config edit <instance> < instance.yaml\n"
 "    Update the instance configuration from config.yaml."
@@ -4106,7 +4106,7 @@ msgstr ""
 "lxc config edit <instance> < instance.yaml\n"
 "    インスタンスの設定を config.yaml を使って更新します。"
 
-#: lxc/config.go:459
+#: lxc/config.go:444
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
@@ -4451,7 +4451,7 @@ msgstr "override [<remote>:]<instance> <device> [key=value...]"
 msgid "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
 msgstr "pause [<remote>:]<instance> [[<remote>:]<instance>...]"
 
-#: lxc/config.go:54
+#: lxc/config.go:53
 msgid "please use `lxc profile`"
 msgstr "`lxc profile` コマンドを使ってください"
 
@@ -4597,7 +4597,7 @@ msgstr "set [<remote>:]<profile> <key><value>..."
 msgid "set [<remote>:]<project> <key>=<value>..."
 msgstr "set [<remote>:]<project> <key>=<value>..."
 
-#: lxc/config.go:452
+#: lxc/config.go:437
 msgid "set [<remote>:][<instance>] <key>=<value>..."
 msgstr "set [<remote>:][<instance>] <key>=<value>..."
 
@@ -4649,7 +4649,7 @@ msgstr "show [<remote>:]<profile>"
 msgid "show [<remote>:]<project>"
 msgstr "show [<remote>:]<project>"
 
-#: lxc/config.go:610
+#: lxc/config.go:595
 msgid "show [<remote>:][<instance>[/<snapshot>]]"
 msgstr "show [<remote>:][<instance>[/<snapshot>]]"
 
@@ -4738,7 +4738,7 @@ msgstr "unset [<remote>:]<profile> <key>"
 msgid "unset [<remote>:]<project> <key>"
 msgstr "unset [<remote>:]<project> <key>"
 
-#: lxc/config.go:729
+#: lxc/config.go:714
 msgid "unset [<remote>:][<instance>] <key>"
 msgstr "unset [<remote>:][<instance>] <key>"
 
