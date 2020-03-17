@@ -588,7 +588,7 @@ func copyDevice(inputPath, outputPath string) error {
 
 	to, err := os.OpenFile(outputPath, os.O_WRONLY, 0)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening file writing %q", outputPath)
+		return errors.Wrapf(err, "Error opening file for writing %q", outputPath)
 	}
 	defer to.Close()
 
