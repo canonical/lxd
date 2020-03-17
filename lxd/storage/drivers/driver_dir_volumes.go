@@ -169,7 +169,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 	}
 
 	// Remove the volume from the storage device.
-	err = os.RemoveAll(volPath)
+	err = forceRemoveAll(volPath)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "Failed to remove '%s'", volPath)
 	}
@@ -350,7 +350,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	snapPath := snapVol.MountPath()
 
 	// Remove the snapshot from the storage device.
-	err := os.RemoveAll(snapPath)
+	err := forceRemoveAll(snapPath)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "Failed to remove '%s'", snapPath)
 	}
