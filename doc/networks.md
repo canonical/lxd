@@ -101,3 +101,45 @@ Those keys can be set using the lxc tool with:
 ```bash
 lxc network set <network> <key> <value>
 ```
+
+## Integration with systemd-resolved
+
+If the system running LXD uses systemd-resolved to perform DNS
+lookups, it's possible to notify resolved of the domain(s) that
+LXD is able to resolve.  This requires telling resolved the
+specific bridge(s), nameserver address(es), and dns domain(s).
+
+For example, if LXD is using the `lxdbr0` interface, get the
+ipv4 address with `lxc network get lxdbr0 ipv4.address` command
+(the ipv6 can be used instead or in addition), and the domain
+with `lxc network get lxdbr0 dns.domain` (if unset, the domain
+is `lxd` as shown in the table above).  Then notify resolved:
+
+```
+systemd-resolve --interface lxdbr0 --set-domain '~lxd' --set-dns 1.2.3.4
+```
+
+Replace `lxdbr0` with the actual bridge name, and `1.2.3.4` with
+the actual address of the nameserver (without the subnet netmask).
+
+Also replace `lxd` with the domain name.  Note the `~` before the
+domain name is important; it tells resolved to use this
+nameserver to look up only this domain; no matter what your
+actual domain name is, you should prefix it with `~`.  Also,
+since the shell may expand the `~` character, you may need to
+include it in quotes.
+
+In newer releases of systemd, the `systemd-resolve` command has been
+deprecated, however it is still provided for backwards compatibility
+(as of this writing).  The newer method to notify resolved is using
+the `resolvectl` command, which would be done in two steps:
+
+```
+resolvectl dns lxdbr0 1.2.3.4
+resolvectl domain lxdbr0 '~lxd'
+```
+
+This resolved configuration will persist as long as the bridge
+exists, so you must repeat this command each reboot and after
+LXD is restarted.  Also note this only works if the bridge
+`dns.mode` is not `none`.
