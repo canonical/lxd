@@ -2,6 +2,7 @@ package storage
 
 import (
 	"io"
+	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/instance"
@@ -217,7 +218,7 @@ func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op
 	return true, nil
 }
 
-func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, expiryDate time.Time, op *operations.Operation) error {
 	return nil
 }
 
@@ -229,7 +230,7 @@ func (b *mockBackend) DeleteCustomVolumeSnapshot(projectName string, volName str
 	return nil
 }
 
-func (b *mockBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
+func (b *mockBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, expiryDate time.Time, op *operations.Operation) error {
 	return nil
 }
 

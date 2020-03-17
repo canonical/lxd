@@ -36,6 +36,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
+
 	// Import instance/drivers without name so init() runs.
 	_ "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -1040,6 +1041,10 @@ func (d *Daemon) Ready() error {
 
 		// Remove expired container snapshots (minutely)
 		d.tasks.Add(pruneExpiredContainerSnapshotsTask(d))
+
+		// Remove expired custom volume snapshots (minutely)
+		d.tasks.Add(pruneExpireCustomVolumeSnapshotsTask(d))
+
 	}
 
 	// Start all background tasks

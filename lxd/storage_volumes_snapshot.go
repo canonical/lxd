@@ -1,21 +1,27 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -116,13 +122,30 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.Conflict(fmt.Errorf("Snapshot '%s' already in use", req.Name))
 	}
 
+	// Get the parent volume so we can get the config.
+	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, volumeName, volumeType, poolID)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	var expiry time.Time
+
+	if req.ExpiresAt != nil {
+		expiry = *req.ExpiresAt
+	} else {
+		expiry, err = shared.GetSnapshotExpiry(time.Now(), vol.Config["snapshots.expiry"])
+		if err != nil {
+			return response.BadRequest(err)
+		}
+	}
+
 	snapshot := func(op *operations.Operation) error {
 		pool, err := storagePools.GetPoolByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
 
-		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, op)
+		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, expiry, op)
 	}
 
 	resources := map[string][]string{}
@@ -343,7 +366,12 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	_, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, volumeType, poolID)
+	volID, volume, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, volumeType, poolID)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	expiry, err := d.cluster.StorageVolumeSnapshotExpiryGet(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -352,8 +380,9 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	snapshot.Config = volume.Config
 	snapshot.Description = volume.Description
 	snapshot.Name = snapshotName
+	snapshot.ExpiresAt = &expiry
 
-	etag := []interface{}{snapshot.Name, snapshot.Description, snapshot.Config}
+	etag := []interface{}{snapshot.Name, snapshot.Description, snapshot.Config, expiry}
 
 	return response.SyncResponseETag(true, &snapshot, etag)
 }
@@ -405,22 +434,34 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return resp
 	}
 
-	_, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, volumeType, poolID)
+	volID, vol, err := d.cluster.StoragePoolNodeVolumeGetTypeByProject(projectName, fullSnapshotName, volumeType, poolID)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	expiry, err := d.cluster.StorageVolumeSnapshotExpiryGet(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Validate the ETag
-	etag := []interface{}{snapshotName, vol.Description, vol.Config}
+	etag := []interface{}{snapshotName, vol.Description, vol.Config, expiry}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
 	}
 
 	req := api.StorageVolumeSnapshotPut{}
+
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
+	}
+
+	if req.ExpiresAt != nil {
+		expiry = *req.ExpiresAt
+	} else {
+		expiry = time.Time{}
 	}
 
 	do := func(op *operations.Operation) error {
@@ -430,7 +471,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		}
 
 		// Handle custom volume update requests.
-		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, op)
+		return pool.UpdateCustomVolumeSnapshot(projectName, vol.Name, req.Description, nil, expiry, op)
 	}
 
 	resources := map[string][]string{}
@@ -507,4 +548,63 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	return operations.OperationResponse(op)
+}
+
+func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		opRun := func(op *operations.Operation) error {
+			return pruneExpiredCustomVolumeSnapshots(ctx, d)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationCustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start expired custom volume snapshots operation", log.Ctx{"err": err})
+			return
+		}
+
+		logger.Info("Pruning expired custom volume snapshots")
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to expire backups", log.Ctx{"err": err})
+		}
+		logger.Info("Done pruning expired custom volume snapshots")
+	}
+
+	f(context.Background())
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Minute
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
+}
+
+func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon) error {
+	// Get the list of expired custom volume snapshots.
+	snapshots, err := d.cluster.StorageVolumeSnapshotsGetExpired()
+	if err != nil {
+		return errors.Wrap(err, "Unable to retrieve the list of expired custom volume snapshots")
+	}
+
+	for _, s := range snapshots {
+		pool, err := storagePools.GetPoolByName(d.State(), s.PoolName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get pool %q", s.PoolName)
+		}
+
+		err = pool.DeleteCustomVolumeSnapshot(s.ProjectName, s.Name, nil)
+		if err != nil {
+			return errors.Wrapf(err, "Error deleting custom volume snapshot %s", s.Name)
+		}
+	}
+
+	return nil
 }

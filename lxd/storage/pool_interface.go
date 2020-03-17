@@ -2,6 +2,7 @@ package storage
 
 import (
 	"io"
+	"time"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/instance"
@@ -75,10 +76,10 @@ type Pool interface {
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
 
 	// Custom volume snapshots.
-	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
+	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error
 	RenameCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, op *operations.Operation) error
 	DeleteCustomVolumeSnapshot(projectName string, volName string, op *operations.Operation) error
-	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error
+	UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error
 	RestoreCustomVolume(projectName string, volName string, snapshotName string, op *operations.Operation) error
 
 	// Custom volume migration.

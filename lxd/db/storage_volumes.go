@@ -30,6 +30,8 @@ type StorageVolumeArgs struct {
 	Config       map[string]string
 	Description  string
 	CreationDate time.Time
+	ExpiryDate   time.Time
+	ProjectName  string
 }
 
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
