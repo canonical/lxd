@@ -508,7 +508,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 
 	// Check if the node has any custom volumes.
 	volumes, err := query.SelectStrings(
-		c.tx, "SELECT name FROM storage_volumes WHERE node_id=? AND type=?",
+		c.tx, "SELECT storage_volumes.name FROM storage_volumes LEFT JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id WHERE storage_volumes.node_id=? AND storage_volumes.type=? AND storage_pools.driver NOT IN ('ceph', 'cephfs')",
 		id, StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to get custom volumes for node %d", id)
