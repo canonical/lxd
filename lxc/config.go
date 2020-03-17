@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -160,16 +159,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 			var op lxd.Operation
 
 			if isSnapshot {
-				snapshot, _, err := resource.server.GetInstanceSnapshot(fields[0], fields[1])
-				if err != nil {
-					return err
-				}
-
-				// The current expiry date needs to be set here explicitly, otherwise failing to
-				// provide a new value will reset the expiry date to zero time (no expiry).
-				newdata := api.InstanceSnapshotPut{
-					ExpiresAt: snapshot.ExpiresAt,
-				}
+				newdata := api.InstanceSnapshotPut{}
 
 				err = yaml.Unmarshal(contents, &newdata)
 				if err != nil {
@@ -198,7 +188,6 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 		var data []byte
 		var etag string
-		var currentExpiryDate time.Time
 
 		// Extract the current value
 		if isSnapshot {
@@ -214,8 +203,6 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-
-			currentExpiryDate = brief.ExpiresAt
 		} else {
 			var inst *api.Instance
 
@@ -240,9 +227,7 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 		for {
 			// Parse the text received from the editor
 			if isSnapshot {
-				newdata := api.InstanceSnapshotPut{
-					ExpiresAt: currentExpiryDate,
-				}
+				newdata := api.InstanceSnapshotPut{}
 
 				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
