@@ -734,8 +734,6 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 // VolumeSnapshots returns a list of snapshots for the volume.
 func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
-	fullVolName := d.lvmFullVolumeName(vol.volType, vol.contentType, vol.name)
-
 	// We use the volume list rather than inspecting the logical volumes themselves because the origin
 	// property of an LVM snapshot can be removed/changed when restoring snapshots, such that they are no
 	// marked as origin of the parent volume. Instead we use prefix matching on the volume names to find the
@@ -757,10 +755,29 @@ func (d *lvm) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, e
 	}
 
 	snapshots := []string{}
-	scanner := bufio.NewScanner(stdout)
+	fullVolName := d.lvmFullVolumeName(vol.volType, vol.contentType, vol.name)
+
+	// If block volume, remove the block suffix ready for comparison with LV list.
+	if vol.IsVMBlock() {
+		fullVolName = strings.TrimSuffix(fullVolName, lvmBlockVolSuffix)
+	}
+
 	prefix := fmt.Sprintf("%s-", fullVolName)
+
+	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		snapLine := strings.TrimSpace(scanner.Text())
+
+		// If block volume, skip any LVs that don't end with the block suffix, and then for those that do
+		// remove the block suffix so that they can be compared with the fullVolName prefix.
+		if vol.IsVMBlock() {
+			if !strings.HasSuffix(snapLine, lvmBlockVolSuffix) {
+				continue // Ignore non-block volumes.
+			}
+
+			snapLine = strings.TrimSuffix(snapLine, lvmBlockVolSuffix)
+		}
+
 		if strings.HasPrefix(snapLine, prefix) {
 			// Remove volume name prefix (including snapshot delimiter) and unescape snapshot name.
 			snapshots = append(snapshots, strings.Replace(strings.TrimPrefix(snapLine, prefix), "--", "-", -1))
