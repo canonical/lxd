@@ -190,7 +190,7 @@ func genericCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (fun
 
 		to, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0)
 		if err != nil {
-			return errors.Wrapf(err, "Error opening file writing %q", path)
+			return errors.Wrapf(err, "Error opening file for writing %q", path)
 		}
 		defer to.Close()
 
