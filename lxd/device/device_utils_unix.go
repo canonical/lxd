@@ -20,53 +20,6 @@ import (
 // unixDefaultMode default mode to create unix devices with if not specified in device config.
 const unixDefaultMode = 0660
 
-// unixDeviceInstanceAttributes returns the UNIX device attributes for an instance device.
-// Uses supplied device config for device properties, and if they haven't been set, falls back to
-// using UnixGetDeviceAttributes() to directly query an existing device file.
-func unixDeviceInstanceAttributes(devicesPath string, prefix string, config deviceConfig.Device) (string, uint32, uint32, error) {
-	// Check if we've been passed major and minor numbers already.
-	var err error
-	var dMajor, dMinor uint32
-
-	if config["major"] != "" {
-		tmp, err := strconv.ParseUint(config["major"], 10, 32)
-		if err != nil {
-			return "", 0, 0, err
-		}
-		dMajor = uint32(tmp)
-	}
-
-	if config["minor"] != "" {
-		tmp, err := strconv.ParseUint(config["minor"], 10, 32)
-		if err != nil {
-			return "", 0, 0, err
-		}
-		dMinor = uint32(tmp)
-	}
-
-	dType := ""
-	if config["type"] == "unix-char" {
-		dType = "c"
-	} else if config["type"] == "unix-block" {
-		dType = "b"
-	}
-
-	destPath := unixDeviceDestPath(config)
-	relativeDestPath := strings.TrimPrefix(destPath, "/")
-	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
-	devPath := filepath.Join(devicesPath, devName)
-
-	// If any config options missing then retrieve all the needed set of attributes from device.
-	if dType == "" || config["major"] == "" || config["minor"] == "" {
-		dType, dMajor, dMinor, err = unixDeviceAttributes(devPath)
-		if err != nil {
-			return dType, dMajor, dMinor, err
-		}
-	}
-
-	return dType, dMajor, dMinor, err
-}
-
 // unixDeviceAttributes returns the decice type, major and minor numbers for a device.
 func unixDeviceAttributes(path string) (string, uint32, uint32, error) {
 	// Get a stat struct from the provided path
