@@ -29,14 +29,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// dhcpAllocation represents an IP allocation from dnsmasq used for IP filtering.
-type dhcpAllocation struct {
-	IP     net.IP
-	Name   string
-	MAC    net.HardwareAddr
-	Static bool
-}
-
 type nicBridged struct {
 	deviceCommon
 }
