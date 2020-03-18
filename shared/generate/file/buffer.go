@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"strings"
 
-	"github.com/lxc/lxd/shared/generate/lex"
 	"github.com/pkg/errors"
 )
 
@@ -40,14 +38,4 @@ func (b *Buffer) code() ([]byte, error) {
 		return nil, errors.Wrap(err, "Can't format generated source code")
 	}
 	return code, nil
-}
-
-func varDeclSliceToString(decls []lex.VarDecl) string {
-	parts := []string{}
-
-	for _, decl := range decls {
-		parts = append(parts, decl.String())
-	}
-
-	return strings.Join(parts, ", ")
 }

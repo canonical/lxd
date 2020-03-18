@@ -137,8 +137,6 @@ func NewTestDqliteServer(t *testing.T) (string, driver.NodeStore, func()) {
 	return dir, store, cleanup
 }
 
-var dqliteSerial = 0
-
 // Return a new temporary directory.
 func newDir(t *testing.T) (string, func()) {
 	t.Helper()

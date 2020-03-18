@@ -34,10 +34,6 @@ func (d *common) init(state *state.State, name string, config map[string]string,
 	d.logger = logger
 }
 
-func (d *common) load() error {
-	return nil
-}
-
 // validatePool validates a pool config against common rules and optional driver specific rules.
 func (d *common) validatePool(config map[string]string, driverRules map[string]func(value string) error) error {
 	checkedFields := map[string]struct{}{}

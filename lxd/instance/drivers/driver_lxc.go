@@ -6836,9 +6836,8 @@ func (c *lxc) cgroup(cc *liblxc.Container) (*cgroup.CGroup, error) {
 }
 
 type lxcCgroupReadWriter struct {
-	cc      *liblxc.Container
-	conf    bool
-	cgroup2 bool
+	cc   *liblxc.Container
+	conf bool
 }
 
 func (rw *lxcCgroupReadWriter) Get(version cgroup.Backend, controller string, key string) (string, error) {

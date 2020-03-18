@@ -65,55 +65,6 @@ func TestHeartbeat(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// If a certain node does not successfully respond to the heartbeat, its
-// timestamp does not get updated.
-func DISABLE_TestHeartbeat_MarkAsDown(t *testing.T) {
-	f := heartbeatFixture{t: t}
-	defer f.Cleanup()
-
-	f.Bootstrap()
-	f.Grow()
-
-	leader := f.Leader()
-	leaderState := f.State(leader)
-
-	// Artificially mark all nodes as down
-	t.Logf("marking all nodes as down")
-	err := leaderState.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err := tx.Nodes()
-		require.NoError(t, err)
-		for _, node := range nodes {
-			err := tx.NodeHeartbeat(node.Address, time.Now().Add(-time.Minute))
-			require.NoError(t, err)
-		}
-		return nil
-	})
-	require.NoError(t, err)
-
-	follower := f.Follower()
-
-	// Shutdown the follower node and perform the heartbeat requests.
-	f.Server(follower).Close()
-	leader.Cluster = leaderState.Cluster
-	heartbeat, _ := cluster.HeartbeatTask(leader)
-	ctx := context.Background()
-	heartbeat(ctx)
-
-	// The heartbeat timestamp of the second node did not get updated
-	err = leaderState.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodes, err := tx.Nodes()
-		require.NoError(t, err)
-
-		offlineThreshold, err := tx.NodeOfflineThreshold()
-		require.NoError(t, err)
-
-		i := f.Index(follower)
-		assert.True(t, nodes[i].IsOffline(offlineThreshold))
-		return nil
-	})
-	require.NoError(t, err)
-}
-
 // Helper for testing heartbeat-related code.
 type heartbeatFixture struct {
 	t        *testing.T
