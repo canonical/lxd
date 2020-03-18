@@ -5601,7 +5601,7 @@ func (c *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	}
 
 	// Setup communication PIPE
-	rStatus, wStatus, err := shared.Pipe()
+	rStatus, wStatus, err := os.Pipe()
 	defer rStatus.Close()
 	if err != nil {
 		return nil, err

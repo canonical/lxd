@@ -99,18 +99,6 @@ void create_pty(int *master, int *slave, uid_t uid, gid_t gid) {
 	}
 }
 
-void create_pipe(int *master, int *slave) {
-	int pipefd[2];
-
-	if (pipe2(pipefd, O_CLOEXEC) < 0) {
-		fprintf(stderr, "Failed to create a pipe: %s\n", strerror(errno));
-		return;
-	}
-
-	*master = pipefd[0];
-	*slave = pipefd[1];
-}
-
 int get_poll_revents(int lfd, int timeout, int flags, int *revents, int *saved_errno)
 {
 	int ret;
@@ -166,22 +154,6 @@ func OpenPty(uid, gid int64) (master *os.File, slave *os.File, err error) {
 
 	if fd_master == -1 || fd_slave == -1 {
 		return nil, nil, errors.New("Failed to create a new pts pair")
-	}
-
-	master = os.NewFile(uintptr(fd_master), "master")
-	slave = os.NewFile(uintptr(fd_slave), "slave")
-
-	return master, slave, nil
-}
-
-func Pipe() (master *os.File, slave *os.File, err error) {
-	fd_master := C.int(-1)
-	fd_slave := C.int(-1)
-
-	C.create_pipe(&fd_master, &fd_slave)
-
-	if fd_master == -1 || fd_slave == -1 {
-		return nil, nil, errors.New("Failed to create a new pipe")
 	}
 
 	master = os.NewFile(uintptr(fd_master), "master")
