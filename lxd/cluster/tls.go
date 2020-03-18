@@ -48,7 +48,7 @@ func tlsCheckCert(r *http.Request, info *shared.CertInfo) bool {
 	}
 	trustedCerts := map[string]x509.Certificate{"0": *cert}
 
-	trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts)
+	trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts, nil, false)
 
 	return r.TLS != nil && trusted
 }
