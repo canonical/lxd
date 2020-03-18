@@ -70,7 +70,7 @@ func (s *OS) initDirs() error {
 			}
 
 			err = os.Chmod(dir.path, dir.mode)
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return errors.Wrapf(err, "Failed to chmod dir %s", dir.path)
 			}
 		}
