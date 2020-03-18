@@ -417,33 +417,6 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 	assert.EqualError(t, op.Wait(), "failed to request to add node: not authorized")
 }
 
-// In a cluster for 3 nodes, if the leader goes down another one is elected the
-// other two nodes continue to operate fine.
-func DISABLED_TestCluster_Failover(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping cluster failover test in short mode.")
-	}
-	daemons, cleanup := newDaemons(t, 3)
-	defer cleanup()
-
-	f := clusterFixture{t: t}
-	f.FormCluster(daemons)
-
-	require.NoError(t, daemons[0].Stop())
-
-	for i, daemon := range daemons[1:] {
-		t.Logf("Invoking GetServer API against daemon %d", i)
-		client := f.ClientUnix(daemon)
-		server, _, err := client.GetServer()
-		require.NoError(f.t, err)
-		serverPut := server.Writable()
-		serverPut.Config["core.trust_password"] = fmt.Sprintf("sekret-%d", i)
-
-		t.Logf("Invoking UpdateServer API against daemon %d", i)
-		require.NoError(f.t, client.UpdateServer(serverPut, ""))
-	}
-}
-
 // A node can leave a cluster gracefully.
 func TestCluster_Leave(t *testing.T) {
 	t.Skip("issue #6122")
