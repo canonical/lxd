@@ -777,24 +777,6 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	return servers, nil
 }
 
-// Return the addresses of the raft nodes as stored in the node-level
-// database.
-//
-// These values might leg behind the actual values, and are refreshed
-// periodically during heartbeats.
-func (g *Gateway) cachedRaftNodes() ([]string, error) {
-	var addresses []string
-	err := g.db.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		addresses, err = tx.RaftNodeAddresses()
-		return err
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
-	}
-	return addresses, nil
-}
-
 // Look up a server address in the raft_nodes table.
 func (g *Gateway) raftAddress(databaseID uint64) (string, error) {
 	var address string
