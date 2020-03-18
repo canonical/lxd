@@ -276,9 +276,3 @@ func parseType(x ast.Expr) string {
 		return ""
 	}
 }
-
-var simpleTypeNames = []string{
-	"bool",
-	"string",
-	"int",
-}

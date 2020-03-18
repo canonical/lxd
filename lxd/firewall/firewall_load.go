@@ -4,9 +4,6 @@ import (
 	"github.com/lxc/lxd/lxd/firewall/drivers"
 )
 
-const driverXtables = "xtables"
-const driverNftables = "nftables"
-
 // New returns an appropriate firewall implementation.
 // Uses xtables if nftables isn't compatible or isn't in use already, otherwise uses nftables.
 func New() Firewall {

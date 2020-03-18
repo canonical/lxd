@@ -439,25 +439,6 @@ SELECT instances.name, nodes.name
 	return result, nil
 }
 
-// Returns a map of snapshot IDs to snapshot names for the
-// container with the given name.
-func (c *ClusterTx) snapshotIDsAndNames(project, name string) (map[int]string, error) {
-	filter := InstanceSnapshotFilter{
-		Project:  project,
-		Instance: name,
-	}
-	objects, err := c.InstanceSnapshotList(filter)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[int]string)
-	for i := range objects {
-		result[objects[i].ID] = objects[i].Name
-	}
-	return result, nil
-}
-
 // ContainerNodeMove changes the node associated with a container.
 //
 // It's meant to be used when moving a non-running container backed by ceph

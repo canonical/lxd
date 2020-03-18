@@ -34,7 +34,6 @@ const fixtures string = `
 type dbTestSuite struct {
 	suite.Suite
 
-	dir     string
 	db      *Cluster
 	cleanup func()
 }

@@ -417,33 +417,6 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 	assert.EqualError(t, op.Wait(), "failed to request to add node: not authorized")
 }
 
-// In a cluster for 3 nodes, if the leader goes down another one is elected the
-// other two nodes continue to operate fine.
-func DISABLED_TestCluster_Failover(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping cluster failover test in short mode.")
-	}
-	daemons, cleanup := newDaemons(t, 3)
-	defer cleanup()
-
-	f := clusterFixture{t: t}
-	f.FormCluster(daemons)
-
-	require.NoError(t, daemons[0].Stop())
-
-	for i, daemon := range daemons[1:] {
-		t.Logf("Invoking GetServer API against daemon %d", i)
-		client := f.ClientUnix(daemon)
-		server, _, err := client.GetServer()
-		require.NoError(f.t, err)
-		serverPut := server.Writable()
-		serverPut.Config["core.trust_password"] = fmt.Sprintf("sekret-%d", i)
-
-		t.Logf("Invoking UpdateServer API against daemon %d", i)
-		require.NoError(f.t, client.UpdateServer(serverPut, ""))
-	}
-}
-
 // A node can leave a cluster gracefully.
 func TestCluster_Leave(t *testing.T) {
 	t.Skip("issue #6122")
@@ -529,42 +502,6 @@ func TestCluster_LeaveForce(t *testing.T) {
 	images, err := daemon.State().Cluster.ImagesGet("default", false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{}, images)
-}
-
-// If a spare non-database node is available after a nodes leaves, it gets
-// promoted as database node.
-func FLAKY_TestCluster_LeaveAndPromote(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping cluster promote test in short mode.")
-	}
-	daemons, cleanup := newDaemons(t, 4)
-	defer cleanup()
-
-	f := clusterFixture{t: t}
-	f.FormCluster(daemons)
-
-	// The first three nodes are database nodes, the fourth is not.
-	client := f.ClientUnix(f.Leader())
-	nodes, err := client.GetClusterMembers()
-	require.NoError(t, err)
-	assert.Len(t, nodes, 4)
-	assert.True(t, nodes[0].Database)
-	assert.True(t, nodes[1].Database)
-	assert.True(t, nodes[2].Database)
-	assert.False(t, nodes[3].Database)
-
-	client = f.ClientUnix(daemons[1])
-	err = client.DeleteClusterMember("rusp-0", false)
-	require.NoError(t, err)
-
-	// Only  three nodes are left, and they are all database nodes.
-	client = f.ClientUnix(f.Leader())
-	nodes, err = client.GetClusterMembers()
-	require.NoError(t, err)
-	assert.Len(t, nodes, 3)
-	assert.True(t, nodes[0].Database)
-	assert.True(t, nodes[1].Database)
-	assert.True(t, nodes[2].Database)
 }
 
 // A LXD node can be renamed.
