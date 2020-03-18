@@ -423,7 +423,6 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 type lStruct struct {
 	f          *os.File
 	lConn      *net.Listener
-	udpConn    *net.Conn
 	lAddrIndex int
 }
 
