@@ -50,7 +50,7 @@ import (
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/containerwriter"
+	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -2986,7 +2986,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	// Create the tarball.
-	ctw := containerwriter.NewContainerTarWriter(w, nil)
+	tarWriter := instancewriter.NewInstanceTarWriter(w, nil)
 
 	// Path inside the tar image is the pathname starting after cDir.
 	cDir := vm.Path()
@@ -2997,7 +2997,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			return err
 		}
 
-		err = ctw.WriteFile(offset, path, fi)
+		err = tarWriter.WriteFile(offset, path, fi)
 		if err != nil {
 			logger.Debugf("Error tarring up %s: %s", path, err)
 			return err
@@ -3012,7 +3012,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		// Generate a new metadata.yaml.
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
@@ -3024,7 +3024,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(vm.name)
 			parent, err := instance.LoadByProjectAndName(vm.state, vm.project, parentName)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -3050,7 +3050,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
@@ -3059,21 +3059,21 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		fnam = filepath.Join(tempDir, "metadata.yaml")
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
-		if err := ctw.WriteFile(tmpOffset, fnam, fi); err != nil {
-			ctw.Close()
+		if err := tarWriter.WriteFile(tmpOffset, fnam, fi); err != nil {
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
@@ -3082,7 +3082,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			// Parse the metadata.
 			content, err := ioutil.ReadFile(fnam)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -3090,7 +3090,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			metadata := new(api.ImageMetadata)
 			err = yaml.Unmarshal(content, &metadata)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -3099,7 +3099,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -3107,7 +3107,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 
 			data, err := yaml.Marshal(&metadata)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -3116,7 +3116,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			fnam = filepath.Join(tempDir, "metadata.yaml")
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -3125,7 +3125,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		// Include metadata.yaml in the tarball.
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Debugf("Error statting %s during export", fnam)
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
@@ -3133,12 +3133,12 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 
 		if properties != nil {
 			tmpOffset := len(filepath.Dir(fnam)) + 1
-			err = ctw.WriteFile(tmpOffset, fnam, fi)
+			err = tarWriter.WriteFile(tmpOffset, fnam, fi)
 		} else {
-			err = ctw.WriteFile(offset, fnam, fi)
+			err = tarWriter.WriteFile(offset, fnam, fi)
 		}
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
@@ -3174,7 +3174,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		return err
 	}
 
-	err = ctw.WriteFile(len(tmpPath)+1, fPath, fi)
+	err = tarWriter.WriteFile(len(tmpPath)+1, fPath, fi)
 	if err != nil {
 		return err
 	}
@@ -3189,7 +3189,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		}
 	}
 
-	err = ctw.Close()
+	err = tarWriter.Close()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
 		return err
