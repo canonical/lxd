@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -114,7 +115,7 @@ func (b *mockBackend) RefreshInstance(i instance.Instance, src instance.Instance
 	return nil
 }
 
-func (b *mockBackend) BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+func (b *mockBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	return nil
 }
 
