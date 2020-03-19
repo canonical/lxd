@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/memorypipe"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -1397,8 +1398,8 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 }
 
 // BackupInstance creates an instance backup.
-func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "targetPath": targetPath, "optimized": optimized, "snapshots": snapshots})
+func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "optimized": optimized, "snapshots": snapshots})
 	logger.Debug("BackupInstance started")
 	defer logger.Debug("BackupInstance finished")
 
@@ -1425,7 +1426,7 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, targetPath string, o
 	}
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
-	err = b.driver.BackupVolume(vol, targetPath, optimized, snapshots, op)
+	err = b.driver.BackupVolume(vol, tarWriter, optimized, snapshots, op)
 	if err != nil {
 		return err
 	}
