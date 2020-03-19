@@ -132,7 +132,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		ttys = make([]*os.File, 3)
 		ptys = make([]*os.File, 3)
 		for i := 0; i < len(ttys); i++ {
-			ptys[i], ttys[i], err = shared.Pipe()
+			ptys[i], ttys[i], err = os.Pipe()
 			if err != nil {
 				return err
 			}
