@@ -28,6 +28,12 @@ func NewInstanceTarWriter(writer io.Writer, idmapSet *idmap.IdmapSet) *InstanceT
 	return ctw
 }
 
+// ResetHardLinkMap resets the hard link map. Use when copying multiple instances (or snapshots) into a tarball.
+// So that the hard link map doesn't work across different instances/snapshots.
+func (ctw *InstanceTarWriter) ResetHardLinkMap() {
+	ctw.linkMap = map[uint64]string{}
+}
+
 // WriteFile adds a file to the tarball with the specified name using the srcPath file as the contents of the file.
 func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileInfo) error {
 	var err error
