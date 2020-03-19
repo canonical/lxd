@@ -30,6 +30,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/units"
 )
 
 var apiInternal = []APIEndpoint{
@@ -747,6 +748,14 @@ func internalGC(d *Daemon, r *http.Request) response.Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
 	runtimeDebug.FreeOSMemory()
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	logger.Infof("Heap allocated: %s", units.GetByteSizeString(int64(m.Alloc), 2))
+	logger.Infof("Stack in use: %s", units.GetByteSizeString(int64(m.StackInuse), 2))
+	logger.Infof("Requested from system: %s", units.GetByteSizeString(int64(m.Sys), 2))
+	logger.Infof("Releasable to OS: %s", units.GetByteSizeString(int64(m.HeapIdle-m.HeapReleased), 2))
+
 	logger.Infof("Completed forced garbage collection run")
 
 	return response.EmptySyncResponse
