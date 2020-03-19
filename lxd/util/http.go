@@ -142,7 +142,25 @@ func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certifi
 		ca := certInfo.CA()
 
 		if ca != nil && cert.CheckSignatureFrom(ca) == nil {
-			return true, shared.CertFingerprint(&cert)
+			trusted := true
+
+			// Check whether the certificate has been revoked.
+			crl := certInfo.CRL()
+
+			if crl != nil {
+				for _, revoked := range crl.TBSCertList.RevokedCertificates {
+					if cert.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
+						// Instead of returning false, we set trusted to false, allowing the client
+						// to authenticate using the trust password.
+						trusted = false
+						break
+					}
+				}
+			}
+
+			if trusted {
+				return true, shared.CertFingerprint(&cert)
+			}
 		}
 	}
 
