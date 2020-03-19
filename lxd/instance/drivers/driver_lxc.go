@@ -48,8 +48,8 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/containerwriter"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
@@ -4561,7 +4561,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	// Create the tarball.
-	ctw := containerwriter.NewContainerTarWriter(w, idmap)
+	tarWriter := instancewriter.NewInstanceTarWriter(w, idmap)
 
 	// Keep track of the first path we saw for each path with nlink>1.
 	cDir := c.Path()
@@ -4574,7 +4574,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			return err
 		}
 
-		err = ctw.WriteFile(offset, path, fi)
+		err = tarWriter.WriteFile(path[offset:], path, fi)
 		if err != nil {
 			logger.Debugf("Error tarring up %s: %s", path, err)
 			return err
@@ -4588,7 +4588,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		// Generate a new metadata.yaml.
 		tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
@@ -4600,7 +4600,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(c.name)
 			parent, err := instance.LoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -4626,7 +4626,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 
 		data, err := yaml.Marshal(&meta)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
@@ -4635,21 +4635,21 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		fnam = filepath.Join(tempDir, "metadata.yaml")
 		err = ioutil.WriteFile(fnam, data, 0644)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
 		}
 
 		tmpOffset := len(path.Dir(fnam)) + 1
-		if err := ctw.WriteFile(tmpOffset, fnam, fi); err != nil {
-			ctw.Close()
+		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi); err != nil {
+			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
@@ -4659,7 +4659,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			// Parse the metadata.
 			content, err := ioutil.ReadFile(fnam)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -4667,7 +4667,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			metadata := new(api.ImageMetadata)
 			err = yaml.Unmarshal(content, &metadata)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -4676,7 +4676,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			// Generate a new metadata.yaml.
 			tempDir, err := ioutil.TempDir("", "lxd_lxd_metadata_")
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -4684,7 +4684,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 
 			data, err := yaml.Marshal(&metadata)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -4693,7 +4693,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 			fnam = filepath.Join(tempDir, "metadata.yaml")
 			err = ioutil.WriteFile(fnam, data, 0644)
 			if err != nil {
-				ctw.Close()
+				tarWriter.Close()
 				logger.Error("Failed exporting instance", ctxMap)
 				return err
 			}
@@ -4702,7 +4702,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		// Include metadata.yaml in the tarball.
 		fi, err := os.Lstat(fnam)
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Debugf("Error statting %s during export", fnam)
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
@@ -4710,12 +4710,12 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 
 		if properties != nil {
 			tmpOffset := len(path.Dir(fnam)) + 1
-			err = ctw.WriteFile(tmpOffset, fnam, fi)
+			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi)
 		} else {
-			err = ctw.WriteFile(offset, fnam, fi)
+			err = tarWriter.WriteFile(fnam[offset:], fnam, fi)
 		}
 		if err != nil {
-			ctw.Close()
+			tarWriter.Close()
 			logger.Debugf("Error writing to tarfile: %s", err)
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
@@ -4740,7 +4740,7 @@ func (c *lxc) Export(w io.Writer, properties map[string]string) error {
 		}
 	}
 
-	err = ctw.Close()
+	err = tarWriter.Close()
 	if err != nil {
 		logger.Error("Failed exporting instance", ctxMap)
 		return err
