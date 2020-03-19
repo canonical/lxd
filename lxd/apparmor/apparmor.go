@@ -53,6 +53,10 @@ const profileBase = `
   # Handle cgroupfs
   mount options=(ro, nosuid, nodev, noexec, remount, strictatime) -> /sys/fs/cgroup/,
 
+  # Handle configfs
+  mount fstype=configfs -> /sys/kernel/config/,
+  deny /sys/kernel/config/{,**} rwklx,
+
   # Handle debugfs
   mount fstype=debugfs -> /sys/kernel/debug/,
   deny /sys/kernel/debug/{,**} rwklx,
@@ -60,6 +64,10 @@ const profileBase = `
   # Handle efivarfs
   mount fstype=efivarfs -> /sys/firmware/efi/efivars/,
   deny /sys/firmware/efi/efivars/{,**} rwklx,
+
+  # Handle tracefs
+  mount fstype=tracefs -> /sys/kernel/tracing/,
+  deny /sys/kernel/tracing/{,**} rwklx,
 
   # Handle fuse
   mount fstype=fuse,
