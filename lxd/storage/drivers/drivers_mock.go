@@ -6,6 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instancewriter"
 )
 
 type mock struct {
@@ -163,7 +164,7 @@ func (d *mock) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *mock) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+func (d *mock) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	return nil
 }
 
