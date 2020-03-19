@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instancewriter"
 )
 
 // Pool represents a LXD storage pool.
@@ -42,7 +43,7 @@ type Pool interface {
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error
-	BackupInstance(inst instance.Instance, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error
+	BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
 
 	GetInstanceUsage(inst instance.Instance) (int64, error)
 	SetInstanceQuota(inst instance.Instance, size string, op *operations.Operation) error
