@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"context"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -18,34 +20,48 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instance.Instance) error {
+	logger := logging.AddContext(logger.Log, log.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
+	logger.Debug("Instance backup started")
+	defer logger.Debug("Instance backup finished")
+
+	if sourceInst.Type() != instancetype.Container {
+		return fmt.Errorf("Instance type must be container")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Get storage pool.
+	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
+	if err != nil {
+		return errors.Wrap(err, "Load instance storage pool")
+	}
+
 	// Create the database entry.
-	err := s.Cluster.ContainerBackupCreate(args)
+	err = s.Cluster.InstanceBackupCreate(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
-			return fmt.Errorf("backup '%s' already exists", args.Name)
+			return fmt.Errorf("Backup %q already exists", args.Name)
 		}
 
 		return errors.Wrap(err, "Insert backup info into database")
 	}
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-		s.Cluster.ContainerBackupRemove(args.Name)
-	}()
+	revert.Add(func() { s.Cluster.InstanceBackupRemove(args.Name) })
 
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
@@ -53,122 +69,9 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 		return errors.Wrap(err, "Load backup object")
 	}
 
-	b.SetCompressionAlgorithm(args.CompressionAlgorithm)
-
-	// Create a temporary path for the backup.
-	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpPath)
-
-	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
-	if err != nil {
-		return errors.Wrap(err, "Load instance storage pool")
-	}
-
-	err = pool.BackupInstance(sourceInst, tmpPath, b.OptimizedStorage(), !b.InstanceOnly(), nil)
-	if err != nil {
-		return errors.Wrap(err, "Backup create")
-	}
-
-	// Pack the backup.
-	err = backupCreateTarball(s, tmpPath, *b, sourceInst)
-	if err != nil {
-		return err
-	}
-
-	revert = false
-	return nil
-}
-
-func backupCreateTarball(s *state.State, path string, b backup.Backup, c instance.Instance) error {
-	// Create the index
-	poolName, err := c.StoragePool()
-	if err != nil {
-		return err
-	}
-
-	if c.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
-	}
-
-	indexFile := backup.Info{
-		Name:       c.Name(),
-		Privileged: c.IsPrivileged(),
-		Pool:       poolName,
-		Snapshots:  []string{},
-	}
-
-	pool, err := storagePools.GetPoolByInstance(s, c)
-	if err != nil {
-		return err
-	}
-
-	info := pool.Driver().Info()
-	indexFile.Backend = info.Name
-
-	if !b.InstanceOnly() {
-		snaps, err := c.Snapshots()
-		if err != nil {
-			return err
-		}
-
-		for _, snap := range snaps {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
-			indexFile.Snapshots = append(indexFile.Snapshots, snapName)
-		}
-	}
-
-	data, err := yaml.Marshal(&indexFile)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.Create(filepath.Join(path, "index.yaml"))
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(data)
-	file.Close()
-	if err != nil {
-		return err
-	}
-
-	// Create the target path if needed
-	backupsPath := shared.VarPath("backups", project.Instance(c.Project(), c.Name()))
-	if !shared.PathExists(backupsPath) {
-		err := os.MkdirAll(backupsPath, 0700)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Create the tarball
-	backupPath := shared.VarPath("backups", project.Instance(c.Project(), b.Name()))
-	success := false
-	defer func() {
-		if success {
-			return
-		}
-
-		os.RemoveAll(backupPath)
-	}()
-
-	args := []string{"-cf", backupPath, "--numeric-owner", "--xattrs", "-C", path, "--transform", "s,^./,backup/,S", "."}
-	_, err = shared.RunCommand("tar", args...)
-	if err != nil {
-		return err
-	}
-
-	err = os.RemoveAll(path)
-	if err != nil {
-		return err
-	}
-
+	// Detect compression method.
 	var compress string
-
+	b.SetCompressionAlgorithm(args.CompressionAlgorithm)
 	if b.CompressionAlgorithm() != "" {
 		compress = b.CompressionAlgorithm()
 	} else {
@@ -178,45 +81,145 @@ func backupCreateTarball(s *state.State, path string, b backup.Backup, c instanc
 		}
 	}
 
-	if compress != "none" {
-		infile, err := os.Open(backupPath)
-		if err != nil {
-			return err
-		}
-		defer infile.Close()
-
-		compressed, err := os.Create(backupPath + ".compressed")
-		if err != nil {
-			return err
-		}
-		compressedName := compressed.Name()
-
-		defer compressed.Close()
-		defer os.Remove(compressedName)
-
-		err = compressFile(compress, infile, compressed)
+	// Create the target path if needed.
+	backupsPath := shared.VarPath("backups", project.Instance(sourceInst.Project(), sourceInst.Name()))
+	if !shared.PathExists(backupsPath) {
+		err := os.MkdirAll(backupsPath, 0700)
 		if err != nil {
 			return err
 		}
 
-		err = os.Remove(backupPath)
-		if err != nil {
-			return err
-		}
+		revert.Add(func() { os.Remove(backupsPath) })
+	}
 
-		err = os.Rename(compressedName, backupPath)
+	target := shared.VarPath("backups", project.Instance(sourceInst.Project(), b.Name()))
+
+	// Create temp dir for storing transient files that will be removed at end.
+	tmpDirPath := fmt.Sprintf("%s_tmp", target)
+	logger.Debug("Creating temporary backup directory", log.Ctx{"path": tmpDirPath})
+	err = os.Mkdir(tmpDirPath, 0700)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDirPath)
+
+	// Setup the tarball writer.
+	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
+	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Error opening backup tarball for writing %q", target)
+	}
+	defer tarFileWriter.Close()
+	revert.Add(func() { os.Remove(target) })
+
+	// Get IDMap to unshift container as the tarball is created.
+	var idmap *idmap.IdmapSet
+	if sourceInst.Type() == instancetype.Container {
+		c := sourceInst.(instance.Container)
+		idmap, err = c.DiskIdmap()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Error getting container IDMAP")
 		}
 	}
 
-	// Set permissions
-	err = os.Chmod(backupPath, 0600)
+	// Create the tarball.
+	tarPipeReader, tarPipeWriter := io.Pipe()
+	defer tarPipeWriter.Close() // Ensure that go routine below always ends.
+	tarWriter := instancewriter.NewInstanceTarWriter(tarPipeWriter, idmap)
+
+	// Setup tar writer go routine, with optional compression.
+	tarWriterRes := make(chan error, 0)
+	go func(resCh chan<- error) {
+		logger.Debug("Started backup tarball writer")
+		defer logger.Debug("Finished backup tarball writer")
+		if compress != "none" {
+			err = compressFile(compress, tarPipeReader, tarFileWriter)
+		} else {
+			_, err = io.Copy(tarFileWriter, tarPipeReader)
+		}
+		resCh <- err
+	}(tarWriterRes)
+
+	// Write index file.
+	indexFile := filepath.Join(tmpDirPath, "index.yaml")
+	logger.Debug("Adding backup index file", log.Ctx{"path": indexFile})
+	err = backupWriteIndex(sourceInst, pool, b.InstanceOnly(), indexFile, tarWriter)
+	if err != nil {
+		return errors.Wrapf(err, "Error writing backup index file")
+	}
+
+	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), nil)
+	if err != nil {
+		return errors.Wrap(err, "Backup create")
+	}
+
+	// Close off the tarball file.
+	err = tarWriter.Close()
+	if err != nil {
+		return errors.Wrap(err, "Error closing tarball writer")
+	}
+
+	// Close off the tarball pipe writer (this will end the go routine above).
+	err = tarPipeWriter.Close()
+	if err != nil {
+		return errors.Wrap(err, "Error closing tarball pipe writer")
+	}
+
+	err = <-tarWriterRes
+	if err != nil {
+		return errors.Wrap(err, "Error writing tarball")
+	}
+
+	revert.Success()
+	return nil
+}
+
+// backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
+func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, instanceOnly bool, indexFile string, tarWriter *instancewriter.InstanceTarWriter) error {
+	indexInfo := backup.Info{
+		Name:       sourceInst.Name(),
+		Privileged: sourceInst.IsPrivileged(),
+		Pool:       pool.Name(),
+		Snapshots:  []string{},
+		Backend:    pool.Driver().Info().Name,
+	}
+
+	if !instanceOnly {
+		snaps, err := sourceInst.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snaps {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+			indexInfo.Snapshots = append(indexInfo.Snapshots, snapName)
+		}
+	}
+
+	// Convert to JSON.
+	indexData, err := yaml.Marshal(&indexInfo)
 	if err != nil {
 		return err
 	}
 
-	success = true
+	// Write index JSON to file.
+	err = ioutil.WriteFile(indexFile, indexData, 0644)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(indexFile)
+
+	indexFileInfo, err := os.Lstat(indexFile)
+	if err != nil {
+		return err
+	}
+
+	// Write to tarball.
+	err = tarWriter.WriteFile("backup/index.yaml", indexFile, indexFileInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

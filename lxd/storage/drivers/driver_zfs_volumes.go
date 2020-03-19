@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
@@ -1144,14 +1145,14 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 }
 
 // BackupVolume creates an exported version of a volume.
-func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
+func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
 	// Handle the non-optimized tarballs through the generic packer.
 	if !optimized {
-		return genericVFSBackupVolume(d, vol, targetPath, snapshots, op)
+		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
 	// Handle the optimized tarballs.
-	sendToFile := func(path string, parent string, file string) error {
+	sendToFile := func(path string, parent string, fileName string) error {
 		// Prepare zfs send arguments.
 		args := []string{"send"}
 		if parent != "" {
@@ -1159,39 +1160,45 @@ func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapsh
 		}
 		args = append(args, path)
 
-		// Create the file.
-		fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0644)
+		// Create temporary file to store output of btrfs send.
+		backupsPath := shared.VarPath("backups")
+		tmpFile, err := ioutil.TempFile(backupsPath, "lxd_backup_zfs")
 		if err != nil {
-			return errors.Wrapf(err, "Failed to open '%s'", file)
+			return errors.Wrapf(err, "Failed to open temporary file for ZFS backup")
 		}
-		defer fd.Close()
+		defer tmpFile.Close()
+		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		err = shared.RunCommandWithFds(nil, fd, "zfs", args...)
+		d.logger.Debug("Generating optimized volume file", log.Ctx{"src": path, "file": tmpFile.Name()})
+
+		// Write the subvolume to the file.
+		err = shared.RunCommandWithFds(nil, tmpFile, "zfs", args...)
 		if err != nil {
 			return err
 		}
 
-		return nil
+		// Get info (importantly size) of the generated file for tarball header.
+		tmpFileInfo, err := os.Lstat(tmpFile.Name())
+		if err != nil {
+			return err
+		}
+
+		err = tarWriter.WriteFile(fileName, tmpFile.Name(), tmpFileInfo)
+		if err != nil {
+			return err
+		}
+
+		return tmpFile.Close()
 	}
 
 	// Handle snapshots.
 	finalParent := ""
 	if snapshots {
-		snapshotsPath := fmt.Sprintf("%s/snapshots", targetPath)
-
 		// Retrieve the snapshots.
 		volSnapshots, err := d.VolumeSnapshots(vol, op)
 		if err != nil {
 			return err
-		}
-
-		// Create the snapshot path.
-		if len(volSnapshots) > 0 {
-			err = os.MkdirAll(snapshotsPath, 0711)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
-			}
 		}
 
 		for i, snapName := range volSnapshots {
@@ -1205,7 +1212,7 @@ func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapsh
 			}
 
 			// Make a binary zfs backup.
-			target := fmt.Sprintf("%s/%s.bin", snapshotsPath, snapName)
+			target := fmt.Sprintf("backup/snapshots/%s.bin", snapName)
 
 			err := sendToFile(d.dataset(snapshot, false), parent, target)
 			if err != nil {
@@ -1225,8 +1232,7 @@ func (d *zfs) BackupVolume(vol Volume, targetPath string, optimized bool, snapsh
 	defer shared.RunCommand("zfs", "destroy", srcSnapshot)
 
 	// Dump the container to a file.
-	fsDump := fmt.Sprintf("%s/container.bin", targetPath)
-	err = sendToFile(srcSnapshot, finalParent, fsDump)
+	err = sendToFile(srcSnapshot, finalParent, "backup/container.bin")
 	if err != nil {
 		return err
 	}

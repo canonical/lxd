@@ -1212,8 +1212,8 @@ WHERE projects.name=? AND instances.name=?`
 	return result, nil
 }
 
-// ContainerBackupCreate creates a new backup
-func (c *Cluster) ContainerBackupCreate(args InstanceBackupArgs) error {
+// InstanceBackupCreate creates a new backup.
+func (c *Cluster) InstanceBackupCreate(args InstanceBackupArgs) error {
 	_, err := c.ContainerBackupID(args.Name)
 	if err == nil {
 		return ErrAlreadyDefined
@@ -1245,7 +1245,7 @@ func (c *Cluster) ContainerBackupCreate(args InstanceBackupArgs) error {
 
 		_, err = result.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("Error inserting %s into database", args.Name)
+			return fmt.Errorf("Error inserting %q into database", args.Name)
 		}
 
 		return nil
@@ -1254,9 +1254,8 @@ func (c *Cluster) ContainerBackupCreate(args InstanceBackupArgs) error {
 	return err
 }
 
-// ContainerBackupRemove removes the container backup with the given name from
-// the database.
-func (c *Cluster) ContainerBackupRemove(name string) error {
+// InstanceBackupRemove removes the container backup with the given name from the database.
+func (c *Cluster) InstanceBackupRemove(name string) error {
 	id, err := c.ContainerBackupID(name)
 	if err != nil {
 		return err

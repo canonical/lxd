@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -274,16 +276,48 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 }
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
-func genericVFSBackupVolume(d Driver, vol Volume, targetPath string, snapshots bool, op *operations.Operation) error {
-	bwlimit := d.Config()["rsync.bwlimit"]
-
+func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.InstanceTarWriter, snapshots bool, op *operations.Operation) error {
 	// Backups only implemented for containers currently.
 	if vol.volType != VolumeTypeContainer {
 		return ErrNotImplemented
 	}
+
+	// Define a function that can copy a volume into the backup target location.
+	backupVolume := func(v Volume, prefix string) error {
+		return v.MountTask(func(mountPath string, op *operations.Operation) error {
+			// Reset hard link cache as we are copying a new volume (instance or snapshot).
+			tarWriter.ResetHardLinkMap()
+
+			writeToTar := func(srcPath string, fi os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+
+				name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
+				err = tarWriter.WriteFile(name, srcPath, fi)
+				if err != nil {
+					return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+				}
+
+				return nil
+			}
+
+			d.Logger().Debug("Copying container filesystem volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+			err := filepath.Walk(mountPath, writeToTar)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, op)
+	}
+
 	// Handle snapshots.
 	if snapshots {
-		snapshotsPath := filepath.Join(targetPath, "snapshots")
+		snapshotsPrefix := "backup/snapshots"
+		if vol.IsVMBlock() {
+			snapshotsPrefix = "backup/virtual-machine-snapshots"
+		}
 
 		// List the snapshots.
 		snapshots, err := vol.Snapshots(op)
@@ -291,43 +325,23 @@ func genericVFSBackupVolume(d Driver, vol Volume, targetPath string, snapshots b
 			return err
 		}
 
-		// Create the snapshot path.
-		if len(snapshots) > 0 {
-			err = os.MkdirAll(snapshotsPath, 0711)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
-			}
-		}
-
 		for _, snapshot := range snapshots {
 			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name())
-			target := filepath.Join(snapshotsPath, snapName)
-
-			// Copy the snapshot.
-			err = snapshot.MountTask(func(mountPath string, op *operations.Operation) error {
-				_, err := rsync.LocalCopy(mountPath, target, bwlimit, true)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			}, op)
+			prefix := filepath.Join(snapshotsPrefix, snapName)
+			err := backupVolume(snapshot, prefix)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	// Copy the parent volume itself.
-	target := filepath.Join(targetPath, "container")
-	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
-		_, err := rsync.LocalCopy(mountPath, target, bwlimit, true)
-		if err != nil {
-			return err
-		}
+	// Copy the main volume itself.
+	prefix := "backup/container"
+	if vol.IsVMBlock() {
+		prefix = "backup/virtual-machine"
+	}
 
-		return nil
-	}, op)
+	err := backupVolume(vol, prefix)
 	if err != nil {
 		return err
 	}

@@ -137,7 +137,6 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		if err != nil {
 			return err
 		}
-
 	} else {
 		args := []string{"-c"}
 		if shared.StringInSlice(compress, reproducible) {
@@ -147,7 +146,10 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 		cmd := exec.Command(compress, args...)
 		cmd.Stdin = infile
 		cmd.Stdout = outfile
-		cmd.Run()
+		err := cmd.Run()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
