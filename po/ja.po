@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-17 12:09-0400\n"
-"PO-Revision-Date: 2020-03-05 09:37+0000\n"
+"POT-Creation-Date: 2020-03-06 14:23+0000\n"
+"PO-Revision-Date: 2020-03-12 15:28+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
-"containers/lxd/ja/>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/"
+"linux-containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -2905,9 +2905,8 @@ msgid "STORAGE POOL"
 msgstr "STORAGE POOL"
 
 #: lxc/project.go:457
-#, fuzzy
 msgid "STORAGE VOLUMES"
-msgstr "STORAGE POOL"
+msgstr "STORAGE VOLUMES"
 
 #: lxc/query.go:30 lxc/query.go:31
 msgid "Send a raw query to LXD"
