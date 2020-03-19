@@ -2997,7 +2997,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 			return err
 		}
 
-		err = tarWriter.WriteFile(offset, path, fi)
+		err = tarWriter.WriteFile(path[offset:], path, fi)
 		if err != nil {
 			logger.Debugf("Error tarring up %s: %s", path, err)
 			return err
@@ -3072,7 +3072,7 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		}
 
 		tmpOffset := len(filepath.Dir(fnam)) + 1
-		if err := tarWriter.WriteFile(tmpOffset, fnam, fi); err != nil {
+		if err := tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi); err != nil {
 			tarWriter.Close()
 			logger.Error("Failed exporting instance", ctxMap)
 			return err
@@ -3133,9 +3133,9 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 
 		if properties != nil {
 			tmpOffset := len(filepath.Dir(fnam)) + 1
-			err = tarWriter.WriteFile(tmpOffset, fnam, fi)
+			err = tarWriter.WriteFile(fnam[tmpOffset:], fnam, fi)
 		} else {
-			err = tarWriter.WriteFile(offset, fnam, fi)
+			err = tarWriter.WriteFile(fnam[offset:], fnam, fi)
 		}
 		if err != nil {
 			tarWriter.Close()
@@ -3174,7 +3174,8 @@ func (vm *qemu) Export(w io.Writer, properties map[string]string) error {
 		return err
 	}
 
-	err = tarWriter.WriteFile(len(tmpPath)+1, fPath, fi)
+	imgOffset := len(tmpPath) + 1
+	err = tarWriter.WriteFile(fPath[imgOffset:], fPath, fi)
 	if err != nil {
 		return err
 	}
