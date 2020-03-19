@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -438,35 +439,97 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
 func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.InstanceTarWriter, snapshots bool, op *operations.Operation) error {
-	// Backups only implemented for containers currently.
-	if vol.volType != VolumeTypeContainer {
-		return ErrNotImplemented
-	}
-
 	// Define a function that can copy a volume into the backup target location.
 	backupVolume := func(v Volume, prefix string) error {
 		return v.MountTask(func(mountPath string, op *operations.Operation) error {
 			// Reset hard link cache as we are copying a new volume (instance or snapshot).
 			tarWriter.ResetHardLinkMap()
 
-			writeToTar := func(srcPath string, fi os.FileInfo, err error) error {
+			if v.IsVMBlock() {
+				blockPath, err := d.GetVolumeDiskPath(v)
+				if err != nil {
+					return errors.Wrapf(err, "Error getting VM block volume disk path")
+				}
+
+				var blockDiskSize int64
+				var exclude []string
+
+				if shared.IsBlockdevPath(blockPath) {
+					// Get size of disk block device for tarball header.
+					blockDiskSize, err = blockDevSizeBytes(blockPath)
+					if err != nil {
+						return errors.Wrapf(err, "Error getting block device size %q", blockPath)
+					}
+				} else {
+					// Get size of disk image file for tarball header.
+					fi, err := os.Lstat(blockPath)
+					if err != nil {
+						return errors.Wrapf(err, "Error getting block file size %q", blockPath)
+					}
+					blockDiskSize = fi.Size()
+
+					// Exclude the VM root disk path from the config volume backup part.
+					// We will read it as a block device later instead.
+					exclude = append(exclude, blockPath)
+				}
+
+				d.Logger().Debug("Copying virtual machine config volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+				err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+
+					// Skip any exluded files.
+					if shared.StringInSlice(srcPath, exclude) {
+						return nil
+					}
+
+					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
+					err = tarWriter.WriteFile(name, srcPath, fi)
+					if err != nil {
+						return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+					}
+
+					return nil
+				})
 				if err != nil {
 					return err
 				}
 
-				name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
-				err = tarWriter.WriteFile(name, srcPath, fi)
+				name := fmt.Sprintf("%s.img", prefix)
+				d.Logger().Debug("Copying virtual machine block volume", log.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
+				from, err := os.Open(blockPath)
 				if err != nil {
-					return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+					return errors.Wrapf(err, "Error opening file for reading %q", blockPath)
+				}
+				defer from.Close()
+
+				fi := instancewriter.FileInfo{
+					FileName:    name,
+					FileSize:    blockDiskSize,
+					FileMode:    0600,
+					FileModTime: time.Now(),
 				}
 
-				return nil
-			}
+				err = tarWriter.WriteFileFromReader(from, &fi)
+				if err != nil {
+					return errors.Wrapf(err, "Error copying %q as %q to tarball", blockPath, name)
+				}
+			} else {
+				d.Logger().Debug("Copying container filesystem volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+				return filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
 
-			d.Logger().Debug("Copying container filesystem volume", log.Ctx{"sourcePath": mountPath, "prefix": prefix})
-			err := filepath.Walk(mountPath, writeToTar)
-			if err != nil {
-				return err
+					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
+					err = tarWriter.WriteFile(name, srcPath, fi)
+					if err != nil {
+						return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+					}
+
+					return nil
+				})
 			}
 
 			return nil
