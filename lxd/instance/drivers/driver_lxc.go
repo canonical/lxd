@@ -815,8 +815,11 @@ func (c *lxc) initLXC(config bool) error {
 		"/sys/firmware/efi/efivars",
 		"/sys/fs/fuse/connections",
 		"/sys/fs/pstore",
+		"/sys/kernel/config",
 		"/sys/kernel/debug",
-		"/sys/kernel/security"}
+		"/sys/kernel/security",
+		"/sys/kernel/tracing",
+	}
 
 	if c.IsPrivileged() && !c.state.OS.RunningInUserNS {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional 0 0")
