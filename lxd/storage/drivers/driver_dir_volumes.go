@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
 )
 
@@ -303,8 +304,8 @@ func (d *dir) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 
 // BackupVolume copies a volume (and optionally its snapshots) to a specified target path.
 // This driver does not support optimized backups.
-func (d *dir) BackupVolume(vol Volume, targetPath string, optimized bool, snapshots bool, op *operations.Operation) error {
-	return genericVFSBackupVolume(d, vol, targetPath, snapshots, op)
+func (d *dir) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
+	return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 }
 
 // CreateVolumeSnapshot creates a snapshot of a volume.
