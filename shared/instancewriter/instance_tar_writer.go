@@ -103,7 +103,8 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 		}
 	}
 
-	if err := ctw.tarWriter.WriteHeader(hdr); err != nil {
+	err = ctw.tarWriter.WriteHeader(hdr)
+	if err != nil {
 		return errors.Wrap(err, "Failed to write tar header")
 	}
 
@@ -114,12 +115,30 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 		}
 		defer f.Close()
 
-		if _, err := io.Copy(ctw.tarWriter, f); err != nil {
+		_, err = io.Copy(ctw.tarWriter, f)
+		if err != nil {
 			return errors.Wrapf(err, "Failed to copy file content %q", srcPath)
 		}
 	}
 
 	return nil
+}
+
+// WriteFileFromReader streams a file into the tarball using the src reader.
+// A manually generated os.FileInfo should be supplied so that the tar header can be added before streaming starts.
+func (ctw *InstanceTarWriter) WriteFileFromReader(src io.Reader, fi os.FileInfo) error {
+	hdr, err := tar.FileInfoHeader(fi, "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to create tar info header")
+	}
+
+	err = ctw.tarWriter.WriteHeader(hdr)
+	if err != nil {
+		return errors.Wrap(err, "Failed to write tar header")
+	}
+
+	_, err = io.Copy(ctw.tarWriter, src)
+	return err
 }
 
 // Close finishes writing the tarball.
