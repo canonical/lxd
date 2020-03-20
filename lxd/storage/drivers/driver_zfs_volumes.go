@@ -1155,6 +1155,15 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
 	}
 
+	// Backup VM config volumes first.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		err := d.BackupVolume(fsVol, tarWriter, optimized, snapshots, op)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Handle the optimized tarballs.
 	sendToFile := func(path string, parent string, fileName string) error {
 		// Prepare zfs send arguments.
@@ -1174,7 +1183,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name()})
+		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
 
 		// Write the subvolume to the file.
 		err = shared.RunCommandWithFds(nil, tmpFile, "zfs", args...)
@@ -1216,8 +1225,16 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 			}
 
 			// Make a binary zfs backup.
-			target := fmt.Sprintf("backup/snapshots/%s.bin", snapName)
+			prefix := "snapshots"
+			fileName := fmt.Sprintf("%s.bin", snapName)
+			if vol.volType == VolumeTypeVM {
+				prefix = "virtual-machine-snapshots"
+				if vol.contentType == ContentTypeFS {
+					fileName = fmt.Sprintf("%s-config.bin", snapName)
+				}
+			}
 
+			target := fmt.Sprintf("backup/%s/%s", prefix, fileName)
 			err := sendToFile(d.dataset(snapshot, false), parent, target)
 			if err != nil {
 				return err
@@ -1236,7 +1253,16 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 	defer shared.RunCommand("zfs", "destroy", srcSnapshot)
 
 	// Dump the container to a file.
-	err = sendToFile(srcSnapshot, finalParent, "backup/container.bin")
+	fileName := "container.bin"
+	if vol.volType == VolumeTypeVM {
+		if vol.contentType == ContentTypeFS {
+			fileName = "virtual-machine-config.bin"
+		} else {
+			fileName = "virtual-machine.bin"
+		}
+	}
+
+	err = sendToFile(srcSnapshot, finalParent, fmt.Sprintf("backup/%s", fileName))
 	if err != nil {
 		return err
 	}
