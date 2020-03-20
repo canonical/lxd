@@ -1174,7 +1174,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"src": path, "file": tmpFile.Name()})
+		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name()})
 
 		// Write the subvolume to the file.
 		err = shared.RunCommandWithFds(nil, tmpFile, "zfs", args...)
