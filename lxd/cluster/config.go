@@ -64,6 +64,12 @@ func (c *Config) TrustPassword() string {
 	return c.m.GetString("core.trust_password")
 }
 
+// TrustCACertificates returns whether client certificates are checked
+// against a CA.
+func (c *Config) TrustCACertificates() bool {
+	return c.m.GetBool("core.trust_ca_certificates")
+}
+
 // CandidServer returns all the Candid settings needed to connect to a server.
 func (c *Config) CandidServer() (string, string, int64, string) {
 	return c.m.GetString("candid.api.url"),
@@ -244,6 +250,7 @@ var ConfigSchema = config.Schema{
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
 	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
+	"core.trust_ca_certificates":     {Type: config.Bool},
 	"candid.api.key":                 {},
 	"candid.api.url":                 {},
 	"candid.domains":                 {},

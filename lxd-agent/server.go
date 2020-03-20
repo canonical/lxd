@@ -112,7 +112,7 @@ func authenticate(r *http.Request, cert *x509.Certificate) bool {
 	clientCerts := map[string]x509.Certificate{"0": *cert}
 
 	for _, cert := range r.TLS.PeerCertificates {
-		trusted, _ := util.CheckTrustState(*cert, clientCerts)
+		trusted, _ := util.CheckTrustState(*cert, clientCerts, nil, false)
 		if trusted {
 			return true
 		}

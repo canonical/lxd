@@ -69,15 +69,30 @@ func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, 
 		}
 	}
 
+	crlFilename := filepath.Join(dir, "ca.crl")
+	var crl *pkix.CertificateList
+	if PathExists(crlFilename) {
+		data, err := ioutil.ReadFile(crlFilename)
+		if err != nil {
+			return nil, err
+		}
+
+		crl, err = x509.ParseCRL(data)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	info := &CertInfo{
 		keypair: keypair,
 		ca:      ca,
+		crl:     crl,
 	}
 	return info, nil
 }
 
 // CertInfo captures TLS certificate information about a certain public/private
-// keypair and an optional CA certificate.
+// keypair and an optional CA certificate and CRL.
 //
 // Given LXD's support for PKI setups, these two bits of information are
 // normally used and passed around together, so this structure helps with that
@@ -85,6 +100,7 @@ func KeyPairAndCA(dir, prefix string, kind CertKind, addHosts bool) (*CertInfo, 
 type CertInfo struct {
 	keypair tls.Certificate
 	ca      *x509.Certificate
+	crl     *pkix.CertificateList
 }
 
 // KeyPair returns the public/private key pair.
@@ -133,6 +149,11 @@ func (c *CertInfo) Fingerprint() string {
 		panic("invalid public key material")
 	}
 	return fingerprint
+}
+
+// CRL returns the certificate revocation list.
+func (c *CertInfo) CRL() *pkix.CertificateList {
+	return c.crl
 }
 
 // CertKind defines the kind of certificate to generate from scratch in

@@ -132,10 +132,36 @@ type ContextAwareRequest interface {
 // CheckTrustState checks whether the given client certificate is trusted
 // (i.e. it has a valid time span and it belongs to the given list of trusted
 // certificates).
-func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certificate) (bool, string) {
+func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certificate, certInfo *shared.CertInfo, trustCACertificates bool) (bool, string) {
 	// Extra validity check (should have been caught by TLS stack)
 	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
 		return false, ""
+	}
+
+	if certInfo != nil && trustCACertificates {
+		ca := certInfo.CA()
+
+		if ca != nil && cert.CheckSignatureFrom(ca) == nil {
+			trusted := true
+
+			// Check whether the certificate has been revoked.
+			crl := certInfo.CRL()
+
+			if crl != nil {
+				for _, revoked := range crl.TBSCertList.RevokedCertificates {
+					if cert.SerialNumber.Cmp(revoked.SerialNumber) == 0 {
+						// Instead of returning false, we set trusted to false, allowing the client
+						// to authenticate using the trust password.
+						trusted = false
+						break
+					}
+				}
+			}
+
+			if trusted {
+				return true, shared.CertFingerprint(&cert)
+			}
+		}
 	}
 
 	for k, v := range trustedCerts {
