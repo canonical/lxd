@@ -196,6 +196,7 @@ var APIExtensions = []string{
 	"projects_restrictions",
 	"custom_volume_snapshot_expiry",
 	"volume_snapshot_scheduling",
+	"trust_ca_certificates",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
