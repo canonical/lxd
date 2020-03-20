@@ -732,3 +732,22 @@ func ShiftZFSSkipper(dir string, absPath string, fi os.FileInfo) bool {
 
 	return false
 }
+
+// blockDevSizeBytes returns the size of a block device.
+func blockDevSizeBytes(blockDevPath string) (int64, error) {
+	// Attempt to open the device path.
+	f, err := os.Open(blockDevPath)
+	if err != nil {
+		return -1, err
+	}
+	defer f.Close()
+	fd := int(f.Fd())
+
+	// Retrieve the block size.
+	res, err := unix.IoctlGetInt(fd, unix.BLKGETSIZE64)
+	if err != nil {
+		return -1, err
+	}
+
+	return int64(res), nil
+}
