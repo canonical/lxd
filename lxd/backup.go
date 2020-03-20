@@ -1,11 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"time"
 
 	"context"
@@ -95,15 +94,6 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 
 	target := shared.VarPath("backups", project.Instance(sourceInst.Project(), b.Name()))
 
-	// Create temp dir for storing transient files that will be removed at end.
-	tmpDirPath := fmt.Sprintf("%s_tmp", target)
-	logger.Debug("Creating temporary backup directory", log.Ctx{"path": tmpDirPath})
-	err = os.Mkdir(tmpDirPath, 0700)
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDirPath)
-
 	// Setup the tarball writer.
 	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
 	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
@@ -142,9 +132,8 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	}(tarWriterRes)
 
 	// Write index file.
-	indexFile := filepath.Join(tmpDirPath, "index.yaml")
-	logger.Debug("Adding backup index file", log.Ctx{"path": indexFile})
-	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), indexFile, tarWriter)
+	logger.Debug("Adding backup index file")
+	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), tarWriter)
 	if err != nil {
 		return errors.Wrapf(err, "Error writing backup index file")
 	}
@@ -176,7 +165,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 }
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, indexFile string, tarWriter *instancewriter.InstanceTarWriter) error {
+func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, tarWriter *instancewriter.InstanceTarWriter) error {
 	indexInfo := backup.Info{
 		Name:             sourceInst.Name(),
 		Pool:             pool.Name(),
@@ -203,21 +192,17 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 	if err != nil {
 		return err
 	}
+	r := bytes.NewReader(indexData)
 
-	// Write index JSON to file.
-	err = ioutil.WriteFile(indexFile, indexData, 0644)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(indexFile)
-
-	indexFileInfo, err := os.Lstat(indexFile)
-	if err != nil {
-		return err
+	indexFileInfo := instancewriter.FileInfo{
+		FileName:    "backup/index.yaml",
+		FileSize:    int64(len(indexData)),
+		FileMode:    0644,
+		FileModTime: time.Now(),
 	}
 
 	// Write to tarball.
-	err = tarWriter.WriteFile("backup/index.yaml", indexFile, indexFileInfo)
+	err = tarWriter.WriteFileFromReader(r, &indexFileInfo)
 	if err != nil {
 		return err
 	}
