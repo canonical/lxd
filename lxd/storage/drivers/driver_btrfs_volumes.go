@@ -649,7 +649,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name()})
+		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
 		err = shared.RunCommandWithFds(nil, tmpFile, "btrfs", args...)
 		if err != nil {
 			return err
@@ -690,9 +690,17 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 			cur := GetVolumeMountPath(d.name, vol.volType, fullSnapshotName)
 
 			// Make a binary btrfs backup.
-			name := fmt.Sprintf("backup/snapshots/%s.bin", snap)
+			prefix := "snapshots"
+			fileName := fmt.Sprintf("%s.bin", snap)
+			if vol.volType == VolumeTypeVM {
+				prefix = "virtual-machine-snapshots"
+				if vol.contentType == ContentTypeFS {
+					fileName = fmt.Sprintf("%s-config.bin", snap)
+				}
+			}
 
-			err := sendToFile(cur, parent, name)
+			target := fmt.Sprintf("backup/%s/%s", prefix, fileName)
+			err := sendToFile(cur, parent, target)
 			if err != nil {
 				return err
 			}
@@ -725,7 +733,17 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 	defer d.deleteSubvolume(targetVolume, true)
 
 	// Dump the container to a file.
-	err = sendToFile(targetVolume, finalParent, "backup/container.bin")
+	fileName := "container.bin"
+	if vol.volType == VolumeTypeVM {
+		if vol.contentType == ContentTypeFS {
+			fileName = "virtual-machine-config.bin"
+		} else {
+			fileName = "virtual-machine.bin"
+		}
+	}
+
+	// Dump the container to a file.
+	err = sendToFile(targetVolume, finalParent, fmt.Sprintf("backup/%s", fileName))
 	if err != nil {
 		return err
 	}
