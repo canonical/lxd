@@ -501,7 +501,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 	// Modify the limit.
 	if sizeBytes > 0 {
 		// Apply the limit.
-		_, err := shared.RunCommand("btrfs", "qgroup", "limit", "-e", fmt.Sprintf("%d", sizeBytes), volPath)
+		_, err := shared.RunCommand("btrfs", "qgroup", "limit", fmt.Sprintf("%d", sizeBytes), volPath)
 		if err != nil {
 			return err
 		}
