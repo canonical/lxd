@@ -177,11 +177,10 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
 func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, instanceOnly bool, indexFile string, tarWriter *instancewriter.InstanceTarWriter) error {
 	indexInfo := backup.Info{
-		Name:       sourceInst.Name(),
-		Privileged: sourceInst.IsPrivileged(),
-		Pool:       pool.Name(),
-		Snapshots:  []string{},
-		Backend:    pool.Driver().Info().Name,
+		Name:      sourceInst.Name(),
+		Pool:      pool.Name(),
+		Snapshots: []string{},
+		Backend:   pool.Driver().Info().Name,
 	}
 
 	if !instanceOnly {

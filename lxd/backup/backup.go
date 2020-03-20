@@ -29,7 +29,6 @@ type Info struct {
 	Project          string   `json:"project" yaml:"project"`
 	Name             string   `json:"name" yaml:"name"`
 	Backend          string   `json:"backend" yaml:"backend"`
-	Privileged       bool     `json:"privileged" yaml:"privileged"`
 	Pool             string   `json:"pool" yaml:"pool"`
 	Snapshots        []string `json:"snapshots,omitempty" yaml:"snapshots,omitempty"`
 	OptimizedStorage bool     `json:"-" yaml:"-"`
