@@ -49,6 +49,9 @@ type InstanceSnapshot struct {
 	LastUsedAt      time.Time                    `json:"last_used_at" yaml:"last_used_at"`
 	Name            string                       `json:"name" yaml:"name"`
 	Stateful        bool                         `json:"stateful" yaml:"stateful"`
+
+	// API extension: snapshot_disk_usage
+	Size int64 `json:"size" yaml:"size"`
 }
 
 // Writable converts a full InstanceSnapshot struct into a InstanceSnapshotPut struct
