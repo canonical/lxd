@@ -649,7 +649,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"src": path, "file": tmpFile.Name()})
+		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name()})
 		err = shared.RunCommandWithFds(nil, tmpFile, "btrfs", args...)
 		if err != nil {
 			return err
