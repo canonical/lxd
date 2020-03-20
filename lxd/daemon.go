@@ -255,7 +255,7 @@ func (d *Daemon) Authenticate(r *http.Request) (bool, string, string, error) {
 		cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
 		clusterCerts := map[string]x509.Certificate{"0": *cert}
 		for i := range r.TLS.PeerCertificates {
-			trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts)
+			trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts, nil, false)
 			if trusted {
 				return true, "", "cluster", nil
 			}
@@ -308,8 +308,15 @@ func (d *Daemon) Authenticate(r *http.Request) (bool, string, string, error) {
 	}
 
 	// Validate normal TLS access
+	var err error
+
+	trustCACertificates, err := cluster.ConfigGetBool(d.cluster, "core.trust_ca_certificates")
+	if err != nil {
+		return false, "", "", err
+	}
+
 	for i := range r.TLS.PeerCertificates {
-		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts)
+		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts, d.endpoints.NetworkCert(), trustCACertificates)
 		if trusted {
 			return true, username, "tls", nil
 		}
@@ -904,7 +911,6 @@ func (d *Daemon) init() error {
 		candidAPIURL, candidAPIKey, candidExpiry, candidDomains = config.CandidServer()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
-
 		return nil
 	})
 	if err != nil {
