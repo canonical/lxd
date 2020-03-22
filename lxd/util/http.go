@@ -64,6 +64,8 @@ func EtagCheck(r *http.Request, data interface{}) error {
 		return nil
 	}
 
+	match = strings.Trim(match, "\"")
+
 	hash, err := EtagHash(data)
 	if err != nil {
 		return err
