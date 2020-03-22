@@ -74,7 +74,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	if r.etag != nil {
 		etag, err := util.EtagHash(r.etag)
 		if err == nil {
-			w.Header().Set("ETag", etag)
+			w.Header().Set("ETag", fmt.Sprintf("\"%s\"", etag))
 		}
 	}
 
