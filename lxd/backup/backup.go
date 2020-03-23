@@ -27,7 +27,7 @@ type Instance interface {
 
 // Info represents exported backup information.
 type Info struct {
-	Project          string           `json:"project" yaml:"project"`
+	Project          string           `json:"-" yaml:"-"` // Project is set during import based on current project.
 	Name             string           `json:"name" yaml:"name"`
 	Backend          string           `json:"backend" yaml:"backend"`
 	Pool             string           `json:"pool" yaml:"pool"`
