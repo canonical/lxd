@@ -3033,6 +3033,14 @@ func (c *lxc) Render() (interface{}, interface{}, error) {
 		ct.Profiles = c.profiles
 		ct.ExpiresAt = c.expiryDate
 
+		pool, err := storagePools.GetPoolByInstance(c.state, c)
+		if err == nil {
+			pool.MountInstanceSnapshot(c, nil)
+			defer pool.UnmountInstanceSnapshot(c, nil)
+
+			ct.Size, _ = pool.GetInstanceUsage(c)
+		}
+
 		return &ct, etag, nil
 	}
 
