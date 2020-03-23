@@ -850,6 +850,36 @@ test_storage() {
     lxc delete -f quota3
   fi
 
+  if [ "${lxd_backend}" = "btrfs" ]; then
+    # shellcheck disable=SC2031
+    pool_name="lxdtest-$(basename "${LXD_DIR}")-quota"
+
+    # shellcheck disable=SC1009
+    lxc storage create "${pool_name}" btrfs
+
+    # Import image into default storage pool.
+    ensure_import_testimage
+
+    # Launch container.
+    lxc launch -s "${pool_name}" testimage c1
+
+    # Disable quotas. The usage should be 0.
+    # shellcheck disable=SC2031
+    btrfs quota disable "${LXD_DIR}/storage-pools/${pool_name}"
+    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')
+    [ "${usage}" -eq 0 ]
+
+    # Enable quotas. The usage should then be > 0.
+    # shellcheck disable=SC2031
+    btrfs quota enable "${LXD_DIR}/storage-pools/${pool_name}"
+    usage=$(lxc query /1.0/instances/c1/state | jq '.disk.root.usage')
+    [ "${usage}" -gt 0 ]
+
+    # Clean up everything.
+    lxc rm -f c1
+    lxc storage delete "${pool_name}"
+  fi
+
   # Test removing storage pools only containing image volumes
   # shellcheck disable=SC2031
   LXD_DIR="${LXD_DIR}"
