@@ -197,6 +197,7 @@ var APIExtensions = []string{
 	"custom_volume_snapshot_expiry",
 	"volume_snapshot_scheduling",
 	"trust_ca_certificates",
+	"snapshot_disk_usage",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
