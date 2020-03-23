@@ -194,7 +194,7 @@ func (d *btrfs) deleteSubvolume(path string, recursion bool) error {
 
 func (d *btrfs) getQGroup(path string) (string, int64, error) {
 	// Try to get the qgroup details.
-	output, err := shared.RunCommand("btrfs", "qgroup", "show", "-e", "-f", path)
+	output, err := shared.RunCommand("btrfs", "qgroup", "show", "-e", "-f", "--raw", path)
 	if err != nil {
 		return "", -1, errBtrfsNoQuota
 	}
