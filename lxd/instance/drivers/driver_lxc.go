@@ -5678,23 +5678,37 @@ func (c *lxc) diskState() map[string]api.InstanceStateDisk {
 			continue
 		}
 
-		if dev.Config["path"] != "/" {
-			continue
-		}
-
 		var usage int64
 
-		pool, err := storagePools.GetPoolByInstance(c.state, c)
-		if err != nil {
-			logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
-			continue
-		}
-
-		usage, err = pool.GetInstanceUsage(c)
-		if err != nil {
-			if err != storageDrivers.ErrNotSupported {
-				logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
+		if dev.Config["path"] == "/" {
+			pool, err := storagePools.GetPoolByInstance(c.state, c)
+			if err != nil {
+				logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
+				continue
 			}
+
+			usage, err = pool.GetInstanceUsage(c)
+			if err != nil {
+				if err != storageDrivers.ErrNotSupported {
+					logger.Error("Error getting disk usage", log.Ctx{"project": c.Project(), "instance": c.Name(), "err": err})
+				}
+				continue
+			}
+		} else if dev.Config["pool"] != "" {
+			pool, err := storagePools.GetPoolByName(c.state, dev.Config["pool"])
+			if err != nil {
+				logger.Error("Error loading storage pool", log.Ctx{"project": c.Project(), "poolName": dev.Config["pool"], "err": err})
+				continue
+			}
+
+			usage, err = pool.GetCustomVolumeUsage(c.Project(), dev.Config["source"])
+			if err != nil {
+				if err != storageDrivers.ErrNotSupported {
+					logger.Error("Error getting volume usage", log.Ctx{"project": c.Project(), "volume": dev.Config["source"], "err": err})
+				}
+				continue
+			}
+		} else {
 			continue
 		}
 
