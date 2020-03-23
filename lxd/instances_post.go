@@ -644,8 +644,17 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		defer backupFile.Close()
 		defer runRevert.Fail()
 
-		// Dump tarball to storage.
-		postHook, revertHook, err := instanceCreateFromBackup(d.State(), *bInfo, backupFile)
+		pool, err := storagePools.GetPoolByName(d.State(), bInfo.Pool)
+		if err != nil {
+			return err
+		}
+
+		// Dump tarball to storage. Because the backup file is unpacked and restored onto the storage
+		// device before the instance is created in the database it is necessary to return two functions;
+		// a post hook that can be run once the instance has been created in the database to run any
+		// storage layer finalisations, and a revert hook that can be run if the instance database load
+		// process fails that will remove anything created thus far.
+		postHook, revertHook, err := pool.CreateInstanceFromBackup(*bInfo, backupFile, nil)
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
