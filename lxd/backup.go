@@ -25,6 +25,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
@@ -143,7 +144,7 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	// Write index file.
 	indexFile := filepath.Join(tmpDirPath, "index.yaml")
 	logger.Debug("Adding backup index file", log.Ctx{"path": indexFile})
-	err = backupWriteIndex(sourceInst, pool, b.InstanceOnly(), indexFile, tarWriter)
+	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), indexFile, tarWriter)
 	if err != nil {
 		return errors.Wrapf(err, "Error writing backup index file")
 	}
@@ -175,16 +176,17 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 }
 
 // backupWriteIndex generates an index.yaml file and then writes it to the root of the backup tarball.
-func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, instanceOnly bool, indexFile string, tarWriter *instancewriter.InstanceTarWriter) error {
+func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, optimized bool, snapshots bool, indexFile string, tarWriter *instancewriter.InstanceTarWriter) error {
 	indexInfo := backup.Info{
-		Name:       sourceInst.Name(),
-		Privileged: sourceInst.IsPrivileged(),
-		Pool:       pool.Name(),
-		Snapshots:  []string{},
-		Backend:    pool.Driver().Info().Name,
+		Name:             sourceInst.Name(),
+		Pool:             pool.Name(),
+		Snapshots:        []string{},
+		Backend:          pool.Driver().Info().Name,
+		Type:             api.InstanceType(sourceInst.Type().String()),
+		OptimizedStorage: &optimized,
 	}
 
-	if !instanceOnly {
+	if snapshots {
 		snaps, err := sourceInst.Snapshots()
 		if err != nil {
 			return err
