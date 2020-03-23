@@ -476,7 +476,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 // created in the database to run any storage layer finalisations, and a revert hook that can be
 // run if the instance database load process fails that will remove anything created thus far.
 func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": srcBackup.OptimizedStorage})
+	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	logger.Debug("CreateInstanceFromBackup started")
 	defer logger.Debug("CreateInstanceFromBackup finished")
 
@@ -492,7 +492,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	defer revert.Fail()
 
 	// Unpack the backup into the new storage volume(s).
-	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup.Snapshots, srcData, srcBackup.OptimizedStorage, op)
+	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup.Snapshots, srcData, *srcBackup.OptimizedStorage, op)
 	if err != nil {
 		return nil, nil, err
 	}
