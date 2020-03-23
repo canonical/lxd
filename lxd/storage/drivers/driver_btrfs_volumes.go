@@ -507,7 +507,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation
 		}
 	} else if qgroup != "" {
 		// Remove the limit.
-		_, err := shared.RunCommand("btrfs", "qgroup", "destroy", qgroup, volPath)
+		_, err := shared.RunCommand("btrfs", "qgroup", "limit", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
