@@ -710,7 +710,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 
 func containersPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
-	logger.Debugf("Responding to container create")
+	logger.Debugf("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
