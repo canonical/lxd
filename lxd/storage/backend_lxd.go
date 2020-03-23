@@ -483,10 +483,26 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// Get the volume name on storage.
 	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
 
-	// Currently there is no concept of instance type in backups, so we assume container.
+	// Get the instance type.
+	instanceType, err := instancetype.New(string(srcBackup.Type))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get the volume type.
+	volType, err := InstanceTypeToVolumeType(instanceType)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if volType == drivers.VolumeTypeVM {
+		contentType = drivers.ContentTypeBlock
+	}
+
 	// We don't know the volume's config yet as tarball hasn't been unpacked.
 	// We will apply the config as part of the post hook function returned if driver needs to.
-	vol := b.newVolume(drivers.VolumeTypeContainer, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(volType, contentType, volStorageName, nil)
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -501,23 +517,23 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		revert.Add(revertHook)
 	}
 
-	err = b.ensureInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name, vol.MountPath())
+	err = b.ensureInstanceSymlink(instanceType, srcBackup.Project, srcBackup.Name, vol.MountPath())
 	if err != nil {
 		return nil, nil, err
 	}
 
 	revert.Add(func() {
-		b.removeInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		b.removeInstanceSymlink(instanceType, srcBackup.Project, srcBackup.Name)
 	})
 
 	if len(srcBackup.Snapshots) > 0 {
-		err = b.ensureInstanceSnapshotSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		err = b.ensureInstanceSnapshotSymlink(instanceType, srcBackup.Project, srcBackup.Name)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		revert.Add(func() {
-			b.removeInstanceSnapshotSymlinkIfUnused(instancetype.Container, srcBackup.Project, srcBackup.Name)
+			b.removeInstanceSnapshotSymlinkIfUnused(instanceType, srcBackup.Project, srcBackup.Name)
 		})
 	}
 
