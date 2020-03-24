@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -578,12 +579,91 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 // created and a revert function that can be used to undo the actions this function performs should something
 // subsequently fail.
 func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+	// Define function to unpack a volume from a backup tarball file.
+	unpackVolume := func(r io.ReadSeeker, tarArgs []string, unpacker []string, srcPrefix string, mountPath string) error {
+		volTypeName := "container"
+		if vol.IsVMBlock() {
+			volTypeName = "virtual machine"
+		}
+
+		// Clear the volume ready for unpack.
+		err := wipeDirectory(mountPath)
+		if err != nil {
+			return errors.Wrapf(err, "Error clearing volume before unpack")
+		}
+
+		// Prepare tar arguments.
+		srcParts := strings.Split(srcPrefix, string(os.PathSeparator))
+		args := append(tarArgs, []string{
+			"-",
+			"--xattrs-include=*",
+			fmt.Sprintf("--strip-components=%d", len(srcParts)),
+			"-C", mountPath, srcPrefix,
+		}...)
+
+		// Extract filesystem volume.
+		d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath})
+		srcData.Seek(0, 0)
+		err = shared.RunCommandWithFds(r, nil, "tar", args...)
+		if err != nil {
+			return errors.Wrapf(err, "Error starting unpack")
+		}
+
+		// Extract block file to block volume if VM.
+		if vol.IsVMBlock() {
+			targetPath, err := d.GetVolumeDiskPath(vol)
+			if err != nil {
+				return err
+			}
+
+			srcFile := fmt.Sprintf("%s.img", srcPrefix)
+			d.Logger().Debug("Unpacking virtual machine block volume", log.Ctx{"source": srcFile, "target": targetPath})
+
+			tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+			if err != nil {
+				return err
+			}
+			defer cancelFunc()
+
+			for {
+				hdr, err := tr.Next()
+				if err == io.EOF {
+					break // End of archive
+				}
+				if err != nil {
+					return err
+				}
+
+				if hdr.Name == srcFile {
+					// Open block file (use O_CREATE to support drivers that use image files).
+					to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+					if err != nil {
+						return errors.Wrapf(err, "Error opening file for writing %q", targetPath)
+					}
+					defer to.Close()
+
+					_, err = io.Copy(to, tr)
+					if err != nil {
+						return err
+					}
+
+					cancelFunc()
+					return nil
+				}
+			}
+
+			return fmt.Errorf("Could not find %q", srcFile)
+		}
+
+		return nil
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Find the compression algorithm used for backup source data.
 	srcData.Seek(0, 0)
-	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
+	tarArgs, _, unpacker, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -607,25 +687,15 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 		}
 	}
 
+	backupSnapshotsPrefix := "backup/snapshots"
+	if vol.IsVMBlock() {
+		backupSnapshotsPrefix = "backup/virtual-machine-snapshots"
+	}
+
 	for _, snapName := range snapshots {
 		err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
-			// Prepare tar arguments.
-			args := append(tarArgs, []string{
-				"-",
-				"--recursive-unlink",
-				"--xattrs-include=*",
-				"--strip-components=3",
-				"-C", mountPath, fmt.Sprintf("backup/snapshots/%s", snapName),
-			}...)
-
-			// Extract snapshot.
-			srcData.Seek(0, 0)
-			err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			backupSnapshotPrefix := fmt.Sprintf("%s/%s", backupSnapshotsPrefix, snapName)
+			return unpackVolume(srcData, tarArgs, unpacker, backupSnapshotPrefix, mountPath)
 		}, op)
 		if err != nil {
 			return nil, nil, err
@@ -636,6 +706,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			return nil, nil, err
 		}
 
+		d.Logger().Debug("Creating volume snapshot", log.Ctx{"snapshotName": snapVol.Name()})
 		err = d.CreateVolumeSnapshot(snapVol, op)
 		if err != nil {
 			return nil, nil, err
@@ -660,18 +731,13 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 		return nil
 	}
 
-	// Prepare tar extraction arguments.
-	args := append(tarArgs, []string{
-		"-",
-		"--recursive-unlink",
-		"--strip-components=2",
-		"--xattrs-include=*",
-		"-C", vol.MountPath(), "backup/container",
-	}...)
+	backupPrefix := "backup/container"
+	if vol.IsVMBlock() {
+		backupPrefix = "backup/virtual-machine"
+	}
 
-	// Extract instance.
-	srcData.Seek(0, 0)
-	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+	mountPath := vol.MountPath()
+	err = unpackVolume(srcData, tarArgs, unpacker, backupPrefix, mountPath)
 	if err != nil {
 		return nil, nil, err
 	}
