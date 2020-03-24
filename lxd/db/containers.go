@@ -632,8 +632,8 @@ WHERE instances.id=?
 	return project, name, err
 }
 
-// ContainerID returns the ID of the container with the given name.
-func (c *Cluster) ContainerID(project, name string) (int, error) {
+// InstanceID returns the ID of the instance with the given name.
+func (c *Cluster) InstanceID(project, name string) (int, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
