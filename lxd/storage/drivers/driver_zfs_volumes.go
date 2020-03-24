@@ -191,7 +191,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimized bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !optimized {
-		return genericBackupUnpack(d, vol, snapshots, srcData, op)
+		return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
 	}
 
 	revert := revert.New()
@@ -502,7 +502,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_ZFS {
 		return ErrNotSupported
 	}
@@ -581,7 +581,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then

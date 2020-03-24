@@ -186,7 +186,7 @@ func (d *ceph) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Ope
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
 func (d *ceph) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
-	return genericBackupUnpack(d, vol, snapshots, srcData, op)
+	return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
@@ -376,7 +376,7 @@ func (d *ceph) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots boo
 func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volTargetArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volTargetArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
-		return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+		return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 	} else if volTargetArgs.MigrationType.FSType != migration.MigrationFSType_RBD {
 		return ErrNotSupported
 	}
@@ -473,7 +473,7 @@ func (d *ceph) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vo
 
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *ceph) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then

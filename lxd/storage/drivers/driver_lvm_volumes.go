@@ -104,7 +104,7 @@ func (d *lvm) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
 func (d *lvm) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.ReadSeeker, optimizedStorage bool, op *operations.Operation) (func(vol Volume) error, func(), error) {
-	return genericBackupUnpack(d, vol, snapshots, srcData, op)
+	return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
 }
 
 // CreateVolumeFromCopy provides same-pool volume copying functionality.
@@ -138,12 +138,12 @@ func (d *lvm) CreateVolumeFromCopy(vol, srcVol Volume, copySnapshots bool, op *o
 	}
 
 	// Otherwise run the generic copy.
-	return genericCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, op)
 }
 
 // CreateVolumeFromMigration creates a volume being sent via a migration.
 func (d *lvm) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, volTargetArgs migration.VolumeTargetArgs, preFiller *VolumeFiller, op *operations.Operation) error {
-	return genericCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
+	return genericVFSCreateVolumeFromMigration(d, nil, vol, conn, volTargetArgs, preFiller, op)
 }
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
@@ -154,7 +154,7 @@ func (d *lvm) RefreshVolume(vol, srcVol Volume, srcSnapshots []Volume, op *opera
 	}
 
 	// Otherwise run the generic copy.
-	return genericCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then this function
