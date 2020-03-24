@@ -1,15 +1,14 @@
 package backup
 
 import (
-	"archive/tar"
 	"context"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/project"
@@ -38,7 +37,6 @@ type Info struct {
 
 // GetInfo extracts backup information from a given ReadSeeker.
 func GetInfo(r io.ReadSeeker) (*Info, error) {
-	var tr *tar.Reader
 	result := Info{}
 	hasIndexFile := false
 
@@ -52,35 +50,16 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.Seek(0, 0)
 
 	if unpacker == nil {
 		return nil, fmt.Errorf("Unsupported backup compression")
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	if len(unpacker) > 0 {
-		cmd := exec.CommandContext(ctx, unpacker[0], unpacker[1:]...)
-		cmd.Stdin = r
-
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, err
-		}
-		defer stdout.Close()
-
-		err = cmd.Start()
-		if err != nil {
-			return nil, err
-		}
-		defer cmd.Wait()
-
-		tr = tar.NewReader(stdout)
-	} else {
-		tr = tar.NewReader(r)
+	tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+	if err != nil {
+		return nil, err
 	}
+	defer cancelFunc()
 
 	for {
 		hdr, err := tr.Next()
@@ -88,7 +67,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 			break // End of archive
 		}
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Error reading backup file info")
 		}
 
 		if hdr.Name == "backup/index.yaml" {
