@@ -586,6 +586,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 
 	// Parse the backup information.
 	backupFile.Seek(0, 0)
+	logger.Debug("Reading backup file info")
 	bInfo, err := backup.GetInfo(backupFile)
 	if err != nil {
 		backupFile.Close()
@@ -597,6 +598,16 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	if pool != "" {
 		bInfo.Pool = pool
 	}
+
+	logger.Debug("Backup file info loaded", log.Ctx{
+		"type":      bInfo.Type,
+		"name":      bInfo.Name,
+		"project":   bInfo.Project,
+		"backend":   bInfo.Backend,
+		"pool":      bInfo.Pool,
+		"optimized": *bInfo.OptimizedStorage,
+		"snapshots": bInfo.Snapshots,
+	})
 
 	// Check storage pool exists.
 	_, _, err = d.State().Cluster.StoragePoolGet(bInfo.Pool)
