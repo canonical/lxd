@@ -148,7 +148,7 @@ migration() {
   echo "after" | lxc file push - cccp/blah
 
   # Local container only copy.
-  lxc copy cccp udssr --container-only
+  lxc copy cccp udssr --instance-only
   [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
   [ "$(lxc file pull udssr/blah -)" = "after" ]
   lxc delete udssr
@@ -160,7 +160,7 @@ migration() {
   lxc delete udssr
 
   # Remote container only copy.
-  lxc_remote copy l1:cccp l2:udssr --container-only
+  lxc_remote copy l1:cccp l2:udssr --instance-only
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
   [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
   lxc_remote delete l2:udssr
@@ -172,7 +172,7 @@ migration() {
   lxc_remote delete l2:udssr
 
   # Remote container only move.
-  lxc_remote move l1:cccp l2:udssr --container-only --mode=relay
+  lxc_remote move l1:cccp l2:udssr --instance-only --mode=relay
   ! lxc_remote info l1:cccp || false
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
   lxc_remote delete l2:udssr
@@ -206,7 +206,7 @@ migration() {
     lxc snapshot cccp
 
     # Test container only copies when zfs.clone_copy is set to false.
-    lxc copy cccp udssr --container-only
+    lxc copy cccp udssr --instance-only
     [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
     lxc delete udssr
 
@@ -251,7 +251,7 @@ migration() {
 
   # Remove the testfile from c1 and refresh again
   lxc_remote file delete l1:c1/root/testfile1
-  lxc_remote copy l1:c1 l2:c2 --refresh --container-only
+  lxc_remote copy l1:c1 l2:c2 --refresh --instance-only
   lxc_remote start l2:c2
   ! lxc_remote file pull l2:c2/root/testfile1 . || false
   lxc_remote stop -f l2:c2

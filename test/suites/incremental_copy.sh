@@ -72,7 +72,7 @@ do_copy() {
   # Remove the testfile from c1 and refresh again
   lxc exec c1 -- rm /root/testfile1
   # shellcheck disable=2086
-  lxc copy c1 c2 --refresh --container-only ${pool}
+  lxc copy c1 c2 --refresh --instance-only ${pool}
   lxc start c2
   ! lxc exec c2 -- test -f /root/testfile1 || false
   lxc stop -f c2
