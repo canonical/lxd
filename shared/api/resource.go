@@ -12,6 +12,10 @@ type Resources struct {
 	// API extension: resources_v2
 	Network ResourcesNetwork `json:"network" yaml:"network"`
 	Storage ResourcesStorage `json:"storage" yaml:"storage"`
+
+	// API extension: resources_usb_pci
+	USB ResourcesUSB `json:"usb" yaml:"usb"`
+	PCI ResourcesPCI `json:"pci" yaml:"pci"`
 }
 
 // ResourcesCPU represents the cpu resources available on the system
@@ -293,4 +297,56 @@ type ResourcesStoragePoolSpace struct {
 type ResourcesStoragePoolInodes struct {
 	Used  uint64 `json:"used" yaml:"used"`
 	Total uint64 `json:"total" yaml:"total"`
+}
+
+// ResourcesUSB represents the USB devices available on the system
+// API extension: resources_usb_pci
+type ResourcesUSB struct {
+	Devices []ResourcesUSBDevice `json:"devices" yaml:"devices"`
+	Total   uint64               `json:"total" yaml:"total"`
+}
+
+// ResourcesUSBDevice represents a USB device
+// API extension: resources_usb_pci
+type ResourcesUSBDevice struct {
+	BusAddress    uint64                        `json:"bus_address" yaml:"bus_address"`
+	DeviceAddress uint64                        `json:"device_address" yaml:"device_address"`
+	Interfaces    []ResourcesUSBDeviceInterface `json:"interfaces" yaml:"interfaces"`
+	Product       string                        `json:"product" yaml:"product"`
+	ProductID     string                        `json:"product_id" yaml:"product_id"`
+	Speed         float64                       `json:"speed" yaml:"speed"`
+	Vendor        string                        `json:"vendor" yaml:"vendor"`
+	VendorID      string                        `json:"vendor_id" yaml:"vendor_id"`
+}
+
+// ResourcesUSBDeviceInterface represents a USB device interface
+// API extension: resources_usb_pci
+type ResourcesUSBDeviceInterface struct {
+	Class         string `json:"class" yaml:"class"`
+	ClassID       uint64 `json:"class_id" yaml:"class_id"`
+	Driver        string `json:"driver" yaml:"driver"`
+	DriverVersion string `json:"driver_version" yaml:"driver_version"`
+	Number        uint64 `json:"number" yaml:"number"`
+	SubClass      string `json:"subclass" yaml:"subclass"`
+	SubClassID    uint64 `json:"subclass_id" yaml:"subclass_id"`
+}
+
+// ResourcesPCI represents the PCI devices available on the system
+// API extension: resources_usb_pci
+type ResourcesPCI struct {
+	Devices []ResourcesPCIDevice `json:"devices" yaml:"devices"`
+	Total   uint64               `json:"total" yaml:"total"`
+}
+
+// ResourcesPCIDevice represents a PCI device
+// API extension: resources_usb_pci
+type ResourcesPCIDevice struct {
+	Driver        string `json:"driver" yaml:"driver"`
+	DriverVersion string `json:"driver_version" yaml:"driver_version"`
+	NUMANode      uint64 `json:"numa_node" yaml:"numa_node"`
+	PCIAddress    string `json:"pci_address" yaml:"pci_address"`
+	Product       string `json:"product" yaml:"product"`
+	ProductID     string `json:"product_id" yaml:"product_id"`
+	Vendor        string `json:"vendor" yaml:"vendor"`
+	VendorID      string `json:"vendor_id" yaml:"vendor_id"`
 }
