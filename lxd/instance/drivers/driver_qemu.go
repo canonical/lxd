@@ -1271,7 +1271,7 @@ Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Requires=lxd-agent-9p.service
 After=lxd-agent-9p.service
-Before=cloud-init.target
+Before=cloud-init.target cloud-init.service cloud-init-local.service
 
 [Service]
 Type=simple
