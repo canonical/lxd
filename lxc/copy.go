@@ -24,7 +24,6 @@ type cmdCopy struct {
 	flagDevice        []string
 	flagEphemeral     bool
 	flagInstanceOnly  bool
-	flagContainerOnly bool
 	flagMode          string
 	flagStateless     bool
 	flagStorage       string
@@ -469,8 +468,7 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 
 	stateful := !c.flagStateless && !c.flagRefresh
 	keepVolatile := c.flagRefresh
-
-	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
+	instanceOnly := c.flagInstanceOnly
 
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {

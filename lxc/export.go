@@ -20,7 +20,6 @@ import (
 type cmdExport struct {
 	global *cmdGlobal
 
-	flagContainerOnly        bool
 	flagInstanceOnly         bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
@@ -66,7 +65,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
+	instanceOnly := c.flagInstanceOnly
 
 	req := api.InstanceBackupsPost{
 		Name:                 "",
