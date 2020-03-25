@@ -19,7 +19,6 @@ type cmdMove struct {
 	flagNoProfiles    bool
 	flagProfile       []string
 	flagConfig        []string
-	flagContainerOnly bool
 	flagInstanceOnly  bool
 	flagDevice        []string
 	flagMode          string
@@ -156,10 +155,6 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("The --stateless flag can't be used with --target"))
 		}
 
-		if c.flagContainerOnly {
-			return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
-		}
-
 		if c.flagInstanceOnly {
 			return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
 		}
@@ -181,7 +176,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	cpy.flagNoProfiles = c.flagNoProfiles
 
 	stateful := !c.flagStateless
-	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
+	instanceOnly := c.flagInstanceOnly
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the instance.
