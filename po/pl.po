@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2020-03-17 12:09-0400\n"
+"POT-Creation-Date: 2020-03-25 13:23-0400\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -335,11 +335,11 @@ msgstr ""
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
-#: lxc/copy.go:153
+#: lxc/copy.go:152
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr ""
 
-#: lxc/copy.go:164
+#: lxc/copy.go:163
 msgid "--refresh can only be used with instances"
 msgstr ""
 
@@ -501,7 +501,7 @@ msgstr ""
 msgid "BASE IMAGE"
 msgstr ""
 
-#: lxc/export.go:136
+#: lxc/export.go:134
 msgid "Backup exported successfully!"
 msgstr ""
 
@@ -510,7 +510,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:123 lxc/init.go:187 lxc/project.go:121 lxc/publish.go:172
+#: lxc/copy.go:122 lxc/init.go:187 lxc/project.go:121 lxc/publish.go:172
 #: lxc/storage.go:123 lxc/storage_volume.go:505
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -521,7 +521,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr ""
 
-#: lxc/copy.go:134
+#: lxc/copy.go:133
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -591,7 +591,7 @@ msgstr ""
 msgid "Caches:"
 msgstr ""
 
-#: lxc/move.go:109
+#: lxc/move.go:108
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -662,8 +662,8 @@ msgid "Client version: %s\n"
 msgstr ""
 
 #: lxc/config.go:95 lxc/config.go:361 lxc/config.go:454 lxc/config.go:601
-#: lxc/config.go:719 lxc/copy.go:54 lxc/info.go:45 lxc/init.go:54
-#: lxc/move.go:59 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
+#: lxc/config.go:719 lxc/copy.go:53 lxc/info.go:45 lxc/init.go:54
+#: lxc/move.go:58 lxc/network.go:257 lxc/network.go:672 lxc/network.go:730
 #: lxc/network.go:1017 lxc/network.go:1084 lxc/network.go:1146
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:588
 #: lxc/storage.go:655 lxc/storage.go:738 lxc/storage_volume.go:306
@@ -723,7 +723,7 @@ msgstr ""
 msgid "Control: %s (%s)"
 msgstr ""
 
-#: lxc/copy.go:52 lxc/move.go:57
+#: lxc/copy.go:51 lxc/move.go:56
 msgid "Copy a stateful instance stateless"
 msgstr ""
 
@@ -763,15 +763,11 @@ msgstr ""
 msgid "Copy the instance without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:51
-msgid "Copy the instance without its snapshots (deprecated, use instance-only)"
-msgstr ""
-
 #: lxc/storage_volume.go:307
 msgid "Copy the volume without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:55 lxc/move.go:60
+#: lxc/copy.go:54 lxc/move.go:59
 msgid "Copy to a project different from the source"
 msgstr ""
 
@@ -862,7 +858,7 @@ msgstr ""
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:56 lxc/init.go:55
+#: lxc/copy.go:55 lxc/init.go:55
 msgid "Create the instance with no profiles applied"
 msgstr ""
 
@@ -902,7 +898,7 @@ msgstr ""
 msgid "DRM:"
 msgstr ""
 
-#: lxc/export.go:46
+#: lxc/export.go:44
 msgid "Define a compression algorithm: for backup or none"
 msgstr ""
 
@@ -1239,7 +1235,7 @@ msgstr ""
 msgid "Export instances as backup tarballs."
 msgstr ""
 
-#: lxc/export.go:120
+#: lxc/export.go:118
 #, c-format
 msgid "Exporting the backup: %s"
 msgstr ""
@@ -1258,7 +1254,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/move.go:231
+#: lxc/move.go:230
 msgid "Failed to connect to cluster member"
 msgstr ""
 
@@ -1267,7 +1263,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:421
+#: lxc/copy.go:420
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -1539,7 +1535,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:427 lxc/init.go:343
+#: lxc/copy.go:426 lxc/init.go:343
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2001,11 +1997,11 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:244
+#: lxc/move.go:243
 msgid "Migration API failure"
 msgstr ""
 
-#: lxc/move.go:249
+#: lxc/move.go:248
 msgid "Migration operation failure"
 msgstr ""
 
@@ -2106,12 +2102,8 @@ msgstr ""
 msgid "Move storage volumes between pools"
 msgstr ""
 
-#: lxc/move.go:55
-msgid "Move the instance without its snapshots"
-msgstr ""
-
 #: lxc/move.go:54
-msgid "Move the instance without its snapshots (deprecated, use instance-only)"
+msgid "Move the instance without its snapshots"
 msgstr ""
 
 #: lxc/storage_volume.go:366
@@ -2319,7 +2311,7 @@ msgstr ""
 msgid "Pause instances"
 msgstr ""
 
-#: lxc/copy.go:57
+#: lxc/copy.go:56
 msgid "Perform an incremental copy"
 msgstr ""
 
@@ -2506,7 +2498,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:388
+#: lxc/copy.go:387
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr ""
@@ -3046,7 +3038,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:53 lxc/import.go:35 lxc/init.go:52 lxc/move.go:58
+#: lxc/copy.go:52 lxc/import.go:35 lxc/init.go:52 lxc/move.go:57
 msgid "Storage pool name"
 msgstr ""
 
@@ -3107,15 +3099,15 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/move.go:161 lxc/move.go:165
+#: lxc/move.go:160 lxc/move.go:164
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:169
+#: lxc/move.go:168
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:157
+#: lxc/move.go:156
 msgid "The --stateless flag can't be used with --target"
 msgstr ""
 
@@ -3156,7 +3148,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr ""
 
-#: lxc/move.go:236
+#: lxc/move.go:235
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -3214,7 +3206,7 @@ msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
 #: lxc/config.go:278 lxc/config.go:403 lxc/config.go:553 lxc/config.go:634
-#: lxc/copy.go:116 lxc/info.go:310 lxc/network.go:759 lxc/storage.go:420
+#: lxc/copy.go:115 lxc/info.go:310 lxc/network.go:759 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -3236,7 +3228,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
-#: lxc/move.go:56 lxc/storage_volume.go:305
+#: lxc/move.go:55 lxc/storage_volume.go:305
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
@@ -3245,7 +3237,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:354
+#: lxc/copy.go:353
 #, c-format
 msgid "Transferring instance: %s"
 msgstr ""
@@ -3340,7 +3332,7 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/export.go:45
+#: lxc/export.go:43
 msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
@@ -3393,12 +3385,6 @@ msgid "Wait for the operation to complete"
 msgstr ""
 
 #: lxc/export.go:41
-msgid ""
-"Whether or not to only backup the container (without snapshots), "
-"(deprecated, use instance-only)"
-msgstr ""
-
-#: lxc/export.go:43
 msgid "Whether or not to only backup the instance (without snapshots)"
 msgstr ""
 
@@ -3425,11 +3411,11 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:82
+#: lxc/copy.go:81
 msgid "You must specify a destination instance name when using --target"
 msgstr ""
 
-#: lxc/copy.go:77 lxc/move.go:220
+#: lxc/copy.go:76 lxc/move.go:219
 msgid "You must specify a source instance name"
 msgstr ""
 
