@@ -186,10 +186,10 @@ test_backup_import_with_project() {
 
   # create backup
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
-    lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --container-only
+    lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --instance-only
   fi
 
-  lxc export c1 "${LXD_DIR}/c1.tar.gz" --container-only
+  lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
   lxc delete --force c1
 
   # import backup, and ensure it's valid and runnable
@@ -319,7 +319,7 @@ test_backup_export_with_project() {
   # container only
 
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
-    lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --container-only
+    lxc export c1 "${LXD_DIR}/c1-optimized.tar.gz" --optimized-storage --instance-only
     tar -xzf "${LXD_DIR}/c1-optimized.tar.gz" -C "${LXD_DIR}/optimized"
 
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
@@ -327,7 +327,7 @@ test_backup_export_with_project() {
     [ ! -d "${LXD_DIR}/optimized/backup/snapshots" ]
   fi
 
-  lxc export c1 "${LXD_DIR}/c1.tar.gz" --container-only
+  lxc export c1 "${LXD_DIR}/c1.tar.gz" --instance-only
   tar -xzf "${LXD_DIR}/c1.tar.gz" -C "${LXD_DIR}/non-optimized"
 
   # check tarball content

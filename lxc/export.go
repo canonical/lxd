@@ -20,7 +20,6 @@ import (
 type cmdExport struct {
 	global *cmdGlobal
 
-	flagContainerOnly        bool
 	flagInstanceOnly         bool
 	flagOptimizedStorage     bool
 	flagCompressionAlgorithm string
@@ -37,8 +36,6 @@ func (c *cmdExport) Command() *cobra.Command {
     Download a backup tarball of the u1 instance.`))
 
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false,
-		i18n.G("Whether or not to only backup the container (without snapshots), (deprecated, use instance-only)"))
 	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false,
 		i18n.G("Whether or not to only backup the instance (without snapshots)"))
 	cmd.Flags().BoolVar(&c.flagOptimizedStorage, "optimized-storage", false,
@@ -68,7 +65,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	instanceOnly := c.flagContainerOnly || c.flagInstanceOnly
+	instanceOnly := c.flagInstanceOnly
 
 	req := api.InstanceBackupsPost{
 		Name:                 "",
