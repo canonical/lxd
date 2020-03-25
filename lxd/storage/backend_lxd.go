@@ -526,7 +526,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		return backup.UpdateInstanceConfigStoragePool(b.state.Cluster, srcBackup, mountPath)
 	}, op)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "Error updating backup file")
 	}
 
 	var postHook func(instance.Instance) error
