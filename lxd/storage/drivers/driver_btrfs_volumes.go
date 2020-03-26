@@ -178,7 +178,17 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	// Restore backups from oldest to newest.
 	snapshotsDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 	for _, snapName := range snapshots {
-		err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/snapshots/%s.bin", snapName), snapshotsDir)
+		prefix := "snapshots"
+		fileName := fmt.Sprintf("%s.bin", snapName)
+		if vol.volType == VolumeTypeVM {
+			prefix = "virtual-machine-snapshots"
+			if vol.contentType == ContentTypeFS {
+				fileName = fmt.Sprintf("%s-config.bin", snapName)
+			}
+		}
+
+		srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
+		err = unpackVolume(srcData, unpacker, srcFile, snapshotsDir)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -197,7 +207,16 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	}
 
 	// Extract main volume.
-	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/container.bin"), unpackDir)
+	fileName := "container.bin"
+	if vol.volType == VolumeTypeVM {
+		if vol.contentType == ContentTypeFS {
+			fileName = "virtual-machine-config.bin"
+		} else {
+			fileName = "virtual-machine.bin"
+		}
+	}
+
+	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/%s", fileName), unpackDir)
 	if err != nil {
 		return nil, nil, err
 	}
