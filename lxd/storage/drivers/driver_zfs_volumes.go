@@ -912,7 +912,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 	mountPath := vol.MountPath()
 	dataset := d.dataset(vol, false)
 
-	// Check if already mounted.
+	// Check if filesystem volume already mounted.
 	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
 		// Mount the dataset.
 		_, err = shared.RunCommand("zfs", "mount", dataset)
@@ -926,6 +926,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 	var ourMountBlock, ourMountFs bool
 
+	// For block devices, we make them appear.
 	if vol.contentType == ContentTypeBlock {
 		// Check if already active.
 		current, err := d.getDatasetProperty(d.dataset(vol, false), "volmode")
@@ -948,7 +949,6 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 		}
 	}
 
-	// For block devices, we make them appear.
 	if vol.IsVMBlock() {
 		// For VMs, also mount the filesystem dataset.
 		fsVol := vol.NewVMBlockFilesystemVolume()
