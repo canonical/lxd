@@ -968,6 +968,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) (bool, error) {
 
 // UnmountVolume simulates unmounting a volume.
 func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) {
+	mountPath := vol.MountPath()
 	dataset := d.dataset(vol, false)
 
 	// For VMs, also mount the filesystem dataset.
@@ -992,20 +993,19 @@ func (d *zfs) UnmountVolume(vol Volume, op *operations.Operation) (bool, error) 
 	}
 
 	// Check if still mounted.
-	mountPath := vol.MountPath()
-	if !shared.IsMountPoint(mountPath) {
-		return false, nil
+	if shared.IsMountPoint(mountPath) {
+		// Unmount the dataset.
+		_, err := shared.RunCommand("zfs", "unmount", dataset)
+		if err != nil {
+			return false, err
+		}
+
+		d.logger.Debug("Unmounted ZFS dataset", log.Ctx{"dev": dataset, "path": mountPath})
+		return true, nil
+
 	}
 
-	// Mount the dataset.
-	_, err := shared.RunCommand("zfs", "unmount", dataset)
-	if err != nil {
-		return false, err
-	}
-
-	d.logger.Debug("Unmounted ZFS dataset", log.Ctx{"dev": dataset, "path": mountPath})
-
-	return true, nil
+	return false, nil
 }
 
 // RenameVolume renames a volume and its snapshots.
