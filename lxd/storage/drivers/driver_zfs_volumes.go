@@ -204,6 +204,17 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 		return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
 	}
 
+	// Restore VM config volumes first.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+
+		// The revert and post hooks define below will also apply to what is done here.
+		_, _, err := d.CreateVolumeFromBackup(fsVol, snapshots, srcData, optimized, op)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -274,15 +285,34 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 
 	// Restore backups from oldest to newest.
 	for _, snapName := range snapshots {
+		prefix := "snapshots"
+		fileName := fmt.Sprintf("%s.bin", snapName)
+		if vol.volType == VolumeTypeVM {
+			prefix = "virtual-machine-snapshots"
+			if vol.contentType == ContentTypeFS {
+				fileName = fmt.Sprintf("%s-config.bin", snapName)
+			}
+		}
+
+		srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
 		dstSnapshot := fmt.Sprintf("%s@snapshot-%s", d.dataset(vol, false), snapName)
-		err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/snapshots/%s.bin", snapName), dstSnapshot)
+		err = unpackVolume(srcData, unpacker, srcFile, dstSnapshot)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
 	// Extract main volume.
-	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/container.bin"), d.dataset(vol, false))
+	fileName := "container.bin"
+	if vol.volType == VolumeTypeVM {
+		if vol.contentType == ContentTypeFS {
+			fileName = "virtual-machine-config.bin"
+		} else {
+			fileName = "virtual-machine.bin"
+		}
+	}
+
+	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(vol, false))
 	if err != nil {
 		return nil, nil, err
 	}
