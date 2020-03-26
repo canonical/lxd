@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -222,38 +223,47 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 	// Only execute the revert function if we have had an error internally.
 	revert.Add(revertHook)
 
-	// Create a temporary directory to unpack the backup into.
-	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
-	}
-	defer os.RemoveAll(unpackDir)
+	// Define function to unpack a volume from a backup tarball file.
+	unpackVolume := func(r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
+		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": target})
+		tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+		if err != nil {
+			return err
+		}
+		defer cancelFunc()
 
-	err = os.Chmod(unpackDir, 0100)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to chmod '%s'", unpackDir)
+		for {
+			hdr, err := tr.Next()
+			if err == io.EOF {
+				break // End of archive
+			}
+			if err != nil {
+				return err
+			}
+
+			if hdr.Name == srcFile {
+				// Extract the backup.
+				err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-F", target)
+
+				if err != nil {
+					return err
+				}
+
+				cancelFunc()
+				return nil
+			}
+		}
+
+		return fmt.Errorf("Could not find %q", srcFile)
 	}
 
 	// Find the compression algorithm used for backup source data.
 	srcData.Seek(0, 0)
-	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
+	_, _, unpacker, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Prepare tar arguments.
-	args := append(tarArgs, []string{
-		"-",
-		"--strip-components=1",
-		"-C", unpackDir, "backup",
-	}...)
-
-	// Unpack the backup.
-	srcData.Seek(0, 0)
-	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
-	if err != nil {
-		return nil, nil, err
-	}
 	if len(snapshots) > 0 {
 		// Create new snapshots directory.
 		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
@@ -264,30 +274,15 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 
 	// Restore backups from oldest to newest.
 	for _, snapName := range snapshots {
-		// Open the backup.
-		feeder, err := os.Open(filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
-		}
-		defer feeder.Close()
-
-		// Extract the backup.
 		dstSnapshot := fmt.Sprintf("%s@snapshot-%s", d.dataset(vol, false), snapName)
-		err = shared.RunCommandWithFds(feeder, nil, "zfs", "receive", "-F", dstSnapshot)
+		err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/snapshots/%s.bin", snapName), dstSnapshot)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	// Open the backup.
-	feeder, err := os.Open(filepath.Join(unpackDir, "container.bin"))
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "container.bin"))
-	}
-	defer feeder.Close()
-
-	// Extrack the backup.
-	err = shared.RunCommandWithFds(feeder, nil, "zfs", "receive", "-F", d.dataset(vol, false))
+	// Extract main volume.
+	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/container.bin"), d.dataset(vol, false))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1169,7 +1164,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		}
 		args = append(args, path)
 
-		// Create temporary file to store output of btrfs send.
+		// Create temporary file to store output of ZFS send.
 		backupsPath := shared.VarPath("backups")
 		tmpFile, err := ioutil.TempFile(backupsPath, "lxd_backup_zfs")
 		if err != nil {
