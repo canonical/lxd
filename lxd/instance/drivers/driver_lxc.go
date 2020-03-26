@@ -2796,16 +2796,16 @@ func (c *lxc) onStop(args map[string]string) error {
 	}
 
 	// Log user actions
-	if op == nil {
-		ctxMap := log.Ctx{
-			"project":   c.project,
-			"name":      c.name,
-			"action":    target,
-			"created":   c.creationDate,
-			"ephemeral": c.ephemeral,
-			"used":      c.lastUsedDate,
-			"stateful":  false}
+	ctxMap := log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
+		"action":    target,
+		"created":   c.creationDate,
+		"ephemeral": c.ephemeral,
+		"used":      c.lastUsedDate,
+		"stateful":  false}
 
+	if op == nil {
 		logger.Info(fmt.Sprintf("Container initiated %s", target), ctxMap)
 	}
 
@@ -2843,6 +2843,13 @@ func (c *lxc) onStop(args map[string]string) error {
 		err = c.removeDiskDevices()
 		if err != nil {
 			logger.Error("Unable to remove disk devices", log.Ctx{"container": c.Name(), "err": err})
+		}
+
+		// Log and emit lifecycle if not user triggered
+		if op == nil {
+			logger.Info("Shut down container", ctxMap)
+			c.state.Events.SendLifecycle(c.project, "container-shutdown",
+				fmt.Sprintf("/1.0/containers/%s", c.name), nil)
 		}
 
 		// Reboot the container
