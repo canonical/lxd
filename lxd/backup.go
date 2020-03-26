@@ -47,6 +47,11 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 		return errors.Wrap(err, "Load instance storage pool")
 	}
 
+	// Ignore requests for optimized backups when pool driver doesn't support it.
+	if args.OptimizedStorage && !pool.Driver().Info().OptimizedBackups {
+		args.OptimizedStorage = false
+	}
+
 	// Create the database entry.
 	err = s.Cluster.InstanceBackupCreate(args)
 	if err != nil {
