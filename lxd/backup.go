@@ -38,10 +38,6 @@ func backupCreate(s *state.State, args db.InstanceBackupArgs, sourceInst instanc
 	logger.Debug("Instance backup started")
 	defer logger.Debug("Instance backup finished")
 
-	if sourceInst.Type() != instancetype.Container {
-		return fmt.Errorf("Instance type must be container")
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 

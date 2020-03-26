@@ -483,10 +483,26 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// Get the volume name on storage.
 	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
 
-	// Currently there is no concept of instance type in backups, so we assume container.
+	// Get the instance type.
+	instanceType, err := instancetype.New(string(srcBackup.Type))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get the volume type.
+	volType, err := InstanceTypeToVolumeType(instanceType)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	contentType := drivers.ContentTypeFS
+	if volType == drivers.VolumeTypeVM {
+		contentType = drivers.ContentTypeBlock
+	}
+
 	// We don't know the volume's config yet as tarball hasn't been unpacked.
 	// We will apply the config as part of the post hook function returned if driver needs to.
-	vol := b.newVolume(drivers.VolumeTypeContainer, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(volType, contentType, volStorageName, nil)
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -501,23 +517,23 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		revert.Add(revertHook)
 	}
 
-	err = b.ensureInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name, vol.MountPath())
+	err = b.ensureInstanceSymlink(instanceType, srcBackup.Project, srcBackup.Name, vol.MountPath())
 	if err != nil {
 		return nil, nil, err
 	}
 
 	revert.Add(func() {
-		b.removeInstanceSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		b.removeInstanceSymlink(instanceType, srcBackup.Project, srcBackup.Name)
 	})
 
 	if len(srcBackup.Snapshots) > 0 {
-		err = b.ensureInstanceSnapshotSymlink(instancetype.Container, srcBackup.Project, srcBackup.Name)
+		err = b.ensureInstanceSnapshotSymlink(instanceType, srcBackup.Project, srcBackup.Name)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		revert.Add(func() {
-			b.removeInstanceSnapshotSymlinkIfUnused(instancetype.Container, srcBackup.Project, srcBackup.Name)
+			b.removeInstanceSnapshotSymlinkIfUnused(instanceType, srcBackup.Project, srcBackup.Name)
 		})
 	}
 
@@ -3021,8 +3037,13 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Instanc
 	// Get the volume name on storage.
 	volStorageName := project.Instance(projectName, backupConf.Container.Name)
 
+	contentType := drivers.ContentTypeFS
+	if volType == drivers.VolumeTypeVM {
+		contentType = drivers.ContentTypeBlock
+	}
+
 	// We don't need to use the volume's config for mounting so set to nil.
-	vol := b.newVolume(volType, drivers.ContentTypeFS, volStorageName, nil)
+	vol := b.newVolume(volType, contentType, volStorageName, nil)
 
 	// Get a list of snapshots that exist on storage device.
 	driverSnapshots, err := vol.Snapshots(op)
@@ -3062,7 +3083,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Instanc
 			return nil, errors.Wrapf(err, "Failed to delete snapshot %q", driverSnapOnly)
 		}
 
-		logger.Debug("Deleted snapshot as not present in backup config", log.Ctx{"snapshot": driverSnapOnly})
+		logger.Warn("Deleted snapshot as not present in backup config", log.Ctx{"snapshot": driverSnapOnly})
 	}
 
 	// Check the snapshots in backup config exist on storage device.
@@ -3084,7 +3105,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Instanc
 				return nil, errors.Wrapf(ErrBackupSnapshotsMismatch, "Snapshot %q exists in backup config but not on storage device", backupFileSnapOnly)
 			}
 
-			logger.Debug("Skipped snapshot in backup config as not present on storage device", log.Ctx{"snapshot": backupFileSnap})
+			logger.Warn("Skipped snapshot in backup config as not present on storage device", log.Ctx{"snapshot": backupFileSnap})
 			continue // Skip snapshots missing on storage device.
 		}
 
