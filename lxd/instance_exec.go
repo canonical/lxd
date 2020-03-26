@@ -33,14 +33,16 @@ import (
 type execWs struct {
 	req api.InstanceExecPost
 
-	instance         instance.Instance
-	rootUid          int64
-	rootGid          int64
-	conns            map[int]*websocket.Conn
-	connsLock        sync.Mutex
-	allConnected     chan struct{}
-	controlConnected chan struct{}
-	fds              map[int]string
+	instance             instance.Instance
+	rootUid              int64
+	rootGid              int64
+	conns                map[int]*websocket.Conn
+	connsLock            sync.Mutex
+	allConnected         chan struct{}
+	allConnectedDone     bool
+	controlConnected     chan struct{}
+	controlConnectedDone bool
+	fds                  map[int]string
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -76,23 +78,36 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 
 			s.connsLock.Lock()
 			s.conns[fd] = conn
-			s.connsLock.Unlock()
 
 			if fd == -1 {
-				close(s.controlConnected) // Control WS is now connected.
+				if s.controlConnectedDone {
+					return fmt.Errorf("Control websocket already connected")
+				}
+
+				// Control WS is now connected.
+				s.controlConnectedDone = true
+				close(s.controlConnected)
+				s.connsLock.Unlock()
 				return nil
 			}
 
-			s.connsLock.Lock()
+			if s.allConnectedDone {
+				return fmt.Errorf("All websockets already connected")
+			}
+
 			for i, c := range s.conns {
 				if i != -1 && c == nil {
 					s.connsLock.Unlock()
 					return nil
 				}
 			}
+
+			// All WS now connected.
+			s.allConnectedDone = true
+			close(s.allConnected)
+
 			s.connsLock.Unlock()
 
-			close(s.allConnected) // All WS not connected.
 			return nil
 		}
 	}
