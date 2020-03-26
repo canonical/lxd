@@ -105,6 +105,10 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 		return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
 	}
 
+	if d.HasVolume(vol) {
+		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 

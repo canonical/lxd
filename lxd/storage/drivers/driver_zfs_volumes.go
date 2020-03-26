@@ -204,6 +204,10 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData io.
 		return genericVFSBackupUnpack(d, vol, snapshots, srcData, op)
 	}
 
+	if d.HasVolume(vol) {
+		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
+	}
+
 	// Restore VM config volumes first.
 	if vol.IsVMBlock() {
 		fsVol := vol.NewVMBlockFilesystemVolume()
