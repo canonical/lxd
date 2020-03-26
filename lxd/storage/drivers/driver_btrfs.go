@@ -72,6 +72,7 @@ func (d *btrfs) Info() Info {
 		Name:                  "btrfs",
 		Version:               btrfsVersion,
 		OptimizedImages:       true,
+		OptimizedBackups:      true,
 		PreservesInodes:       !d.state.OS.RunningInUserNS,
 		Remote:                false,
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},

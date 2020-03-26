@@ -102,6 +102,7 @@ func (d *zfs) Info() Info {
 		Name:                  "zfs",
 		Version:               zfsVersion,
 		OptimizedImages:       true,
+		OptimizedBackups:      true,
 		PreservesInodes:       true,
 		Remote:                false,
 		VolumeTypes:           []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
