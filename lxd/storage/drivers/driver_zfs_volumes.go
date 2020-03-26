@@ -1459,12 +1459,45 @@ func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, e
 
 // UnmountVolume simulates unmounting a volume snapshot.
 func (d *zfs) UnmountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, error) {
-	// Ignore block devices for now.
-	if vol.contentType == ContentTypeBlock {
-		return false, ErrNotSupported
+	mountPath := vol.MountPath()
+	snapshotDataset := d.dataset(vol, false)
+
+	// For VMs, also mount the filesystem dataset.
+	if vol.IsVMBlock() {
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		_, err := d.UnmountVolumeSnapshot(fsVol, op)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	return forceUnmount(vol.MountPath())
+	// For block devices, we make them disappear.
+	if vol.contentType == ContentTypeBlock {
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
+		parentDataset := d.dataset(parentVol, false)
+
+		err := d.setDatasetProperties(parentDataset, "snapdev=hidden")
+		if err != nil {
+			return false, err
+		}
+
+		d.logger.Debug("Deactivated ZFS snapshot volume", log.Ctx{"dev": snapshotDataset})
+		return true, nil
+	}
+
+	// Check if still mounted.
+	if shared.IsMountPoint(mountPath) {
+		_, err := forceUnmount(mountPath)
+		if err != nil {
+			return false, err
+		}
+
+		d.logger.Debug("Unmounted ZFS snapshot dataset", log.Ctx{"dev": snapshotDataset, "path": mountPath})
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume.
