@@ -649,6 +649,11 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return err
 		}
 
+		// Check if the backup is optimized that the source pool driver matches the target pool driver.
+		if *bInfo.OptimizedStorage && pool.Driver().Info().Name != bInfo.Backend {
+			return fmt.Errorf("Optimized backup storage driver %q differs from the target storage pool driver %q", bInfo.Backend, pool.Driver().Info().Name)
+		}
+
 		// Dump tarball to storage. Because the backup file is unpacked and restored onto the storage
 		// device before the instance is created in the database it is necessary to return two functions;
 		// a post hook that can be run once the instance has been created in the database to run any
