@@ -43,6 +43,10 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 	defer revert.Fail()
 
 	for _, v := range volumes {
+		if shared.IsSnapshot(v.Name) {
+			continue // Snapshots will be renamed as part of the parent volume rename.
+		}
+
 		// Run inside temporary function to ensure revert has correct volume scope.
 		err = func(curVol *api.StorageVolume) error {
 			// There's no need to pass the config as it's not needed when renaming a volume.
