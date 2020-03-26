@@ -1380,20 +1380,78 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
 func (d *zfs) MountVolumeSnapshot(vol Volume, op *operations.Operation) (bool, error) {
-	// Ignore block devices for now.
+	var err error
+	mountPath := vol.MountPath()
+	snapshotDataset := d.dataset(vol, false)
+
+	// Check if filesystem volume already mounted.
+	if vol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+		// Mount the snapshot directly (not possible through tools).
+		err := TryMount(snapshotDataset, mountPath, "zfs", 0, "")
+		if err != nil {
+			return false, err
+		}
+
+		d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": snapshotDataset, "path": mountPath})
+		return true, nil
+	}
+
+	var ourMountBlock, ourMountFs bool
+
+	// For block devices, we make them appear by enabling volmode=dev and snapdev=visible on the
+	// parent volume. If we have to enable this volmode=dev on the parent, then we will return ourMount true
+	// so that the caller knows to call UnmountVolumeSnapshot to undo this action, but if it is already set
+	// then we will return ourMount false, because we don't want to deactivate the parent volume's device if it
+	// is already in use.
 	if vol.contentType == ContentTypeBlock {
-		return false, ErrNotSupported
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		parentVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, parent, vol.config, vol.poolConfig)
+		parentDataset := d.dataset(parentVol, false)
+
+		// Check if parent already active.
+		parentVolMode, err := d.getDatasetProperty(parentDataset, "volmode")
+		if err != nil {
+			return false, err
+		}
+
+		// Order is important here, the volmode=dev must be set before snapdev=visible otherwise
+		// it won't take effect.
+		if parentVolMode != "dev" {
+			return false, fmt.Errorf("Parent block volume needs to be mounted first")
+		}
+
+		// Check if snapdev already set visible.
+		parentSnapdevMode, err := d.getDatasetProperty(parentDataset, "snapdev")
+		if err != nil {
+			return false, err
+		}
+
+		if parentSnapdevMode != "visible" {
+			err = d.setDatasetProperties(parentDataset, "snapdev=visible")
+			if err != nil {
+				return false, err
+			}
+
+			// Wait half a second to give udev a chance to kick in.
+			time.Sleep(500 * time.Millisecond)
+
+			d.logger.Debug("Activated ZFS snapshot volume", log.Ctx{"dev": snapshotDataset})
+			ourMountBlock = true
+		}
 	}
 
-	// Check if already mounted.
-	if shared.IsMountPoint(vol.MountPath()) {
-		return false, nil
+	if vol.IsVMBlock() {
+		// For VMs, also mount the filesystem dataset.
+		fsVol := vol.NewVMBlockFilesystemVolume()
+		ourMountFs, err = d.MountVolumeSnapshot(fsVol, op)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	// Mount the snapshot directly (not possible through tools).
-	err := TryMount(d.dataset(vol, false), vol.MountPath(), "zfs", 0, "")
-	if err != nil {
-		return false, err
+	// If we 'mounted' either block or filesystem volumes, this was our mount.
+	if ourMountFs || ourMountBlock {
+		return true, nil
 	}
 
 	return true, nil
