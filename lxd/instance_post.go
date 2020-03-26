@@ -244,7 +244,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the name isn't already in use.
-	id, _ := d.cluster.ContainerID(project, req.Name)
+	id, _ := d.cluster.InstanceID(project, req.Name)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
 	}
@@ -373,7 +373,7 @@ func containerPostClusteringMigrate(d *Daemon, c instance.Instance, oldName, new
 		}
 
 		// Restore the original value of "volatile.apply_template"
-		id, err := d.cluster.ContainerID(c.Project(), destName)
+		id, err := d.cluster.InstanceID(c.Project(), destName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get ID of moved instance")
 		}

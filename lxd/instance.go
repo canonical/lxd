@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	cron "gopkg.in/robfig/cron.v2"
 
 	"github.com/flosch/pongo2"
-	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -70,25 +68,6 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 
 	revert = false
 	return inst, nil
-}
-
-// instanceCreateFromBackup imports a backup file to restore an instance. Because the backup file
-// is unpacked and restored onto the storage device before the instance is created in the database
-// it is necessary to return two functions; a post hook that can be run once the instance has been
-// created in the database to run any storage layer finalisations, and a revert hook that can be
-// run if the instance database load process fails that will remove anything created thus far.
-func instanceCreateFromBackup(s *state.State, info backup.Info, srcData io.ReadSeeker) (func(instance.Instance) error, func(), error) {
-	pool, err := storagePools.GetPoolByName(s, info.Pool)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	postHook, revertHook, err := pool.CreateInstanceFromBackup(info, srcData, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return postHook, revertHook, nil
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.

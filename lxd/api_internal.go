@@ -531,7 +531,7 @@ func internalImport(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := d.cluster.ContainerID(projectName, req.Name)
+	_, containerErr := d.cluster.InstanceID(projectName, req.Name)
 	if containerErr != nil {
 		if containerErr != db.ErrNoSuchObject {
 			return response.SmartError(containerErr)

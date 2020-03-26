@@ -4,10 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/pborman/uuid"
@@ -676,25 +673,17 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, op *operations.Operation)
 		return err
 	}
 
-	// The grow/shrink functions use Mount/Unmount which may cause an
-	// unmap, so make sure to keep a reference.
+	// The grow/shrink functions use Mount/Unmount which may cause an unmap, so make sure to keep a reference.
 	oldKeepDevice := vol.keepDevice
 	vol.keepDevice = true
 	defer func() {
 		vol.keepDevice = oldKeepDevice
 	}()
 
-	RBDSize, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/block/%s/size", filepath.Base(RBDDevPath)))
+	oldSizeBytes, err := blockDevSizeBytes(RBDDevPath)
 	if err != nil {
 		return errors.Wrapf(err, "Error getting current size")
 	}
-
-	RBDSizeBlocks, err := strconv.Atoi(strings.TrimSpace(string(RBDSize)))
-	if err != nil {
-		return errors.Wrapf(err, "Error getting converting current size to integer")
-	}
-
-	oldSizeBytes := int64(RBDSizeBlocks * 512)
 
 	newSizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {

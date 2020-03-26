@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -536,17 +537,20 @@ func createFromCopy(d *Daemon, project string, req *api.InstancesPost) response.
 }
 
 func createFromBackup(d *Daemon, project string, data io.Reader, pool string) response.Response {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create temporary file to store uploaded backup data.
 	backupFile, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
 		return response.InternalError(err)
 	}
 	defer os.Remove(backupFile.Name())
+	revert.Add(func() { backupFile.Close() })
 
 	// Stream uploaded backup data into temporary file.
 	_, err = io.Copy(backupFile, data)
 	if err != nil {
-		backupFile.Close()
 		return response.InternalError(err)
 	}
 
@@ -554,7 +558,6 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	backupFile.Seek(0, 0)
 	_, algo, decomArgs, err := shared.DetectCompressionFile(backupFile)
 	if err != nil {
-		backupFile.Close()
 		return response.InternalError(err)
 	}
 
@@ -565,7 +568,6 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		// Create temporary file to store the decompressed tarball in.
 		tarFile, err := ioutil.TempFile("", "lxd_decompress_")
 		if err != nil {
-			backupFile.Close()
 			return response.InternalError(err)
 		}
 		defer os.Remove(tarFile.Name())
@@ -586,9 +588,9 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 
 	// Parse the backup information.
 	backupFile.Seek(0, 0)
+	logger.Debug("Reading backup file info")
 	bInfo, err := backup.GetInfo(backupFile)
 	if err != nil {
-		backupFile.Close()
 		return response.BadRequest(err)
 	}
 	bInfo.Project = project
@@ -597,6 +599,16 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	if pool != "" {
 		bInfo.Pool = pool
 	}
+
+	logger.Debug("Backup file info loaded", log.Ctx{
+		"type":      bInfo.Type,
+		"name":      bInfo.Name,
+		"project":   bInfo.Project,
+		"backend":   bInfo.Backend,
+		"pool":      bInfo.Pool,
+		"optimized": *bInfo.OptimizedStorage,
+		"snapshots": bInfo.Snapshots,
+	})
 
 	// Check storage pool exists.
 	_, _, err = d.State().Cluster.StoragePoolGet(bInfo.Pool)
@@ -625,25 +637,28 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 		return response.InternalError(err)
 	}
 
+	// Copy reverter so far so we can use it inside run after this function has finished.
+	runRevert := revert.Clone()
+
 	run := func(op *operations.Operation) error {
 		defer backupFile.Close()
+		defer runRevert.Fail()
 
-		// Dump tarball to storage.
-		postHook, revertHook, err := instanceCreateFromBackup(d.State(), *bInfo, backupFile)
+		pool, err := storagePools.GetPoolByName(d.State(), bInfo.Pool)
+		if err != nil {
+			return err
+		}
+
+		// Dump tarball to storage. Because the backup file is unpacked and restored onto the storage
+		// device before the instance is created in the database it is necessary to return two functions;
+		// a post hook that can be run once the instance has been created in the database to run any
+		// storage layer finalisations, and a revert hook that can be run if the instance database load
+		// process fails that will remove anything created thus far.
+		postHook, revertHook, err := pool.CreateInstanceFromBackup(*bInfo, backupFile, nil)
 		if err != nil {
 			return errors.Wrap(err, "Create instance from backup")
 		}
-
-		revert := true
-		defer func() {
-			if !revert {
-				return
-			}
-
-			if revertHook != nil {
-				revertHook()
-			}
-		}()
+		revert.Add(revertHook)
 
 		body, err := json.Marshal(&internalImportPost{
 			Name:  bInfo.Name,
@@ -653,14 +668,16 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			return errors.Wrap(err, "Marshal internal import request")
 		}
 
+		// Generate internal request to import instance from storage.
 		req := &http.Request{
 			Body: ioutil.NopCloser(bytes.NewReader(body)),
 		}
+
 		req.URL = &url.URL{
 			RawQuery: fmt.Sprintf("project=%s", project),
 		}
-		resp := internalImport(d, req)
 
+		resp := internalImport(d, req)
 		if resp.String() != "success" {
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
@@ -679,7 +696,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 			}
 		}
 
-		revert = false
+		runRevert.Success()
 		return nil
 	}
 
@@ -687,19 +704,18 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) re
 	resources["instances"] = []string{bInfo.Name}
 	resources["containers"] = resources["instances"]
 
-	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationBackupRestore,
-		resources, nil, run, nil, nil)
+	op, err := operations.OperationCreate(d.State(), project, operations.OperationClassTask, db.OperationBackupRestore, resources, nil, run, nil, nil)
 	if err != nil {
-		backupFile.Close()
 		return response.InternalError(err)
 	}
 
+	revert.Success()
 	return operations.OperationResponse(op)
 }
 
 func containersPost(d *Daemon, r *http.Request) response.Response {
 	project := projectParam(r)
-	logger.Debugf("Responding to container create")
+	logger.Debugf("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {

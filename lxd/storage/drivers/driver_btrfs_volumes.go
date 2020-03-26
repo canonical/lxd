@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -119,39 +120,45 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 		// And lastly the main volume.
 		d.DeleteVolume(vol, op)
 	}
-
 	// Only execute the revert function if we have had an error internally.
 	revert.Add(revertHook)
 
-	// Create a temporary directory to unpack the backup into.
-	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
-	}
-	defer os.RemoveAll(unpackDir)
+	// Define function to unpack a volume from a backup tarball file.
+	unpackVolume := func(r io.ReadSeeker, unpacker []string, srcFile string, mountPath string) error {
+		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": mountPath})
+		tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+		if err != nil {
+			return err
+		}
+		defer cancelFunc()
 
-	err = os.Chmod(unpackDir, 0100)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to chmod '%s'", unpackDir)
+		for {
+			hdr, err := tr.Next()
+			if err == io.EOF {
+				break // End of archive
+			}
+			if err != nil {
+				return err
+			}
+
+			if hdr.Name == srcFile {
+				// Extract the backup.
+				err = shared.RunCommandWithFds(tr, nil, "btrfs", "receive", "-e", mountPath)
+				if err != nil {
+					return err
+				}
+
+				cancelFunc()
+				return nil
+			}
+		}
+
+		return fmt.Errorf("Could not find %q", srcFile)
 	}
 
 	// Find the compression algorithm used for backup source data.
 	srcData.Seek(0, 0)
-	tarArgs, _, _, err := shared.DetectCompressionFile(srcData)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Prepare tar arguments.
-	args := append(tarArgs, []string{
-		"-",
-		"--strip-components=1",
-		"-C", unpackDir, "backup",
-	}...)
-
-	// Unpack the backup.
-	srcData.Seek(0, 0)
-	err = shared.RunCommandWithFds(srcData, nil, "tar", args...)
+	_, _, unpacker, err := shared.DetectCompressionFile(srcData)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -167,29 +174,26 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, snapshots []string, srcData i
 	// Restore backups from oldest to newest.
 	snapshotsDir := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 	for _, snapName := range snapshots {
-		// Open the backup.
-		feeder, err := os.Open(filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "snapshots", fmt.Sprintf("%s.bin", snapName)))
-		}
-		defer feeder.Close()
-
-		// Extract the backup.
-		err = shared.RunCommandWithFds(feeder, nil, "btrfs", "receive", "-e", snapshotsDir)
+		err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/snapshots/%s.bin", snapName), snapshotsDir)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
-	// Open the backup.
-	feeder, err := os.Open(filepath.Join(unpackDir, "container.bin"))
+	// Create a temporary directory to unpack the backup into.
+	unpackDir, err := ioutil.TempDir(GetVolumeMountPath(d.name, vol.volType, ""), "backup.")
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to open '%s'", filepath.Join(unpackDir, "container.bin"))
+		return nil, nil, errors.Wrapf(err, "Failed to create temporary directory under '%s'", GetVolumeMountPath(d.name, vol.volType, ""))
 	}
-	defer feeder.Close()
+	defer os.RemoveAll(unpackDir)
 
-	// Extrack the backup.
-	err = shared.RunCommandWithFds(feeder, nil, "btrfs", "receive", "-e", unpackDir)
+	err = os.Chmod(unpackDir, 0100)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "Failed to chmod '%s'", unpackDir)
+	}
+
+	// Extract main volume.
+	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/container.bin"), unpackDir)
 	if err != nil {
 		return nil, nil, err
 	}
