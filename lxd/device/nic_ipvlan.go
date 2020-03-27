@@ -32,6 +32,8 @@ func (d *nicIPVLAN) validateConfig(instConf instance.ConfigReader) error {
 		"mtu",
 		"hwaddr",
 		"vlan",
+		"ipv4.gateway",
+		"ipv6.gateway",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
@@ -167,7 +169,9 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
 		}
 
-		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
+		if nicHasAutoGateway(d.config["ipv4.gateway"]) {
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: "dev"})
+		}
 	}
 
 	if d.config["ipv6.address"] != "" {
@@ -176,7 +180,9 @@ func (d *nicIPVLAN) Start() (*deviceConfig.RunConfig, error) {
 			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
 		}
 
-		nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
+		if nicHasAutoGateway(d.config["ipv6.gateway"]) {
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: "dev"})
+		}
 	}
 
 	runConf.NetworkInterface = nic
