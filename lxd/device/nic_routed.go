@@ -281,6 +281,12 @@ func (d *nicRouted) postStart() error {
 	// inside the instance work and ensure that traffic doesn't periodically halt whilst ARP/NDP
 	// is re-detected.
 	if v["host_name"] != "" {
+		// Attempt to disable IPv6 router advertisement acceptance.
+		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", v["host_name"]), "0")
+		if err != nil {
+			return err
+		}
+
 		if d.config["ipv4.address"] != "" {
 			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", v["host_name"])
 			if err != nil {
