@@ -456,6 +456,10 @@ net.ipv6.conf.all.proxy_ndp=1
 net.ipv6.conf.<parent>.proxy_ndp=1
 ```
 
+Each NIC device can have multiple IP addresses added to them. However it may be desirable to utilise multiple `routed` NIC interfaces.
+In these cases one should set the `ipv4.gateway` and `ipv6.gateway` values to "none" on any subsequent interfaces to avoid default gateway conflicts.
+It may also be useful to specify a different host-side address for these subsequent interfaces using `ipv4.host_address` and `ipv6.host_address` respectively.
+
 Device configuration properties:
 
 Key                     | Type      | Default           | Required  | Description
@@ -467,8 +471,10 @@ mtu                     | integer   | parent MTU        | no        | The MTU of
 hwaddr                  | string    | randomly assigned | no        | The MAC address of the new interface
 ipv4.address            | string    | -                 | no        | Comma delimited list of IPv4 static addresses to add to the instance
 ipv4.gateway            | string    | auto              | no        | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
+ipv4.host_address       | string    | 169.254.0.1       | no        | The IPv4 address to add to the host-side veth interface.
 ipv6.address            | string    | -                 | no        | Comma delimited list of IPv6 static addresses to add to the instance
 ipv6.gateway            | string    | auto              | no        | Whether to add an automatic default IPv6 gateway, can be "auto" or "none"
+ipv6.host_address       | string    | fe80::1           | no        | The IPv6 address to add to the host-side veth interface.
 vlan                    | integer   | -                 | no        | The VLAN ID to attach to
 
 #### bridged, macvlan or ipvlan for connection to physical network
