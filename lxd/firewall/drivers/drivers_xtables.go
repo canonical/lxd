@@ -434,19 +434,28 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 	}
 
 	if IPv4 != nil {
-		rules = append(rules,
-			// Prevent ARP MAC spoofing (prevents the instance poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
-			// Prevent ARP IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
-			// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", hwAddr, "-i", hostName, "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
-			// IP source filtering rules. Blocks any packet coming from instance with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
-		)
+		if IPv4.String() == FilterIPv4All {
+			rules = append(rules,
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "-j", "DROP"},
+			)
+		} else {
+			rules = append(rules,
+				// Prevent ARP MAC spoofing (prevents the instance poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
+				// Prevent ARP IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
+				// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", hwAddr, "-i", hostName, "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
+				// IP source filtering rules. Blocks any packet coming from instance with an incorrect IP source address.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
+			)
+		}
 	}
 
 	if IPv6 != nil {
