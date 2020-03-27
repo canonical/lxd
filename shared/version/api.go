@@ -198,6 +198,7 @@ var APIExtensions = []string{
 	"volume_snapshot_scheduling",
 	"trust_ca_certificates",
 	"snapshot_disk_usage",
+	"clustering_edit_roles",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
