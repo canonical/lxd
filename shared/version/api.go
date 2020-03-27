@@ -200,6 +200,7 @@ var APIExtensions = []string{
 	"snapshot_disk_usage",
 	"clustering_edit_roles",
 	"container_nic_routed_host_address",
+	"container_nic_ipvlan_gateway",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

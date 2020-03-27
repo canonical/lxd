@@ -990,3 +990,10 @@ The default values are:
 `ipv6.host_address`: fe80::1
 
 This is backward compatible with the previous default behaviour.
+
+## container\_nic\_ipvlan\_gateway
+This introduces the `ipv4.gateway` and `ipv6.gateway` NIC config keys that can take a value of either "auto" or
+"none". The default value for the key if unspecified is "auto". This will cause the current behaviour of a default
+gateway being added inside the container and the same gateway address being added to the host-side interface.
+If the value is set to "none" then no default gateway nor will the address be added to the host-side interface.
+This allows multiple ipvlan NIC devices to be added to a container.
