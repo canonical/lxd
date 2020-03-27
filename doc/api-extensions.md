@@ -965,7 +965,7 @@ configuration keys: `snapshots.schedule` and
 
 ## trust\_ca\_certificates
 This allows for checking client certificates trusted by the provided CA (`server.ca`).
-It can be enabled by setting `core.trust_ca_certificates` to true.
+It can be enabled by setting `core.trust\_ca\_certificates` to true.
 If enabled, it will perform the check, and bypass the trusted password if true.
 An exception will be made if the connecting client certificate is in the provided CRL (`ca.crl`).
 In this case, it will ask for the password.
