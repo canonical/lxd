@@ -199,6 +199,7 @@ var APIExtensions = []string{
 	"trust_ca_certificates",
 	"snapshot_disk_usage",
 	"clustering_edit_roles",
+	"container_nic_routed_host_address",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -39,6 +39,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"vlan",
 		"ipv4.gateway",
 		"ipv6.gateway",
+		"ipv4.host_address",
+		"ipv6.host_address",
 	}
 
 	rules := nicValidationRules(requiredFields, optionalFields)
@@ -218,7 +220,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 		if nicHasAutoGateway(d.config["ipv4.gateway"]) {
 			// Use a fixed link-local address as the next-hop default gateway.
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: nicRoutedIPv4GW})
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: d.ipv4HostAddress()})
 		}
 	}
 
@@ -230,7 +232,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 		if nicHasAutoGateway(d.config["ipv6.gateway"]) {
 			// Use a fixed link-local address as the next-hop default gateway.
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: nicRoutedIPv6GW})
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: d.ipv6HostAddress()})
 		}
 	}
 
@@ -279,15 +281,15 @@ func (d *nicRouted) postStart() error {
 	// inside the instance work and ensure that traffic doesn't periodically halt whilst ARP/NDP
 	// is re-detected.
 	if v["host_name"] != "" {
-		if d.config["ipv4.address"] != "" && nicHasAutoGateway(d.config["ipv4.gateway"]) {
-			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", nicRoutedIPv4GW), "dev", v["host_name"])
+		if d.config["ipv4.address"] != "" {
+			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", v["host_name"])
 			if err != nil {
 				return err
 			}
 		}
 
-		if d.config["ipv6.address"] != "" && nicHasAutoGateway(d.config["ipv6.gateway"]) {
-			_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", nicRoutedIPv6GW), "dev", v["host_name"])
+		if d.config["ipv6.address"] != "" {
+			_, err := shared.RunCommand("ip", "-6", "addr", "add", fmt.Sprintf("%s/128", d.ipv6HostAddress()), "dev", v["host_name"])
 			if err != nil {
 				return err
 			}
@@ -325,4 +327,20 @@ func (d *nicRouted) postStop() error {
 	}
 
 	return nil
+}
+
+func (d *nicRouted) ipv4HostAddress() string {
+	if d.config["ipv4.host_address"] != "" {
+		return d.config["ipv4.host_address"]
+	}
+
+	return nicRoutedIPv4GW
+}
+
+func (d *nicRouted) ipv6HostAddress() string {
+	if d.config["ipv6.host_address"] != "" {
+		return d.config["ipv6.host_address"]
+	}
+
+	return nicRoutedIPv6GW
 }
