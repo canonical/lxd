@@ -212,11 +212,11 @@ func DefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 
 // UpdateDNSMasqStatic rebuilds the DNSMasq static allocations.
 func UpdateDNSMasqStatic(s *state.State, networkName string) error {
-	// We don't want to race with ourselves here
+	// We don't want to race with ourselves here.
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
 
-	// Get all the networks
+	// Get all the networks.
 	var networks []string
 	if networkName == "" {
 		var err error
@@ -228,16 +228,16 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		networks = []string{networkName}
 	}
 
-	// Get all the instances
+	// Get all the instances.
 	insts, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		return err
 	}
 
-	// Build a list of dhcp host entries
+	// Build a list of dhcp host entries.
 	entries := map[string][][]string{}
 	for _, inst := range insts {
-		// Go through all its devices (including profiles
+		// Go through all its devices (including profiles).
 		for k, d := range inst.ExpandedDevices() {
 			// Skip uninteresting entries.
 			if d["type"] != "nic" || d.NICType() != "bridged" {
@@ -260,7 +260,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			// Add the new host entries
+			// Add the new host entries.
 			_, ok := entries[d["parent"]]
 			if !ok {
 				entries[d["parent"]] = [][]string{}
@@ -285,11 +285,11 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		}
 	}
 
-	// Update the host files
+	// Update the host files.
 	for _, network := range networks {
 		entries, _ := entries[network]
 
-		// Skip networks we don't manage (or don't have DHCP enabled)
+		// Skip networks we don't manage (or don't have DHCP enabled).
 		if !shared.PathExists(shared.VarPath("networks", network, "dnsmasq.pid")) {
 			continue
 		}
@@ -300,7 +300,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		}
 		config := n.Config()
 
-		// Wipe everything clean
+		// Wipe everything clean.
 		files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
 		if err != nil {
 			return err
@@ -313,7 +313,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 		}
 
-		// Apply the changes
+		// Apply the changes.
 		for entryIdx, entry := range entries {
 			hwaddr := entry[0]
 			projectName := entry[1]
@@ -322,11 +322,11 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			ipv6Address := entry[4]
 			line := hwaddr
 
-			// Look for duplicates
+			// Look for duplicates.
 			duplicate := false
 			for iIdx, i := range entries {
 				if project.Instance(entry[1], entry[2]) == project.Instance(i[1], i[2]) {
-					// Skip ourselves
+					// Skip ourselves.
 					continue
 				}
 
@@ -336,12 +336,12 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				}
 
 				if i[3] == "" && i[4] == "" {
-					// Skip unconfigured
+					// Skip unconfigured.
 					continue
 				}
 
 				if entry[3] == i[3] && entry[4] == i[4] {
-					// Find identical containers (copies with static configuration)
+					// Find identical containers (copies with static configuration).
 					if entryIdx > iIdx {
 						duplicate = true
 					} else {
@@ -355,14 +355,14 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				continue
 			}
 
-			// Generate the dhcp-host line
+			// Generate the dhcp-host line.
 			err := dnsmasq.UpdateStaticEntry(network, projectName, cName, config, hwaddr, ipv4Address, ipv6Address)
 			if err != nil {
 				return err
 			}
 		}
 
-		// Signal dnsmasq
+		// Signal dnsmasq.
 		err = dnsmasq.Kill(network, true)
 		if err != nil {
 			return err
