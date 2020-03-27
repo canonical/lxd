@@ -128,7 +128,7 @@ _have lxc && {
       ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.nat.order \
       ipv4.routes ipv4.routing ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
       ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.nat.address ipv6.nat.order \
-      ipv6.routes ipv6.routing raw.dnsmasq"
+      ipv6.routes ipv6.routing maas.subnet.ipv4 maas.subnet.ipv6 raw.dnsmasq"
 
     project_keys="features.images features.profiles features.storage.volumes \
       limits.containers limits.virtual-machines limits.memory limits.processes limits.cpu \
