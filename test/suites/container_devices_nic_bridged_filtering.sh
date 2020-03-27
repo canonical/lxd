@@ -35,7 +35,7 @@ test_container_devices_nic_bridged_filtering() {
   # Create profile for new containers.
   lxc profile copy default "${ctPrefix}"
 
-  # Modifiy profile nictype and parent in atomic operation to ensure validation passes.
+  # Modify profile nictype and parent in atomic operation to ensure validation passes.
   lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
 
   # Launch first container.
@@ -300,6 +300,12 @@ test_container_devices_nic_bridged_filtering() {
         echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
+
+    # Check IPv6 RA filter is present in ebtables.
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "-i ${ctAHost} --ip6-proto ipv6-icmp --ip6-icmp-type router-advertisement -j DROP" ; then
+        echo "IPv6 RA filter not applied as part of ipv6_filtering in ebtables"
+        false
+    fi
   else
     macDec=$(printf "%d" 0x"${macHex}")
     ipv6Dec="42540766411282592856903984951653826562"
@@ -324,6 +330,10 @@ test_container_devices_nic_bridged_filtering() {
       fi
       if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ip6 saddr != 2001:db8::2 drop"; then
         echo "IPv6 filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
+        false
+      fi
+      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" icmpv6 type 134 drop"; then
+        echo "IPv6 RA filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
     done
@@ -595,6 +605,57 @@ test_container_devices_nic_bridged_filtering() {
 
   lxc delete -f "${ctPrefix}A"
   ip link delete "${brName}2"
+
+  # Check filtering works with no IP addresses (total protocol blocking).
+  lxc network set "${brName}" ipv4.dhcp false
+  lxc network set "${brName}" ipv4.address none
+  lxc network set "${brName}" ipv6.dhcp false
+  lxc network set "${brName}" ipv6.address none
+  lxc network set "${brName}" ipv6.dhcp.stateful false
+
+  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc config device add "${ctPrefix}A" eth0 nic \
+    nictype=nic \
+    name=eth0 \
+    nictype=bridged \
+    parent="${brName}" \
+    security.ipv4_filtering=true \
+    security.ipv6_filtering=true
+  lxc start "${ctPrefix}A"
+  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+
+  if [ "$firewallDriver" = "xtables" ]; then
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
+  else
+    for table in "in" "fwd"
+    do
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
+    done
+  fi
+
+  # Delete container and check filters are cleaned up.
+  lxc delete -f "${ctPrefix}A"
+  if [ "$firewallDriver" = "xtables" ]; then
+    if ebtables --concurrent -L --Lmac2 --Lx | grep -e "${ctAHost}" ; then
+        echo "Filters still applied as part of IP filter in ebtables"
+        false
+    fi
+  else
+    for table in "in" "fwd"
+    do
+      if nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "${ctAHost}"; then
+        echo "Filters still applied as part of IP filtering in nftables (${table}.${ctPrefix}A.eth0)"
+        false
+      fi
+    done
+  fi
 
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)

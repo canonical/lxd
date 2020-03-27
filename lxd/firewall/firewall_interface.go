@@ -16,9 +16,9 @@ type Firewall interface {
 	NetworkSetupDHCPv4Checksum(networkName string) error
 	NetworkClear(networkName string, ipVersion uint) error
 
-	InstanceSetupBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error
-	InstanceClearBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error
+	InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error
+	InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error
 
-	InstanceSetupProxyNAT(projectName, instanceName, deviceName string, listen, connect *deviceConfig.ProxyAddress) error
-	InstanceClearProxyNAT(projectName, instanceName, deviceName string) error
+	InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, listen *deviceConfig.ProxyAddress, connect *deviceConfig.ProxyAddress) error
+	InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error
 }

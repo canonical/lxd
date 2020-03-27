@@ -250,12 +250,12 @@ func (d Xtables) NetworkClear(networkName string, ipVersion uint) error {
 }
 
 //instanceDeviceIPTablesComment returns the iptables comment that is added to each instance device related rule.
-func (d Xtables) instanceDeviceIPTablesComment(projectName, instanceName, deviceName string) string {
+func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName string, deviceName string) string {
 	return fmt.Sprintf("LXD container %s (%s)", project.Instance(projectName, instanceName), deviceName)
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Xtables) InstanceSetupBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
+func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
@@ -287,7 +287,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName, instanceName, deviceName
 }
 
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
-func (d Xtables) InstanceClearBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
+func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	// Get a current list of rules active on the host.
@@ -340,7 +340,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName, instanceName, deviceName
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d Xtables) InstanceSetupProxyNAT(projectName, instanceName, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
+func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, listen *deviceConfig.ProxyAddress, connect *deviceConfig.ProxyAddress) error {
 	connectAddrCount := len(connect.Addr)
 	if connectAddrCount < 1 {
 		return fmt.Errorf("At least 1 connect address must be supplied")
@@ -404,7 +404,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName, instanceName, deviceName str
 }
 
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
-func (d Xtables) InstanceClearProxyNAT(projectName, instanceName, deviceName string) error {
+func (d Xtables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 	errs := []error{}
 	err := d.iptablesClear(4, comment, "nat")
@@ -425,7 +425,7 @@ func (d Xtables) InstanceClearProxyNAT(projectName, instanceName, deviceName str
 }
 
 // generateFilterEbtablesRules returns a customised set of ebtables filter rules based on the device.
-func (d Xtables) generateFilterEbtablesRules(hostName, hwAddr string, IPv4, IPv6 net.IP) [][]string {
+func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) [][]string {
 	// MAC source filtering rules. Blocks any packet coming from instance with an incorrect Ethernet source MAC.
 	// This is required for IP filtering too.
 	rules := [][]string{
@@ -434,37 +434,56 @@ func (d Xtables) generateFilterEbtablesRules(hostName, hwAddr string, IPv4, IPv6
 	}
 
 	if IPv4 != nil {
-		rules = append(rules,
-			// Prevent ARP MAC spoofing (prevents the instance poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
-			// Prevent ARP IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
-			// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", hwAddr, "-i", hostName, "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
-			// IP source filtering rules. Blocks any packet coming from instance with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
-		)
+		if IPv4.String() == FilterIPv4All {
+			rules = append(rules,
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "-j", "DROP"},
+			)
+		} else {
+			rules = append(rules,
+				// Prevent ARP MAC spoofing (prevents the instance poisoning the ARP cache of its neighbours with a MAC address that isn't its own).
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-mac-src", "!", hwAddr, "-j", "DROP"},
+				// Prevent ARP IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "ARP", "-i", hostName, "--arp-ip-src", "!", IPv4.String(), "-j", "DROP"},
+				// Allow DHCPv4 to the host only. This must come before the IP source filtering rules below.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-s", hwAddr, "-i", hostName, "--ip-src", "0.0.0.0", "--ip-dst", "255.255.255.255", "--ip-proto", "udp", "--ip-dport", "67", "-j", "ACCEPT"},
+				// IP source filtering rules. Blocks any packet coming from instance with an incorrect IP source address.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv4", "-i", hostName, "--ip-src", "!", IPv4.String(), "-j", "DROP"},
+			)
+		}
 	}
 
 	if IPv6 != nil {
-		rules = append(rules,
-			// Allow DHCPv6 and Router Solicitation to the host only. This must come before the IP source filtering rules below.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", hwAddr, "-i", hostName, "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::1:2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "udp", "--ip6-dport", "547", "-j", "ACCEPT"},
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", hwAddr, "-i", hostName, "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-solicitation", "-j", "ACCEPT"},
-			// IP source filtering rules. Blocks any packet coming from instance with an incorrect IP source address.
-			[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
-			[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
-		)
+		if IPv6.String() == FilterIPv6All {
+			rules = append(rules,
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "-j", "DROP"},
+			)
+		} else {
+			rules = append(rules,
+				// Allow DHCPv6 and Router Solicitation to the host only. This must come before the IP source filtering rules below.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", hwAddr, "-i", hostName, "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::1:2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "udp", "--ip6-dport", "547", "-j", "ACCEPT"},
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-s", hwAddr, "-i", hostName, "--ip6-src", "fe80::/ffc0::", "--ip6-dst", "ff02::2/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-solicitation", "-j", "ACCEPT"},
+				// IP source filtering rules. Blocks any packet coming from instance with an incorrect IP source address.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "--ip6-src", "!", fmt.Sprintf("%s/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", IPv6.String()), "-j", "DROP"},
+				// Block any IPv6 router advertisement packets from instance.
+				[]string{"ebtables", "-t", "filter", "-A", "INPUT", "-p", "IPv6", "-i", hostName, "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-advertisement", "-j", "DROP"},
+				[]string{"ebtables", "-t", "filter", "-A", "FORWARD", "-p", "IPv6", "-i", hostName, "--ip6-proto", "ipv6-icmp", "--ip6-icmp-type", "router-advertisement", "-j", "DROP"},
+			)
+		}
 	}
 
 	return rules
 }
 
 // generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (d Xtables) generateFilterIptablesRules(projectName, instanceName, parentName, hostName, hwAddr string, _ net.IP, IPv6 net.IP) (rules [][]string, err error) {
+func (d Xtables) generateFilterIptablesRules(projectName string, instanceName string, parentName string, hostName string, hwAddr string, _ net.IP, IPv6 net.IP) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
 		return
@@ -525,7 +544,7 @@ func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 }
 
 // iptablesAdd adds an iptables rule.
-func (d Xtables) iptablesConfig(ipVersion uint, comment, table, method, chain string, rule ...string) error {
+func (d Xtables) iptablesConfig(ipVersion uint, comment string, table string, method string, chain string, rule ...string) error {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
@@ -564,12 +583,12 @@ func (d Xtables) iptablesConfig(ipVersion uint, comment, table, method, chain st
 }
 
 // iptablesAppend appends an iptables rule.
-func (d Xtables) iptablesAppend(ipVersion uint, comment, table, chain string, rule ...string) error {
+func (d Xtables) iptablesAppend(ipVersion uint, comment string, table string, chain string, rule ...string) error {
 	return d.iptablesConfig(ipVersion, comment, table, "-A", chain, rule...)
 }
 
 // iptablesPrepend prepends an iptables rule.
-func (d Xtables) iptablesPrepend(ipVersion uint, comment, table, chain string, rule ...string) error {
+func (d Xtables) iptablesPrepend(ipVersion uint, comment string, table string, chain string, rule ...string) error {
 	return d.iptablesConfig(ipVersion, comment, table, "-I", chain, rule...)
 }
 

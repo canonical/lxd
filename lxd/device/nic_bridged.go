@@ -21,11 +21,13 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
+	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -475,8 +477,19 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 		IPv6 = net.ParseIP(m["ipv6.address"])
 	}
 
+	// If no static IPv4 assigned, try removing the filter all rule in case it was setup.
+	if IPv4 == nil {
+		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
+	}
+
+	// If no static IPv6 assigned, try removing the filter all rule in case it was setup.
+	if IPv6 == nil {
+		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
+	}
+
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
+	logger.Debug("Clearing instance firewall static filters", log.Ctx{"project": d.inst.Project(), "instance": d.inst.Name(), "parent": m["parent"], "dev": d.name, "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4, "ipv6": IPv6})
 	err := d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4, IPv6)
 	if err != nil {
 		logger.Errorf("Failed to remove static IP network filters for %q: %v", d.name, err)
@@ -494,6 +507,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 		return
 	}
 
+	logger.Debug("Clearing instance firewall dynamic filters", log.Ctx{"project": d.inst.Project(), "instance": d.inst.Name(), "parent": m["parent"], "dev": d.name, "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Alloc.IP, IPv6Alloc.IP)
 	if err != nil {
 		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
@@ -565,13 +579,14 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}()
 
-	// Indicate to the firewall package which IP family of filtering we want enabled by passing non-nil IPs.
-	if !shared.IsTrue(d.config["security.ipv4_filtering"]) {
-		IPv4 = nil
+	// If no allocated IPv4 address for filtering and filtering enabled, then block all IPv4 traffic.
+	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
+		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
 	}
 
-	if !shared.IsTrue(d.config["security.ipv6_filtering"]) {
-		IPv6 = nil
+	// If no allocated IPv6 address for filtering and filtering enabled, then block all IPv6 traffic.
+	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil {
+		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
 	}
 
 	return d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6)
@@ -604,16 +619,6 @@ func (d *nicBridged) allocateFilterIPs(n *network.Network) (net.IP, net.IP, erro
 	// Check the conditions required to dynamically allocated IPs.
 	canIPv4Allocate := netConfig["ipv4.address"] != "" && netConfig["ipv4.address"] != "none" && n.HasDHCPv4()
 	canIPv6Allocate := netConfig["ipv6.address"] != "" && netConfig["ipv6.address"] != "none" && n.HasDHCPv6()
-
-	// Check DHCPv4 is enabled on parent if dynamic IPv4 allocation is needed.
-	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && !canIPv4Allocate {
-		return nil, nil, fmt.Errorf("Cannot use security.ipv4_filtering as DHCPv4 is disabled or no IPv4 on parent %s and no static IPv4 address set", d.config["parent"])
-	}
-
-	// Check DHCPv6 is enabled on parent if dynamic IPv6 allocation is needed.
-	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && !canIPv6Allocate {
-		return nil, nil, fmt.Errorf("Cannot use security.ipv6_filtering as DHCPv6 is disabled or no IPv6 on parent %s and no static IPv6 address set", d.config["parent"])
-	}
 
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
