@@ -372,6 +372,7 @@ func init() {
 				}
 			}
 		}
+		controllers.Close()
 	}
 
 	// Check for additional legacy cgroup features
