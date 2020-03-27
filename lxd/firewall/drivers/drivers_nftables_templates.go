@@ -82,6 +82,10 @@ chain in{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .ipv4FilterAll -}}
+	iifname "{{.hostName}}" ether type arp drop
+	iifname "{{.hostName}}" ether type ip drop
+	{{- end}}
 	{{if .ipv4Addr -}}
 	iifname "{{.hostName}}" ether type arp arp saddr ip != {{.ipv4Addr}} drop
 	iifname "{{.hostName}}" ether type ip ip saddr 0.0.0.0 ip daddr 255.255.255.255 udp dport 67 accept
@@ -104,6 +108,10 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .ipv4FilterAll -}}
+	iifname "{{.hostName}}" ether type arp drop
+	iifname "{{.hostName}}" ether type ip drop
+	{{- end}}
 	{{if .ipv4Addr -}}
 	iifname "{{.hostName}}" ether type arp arp saddr ip != {{.ipv4Addr}} drop
 	iifname "{{.hostName}}" ether type ip ip saddr != {{.ipv4Addr}} drop
