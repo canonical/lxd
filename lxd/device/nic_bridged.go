@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -476,6 +477,11 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 		IPv6 = net.ParseIP(m["ipv6.address"])
 	}
 
+	// If no static IPv4 assigned, try removing the filter all rule in case it was setup.
+	if IPv4 == nil {
+		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
+	}
+
 	// If no static IPv6 assigned, try removing the filter all rule in case it was setup.
 	if IPv6 == nil {
 		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
@@ -483,6 +489,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
+	logger.Debug("Clearing instance firewall static filters", log.Ctx{"project": d.inst.Project(), "instance": d.inst.Name(), "parent": m["parent"], "dev": d.name, "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4, "ipv6": IPv6})
 	err := d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4, IPv6)
 	if err != nil {
 		logger.Errorf("Failed to remove static IP network filters for %q: %v", d.name, err)
@@ -500,6 +507,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 		return
 	}
 
+	logger.Debug("Clearing instance firewall dynamic filters", log.Ctx{"project": d.inst.Project(), "instance": d.inst.Name(), "parent": m["parent"], "dev": d.name, "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Alloc.IP, IPv6Alloc.IP)
 	if err != nil {
 		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
@@ -571,9 +579,9 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}()
 
-	// Indicate to the firewall package which IP family of filtering we want enabled by passing non-nil IPs.
-	if !shared.IsTrue(d.config["security.ipv4_filtering"]) {
-		IPv4 = nil
+	// If no allocated IPv4 address for filtering and filtering enabled, then block all IPv4 traffic.
+	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
+		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
 	}
 
 	// If no allocated IPv6 address for filtering and filtering enabled, then block all IPv6 traffic.
