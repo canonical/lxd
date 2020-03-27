@@ -972,3 +972,6 @@ In this case, it will ask for the password.
 
 ## snapshot\_disk\_usage
 This adds a new `size` field to the output of `/1.0/instances/<name>/snapshots/<snapshot>` which represents the disk usage of the snapshot.
+
+## clustering\_edit\_roles
+This adds a writable endpoint for cluster members, allowing the editing of their roles.
