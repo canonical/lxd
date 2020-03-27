@@ -270,7 +270,7 @@ func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName stri
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Nftables) InstanceSetupBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
+func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	mac, err := net.ParseMAC(hwAddr)
@@ -290,12 +290,20 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName, instanceName, deviceNam
 	}
 
 	if IPv4 != nil {
-		tplFields["ipv4Addr"] = IPv4.String()
+		if IPv4.String() == FilterIPv4All {
+			tplFields["ipv4FilterAll"] = true
+		} else {
+			tplFields["ipv4Addr"] = IPv4.String()
+		}
 	}
 
 	if IPv6 != nil {
-		tplFields["ipv6Addr"] = IPv6.String()
-		tplFields["ipv6AddrHex"] = fmt.Sprintf("0x%s", hex.EncodeToString(IPv6))
+		if IPv6.String() == FilterIPv6All {
+			tplFields["ipv6FilterAll"] = true
+		} else {
+			tplFields["ipv6Addr"] = IPv6.String()
+			tplFields["ipv6AddrHex"] = fmt.Sprintf("0x%s", hex.EncodeToString(IPv6))
+		}
 	}
 
 	err = d.applyNftConfig(nftablesInstanceBridgeFilter, tplFields)
@@ -307,7 +315,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName, instanceName, deviceNam
 }
 
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
-func (d Nftables) InstanceClearBridgeFilter(projectName, instanceName, deviceName, parentName, hostName, hwAddr string, IPv4, IPv6 net.IP) error {
+func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, _ net.IP, _ net.IP) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	// Remove chains created by bridge filter rules.
@@ -320,7 +328,7 @@ func (d Nftables) InstanceClearBridgeFilter(projectName, instanceName, deviceNam
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d Nftables) InstanceSetupProxyNAT(projectName, instanceName, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
+func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
 	connectAddrCount := len(connect.Addr)
 	if connectAddrCount < 1 {
 		return fmt.Errorf("At least 1 connect address must be supplied")
@@ -389,7 +397,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName, instanceName, deviceName st
 }
 
 // InstanceClearProxyNAT remove DNAT rules for proxy devices.
-func (d Nftables) InstanceClearProxyNAT(projectName, instanceName, deviceName string) error {
+func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "out", "prert")
 	if err != nil {

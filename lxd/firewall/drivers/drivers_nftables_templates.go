@@ -75,23 +75,31 @@ chain out{{.chainSeparator}}{{.deviceLabel}}{
 // the LXD host we need to allow DHCPv4 inbound and for IPv6 we need to allow IPv6 Router Solicitation and DHPCv6.
 // Nftables doesn't support the equivalent of "arp saddr" and "arp saddr ether" at this time so in order to filter
 // NDP advertisements that come from the genuine Ethernet MAC address but have a spoofed NDP source MAC/IP adddress
-// we need to use manual header offset extraction.
+// we need to use manual header offset extraction. This also drops IPv6 router advertisements from instance.
 var nftablesInstanceBridgeFilter = template.Must(template.New("nftablesInstanceBridgeFilter").Parse(`
 chain in{{.chainSeparator}}{{.deviceLabel}} {
 	type filter hook input priority -200; policy accept;
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .ipv4FilterAll -}}
+	iifname "{{.hostName}}" ether type arp drop
+	iifname "{{.hostName}}" ether type ip drop
+	{{- end}}
 	{{if .ipv4Addr -}}
 	iifname "{{.hostName}}" ether type arp arp saddr ip != {{.ipv4Addr}} drop
 	iifname "{{.hostName}}" ether type ip ip saddr 0.0.0.0 ip daddr 255.255.255.255 udp dport 67 accept
 	iifname "{{.hostName}}" ether type ip ip saddr != {{.ipv4Addr}} drop
+	{{- end}}
+	{{if .ipv6FilterAll -}}
+	iifname "{{.hostName}}" ether type ip6 drop
 	{{- end}}
 	{{if .ipv6Addr -}}
 	iifname "{{.hostName}}" ether type ip6 ip6 saddr fe80::/10 ip6 daddr ff02::1:2 udp dport 547 accept
 	iifname "{{.hostName}}" ether type ip6 ip6 saddr fe80::/10 ip6 daddr ff02::2 icmpv6 type 133 accept
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,128 != {{.ipv6AddrHex}} drop
 	iifname "{{.hostName}}" ether type ip6 ip6 saddr != {{.ipv6Addr}} drop
+	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
 	{{- end}}
 }
 
@@ -100,13 +108,21 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .ipv4FilterAll -}}
+	iifname "{{.hostName}}" ether type arp drop
+	iifname "{{.hostName}}" ether type ip drop
+	{{- end}}
 	{{if .ipv4Addr -}}
 	iifname "{{.hostName}}" ether type arp arp saddr ip != {{.ipv4Addr}} drop
 	iifname "{{.hostName}}" ether type ip ip saddr != {{.ipv4Addr}} drop
 	{{- end}}
+	{{if .ipv6FilterAll -}}
+	iifname "{{.hostName}}" ether type ip6 drop
+	{{- end}}
 	{{if .ipv6Addr -}}
 	iifname "{{.hostName}}" ether type ip6 ip6 saddr != {{.ipv6Addr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,128 != {{.ipv6AddrHex}} drop
+	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
 	{{- end}}
 }
 `))
