@@ -290,7 +290,11 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 	}
 
 	if IPv4 != nil {
-		tplFields["ipv4Addr"] = IPv4.String()
+		if IPv4.String() == FilterIPv4All {
+			tplFields["ipv4FilterAll"] = true
+		} else {
+			tplFields["ipv4Addr"] = IPv4.String()
+		}
 	}
 
 	if IPv6 != nil {
