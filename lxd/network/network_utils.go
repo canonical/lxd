@@ -239,12 +239,22 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	for _, inst := range insts {
 		// Go through all its devices (including profiles
 		for k, d := range inst.ExpandedDevices() {
-			// Skip uninteresting entries
-			if d["type"] != "nic" || d.NICType() != "bridged" || !shared.StringInSlice(d["parent"], networks) {
+			// Skip uninteresting entries.
+			if d["type"] != "nic" || d.NICType() != "bridged" {
 				continue
 			}
 
-			// Fill in the hwaddr from volatile
+			// Temporarily populate parent from network setting if used.
+			if d["network"] != "" {
+				d["parent"] = d["network"]
+			}
+
+			// Skip devices not connected to managed networks.
+			if !shared.StringInSlice(d["parent"], networks) {
+				continue
+			}
+
+			// Fill in the hwaddr from volatile.
 			d, err = inst.FillNetworkDevice(k, d)
 			if err != nil {
 				continue
