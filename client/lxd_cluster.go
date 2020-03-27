@@ -108,7 +108,7 @@ func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string,
 	return &member, etag, nil
 }
 
-// UpdateClusterMember returns information about the given member
+// UpdateClusterMember updates information about the given member
 func (r *ProtocolLXD) UpdateClusterMember(name string, member api.ClusterMemberPut, ETag string) error {
 	if !r.HasExtension("clustering_edit_roles") {
 		return fmt.Errorf("The server is missing the required \"clustering_edit_roles\" API extension")
