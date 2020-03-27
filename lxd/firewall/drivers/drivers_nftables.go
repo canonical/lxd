@@ -294,8 +294,12 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 	}
 
 	if IPv6 != nil {
-		tplFields["ipv6Addr"] = IPv6.String()
-		tplFields["ipv6AddrHex"] = fmt.Sprintf("0x%s", hex.EncodeToString(IPv6))
+		if IPv6.String() == FilterIPv6All {
+			tplFields["ipv6FilterAll"] = true
+		} else {
+			tplFields["ipv6Addr"] = IPv6.String()
+			tplFields["ipv6AddrHex"] = fmt.Sprintf("0x%s", hex.EncodeToString(IPv6))
+		}
 	}
 
 	err = d.applyNftConfig(nftablesInstanceBridgeFilter, tplFields)
