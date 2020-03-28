@@ -40,6 +40,7 @@ package main
 
 // External functions
 extern void checkfeature();
+extern void forkexec();
 extern void forkfile();
 extern void forksyscall();
 extern void forkmount();
@@ -302,6 +303,8 @@ __attribute__((constructor)) void init(void) {
 	}
 
 	// Intercepts some subcommands
+	if (strcmp(cmdline_cur, "forkexec") == 0)
+		forkexec();
 	if (strcmp(cmdline_cur, "forkfile") == 0)
 		forkfile();
 	else if (strcmp(cmdline_cur, "forksyscall") == 0)
