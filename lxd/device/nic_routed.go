@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -283,7 +284,7 @@ func (d *nicRouted) postStart() error {
 	if v["host_name"] != "" {
 		// Attempt to disable IPv6 router advertisement acceptance.
 		err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", v["host_name"]), "0")
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 
