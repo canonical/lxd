@@ -288,6 +288,12 @@ func (d *nicRouted) postStart() error {
 			return err
 		}
 
+		// Prevent source address spoofing by requiring a return path.
+		err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/rp_filter", v["host_name"]), "1")
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
 		if d.config["ipv4.address"] != "" {
 			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", v["host_name"])
 			if err != nil {
