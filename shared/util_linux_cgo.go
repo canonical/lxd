@@ -119,6 +119,22 @@ again:
 
 	return ret;
 }
+
+static int read_pid(int fd)
+{
+	ssize_t ret;
+	pid_t n = -1;
+
+again:
+	ret = read(fd, &n, sizeof(n));
+	if (ret < 0 && errno == EINTR)
+		goto again;
+
+	if (ret < 0)
+		return -1;
+
+	return n;
+}
 */
 import "C"
 
@@ -438,4 +454,8 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 	}()
 
 	return ch
+}
+
+func ReadPid(r *os.File) int {
+	return int(C.read_pid(C.int(r.Fd())))
 }
