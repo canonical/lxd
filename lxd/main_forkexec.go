@@ -22,6 +22,7 @@ import (
 #include <unistd.h>
 #include <limits.h>
 
+#include "include/macro.h"
 #include "include/memory_utils.h"
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
@@ -63,52 +64,40 @@ again:
 	return status;
 }
 
-static char *must_copy_string(const char *entry)
-{
-	char *ret;
-
-	if (!entry)
-		return NULL;
-
-	do {
-		ret = strdup(entry);
-	} while (!ret);
-
-	return ret;
-}
-
-static void *must_realloc(void *orig, size_t sz)
-{
-	void *ret;
-
-	do {
-		ret = realloc(orig, sz);
-	} while (!ret);
-
-	return ret;
-}
-
 static int append_null_to_list(void ***list)
 {
 	int newentry = 0;
+	void **new_list;
 
 	if (*list)
 		for (; (*list)[newentry]; newentry++)
 			;
 
-	*list = must_realloc(*list, (newentry + 2) * sizeof(void **));
+	new_list = realloc(*list, (newentry + 2) * sizeof(void **));
+	if (!new_list)
+		return ret_errno(ENOMEM);
+
+	*list = new_list;
 	(*list)[newentry + 1] = NULL;
 	return newentry;
 }
 
-static void must_append_string(char ***list, char *entry)
+static int push_vargs(char ***list, char *entry)
 {
+	__do_free char *copy = NULL;
 	int newentry;
-	char *copy;
+
+	copy = strdup(entry);
+	if (!copy)
+		return ret_errno(ENOMEM);
 
 	newentry = append_null_to_list((void ***)list);
-	copy = must_copy_string(entry);
-	(*list)[newentry] = copy;
+	if (newentry < 0)
+		return newentry;
+
+	(*list)[newentry] = move_ptr(copy);
+
+	return 0;
 }
 
 // We use a separate function because cleanup macros are called during stack
@@ -132,10 +121,8 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	uid_t uid;
 	gid_t gid;
 
-	if (geteuid() != 0) {
-		fprintf(stderr, "Error: forkexec requires root privileges\n");
-		return EXIT_FAILURE;
-	}
+	if (geteuid() != 0)
+		return log_error(EXIT_FAILURE, "Error: forkexec requires root privileges");
 
 	name = advance_arg(false);
 	if (name == NULL ||
@@ -167,19 +154,20 @@ __attribute__ ((noinline)) static int __forkexec(void)
 		if (!strcmp(section, "env")) {
 			if (!strncmp(arg, "HOME=", STRLITERALLEN("HOME=")))
 				attach_options.initial_cwd = arg + STRLITERALLEN("HOME=");
-			must_append_string(&envvp, arg);
+			ret = push_vargs(&envvp, arg);
+			if (ret < 0)
+				return log_error(ret, "Failed to add %s to env array", arg);
 		} else if (!strcmp(section, "cmd")) {
-			must_append_string(&argvp, arg);
+			ret = push_vargs(&argvp, arg);
+			if (ret < 0)
+				return log_error(ret, "Failed to add %s to arg array", arg);
 		} else {
-			fprintf(stderr, "Invalid exec section %s\n", section);
-			return EXIT_FAILURE;
+			return log_error(EXIT_FAILURE, "Invalid exec section %s", section);
 		}
 	}
 
-	if (!argvp || !*argvp) {
-		fprintf(stderr, "No command specified\n");
-		return EXIT_FAILURE;
-	}
+	if (!argvp || !*argvp)
+		return log_error(EXIT_FAILURE, "No command specified");
 
 	c = lxc_container_new(name, lxcpath);
 	if (!c)
@@ -214,7 +202,7 @@ __attribute__ ((noinline)) static int __forkexec(void)
 
 	ret = wait_for_pid_status_nointr(pid);
 	if (ret < 0)
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Failed to wait for child process %d", pid);
 
 	if (WIFEXITED(ret))
 		return WEXITSTATUS(ret);

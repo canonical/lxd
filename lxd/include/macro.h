@@ -255,4 +255,17 @@ enum {
 		__internal_fd__;            \
 	})
 
+#define ret_errno(__errno__)         \
+	({                           \
+		errno = (__errno__); \
+		-(__errno__);        \
+	})
+
+#define log_error(__ret__, format, ...)                       \
+	({                                                    \
+		typeof(__ret__) __internal_ret__ = (__ret__); \
+		fprintf(stderr, format "\n", ##__VA_ARGS__);  \
+		__internal_ret__;                             \
+	})
+
 #endif /* __LXC_MACRO_H */
