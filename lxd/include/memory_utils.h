@@ -51,4 +51,15 @@ static inline void free_disarm_function(void *ptr)
 }
 #define __do_free call_cleaner(free_disarm)
 
+static inline void free_string_list(char **list)
+{
+	if (list) {
+		for (int i = 0; list[i]; i++)
+			free(list[i]);
+		free_disarm(list);
+	}
+}
+define_cleanup_function(char **, free_string_list);
+#define __do_free_string_list call_cleaner(free_string_list)
+
 #endif /* __LXC_MEMORY_UTILS_H */
