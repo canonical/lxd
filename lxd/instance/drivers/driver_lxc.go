@@ -5633,15 +5633,16 @@ func (c *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	}
 	wStatus.Close()
 
-	attachedPid := -1
-	if err := json.NewDecoder(rStatus).Decode(&attachedPid); err != nil {
-		logger.Errorf("Failed to retrieve PID of executing child process: %s", err)
-		return nil, err
+	attachedPid := shared.ReadPid(rStatus)
+	if attachedPid <= 0 {
+		logger.Errorf("Failed to retrieve PID of executing child process")
+		return nil, fmt.Errorf("Failed to retrieve PID of executing child process")
 	}
+	logger.Debugf("Retrieved PID %d of executing child process", attachedPid)
 
 	instCmd := &lxcCmd{
 		cmd:              &cmd,
-		attachedChildPid: attachedPid,
+		attachedChildPid: int(attachedPid),
 	}
 
 	return instCmd, nil
