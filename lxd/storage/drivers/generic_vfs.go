@@ -486,7 +486,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					}
 
 					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
-					err = tarWriter.WriteFile(name, srcPath, fi)
+					err = tarWriter.WriteFile(name, srcPath, fi, false)
 					if err != nil {
 						return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
 					}
@@ -524,7 +524,11 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					}
 
 					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
-					err = tarWriter.WriteFile(name, srcPath, fi)
+
+					// Write the file to the tarball with ignoreGrowth enabled so that if the
+					// source file grows during copy we only copy up to the original size.
+					// This means that the file in the tarball may be inconsistent.
+					err = tarWriter.WriteFile(name, srcPath, fi, true)
 					if err != nil {
 						return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
 					}
