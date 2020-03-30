@@ -176,7 +176,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		if vol.contentType == ContentTypeBlock {
-			// Re-create the readonly snapshot, post-filling.
+			// Re-create the FS config volume's readonly snapshot now that the filler function has run and unpacked into both config and block volumes.
 			fsVol := NewVolume(d, d.name, vol.volType, ContentTypeFS, vol.name, vol.config, vol.poolConfig)
 
 			_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s@readonly", d.dataset(fsVol, false)))
