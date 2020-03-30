@@ -418,7 +418,7 @@ func (d Xtables) InstanceClearProxyNAT(projectName string, instanceName string, 
 	}
 
 	if len(errs) > 0 {
-		return err
+		return fmt.Errorf("Failed to remove proxy NAT rules for %q: %v", deviceName, errs)
 	}
 
 	return nil
