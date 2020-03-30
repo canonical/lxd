@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -294,6 +296,12 @@ func (d *nicRouted) postStart() error {
 			return err
 		}
 
+		// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
+		err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, v["host_name"])
+		if err != nil {
+			return errors.Wrapf(err, "Error setting up reverse path filter")
+		}
+
 		if d.config["ipv4.address"] != "" {
 			_, err := shared.RunCommand("ip", "-4", "addr", "add", fmt.Sprintf("%s/32", d.ipv4HostAddress()), "dev", v["host_name"])
 			if err != nil {
@@ -330,13 +338,25 @@ func (d *nicRouted) postStop() error {
 
 	v := d.volatileGet()
 
+	errs := []error{}
+
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
 		parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 		err := networkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+
+	// Remove reverse path filters.
+	err := d.state.Firewall.InstanceClearRPFilter(d.inst.Project(), d.inst.Name(), d.name)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("%v", errs)
 	}
 
 	return nil
