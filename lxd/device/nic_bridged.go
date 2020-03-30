@@ -213,6 +213,13 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address)
+	// which isn't needed because the host-side interface is connected to a bridge.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", saveData["host_name"]), "1")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
 	// Apply and host-side network filters (uses enriched host_name from networkSetupHostVethDevice).
 	err = d.setupHostFilters(nil)
 	if err != nil {
