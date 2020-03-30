@@ -10,6 +10,7 @@ import (
 type Firewall interface {
 	String() string
 	Compat() (bool, bool)
+
 	NetworkSetupForwardingPolicy(networkName string, ipVersion uint, allow bool) error
 	NetworkSetupOutboundNAT(networkName string, subnet *net.IPNet, srcIP net.IP, append bool) error
 	NetworkSetupDHCPDNSAccess(networkName string, ipVersion uint) error
@@ -21,4 +22,7 @@ type Firewall interface {
 
 	InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, listen *deviceConfig.ProxyAddress, connect *deviceConfig.ProxyAddress) error
 	InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error
+
+	InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error
+	InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error
 }

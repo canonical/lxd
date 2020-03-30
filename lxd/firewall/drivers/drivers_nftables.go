@@ -471,3 +471,41 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 
 	return nil
 }
+
+// InstanceSetupRPFilter activates reverse path filtering for the specified instance device on the host interface.
+func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error {
+	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
+	tplFields := map[string]interface{}{
+		"namespace":      nftablesNamespace,
+		"chainSeparator": nftablesChainSeparator,
+		"deviceLabel":    deviceLabel,
+		"hostName":       hostName,
+	}
+
+	// IPv4 filter.
+	tplFields["family"] = "ip"
+	err := d.applyNftConfig(nftablesInstanceRPFilter, tplFields)
+	if err != nil {
+		return errors.Wrapf(err, "Failed adding reverse path filter rules for instance device %q (%s)", deviceLabel, tplFields["family"])
+	}
+
+	// IPv46filter.
+	tplFields["family"] = "ip6"
+	err = d.applyNftConfig(nftablesInstanceRPFilter, tplFields)
+	if err != nil {
+		return errors.Wrapf(err, "Failed adding reverse path filter rules for instance device %q (%s)", deviceLabel, tplFields["family"])
+	}
+
+	return nil
+}
+
+// InstanceClearRPFilter removes reverse path filtering for the specified instance device on the host interface.
+func (d Nftables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
+	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
+	err := d.removeChains([]string{"ip", "ip6"}, deviceLabel, "prert")
+	if err != nil {
+		return errors.Wrapf(err, "Failed clearing reverse path filter rules for instance device %q", deviceLabel)
+	}
+
+	return nil
+}

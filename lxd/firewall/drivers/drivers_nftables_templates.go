@@ -126,3 +126,11 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	{{- end}}
 }
 `))
+
+// nftablesInstanceRPFilter defines the rules to perform reverse path filtering.
+var nftablesInstanceRPFilter = template.Must(template.New("nftablesInstanceRPFilter").Parse(`
+chain prert{{.chainSeparator}}{{.deviceLabel}} {
+	type filter hook prerouting priority -300; policy accept;
+	iif "{{.hostName}}" fib saddr . iif oif missing drop
+}
+`))
