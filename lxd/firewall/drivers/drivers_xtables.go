@@ -544,7 +544,7 @@ func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 }
 
 // iptablesAdd adds an iptables rule.
-func (d Xtables) iptablesConfig(ipVersion uint, comment string, table string, method string, chain string, rule ...string) error {
+func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, method string, chain string, rule ...string) error {
 	var cmd string
 	if ipVersion == 4 {
 		cmd = "iptables"
@@ -584,12 +584,12 @@ func (d Xtables) iptablesConfig(ipVersion uint, comment string, table string, me
 
 // iptablesAppend appends an iptables rule.
 func (d Xtables) iptablesAppend(ipVersion uint, comment string, table string, chain string, rule ...string) error {
-	return d.iptablesConfig(ipVersion, comment, table, "-A", chain, rule...)
+	return d.iptablesAdd(ipVersion, comment, table, "-A", chain, rule...)
 }
 
 // iptablesPrepend prepends an iptables rule.
 func (d Xtables) iptablesPrepend(ipVersion uint, comment string, table string, chain string, rule ...string) error {
-	return d.iptablesConfig(ipVersion, comment, table, "-I", chain, rule...)
+	return d.iptablesAdd(ipVersion, comment, table, "-I", chain, rule...)
 }
 
 // iptablesClear clears iptables rules matching the supplied comment in the specified tables.
