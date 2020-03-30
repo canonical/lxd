@@ -130,7 +130,7 @@ func containerPost(d *Daemon, r *http.Request) response.Response {
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
 		// Handle requests targeted to a container on a different node.
-		resp, err := forwardedResponseIfContainerIsRemote(d, r, project, name, instanceType)
+		resp, err := forwardedResponseIfInstanceIsRemote(d, r, project, name, instanceType)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -454,7 +454,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c instance.Instance, proj
 
 		// Create the container mount point on the target node
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, projectName, newName, cert, instanceType)
+		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, newName, cert, instanceType)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
